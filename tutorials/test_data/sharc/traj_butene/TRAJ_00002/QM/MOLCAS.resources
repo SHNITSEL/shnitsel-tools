@@ -1,0 +1,6 @@
+molcas $MOLCAS/
+scratchdir /scratch/users/camuller/DB_butene_s0/traj_new//Singlet_1/TRAJ_00002//
+savedir /mnt/irisgpfs/users/camuller/04_cyanine-project/01_butene/namd_3Sing/geom_butene_s0/traj_new/Singlet_1/TRAJ_00002//restart
+memory 8000
+ncpu 1
+project MOLCAS

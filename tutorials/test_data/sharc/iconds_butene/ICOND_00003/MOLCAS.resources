@@ -1,0 +1,6 @@
+molcas $MOLCAS/
+scratchdir /scratch/users/camuller/DB_butene_s0/sharc/ICOND_00003//
+memory 8000
+ncpu 1
+project MOLCAS
+nooverlap

@@ -1,0 +1,15 @@
+basis cc-pVDZ
+ras2 2
+nactel 2
+inactive 15
+roots 3 
+
+no-douglas-kroll
+method CASSCF
+
+
+#     Infos:
+#     camuller@access1.aion-cluster.uni.lux
+#     Date: 2023-05-24 11:09:17.597609
+#     Current directory: /mnt/irisgpfs/users/camuller/04_cyanine-project/01_butene/namd_3Sing/geom_butene_s0
+
