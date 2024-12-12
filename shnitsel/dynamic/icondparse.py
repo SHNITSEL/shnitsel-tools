@@ -1,4 +1,4 @@
-from dboverview.parsecommon import (
+from shnitsel.dynamic.parsecommon import (
     get_dipoles_per_xyz, dip_sep, __atnum2symbol__, ConsistentValue,
     get_triangular
 )

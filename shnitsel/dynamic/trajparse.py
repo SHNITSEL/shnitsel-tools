@@ -1,4 +1,4 @@
-from dboverview.parsecommon import *
+from shnitsel.dynamic.parsecommon import *
 import numpy as np
 import xarray as xr
 from itertools import combinations

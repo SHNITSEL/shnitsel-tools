@@ -2,8 +2,8 @@ import logging, os, re, itertools
 import numpy as np
 import numpy.typing as npt
 #import scipy.stats as st
-from dboverview import trajparse, icondparse
-from dboverview import postprocess
+from shnitsel.dynamic import trajparse, icondparse
+from shnitsel.dynamic import postprocess
 #from dboverview import plotting
 ##from dboverview import parsecommon
 #import trajparse, icondparse, postprocess, plotting
