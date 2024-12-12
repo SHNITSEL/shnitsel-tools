@@ -1,0 +1,15 @@
+scipy==1.11.4
+matplotlib
+xarray
+rdkit
+jupyter
+h5netcdf
+numpy==1.26.2
+pandas==2.1.4
+h5netcdf==1.3.0
+scikit-learn==1.3.2
+seaborn==0.13.1
+jupyter==1.0.0
+py3dmol==2.0.4
+tqdm==4.66.2
+plotly==5.22.0
