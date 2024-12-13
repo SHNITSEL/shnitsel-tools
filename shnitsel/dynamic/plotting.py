@@ -1,7 +1,6 @@
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-import seaborn as sns
 
 from . import (
   postprocess,
@@ -118,6 +117,8 @@ def pca_scatter_plot():
     ...
 
 def timeplot(da, *, hue=None, time_axis='ts', delta_t=None, **kwargs):
+    import seaborn as sns
+    
     assert time_axis in {'ts', 'time'}
     xlabel = None
 
