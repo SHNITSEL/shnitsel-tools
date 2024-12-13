@@ -1,9 +1,16 @@
-from shnitsel.dynamic.parsecommon import *
 import numpy as np
 import xarray as xr
 from itertools import combinations
 import pandas as pd
 import logging, os, re, math
+
+from .parsecommon import (
+    get_dipoles_per_xyz,
+    dip_sep,
+    __atnum2symbol__,
+    ConsistentValue,
+    get_triangular
+)
 
 ##################################
 # Functions for reading TRAJ files
@@ -81,7 +88,6 @@ def parse_trajout_dat(f):
     state_settings += [0] * (3 - len(state_settings))
     nsinglets, ndoublets, ntriplets = state_settings
     nstates = nsinglets + 2 * ndoublets + 3 * ntriplets
-    print(nstates)
     logging.debug(f"nstates = {nstates}")
 
     # now we know the number of steps, we can initialize the data arrays:

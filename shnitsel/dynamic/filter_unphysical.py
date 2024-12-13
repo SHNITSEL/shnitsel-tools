@@ -9,9 +9,7 @@ import rdkit as rd
 from rdkit import Chem as rkc
 from rdkit.Chem import rdDetermineBonds, AllChem
 
-import postprocess as P
-import plotting
-import xrhelpers as xh
+from . import postprocess as P, xrhelpers as xh
 
 def is_c_h_bond(b):
     atnums = {b.GetBeginAtom().GetAtomicNum(), b.GetEndAtom().GetAtomicNum()}
@@ -66,3 +64,6 @@ def find_eccentric(atXYZ, maskfn=None):
     maskfn = maskfn or (lambda data: data.PC1**2 + data.PC2**2 > 1.5)
     mask = maskfn(noodle)
     return np.unique(noodle.sel(frame=mask).trajid)
+
+def exclude_involving_state(frames, state):
+    return exclude_trajs(frames, frames.trajid[frames.astate==3])

@@ -4,15 +4,16 @@ import numpy as np
 import xarray as xr
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+from mpl_toolkits.axes_grid1.axes_divider import make_axes_locatable
 
 import rdkit # type: ignore
 from rdkit.Chem import rdDetermineBonds, AllChem # type: ignore
 import PIL
 import io
-# from IPython.display import Image, SVG, display
 
-import postprocess as P
-import xrhelpers as xh
+from . import (
+  postprocess as P,
+  xrhelpers as xh)
 
 def figax(ax=None):
     """
@@ -59,8 +60,7 @@ def plot_noodleplot(noodle, hops=None, ax=None,
         ax.scatter(hops.isel(PC=0), hops.isel(PC=1), **hops_kws)
 
     # TODO facilitate custom colorbar
-    # TODO change default logic to use divider
-    fig.colorbar(cscale, ax=ax, label=colorbar_label, pad=0.001)
+    fig.colorbar(cscale, ax=ax, label=colorbar_label, pad=0.02)
 
     return ax
 
@@ -97,10 +97,14 @@ def plot_loadings(ax, loadings):
         a1, a2 = int(pcs['from']), int(pcs['to'])
         ax.text(pc1, pc2, f"{a1},{a2}")
 
-def show_atom_numbers(atXYZ):
+def xyz_to_mol(atXYZ, charge=0):
     mol = rdkit.Chem.rdmolfiles.MolFromXYZBlock(P.to_xyz(atXYZ))
-    rdkit.Chem.rdDetermineBonds.DetermineConnectivity(mol)
+    rdkit.Chem.rdDetermineBonds.DetermineBonds(mol, charge)
     AllChem.Compute2DCoords(mol)
+    return mol
+
+def show_atom_numbers(atXYZ):
+    mol = xyz_to_mol(atXYZ)
 
     for i, atom in enumerate(mol.GetAtoms()):
         atom.SetProp("atomLabel", str(atom.GetIdx()))

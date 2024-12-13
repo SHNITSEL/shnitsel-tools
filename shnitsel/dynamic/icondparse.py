@@ -1,7 +1,3 @@
-from shnitsel.dynamic.parsecommon import (
-    get_dipoles_per_xyz, dip_sep, __atnum2symbol__, ConsistentValue,
-    get_triangular
-)
 import numpy as np
 import pandas as pd
 import xarray as xr
@@ -10,7 +6,13 @@ from itertools import product, combinations
 from glob import iglob
 from typing import NamedTuple
 from tqdm.auto import tqdm
-
+from .parsecommon import (
+    get_dipoles_per_xyz,
+    dip_sep,
+    __atnum2symbol__,
+    ConsistentValue,
+    get_triangular
+)
 _re_grads = re.compile(
     '[(](?P<nstates>[0-9]+)x(?P<natoms>[0-9]+)x3'
 )

@@ -6,7 +6,7 @@ import scipy.stats as st
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.decomposition import PCA
 
-#import xrhelpers
+from . import xrhelpers
 
 def norm(da, dim='direction', keep_attrs=None):
     return xr.apply_ufunc(
@@ -115,12 +115,7 @@ def relativize(da: xr.DataArray, **sel):
     res.attrs = da.attrs
     return res
 
-def convert_energy(da: xr.DataArray, to: str):
-    conversions = dict(
-        hartree=1.0,
-        eV=27.211386245988,
-        keV=0.027211386245988
-    )
+def convert(da: xr.DataArray, to: str, quantity: str, conversions: dict):
     try:
         from_ = da.attrs['unit']
     except AttributeError:
@@ -132,18 +127,68 @@ def convert_energy(da: xr.DataArray, to: str):
         divisor = conversions[from_]
     except:
         targets = list(conversions.keys())
-        raise ValueError(f"Can't convert energy from {from_!r}, only from: {targets}")
+        raise ValueError(f"Can't convert {quantity} from {from_!r}, only from: {targets}")
 
     try:
         dividend = conversions[to]
     except KeyError:
         targets = list(conversions.keys())
-        raise ValueError(f"Can't convert energy to {to!r}, only to: {targets}")
+        raise ValueError(f"Can't convert {quantity} to {to!r}, only to: {targets}")
 
     with xr.set_options(keep_attrs=True):
         res = da * dividend / divisor
     res.attrs.update({'unit': to})
     return res
+
+class Converter:
+    def __init__(self, quantity, conversions):
+        self.quantity = quantity
+        self.conversions = conversions
+        self.targets = list(self.conversions.keys())
+
+
+    def __call__(self, da: xr.DataArray, to: str):
+        try:
+            from_ = da.attrs['unit']
+        except AttributeError:
+            raise TypeError("da should be a DataArray with a da.attr attribute.")
+        except KeyError:
+            raise KeyError("The 'unit' attribute of the DataArray must be set.")
+    
+        try:
+            divisor = self.conversions[from_]
+        except:
+            raise ValueError(f"Can't convert {self.quantity} from {from_!r}, only from: {self.targets}")
+    
+        try:
+            dividend = self.conversions[to]
+        except KeyError:
+            raise ValueError(f"Can't convert {self.quantity} to {to!r}, only to: {self.targets}")
+    
+        with xr.set_options(keep_attrs=True):
+            res = da * dividend / divisor
+        res.attrs.update({'unit': to})
+        return res
+
+convert_energy = Converter('energy', dict(
+  hartree=1.0,
+  au=1.0,
+  eV=27.211386245988,
+  keV=0.027211386245988
+))
+
+convert_dipoles = Converter('dipoles', dict(
+  au=1.0,
+  debye=1/0.3934303
+))
+
+# def convert_energy(da: xr.DataArray, to: str):
+#     conversions = dict(
+#         hartree=1.0,
+#         eV=27.211386245988,
+#         keV=0.027211386245988
+#     )
+#     return convert(da, to, quantity='energy', conversions=conversions)
 
 def changes(da):
     # TODO

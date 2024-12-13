@@ -1,41 +1,30 @@
+import numpy as np
+import matplotlib as mpl
+import matplotlib.pyplot as plt
 import seaborn as sns
 
-import dboverview.postprocess
-import dboverview.xrhelpers
-
-class Histogramable():
-    def plot_distribution(self):
-        ...
-
-class Heatmapable():
-    pass
-
-class PCAable():
-    pass
-
-class RMSDable():
-    pass
-
+from . import (
+  postprocess,
+  xrhelpers)
+from .postprocess import pca_for_plot
 
 def pca_line_plot(
-        pca_res,
-        hue,
-        shadow=None,
-        hue_label=None,
-        hue_cmap=None,
-        hue_qualitative=False,
-        shadow_labels: dict|None =None,
-        shadow_cmap=None,
-        snips=None
+  pca_res,
+  hue,
+  shadow=None,
+  hue_label=None,
+  hue_cmap=None,
+  hue_qualitative=False,
+  shadow_labels: dict|None =None,
+  shadow_cmap=None,
+  snips=None
 ):
-    import numpy as np
-    import matplotlib as mpl
-    import matplotlib.pyplot as plt
-    import matplotlib.patheffects as path_effects
-    from matplotlib.collections import LineCollection
-    from matplotlib.colors import BoundaryNorm, ListedColormap
-    from postprocess import pca_for_plot
-    import matplotlib.patches as mpatches
+    path_effects = mpl.patheffects
+    LineCollection = mpl.collections.LineCollection
+    BoundaryNorm = mpl.colors.BoundaryNorm
+    ListedColormap = mpl.colors.ListedColormap
+    mpatches = mpl.patches
+
 
     # DataArray.min() produces a DataArray, which range() doesn't like
     try:

@@ -1,8 +1,8 @@
 # pyright: basic
+import itertools, os
 import xarray as xr
 import pandas as pd
-import itertools
-import postprocess
+from . import postprocess
 
 def midx_combs(values: pd.core.indexes.base.Index|list, name: str|None =None):
     if name is None:
@@ -84,7 +84,23 @@ def _ts_to_time(data, delta_t=None, swap_index=True):
     )
 
 def get_frames(path, recode_state=False):
-    frames = xr.open_dataset(path).set_xindex(['trajid', 'ts']).set_xindex(['from', 'to'])
+    try:
+        frames = xr.open_dataset(path)
+    except ValueError as err:
+        if not os.path.exists(path):
+            raise FileNotFoundError
+        else:
+            raise err
+
+    tcoord = None
+    if 'time' in frames.coords:
+        tcoord = 'time'
+    elif 'ts' in frames.coords:
+        tcoord = 'ts'
+
+    if tcoord is not None:
+        frames = frames.set_xindex(['trajid', tcoord]).set_xindex(['from', 'to'])
+
     if recode_state:
         new_states = [f'$S_{i}$' for i, _ in enumerate(frames['state'])]
         frames = frames.assign_coords({

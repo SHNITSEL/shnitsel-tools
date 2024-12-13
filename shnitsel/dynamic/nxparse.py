@@ -3,10 +3,10 @@ import xarray as xr
 from itertools import combinations
 import pandas as pd
 import logging, os, re, math
-import xyzparse
 import glob
 import logging
 
+from . import xyzparse
 
 def parse_nx_log(f):
     completed = True
@@ -193,25 +193,31 @@ def read_trajs_list(path):
     return datasets
 
 def gather_traj_metadata(datasets):
-    cols = dict(trajid=[], delta_t=[], nsteps=[])
+    traj_meta = np.zeros(len(datasets), dtype=[
+      ('trajid',  'i4'),
+      ('delta_t', 'f8'),
+      ('nsteps',  'i4')])
 
-    for ds in datasets:
-        cols['trajid'].append(ds.attrs['trajid'])
-        cols['delta_t'].append(ds.attrs['delta_t'])
-        cols['nsteps'].append(len(ds.indexes['ts']))
+    for i, ds in enumerate(datasets):
+        traj_meta['trajid'][i] = ds.attrs['trajid']
+        traj_meta['delta_t'][i] = ds.attrs['delta_t']
+        traj_meta['nsteps'][i] = len(ds.indexes['ts'])
     
-    return cols
+    return traj_meta
 
 def concat_trajs(datasets):
-    for ds in datasets:
-        ds = ds.expand_dims(trajid=[ds.attrs['trajid']])\
-               .stack(frame=['trajid', 'ts'])
+    datasets = [
+      ds.expand_dims(trajid=[ds.attrs['trajid']])
+        .stack(frame=['trajid', 'ts'])
+      for ds in datasets]
 
     frames = xr.concat(datasets, dim='frame', combine_attrs='drop_conflicts')
-    
-    # frames.attrs['trajids'] = trajids
-    cols = gather_traj_metadata(datasets)
-    frames.attrs['per_traj'] = pd.DataFrame.from_dict(cols).set_index('trajid')
+    traj_meta = gather_traj_metadata(datasets)
+    frames = frames.assign_coords(trajid_=traj_meta['trajid'])
+    frames = frames.assign(
+      delta_t=('trajid_', traj_meta['delta_t']),
+      nsteps=('trajid_', traj_meta['nsteps'])
+    )
     return frames
 
 def layer_trajs(datasets):
@@ -219,7 +225,7 @@ def layer_trajs(datasets):
 
     trajids = pd.Index(meta['trajid'], name='trajid')
     coords_trajids = xr.Coordinates(indexes={'trajid': trajids})
-    # breakpoint()
+    breakpoint()
     layers = xr.concat(datasets, dim=trajids, combine_attrs='drop_conflicts')
 
     del(meta['trajid'])
