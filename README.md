@@ -24,7 +24,26 @@ Code and tools for parsing, analyzing, and visualizing data from static and dyna
 You can create the environment with a custom path using one of the following methods:
 
 <details open>
-  <summary><strong>Option 1: Using the `--prefix` Flag</strong></summary>
+  <summary><strong>Option 1: Using `uv`</strong></summary>
+  I recommend using the `uv` tool, available at https://docs.astral.sh/uv/.  
+  Run the following in the `shnitsel-tools` directory:
+
+  ```bash
+  uv venv  # create an environment under ./.venv
+  . .venv/bin/activate  # activate the new environment
+  uv pip install -e .  # install shnitsel in editable mode
+  ```
+
+  To install the optional development dependencies run
+
+  ```bash
+  uv pip install -e '.[dev]'
+  ```
+  
+</details>
+
+<details open>
+  <summary><strong>Option 2: Using the `--prefix` Flag</strong></summary>
   
   You can create the environment and specify the desired path by using the `conda env create` command with the `--prefix` flag:
   
@@ -34,7 +53,7 @@ You can create the environment with a custom path using one of the following met
 </details>
 
 <details>
-  <summary><strong>Option 2: Adding the Path to the .yml File</strong></summary>
+  <summary><strong>Option 3: Adding the Path to the .yml File</strong></summary>
   
   Alternatively, you can manually add the desired path to the shnitsel-tools.yml file and create the environment directly:
     
