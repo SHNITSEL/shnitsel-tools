@@ -146,7 +146,6 @@ def init_iconds(indices, nstates, natoms, **res):
     return xr.Dataset(datavars, coords)
 
 def read_iconds(pathlist, index=None):
-    niconds = len(pathlist)
     logging.info("Ensuring consistency of ICONDs dimensions")
     nstates, natoms = check_dims(pathlist)
     logging.info("Allocating Dataset for ICONDs")
@@ -164,8 +163,8 @@ def read_iconds(pathlist, index=None):
             with open(os.path.join(path, 'QM.log')) as f:
                 parse_QM_log_geom(f, out=iconds.sel(icond=icond))
         except FileNotFoundError:
-            logging.warn(
-                f"""no QM.log file found in {name}.
+            logging.warning(
+                f"""no QM.log file found in {path}.
                 This is currently used to determine geometry.
                 Eventually, user-inputs will be accepted as an alternative.
                 See https://github.com/SHNITSEL/db-workflow/issues/3""")
