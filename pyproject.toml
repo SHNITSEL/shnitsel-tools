@@ -25,6 +25,7 @@ dependencies = [
   "matplotlib",
   "xarray",
   "rdkit",
+  "ase",
   "numpy>=1.26.2",
   "pandas>=2.1.4",
   "h5netcdf>=1.3.0",
