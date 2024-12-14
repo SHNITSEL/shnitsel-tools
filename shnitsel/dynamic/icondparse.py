@@ -174,24 +174,6 @@ def read_iconds(pathlist, index=None):
 
     return iconds
 
-def read_icond(icond_path):
-    # with open(os.path.join(icond_path, 'QM.log')) as f:
-    #     metadata = parse_QM_log(f)
-    
-    # nsteps = single_traj.sizes['ts']
-
-    # with open(os.path.join(icond_path, 'QM.out')) as f:
-    #     single_traj = parse_QM_out(f)
-
-    
-    # single_traj.attrs['atNames'] = atNames
-    # single_traj['atXYZ'] = xr.DataArray(
-    #     atXYZ,
-    #     coords={k:single_traj.coords[k] for k in ['ts', 'atom', 'direction']},
-    #     dims=['ts', 'atom', 'direction']
-    # )
-    ...
-
 def parse_QM_log(log):
     info = {}
     for line in log:
@@ -252,25 +234,6 @@ def parse_QM_log_geom(f, out):
         out['atNames'][i] = geometry_line[0]
         out['atXYZ'][i] = geometry_line[1:4]
 
-
-def old_read_icond(path, iconds, file1, file2, defaults):
-    nstates = None
-    data = {}
-    for number, name in enumerate(iconds[0:]):
-        try:
-            with open(os.path.join(path, name, file1)) as log:
-                data[number] = parse_QMlog(log)
-            
-        except FileNotFoundError:
-            print(f"""Warning: no QM.log file found in {name}.
-                    This is currently used to determine method, states and geometry.
-                    Eventually, user-inputs will be accepted as an alternative.
-                    See https://github.com/SHNITSEL/db-workflow/issues/3""")
-            data[number] = defaults
-        nstates = data[number]['nStates']
-
-        with open(os.path.join(path, name, file2)) as out:
-            icond = parse_QM_out(out)
 
 def parse_QM_out(f, out:(xr.Dataset|None) = None):
     if out is not None:
@@ -341,8 +304,8 @@ def parse_QM_out(f, out:(xr.Dataset|None) = None):
             nacs_all = nans(nstates.v, nstates.v, natoms.v, 3)
 
             for bra, ket in product(range(nstates.v), range(nstates.v)):
-                # info currently unused, but keep the `next(f)` no matter what!
-                nac_multi = int(re.split(' +', next(f).strip())[-1])
+                # TODO info currently unused, but keep the `next(f)` no matter what!
+                nac_multi = int(re.split(' +', next(f).strip())[-1]) # noqa: F841
 
                 for atom in range(natoms.v):
                     nacs_line = re.split(' +', next(f).strip())

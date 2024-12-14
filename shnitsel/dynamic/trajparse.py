@@ -157,7 +157,7 @@ def parse_trajout_dat(f):
                     else:
                         phasevector[istate] = -1
 
-            if found_overlap == True:
+            if found_overlap:
                 phases[ts] = phasevector
 
         if line.startswith('! 8 states (diag, MCH)'):

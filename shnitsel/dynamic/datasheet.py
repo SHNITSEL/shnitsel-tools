@@ -175,15 +175,14 @@ def plot_per_state_histograms(per_state, dcol_state, axs=None):
 
     for quantity in ['energies', 'forces', 'dip_perm']:
         ax = axs[quantity]
-        freqs = []
-        edges = []
+
         for state, data in per_state.groupby('state'):
             c = dcol_state[state-1]
-            hd = ax.hist(truncate(data[quantity].squeeze(), bins=100), color=c, alpha=0.2, bins=100)
-            # DEBUG:
-            if state == 1:
-                ret = hd
-            counts, edges, _ = hd
+            counts, edges, _ = ax.hist(
+              truncate(data[quantity].squeeze(), bins=100),
+              color=c,
+              alpha=0.2,
+              bins=100)
             ax.plot((edges[1:] + edges[:-1])/2, counts, c=c, lw=0.5)
             idxmax = np.argmax(counts)
             ax.text(edges[[idxmax, idxmax+1]].mean(), counts[idxmax],
@@ -193,8 +192,6 @@ def plot_per_state_histograms(per_state, dcol_state, axs=None):
     axs['energies'].set_xlabel(rf'$E$ / {eunits}')
     axs['forces'].set_xlabel(r'$\mathbf{F}$ / (hartree/bohr)')
     axs['dip_perm'].set_xlabel(r'$\mathbf{\mu}_i$ / (??)')
-
-    return ret
 
     # cruft to be removed soon
         #     f, e, _ = ax.hist(data[quantity], color=c, alpha=0.2, bins=100)

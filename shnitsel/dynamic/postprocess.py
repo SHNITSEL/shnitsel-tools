@@ -125,7 +125,7 @@ def convert(da: xr.DataArray, to: str, quantity: str, conversions: dict):
 
     try:
         divisor = conversions[from_]
-    except:
+    except KeyError:
         targets = list(conversions.keys())
         raise ValueError(f"Can't convert {quantity} from {from_!r}, only from: {targets}")
 
@@ -157,7 +157,7 @@ class Converter:
     
         try:
             divisor = self.conversions[from_]
-        except:
+        except KeyError:
             raise ValueError(f"Can't convert {self.quantity} from {from_!r}, only from: {self.targets}")
     
         try:

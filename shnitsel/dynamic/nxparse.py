@@ -52,10 +52,12 @@ def parse_nx_log(f):
     nstates = settings['nstat']
     natoms = settings['Nat']
 
+    # TODO: so far, we haven't needed to parse data that
+    #       had dipoles etc.
     energies = np.full((nsteps, nstates), np.nan)
-    dip_all = np.full((nsteps, nstates, nstates, 3), np.nan)
-    phases = np.full((nsteps, nstates), np.nan)
-    sdiag = np.full((nsteps), -1, dtype=int)
+    # dip_all = np.full((nsteps, nstates, nstates, 3), np.nan)
+    # phases = np.full((nsteps, nstates), np.nan)
+    # sdiag = np.full((nsteps), -1, dtype=int)
     astate = np.full((nsteps), -1, dtype=int)
     forces = np.full((nsteps, natoms, 3), np.nan)
     nacs = np.full((nsteps, math.comb(nstates, 2), natoms, 3), np.nan)

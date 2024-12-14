@@ -17,10 +17,7 @@ def pca_line_plot(
   shadow_cmap=None,
   snips=None
 ):
-    path_effects = mpl.patheffects
     LineCollection = mpl.collections.LineCollection
-    BoundaryNorm = mpl.colors.BoundaryNorm
-    ListedColormap = mpl.colors.ListedColormap
     mpatches = mpl.patches
 
 
@@ -55,7 +52,7 @@ def pca_line_plot(
     if snips is not None:
         segments = np.delete(segments, snips, axis=0)
 
-    fig, axs = plt.subplots(1, 1)
+    fig, ax = plt.subplots(1, 1)
 
     if shadow is not None:
         # Background shading:
@@ -65,13 +62,13 @@ def pca_line_plot(
         
         shadelc = LineCollection(
             segments, cmap=shadow_cmap, capstyle='round', norm=normed,)
-            # path_effects=[path_effects.Stroke(joinstyle="round")])
+            # path_effects=[mpl.path_effects.Stroke(joinstyle="round")])
         
         # Set the values used for colormapping
         shadelc.set_array(shadow)
         shadelc.set_linewidth(10)
         # lc.set_alpha(0.3)
-        shading = axs.add_collection(shadelc)
+        ax.add_collection(shadelc)
 
         # something for plt.legend to get its colours from
         proxy_artists = [
@@ -87,18 +84,18 @@ def pca_line_plot(
         norm=normed)
     lc.set_array(hue)
     lc.set_linewidth(2)
-    line = axs.add_collection(lc)
+    line = ax.add_collection(lc)
 
     xpad = (x.max() - x.min())/50
-    axs.set_xlim(x.min() - xpad, x.max() + xpad)
+    ax.set_xlim(x.min() - xpad, x.max() + xpad)
     ypad = (y.max() - y.min())/50
-    axs.set_ylim(y.min() - ypad, y.max() + ypad)
+    ax.set_ylim(y.min() - ypad, y.max() + ypad)
 
-    axs.set_xlabel('First principal component')
-    axs.set_ylabel('Second principal component')
+    ax.set_xlabel('First principal component')
+    ax.set_ylabel('Second principal component')
 
     if hue_qualitative:
-        axs.legend(handles=line, loc='best')
+        ax.legend(handles=line, loc='best')
     else:
         fig.colorbar(line).set_label(hue_label)
 
@@ -107,10 +104,10 @@ def pca_line_plot(
     if shadow is None:
         legend = None
     else:
-        legend = axs.legend(handles=proxy_artists, loc='best')
+        legend = ax.legend(handles=proxy_artists, loc='best')
     # plt.close() # don't display duplicates, Jupyter!
 
-    return fig, axs, legend
+    return fig, ax, legend
 
 def pca_scatter_plot():
     ...

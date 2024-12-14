@@ -67,12 +67,15 @@ def plot_noodleplot_lines(noodle, #hops,
   ax=None,
   cmap=None, cnorm=None, cscale=None):
     fig, ax = figax(ax)
+    points = noodle.values
     # One traj per line
     for trajid, traj in noodle.groupby('trajid'):
 
         segments = np.concatenate([points[:-1], points[1:]], axis=1)
         lc = mpl.collections.LineCollection()
 
+    segments
+    lc
     return ax
 
 def get_loadings(frames):
@@ -275,7 +278,6 @@ def plot_clusters2(ax, loadings, clusters, mol, min_angle=10, inset_scale=1, sho
     for i, cluster in enumerate(clusters):
         acs = loadings.isel(atomcomb=cluster)
         x, y = acs.mean(dim='atomcomb')
-        s = ' '.join([f'({a1},{a2})' for a1, a2 in acs.atomcomb.values])
         arrow_color = 'k' if i in indices else (0, 0, 0, 0.5)
         ax.arrow(0, 0, x, y, head_width=0.01, length_includes_head=True, color=arrow_color)
 
@@ -301,7 +303,6 @@ def plot_clusters2(ax, loadings, clusters, mol, min_angle=10, inset_scale=1, sho
 
 def plot_clusters3(loadings, clusters, ax=None, labels=None, axs=None, mol=None):
     fig, ax = figax(ax)
-    points = get_clusters_coords(loadings, clusters)
     if labels is None:
         labels = list('abcdefghijklmnopqrstuvwxyz')
 
