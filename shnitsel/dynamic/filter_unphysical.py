@@ -1,15 +1,10 @@
 import numpy as np
-import scipy.stats as st
 import xarray as xr
-import pandas as pd
-import matplotlib as mpl
-import matplotlib.pyplot as plt
 
-import rdkit as rd
 from rdkit import Chem as rkc
 from rdkit.Chem import rdDetermineBonds, AllChem
 
-from . import postprocess as P, xrhelpers as xh
+from . import postprocess as P
 
 def is_c_h_bond(b):
     atnums = {b.GetBeginAtom().GetAtomicNum(), b.GetEndAtom().GetAtomicNum()}

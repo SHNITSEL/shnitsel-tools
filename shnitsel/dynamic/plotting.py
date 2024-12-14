@@ -5,7 +5,6 @@ import matplotlib.pyplot as plt
 from . import (
   postprocess,
   xrhelpers)
-from .postprocess import pca_for_plot
 
 def pca_line_plot(
   pca_res,

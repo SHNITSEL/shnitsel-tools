@@ -2,13 +2,14 @@ import numpy as np
 import xarray as xr
 from itertools import combinations
 import pandas as pd
-import logging, os, re, math
+import logging
+import os
+import re
+import math
 
 from .parsecommon import (
     get_dipoles_per_xyz,
     dip_sep,
-    __atnum2symbol__,
-    ConsistentValue,
     get_triangular
 )
 

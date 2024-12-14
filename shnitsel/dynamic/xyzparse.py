@@ -1,8 +1,4 @@
 import numpy as np
-import xarray as xr
-from itertools import combinations
-import pandas as pd
-import logging, os, re, math
 
 def parse_xyz(f):
     natoms = int(next(f).strip())

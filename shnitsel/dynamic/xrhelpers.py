@@ -1,5 +1,6 @@
 # pyright: basic
-import itertools, os
+import itertools
+import os
 import xarray as xr
 import pandas as pd
 from . import postprocess

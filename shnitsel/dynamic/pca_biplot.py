@@ -4,16 +4,14 @@ import numpy as np
 import xarray as xr
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-from mpl_toolkits.axes_grid1.axes_divider import make_axes_locatable
 
 import rdkit # type: ignore
-from rdkit.Chem import rdDetermineBonds, AllChem # type: ignore
+from rdkit.Chem import AllChem # type: ignore
 import PIL
 import io
 
 from . import (
-  postprocess as P,
-  xrhelpers as xh)
+  postprocess as P)
 
 def figax(ax=None):
     """

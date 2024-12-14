@@ -2,9 +2,11 @@ import numpy as np
 import xarray as xr
 from itertools import combinations
 import pandas as pd
-import logging, os, re, math
-import glob
 import logging
+import os
+import re
+import math
+import glob
 
 from . import xyzparse
 
