@@ -29,26 +29,35 @@ class Datasheet:
 
     @cached_property
     def per_state(self):
-        return P.get_per_state(self.frames)
+        per_state = P.get_per_state(self.frames)
+        per_state['_color'] = 'state', self.col_state
+        return per_state
 
     @cached_property
     def inter_state(self):
         inter_state = P.get_inter_state(self.frames)
+        inter_state['_color'] = 'statecomb', self.col_inter
         if 'dip_trans' in inter_state:
             inter_state = P.assign_fosc(inter_state)
         return inter_state
 
     @cached_property
     def pops(self):
-        return P.calc_pops(self.frames)
+        pops = P.calc_pops(self.frames)
+        pops['_color'] = 'state', self.col_state
+        return pops
 
     @cached_property
     def delta_E(self):
-        return P.time_grouped_ci(self.inter_state['energies'])
+        res = P.time_grouped_ci(self.inter_state['energies'])
+        res['_color'] = 'statecomb', self.col_inter
+        return res
 
     @cached_property
     def fosc_time(self):
-        return P.time_grouped_ci(self.inter_state['fosc'])
+        res = P.time_grouped_ci(self.inter_state['fosc'])
+        res['_color'] = 'statecomb', self.col_inter
+        return res
 
     @cached_property
     def spectra(self):
@@ -71,6 +80,4 @@ class Datasheet:
             pops=self.pops,
             delta_E=self.delta_E,
             fosc_time=self.fosc_time,
-            dcol_state=self.dcol_state,
-            dcol_inter=self.dcol_inter,
         )
