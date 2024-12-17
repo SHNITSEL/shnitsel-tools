@@ -14,9 +14,11 @@
 
 ### 2.2 Dynamic 
 
+- [ ] Data Sheet Summary
+
+optional:
 - [ ] Histograms (E, F, Dipoles, ...)
 - [ ] E vs. t
 - [ ] Absorption spectra at chosen (delay) times
 - [ ] Population Plots
 - [ ] PCA plot (dynamic)
-- [ ] Data Sheet Summary
