@@ -1,4 +1,3 @@
-# pyrigth:off
 from dataclasses import dataclass
 import numpy as np
 import xarray as xr
@@ -100,7 +99,7 @@ def plot_loadings(ax, loadings):
 
 def xyz_to_mol(atXYZ, charge=0):
     mol = rdkit.Chem.rdmolfiles.MolFromXYZBlock(P.to_xyz(atXYZ))
-    rdkit.Chem.rdDetermineBonds.DetermineBonds(mol, charge)
+    rdkit.Chem.rdDetermineBonds.DetermineBonds(mol, charge=charge)
     AllChem.Compute2DCoords(mol)
     return mol
 
