@@ -4,7 +4,7 @@ import numpy as np
 from .hist import truncate
 
 
-def plot_per_state_histograms(per_state, dcol_state, axs=None):
+def plot_per_state_histograms(per_state, axs=None):
     if axs is None:
         fig, axs = plt.subplot_mosaic(
             [['energies', 'forces', 'dip_perm']], layout='constrained'
@@ -15,7 +15,7 @@ def plot_per_state_histograms(per_state, dcol_state, axs=None):
         ax = axs[quantity]
 
         for state, data in per_state.groupby('state'):
-            c = dcol_state[state - 1]
+            c = data['_color'].item()
             counts, edges, _ = ax.hist(
                 truncate(data[quantity].squeeze(), bins=100),
                 color=c,
