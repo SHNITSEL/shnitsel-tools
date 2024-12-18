@@ -23,6 +23,7 @@ classifiers = [
 dependencies = [
   "scipy>=1.11.4",
   "matplotlib",
+  "textalloc",
   "xarray",
   "rdkit",
   "ase",

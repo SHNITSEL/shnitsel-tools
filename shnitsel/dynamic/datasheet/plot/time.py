@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import textalloc as ta
 
 
 def plot_time_interstate_error(data, ax):
@@ -12,7 +13,10 @@ def plot_time_interstate_error(data, ax):
         scdata = scdata.squeeze('statecomb')
         ax.fill_between('time', 'upper', 'lower', data=scdata, color=c, alpha=0.3)
         ax.plot('time', 'mean', data=scdata, c=c, lw=0.5)
-        ax.text(scdata['time'][-1], scdata['mean'][-1], sc, c=c, va=vas[sc], ha='right')
+        # ax.text(scdata['time'][-1], scdata['mean'][-1], sc, c=c, va=vas[sc], ha='right')
+        ta.text(
+            ax, scdata['time'][-1], scdata['mean'][-1], sc, c=c, va=vas[sc], ha='right'
+        )
     ylabel = data.attrs['tex']
     if u := data.attrs.get('units'):
         ylabel += f" / {u}"
