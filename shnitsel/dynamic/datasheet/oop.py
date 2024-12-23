@@ -6,12 +6,13 @@ import rdkit.Chem as rc
 from .. import postprocess as P
 from .. import xrhelpers as xh
 
-from .calc import calc_spectra
+from .calc import calc_spectra, get_sgroups
 
 # from .plot import create_subfigures
 from .plot.per_state_hist import plot_per_state_histograms
 from .plot.time import plot_timeplots
 # import
+from .plot.dip_trans_hist import plot_separated_spectra_and_hists
 from .plot.nacs_hist import plot_nacs_histograms
 from ..pca_biplot import plot_noodleplot, xyz_to_mol
 from .plot.structure import plot_structure
@@ -23,6 +24,7 @@ class Datasheet:
         *,
         path: str | None = None,
         frames: xr.Dataset | None = None,
+        spectra_times: list[int | float] | None = None,
         col_state: list | None = None,
         col_inter: list | None = None,
     ):
@@ -35,6 +37,12 @@ class Datasheet:
         else:
             print("Neither path nor frames given, please set frames manually")
 
+        if spectra_times is not None:
+            self.spectra_times = spectra_times
+        elif self.frames is not None:
+            max_time = self.frames.coords['time'].max().item()
+            self.spectra_times = [max_time * i / 3 for i in range(3)]
+
         self.col_state = col_state or ['#4DAD15', '#AD2915', '#7515AD']
         self.col_inter = col_inter or ['#2c3e50', '#C4A000', '#7E5273']
         try:
@@ -44,7 +52,7 @@ class Datasheet:
 
         return None
 
-    times: np.ndarray
+    spectra_times: np.ndarray
     charge: int = 0
     structure_skeletal: bool = False
     name: str = ''
@@ -95,7 +103,19 @@ class Datasheet:
 
     @cached_property
     def spectra(self):
-        return calc_spectra(self.inter_state, times=...)
+        return calc_spectra(self.inter_state, times=self.spectra_times)
+
+    @cached_property
+    def spectra_groups(self):
+        return get_sgroups(self.spectra)
+
+    @cached_property
+    def spectra_ground(self):
+        return self.spectra_groups[0]
+
+    @cached_property
+    def spectra_excited(self):
+        return self.spectra_groups[1]
 
     @cached_property
     def noodle(self):
@@ -142,7 +162,10 @@ class Datasheet:
         )
 
     def plot_separated_spectra_and_hists(self):
-        return NotImplemented
+        return plot_separated_spectra_and_hists(
+            inter_state=self.inter_state,
+            sgroups=self.spectra_groups,
+        )
 
     def plot_nacs_histograms(self):
         return plot_nacs_histograms(self.inter_state, self.hops.frame)

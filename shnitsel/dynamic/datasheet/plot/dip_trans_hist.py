@@ -38,7 +38,7 @@ def single_hist(data, shi, slo, color, bins=100, ax=None, cmap=None, cnorm=None)
     return hist2d_output
 
 
-def plot_dip_trans_histograms(inter_state, dcol_inter, axs=None, cnorm=None):
+def plot_dip_trans_histograms(inter_state, axs=None, cnorm=None):
     if axs is None:
         nplots = len(inter_state.coords['statecomb'])
         _, axs = plt.subplots(nplots, 1, layout='constrained')
@@ -52,14 +52,14 @@ def plot_dip_trans_histograms(inter_state, dcol_inter, axs=None, cnorm=None):
         shi, slo = sclabels[i]
         ax = axs[i]
 
-        color = dcol_inter[sc]
+        color = data['_color'].item()
         hist2d_outputs.append(
             single_hist(data, shi, slo, color=color, ax=ax, cnorm=cnorm)
         )
     return hist2d_outputs
 
 
-def plot_spectra(spectra, dcol_inter, ax=None, cmap=None, cnorm=None):
+def plot_spectra(spectra, ax=None, cmap=None, cnorm=None):
     if ax is None:
         _, ax = plt.subplots(1, 1)
     cmap = plt.get_cmap(cmap) if cmap else custom_ylgnr
@@ -97,7 +97,7 @@ def _hist_min_max(inter_state):
     return min(minmax), max(minmax), debug
 
 
-def plot_separated_spectra_and_hists(inter_state, sgroups, dcol_inter, axs=None):
+def plot_separated_spectra_and_hists(inter_state, sgroups, axs=None):
     if axs is None:
         mosaic = [['sg'], ['t0'], ['t1'], ['se'], ['t2'], ['cb_spec'], ['cb_hist']]
         fig, axs = plt.subplot_mosaic(
@@ -113,16 +113,15 @@ def plot_separated_spectra_and_hists(inter_state, sgroups, dcol_inter, axs=None)
 
     hist2d_outputs = []
     # ground-state spectra and histograms
-    plot_spectra(ground, dcol_inter, ax=axs['sg'], cnorm=scnorm, cmap=scmap)
+    plot_spectra(ground, ax=axs['sg'], cnorm=scnorm, cmap=scmap)
     hist2d_outputs += plot_dip_trans_histograms(
         inter_state.isel(statecomb=[0, 1]),
-        dcol_inter,
         axs=[axs[k] for k in ['t1', 't0']],
     )
     # excited-state spectra and histograms
-    plot_spectra(excited, dcol_inter, ax=axs['se'], cnorm=scnorm, cmap=scmap)
+    plot_spectra(excited, ax=axs['se'], cnorm=scnorm, cmap=scmap)
     hist2d_outputs += plot_dip_trans_histograms(
-        inter_state.isel(statecomb=[2]), dcol_inter, axs=[axs['t2']]
+        inter_state.isel(statecomb=[2]), axs=[axs['t2']]
     )
 
     hists = np.array([tup[0] for tup in hist2d_outputs])
