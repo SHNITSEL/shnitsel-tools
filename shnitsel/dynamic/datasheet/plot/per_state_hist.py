@@ -1,15 +1,16 @@
-import matplotlib.pyplot as plt
 import numpy as np
 
+from .common import figaxs
 from .hist import truncate
 
 
-def plot_per_state_histograms(per_state, axs=None):
-    if axs is None:
-        fig, axs = plt.subplot_mosaic(
-            [['energies', 'forces', 'dip_perm']], layout='constrained'
-        )
-        fig.set_size_inches(8.27, 11.69 / 5)
+def plot_per_state_histograms(per_state, axs=None, fig=None):
+    fig, axs = figaxs(
+        fig=fig,
+        axs=axs,
+        mosaic=[['energies', 'forces', 'dip_perm']],
+        scale_factors=(1, 1 / 5),
+    )
 
     for quantity in ['energies', 'forces', 'dip_perm']:
         ax = axs[quantity]

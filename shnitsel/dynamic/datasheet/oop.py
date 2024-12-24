@@ -3,6 +3,8 @@ import xarray as xr
 import numpy as np
 import rdkit.Chem as rc
 
+from matplotlib.figure import Figure
+
 from .. import postprocess as P
 from .. import xrhelpers as xh
 
@@ -149,9 +151,10 @@ class Datasheet:
     # @cached_property
     # def axs(self):
 
-    def plot_per_state_histograms(self):
+    def plot_per_state_histograms(self, fig: Figure | None = None):
         return plot_per_state_histograms(
             per_state=self.per_state,
+            fig=fig,
         )
 
     def plot_timeplots(self):
@@ -182,3 +185,19 @@ class Datasheet:
             inchi=self.inchi,
             ax=None,
         )
+
+    # TODO: Make whole datasheet and modularize createtion process
+    # 1. Get it working with existing `create_subfigures` function
+    # 2. Adjust all the other functions to take a `figure` argument
+    # 3. Modify `create_subfigures` so that it doesn't make all the axes at once
+
+    def create_subfigures(): ...
+
+    def plot(self, include_per_state_hist: bool = False):
+        if include_per_state_hist:
+            self.plot_per_state_histograms()
+        self.plot_timeplots()
+        self.plot_separated_spectra_and_hists()
+        self.plot_nacs_histograms()
+        self.plot_noodle()
+        self.plot_structure()
