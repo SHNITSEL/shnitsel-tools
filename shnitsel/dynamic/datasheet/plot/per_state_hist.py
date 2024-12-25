@@ -1,17 +1,10 @@
 import numpy as np
 
-from .common import figaxs
+from .common import figaxs_defaults
 from .hist import truncate
 
-
+@figaxs_defaults(mosaic=[['energies', 'forces', 'dip_perm']], scale_factors=(1, 1 / 5))
 def plot_per_state_histograms(per_state, axs=None, fig=None):
-    fig, axs = figaxs(
-        fig=fig,
-        axs=axs,
-        mosaic=[['energies', 'forces', 'dip_perm']],
-        scale_factors=(1, 1 / 5),
-    )
-
     for quantity in ['energies', 'forces', 'dip_perm']:
         ax = axs[quantity]
 
