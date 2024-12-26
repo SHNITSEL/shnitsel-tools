@@ -4,10 +4,13 @@ import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
 from matplotlib.axes import Axes
 
+from ...pca_biplot import figax as figax
 
+
+# TODO: DEPRECATE
 def figaxs(
     fig=Figure | None,
-    axs=Axes | dict | None,
+    axs=list[Axes] | dict[str, Axes] | None,
     mosaic=list | str | None,
     scale_factors=tuple[float, float],
 ):
@@ -26,7 +29,7 @@ def figaxs(
     return fig, axs
 
 
-def figaxs_defaults(mosaic, scale_factors, height_ratios=None):
+def figaxs_defaults(mosaic, scale_factors=None, height_ratios=None):
     def decorator(func):
         @wraps(func)
         def wrapper(*args, fig=None, axs=None, **kws):
