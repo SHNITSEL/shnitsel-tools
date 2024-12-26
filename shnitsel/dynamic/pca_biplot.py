@@ -4,6 +4,9 @@ import xarray as xr
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 
+from matplotlib.axes import Axes
+from matplotlib.figure import Figure
+
 import rdkit # type: ignore
 from rdkit.Chem import AllChem # type: ignore
 import PIL
@@ -12,23 +15,34 @@ import io
 from . import (
   postprocess as P)
 
-def figax(ax=None):
+def figax(fig: Figure | None = None, ax: Axes | None = None):
     """
     Create figure and axes-object if an axes-object is not supplied.
     """
-    if ax is None:
-        return plt.subplots(1,1)
-    else:
-        return ax.figure, ax
+    if fig is None and ax is None:
+        fig, ax = plt.subplots(1, 1)
+    elif fig is None:
+        fig = ax.figure
+    elif ax is None:
+        ax = fig.subplots(1, 1)
+    return fig, ax
 
 
 # NOTE difference: takes ax, original took (axs: dict) such that `'pca' in axs`
 # NOTE also moved ax to go after data arguments to facilitate figax approach
-def plot_noodleplot(noodle, hops=None, ax=None,
-    c=None, colorbar_label=None,
-    cmap=None, cnorm=None, cscale=None,
-    hops_kws=None):
-    fig, ax = figax(ax)
+def plot_noodleplot(
+    noodle,
+    hops=None,
+    fig=None,
+    ax=None,
+    c=None,
+    colorbar_label=None,
+    cmap=None,
+    cnorm=None,
+    cscale=None,
+    hops_kws=None,
+):
+    fig, ax = figax(fig, ax)
 
     if c is None:
         c = noodle['time']
