@@ -1,19 +1,9 @@
-import matplotlib.pyplot as plt
-
+from .common import figaxs_defaults
 from .hist import create_marginals, trunc_max
 
-
-def plot_nacs_histograms(inter_state, hop_idxs, axs=None):
+@figaxs_defaults(mosaic=[['ntd'], ['nde']], scale_factors=(1 / 3, 1 / 3))
+def plot_nacs_histograms(inter_state, hop_idxs, fig=None, axs=None):
     """Plot 2D histograms of NACS vs delta_E or dip_trans"""
-
-    if axs is None:
-        fig, axs = plt.subplot_mosaic(
-            [['ntd'], ['nde']],
-            layout='constrained',
-        )
-        fig.set_size_inches(8.27 / 3, 11.69 / 3)  # portrait A4
-    else:
-        fig = axs['nde'].figure
 
     nacs_data = inter_state.sel(frame=hop_idxs)
     axs['nde'].set_ylabel(r'$\Delta E$ / eV')
