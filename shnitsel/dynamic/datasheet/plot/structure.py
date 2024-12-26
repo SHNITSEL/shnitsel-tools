@@ -1,5 +1,7 @@
 import rdkit
+
 from ... import pca_biplot
+from .common import figax
 
 
 def mol_to_png(mol, width=320, height=240):
@@ -35,8 +37,8 @@ def show_atXYZ(
     # axy.tick_params(axis="y", labelleft=False)
     return ax
 
-def plot_structure(mol, name='', smiles=None, inchi=None, ax=None):
-    fig, ax = pca_biplot.figax(ax)
+def plot_structure(mol, name='', smiles=None, inchi=None, fig=None, ax=None):
+    fig, ax = figax(fig, ax)
     png = mol_to_png(mol)
     pca_biplot.mpl_imshow_png(ax, png)
     ax.set_title(name)
