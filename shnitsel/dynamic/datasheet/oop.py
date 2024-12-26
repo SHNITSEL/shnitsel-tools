@@ -216,19 +216,21 @@ class Datasheet:
             pops=self.pops,
             delta_E=self.delta_E,
             fosc_time=self.fosc_time,
+            fig=fig,
         )
 
     def plot_separated_spectra_and_hists(self, fig: Figure | None = None):
         return plot_separated_spectra_and_hists(
             inter_state=self.inter_state,
             sgroups=self.spectra_groups,
+            fig=fig,
         )
 
     def plot_nacs_histograms(self, fig: Figure | None = None):
-        return plot_nacs_histograms(self.inter_state, self.hops.frame)
+        return plot_nacs_histograms(self.inter_state, self.hops.frame, fig=fig)
 
     def plot_noodle(self, fig: Figure | None = None):
-        return plot_noodleplot(self.noodle, self.hops)
+        return plot_noodleplot(self.noodle, self.hops, fig=fig)
 
     def plot_structure(self, fig: Figure | None = None):
         mol = self.mol_skeletal if self.structure_skeletal else self.mol
@@ -238,6 +240,7 @@ class Datasheet:
             smiles=self.smiles,
             inchi=self.inchi,
             ax=None,
+            fig=fig,
         )
 
     # TODO: Make whole datasheet and modularize creation process
@@ -283,3 +286,19 @@ class Datasheet:
         self.plot_noodle(fig=sfs['noodle'])
         self.plot_structure(fig=sfs['structure'])
         return fig
+
+    def _test_subfigures(
+        self, include_per_state_hist: bool = False, borders: bool = False
+    ):
+        fig, sfs = self.get_subfigures(
+            include_per_state_hist=include_per_state_hist, borders=borders
+        )
+        for sf in sfs.values():
+            sf.subplots(2, 2)
+        if include_per_state_hist:
+            sfs['per_state_histograms'].set_facecolor('blue')
+        sfs['timeplots'].set_facecolor('green')
+        sfs['separated_spectra_and_hists'].set_facecolor('orange')
+        sfs['nacs_histograms'].set_facecolor('yellow')
+        sfs['noodle'].set_facecolor('red')
+        sfs['structure'].set_facecolor('purple')
