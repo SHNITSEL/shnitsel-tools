@@ -2,8 +2,13 @@ from functools import cached_property
 import xarray as xr
 import numpy as np
 import rdkit.Chem as rc
+import matplotlib.pyplot as plt
 
 from matplotlib.figure import Figure
+try:
+    from typing import Self
+except ImportError:
+    from typing_extensions import Self
 
 from .. import postprocess as P
 from .. import xrhelpers as xh
@@ -26,10 +31,19 @@ class Datasheet:
         *,
         path: str | None = None,
         frames: xr.Dataset | None = None,
+        copy_data: Self | None = None,
         spectra_times: list[int | float] | None = None,
         col_state: list | None = None,
         col_inter: list | None = None,
     ):
+        if copy_data is not None:
+            if path is not None or frames is not None:
+                raise ValueError(
+                    "if `copy` is set, neither `path` nor `frames` should be set"
+                )
+            self._copy_data(old=copy_data)
+            return
+
         if path is not None and frames is not None:
             raise ValueError("`path` and `frames` should not both be set")
         elif frames is not None:
@@ -37,6 +51,7 @@ class Datasheet:
         elif path is not None:
             self.frames = xh.get_frames(path)
         else:
+            print("DEBUG -- new!")
             print("Neither path nor frames given, please set frames manually")
 
         if spectra_times is not None:
@@ -58,6 +73,31 @@ class Datasheet:
     charge: int = 0
     structure_skeletal: bool = False
     name: str = ''
+
+    def _copy_data(self, old: Self):
+        print("10:48")
+        self.spectra_times = old.spectra_times
+        self.col_state = old.col_state
+        self.col_inter = old.col_inter
+        self.name = old.name
+        self.charge = old.charge
+        self.structure_skeletal = old.structure_skeletal
+        self.per_state = old.per_state
+        self.inter_state = old.inter_state
+        self.pops = old.pops
+        self.delta_E = old.delta_E
+        self.fosc_time = old.fosc_time
+        self.spectra = old.spectra
+        self.spectra_groups = old.spectra_groups
+        self.spectra_ground = old.spectra_ground
+        self.spectra_excited = old.spectra_excited
+        self.noodle = old.noodle
+        self.hops = old.hops
+        self.structure_atXYZ = old.structure_atXYZ
+        self.mol = old.mol
+        self.mol_skeletal = old.mol_skeletal
+        self.smiles = old.smiles
+        self.inchi = old.inchi
 
     @cached_property
     def per_state(self):
@@ -151,32 +191,46 @@ class Datasheet:
     # @cached_property
     # def axs(self):
 
+    def calc_all(self):
+        self.per_state
+        self.pops
+        self.delta_E
+        self.fosc_time
+        self.spectra  # -> inter_state
+        self.spectra_groups
+        self.noodle
+        self.hops
+        self.structure_atXYZ
+        self.mol_skeletal
+        self.smiles
+        self.inchi
+
     def plot_per_state_histograms(self, fig: Figure | None = None):
         return plot_per_state_histograms(
             per_state=self.per_state,
             fig=fig,
         )
 
-    def plot_timeplots(self):
+    def plot_timeplots(self, fig: Figure | None = None):
         return plot_timeplots(
             pops=self.pops,
             delta_E=self.delta_E,
             fosc_time=self.fosc_time,
         )
 
-    def plot_separated_spectra_and_hists(self):
+    def plot_separated_spectra_and_hists(self, fig: Figure | None = None):
         return plot_separated_spectra_and_hists(
             inter_state=self.inter_state,
             sgroups=self.spectra_groups,
         )
 
-    def plot_nacs_histograms(self):
+    def plot_nacs_histograms(self, fig: Figure | None = None):
         return plot_nacs_histograms(self.inter_state, self.hops.frame)
 
-    def plot_noodle(self):
+    def plot_noodle(self, fig: Figure | None = None):
         return plot_noodleplot(self.noodle, self.hops)
 
-    def plot_structure(self):
+    def plot_structure(self, fig: Figure | None = None):
         mol = self.mol_skeletal if self.structure_skeletal else self.mol
         return plot_structure(
             mol,
@@ -186,18 +240,46 @@ class Datasheet:
             ax=None,
         )
 
-    # TODO: Make whole datasheet and modularize createtion process
+    # TODO: Make whole datasheet and modularize creation process
     # 1. Get it working with existing `create_subfigures` function
     # 2. Adjust all the other functions to take a `figure` argument
     # 3. Modify `create_subfigures` so that it doesn't make all the axes at once
 
-    def create_subfigures(): ...
+    @staticmethod
+    def get_subfigures(include_per_state_hist: bool = False, borders: bool = False):
+        nrows = 6 if include_per_state_hist else 5
+        s = 1 if include_per_state_hist else 0
 
-    def plot(self, include_per_state_hist: bool = False):
+        fig, oaxs = plt.subplots(nrows, 3, layout='constrained')
+        vscale = 1 if include_per_state_hist else 5 / 6
+        fig.set_size_inches(8.27, 11.69 * vscale)  # portrait A4
+        if borders:
+            fig.set_facecolor('#ddd')
+        gs = oaxs[0, 0].get_subplotspec().get_gridspec()
+        for ax in oaxs.ravel():
+            ax.remove()
+        gridspecs = dict(
+            per_state_histograms=gs[0, :],
+            timeplots=gs[s + 2 :, 2],
+            noodle=gs[s + 0 : s + 2, 1:],
+            separated_spectra_and_hists=gs[s + 0 :, 0],
+            nacs_histograms=gs[s + 3 :, 1],
+            structure=gs[s + 2, 1],
+        )
+        if not include_per_state_hist:
+            del gridspecs['per_state_histograms']
+        sfs = {name: fig.add_subfigure(sgs) for name, sgs in gridspecs.items()}
+        return fig, sfs
+
+    def plot(self, include_per_state_hist: bool = False, borders: bool = False):
+        fig, sfs = self.get_subfigures(
+            include_per_state_hist=include_per_state_hist, borders=borders
+        )
         if include_per_state_hist:
-            self.plot_per_state_histograms()
-        self.plot_timeplots()
-        self.plot_separated_spectra_and_hists()
-        self.plot_nacs_histograms()
-        self.plot_noodle()
-        self.plot_structure()
+            self.plot_per_state_histograms(fig=sfs['per_state_histograms'])
+        self.plot_timeplots(fig=sfs['timeplots'])
+        self.plot_separated_spectra_and_hists(fig=sfs['separated_spectra_and_hists'])
+        self.plot_nacs_histograms(fig=sfs['nacs_histograms'])
+        self.plot_noodle(fig=sfs['noodle'])
+        self.plot_structure(fig=sfs['structure'])
+        return fig

@@ -2,6 +2,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 
+from .common import figaxs_defaults
 from .hist import trunc_max, create_marginals
 from .colormaps import magma_rw, custom_ylgnr
 
@@ -96,15 +97,12 @@ def _hist_min_max(inter_state):
 
     return min(minmax), max(minmax), debug
 
-
-def plot_separated_spectra_and_hists(inter_state, sgroups, axs=None):
-    if axs is None:
-        mosaic = [['sg'], ['t0'], ['t1'], ['se'], ['t2'], ['cb_spec'], ['cb_hist']]
-        fig, axs = plt.subplot_mosaic(
-            mosaic, layout='constrained', height_ratios=([1] * 5) + ([0.1] * 2)
-        )
-        fig.set_size_inches(8.27 / 3, 11.69 * 0.8)  # portrait A4
-
+@figaxs_defaults(
+    mosaic=[['sg'], ['t0'], ['t1'], ['se'], ['t2'], ['cb_spec'], ['cb_hist']],
+    scale_factors=(1 / 3, 4 / 5),
+    height_ratios=([1] * 5) + ([0.1] * 2),
+)
+def plot_separated_spectra_and_hists(inter_state, sgroups, fig=None, axs=None):
     ground, excited = sgroups
     times = [tup[0] for lst in sgroups for tup in lst]
     scnorm = plt.Normalize(min(times), max(times))

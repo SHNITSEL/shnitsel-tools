@@ -1,5 +1,7 @@
 import matplotlib.pyplot as plt
 
+from .common import figaxs_defaults
+
 
 def plot_time_interstate_error(data, ax):
     vas = {
@@ -28,12 +30,8 @@ def plot_pops(pops, ax):
     ax.set_ylabel('Population')
     return ax
 
-
-def plot_timeplots(pops, delta_E, fosc_time, axs=None):
-    if axs is None:
-        fig, axs = plt.subplot_mosaic([['pop'], ['de'], ['ft']], layout='constrained')
-        fig.set_size_inches(8.27 / 3, 11.69 / 2)
-
+@figaxs_defaults(mosaic=[['pop'], ['de'], ['ft']], scale_factors=(1 / 3, 1 / 2))
+def plot_timeplots(pops, delta_E, fosc_time, axs=None, fig=None):
     plot_pops(pops, axs['pop'])
     plot_time_interstate_error(delta_E, axs['de'])
     if fosc_time is not None:
