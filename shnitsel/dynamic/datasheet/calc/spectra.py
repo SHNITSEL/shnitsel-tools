@@ -1,8 +1,13 @@
 from itertools import product
+import numpy as np
 from ... import postprocess as P
 
 
 def get_spectrum(data, t, sc, cutoff=0.01):
+    if t not in data.coords['time']:
+        times = np.unique(data.coords['time'])
+        diffs = np.abs(times - 66.7)
+        t = times[np.argmin(diffs)]
     data = data.sel(time=t, statecomb=sc)
     res = P.broaden_gauss(data.energies, data.fosc, width=0.1, agg_dim='trajid')
     non_negligible = res.where(res > cutoff, drop=True).energy
