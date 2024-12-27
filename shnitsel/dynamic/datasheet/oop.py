@@ -3,6 +3,8 @@ import xarray as xr
 import numpy as np
 import rdkit.Chem as rc
 import matplotlib.pyplot as plt
+from logging import info
+from timeit import default_timer as timer
 
 from matplotlib.figure import Figure
 try:
@@ -101,12 +103,16 @@ class Datasheet:
 
     @cached_property
     def per_state(self):
+        start = timer()
         per_state = P.get_per_state(self.frames)
         per_state['_color'] = 'state', self.col_state
+        end = timer()
+        info(f"cached per_state in {end - start} s")
         return per_state
 
     @cached_property
     def inter_state(self):
+        start = timer()
         inter_state = P.get_inter_state(self.frames)
         inter_state['_color'] = 'statecomb', self.col_inter
         if 'dip_trans' in inter_state:
@@ -121,35 +127,54 @@ class Datasheet:
                 inter_state[var].attrs['tex'] = tex
             except KeyError:
                 pass
+        end = timer()
+        info(f"cached inter_state in {end - start} s")
         return inter_state
 
     @cached_property
     def pops(self):
+        start = timer()
         pops = P.calc_pops(self.frames)
         pops['_color'] = 'state', self.col_state
+        end = timer()
+        info(f"cached pops in {end-start} s")
         return pops
 
     @cached_property
     def delta_E(self):
+        start = timer()
         res = P.time_grouped_ci(self.inter_state['energies'])
         res['_color'] = 'statecomb', self.col_inter
         res.attrs['tex'] = r"$\Delta E$"
+        end = timer()
+        info(f"cached delta_E in {end-start} s")
         return res
 
     @cached_property
     def fosc_time(self):
+        start = timer()
         res = P.time_grouped_ci(self.inter_state['fosc'])
         res['_color'] = 'statecomb', self.col_inter
         res.attrs['tex'] = r"$f_\mathrm{osc}$"
+        end = timer()
+        info(f"cached fosc_time in {end-start} s")
         return res
 
     @cached_property
     def spectra(self):
-        return calc_spectra(self.inter_state, times=self.spectra_times)
+        start = timer()
+        res = calc_spectra(self.inter_state, times=self.spectra_times)
+        end = timer()
+        info(f"cached spectra in {end-start} s")
+        return res
 
     @cached_property
     def spectra_groups(self):
-        return get_sgroups(self.spectra)
+        start = timer()
+        res = get_sgroups(self.spectra)
+        end = timer()
+        info(f"cached spectra_groups in {end-start} s")
+        return res
 
     @cached_property
     def spectra_ground(self):
@@ -161,7 +186,11 @@ class Datasheet:
 
     @cached_property
     def noodle(self):
-        return P.pairwise_dists_pca(self.frames.atXYZ)
+        start = timer()
+        res = P.pairwise_dists_pca(self.frames.atXYZ)
+        end = timer()
+        info(f"cached noodle in {end-start} s")
+        return res
 
     @cached_property
     def hops(self):
@@ -193,10 +222,11 @@ class Datasheet:
 
     def calc_all(self):
         self.per_state
+        self.inter_state
         self.pops
         self.delta_E
         self.fosc_time
-        self.spectra  # -> inter_state
+        self.spectra
         self.spectra_groups
         self.noodle
         self.hops
@@ -206,35 +236,56 @@ class Datasheet:
         self.inchi
 
     def plot_per_state_histograms(self, fig: Figure | None = None):
-        return plot_per_state_histograms(
+        start = timer()
+        res = plot_per_state_histograms(
             per_state=self.per_state,
             fig=fig,
         )
+        end = timer()
+        info(f"finished plot_per_state_histograms in {end - start} s")
+        return res
 
     def plot_timeplots(self, fig: Figure | None = None):
-        return plot_timeplots(
+        start = timer()
+        res = plot_timeplots(
             pops=self.pops,
             delta_E=self.delta_E,
             fosc_time=self.fosc_time,
             fig=fig,
         )
+        end = timer()
+        info(f"finished plot_timeplots in {end - start} s")
+        return res
 
     def plot_separated_spectra_and_hists(self, fig: Figure | None = None):
-        return plot_separated_spectra_and_hists(
+        start = timer()
+        res = plot_separated_spectra_and_hists(
             inter_state=self.inter_state,
             sgroups=self.spectra_groups,
             fig=fig,
         )
+        end = timer()
+        info(f"finished plot_separated_spectra_and_hists in {end - start} s")
+        return res
 
     def plot_nacs_histograms(self, fig: Figure | None = None):
-        return plot_nacs_histograms(self.inter_state, self.hops.frame, fig=fig)
+        start = timer()
+        res = plot_nacs_histograms(self.inter_state, self.hops.frame, fig=fig)
+        end = timer()
+        info(f"finished plot_nacs_histograms in {end - start} s")
+        return res
 
     def plot_noodle(self, fig: Figure | None = None):
-        return plot_noodleplot(self.noodle, self.hops, fig=fig)
+        start = timer()
+        res = plot_noodleplot(self.noodle, self.hops, fig=fig)
+        end = timer()
+        info(f"finished plot_noodle in {end - start} s")
+        return res
 
     def plot_structure(self, fig: Figure | None = None):
+        start = timer()
         mol = self.mol_skeletal if self.structure_skeletal else self.mol
-        return plot_structure(
+        res = plot_structure(
             mol,
             name=self.name,
             smiles=self.smiles,
@@ -242,11 +293,9 @@ class Datasheet:
             ax=None,
             fig=fig,
         )
-
-    # TODO: Make whole datasheet and modularize creation process
-    # 1. Get it working with existing `create_subfigures` function
-    # 2. Adjust all the other functions to take a `figure` argument
-    # 3. Modify `create_subfigures` so that it doesn't make all the axes at once
+        end = timer()
+        info(f"finished plot_structure in {end - start} s")
+        return res
 
     @staticmethod
     def get_subfigures(include_per_state_hist: bool = False, borders: bool = False):
