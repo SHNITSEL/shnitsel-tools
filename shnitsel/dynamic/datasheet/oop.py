@@ -23,8 +23,8 @@ from .plot.time import plot_timeplots
 # import
 from .plot.dip_trans_hist import plot_separated_spectra_and_hists
 from .plot.nacs_hist import plot_nacs_histograms
-from ..pca_biplot import plot_noodleplot, xyz_to_mol
-from .plot.structure import plot_structure
+from ..pca_biplot import plot_noodleplot  # , xyz_to_mol
+from .plot.structure import plot_structure, xyz_to_mol
 
 
 class Datasheet:

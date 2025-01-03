@@ -111,7 +111,13 @@ def plot_loadings(ax, loadings):
         a1, a2 = int(pcs['from']), int(pcs['to'])
         ax.text(pc1, pc2, f"{a1},{a2}")
 
-def xyz_to_mol(atXYZ, charge=0):
+# WARNING there is a different version in datasheet/plot/structure
+# This is to keep pca_biplot working during development of datasheet
+# TODO unify the two implementations
+def xyz_to_mol(
+    atXYZ,
+    charge=0,
+):
     mol = rdkit.Chem.rdmolfiles.MolFromXYZBlock(P.to_xyz(atXYZ))
     rdkit.Chem.rdDetermineBonds.DetermineBonds(mol, charge=charge)
     AllChem.Compute2DCoords(mol)

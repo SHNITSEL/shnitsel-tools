@@ -1,7 +1,13 @@
 import rdkit
 
-from ... import pca_biplot
+from ... import pca_biplot, postprocess as P
 from .common import figax
+
+def xyz_to_mol(atXYZ, charge=0):
+    mol = rdkit.Chem.rdmolfiles.MolFromXYZBlock(P.to_xyz(atXYZ))
+    rdkit.Chem.rdDetermineBonds.DetermineBonds(mol, charge=charge)
+    # AllChem.Compute2DCoords(mol)
+    return mol
 
 
 def mol_to_png(mol, width=320, height=240):
