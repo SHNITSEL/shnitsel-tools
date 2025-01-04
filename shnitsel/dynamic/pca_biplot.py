@@ -1,9 +1,11 @@
-# pyrigth:off
 from dataclasses import dataclass
 import numpy as np
 import xarray as xr
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+
+from matplotlib.axes import Axes
+from matplotlib.figure import Figure
 
 import rdkit # type: ignore
 from rdkit.Chem import AllChem # type: ignore
@@ -13,23 +15,34 @@ import io
 from . import (
   postprocess as P)
 
-def figax(ax=None):
+def figax(fig: Figure | None = None, ax: Axes | None = None):
     """
     Create figure and axes-object if an axes-object is not supplied.
     """
-    if ax is None:
-        return plt.subplots(1,1)
-    else:
-        return ax.figure, ax
+    if fig is None and ax is None:
+        fig, ax = plt.subplots(1, 1)
+    elif fig is None:
+        fig = ax.figure
+    elif ax is None:
+        ax = fig.subplots(1, 1)
+    return fig, ax
 
 
 # NOTE difference: takes ax, original took (axs: dict) such that `'pca' in axs`
 # NOTE also moved ax to go after data arguments to facilitate figax approach
-def plot_noodleplot(noodle, hops=None, ax=None,
-    c=None, colorbar_label=None,
-    cmap=None, cnorm=None, cscale=None,
-    hops_kws=None):
-    fig, ax = figax(ax)
+def plot_noodleplot(
+    noodle,
+    hops=None,
+    fig=None,
+    ax=None,
+    c=None,
+    colorbar_label=None,
+    cmap=None,
+    cnorm=None,
+    cscale=None,
+    hops_kws=None,
+):
+    fig, ax = figax(fig, ax)
 
     if c is None:
         c = noodle['time']
@@ -98,9 +111,15 @@ def plot_loadings(ax, loadings):
         a1, a2 = int(pcs['from']), int(pcs['to'])
         ax.text(pc1, pc2, f"{a1},{a2}")
 
-def xyz_to_mol(atXYZ, charge=0):
+# WARNING there is a different version in datasheet/plot/structure
+# This is to keep pca_biplot working during development of datasheet
+# TODO unify the two implementations
+def xyz_to_mol(
+    atXYZ,
+    charge=0,
+):
     mol = rdkit.Chem.rdmolfiles.MolFromXYZBlock(P.to_xyz(atXYZ))
-    rdkit.Chem.rdDetermineBonds.DetermineBonds(mol, charge)
+    rdkit.Chem.rdDetermineBonds.DetermineBonds(mol, charge=charge)
     AllChem.Compute2DCoords(mol)
     return mol
 
