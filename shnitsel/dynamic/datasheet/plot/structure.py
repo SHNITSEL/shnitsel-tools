@@ -1,12 +1,15 @@
 import rdkit
+import rdkit.Chem as rc
 
 from ... import pca_biplot, postprocess as P
 from .common import figax
 
-def xyz_to_mol(atXYZ, charge=0):
-    mol = rdkit.Chem.rdmolfiles.MolFromXYZBlock(P.to_xyz(atXYZ))
-    rdkit.Chem.rdDetermineBonds.DetermineBonds(mol, charge=charge)
-    # AllChem.Compute2DCoords(mol)
+def xyz_to_mol(atXYZ, charge=0, covFactor=1.5):
+    mol = rc.rdmolfiles.MolFromXYZBlock(P.to_xyz(atXYZ))
+    rc.rdDetermineBonds.DetermineBonds(
+        mol, charge=charge, useVdw=True, covFactor=covFactor
+    )
+    rc.rdDepictor.Compute2DCoords(mol)
     return mol
 
 
