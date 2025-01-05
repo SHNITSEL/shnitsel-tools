@@ -115,3 +115,12 @@ def get_frames(path, recode_state=False):
 
 def get_frames_time(path):
     return postprocess.ts_to_time(get_frames(path))
+
+
+def save_frames(frames, path, complevel=9):
+    encoding = {
+        var: {"compression": "gzip", "compression_opts": complevel} for var in frames
+    }
+    frames.reset_index(['frame', 'statecomb']).to_netcdf(
+        path, engine='h5netcdf', encoding=encoding
+    )
