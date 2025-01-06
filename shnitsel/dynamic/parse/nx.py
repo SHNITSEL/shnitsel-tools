@@ -8,7 +8,8 @@ import re
 import math
 import glob
 
-from . import xyzparse
+from . import xyz
+
 
 def parse_nx_log(f):
     completed = True
@@ -45,9 +46,9 @@ def parse_nx_log(f):
         else:
             val = int(val)
         settings[key] = val
-    
+
     delta_t = settings['dt']
-    max_ts = int(real_tmax/delta_t)
+    max_ts = int(real_tmax / delta_t)
     nsteps = max_ts + 1
     nstates = settings['nstat']
     natoms = settings['Nat']
@@ -81,8 +82,8 @@ def parse_nx_log(f):
             astate[ts] = stripline.split()[8]
 
             # Set step number and time for _the following_ time step
-            time = float(stripline.split()[4])+delta_t
-            ts = int(time/delta_t)
+            time = float(stripline.split()[4]) + delta_t
+            ts = int(time / delta_t)
             logging.debug(f'finished ts {ts - 1}')
 
         elif stripline.startswith('Gradient vectors'):
@@ -96,78 +97,83 @@ def parse_nx_log(f):
         elif stripline.startswith('Energy ='):
             for istate in range(nstates):
                 energies[ts, istate] = float(next(f).strip())
-        
 
     states = ['S0', 'S1', 'S2']
 
     statecomb = xr.Coordinates.from_pandas_multiindex(
-        pd.MultiIndex.from_tuples(
-            combinations(states, 2),
-            names=['from', 'to']
-        ),
-        dim='statecomb'
+        pd.MultiIndex.from_tuples(combinations(states, 2), names=['from', 'to']),
+        dim='statecomb',
     )
 
-    coords = statecomb.merge({
-        'ts': np.arange(nsteps),
-        'state': states,
-        'state2': states,
-        'atom': np.arange(natoms),
-        # 'statecomb': np.arange(math.comb(nstates, 2)),
-        'direction': ['x', 'y', 'z']
-    })
+    coords = statecomb.merge(
+        {
+            'ts': np.arange(nsteps),
+            'state': states,
+            'state2': states,
+            'atom': np.arange(natoms),
+            # 'statecomb': np.arange(math.comb(nstates, 2)),
+            'direction': ['x', 'y', 'z'],
+        }
+    )
 
     # TODO: Are these units even correct?
     return xr.Dataset(
         {
-            'energies': (['ts', 'state'], energies,
-                         {'unit': 'hartree', 'unitdim': 'Energy'}),
+            'energies': (
+                ['ts', 'state'],
+                energies,
+                {'unit': 'hartree', 'unitdim': 'Energy'},
+            ),
             # 'dip_all': (['ts', 'state', 'state2', 'direction'], dip_all),
             # 'dip_perm': (['ts', 'state', 'direction'], dip_perm),
             # 'dip_trans': (['ts', 'statecomb', 'direction'], dip_trans),
             # 'sdiag': (['ts'], sdiag),
             'astate': (['ts'], astate),
-            'forces': (['ts', 'atom', 'direction'], forces,
-                       {'unit': 'hartree/bohr', 'unitdim': 'Force'}),
+            'forces': (
+                ['ts', 'atom', 'direction'],
+                forces,
+                {'unit': 'hartree/bohr', 'unitdim': 'Force'},
+            ),
             # 'has_forces': (['ts'], has_forces),
             # 'phases': (['ts', 'state'], phases),
-            'nacs': (['ts', 'statecomb', 'atom', 'direction'], nacs)
+            'nacs': (['ts', 'statecomb', 'atom', 'direction'], nacs),
         },
         coords=coords,
         attrs={
             'max_ts': max_ts,
             'real_tmax': real_tmax,
             'delta_t': delta_t,
-            'completed': completed
-        }
+            'completed': completed,
+        },
     )
+
 
 def read_traj(traj_path):
     with open(os.path.join(traj_path, 'RESULTS', 'nx.log')) as f:
         single_traj = parse_nx_log(f)
-    
+
     # nsteps = single_traj.sizes['ts']
 
     with open(os.path.join(traj_path, 'RESULTS', 'dyn.xyz')) as f:
-        atNames, atXYZ = xyzparse.parse_xyz(f)
-    
+        atNames, atXYZ = xyz.parse_xyz(f)
+
     # single_traj.attrs['atNames'] = atNames
     dims = ['ts', 'atom', 'direction']
-    single_traj = single_traj.assign_coords(
-        {'atNames': ('atom', atNames)})
-    
-    if not single_traj.attrs['completed'] \
-            and atXYZ.shape[0] == single_traj.sizes['ts'] + 1:
+    single_traj = single_traj.assign_coords({'atNames': ('atom', atNames)})
+
+    if (
+        not single_traj.attrs['completed']
+        and atXYZ.shape[0] == single_traj.sizes['ts'] + 1
+    ):
         logging.info("Geometry file contains ts after error. Truncating.")
         atXYZ = atXYZ[:-1]
 
     single_traj['atXYZ'] = xr.DataArray(
-        atXYZ,
-        coords={k:single_traj.coords[k] for k in dims},
-        dims=dims
+        atXYZ, coords={k: single_traj.coords[k] for k in dims}, dims=dims
     )
 
     return single_traj
+
 
 def read_traj_frames(path):
     trajid = int(os.path.basename(path)[4:])
@@ -184,6 +190,7 @@ def read_traj_frames(path):
 
     return ds
 
+
 def read_trajs_list(path):
     from tqdm import tqdm
     from tqdm.contrib.logging import logging_redirect_tqdm
@@ -193,36 +200,38 @@ def read_trajs_list(path):
 
     with logging_redirect_tqdm():
         datasets = [read_traj_frames(p) for p in tqdm(paths)]
-    
+
     return datasets
 
+
 def gather_traj_metadata(datasets):
-    traj_meta = np.zeros(len(datasets), dtype=[
-      ('trajid',  'i4'),
-      ('delta_t', 'f8'),
-      ('nsteps',  'i4')])
+    traj_meta = np.zeros(
+        len(datasets), dtype=[('trajid', 'i4'), ('delta_t', 'f8'), ('nsteps', 'i4')]
+    )
 
     for i, ds in enumerate(datasets):
         traj_meta['trajid'][i] = ds.attrs['trajid']
         traj_meta['delta_t'][i] = ds.attrs['delta_t']
         traj_meta['nsteps'][i] = len(ds.indexes['ts'])
-    
+
     return traj_meta
+
 
 def concat_trajs(datasets):
     datasets = [
-      ds.expand_dims(trajid=[ds.attrs['trajid']])
-        .stack(frame=['trajid', 'ts'])
-      for ds in datasets]
+        ds.expand_dims(trajid=[ds.attrs['trajid']]).stack(frame=['trajid', 'ts'])
+        for ds in datasets
+    ]
 
     frames = xr.concat(datasets, dim='frame', combine_attrs='drop_conflicts')
     traj_meta = gather_traj_metadata(datasets)
     frames = frames.assign_coords(trajid_=traj_meta['trajid'])
     frames = frames.assign(
-      delta_t=('trajid_', traj_meta['delta_t']),
-      nsteps=('trajid_', traj_meta['nsteps'])
+        delta_t=('trajid_', traj_meta['delta_t']),
+        nsteps=('trajid_', traj_meta['nsteps']),
     )
     return frames
+
 
 def layer_trajs(datasets):
     meta = gather_traj_metadata(datasets)
@@ -232,19 +241,17 @@ def layer_trajs(datasets):
     breakpoint()
     layers = xr.concat(datasets, dim=trajids, combine_attrs='drop_conflicts')
 
-    del(meta['trajid'])
-    layers = layers.assign({
-      k: xr.DataArray(v, coords_trajids) for k, v in meta.items()
-    })
+    del meta['trajid']
+    layers = layers.assign(
+        {k: xr.DataArray(v, coords_trajids) for k, v in meta.items()}
+    )
     return layers
+
 
 def read_trajs(path, format='frames'):
     datasets = read_trajs_list(path)
 
-    cats = {
-      'frames': concat_trajs,
-      'layers': layer_trajs
-    }
+    cats = {'frames': concat_trajs, 'layers': layer_trajs}
 
     try:
         cat_func = cats[format]
@@ -252,4 +259,3 @@ def read_trajs(path, format='frames'):
         raise ValueError(f"`as` must be one of {cats.keys()!r}")
 
     return cat_func(datasets)
-    

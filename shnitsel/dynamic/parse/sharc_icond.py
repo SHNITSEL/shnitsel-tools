@@ -9,37 +9,39 @@ from itertools import product, combinations
 from glob import iglob
 from typing import NamedTuple
 from tqdm.auto import tqdm
-from .parsecommon import (
+from .common import (
     get_dipoles_per_xyz,
     dip_sep,
     __atnum2symbol__,
     ConsistentValue,
-    get_triangular
+    get_triangular,
 )
-_re_grads = re.compile(
-    '[(](?P<nstates>[0-9]+)x(?P<natoms>[0-9]+)x3'
-)
-_re_nacs = re.compile(
-    '[(](?P<nstates>[0-9]+)x[0-9]+x(?P<natoms>[0-9]+)x3')
+
+_re_grads = re.compile('[(](?P<nstates>[0-9]+)x(?P<natoms>[0-9]+)x3')
+_re_nacs = re.compile('[(](?P<nstates>[0-9]+)x[0-9]+x(?P<natoms>[0-9]+)x3')
+
 
 class IcondPath(NamedTuple):
     index: int
     path: str
     # prefix: str | None
 
+
 def nans(*dims):
-        return np.full(dims, np.nan)
+    return np.full(dims, np.nan)
+
 
 def list_iconds(iconds_path='./iconds/'):
     names = sorted(
-        [name
-         for name in iglob('**/ICOND_0*', recursive=True, root_dir=iconds_path)
-         if 'QM.out' in os.listdir(os.path.join(iconds_path, name))])
+        [
+            name
+            for name in iglob('**/ICOND_0*', recursive=True, root_dir=iconds_path)
+            if 'QM.out' in os.listdir(os.path.join(iconds_path, name))
+        ]
+    )
 
-    return [
-        IcondPath(int(name[6:]), os.path.join(iconds_path, name))
-        for name in names
-    ]
+    return [IcondPath(int(name[6:]), os.path.join(iconds_path, name)) for name in names]
+
 
 def dims_from_QM_out(f):
     # faced with redundancy, use it to ensure consistency
@@ -58,8 +60,9 @@ def dims_from_QM_out(f):
         elif line.startswith('! 5 Non-adiabatic couplings'):
             info = _re_nacs.search(line)
             nstates.v, natoms.v = map(int, info.group('nstates', 'natoms'))
-    
+
     return nstates.v, natoms.v
+
 
 def check_dims(pathlist):
     if len(pathlist) == 0:
@@ -71,34 +74,35 @@ def check_dims(pathlist):
             nstates.v, natoms.v = dims_from_QM_out(f)
     return nstates.v, natoms.v
 
+
 def dir_of_iconds(path='./iconds/', *, subset: (set | None) = None):
     pathlist = list_iconds(path)
     if subset is not None:
-        pathlist = [icond for icond in pathlist
-                          if icond.name in subset]
-    
+        pathlist = [icond for icond in pathlist if icond.name in subset]
+
     return read_iconds(pathlist)
+
 
 def dirs_of_iconds(path='./iconds/', *, levels=1, subset: (set | None) = None):
     pathlist = list_iconds(path)
     if subset is not None:
-        pathlist = [icond for icond in pathlist
-                          if icond.name in subset]
-    
+        pathlist = [icond for icond in pathlist if icond.name in subset]
+
     return read_iconds(pathlist)
+
 
 def init_iconds(indices, nstates, natoms, **res):
     template = {
-            'energy': ['state'],
-            'dip_all': ['state', 'state2', 'direction'],
-            'dip_perm': ['state', 'direction'],
-            'dip_trans': ['statecomb', 'direction'],
-            'forces': ['state', 'atom', 'direction'],
-            # 'has_forces': ['placeholder'],
-            # 'has_forces': [],
-            'phases': ['state'],
-            'nacs': ['statecomb', 'atom', 'direction'],
-            'atXYZ': ['atom', 'direction'],
+        'energy': ['state'],
+        'dip_all': ['state', 'state2', 'direction'],
+        'dip_perm': ['state', 'direction'],
+        'dip_trans': ['statecomb', 'direction'],
+        'forces': ['state', 'atom', 'direction'],
+        # 'has_forces': ['placeholder'],
+        # 'has_forces': [],
+        'phases': ['state'],
+        'nacs': ['statecomb', 'atom', 'direction'],
+        'atXYZ': ['atom', 'direction'],
     }
 
     if indices is not None:
@@ -120,33 +124,41 @@ def init_iconds(indices, nstates, natoms, **res):
         'statecomb': math.comb(nstates, 2),
     }
 
-    coords={
-            'state': (states := np.arange(nstates)),
-            'state2': states,
-            'atom': np.arange(natoms),
-            'direction': ['x', 'y', 'z'],
-            'has_forces': ('icond',
-                x if (x := res.get('has_forces')) is not None
-                else nans(niconds))
-        }
-    
+    coords = {
+        'state': (states := np.arange(nstates)),
+        'state2': states,
+        'atom': np.arange(natoms),
+        'direction': ['x', 'y', 'z'],
+        'has_forces': (
+            'icond',
+            x if (x := res.get('has_forces')) is not None else nans(niconds),
+        ),
+    }
+
     if indices is not None:
         coords['icond'] = indices
 
     coords = xr.Coordinates.from_pandas_multiindex(
-                pd.MultiIndex.from_tuples(
-                    combinations(states, 2),
-                    names=['from', 'to']),
-                dim='statecomb').merge(coords)
-    
-    datavars = {varname: (dims, (
-        x if (x := res.get(varname)) is not None
-          else nans(*[lens[d] for d in dims])))
-        for varname, dims in template.items()}
-    
+        pd.MultiIndex.from_tuples(combinations(states, 2), names=['from', 'to']),
+        dim='statecomb',
+    ).merge(coords)
+
+    datavars = {
+        varname: (
+            dims,
+            (
+                x
+                if (x := res.get(varname)) is not None
+                else nans(*[lens[d] for d in dims])
+            ),
+        )
+        for varname, dims in template.items()
+    }
+
     datavars['atNames'] = (['atom'], np.full((natoms), ''))
 
     return xr.Dataset(datavars, coords)
+
 
 def read_iconds(pathlist, index=None):
     logging.info("Ensuring consistency of ICONDs dimensions")
@@ -160,7 +172,7 @@ def read_iconds(pathlist, index=None):
     for icond, path in tqdm(pathlist):
         with open(os.path.join(path, 'QM.out')) as f:
             parse_QM_out(f, out=iconds.sel(icond=icond))
-    
+
     for icond, path in tqdm(pathlist):
         try:
             with open(os.path.join(path, 'QM.log')) as f:
@@ -170,9 +182,11 @@ def read_iconds(pathlist, index=None):
                 f"""no QM.log file found in {path}.
                 This is currently used to determine geometry.
                 Eventually, user-inputs will be accepted as an alternative.
-                See https://github.com/SHNITSEL/db-workflow/issues/3""")
+                See https://github.com/SHNITSEL/db-workflow/issues/3"""
+            )
 
     return iconds
+
 
 def parse_QM_log(log):
     info = {}
@@ -190,14 +204,16 @@ def parse_QM_log(log):
                 nsinglets = 0
 
             # calculate total number of states
-            nstates = nsinglets + (3*ntriplets)
+            nstates = nsinglets + (3 * ntriplets)
 
             info['nStates'] = nstates
             info['nSinglets'] = nsinglets
             info['nTriplets'] = ntriplets
-            nnacs = int(nsinglets*(nsinglets-1)/2) + int(ntriplets*(ntriplets-1)/2)
+            nnacs = int(nsinglets * (nsinglets - 1) / 2) + int(
+                ntriplets * (ntriplets - 1) / 2
+            )
             info['nNACS'] = nnacs
-            info['nDipoles'] = int(nsinglets+ntriplets+nnacs)
+            info['nDipoles'] = int(nsinglets + ntriplets + nnacs)
 
         elif line.startswith('Method:'):
             linecont = re.split(' +|\t', line.strip())
@@ -217,17 +233,19 @@ def parse_QM_log(log):
             for i in range(natom):
                 geometry_line = re.split(' +', next(log).strip())
                 atnames.append(geometry_line[0])
-                atxyz[i] = [geometry_line[j] for j in range(1,4)]
+                atxyz[i] = [geometry_line[j] for j in range(1, 4)]
 
             info['atNames'] = atnames
-            r = {j: i for i,j in __atnum2symbol__.items()}
+            r = {j: i for i, j in __atnum2symbol__.items()}
             info['atNums'] = [r[i] for i in atnames]
             info['atXYZ'] = atxyz
 
     return info
 
+
 def parse_QM_log_geom(f, out):
-    while not next(f).startswith('Geometry in Bohrs:'): pass
+    while not next(f).startswith('Geometry in Bohrs:'):
+        pass
 
     for i in range(out.sizes['atom']):
         geometry_line = next(f).strip().split()
@@ -235,7 +253,7 @@ def parse_QM_log_geom(f, out):
         out['atXYZ'][i] = geometry_line[1:4]
 
 
-def parse_QM_out(f, out:(xr.Dataset|None) = None):
+def parse_QM_out(f, out: (xr.Dataset | None) = None):
     if out is not None:
         # write data directly into dataset
         res = out
@@ -256,26 +274,25 @@ def parse_QM_out(f, out:(xr.Dataset|None) = None):
 
             for istate in range(nstates.v):
                 energyline = re.split(' +', next(f).strip())
-                res['energy'][istate] = float(energyline[2*istate])
+                res['energy'][istate] = float(energyline[2 * istate])
 
         elif line.startswith('! 2 Dipole Moment Matrices'):
             dim = re.split(' +', next(f).strip())
             n = int(dim[0])
             m = int(dim[1])
-            
+
             if out is None:
                 res['dip_all'] = nans(n, m, 3)
                 res['dip_perm'] = nans(n, 3)
                 res['dip_trans'] = nans(math.comb(n, 2), 3)
-            
-            res['dip_all'][:,:,0] = get_dipoles_per_xyz(f, n, m)
-            next(f)
-            res['dip_all'][:,:,1] = get_dipoles_per_xyz(f, n, m)
-            next(f)
-            res['dip_all'][:,:,2] = get_dipoles_per_xyz(f, n, m)
 
-            res['dip_perm'][:], res['dip_trans'][:] = (
-                dip_sep(np.array(res['dip_all'])))
+            res['dip_all'][:, :, 0] = get_dipoles_per_xyz(f, n, m)
+            next(f)
+            res['dip_all'][:, :, 1] = get_dipoles_per_xyz(f, n, m)
+            next(f)
+            res['dip_all'][:, :, 2] = get_dipoles_per_xyz(f, n, m)
+
+            res['dip_perm'][:], res['dip_trans'][:] = dip_sep(np.array(res['dip_all']))
 
         elif line.startswith('! 3 Gradient Vectors'):
             res['has_forces'] = np.array([1])
@@ -285,13 +302,14 @@ def parse_QM_out(f, out:(xr.Dataset|None) = None):
             natoms.v = int(get_dim('natoms'))
 
             if out is None:
-                res['forces'] = nans(nstates.v,natoms.v,3)
+                res['forces'] = nans(nstates.v, natoms.v, 3)
 
             for istate in range(nstates.v):
                 next(f)
                 for atom in range(natoms.v):
                     res['forces'][istate][atom] = [
-                        float(entry) for entry in next(f).strip().split()]
+                        float(entry) for entry in next(f).strip().split()
+                    ]
 
         elif line.startswith('! 5 Non-adiabatic couplings'):
             get_dim = _re_nacs.search(line).group
@@ -300,12 +318,12 @@ def parse_QM_out(f, out:(xr.Dataset|None) = None):
 
             if out is None:
                 res['nacs'] = nans(math.comb(nstates.v, 2), natoms.v, 3)
-            
+
             nacs_all = nans(nstates.v, nstates.v, natoms.v, 3)
 
             for bra, ket in product(range(nstates.v), range(nstates.v)):
                 # TODO info currently unused, but keep the `next(f)` no matter what!
-                nac_multi = int(re.split(' +', next(f).strip())[-1]) # noqa: F841
+                nac_multi = int(re.split(' +', next(f).strip())[-1])  # noqa: F841
 
                 for atom in range(natoms.v):
                     nacs_line = re.split(' +', next(f).strip())
@@ -316,17 +334,17 @@ def parse_QM_out(f, out:(xr.Dataset|None) = None):
             # off-diagonal elements conatin couplings of different states (e.g. S0 and S1)
             # in principle one has here the full matrix for the nacs between all singlet and triplet states
             # in the following we extract only the upper triangular elements of the matrix
-            
+
             res['nacs'][:] = get_triangular(nacs_all)
-            
+
         elif line.startswith('! 6 Overlap matrix'):
-            # TODO!!!                
+            # TODO!!!
             nlines = int(re.split(' +', next(f).strip())[0])
 
             found_overlap = False
             phasevector = np.ones((nlines))
 
-            wvoverlap = np.zeros((nlines,nlines))
+            wvoverlap = np.zeros((nlines, nlines))
             for j in range(nlines):
                 linecont = [float(n) for n in re.split(' +', next(f).strip())]
                 vec = [n for n in linecont if n != 0.0]
@@ -352,11 +370,8 @@ def parse_QM_out(f, out:(xr.Dataset|None) = None):
         if not res['has_forces']:
             res['forces'] = nans(natoms.v, 3)
 
-        return init_iconds(indices=None,
-                           nstates=nstates.v,
-                           natoms=natoms.v,
-                           **res)
-        
+        return init_iconds(indices=None, nstates=nstates.v, natoms=natoms.v, **res)
+
         # xr.Dataset(
         #     {
         #         'energy': (['state'], energy),
