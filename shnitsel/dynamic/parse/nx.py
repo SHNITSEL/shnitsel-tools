@@ -256,6 +256,6 @@ def read_trajs(path, format='frames'):
     try:
         cat_func = cats[format]
     except KeyError:
-        raise ValueError(f"`as` must be one of {cats.keys()!r}")
+        raise ValueError(f"`format` must be one of {cats.keys()!r}")
 
     return cat_func(datasets)
