@@ -202,6 +202,13 @@ def parse_trajout_dat(f):
         if np.any(forces[ts]):
             has_forces[ts] = True
 
+    if not max_ts + 1 <= nsteps:
+        raise ValueError(
+            f"The output.dat header declared {nsteps=} timesteps, but the "
+            f"greatest timestep index was {max_ts + 1=}"
+        )
+    completed = max_ts + 1 == nsteps
+
     # Currently 1-based numbering corresponding to internal SHARC usage.
     # Ultimately aiming to replace numbers with labels ('S0', 'S1', ...),
     # but that has disadvantages in postprocessing.
@@ -244,7 +251,7 @@ def parse_trajout_dat(f):
             'nacs': (['ts', 'statecomb', 'atom', 'direction'], nacs),
         },
         coords=coords,
-        attrs={'max_ts': max_ts},
+        attrs={'max_ts': max_ts, 'completed': completed},
     )
 
 
