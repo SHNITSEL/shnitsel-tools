@@ -165,12 +165,8 @@ def parse_trajout_dat(f):
             astate[ts] = int(pair[1])
 
         if line.startswith('! 15 Gradients (MCH)'):
-            # if astate[ts] == np.nan:
-            #     raise ValueError(f"Gradients given before active state for timestep {ts}")
-
             state = int(re.split(' +', line.strip())[-1]) - 1
 
-            # if gstate == astate[ts]:
             for atom in range(natoms):
                 forces[ts, state, atom] = [
                     float(n) for n in re.split(' +', next(f).strip())
@@ -222,7 +218,6 @@ def parse_trajout_dat(f):
             'state': states,
             'state2': states,
             'atom': np.arange(natoms),
-            # 'statecomb': np.arange(math.comb(nstates, 2)),
             'direction': ['x', 'y', 'z'],
         }
     )
