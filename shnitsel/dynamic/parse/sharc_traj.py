@@ -53,13 +53,19 @@ def read_traj(traj_path):
     with open(os.path.join(traj_path, 'output.xyz')) as f:
         atNames, atXYZ = parse_trajout_xyz(nsteps, f)
 
+    with open(os.path.join(traj_path, 'input')) as f:
+        settings = parse_input(f)
+
     # single_traj.attrs['atNames'] = atNames
-    single_traj = single_traj.assign_coords({'atNames': ('atom', atNames)})
+    single_traj = single_traj.assign_coords(
+        {'atNames': ('atom', atNames)},
+    )
     single_traj['atXYZ'] = xr.DataArray(
         atXYZ,
         coords={k: single_traj.coords[k] for k in ['ts', 'atom', 'direction']},
         dims=['ts', 'atom', 'direction'],
     )
+    single_traj.attrs['delta_t'] = float(settings['stepsize'])
 
     return single_traj
 
@@ -281,3 +287,15 @@ def parse_trajout_xyz(nsteps, f):
     # atNames  = np.char.encode(atNames, 'utf8')
 
     return (atNames, atXYZ)
+
+def parse_input(f):
+    settings = {}
+    for line in f:
+        parsed = line.strip().split()
+        if len(parsed) == 2:
+            settings[parsed[0]] = parsed[1]
+        elif len(parsed) > 2:
+            settings[parsed[0]] = parsed[1:]
+        elif len(parsed) == 1:
+            settings[parsed[0]] = True
+    return settings
