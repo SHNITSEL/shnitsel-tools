@@ -17,40 +17,38 @@ def _default_idfn(path):
     return int(_exnum.search(os.path.basename(path))[0])
 
 
-def read_traj_frames(trajdir, kind, idfn=None):
+def read_trajs_list(path, kind, idfn=None, sort=True):
+    from tqdm import tqdm
+    from tqdm.contrib.logging import logging_redirect_tqdm
+
     global _default_idfn
     if idfn is None:
         idfn = _default_idfn
-    trajid = idfn(trajdir)
 
     if kind == 'nx':
         read_traj = nx.read_traj
     elif kind == 'sharc':
         read_traj = sharc_traj.read_traj
 
-    try:
-        ds = read_traj(trajdir)
-    except:
-        logging.error(f"Error for trajectory {trajid} at path {trajdir}")
-        raise
-
-    if not ds.attrs['completed']:
-        logging.warn(f"Trajectory {trajid} at path {trajdir} did not complete")
-
-    ds.attrs['trajid'] = trajid
-
-    return ds
-
-
-def read_trajs_list(path, kind, sort=True):
-    from tqdm import tqdm
-    from tqdm.contrib.logging import logging_redirect_tqdm
-
     paths = glob.glob(os.path.join(path, 'TRAJ*'))
     assert len(paths) > 0
 
+    datasets = []
     with logging_redirect_tqdm():
-        datasets = [read_traj_frames(p, kind=kind) for p in tqdm(paths)]
+        for trajdir in tqdm(paths):
+            trajid = idfn(trajdir)
+            try:
+                ds = read_traj(trajdir)
+            except:
+                logging.error(f"Error for trajectory {trajid} at path {trajdir}")
+                raise
+
+            if not ds.attrs['completed']:
+                logging.warn(f"Trajectory {trajid} at path {trajdir} did not complete")
+
+            ds.attrs['trajid'] = trajid
+
+            datasets.append(ds)
 
     if sort:
         datasets.sort(key=lambda x: x.attrs['trajid'])
