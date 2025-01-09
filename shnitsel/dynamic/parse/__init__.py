@@ -17,7 +17,7 @@ def _default_idfn(path):
     return int(_exnum.search(os.path.basename(path))[0])
 
 
-def read_trajs_list(path, kind, idfn=None, sort=True):
+def read_trajs_list(paths, kind, idfn=None, sort=True):
     from tqdm import tqdm
     from tqdm.contrib.logging import logging_redirect_tqdm
 
@@ -29,9 +29,6 @@ def read_trajs_list(path, kind, idfn=None, sort=True):
         read_traj = nx.read_traj
     elif kind == 'sharc':
         read_traj = sharc_traj.read_traj
-
-    paths = glob.glob(os.path.join(path, 'TRAJ*'))
-    assert len(paths) > 0
 
     datasets = []
     with logging_redirect_tqdm():
@@ -112,7 +109,14 @@ def layer_trajs(datasets):
 
 
 def read_trajs(path, kind, format='frames'):
-    datasets = read_trajs_list(path, kind)
+    glob_expr = os.path.join(path, 'TRAJ*')
+    paths = glob.glob(glob_expr)
+    if len(paths) == 0:
+        raise FileNotFoundError(
+            f"The search '{glob_expr}' didn't match any paths"
+            f"in working directory '{os.getcwd()}'"
+        )
+    datasets = read_trajs_list(paths, kind)
 
     cats = {'frames': concat_trajs, 'layers': layer_trajs}
 
