@@ -235,7 +235,7 @@ def parse_trajout_dat(f):
         }
     )
 
-    return xr.Dataset(
+    res = xr.Dataset(
         {
             'energies': (
                 ['ts', 'state'],
@@ -259,6 +259,11 @@ def parse_trajout_dat(f):
         coords=coords,
         attrs={'max_ts': max_ts, 'completed': completed},
     )
+
+    if not completed:
+        res = res.sel(ts=res.ts <= res.attrs['max_ts'])
+
+    return res
 
 
 def parse_trajout_xyz(nsteps, f):
