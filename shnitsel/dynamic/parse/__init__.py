@@ -7,6 +7,10 @@ import numpy as np
 import xarray as xr
 import pandas as pd
 
+from tqdm.auto import tqdm
+from tqdm.contrib.logging import logging_redirect_tqdm
+
+from . import sharc_icond as sharc_icond
 from . import nx, sharc_traj
 
 _exnum = re.compile('[0-9]+')
@@ -18,9 +22,6 @@ def _default_idfn(path):
 
 
 def read_trajs_list(paths, kind, idfn=None, sort=True):
-    from tqdm import tqdm
-    from tqdm.contrib.logging import logging_redirect_tqdm
-
     global _default_idfn
     if idfn is None:
         idfn = _default_idfn
@@ -113,7 +114,7 @@ def read_trajs(path, kind, format='frames'):
     paths = glob.glob(glob_expr)
     if len(paths) == 0:
         raise FileNotFoundError(
-            f"The search '{glob_expr}' didn't match any paths"
+            f"The search '{glob_expr}' didn't match any paths "
             f"in working directory '{os.getcwd()}'"
         )
     datasets = read_trajs_list(paths, kind)
