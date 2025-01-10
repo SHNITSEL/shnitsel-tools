@@ -1,0 +1,32 @@
+  ],
+  "export" : true,
+  "method" : [ {
+    "title" : "caspt2",
+      "smith" : {
+        "method" : "caspt2",
+        "ms" : "true",
+        "xms" : "true",
+        "sssr" : "true",
+        "shift" : 0.5,
+        "frozen" : "true"
+      },
+    "nstate" : 3,
+    "nact" : 6,
+    "nclosed" : 19,
+    "maxiter" : 150
+  } ]
+},
+
+{
+  "title" : "save_ref",
+  "file" : "../caspt2"
+},
+
+{
+  "title" : "print",
+  "file" : "caspt2.molden",
+  "orbitals" : true
+}
+
+]}
+

@@ -1,0 +1,13 @@
+
+{
+  "title" : "load_ref",
+  "file" : "../caspt2",
+  "continue_geom" : false
+},
+
+{
+  "title" : "forces",
+  "grads" : [
+    { "title" : "force", "target" : 0},
+    { "title" : "force", "target" : 1},
+    { "title" : "force", "target" : 2},

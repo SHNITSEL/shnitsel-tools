@@ -1,0 +1,9 @@
+&input
+ nat = 14
+ nstat = 3
+ nstatdyn = 2
+ dt = 0.25
+ tmax = 400
+ prog = 12.0
+ thres = 100
+/

@@ -1,0 +1,4 @@
+Node list: ccs3023
+Number of tasks: 1
+Number of tasks per node: 1
+Number of OMP threads per task: 40
