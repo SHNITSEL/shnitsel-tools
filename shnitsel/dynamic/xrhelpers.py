@@ -121,6 +121,12 @@ def save_frames(frames, path, complevel=9):
     encoding = {
         var: {"compression": "gzip", "compression_opts": complevel} for var in frames
     }
+
+    # netcdf does not support bool
+    frames = frames.assign(completed=frames.completed.astype('i1'))
+    if 'completed' in frames.attrs:
+        frames.attrs['completed'] = int(frames.attrs['completed'])
+    # or MultiIndex
     frames.reset_index(['frame', 'statecomb']).to_netcdf(
         path, engine='h5netcdf', encoding=encoding
     )

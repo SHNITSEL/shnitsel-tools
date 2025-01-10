@@ -252,7 +252,7 @@ def parse_trajout_dat(f):
                 forces,
                 {'unit': 'hartree/bohr', 'unitdim': 'Force'},
             ),
-            'has_forces': (['ts'], has_forces),
+            # 'has_forces': (['ts'], has_forces),
             'phases': (['ts', 'state'], phases),
             'nacs': (['ts', 'statecomb', 'atom', 'direction'], nacs),
         },
