@@ -27,9 +27,6 @@ def figax(fig: Figure | None = None, ax: Axes | None = None):
         ax = fig.subplots(1, 1)
     return fig, ax
 
-
-# NOTE difference: takes ax, original took (axs: dict) such that `'pca' in axs`
-# NOTE also moved ax to go after data arguments to facilitate figax approach
 def plot_noodleplot(
     noodle,
     hops=None,
@@ -42,7 +39,7 @@ def plot_noodleplot(
     cscale=None,
     hops_kws=None,
 ):
-    fig, ax = figax(fig, ax)
+    fig, ax = figax(fig=fig, ax=ax)
 
     if c is None:
         c = noodle['time']
@@ -57,6 +54,7 @@ def plot_noodleplot(
         norm=cnorm,
         cmap=cmap)
 
+    # TODO: remove groupby? Needed only for line-plot or for legend
     for trajid, traj in noodle.groupby('trajid'):
         ctraj = c.sel(trajid=trajid)
         ax.scatter(
@@ -73,13 +71,18 @@ def plot_noodleplot(
     # TODO facilitate custom colorbar
     fig.colorbar(cscale, ax=ax, label=colorbar_label, pad=0.02)
 
+    # Alternative layout solution
+    # d = make_axes_locatable(ax)
+    # cax = d.append_axes("right", size="5%", pad="2%")
+    # fig.colorbar(pc, cax=cax, label='dihedral')
+
     return ax
 
 # TODO: finish later!
 def plot_noodleplot_lines(noodle, #hops,
   ax=None,
   cmap=None, cnorm=None, cscale=None):
-    fig, ax = figax(ax)
+    fig, ax = figax(ax=ax)
     points = noodle.values
     # One traj per line
     for trajid, traj in noodle.groupby('trajid'):
@@ -106,7 +109,8 @@ def get_loadings(frames):
 
 def plot_loadings(ax, loadings):
     for _, pcs in loadings.groupby('atomcomb'):
-        pc1, pc2 = pcs.values
+        assert len(pcs) == 2
+        pc1, pc2 = pcs.item(0), pcs.item(1)
         ax.arrow(0, 0, pc1, pc2)
         a1, a2 = int(pcs['from']), int(pcs['to'])
         ax.text(pc1, pc2, f"{a1},{a2}")
@@ -166,7 +170,7 @@ def cluster_loadings(loadings: xr.DataArray, cutoff=0.05):
     return cluster_general(decider, n)
 
 def plot_clusters(loadings, clusters, ax=None, labels=None):
-    fig, ax = figax(ax)
+    fig, ax = figax(ax=ax)
     for i, cluster in enumerate(clusters):
         acs = loadings.isel(atomcomb=cluster)
         x, y = acs.mean(dim='atomcomb')
@@ -321,7 +325,7 @@ def plot_clusters2(ax, loadings, clusters, mol, min_angle=10, inset_scale=1, sho
         mpl_imshow_png(iax, png)
 
 def plot_clusters3(loadings, clusters, ax=None, labels=None, axs=None, mol=None):
-    fig, ax = figax(ax)
+    fig, ax = figax(ax=ax)
     if labels is None:
         labels = list('abcdefghijklmnopqrstuvwxyz')
 
