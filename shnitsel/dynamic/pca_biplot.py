@@ -7,6 +7,8 @@ import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 
+from scipy import stats
+
 import rdkit # type: ignore
 from rdkit.Chem import AllChem # type: ignore
 import PIL
@@ -428,3 +430,17 @@ def plot_bin_edges(angles, radii, bins, edges, picks, ax, labels):
     ax.scatter(rangles[picks], radii[picks], c='k', s=5)
 
     ax.set_rlabel_position(200)
+
+def pick_clusters(frames, nbins):
+    loadings = get_loadings(frames)
+    clusters = cluster_loadings(loadings)
+    points = get_clusters_coords(loadings, clusters)
+
+    angles = np.degrees(np.arctan2(points[:, 1], points[:, 0]))
+    radii = np.sqrt(points[:, 0] ** 2 + points[:, 1] ** 2)
+    center = stats.circmean(angles, high=180, low=-180)
+
+    bins, edges = circbins(angles, nbins=4, center=center)
+    picks = [b[np.argmax(radii[b])] for b in bins]
+
+    return dict(loadings=loadings, clusters=clusters, picks=picks)
