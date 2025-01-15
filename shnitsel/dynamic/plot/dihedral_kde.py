@@ -43,3 +43,19 @@ def plot_kdes(xx, yy, Zcis, Ztrans, levels=None, fig=None, ax=None):
     for Z, c in zip([Zcis, Ztrans], ['purple', 'green']):
         ax.contourf(xx, yy, Z, levels=levels, colors=c, alpha=0.1)
         ax.contour(xx, yy, Z, levels=levels, colors=c, linewidths=0.5)
+
+
+def plot_cdf_for_kde(z, level, ax=None):
+    fig, ax = figax(ax=ax)
+    bins, edges, _ = ax.hist(
+        z,
+        bins=1000,
+        range=(0, 1.1 * level),
+        cumulative=True,
+        density=True,
+        histtype='step',
+    )
+    y = bins[abs(edges - level).argmin()]
+    ax.plot([0, level], [y, y], c='r')
+    ax.plot([level, level], [0, y], c='r')
+    return y
