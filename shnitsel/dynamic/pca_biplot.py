@@ -39,6 +39,7 @@ def plot_noodleplot(
     cmap=None,
     cnorm=None,
     cscale=None,
+    noodle_kws=None,
     hops_kws=None,
 ):
     fig, ax = figax(fig=fig, ax=ax)
@@ -57,12 +58,11 @@ def plot_noodleplot(
         cmap=cmap)
 
     # TODO: remove groupby? Needed only for line-plot or for legend
-    for trajid, traj in noodle.groupby('trajid'):
-        ctraj = c.sel(trajid=trajid)
-        ax.scatter(
-            traj.isel(PC=0), traj.isel(PC=1),
-            c=cmap(cnorm(ctraj)),
-            label=trajid, alpha=0.5, s=0.2)
+    # for trajid, traj in noodle.groupby('trajid'):
+    #     ctraj = c.sel(trajid=trajid)
+    noodle_kws = noodle_kws or {}
+    noodle_kws = {'alpha': 0.5, 's': 0.2, **noodle_kws}
+    ax.scatter(noodle.isel(PC=0), noodle.isel(PC=1), c=cmap(cnorm(c)), **noodle_kws)
 
     ax.set_xlabel('PC1')
     ax.set_ylabel('PC2')
