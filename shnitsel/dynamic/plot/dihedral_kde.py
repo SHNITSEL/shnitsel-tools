@@ -16,13 +16,16 @@ def eval_kde(kernel, xx, yy):
     return Z.reshape(xx.shape) / Z.max()
 
 
-def fit_and_eval_kdes(frames, fineness=500):
+def fit_and_eval_kdes(frames, fineness=500, extension=0.1):
     noodle, hops = P.pca_and_hops(frames)
     dihedrals = P.dihedral(frames['atXYZ'], 0, 1, 2, 3) * 180 / np.pi
     c, t = fit_kdes(noodle, dihedrals)
     noodle = noodle.transpose('frame', 'PC')  # required order for the following 3 lines
+    means = noodle.mean(dim='frame').values
     mins = noodle.min(dim='frame').values
+    mins -= (means - mins) * extension
     maxs = noodle.max(dim='frame').values
+    maxs += (maxs - means) * extension
     ls = np.linspace(mins, maxs, num=fineness).T
     xx, yy = np.meshgrid(ls[0], ls[1])
     return xx, yy, eval_kde(c, xx, yy), eval_kde(t, xx, yy)
@@ -38,6 +41,5 @@ def plot_kdes(xx, yy, Zcis, Ztrans, levels=None, fig=None, ax=None):
     # cscale = mpl.cm.ScalarMappable(norm=cnorm, cmap=cmap)
     # fig.colorbar(cscale, ax=ax)
     for Z, c in zip([Zcis, Ztrans], ['purple', 'green']):
-        ax.contour(
-            xx, yy, Z, levels=levels, colors=c, linewidths=0.5
-        )  # cmap=cmap, norm=cnorm)
+        ax.contourf(xx, yy, Z, levels=levels, colors=c, alpha=0.1)
+        ax.contour(xx, yy, Z, levels=levels, colors=c, linewidths=0.5)
