@@ -122,7 +122,7 @@ def parse_nx_log(f):
             'energies': (
                 ['ts', 'state'],
                 energies,
-                {'unit': 'hartree', 'unitdim': 'Energy'},
+                {'units': 'hartree', 'unitdim': 'Energy'},
             ),
             # 'dip_all': (['ts', 'state', 'state2', 'direction'], dip_all),
             # 'dip_perm': (['ts', 'state', 'direction'], dip_perm),
@@ -132,7 +132,7 @@ def parse_nx_log(f):
             'forces': (
                 ['ts', 'atom', 'direction'],
                 forces,
-                {'unit': 'hartree/bohr', 'unitdim': 'Force'},
+                {'units': 'hartree/bohr', 'unitdim': 'Force'},
             ),
             # 'has_forces': (['ts'], has_forces),
             # 'phases': (['ts', 'state'], phases),

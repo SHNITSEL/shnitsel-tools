@@ -25,9 +25,7 @@ def plot_per_state_histograms(per_state, axs=None, fig=None):
                 c=c,
             )
 
-    eunits = (
-        per_state['energies'].attrs.get('units') or per_state['energies'].attrs['unit']
-    )
+    eunits = per_state['energies'].attrs.get('units')
     axs['energies'].set_xlabel(rf'$E$ / {eunits}')
     axs['forces'].set_xlabel(r'$\mathbf{F}$ / (hartree/bohr)')
     axs['dip_perm'].set_xlabel(r'$\mathbf{\mu}_i$ / (??)')

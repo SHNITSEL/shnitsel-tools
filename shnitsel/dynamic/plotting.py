@@ -29,7 +29,8 @@ def pca_line_plot(
     if hue_label is None:
         hue_label = '{} / {}'.format(
             hue.attrs.get('unitdim'),
-            hue.attrs.get('unit'))
+            hue.attrs.get('units'),
+        )
     if hue_cmap is None:
         hue_cmap = 'binary_r'
     if shadow_labels is None:

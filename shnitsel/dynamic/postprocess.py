@@ -117,11 +117,11 @@ def relativize(da: xr.DataArray, **sel):
 
 def convert(da: xr.DataArray, to: str, quantity: str, conversions: dict):
     try:
-        from_ = da.attrs['unit']
+        from_ = da.attrs['units']
     except AttributeError:
         raise TypeError("da should be a DataArray with a da.attr attribute.")
     except KeyError:
-        raise KeyError("The 'unit' attribute of the DataArray must be set.")
+        raise KeyError("The 'units' attribute of the DataArray must be set.")
 
     try:
         divisor = conversions[from_]
@@ -137,7 +137,7 @@ def convert(da: xr.DataArray, to: str, quantity: str, conversions: dict):
 
     with xr.set_options(keep_attrs=True):
         res = da * dividend / divisor
-    res.attrs.update({'unit': to})
+    res.attrs.update({'units': to})
     return res
 
 class Converter:
@@ -149,12 +149,12 @@ class Converter:
 
     def __call__(self, da: xr.DataArray, to: str):
         try:
-            from_ = da.attrs['unit']
+            from_ = da.attrs['units']
         except AttributeError:
             raise TypeError("da should be a DataArray with a da.attr attribute.")
         except KeyError:
-            raise KeyError("The 'unit' attribute of the DataArray must be set.")
-    
+            raise KeyError("The 'units' attribute of the DataArray must be set.")
+
         try:
             divisor = self.conversions[from_]
         except KeyError:
@@ -167,7 +167,7 @@ class Converter:
     
         with xr.set_options(keep_attrs=True):
             res = da * dividend / divisor
-        res.attrs.update({'unit': to})
+        res.attrs.update({'units': to})
         return res
 
 convert_energy = Converter('energy', dict(
@@ -229,12 +229,7 @@ def ts_to_time(data, delta_t=None, old='drop'):
     if old == 'drop':
         data = data.drop_vars('ts')
 
-    data['time'].attrs.update((dict(
-      unit='fs',
-      units='fs',
-      long_name='$t$',
-      tex_name='t'
-    )))
+    data['time'].attrs.update((dict(units='fs', long_name='$t$', tex_name='t')))
 
     return data
 
