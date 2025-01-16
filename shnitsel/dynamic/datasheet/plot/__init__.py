@@ -39,7 +39,7 @@ def plot_datasheet(
             ],
         )
         if include_hist:
-            mosaic = [['energies', 'forces', 'dip_perm']] + mosaic
+            mosaic = [['energy', 'forces', 'dip_perm']] + mosaic
         fig, axs = plt.subplot_mosaic(mosaic, layout='constrained')
     else:
         fig = fig or list(axs.values())[0].figure
@@ -99,7 +99,7 @@ def create_subfigures(include_hist=False, borders=False):
     sfs = {}
     axs = {}
     if include_hist:
-        f('hist', gs[0, :], 1, 3, 'energies', 'forces', 'dip_perm')
+        f('hist', gs[0, :], 1, 3, 'energy', 'forces', 'dip_perm')
     f('time', gs[s + 2 :, 2], 3, 1, 'pop', 'de', 'ft')
     f('pca', gs[s + 0 : s + 2, 1:], 1, 1, 'pca')
     hr = ([1] * 5) + ([0.1] * 2)

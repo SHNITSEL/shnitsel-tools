@@ -17,7 +17,7 @@ def calc_all(frames):
     inter_state = P.get_inter_state(frames)
     pops = P.calc_pops(frames)
 
-    delta_E = P.time_grouped_ci(inter_state['energies'])
+    delta_E = P.time_grouped_ci(inter_state['energy'])
     noodle, hops = P.pca_and_hops(frames)
 
     if 'dip_trans' in frames:

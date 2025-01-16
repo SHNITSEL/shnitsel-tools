@@ -54,9 +54,8 @@ def modify_midx_level(data, midx_name, coords, replace: set | None):
     # find MultiIndex name
     # for idx_name, idx in data.indexes.values():
         # if not set(coords).isdisjoint(getattr(idx, 'names', set())):
-    
 
-    # 'frame' in energies_rel.reset_index('frame').coords['ts'].dims
+    # 'frame' in energy_rel.reset_index('frame').coords['ts'].dims
 
     level_names = list(data.indexes[midx_name].names)
     data = (data
@@ -109,8 +108,8 @@ def get_frames(path, recode_state=False):
             'state2': new_states,
             })
     # frames = xrhelpers.modify_midx_level(frames, 'statecomb', {'from':[1,1,2], 'to':[2,3,3]}, )
-    frames['energies'] = postprocess.relativize(frames['energies'])
-    frames['energies'] = postprocess.convert_energy(frames['energies'], to='eV')
+    frames['energy'] = postprocess.relativize(frames['energy'])
+    frames['energy'] = postprocess.convert_energy(frames['energy'], to='eV')
     return frames
 
 def get_frames_time(path):

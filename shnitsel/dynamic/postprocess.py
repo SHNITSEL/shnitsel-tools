@@ -250,14 +250,12 @@ def keep_norming(da, exclude=None):
 #     statecomb = xrhelpers.get_statecombs
 
 
-def _get_fosc(energies, dip_trans):
-    return 2/3 * energies * dip_trans**2
+def _get_fosc(energy, dip_trans):
+    return 2 / 3 * energy * dip_trans**2
+
 
 def assign_fosc(ds):
-    da = _get_fosc(
-        convert_energy(ds['energies'], to='hartree'),
-        ds['dip_trans']
-    )
+    da = _get_fosc(convert_energy(ds['energy'], to='hartree'), ds['dip_trans'])
     da.name = 'fosc'
     da.attrs['long_name'] = r"$f_{\mathrm{osc}}$"
     return ds.assign(fosc=da)
@@ -281,24 +279,22 @@ def broaden_gauss(E, fosc, agg_dim='frame', *, width=0.001, nsamples=1000):
     return res.assign_coords({'energy': Espace})
 
 def ds_broaden_gauss(ds, width=0.001, nsamples=1000):
-    return broaden_gauss(ds['energies'], ds['fosc'], width=width, nsamples=nsamples)
+    return broaden_gauss(ds['energy'], ds['fosc'], width=width, nsamples=nsamples)
+
 
 def get_per_state(frames):
-    props_per = {'energies', 'forces', 'dip_perm'}.intersection(frames.keys())
+    props_per = {'energy', 'forces', 'dip_perm'}.intersection(frames.keys())
     per_state = frames[props_per].map(keep_norming, keep_attrs=False)
     per_state['forces'] = per_state['forces'].where(per_state['forces'] != 0)
     return per_state
 
 def get_inter_state(frames):
-    iprops = ['energies', 'nacs', 'astate']
+    iprops = ['energy', 'nacs', 'astate']
     if 'dip_trans' in frames:
         iprops += ['dip_trans']
 
     inter_state = frames[iprops]
-    inter_state['energies'] = subtract_combinations(
-      inter_state['energies'],
-      dim='state'
-    )
+    inter_state['energy'] = subtract_combinations(inter_state['energy'], dim='state')
 
     inter_state = inter_state.apply(keep_norming)
     inter_state = xrhelpers.flatten_midx(

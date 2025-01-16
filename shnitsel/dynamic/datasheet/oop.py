@@ -118,7 +118,7 @@ class Datasheet:
         if 'dip_trans' in inter_state:
             inter_state = P.assign_fosc(inter_state)
         for var, tex in [
-            ('energies', r"$\Delta E$"),
+            ('energy', r"$\Delta E$"),
             ('nacs', r"$\|\mathrm{NAC}_{i,j}\|_2$"),
             ('dip_trans', r"$\|\mathbf{\mu}_{i,j}\|_2$"),
             ('fosc', r"$f_\mathrm{osc}$"),
@@ -143,7 +143,7 @@ class Datasheet:
     @cached_property
     def delta_E(self):
         start = timer()
-        res = P.time_grouped_ci(self.inter_state['energies'])
+        res = P.time_grouped_ci(self.inter_state['energy'])
         res['_color'] = 'statecomb', self.col_inter
         res.attrs['tex'] = r"$\Delta E$"
         end = timer()

@@ -3,9 +3,9 @@ import numpy as np
 from .common import figaxs_defaults
 from .hist import truncate
 
-@figaxs_defaults(mosaic=[['energies', 'forces', 'dip_perm']], scale_factors=(1, 1 / 5))
+@figaxs_defaults(mosaic=[['energy', 'forces', 'dip_perm']], scale_factors=(1, 1 / 5))
 def plot_per_state_histograms(per_state, axs=None, fig=None):
-    for quantity in ['energies', 'forces', 'dip_perm']:
+    for quantity in ['energy', 'forces', 'dip_perm']:
         ax = axs[quantity]
 
         for state, data in per_state.groupby('state'):
@@ -25,7 +25,7 @@ def plot_per_state_histograms(per_state, axs=None, fig=None):
                 c=c,
             )
 
-    eunits = per_state['energies'].attrs.get('units')
-    axs['energies'].set_xlabel(rf'$E$ / {eunits}')
+    eunits = per_state['energy'].attrs.get('units')
+    axs['energy'].set_xlabel(rf'$E$ / {eunits}')
     axs['forces'].set_xlabel(r'$\mathbf{F}$ / (hartree/bohr)')
     axs['dip_perm'].set_xlabel(r'$\mathbf{\mu}_i$ / (??)')

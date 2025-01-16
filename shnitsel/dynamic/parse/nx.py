@@ -55,7 +55,7 @@ def parse_nx_log(f):
 
     # TODO: so far, we haven't needed to parse data that
     #       had dipoles etc.
-    energies = np.full((nsteps, nstates), np.nan)
+    energy = np.full((nsteps, nstates), np.nan)
     # dip_all = np.full((nsteps, nstates, nstates, 3), np.nan)
     # phases = np.full((nsteps, nstates), np.nan)
     # sdiag = np.full((nsteps), -1, dtype=int)
@@ -96,7 +96,7 @@ def parse_nx_log(f):
 
         elif stripline.startswith('Energy ='):
             for istate in range(nstates):
-                energies[ts, istate] = float(next(f).strip())
+                energy[ts, istate] = float(next(f).strip())
 
     states = [1, 2, 3]  # TODO: Proper state labels!
 
@@ -119,9 +119,9 @@ def parse_nx_log(f):
     # TODO: Are these units even correct?
     return xr.Dataset(
         {
-            'energies': (
+            'energy': (
                 ['ts', 'state'],
-                energies,
+                energy,
                 {'units': 'hartree', 'unitdim': 'Energy'},
             ),
             # 'dip_all': (['ts', 'state', 'state2', 'direction'], dip_all),

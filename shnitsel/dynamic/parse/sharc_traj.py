@@ -97,7 +97,7 @@ def parse_trajout_dat(f):
     logging.debug(f"nstates = {nstates}")
 
     # now we know the number of steps, we can initialize the data arrays:
-    energies = np.full((nsteps, nstates), np.nan)
+    energy = np.full((nsteps, nstates), np.nan)
     dip_all = np.full((nsteps, nstates, nstates, 3), np.nan)
     phases = np.full((nsteps, nstates), np.nan)
     sdiag = np.full((nsteps), -1, dtype=int)
@@ -128,9 +128,7 @@ def parse_trajout_dat(f):
 
         if line.startswith('! 1 Hamiltonian'):
             for istate in range(nstates):
-                energies[ts, istate] = (
-                    float(next(f).strip().split()[istate * 2]) + ezero
-                )
+                energy[ts, istate] = float(next(f).strip().split()[istate * 2]) + ezero
 
         if line.startswith('! 3 Dipole moments X'):
             x_dip = get_dipoles_per_xyz(file=f, n=nstates, m=nstates)
@@ -237,9 +235,9 @@ def parse_trajout_dat(f):
 
     res = xr.Dataset(
         {
-            'energies': (
+            'energy': (
                 ['ts', 'state'],
-                energies,
+                energy,
                 {'units': 'hartree', 'unitdim': 'Energy'},
             ),
             'dip_all': (['ts', 'state', 'state2', 'direction'], dip_all),

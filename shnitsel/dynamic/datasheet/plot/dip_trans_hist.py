@@ -14,7 +14,7 @@ def single_hist(data, shi, slo, color, bins=100, ax=None, cmap=None, cnorm=None)
         cmap = magma_rw
 
     axx, axy = create_marginals(ax)
-    xdata = data['energies'].squeeze()
+    xdata = data['energy'].squeeze()
     ydata = data['dip_trans'].squeeze()
     xmax = trunc_max(xdata)
     ymax = trunc_max(ydata)
@@ -89,9 +89,7 @@ def _hist_min_max(inter_state):
     debug = []
     for sc, data in inter_state.groupby('statecomb'):
         data = data.squeeze()
-        H, xe, ye = np.histogram2d(
-            data.energies.values, data.dip_trans.values, bins=100
-        )
+        H, xe, ye = np.histogram2d(data.energy.values, data.dip_trans.values, bins=100)
         minmax += [H.min(), H.max()]
         debug.append((H, xe, ye))
 

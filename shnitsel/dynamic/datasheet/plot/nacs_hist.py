@@ -34,7 +34,7 @@ def plot_nacs_histograms(inter_state, hop_idxs, fig=None, axs=None):
 
             ax.scatter(xdata, ydata, color=color, s=0.2, alpha=0.5)
 
-    plot('nde', 'energies')
+    plot('nde', 'energy')
     if 'dip_trans' in inter_state:
         plot('ntd', 'dip_trans')
 
