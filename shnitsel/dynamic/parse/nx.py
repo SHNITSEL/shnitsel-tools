@@ -128,7 +128,7 @@ def parse_nx_log(f):
             # 'dip_perm': (['ts', 'state', 'direction'], dip_perm),
             # 'dip_trans': (['ts', 'statecomb', 'direction'], dip_trans),
             # 'sdiag': (['ts'], sdiag),
-            'astate': (['ts'], astate),
+            'astate': (['ts'], astate, {'long_name': 'active state'}),
             'forces': (
                 ['ts', 'atom', 'direction'],
                 forces,
@@ -136,7 +136,11 @@ def parse_nx_log(f):
             ),
             # 'has_forces': (['ts'], has_forces),
             # 'phases': (['ts', 'state'], phases),
-            'nacs': (['ts', 'statecomb', 'atom', 'direction'], nacs),
+            'nacs': (
+                ['ts', 'statecomb', 'atom', 'direction'],
+                nacs,
+                {'long_name': "nonadiabatic couplings"},
+            ),
         },
         coords=coords,
         attrs={
