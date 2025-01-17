@@ -139,7 +139,7 @@ def parse_nx_log(f):
             'nacs': (
                 ['ts', 'statecomb', 'atom', 'direction'],
                 nacs,
-                {'long_name': "nonadiabatic couplings"},
+                {'long_name': "nonadiabatic couplings", 'units': "au"},
             ),
         },
         coords=coords,

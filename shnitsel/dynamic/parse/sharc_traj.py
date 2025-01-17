@@ -244,12 +244,12 @@ def parse_trajout_dat(f):
             'dip_perm': (
                 ['ts', 'state', 'direction'],
                 dip_perm,
-                {'long_name': "permanent dipoles"},
+                {'long_name': "permanent dipoles", 'units': 'au'},
             ),
             'dip_trans': (
                 ['ts', 'statecomb', 'direction'],
                 dip_trans,
-                {'long_name': "transition dipoles"},
+                {'long_name': "transition dipoles", 'units': 'au'},
             ),
             'sdiag': (['ts'], sdiag, {'long_name': 'active state (diag)'}),
             'astate': (['ts'], astate, {'long_name': 'active state (MCH)'}),
@@ -263,7 +263,7 @@ def parse_trajout_dat(f):
             'nacs': (
                 ['ts', 'statecomb', 'atom', 'direction'],
                 nacs,
-                {'long_name': "nonadiabatic couplings"},
+                {'long_name': "nonadiabatic couplings", 'units': 'au'},
             ),
         },
         coords=coords,
