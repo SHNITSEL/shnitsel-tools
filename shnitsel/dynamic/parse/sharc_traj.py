@@ -9,41 +9,6 @@ import math
 
 from .common import get_dipoles_per_xyz, dip_sep, get_triangular
 
-##################################
-# Functions for reading TRAJ files
-# read_trajs parses everything in traj/
-# read_traj to read a single TRAJ_0000n
-##################################
-
-
-def list_trajs(trajs_path=None):
-    if not trajs_path:
-        trajs_path = os.path.join(os.getcwd(), 'traj')
-
-    names = sorted(
-        [
-            n
-            for n in os.listdir(trajs_path)
-            if n.startswith('TRAJ_0')
-            and 'output.dat' in os.listdir(os.path.join(trajs_path, n))
-        ]
-    )
-
-    return [(int(n[5:]), os.path.join(trajs_path, n)) for n in names]
-
-
-# TODO: adapt to xarray!
-# def read_trajs(nstates=3, natoms=12, trajs_path='', subset=None):
-#     data = {}
-#     for number, traj_path in list_trajs(trajs_path):
-#         if subset is None or number in subset:
-#             print(traj_path)
-#             data[number] = read_traj(nstates, natoms, traj_path)
-
-#     return Traj(data, nsinglets=nsinglets, ntriplets=ntriplets,
-#                 natoms=natoms)
-
-
 def read_traj(traj_path):
     with open(os.path.join(traj_path, 'output.dat')) as f:
         single_traj = parse_trajout_dat(f)
@@ -196,8 +161,7 @@ def parse_trajout_dat(f):
     has_forces = np.zeros((nsteps), dtype=bool)
 
     for ts in range(nsteps):
-        a = dip_sep(dip_all[ts])
-        p, t = a
+        p, t = dip_sep(dip_all[ts])
         dip_perm[ts] = p
         dip_trans[ts] = t
 
@@ -292,12 +256,7 @@ def parse_trajout_xyz(nsteps, f):
                 if ts == 0:
                     atNames[atom] = linecont[0]
                 atXYZ[ts, atom] = [float(n) for n in linecont[1:]]
-
-            # atXYZ_align = align_mol(atXYZ=atXYZ, align_index=[0,1,2])
-            # traj_data[number][timestep]['atXYZ_align'] = atXYZ_align
             ts += 1
-
-    # atNames  = np.char.encode(atNames, 'utf8')
 
     return (atNames, atXYZ)
 
