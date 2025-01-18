@@ -121,8 +121,10 @@ def save_frames(frames, path, complevel=9):
         var: {"compression": "gzip", "compression_opts": complevel} for var in frames
     }
 
+    # TODO generalize?
     # netcdf does not support bool
-    frames = frames.assign(completed=frames.completed.astype('i1'))
+    if 'completed' in frames.data_vars:
+        frames = frames.assign(completed=frames.completed.astype('i1'))
     if 'completed' in frames.attrs:
         frames.attrs['completed'] = int(frames.attrs['completed'])
     # or MultiIndex
