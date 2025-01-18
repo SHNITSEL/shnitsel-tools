@@ -206,14 +206,23 @@ def changes(da):
 
 def ts_to_time(data, delta_t=None, old='drop'):
     assert old in {'drop', 'to_var', 'keep'}
-    default_delta_t = 0.5
 
-    if data.attrs.get('delta_t') == 'var':
-        raise ValueError("Variable delta_t across trajectories is not yet suppoerted")
-        # TODO: support conversion for data with different `delta_`s for different `trajid`s
+    _var_delta_t_msg = "`delta_t` varies between the trajectories. Please separate the trajectories into groups"
 
     if delta_t is None:
-        delta_t = data.attrs.get('delta_t', default_delta_t)
+        if 'delta_t' in data.attrs:
+            if data.attrs['delta_t'] == 'var':
+                raise ValueError(_var_delta_t_msg)
+            delta_t = data.attrs['delta_t']
+        elif 'delta_t' in data:
+            if (data['delta_t'] == data['delta_t'][0]).all():
+                delta_t = data['delta_t'][0]
+            else:
+                raise ValueError(_var_delta_t_msg)
+        else:
+            raise ValueError(
+                "Could not extract `delta_t` from `data`; please pass explicitly"
+            )
 
     data = (data
       .reset_index('frame')
