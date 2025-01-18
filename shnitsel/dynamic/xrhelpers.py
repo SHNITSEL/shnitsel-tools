@@ -1,8 +1,13 @@
 # pyright: basic
 import itertools
 import os
+
+from collections.abc import Iterable
+
 import xarray as xr
+import numpy as np
 import pandas as pd
+
 from . import postprocess
 
 def midx_combs(values: pd.core.indexes.base.Index|list, name: str|None =None):
@@ -131,3 +136,51 @@ def save_frames(frames, path, complevel=9):
     frames.reset_index(['frame', 'statecomb']).to_netcdf(
         path, engine='h5netcdf', encoding=encoding
     )
+
+#######################################
+# Functions to extend xarray selection:
+
+
+def sel_trajs(
+    frames: xr.Dataset, trajids_or_mask: int | Iterable[bool | int], invert=False
+) -> xr.Dataset:
+    trajids_or_mask = np.atleast_1d(trajids_or_mask)
+    if np.issubdtype(trajids_or_mask.dtype, int):
+        trajids = trajids_or_mask
+    elif np.issubdtype(trajids_or_mask.dtype, bool):
+        mask = trajids_or_mask
+        if 'trajid_' in frames.dims:
+            trajids = frames['trajid_'][mask]
+        else:
+            raise NotImplementedError(
+                "Indexing trajids with a boolean mask is only supported when the "
+                "coordinate 'trajid_' is present"
+            )
+    else:
+        raise TypeError(
+            "Only indexing using a boolean mask or integer trajectory IDs is supported; "
+            f"the detected dtype was {trajids_or_mask.dtype}"
+        )
+    return sel_trajids(frames=frames, trajids=trajids, invert=invert)
+
+
+def sel_trajids(
+    frames: xr.Dataset, trajids: int | Iterable[int], invert=False
+) -> xr.Dataset:
+    trajids = np.atleast_1d(trajids)
+    # check that all trajids are valid, as Dataset.sel() would
+    if not invert and not (np.isin(trajids, frames['trajid'])).all():
+        raise KeyError("not all values found in index 'trajid'")
+    mask = frames['trajid'].isin(trajids)
+    if invert:
+        mask = ~mask
+    res = frames.sel(frame=mask)
+
+    if 'trajid_' in frames.dims:
+        actually_selected = np.unique(res['trajid'])
+        res = res.sel(trajid_=actually_selected)
+    return res
+
+
+# def selframemask(frames, frame_mask):
+#     return frames.sel(frame=frame_mask)
