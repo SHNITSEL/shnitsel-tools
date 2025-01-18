@@ -56,10 +56,8 @@ def read_traj(traj_path):
     with open(os.path.join(traj_path, 'input')) as f:
         settings = parse_input(f)
 
-    # single_traj.attrs['atNames'] = atNames
-    single_traj = single_traj.assign_coords(
-        {'atNames': ('atom', atNames)},
-    )
+    single_traj.coords['atNames'] = 'atom', atNames
+
     single_traj['atXYZ'] = xr.DataArray(
         atXYZ,
         coords={k: single_traj.coords[k] for k in ['ts', 'atom', 'direction']},
