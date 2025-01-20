@@ -8,6 +8,9 @@ from sklearn.decomposition import PCA
 
 from . import xrhelpers
 
+_var_delta_t_msg = "`delta_t` varies between the trajectories. Please separate the trajectories into groups"
+
+
 def norm(da, dim='direction', keep_attrs=None):
     return xr.apply_ufunc(
         np.linalg.norm,
@@ -207,18 +210,21 @@ def changes(da):
 def ts_to_time(data, delta_t=None, old='drop'):
     assert old in {'drop', 'to_var', 'keep'}
 
-    _var_delta_t_msg = "`delta_t` varies between the trajectories. Please separate the trajectories into groups"
-
     if delta_t is None:
-        if 'delta_t' in data.attrs:
-            if data.attrs['delta_t'] == 'var':
-                raise ValueError(_var_delta_t_msg)
-            delta_t = data.attrs['delta_t']
-        elif 'delta_t' in data:
+        if 'delta_t' in data:  # could be coord or var
+            # ensure unique
             if (data['delta_t'] == data['delta_t'][0]).all():
-                delta_t = data['delta_t'][0]
+                delta_t = data['delta_t'].item(0)
+                if data.attrs.get('delta_t', delta_t) != delta_t:
+                    raise ValueError(
+                        "'delta_t' attribute inconsistent with variable/coordinate"
+                    )
+                data = data.drop_vars('delta_t')
+                data.attrs['delta_t'] = delta_t
             else:
                 raise ValueError(_var_delta_t_msg)
+        elif 'delta_t' in data.attrs:
+            delta_t = data.attrs['delta_t']
         else:
             raise ValueError(
                 "Could not extract `delta_t` from `data`; please pass explicitly"
