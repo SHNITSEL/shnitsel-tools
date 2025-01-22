@@ -60,7 +60,7 @@ class SOAP_creator():
         soaps = self.soap.create_parallel(systems, n_jobs=-1, func=self.soap.create)
         return np.stack(soaps, axis=0)
     
-def pca_and_plot(descriptors:np.array, n_components: int=2, color_prop: xr.DataArray=None):	
+def pca_and_plot(descriptors:np.array, n_components: int=2, color_prop: xr.DataArray=None, fontsize: int=15, state: str=None):
     
     import matplotlib.pyplot as plt
     from sklearn.decomposition import PCA
@@ -83,30 +83,49 @@ def pca_and_plot(descriptors:np.array, n_components: int=2, color_prop: xr.DataA
     explained_variance = pca.explained_variance_ratio_  
     print(f'Explained variance: {explained_variance}')  
     
+    x_min, x_max = np.min(pca_res[:, 0]), np.max(pca_res[:, 0])
+    y_min, y_max = np.min(pca_res[:, 1]), np.max(pca_res[:, 1])
+    
+    params = {
+        'legend.fontsize': fontsize,
+        'axes.labelsize': fontsize-2,
+        'axes.titlesize': fontsize,
+        'axes.titlepad': 20,
+        'xtick.labelsize': fontsize-5,
+        'ytick.labelsize': fontsize-5,
+        }
+    plt.rcParams.update(params)
+
+    
     if n_components == 3:
-        fig = plt.figure(figsize=(8,8))
+        z_min, z_max = np.min(pca_res[:, 2]), np.max(pca_res[:, 2])
+        fig = plt.figure(figsize=(9,5))
         ax = fig.add_subplot(111, projection='3d')
-        scatter = ax.scatter(pca_res[:,0], pca_res[:,1], pca_res[:,2], c=prop_norm, cmap='viridis', s=5)
-        ax.set_xlabel(f'PC1 ({explained_variance[0]*100:.2f}%)')
-        ax.set_ylabel(f'PC2 ({explained_variance[1]*100:.2f}%)')
-        ax.set_zlabel(f'PC3 ({explained_variance[2]*100:.2f}%)')
-        plt.colorbar(scatter, label = f'{color_prop.name} relative to minimum [{color_prop.attrs.get("unit", "unknown")}]')
-        plt.tight_layout()
-        plt.show()
-        
+        scatter = ax.scatter(pca_res[:,0], pca_res[:,1], pca_res[:,2], c=prop_norm, cmap='viridis', s=1) if color_prop is not None else ax.scatter(pca_res[:,0], pca_res[:,1], pca_res[:,2], s=5)
+        ax.set_xlabel(f'PC1 ({explained_variance[0]*100:.2f}% var.)')
+        ax.set_ylabel(f'PC2 ({explained_variance[1]*100:.2f}% var)')
+        ax.set_zlabel(f'PC3 ({explained_variance[2]*100:.2f}% var)')
+        if state is not None:
+            plt.colorbar(scatter, label = f'{state} {color_prop.name} relative to minimum [{color_prop.attrs.get("unit", "unknown")}]') if color_prop is not None else None
+        else:
+            plt.colorbar(scatter, label = f'{color_prop.name} relative to minimum [{color_prop.attrs.get("unit", "unknown")}]') if color_prop is not None else None
+        ax.set_xlim(x_min, x_max)
+        ax.set_ylim(y_min, y_max)
+        ax.set_zlim(z_min, z_max)
+        plt.subplots_adjust(left=0.1, right=2.5, top=0.9, bottom=0.1)
     elif n_components == 2:
-        fig, ax = plt.subplots(figsize=(7,8))
-        scatter = ax.scatter(pca_res[:,0], pca_res[:,1], c=prop_norm, cmap='viridis', s=5)
+        fig, ax = plt.subplots(figsize=(5,5))
+        scatter = ax.scatter(pca_res[:,0], pca_res[:,1], c=prop_norm, cmap='viridis', s=5) if color_prop is not None else ax.scatter(pca_res[:,0], pca_res[:,1], s=5)
         ax.set_xlabel(f'PC1 ({explained_variance[0]*100:.2f}%)')
         ax.set_ylabel(f'PC2 ({explained_variance[1]*100:.2f}%)')
-        plt.colorbar(scatter, label = f'{color_prop.name} relative to minimum [{color_prop.attrs.get("unit", "unknown")}]')
-        plt.tight_layout()
-        plt.show()
-        
+        if state is not None:
+            plt.colorbar(scatter, label = f'{state} {color_prop.name} relative to minimum [{color_prop.attrs.get("unit", "unknown")}]') if color_prop is not None else None
+        else:
+            plt.colorbar(scatter, label = f'{color_prop.name} relative to minimum [{color_prop.attrs.get("unit", "unknown")}]') if color_prop is not None else None
     else:
         raise ValueError('n_components must be 2 or 3')
-    
-    
+
+    plt.tight_layout()
     return pca_res, explained_variance, fig
     
     

@@ -56,6 +56,8 @@ def plot_energy_hist(data: xr.DataArray, num_bins: int=100, limit: tuple=None, u
         label='Frequency',
         shrink=cbar_shrink
     )
+    
+    return fig, axs
 
 def plot_hist(
     prop_arr: xr.DataArray,
@@ -161,7 +163,7 @@ def plot_hist(
         return fig, ax
     
     
-def dihedral_plot(positions: xr.DataArray, dihedral_index: List[int], color_prop: xr.DataArray=None):
+def dihedral_plot(positions: xr.DataArray, dihedral_index: List[int], prop: xr.DataArray):
     """
     Plot dihedral angles.
 
@@ -189,10 +191,9 @@ def dihedral_plot(positions: xr.DataArray, dihedral_index: List[int], color_prop
     angle[angle < 0] += 360
     angle[angle > 180] = 360 - angle[angle > 180]
 
-    if color_prop is not None:
-        plt.scatter(angle, color_prop, cmap='viridis')
+    plt.scatter(angle, prop, cmap='viridis')
     plt.xlabel('Dihedral Angle (degrees)')
-    plt.ylabel(f'{color_prop.name} relative to minimum [{color_prop.attrs.get("unit", "unknown")}]')
+    plt.ylabel(f'{prop.name} relative to minimum [{prop.attrs.get("unit", "unknown")}]')
     
     
     
