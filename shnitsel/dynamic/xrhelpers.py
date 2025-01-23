@@ -1,14 +1,14 @@
 # pyright: basic
 import itertools
 import os
+import logging
+import math
 
 from collections.abc import Iterable
 
 import xarray as xr
 import numpy as np
 import pandas as pd
-
-from . import postprocess
 
 def midx_combs(values: pd.core.indexes.base.Index|list, name: str|None =None):
     if name is None:
@@ -88,7 +88,7 @@ def _ts_to_time(data, delta_t=None, swap_index=True):
       replace={'ts'} if swap_index else None
     )
 
-def get_frames(path, recode_state=False):
+def open_frames(path):
     try:
         frames = xr.open_dataset(path)
     except ValueError as err:
@@ -104,21 +104,9 @@ def get_frames(path, recode_state=False):
         tcoord = 'ts'
 
     if tcoord is not None:
-        frames = frames.set_xindex(['trajid', tcoord]).set_xindex(['from', 'to'])
+        frames = frames.set_xindex(['trajid', tcoord])
 
-    if recode_state:
-        new_states = [f'$S_{i}$' for i, _ in enumerate(frames['state'])]
-        frames = frames.assign_coords({
-            'state': new_states,
-            'state2': new_states,
-            })
-    # frames = xrhelpers.modify_midx_level(frames, 'statecomb', {'from':[1,1,2], 'to':[2,3,3]}, )
-    frames['energy'] = postprocess.relativize(frames['energy'])
-    frames['energy'] = postprocess.convert_energy(frames['energy'], to='eV')
-    return frames
-
-def get_frames_time(path):
-    return postprocess.ts_to_time(get_frames(path))
+    return frames.set_xindex(['from', 'to'])
 
 
 def save_frames(frames, path, complevel=9):
@@ -137,6 +125,32 @@ def save_frames(frames, path, complevel=9):
         path, engine='h5netcdf', encoding=encoding
     )
 
+def split_for_saving(frames, bytes_per_chunk=50e6):
+    trajids = frames.get('trajid_', np.unique(frames['trajid']))
+    ntrajs = len(trajids)
+    nchunks = math.trunc(frames.nbytes / 50e6)
+    logging.debug(f"{nchunks=}")
+    indices = np.trunc(np.linspace(0, ntrajs, nchunks + 1)).astype(np.integer)
+    logging.debug(f"{indices=}")
+    trajidsets = [trajids[a:z].values for a, z in zip(indices[:-1], indices[1:])]
+    logging.debug(f"{trajidsets=}")
+    return [sel_trajs(frames, trajids[a:z]) for a, z in zip(indices[:-1], indices[1:])]
+
+
+def save_split(
+    frames, path_template, bytes_per_chunk=50e6, complevel=9, ignore_errors=False
+):
+    dss = split_for_saving(frames, bytes_per_chunk=bytes_per_chunk)
+    for i, ds in enumerate(dss):
+        current_path = path_template.format(i)
+        try:
+            save_frames(ds, current_path, complevel=complevel)
+        except Exception as e:
+            logging.error(f"Exception while saving to {current_path=}")
+            if not ignore_errors:
+                raise e
+
+
 #######################################
 # Functions to extend xarray selection:
 
@@ -145,7 +159,7 @@ def sel_trajs(
     frames: xr.Dataset, trajids_or_mask: int | Iterable[bool | int], invert=False
 ) -> xr.Dataset:
     trajids_or_mask = np.atleast_1d(trajids_or_mask)
-    if np.issubdtype(trajids_or_mask.dtype, int):
+    if np.issubdtype(trajids_or_mask.dtype, np.integer):
         trajids = trajids_or_mask
     elif np.issubdtype(trajids_or_mask.dtype, bool):
         mask = trajids_or_mask
@@ -170,7 +184,11 @@ def sel_trajids(
     trajids = np.atleast_1d(trajids)
     # check that all trajids are valid, as Dataset.sel() would
     if not invert and not (np.isin(trajids, frames['trajid'])).all():
-        raise KeyError("not all values found in index 'trajid'")
+        missing = trajids[~np.isin(trajids, frames['trajid'])]
+        raise KeyError(
+            f"Of the supplied trajectory IDs, {len(missing)} were "
+            f"not found in index 'trajid': {missing}"
+        )
     mask = frames['trajid'].isin(trajids)
     if invert:
         mask = ~mask
