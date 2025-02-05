@@ -28,10 +28,14 @@ def find_c_h_bonds(mol):
 
     return [indices(b) for b in mol.GetBonds() if is_c_h_bond(b)]
 
-def mol_from_atXYZ(atXYZ_frame):
-    mol = rkc.rdmolfiles.MolFromXYZBlock(P.to_xyz(atXYZ_frame))
-    rdDetermineBonds.DetermineConnectivity(mol)
-    AllChem.Compute2DCoords(mol)
+def mol_from_atXYZ(atXYZ_frame, charge=0, covFactor=1.5, to2D=True):
+    mol = rc.rdmolfiles.MolFromXYZBlock(P.to_xyz(atXYZ_frame))
+    # rdDetermineBonds.DetermineConnectivity(mol) # 2025-02-03 TODO Unify!
+    rdDetermineBonds.DetermineBonds(
+        mol, charge=charge, useVdw=True, covFactor=covFactor
+    )
+    if to2D:
+        AllChem.Compute2DCoords(mol)
     return mol
 
 def mol_to_numbered_smiles(mol):
