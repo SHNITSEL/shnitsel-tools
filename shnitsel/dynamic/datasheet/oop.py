@@ -51,7 +51,7 @@ class Datasheet:
         elif frames is not None:
             self.frames = frames
         elif path is not None:
-            self.frames = xh.get_frames(path)
+            self.frames = xh.open_frames(path)
         else:
             print("DEBUG -- new!")
             print("Neither path nor frames given, please set frames manually")
