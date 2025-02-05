@@ -6,6 +6,18 @@ from rdkit.Chem import rdDetermineBonds, AllChem
 
 from . import postprocess as P
 
+
+def find_bonds_by_element(mol, elem1: int, elem2: int):
+    def elems_correct(b):
+        atnums = {b.GetBeginAtom().GetAtomicNum(), b.GetEndAtom().GetAtomicNum()}
+        return atnums == {elem1, elem2}
+
+    def indices(b):
+        return (b.GetBeginAtom().GetIdx(), b.GetEndAtom().GetIdx())
+
+    return [indices(b) for b in mol.GetBonds() if elems_correct(b)]
+
+
 def is_c_h_bond(b):
     atnums = {b.GetBeginAtom().GetAtomicNum(), b.GetEndAtom().GetAtomicNum()}
     return atnums == {1, 6}
@@ -22,7 +34,19 @@ def mol_from_atXYZ(atXYZ_frame):
     AllChem.Compute2DCoords(mol)
     return mol
 
-def max_ch_lengths(atXYZ):
+def mol_to_numbered_smiles(mol):
+    for atom in mol.GetAtoms():
+        atom.SetProp("molAtomMapNumber", str(atom.GetIdx()))
+    return rc.MolToSmiles(mol)
+
+
+def numbered_smiles_to_mol(smiles):
+    mol = rc.MolFromSmiles(smiles, sanitize=False)  # sanitizing would strip hydrogens
+    map_new_to_old = [-1 for i in range(mol.GetNumAtoms())]
+    for atom in mol.GetAtoms():
+        # Renumbering with e.g. [3, 2, 0, 1] means atom 3 gets new index 0, not vice-versa!
+        map_new_to_old[int(atom.GetProp("molAtomMapNumber"))] = atom.GetIdx()
+    return rc.RenumberAtoms(mol, map_new_to_old)
     def dists(a1, a2):
         return P.norm(atXYZ.isel(atom=a1) - atXYZ.isel(atom=a2), dim='direction')
     mol = mol_from_atXYZ((atXYZ.isel(frame=0)))
