@@ -51,6 +51,9 @@ def numbered_smiles_to_mol(smiles):
         # Renumbering with e.g. [3, 2, 0, 1] means atom 3 gets new index 0, not vice-versa!
         map_new_to_old[int(atom.GetProp("molAtomMapNumber"))] = atom.GetIdx()
     return rc.RenumberAtoms(mol, map_new_to_old)
+
+
+def max_bond_lengths(atXYZ, elem1=1, elem2=6):
     def dists(a1, a2):
         return P.norm(atXYZ.isel(atom=a1) - atXYZ.isel(atom=a2), dim='direction')
     mol = mol_from_atXYZ((atXYZ.isel(frame=0)))
@@ -64,12 +67,16 @@ def numbered_smiles_to_mol(smiles):
     maxlengths = maxlengths.set_xindex(['atom1', 'atom2'])
     return maxlengths
 
-def lengths_sorted(atXYZ):
-    lengths = max_ch_lengths(atXYZ)
+def max_ch_lengths(atXYZ):
+    return max_bond_lengths(atXYZ, elem1=1, elem2=6)
+
+
+def lengths_sorted(atXYZ, elem1=1, elem2=6):
+    lengths = max_bond_lengths(atXYZ, elem1, elem2)
     return lengths.sortby(lengths.sum(dim='bond'))
 
-def find_overlong(atXYZ, cutoff=2):
-    lengths = lengths_sorted(atXYZ)
+def find_overlong(atXYZ, elem1=1, elem2=6, cutoff=2):
+    lengths = lengths_sorted(atXYZ, elem1, elem2)
     mask = (lengths>cutoff).any('bond')
     return lengths.trajid.sel(trajid=mask).values
 
