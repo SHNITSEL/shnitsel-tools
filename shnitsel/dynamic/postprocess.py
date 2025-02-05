@@ -353,7 +353,7 @@ def ci_agg_last_dim(a, confidence=0.95):
     outer_shape = a.shape[:-1]
     res = np.full(outer_shape + (3,), np.nan)
     for idxs in np.ndindex(outer_shape):
-        res[idxs, :2] = calc_ci(a[idxs], confidence=0.95)
+        res[idxs, :2] = calc_ci(a[idxs], confidence=confidence)
         res[idxs, 2] = np.mean(a[idxs])
     return res
 
