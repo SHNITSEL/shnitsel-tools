@@ -372,14 +372,21 @@ def time_grouped_ci(x, confidence=0.9):
       x.groupby('time')
       .map(lambda x: xr_calc_ci(x, dim='frame', confidence=confidence)))
 
-def to_xyz(da):
+def to_xyz(da, comment='#'):
     atXYZ = da.values
     atNames = da.atNames.values
     sxyz = np.char.mod('%s', atXYZ)
     sxyz = np.squeeze(sxyz)
     sxyz = np.hstack((atNames.reshape(-1, 1), sxyz))
     sxyz = np.apply_along_axis(lambda row: '\t'.join(row), axis=1, arr=sxyz)
-    return str(len(sxyz)) + '\n#\n' + '\n'.join(sxyz)
+    return f'{len(sxyz):>12}\n  {comment}\n' + '\n'.join(sxyz)
+
+
+def traj_to_xyz(traj_atXYZ):
+    return '\n'.join(
+        to_xyz(t_atXYZ, comment=f"# t={t}") for t, t_atXYZ in traj_atXYZ.groupby('time')
+    )
+
 
 ######################################################
 # Functions relating to calculation of dihedral angles
