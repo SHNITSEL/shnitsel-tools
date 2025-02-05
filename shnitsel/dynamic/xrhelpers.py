@@ -158,6 +158,9 @@ def save_split(
 def sel_trajs(
     frames: xr.Dataset, trajids_or_mask: int | Iterable[bool | int], invert=False
 ) -> xr.Dataset:
+    """Takes boolean mask (each entry corresponding to a trajectory in MuliIndex order)
+    or an Iterable of trajids. In latter case, will not generally return trajectories in order given.
+    `invert=True` selects those trajectories not specified."""
     trajids_or_mask = np.atleast_1d(trajids_or_mask)
     if np.issubdtype(trajids_or_mask.dtype, np.integer):
         trajids = trajids_or_mask
@@ -181,6 +184,7 @@ def sel_trajs(
 def sel_trajids(
     frames: xr.Dataset, trajids: int | Iterable[int], invert=False
 ) -> xr.Dataset:
+    "Will not generally return trajectories in order given"
     trajids = np.atleast_1d(trajids)
     # check that all trajids are valid, as Dataset.sel() would
     if not invert and not (np.isin(trajids, frames['trajid'])).all():
