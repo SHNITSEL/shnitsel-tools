@@ -82,6 +82,8 @@ def exclude_overlong(frames, cutoff=2):
     return exclude_trajs(frames, find_overlong(frames.atXYZ, cutoff=cutoff))   
 
 def find_eccentric(atXYZ, maskfn=None):
+    if not isinstance(atXYZ, xr.DataArray):
+        raise TypeError()
     noodle = P.pairwise_dists_pca(atXYZ)
     noodle = noodle.to_dataset('PC').rename({0: 'PC1', 1: 'PC2'})
     maskfn = maskfn or (lambda data: data.PC1**2 + data.PC2**2 > 1.5)
