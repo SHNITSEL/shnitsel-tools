@@ -1,7 +1,9 @@
+from logging import warn
+
 import numpy as np
 import xarray as xr
 
-from rdkit import Chem as rkc
+from rdkit import Chem as rc
 from rdkit.Chem import rdDetermineBonds, AllChem
 
 from . import postprocess as P
@@ -56,8 +58,14 @@ def numbered_smiles_to_mol(smiles):
 def max_bond_lengths(atXYZ, elem1=1, elem2=6):
     def dists(a1, a2):
         return P.norm(atXYZ.isel(atom=a1) - atXYZ.isel(atom=a2), dim='direction')
-    mol = mol_from_atXYZ((atXYZ.isel(frame=0)))
-    bonds = find_c_h_bonds(mol)
+
+    if 'smiles_map' in atXYZ.attrs:
+        mol = numbered_smiles_to_mol(atXYZ.attrs['smiles_map'])
+    else:
+        warn("`smiles_map` attribute missing; falling back to frame 0")
+        mol = mol_from_atXYZ((atXYZ.isel(frame=0)))
+
+    bonds = find_bonds_by_element(mol, elem1, elem2)
     maxlengths = xr.concat([
       dists(a1, a2).groupby('trajid').map(np.max)
       for a1, a2 in bonds ], dim='bond')
