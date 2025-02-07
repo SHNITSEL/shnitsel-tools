@@ -3,7 +3,7 @@ import xarray as xr
 import numpy as np
 import rdkit.Chem as rc
 import matplotlib.pyplot as plt
-from logging import info
+from logging import info, warn
 from timeit import default_timer as timer
 
 from matplotlib.figure import Figure
@@ -53,8 +53,7 @@ class Datasheet:
         elif path is not None:
             self.frames = xh.open_frames(path)
         else:
-            print("DEBUG -- new!")
-            print("Neither path nor frames given, please set frames manually")
+            warn("Neither path nor frames given, please set frames manually")
 
         if spectra_times is not None:
             self.spectra_times = spectra_times
