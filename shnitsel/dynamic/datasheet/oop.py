@@ -334,13 +334,66 @@ class Datasheet:
         fig, sfs = self.get_subfigures(
             include_per_state_hist=include_per_state_hist, borders=borders
         )
+        letters = iter('abcdef')
         if include_per_state_hist:
             self.plot_per_state_histograms(fig=sfs['per_state_histograms'])
-        self.plot_timeplots(fig=sfs['timeplots'])
-        self.plot_separated_spectra_and_hists(fig=sfs['separated_spectra_and_hists'])
-        self.plot_nacs_histograms(fig=sfs['nacs_histograms'])
-        self.plot_noodle(fig=sfs['noodle'])
-        self.plot_structure(fig=sfs['structure'])
+        ## separated_spectra_and_hists
+        axs = self.plot_separated_spectra_and_hists(
+            fig=sfs['separated_spectra_and_hists']
+        )
+        ax = axs['sg']
+        ax.text(
+            -0.05,
+            1.05,
+            f"{next(letters)})",
+            fontweight='bold',
+            transform=ax.transAxes,
+            ha='right',
+        )
+        ## noodle
+        ax = self.plot_noodle(fig=sfs['noodle'])
+        ax.text(
+            0.05,
+            0.95,
+            f"{next(letters)})",
+            fontweight='bold',
+            transform=ax.transAxes,
+            ha='left',
+            va='top',
+        )
+        ## structure
+        ax = self.plot_structure(fig=sfs['structure'])
+        ax.text(
+            0.05,
+            0.95,
+            f"{next(letters)})",
+            fontweight='bold',
+            transform=ax.transAxes,
+            ha='left',
+            va='top',
+        )
+        ## nacs_histograms
+        axs = self.plot_nacs_histograms(fig=sfs['nacs_histograms'])
+        ax = axs.get('ntd', axs['nde'])
+        ax.text(
+            -0.05,
+            1.05,
+            f"{next(letters)})",
+            fontweight='bold',
+            transform=ax.transAxes,
+            ha='right',
+        )
+        ##
+        axs = self.plot_timeplots(fig=sfs['timeplots'])
+        ax = axs['pop']
+        ax.text(
+            -0.05,
+            1.05,
+            f"{next(letters)})",
+            fontweight='bold',
+            transform=ax.transAxes,
+            ha='right',
+        )
         return fig
 
     def _test_subfigures(
