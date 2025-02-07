@@ -7,6 +7,10 @@ from rdkit import Chem as rc
 from rdkit.Chem import rdDetermineBonds, AllChem
 
 from . import postprocess as P
+from .postprocess import (
+    mol_to_numbered_smiles as mol_to_numbered_smiles,
+    numbered_smiles_to_mol,
+)
 
 
 def find_bonds_by_element(mol, elem1: int, elem2: int):
@@ -39,21 +43,6 @@ def mol_from_atXYZ(atXYZ_frame, charge=0, covFactor=1.5, to2D=True):
     if to2D:
         AllChem.Compute2DCoords(mol)
     return mol
-
-def mol_to_numbered_smiles(mol):
-    for atom in mol.GetAtoms():
-        atom.SetProp("molAtomMapNumber", str(atom.GetIdx()))
-    return rc.MolToSmiles(mol)
-
-
-def numbered_smiles_to_mol(smiles):
-    mol = rc.MolFromSmiles(smiles, sanitize=False)  # sanitizing would strip hydrogens
-    map_new_to_old = [-1 for i in range(mol.GetNumAtoms())]
-    for atom in mol.GetAtoms():
-        # Renumbering with e.g. [3, 2, 0, 1] means atom 3 gets new index 0, not vice-versa!
-        map_new_to_old[int(atom.GetProp("molAtomMapNumber"))] = atom.GetIdx()
-    return rc.RenumberAtoms(mol, map_new_to_old)
-
 
 def max_bond_lengths(atXYZ, elem1=1, elem2=6):
     def dists(a1, a2):

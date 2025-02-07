@@ -5,6 +5,7 @@ import itertools
 import scipy.stats as st
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.decomposition import PCA
+import rdkit.Chem as rc
 
 from . import xrhelpers
 
