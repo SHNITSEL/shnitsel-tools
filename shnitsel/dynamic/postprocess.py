@@ -302,6 +302,10 @@ def get_per_state(frames):
     props_per = {'energy', 'forces', 'dip_perm'}.intersection(frames.keys())
     per_state = frames[props_per].map(keep_norming, keep_attrs=False)
     per_state['forces'] = per_state['forces'].where(per_state['forces'] != 0)
+
+    per_state['energy'].attrs['long_name'] = r'$E$'
+    per_state['forces'].attrs['long_name'] = r'$\mathbf{F}$'
+    per_state['dip_perm'].attrs['long_name'] = r'$\mathbf{\mu}_i$'
     return per_state
 
 def get_inter_state(frames):
