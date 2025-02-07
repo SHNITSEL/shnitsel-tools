@@ -1,5 +1,7 @@
 from .common import figaxs_defaults
 
+from matplotlib.axes import Axes
+
 
 def plot_time_interstate_error(data, ax):
     vas = {
@@ -29,7 +31,7 @@ def plot_pops(pops, ax):
     return ax
 
 @figaxs_defaults(mosaic=[['pop'], ['de'], ['ft']], scale_factors=(1 / 3, 1 / 2))
-def plot_timeplots(pops, delta_E, fosc_time, axs=None, fig=None):
+def plot_timeplots(pops, delta_E, fosc_time, axs=None, fig=None) -> dict[str, Axes]:
     plot_pops(pops, axs['pop'])
     plot_time_interstate_error(delta_E, axs['de'])
     if fosc_time is not None:

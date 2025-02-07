@@ -1,10 +1,12 @@
 import rdkit
 import rdkit.Chem as rc
 
+import matplotlib as mpl
+
 from ... import pca_biplot, postprocess as P
 from .common import figax
 
-def xyz_to_mol(atXYZ, charge=0, covFactor=1.5):
+def xyz_to_mol(atXYZ, charge=0, covFactor=1.5) -> rc.Mol:
     mol = rc.rdmolfiles.MolFromXYZBlock(P.to_xyz(atXYZ))
     rc.rdDetermineBonds.DetermineBonds(
         mol, charge=charge, useVdw=True, covFactor=covFactor
@@ -26,7 +28,7 @@ def mol_to_png(mol, width=320, height=240):
 # TODO DEPRECATE
 def show_atXYZ(
     atXYZ, charge=0, name='', smiles=None, inchi=None, skeletal=True, ax=None
-):
+) -> mpl.axes.Axes:
     fig, ax = pca_biplot.figax(ax)
 
     mol = pca_biplot.xyz_to_mol(atXYZ, charge=charge)
@@ -46,7 +48,9 @@ def show_atXYZ(
     # axy.tick_params(axis="y", labelleft=False)
     return ax
 
-def plot_structure(mol, name='', smiles=None, inchi=None, fig=None, ax=None):
+def plot_structure(
+    mol, name='', smiles=None, inchi=None, fig=None, ax=None
+) -> mpl.axes.Axes:
     fig, ax = figax(fig, ax)
     png = mol_to_png(mol)
     pca_biplot.mpl_imshow_png(ax, png)

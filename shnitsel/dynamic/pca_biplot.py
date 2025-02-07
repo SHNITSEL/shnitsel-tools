@@ -41,7 +41,7 @@ def plot_noodleplot(
     cscale=None,
     noodle_kws=None,
     hops_kws=None,
-):
+) -> mpl.axes.Axes:
     fig, ax = figax(fig=fig, ax=ax)
 
     if c is None:

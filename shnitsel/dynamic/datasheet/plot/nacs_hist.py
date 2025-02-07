@@ -1,8 +1,11 @@
 from .common import figaxs_defaults
 from .hist import create_marginals, trunc_max
 
+from matplotlib.axes import Axes
+
+
 @figaxs_defaults(mosaic=[['ntd'], ['nde']], scale_factors=(1 / 3, 1 / 3))
-def plot_nacs_histograms(inter_state, hop_idxs, fig=None, axs=None):
+def plot_nacs_histograms(inter_state, hop_idxs, fig=None, axs=None) -> dict[str, Axes]:
     """Plot 2D histograms of NACS vs delta_E or dip_trans"""
 
     nacs_data = inter_state.sel(frame=hop_idxs)
