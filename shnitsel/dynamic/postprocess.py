@@ -479,3 +479,23 @@ def find_hops(frames):
       frames.sel(frame=mask)
       .assign_coords(statecomb=[1+2j, 1+3j, 2+3j]) # TODO generalize... and/or sanitize inputs!
       .groupby('trajid').map(find_traj_hops))
+
+#################################################
+# Functions for converting RDKit objects to
+# SMILES annotated with the original atom indices
+# to maintain the order in the `atom` index
+
+
+def mol_to_numbered_smiles(mol):
+    for atom in mol.GetAtoms():
+        atom.SetProp("molAtomMapNumber", str(atom.GetIdx()))
+    return rc.MolToSmiles(mol)
+
+
+def numbered_smiles_to_mol(smiles):
+    mol = rc.MolFromSmiles(smiles, sanitize=False)  # sanitizing would strip hydrogens
+    map_new_to_old = [-1 for i in range(mol.GetNumAtoms())]
+    for atom in mol.GetAtoms():
+        # Renumbering with e.g. [3, 2, 0, 1] means atom 3 gets new index 0, not vice-versa!
+        map_new_to_old[int(atom.GetProp("molAtomMapNumber"))] = atom.GetIdx()
+    return rc.RenumberAtoms(mol, map_new_to_old)

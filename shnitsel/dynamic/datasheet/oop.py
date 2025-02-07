@@ -203,11 +203,19 @@ class Datasheet:
 
     @cached_property
     def mol(self):
-        return xyz_to_mol(self.structure_atXYZ, charge=self.charge)
+        if 'smiles_map' in self.frames['atXYZ'].attrs:
+            mol = P.numbered_smiles_to_mol(self.frames['atXYZ'].attrs['smiles_map'])
+            for atom in mol.GetAtoms():
+                atom.ClearProp("molAtomMapNumber")
+                atom.SetProp("atomNote", str(atom.GetIdx()))
+            return mol
+        else:
+            return xyz_to_mol(self.structure_atXYZ, charge=self.charge)
 
     @cached_property
     def mol_skeletal(self):
-        return rc.RemoveHs(self.mol)
+        mol = rc.Mol(self.mol)
+        return rc.RemoveHs(mol)
 
     @cached_property
     def smiles(self):
