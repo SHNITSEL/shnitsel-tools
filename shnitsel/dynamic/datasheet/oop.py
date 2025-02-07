@@ -338,18 +338,19 @@ class Datasheet:
         if include_per_state_hist:
             self.plot_per_state_histograms(fig=sfs['per_state_histograms'])
         ## separated_spectra_and_hists
-        axs = self.plot_separated_spectra_and_hists(
-            fig=sfs['separated_spectra_and_hists']
-        )
-        ax = axs['sg']
-        ax.text(
-            -0.05,
-            1.05,
-            f"{next(letters)})",
-            fontweight='bold',
-            transform=ax.transAxes,
-            ha='right',
-        )
+        if 'dip_trans' in self.frames.data_vars:
+            axs = self.plot_separated_spectra_and_hists(
+                fig=sfs['separated_spectra_and_hists']
+            )
+            ax = axs['sg']
+            ax.text(
+                -0.05,
+                1.05,
+                f"{next(letters)})",
+                fontweight='bold',
+                transform=ax.transAxes,
+                ha='right',
+            )
         ## noodle
         ax = self.plot_noodle(fig=sfs['noodle'])
         ax.text(
@@ -383,7 +384,7 @@ class Datasheet:
             transform=ax.transAxes,
             ha='right',
         )
-        ##
+        ## time plots
         axs = self.plot_timeplots(fig=sfs['timeplots'])
         ax = axs['pop']
         ax.text(
