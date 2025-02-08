@@ -331,6 +331,24 @@ class Datasheet:
         return fig, sfs
 
     def plot(self, include_per_state_hist: bool = False, borders: bool = False):
+        def label(ax, x, y, ha, va='baseline'):
+            nonlocal letters
+            return ax.text(
+                x,
+                y,
+                f"{next(letters)})",
+                fontweight='bold',
+                transform=ax.transAxes,
+                ha=ha,
+                va=va,
+            )
+
+        def outlabel(ax):
+            return label(ax, -0.05, 1.05, ha='right')
+
+        def inlabel(ax):
+            return label(ax, 0.05, 0.95, ha='left', va='top')
+
         fig, sfs = self.get_subfigures(
             include_per_state_hist=include_per_state_hist, borders=borders
         )
@@ -343,58 +361,21 @@ class Datasheet:
                 fig=sfs['separated_spectra_and_hists']
             )
             ax = axs['sg']
-            ax.text(
-                -0.05,
-                1.05,
-                f"{next(letters)})",
-                fontweight='bold',
-                transform=ax.transAxes,
-                ha='right',
-            )
+            outlabel(ax)
         ## noodle
         ax = self.plot_noodle(fig=sfs['noodle'])
-        ax.text(
-            0.05,
-            0.95,
-            f"{next(letters)})",
-            fontweight='bold',
-            transform=ax.transAxes,
-            ha='left',
-            va='top',
-        )
+        inlabel(ax)
         ## structure
         ax = self.plot_structure(fig=sfs['structure'])
-        ax.text(
-            0.05,
-            0.95,
-            f"{next(letters)})",
-            fontweight='bold',
-            transform=ax.transAxes,
-            ha='left',
-            va='top',
-        )
+        inlabel(ax)
         ## nacs_histograms
         axs = self.plot_nacs_histograms(fig=sfs['nacs_histograms'])
         ax = axs.get('ntd', axs['nde'])
-        ax.text(
-            -0.05,
-            1.05,
-            f"{next(letters)})",
-            fontweight='bold',
-            transform=ax.transAxes,
-            ha='right',
-        )
+        outlabel(ax)
         ## time plots
         axs = self.plot_timeplots(fig=sfs['timeplots'])
         ax = axs['pop']
-        ax.text(
-            -0.05,
-            1.05,
-            f"{next(letters)})",
-            fontweight='bold',
-            transform=ax.transAxes,
-            ha='right',
-        )
+        outlabel(ax)
         return fig
 
     def _test_subfigures(
