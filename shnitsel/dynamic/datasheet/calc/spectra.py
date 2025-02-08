@@ -4,7 +4,7 @@ from ... import postprocess as P
 
 
 def get_spectrum(data, t, sc, cutoff=0.01):
-    # following required because `meathod='nearest'`` doesn't work for MultiIndex
+    # following required because `meathod='nearest'` doesn't work for MultiIndex
     if t not in data.coords['time']:
         times = np.unique(data.coords['time'])
         diffs = np.abs(times - t)
