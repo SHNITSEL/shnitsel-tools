@@ -1,4 +1,4 @@
-from logging import warn
+from logging import warning
 
 import numpy as np
 import xarray as xr
@@ -51,7 +51,7 @@ def max_bond_lengths(atXYZ, elem1=1, elem2=6):
     if 'smiles_map' in atXYZ.attrs:
         mol = numbered_smiles_to_mol(atXYZ.attrs['smiles_map'])
     else:
-        warn("`smiles_map` attribute missing; falling back to frame 0")
+        warning("`smiles_map` attribute missing; falling back to frame 0")
         mol = mol_from_atXYZ((atXYZ.isel(frame=0)))
 
     bonds = find_bonds_by_element(mol, elem1, elem2)

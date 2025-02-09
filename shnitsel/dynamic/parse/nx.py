@@ -188,7 +188,7 @@ def read_traj_frames(path):
         raise
 
     if not ds.attrs['completed']:
-        logging.warn(f"Trajectory {trajid} at path {path} did not complete")
+        logging.warning(f"Trajectory {trajid} at path {path} did not complete")
 
     ds.attrs['trajid'] = trajid
 
