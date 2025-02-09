@@ -99,7 +99,7 @@ class Datasheet:
             )
 
         try:
-            self.name = self.frames.attrs['longname']
+            self.name = self.frames.attrs['long_name']
         except KeyError:
             pass
 
@@ -111,7 +111,6 @@ class Datasheet:
     name: str = ''
 
     def _copy_data(self, old: Self):
-        print("10:48")
         self.spectra_times = old.spectra_times
         self.col_state = old.col_state
         self.col_inter = old.col_inter
