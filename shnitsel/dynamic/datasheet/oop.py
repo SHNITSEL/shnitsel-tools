@@ -68,7 +68,7 @@ class Datasheet:
                 f"but should contain one color for each of the {nstates} states"
             )
             self.col_state = col_state
-        elif (s := frames.sizes['state']) <= 3:
+        elif (s := self.frames.sizes['state']) <= 3:
             self.col_state = ['#4DAD15', '#AD2915', '#7515AD'][:s]  # SHNITSEL-colours
         elif s <= 10:
             cmap = plt.get_cmap('tab10')
@@ -85,7 +85,7 @@ class Datasheet:
                 f"`col_inter` has {ncols} colors, "
                 f"but should contain one color for each of the {ncombs} state combinations"
             )
-        elif (s := frames.sizes['statecomb']) <= 3:
+        elif (s := self.frames.sizes['statecomb']) <= 3:
             self.col_inter = col_inter or ['#2c3e50', '#C4A000', '#7E5273'][:s]
         elif s <= 10:
             # TODO: choose colours distinct from per_state colours
