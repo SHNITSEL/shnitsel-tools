@@ -205,6 +205,46 @@ def changes(da):
 
 # def get_hops(ds, )
 
+def validate(frames):
+    tdim = 'time' if 'time' in frames.dims else 'ts'
+    bad_frames = []
+    for varname in frames.data_vars.keys():
+        # choose appropriate placeholder / bad value for the data_var's dtype
+        dtype = frames.dtypes[varname]
+        if dtype in {np.dtype('float64'), np.dtype('float32')}:
+            mask = np.isnan(frames[varname])
+            phname = '`nan`'
+        elif dtype in {np.dtype('int32'), np.dtype('int64')}:
+            mask = frames[varname] == -1
+            phname = 'placeholder `-1`'
+        else:
+            print(
+                f"Skipping verification of `{varname}` "
+                f"as no bad value known for dtype `{dtype}`"
+            )
+
+        if mask.all():
+            print(
+                f"Variable `{varname}` exclusively contains {phname}, "
+                "so is effectively missing"
+            )
+        elif mask.any():
+            da = frames[varname]
+            reddims = set(da.dims) - {'frame'}
+            nans = da.sel(frame=mask.any(reddims)).frame
+            n = len(nans)
+            bfstr = '; '.join(
+                [f"trajid={x.trajid.item()} {tdim}={x[tdim].item()}" for x in nans]
+            )
+            print(f"Variable `{varname}` contains {phname} in {n} frame(s),")
+            print(f"    namely: {bfstr}")
+            bad_frames += [nans]
+        else:
+            print(f"Variable `{varname}` does not contain {phname}")
+
+    return np.unique(xr.concat(bad_frames, dim='frame'))
+
+
 ##############################################
 # Functions generally applicable to timeplots:
 
