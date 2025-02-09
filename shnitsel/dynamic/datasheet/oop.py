@@ -2,6 +2,7 @@ from functools import cached_property
 import xarray as xr
 import numpy as np
 import rdkit.Chem as rc
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 from logging import info, warning
 from timeit import default_timer as timer
@@ -61,8 +62,42 @@ class Datasheet:
             max_time = self.frames.coords['time'].max().item()
             self.spectra_times = [max_time * i / 3 for i in range(3)]
 
-        self.col_state = col_state or ['#4DAD15', '#AD2915', '#7515AD']
-        self.col_inter = col_inter or ['#2c3e50', '#C4A000', '#7E5273']
+        if col_state is not None:
+            assert (ncols := len(col_state)) == (nstates := frames.sizes['state']), (
+                f"`col_state` has {ncols} colors,"
+                f"but should contain one color for each of the {nstates} states"
+            )
+            self.col_state = col_state
+        elif (s := frames.sizes['state']) <= 3:
+            self.col_state = ['#4DAD15', '#AD2915', '#7515AD'][:s]  # SHNITSEL-colours
+        elif s <= 10:
+            cmap = plt.get_cmap('tab10')
+            self.col_state = [mpl.colors.rgb2hex(c) for c in cmap.colors][:s]
+        else:
+            raise ValueError(
+                f"These data have {nstates} states. "
+                "When passing data with more than 10 states, please"
+                "also pass an appropriate colormap to `col_state`."
+            )
+
+        if col_inter is not None:
+            assert (ncols := len(col_inter)) == (ncombs := frames.sizes['statecomb']), (
+                f"`col_inter` has {ncols} colors, "
+                f"but should contain one color for each of the {ncombs} state combinations"
+            )
+        elif (s := frames.sizes['statecomb']) <= 3:
+            self.col_inter = col_inter or ['#2c3e50', '#C4A000', '#7E5273'][:s]
+        elif s <= 10:
+            # TODO: choose colours distinct from per_state colours
+            cmap = plt.get_cmap('tab10')
+            self.col_inter = [mpl.colors.rgb2hex(c) for c in cmap.colors][:s]
+        else:
+            raise ValueError(
+                f"These data have {ncombs} state combinations. "
+                "When passing data with more than 10 state combinations, please "
+                "also pass an appropriate colormap to `col_inter`."
+            )
+
         try:
             self.name = self.frames.attrs['longname']
         except KeyError:
