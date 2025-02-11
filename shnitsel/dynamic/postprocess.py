@@ -1,7 +1,10 @@
-import numpy as np
-import xarray as xr
 import math
 import itertools
+from logging import warning
+
+import numpy as np
+import xarray as xr
+
 import scipy.stats as st
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.decomposition import PCA
@@ -369,17 +372,27 @@ def calc_pops(frames):
     """Fast way to calculate populations
     Requires states ids to be small integers
     """
+    data = frames['astate']
+    if -1 in frames['astate']:
+        warning(
+            "`frames['astate']` contains the placeholder value `-1`, "
+            "indicating missing state information.  "
+            "The frames in question will be excluded from the "
+            "population count altogether."
+        )
+        data = data.sel(frame=(data != -1))
     nstates=frames.sizes['state']
-    zero_or_one = int(frames.coords['state'].min())
+    # zero_or_one = int(frames.coords['state'].min())
+    zero_or_one = 1  # TODO: For now, assume lowest state is 1
     assert zero_or_one in {0,1}
-    pops = frames['astate'].groupby('time').map(
-        lambda group:
-        xr.apply_ufunc(
-            lambda values:
-            np.bincount(values, minlength=nstates+zero_or_one)[zero_or_one:],
+    pops = data.groupby('time').map(
+        lambda group: xr.apply_ufunc(
+            lambda values: np.bincount(values, minlength=nstates + zero_or_one)[
+                zero_or_one:
+            ],
             group,
             input_core_dims=[['frame']],
-            output_core_dims=[['state']]
+            output_core_dims=[['state']],
         )
     )
     return pops / pops.sum('state')
