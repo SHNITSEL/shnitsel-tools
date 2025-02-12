@@ -361,9 +361,12 @@ def get_per_state(frames):
     return per_state
 
 def get_inter_state(frames):
-    iprops = ['energy', 'nacs', 'astate']
-    if 'dip_trans' in frames:
-        iprops += ['dip_trans']
+    iprops = []
+    for prop in ['energy', 'nacs', 'astate', 'dip_trans']:
+        if prop in frames:
+            iprops.append(prop)
+        else:
+            warning(f"Dataset does not contain variable '{prop}'")
 
     inter_state = frames[iprops]
     inter_state['energy'] = subtract_combinations(inter_state['energy'], dim='state')
