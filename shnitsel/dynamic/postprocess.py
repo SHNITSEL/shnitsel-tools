@@ -348,7 +348,8 @@ def get_per_state(frames):
 
     per_state['energy'].attrs['long_name'] = r'$E$'
     per_state['forces'].attrs['long_name'] = r'$\mathbf{F}$'
-    per_state['dip_perm'].attrs['long_name'] = r'$\mathbf{\mu}_i$'
+    if 'dip_perm' in per_state:
+        per_state['dip_perm'].attrs['long_name'] = r'$\mathbf{\mu}_i$'
     return per_state
 
 def get_inter_state(frames):
