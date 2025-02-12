@@ -58,8 +58,10 @@ def format_inchi(inchi: str) -> str:
         split = inchi.split('/')
         if len(split) not in {4, 5}:
             warning(f"Unexpected InChi: {split=}")
+        lens = [len(s) for s in split]
         split[2] = '\n' + split[2]
-        split[3] = '\n' + split[3]
+        if sum(lens[2:]) > 30:
+            split[3] = '\n' + split[3]
         return '/'.join(split)
 
 
@@ -74,7 +76,7 @@ def plot_structure(
     ax.get_yaxis().set_visible(False)
     ax.tick_params(axis="x", bottom=False, labelbottom=False)
     inchi = format_inchi(inchi)
-    ax.set_xlabel(f"SMILES={smiles}\n{inchi}", wrap=True)
+    ax.set_xlabel(f"SMILES={smiles}\n{inchi}", fontsize='small')
     print(smiles, inchi)
     # axy.tick_params(axis="y", labelleft=False)
     return ax
