@@ -1,3 +1,5 @@
+from logging import warning
+
 import rdkit
 import rdkit.Chem.Draw
 import rdkit.Chem as rc
@@ -49,6 +51,18 @@ def show_atXYZ(
     # axy.tick_params(axis="y", labelleft=False)
     return ax
 
+def format_inchi(inchi: str) -> str:
+    if len(inchi) < 30:
+        return inchi
+    else:
+        split = inchi.split('/')
+        if len(split) not in {4, 5}:
+            warning(f"Unexpected InChi: {split=}")
+        split[2] = '\n' + split[2]
+        split[3] = '\n' + split[3]
+        return '/'.join(split)
+
+
 def plot_structure(
     mol, name='', smiles=None, inchi=None, fig=None, ax=None
 ) -> mpl.axes.Axes:
@@ -59,6 +73,7 @@ def plot_structure(
     ax.axis('on')
     ax.get_yaxis().set_visible(False)
     ax.tick_params(axis="x", bottom=False, labelbottom=False)
+    inchi = format_inchi(inchi)
     ax.set_xlabel(f"SMILES={smiles}\n{inchi}", wrap=True)
     print(smiles, inchi)
     # axy.tick_params(axis="y", labelleft=False)
