@@ -200,9 +200,12 @@ class Datasheet:
     @cached_property
     def fosc_time(self):
         start = timer()
-        res = P.time_grouped_ci(self.inter_state['fosc'])
-        res['_color'] = 'statecomb', self.col_inter
-        res.attrs['tex'] = r"$f_\mathrm{osc}$"
+        if 'fosc' in self.inter_state:
+            res = P.time_grouped_ci(self.inter_state['fosc'])
+            res['_color'] = 'statecomb', self.col_inter
+            res.attrs['tex'] = r"$f_\mathrm{osc}$"
+        else:
+            res = None
         end = timer()
         info(f"cached fosc_time in {end-start} s")
         return res
