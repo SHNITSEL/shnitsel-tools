@@ -1,4 +1,5 @@
 import rdkit
+import rdkit.Chem.Draw
 import rdkit.Chem as rc
 
 import matplotlib as mpl
