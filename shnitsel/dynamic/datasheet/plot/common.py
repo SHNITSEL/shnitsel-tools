@@ -6,6 +6,8 @@ from matplotlib.axes import Axes
 
 from ...pca_biplot import figax as figax
 
+symbols = dict(energy=r"$E_i$", force=r"$\mathbf{F}_i$", dip_perm=r"$\mathbf{\mu}_i$")
+
 
 # TODO: DEPRECATE
 def figaxs(
@@ -51,3 +53,10 @@ def figaxs_defaults(mosaic, scale_factors=None, height_ratios=None):
         return wrapper
 
     return decorator
+
+def centertext(text, ax, clearticks='y'):
+    if 'x' in clearticks:
+        ax.tick_params(axis='x', labelbottom=False)
+    if 'y' in clearticks:
+        ax.tick_params(axis='y', labelleft=False)
+    return ax.text(0.5, 0.5, text, transform=ax.transAxes, ha='center', va='center')
