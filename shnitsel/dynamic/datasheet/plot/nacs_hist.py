@@ -1,4 +1,4 @@
-from .common import figaxs_defaults
+from .common import figaxs_defaults, centertext
 from .hist import create_marginals, trunc_max
 
 from matplotlib.axes import Axes
@@ -43,5 +43,8 @@ def plot_nacs_histograms(inter_state, hop_idxs, fig=None, axs=None) -> dict[str,
     plot('nde', 'energy')
     if 'dip_trans' in inter_state:
         plot('ntd', 'dip_trans')
+    else:
+        centertext(r"No $\mathbf{\mu}_{ij}$ data", axs['ntd'])
+        axs['ntd'].tick_params(axis='y', labelleft=False)
 
     return axs

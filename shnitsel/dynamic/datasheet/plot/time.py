@@ -1,6 +1,6 @@
-from .common import figaxs_defaults
-
 from matplotlib.axes import Axes
+
+from .common import figaxs_defaults, centertext
 
 
 def plot_time_interstate_error(data, ax):
@@ -37,6 +37,8 @@ def plot_timeplots(pops, delta_E, fosc_time, axs=None, fig=None) -> dict[str, Ax
     plot_time_interstate_error(delta_E, axs['de'])
     if fosc_time is not None:
         plot_time_interstate_error(fosc_time, axs['ft'])
+    else:
+        centertext('No $f_\mathrm{osc}$ data', ax=axs['ft'])
 
     for axn in ['de', 'pop']:
         axs[axn].sharex(axs['ft'])

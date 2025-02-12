@@ -1,12 +1,15 @@
 import numpy as np
 
-from .common import figaxs_defaults
+from .common import figaxs_defaults, centertext, symbols
 from .hist import truncate
 
 @figaxs_defaults(mosaic=[['energy', 'forces', 'dip_perm']], scale_factors=(1, 1 / 5))
 def plot_per_state_histograms(per_state, axs=None, fig=None):
     for quantity in ['energy', 'forces', 'dip_perm']:
         ax = axs[quantity]
+        if quantity not in per_state:
+            centertext("No %s data" % symbols.get(quantity, quantity), ax)
+            continue
 
         for state, data in per_state.groupby('state'):
             c = data['_color'].item()
@@ -28,3 +31,4 @@ def plot_per_state_histograms(per_state, axs=None, fig=None):
         long_name = per_state[quantity].attrs.get('long_name')
         units = per_state[quantity].attrs.get('units')
         axs[quantity].set_xlabel(rf'{long_name} / {units}')
+    return axs
