@@ -208,8 +208,13 @@ def changes(da):
 
 # def get_hops(ds, )
 
-def validate(frames):
-    tdim = 'time' if 'time' in frames.dims else 'ts'
+def validate(frames) -> np.ndarray:
+    if 'time' in frames.coords:
+        tdim = 'time'
+    elif 'ts' in frames.coords:
+        tdim = 'ts'
+    else:
+        raise ValueError("Found neither 'time' nor 'ts' coordinate in frames")
     bad_frames = []
     for varname in frames.data_vars.keys():
         # choose appropriate placeholder / bad value for the data_var's dtype
@@ -245,7 +250,10 @@ def validate(frames):
         else:
             print(f"Variable `{varname}` does not contain {phname}")
 
-    return np.unique(xr.concat(bad_frames, dim='frame'))
+    if len(bad_frames):
+        return np.unique(xr.concat(bad_frames, dim='frame'))
+    else:
+        return np.array([])
 
 
 ##############################################
