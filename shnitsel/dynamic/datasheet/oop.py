@@ -18,10 +18,9 @@ from .. import xrhelpers as xh
 
 from .calc import calc_spectra, get_sgroups
 
-# from .plot import create_subfigures
+from .plot.common import centertext
 from .plot.per_state_hist import plot_per_state_histograms
 from .plot.time import plot_timeplots
-# import
 from .plot.dip_trans_hist import plot_separated_spectra_and_hists
 from .plot.nacs_hist import plot_nacs_histograms
 from ..pca_biplot import plot_noodleplot  # , xyz_to_mol
@@ -417,8 +416,14 @@ class Datasheet:
             )
             ax = axs['sg']
             outlabel(ax)
-        elif consitent_lettering:
-            next(letters)
+        else:
+            ax = sfs['separated_spectra_and_hists'].subplots(1, 1)
+            centertext(r"No $\mathbf{\mu}_{ij}$ data", ax=ax)
+            ax.get_yaxis().set_visible(False)
+            ax.get_xaxis().set_visible(False)
+
+            if consitent_lettering:
+                next(letters)
         ## noodle
         if self.can['noodle']:
             ax = self.plot_noodle(fig=sfs['noodle'])
