@@ -98,6 +98,20 @@ class Datasheet:
                 "also pass an appropriate colormap to `col_inter`."
             )
 
+        self.can = {}
+
+        def check(*ks):
+            return all(k in self.frames for k in ks)
+
+        self.can['per_state_histograms'] = check('energy', 'forces', 'dip_trans')
+        self.can['separated_spectra_and_hists'] = check('dip_trans')
+        self.can['noodle'] = check('atXYZ', 'state', 'time')
+        self.can['structure'] = ('smiles_map' in self.frames.attrs) or check('atXYZ')
+        self.can['nacs_histograms'] = check('nacs') and (
+            check('energy') or check('forces')
+        )
+        self.can['timeplots'] = check('time', 'astate')
+
         try:
             self.name = self.frames.attrs['long_name']
         except KeyError:
@@ -364,7 +378,12 @@ class Datasheet:
         sfs = {name: fig.add_subfigure(sgs) for name, sgs in gridspecs.items()}
         return fig, sfs
 
-    def plot(self, include_per_state_hist: bool = False, borders: bool = False):
+    def plot(
+        self,
+        include_per_state_hist: bool = False,
+        borders: bool = False,
+        consitent_lettering: bool = True,
+    ):
         def label(ax, x, y, ha, va='baseline'):
             nonlocal letters
             return ax.text(
@@ -387,29 +406,48 @@ class Datasheet:
             include_per_state_hist=include_per_state_hist, borders=borders
         )
         letters = iter('abcdef')
-        if include_per_state_hist:
-            self.plot_per_state_histograms(fig=sfs['per_state_histograms'])
+
         ## separated_spectra_and_hists
-        if 'dip_trans' in self.frames.data_vars:
+        if self.can['separated_spectra_and_hists']:
             axs = self.plot_separated_spectra_and_hists(
                 fig=sfs['separated_spectra_and_hists']
             )
             ax = axs['sg']
             outlabel(ax)
+        elif consitent_lettering:
+            next(letters)
         ## noodle
-        ax = self.plot_noodle(fig=sfs['noodle'])
-        inlabel(ax)
+        if self.can['noodle']:
+            ax = self.plot_noodle(fig=sfs['noodle'])
+            inlabel(ax)
+        elif consitent_lettering:
+            next(letters)
         ## structure
-        ax = self.plot_structure(fig=sfs['structure'])
-        inlabel(ax)
+        if self.can['structure']:
+            ax = self.plot_structure(fig=sfs['structure'])
+            inlabel(ax)
+        elif consitent_lettering:
+            next(letters)
         ## nacs_histograms
-        axs = self.plot_nacs_histograms(fig=sfs['nacs_histograms'])
-        ax = axs.get('ntd', axs['nde'])
-        outlabel(ax)
+        if self.can['nacs_histograms']:
+            axs = self.plot_nacs_histograms(fig=sfs['nacs_histograms'])
+            ax = axs.get('ntd', axs['nde'])
+            outlabel(ax)
+        elif consitent_lettering:
+            next(letters)
         ## time plots
-        axs = self.plot_timeplots(fig=sfs['timeplots'])
-        ax = axs['pop']
-        outlabel(ax)
+        if self.can['timeplots']:
+            axs = self.plot_timeplots(fig=sfs['timeplots'])
+            ax = axs['pop']
+            outlabel(ax)
+        elif consitent_lettering:
+            next(letters)
+        if include_per_state_hist:
+            axs = self.plot_per_state_histograms(fig=sfs['per_state_histograms'])
+            ax = axs['energy']
+            outlabel(ax)
+        elif consitent_lettering:
+            next(letters)
         return fig
 
     def _test_subfigures(
