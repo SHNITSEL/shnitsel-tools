@@ -5,8 +5,12 @@
 `shnitsel.dynamic.parse` enables the construction of SHNITSEL datasets from the following sources:
 
 - [SHARC](https://sharc-md.org/) output files: initial conditions (`ICOND_*` folders) or trajectories (`TRAJ_*` folders)
-- NewtonX output files: trajectories 
+- [NewtonX](https://newtonx.org/) output files: trajectories 
 - [ASE](https://wiki.fysik.dtu.dk/ase/ase/db/db.html) databases
+
+The respective tutorial notebooks are: [01_sharc2hdf5.ipynb](https://github.com/SHNITSEL/shnitsel-tools/blob/main/tutorials/01_sharc2hdf5.ipynb), 
+[02_nx2hdf5.ipynb](https://github.com/SHNITSEL/shnitsel-tools/blob/main/tutorials/02_nx2hdf5.ipynb), and 
+[03_ase2hdf5.ipynb](https://github.com/SHNITSEL/shnitsel-tools/blob/main/tutorials/03_ase2hdf5.ipynb)
 
 ## 2 Data Processing and Visualization
 
