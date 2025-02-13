@@ -2,9 +2,11 @@
 
 ## 1 Data parsing and Conversion
 
-- [x] Convert [SHARC](https://sharc-md.org/) output files (ICOND or TRAJ) into SHNITSEL database (hdf5-file)
-- [x] Convert [ASE](https://wiki.fysik.dtu.dk/ase/ase/db/db.html) database into SHNITSEL-database (hdf5-file)
-- [ ] Convert NewtonX
+`shnitsel.dynamic.parse` enables the construction of SHNITSEL datasets from the following sources:
+
+- [SHARC](https://sharc-md.org/) output files: initial conditions (`ICOND_*` folders) or trajectories (`TRAJ_*` folders)
+- NewtonX output files: trajectories 
+- [ASE](https://wiki.fysik.dtu.dk/ase/ase/db/db.html) databases
 
 ## 2 Data Processing and Visualization
 
