@@ -87,7 +87,7 @@ You can create the environment with a custom path using one of the following met
 
 <details open>
   <summary><strong>Option 1: Using `uv`</strong></summary>
-  I recommend using the `uv` tool, available at https://docs.astral.sh/uv/.  
+  We recommend to use the `uv` tool, available at https://docs.astral.sh/uv/.  
   Run the following in the `shnitsel-tools` directory:
 
   ```bash
