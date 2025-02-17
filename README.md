@@ -20,6 +20,7 @@ The package is organized into two main modules, reflecting the division between 
 
 ```bash
 shnitsel
+├── __init__.py
 ├── dynamic
 │   ├── datasheet
 │   │   ├── calc
@@ -55,7 +56,6 @@ shnitsel
 │   ├── plotting.py
 │   ├── postprocess.py
 │   └── xrhelpers.py
-├── __init__.py
 └── static
     ├── __init__.py
     ├── pca.py
