@@ -12,12 +12,18 @@ Code and tools for parsing, analyzing, and visualizing data from static and dyna
 
 
 > [!TIP]
-> Tutorials dynamic and static can be found here
-> ```
-> test
-> ```
-
-
+> ### Tutorials
+> #### Generation of SHNITSEL databases
+> - [parsing trajcetory and initial condition data obtained by SHARC](https://github.com/SHNITSEL/shnitsel-tools/blob/main/tutorials/01_sharc2hdf5.ipynb)
+> - [parsing trajectory data produced with Newton-X](https://github.com/SHNITSEL/shnitsel-tools/blob/main/tutorials/02_nx2hdf5.ipynb)
+> - [convert ASE databases](https://github.com/SHNITSEL/shnitsel-tools/blob/main/tutorials/03_ase2hdf5.ipynb)
+>
+> #### Postprocessing and visualization of data
+> - static data
+> - [processing of dynamic data](https://github.com/SHNITSEL/shnitsel-tools/blob/main/tutorials/10_usage.ipynb)
+> - [datasheet for trajectory data](https://github.com/SHNITSEL/shnitsel-tools/blob/main/tutorials/11_datasheet.ipynb)
+> - [principal component analysis and trajectory classification](https://github.com/SHNITSEL/shnitsel-tools/blob/main/tutorials/12_butene_pca.ipynb)
+>
 
 ## Installation
 
