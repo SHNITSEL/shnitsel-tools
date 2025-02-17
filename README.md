@@ -8,11 +8,67 @@
 
 ## About
 
-Code and tools for parsing, analyzing, and visualizing data from static and dynamic calculations in SHARC and Newton-X format.
+The `shnitsel` Python package is designed to read, process, and visualize data generated from workflows using [SHARC](https://sharc-md.org/), [Newton-X](https://newtonx.org/), and [ASE databases](https://wiki.fysik.dtu.dk/ase/ase/db/db.html).
+The `shnitsel` code leverages Xarray to benefit from efficient multidimensional data handling, improved metadata management, and a structure that aligns naturally with the needs of quantum chemical datasets.
 
+## Usage
+
+The package is organized into two main modules, reflecting the division between static and dynamic computational photochemistry methods:
+
+- `shnitsel.static`: For processing time-independent (static) data.
+- `shnitsel.dynamic`: For processing single or multiple trajectories (dynamic) data.
+
+```bash
+shnitsel
+├── dynamic
+│   ├── datasheet
+│   │   ├── calc
+│   │   │   ├── __init__.py
+│   │   │   └── spectra.py
+│   │   ├── __init__.py
+│   │   ├── oop.py
+│   │   ├── plot
+│   │   │   ├── colormaps.py
+│   │   │   ├── common.py
+│   │   │   ├── dip_trans_hist.py
+│   │   │   ├── hist.py
+│   │   │   ├── __init__.py
+│   │   │   ├── nacs_hist.py
+│   │   │   ├── per_state_hist.py
+│   │   │   ├── structure.py
+│   │   │   └── time.py
+│   ├── filter_unphysical.py
+│   ├── indexes.py
+│   ├── __init__.py
+│   ├── parse
+│   │   ├── common.py
+│   │   ├── __init__.py
+│   │   ├── nx.py
+│   │   ├── sharc_icond.py
+│   │   ├── sharc_traj.py
+│   │   └── xyz.py
+│   ├── pca_biplot.py
+│   ├── plot
+│   │   ├── dihedral_kde.py
+│   │   ├── __init__.py
+│   │   ├── p3mhelpers.py
+│   ├── plotting.py
+│   ├── postprocess.py
+│   └── xrhelpers.py
+├── __init__.py
+└── static
+    ├── __init__.py
+    ├── pca.py
+    ├── plotting.py
+    └── utils.py
+```
 
 > [!TIP]
 > ### Tutorials
+>
+> For a quick start, see the [tutorials](https://github.com/SHNITSEL/shnitsel-tools/blob/main/tutorials) directory,
+> which contains Jupyter Notebooks showing the workflow for parsing, writing and loading SHNITSEL databases as well as how to postprocess and visualize the respective data.
+> 
 > #### Generation of SHNITSEL databases
 > - [parsing trajcetory and initial condition data obtained by SHARC](https://github.com/SHNITSEL/shnitsel-tools/blob/main/tutorials/01_sharc2hdf5.ipynb)
 > - [parsing trajectory data produced with Newton-X](https://github.com/SHNITSEL/shnitsel-tools/blob/main/tutorials/02_nx2hdf5.ipynb)
