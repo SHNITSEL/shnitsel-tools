@@ -32,6 +32,32 @@ def inlabel(s, ax, ha='center', va='center'):
 
 
 def ski_plots(spectra: xr.DataArray) -> mpl.figure.Figure:
+    """Plot spectra for different times on top of each other,
+    along with a dashed line that tracks the maximum.
+    One plot per statecomb; plots stacked vertically.
+    Expected to be used on data produced by `spectra3d.spectra_all_times`.
+
+    Parameters
+    ----------
+    spectra
+        DataArray containing fosc values organized along 'energy', 'time' and
+        'statecomb' dimensions.
+
+    Returns
+    -------
+        Figure object corresponding to plot.
+
+    Examples
+    --------
+        >>> from shnitsel.dynamic import xrhelpers as xh, postprocess as P
+        >>> from shnitsel.dynamic.plot import spectra3d
+        >>> spectra_data = (
+                xh.open_frames(path)
+                .pipe(P.get_inter_state)
+                .pipe(P.assign_fosc)
+                .pipe(spectra3d.spectra_all_times))
+        >>> spectra3d.ski_plots(spectra_data)
+    """
     assert 'time' in spectra.coords, "Missing 'time' coordinate"
     assert 'statecomb' in spectra.coords, "Missing 'statecomb' coordinate"
     assert 'energy' in spectra.coords, "Missing 'energy' coordinate"
@@ -61,6 +87,32 @@ def ski_plots(spectra: xr.DataArray) -> mpl.figure.Figure:
 
 
 def pcm_plots(spectra: xr.DataArray) -> mpl.figure.Figure:
+    """Represent fosc as colour in a plot of fosc against time and energy.
+    The colour scale is logarithmic.
+    One plot per statecomb; plots stacked horizontally.
+    Expected to be used on data produced by `spectra3d.spectra_all_times`.
+
+    Parameters
+    ----------
+    spectra
+        DataArray containing fosc values organized along 'energy', 'time' and
+        'statecomb' dimensions.
+
+    Returns
+    -------
+        Figure object corresponding to plot.
+
+    Examples
+    --------
+        >>> from shnitsel.dynamic import xrhelpers as xh, postprocess as P
+        >>> from shnitsel.dynamic.plot import spectra3d
+        >>> spectra_data = (
+                xh.open_frames(path)
+                .pipe(P.get_inter_state)
+                .pipe(P.assign_fosc)
+                .pipe(spectra3d.spectra_all_times))
+        >>> spectra3d.pcm_plots(spectra_data)
+    """
     assert 'time' in spectra.coords, "Missing 'time' coordinate"
     assert 'statecomb' in spectra.coords, "Missing 'statecomb' coordinate"
     assert 'energy' in spectra.coords, "Missing 'energy' coordinate"
