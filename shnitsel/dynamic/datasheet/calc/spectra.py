@@ -10,7 +10,7 @@ def get_spectrum(data, t, sc, cutoff=0.01):
         diffs = np.abs(times - t)
         t = times[np.argmin(diffs)]
     data = data.sel(time=t, statecomb=sc)
-    res = P.broaden_gauss(data.energy, data.fosc, width=0.1, agg_dim='trajid')
+    res = P.broaden_gauss(data.energy, data.fosc, agg_dim='trajid')
 
     max_ = res.max().item()
     non_negligible = res.where(res > cutoff * max_, drop=True).energy

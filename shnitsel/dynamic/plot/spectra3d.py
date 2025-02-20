@@ -16,7 +16,7 @@ def spectra_all_times(inter_state: xr.Dataset):
     ), "Missing required dimensions"
 
     data = inter_state.unstack('frame')
-    return P.broaden_gauss(data.energy, data.fosc, width=0.1, agg_dim='trajid')
+    return P.broaden_gauss(data.energy, data.fosc, agg_dim='trajid')
 
 
 def inlabel(s, ax, ha='center', va='center'):
