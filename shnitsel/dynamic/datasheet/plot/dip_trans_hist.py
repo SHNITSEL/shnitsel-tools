@@ -87,6 +87,8 @@ def plot_spectra(spectra, ax=None, cmap=None, cnorm=None):
             c=c,
             linewidth=0.5,
         )
+    _, ymax = ax.get_ylim()
+    ax.set_ylim(0, ymax)
 
     return ax
 
