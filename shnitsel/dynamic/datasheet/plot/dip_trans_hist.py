@@ -115,6 +115,7 @@ def plot_separated_spectra_and_hists(
     ground, excited = sgroups
     times = [tup[0] for lst in sgroups for tup in lst]
     scnorm = plt.Normalize(inter_state.time.min(), inter_state.time.max())
+    scmap = plt.get_cmap('turbo')
     scscale = mpl.cm.ScalarMappable(norm=scnorm, cmap=scmap)
 
     hist2d_outputs = []
