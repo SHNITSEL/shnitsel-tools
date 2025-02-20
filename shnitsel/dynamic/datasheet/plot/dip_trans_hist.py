@@ -107,7 +107,9 @@ def _hist_min_max(inter_state):
     scale_factors=(1 / 3, 4 / 5),
     height_ratios=([1] * 5) + ([0.1] * 2),
 )
-def plot_separated_spectra_and_hists(inter_state, sgroups, fig=None, axs=None):
+def plot_separated_spectra_and_hists(
+    inter_state, sgroups, fig=None, axs=None, cb_spec_vlines=True
+):
     ground, excited = sgroups
     times = [tup[0] for lst in sgroups for tup in lst]
     scnorm = plt.Normalize(min(times), max(times))
@@ -160,8 +162,18 @@ def plot_separated_spectra_and_hists(inter_state, sgroups, fig=None, axs=None):
     for lax in ['cb_spec', 'cb_hist']:
         axs[lax].get_yaxis().set_visible(False)
 
-    axs['cb_spec'].figure.colorbar(scscale, cax=axs['cb_spec'], location='bottom')
+    cb_spec = axs['cb_spec'].figure.colorbar(
+        scscale,
+        cax=axs['cb_spec'],
+        location='bottom',
+        extend='both',
+        extendrect=True,
+    )
     axs['cb_spec'].set_xlabel('time / fs')
+    if cb_spec_vlines:
+        for t in times:
+            cb_spec.ax.axvline(t, c='white')
+
     hcscale = mpl.cm.ScalarMappable(norm=hcnorm, cmap=magma_rw)
     axs['cb_hist'].figure.colorbar(hcscale, cax=axs['cb_hist'], location='bottom')
     axs['cb_hist'].set_xlabel('# data points')
