@@ -59,7 +59,9 @@ class Datasheet:
             self.spectra_times = spectra_times
         elif self.frames is not None:
             max_time = self.frames.coords['time'].max().item()
-            self.spectra_times = [max_time * i / 3 for i in range(3)]
+            self.spectra_times = [max_time * i / 40 for i in range(5)]
+            self.spectra_times += [max_time * i / 20 for i in range(5)]
+            self.spectra_times += [max_time * i / 3 for i in range(4)]
 
         if col_state is not None:
             assert (ncols := len(col_state)) == (nstates := frames.sizes['state']), (
