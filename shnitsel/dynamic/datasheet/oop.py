@@ -423,9 +423,7 @@ class Datasheet:
             centertext(r"No $\mathbf{\mu}_{ij}$ data", ax=ax)
             ax.get_yaxis().set_visible(False)
             ax.get_xaxis().set_visible(False)
-
-            if consitent_lettering:
-                next(letters)
+            outlabel(ax)
         ## noodle
         if self.can['noodle']:
             ax = self.plot_noodle(fig=sfs['noodle'])
