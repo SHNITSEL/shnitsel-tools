@@ -169,7 +169,13 @@ def plot_separated_spectra_and_hists(
     axs['cb_spec'].set_xlabel('time / fs')
     if cb_spec_vlines:
         for t in times:
-            cb_spec.ax.axvline(t, c='white')
+            lo, hi = scscale.get_clim()  # lines at these points don't show
+            if t == lo:
+                t += t / 100  # so we shift them slightly
+            elif t == hi:
+                t -= t / 100
+
+            cb_spec.ax.axvline(t, c='white', linewidth=0.5)
 
     hcscale = mpl.cm.ScalarMappable(norm=hcnorm, cmap=magma_rw)
     axs['cb_hist'].figure.colorbar(hcscale, cax=axs['cb_hist'], location='bottom')
