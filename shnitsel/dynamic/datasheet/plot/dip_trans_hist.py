@@ -61,7 +61,7 @@ def plot_dip_trans_histograms(inter_state, axs=None, cnorm=None):
     return hist2d_outputs
 
 
-def plot_spectra(spectra, ax=None, cmap=None, cnorm=None):
+def plot_spectra(spectra, ax=None, cmap=None, cnorm=None, mark_peaks=False):
     if ax is None:
         _, ax = plt.subplots(1, 1)
     cmap = plt.get_cmap(cmap) if cmap else custom_ylgnr
@@ -87,6 +87,12 @@ def plot_spectra(spectra, ax=None, cmap=None, cnorm=None):
             c=c,
             linewidth=0.5,
         )
+        if mark_peaks:
+            try:
+                peak = data[data.argmax('energy')]
+                ax.text(peak['energy'], peak, f"{t:.2f}:{sc}", fontsize='xx-small')
+            except Exception as e:
+                print(e)
     _, ymax = ax.get_ylim()
     ax.set_ylim(0, ymax)
 
