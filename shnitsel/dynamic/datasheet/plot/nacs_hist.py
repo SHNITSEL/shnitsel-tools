@@ -45,6 +45,8 @@ def plot_nacs_histograms(inter_state, hop_idxs, fig=None, axs=None) -> dict[str,
         plot('ntd', 'dip_trans')
     else:
         centertext(r"No $\mathbf{\mu}_{ij}$ data", axs['ntd'])
-        axs['ntd'].tick_params(axis='y', labelleft=False)
+        # axs['ntd'].tick_params(axis='y', labelleft=False)
+        axs['ntd'].get_yaxis().set_visible(False)
+        axs['ntd'].get_xaxis().set_visible(False)
 
     return axs

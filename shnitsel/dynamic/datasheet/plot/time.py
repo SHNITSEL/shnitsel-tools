@@ -37,13 +37,20 @@ def plot_timeplots(pops, delta_E, fosc_time, axs=None, fig=None) -> dict[str, Ax
     plot_time_interstate_error(delta_E, axs['de'])
     if fosc_time is not None:
         plot_time_interstate_error(fosc_time, axs['ft'])
+        lowest_ax = axs['ft']
+        higher_axnames = ['de', 'pop']
     else:
-        centertext('No $f_\mathrm{osc}$ data', ax=axs['ft'])
+        centertext(r"No $\mathbf{\mu}_{ij}$ data", ax=axs['ft'])
+        axs['ft'].get_yaxis().set_visible(False)
+        axs['ft'].get_xaxis().set_visible(False)
+        lowest_ax = axs['de']
+        higher_axnames = ['pop']
 
-    for axn in ['de', 'pop']:
-        axs[axn].sharex(axs['ft'])
+    lowest_ax.set_xlabel(r'$t$ / fs')  # TODO
+    lowest_ax.minorticks_on()
+
+    for axn in higher_axnames:
+        axs[axn].sharex(lowest_ax)
         axs[axn].tick_params(axis='x', labelbottom=False)
-    axs['ft'].set_xlabel(r'$t$ / fs')  # TODO
-    axs['ft'].minorticks_on()
 
     return axs
