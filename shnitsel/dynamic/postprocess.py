@@ -335,7 +335,8 @@ def broaden_gauss(E, fosc, agg_dim='frame', *, width=0.5, nsamples=1000, xmax=No
         return 1 / (np.sqrt(2 * np.pi) * stdev) * np.exp(-(x**2) / (2 * stdev**2))
 
     if xmax is None:
-        xmax = E.max().item()
+        # broadening could visibly overshoot the former maximum by 3 standard deviations
+        xmax = E.max().item() * (1 + 1.5 * width)
     xs = np.linspace(0, xmax, num=nsamples)
     Espace = xr.DataArray(
         xs,
