@@ -327,9 +327,12 @@ def assign_fosc(ds):
     da.attrs['long_name'] = r"$f_{\mathrm{osc}}$"
     return ds.assign(fosc=da)
 
-def broaden_gauss(E, fosc, agg_dim='frame', *, width=0.001, nsamples=1000, xmax=None):
+def broaden_gauss(E, fosc, agg_dim='frame', *, width=0.5, nsamples=1000, xmax=None):
+    stdev = width / 2
+
     def g(x):
-        return 1/(np.sqrt(2*np.pi)*width) * np.exp(-(x)**2/width)
+        nonlocal stdev
+        return 1 / (np.sqrt(2 * np.pi) * stdev) * np.exp(-(x**2) / (2 * stdev**2))
 
     if xmax is None:
         xmax = E.max().item()
