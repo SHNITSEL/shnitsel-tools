@@ -65,7 +65,7 @@ class Datasheet:
 
         if col_state is not None:
             assert (ncols := len(col_state)) == (nstates := frames.sizes['state']), (
-                f"`col_state` has {ncols} colors,"
+                f"`col_state` has {ncols} colors, "
                 f"but should contain one color for each of the {nstates} states"
             )
             self.col_state = col_state
@@ -77,7 +77,7 @@ class Datasheet:
         else:
             raise ValueError(
                 f"These data have {nstates} states. "
-                "When passing data with more than 10 states, please"
+                "When passing data with more than 10 states, please "
                 "also pass an appropriate colormap to `col_state`."
             )
 
