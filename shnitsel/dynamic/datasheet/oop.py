@@ -388,23 +388,34 @@ class Datasheet:
         borders: bool = False,
         consitent_lettering: bool = True,
     ):
-        def label(ax, x, y, ha, va='baseline'):
+        def outlabel(ax):
             nonlocal letters
+            fixedtrans = mpl.transforms.ScaledTranslation(
+                -20 / 72, +7 / 72, ax.figure.dpi_scale_trans
+            )
+            transform = ax.transAxes + fixedtrans
             return ax.text(
-                x,
-                y,
-                f"{next(letters)})",
+                0.0,
+                1.0,
+                next(letters) + ")",
+                transform=transform,
+                va='bottom',
                 fontweight='bold',
-                transform=ax.transAxes,
-                ha=ha,
-                va=va,
+                bbox=dict(facecolor='0.9', edgecolor='none', pad=3.0),
             )
 
-        def outlabel(ax):
-            return label(ax, -0.05, 1.05, ha='right')
-
         def inlabel(ax):
-            return label(ax, 0.05, 0.95, ha='left', va='top')
+            nonlocal letters
+            return ax.annotate(
+                next(letters) + ")",
+                xy=(0, 1),
+                xycoords='axes fraction',
+                xytext=(+0.5, -0.5),
+                textcoords='offset fontsize',
+                va='top',
+                fontweight='bold',
+                bbox=dict(facecolor='0.9', edgecolor='none', pad=3.0),
+            )
 
         fig, sfs = self.get_subfigures(
             include_per_state_hist=include_per_state_hist, borders=borders
