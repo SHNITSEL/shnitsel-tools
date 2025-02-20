@@ -327,11 +327,12 @@ def assign_fosc(ds):
     da.attrs['long_name'] = r"$f_{\mathrm{osc}}$"
     return ds.assign(fosc=da)
 
-def broaden_gauss(E, fosc, agg_dim='frame', *, width=0.001, nsamples=1000):
+def broaden_gauss(E, fosc, agg_dim='frame', *, width=0.001, nsamples=1000, xmax=None):
     def g(x):
         return 1/(np.sqrt(2*np.pi)*width) * np.exp(-(x)**2/width)
 
-    xmax = E.max().values # needed so linspace works for older xarray (or for older numpy?)
+    if xmax is None:
+        xmax = E.max().item()
     xs = np.linspace(0, xmax, num=nsamples)
     Espace = xr.DataArray(
         xs,
@@ -345,8 +346,10 @@ def broaden_gauss(E, fosc, agg_dim='frame', *, width=0.001, nsamples=1000):
             coord.attrs = fosc.coords[cname].attrs
     return res.assign_coords({'energy': Espace})
 
-def ds_broaden_gauss(ds, width=0.001, nsamples=1000):
-    return broaden_gauss(ds['energy'], ds['fosc'], width=width, nsamples=nsamples)
+def ds_broaden_gauss(ds, width=0.001, nsamples=1000, xmax=None):
+    return broaden_gauss(
+        ds['energy'], ds['fosc'], width=width, nsamples=nsamples, xmax=None
+    )
 
 
 def get_per_state(frames):
