@@ -1,4 +1,5 @@
 import matplotlib as mpl
+from matplotlib.lines import Line2D
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -71,12 +72,18 @@ def plot_spectra(spectra, ax=None, cmap=None, cnorm=None):
     # linestyles = {t: ['-', '--', '-.', ':'][i]
     #               for i, t in enumerate(np.unique(list(zip(*spectra.keys()))[0]))}
     for (t, sc), data in spectra.items():
+        # special casing for now
+        if sc == '$S_2 - S_0$':
+            linestyle = '--'
+        else:
+            linestyle = '-'
         c = cmap(cnorm(t))
         # ax.fill_between(data['energy'], data, alpha=0.5, color=c)
         ax.plot(
             data['energy'],
             data,
             # linestyle=linestyles[t], c=dcol_inter[sc],
+            linestyle=linestyle,
             c=c,
             linewidth=0.5,
         )
@@ -163,5 +170,13 @@ def plot_separated_spectra_and_hists(inter_state, sgroups, fig=None, axs=None):
         r"$\uparrow$ground state" + "\n" + r"$\downarrow$excited state absorption"
     )
     axs['t2'].set_xlabel(r'$\Delta E$ / eV')
+
+    legend_lines, legend_labels = zip(
+        *[
+            (Line2D([0], [0], color='k', linestyle='-', linewidth=0.5), "$S_1/S_0$"),
+            (Line2D([0], [0], color='k', linestyle='--', linewidth=0.5), "$S_2/S_0$"),
+        ]
+    )
+    axs['sg'].legend(legend_lines, legend_labels, fontsize='x-small')
 
     return axs
