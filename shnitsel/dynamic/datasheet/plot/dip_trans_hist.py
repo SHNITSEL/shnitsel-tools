@@ -93,17 +93,6 @@ def plot_spectra(spectra, ax=None, cmap=None, cnorm=None):
     return ax
 
 
-def _hist_min_max(inter_state):
-    minmax = []
-    debug = []
-    for sc, data in inter_state.groupby('statecomb'):
-        data = data.squeeze()
-        H, xe, ye = np.histogram2d(data.energy.values, data.dip_trans.values, bins=100)
-        minmax += [H.min(), H.max()]
-        debug.append((H, xe, ye))
-
-    return min(minmax), max(minmax), debug
-
 @figaxs_defaults(
     mosaic=[['sg'], ['t0'], ['t1'], ['se'], ['t2'], ['cb_spec'], ['cb_hist']],
     scale_factors=(1 / 3, 4 / 5),
