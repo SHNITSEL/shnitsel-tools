@@ -328,6 +328,27 @@ def assign_fosc(ds):
     return ds.assign(fosc=da)
 
 def broaden_gauss(E, fosc, agg_dim='frame', *, width=0.5, nsamples=1000, xmax=None):
+    """
+    Parameters
+    ----------
+    E
+        values used for the x-axis, presumably $E_i$
+    fosc
+        values used for the y-axis, presumably $f_\mathrm{osc}$
+    agg_dim, optional
+        dimension along which to aggregate the many Gaussian distributions,
+        by default 'frame'
+    width, optional
+        the width (i.e. 2 standard deviations) of the Gaussian distributions
+        used, by default 0.001
+    nsamples, optional
+        number of evenly spaced x-values over which to sample the distribution,
+        by default 1000
+    xmax, optional
+        the maximum x-value, by default 3 standard deviations
+        beyond the pre-broadened maximum
+    """
+
     stdev = width / 2
 
     def g(x):
