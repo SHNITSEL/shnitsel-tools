@@ -105,3 +105,50 @@ def biplot_distance_time(frames, at1, at2, levels=None):
     plot_kdes(*kde_data, levels=levels, ax=pcaax)
 
     return kde_data
+
+def biplot_distance(frames, at1, at2):
+    
+    if levels is None:
+        levels = [0.08, 1]
+
+    distances = P.distance(frames['atXYZ'], at1, at2)
+
+    # prepare layout
+    fig, oaxs = plt.subplots(1, 2, layout='constrained', width_ratios=[3, 2])
+    fig.set_size_inches(8.27, 11.69 / 3)  # a third of a page, spanning both columns
+    gs = oaxs[0].get_subplotspec().get_gridspec()
+    for ax in oaxs:
+        ax.remove()
+    pcasf = fig.add_subfigure(gs[0])
+    pcaax = pcasf.subplots(1, 1)
+    structsf = fig.add_subfigure(gs[1])
+    structaxs = structsf.subplot_mosaic('ab\ncd')
+
+    # prepare data
+    kde_data = fit_and_eval_kdes_dist(frames, distances, fineness=100)
+    d = pb.pick_clusters(frames, nbins=4)
+    
+    loadings, clusters, picks = d['loadings'], d['clusters'], d['picks']
+    
+    mol = pb.show_atom_numbers(frames['atXYZ'].isel(frame=0))
+
+    pb.plot_noodleplot(
+        *P.pca_and_hops(frames),
+        c=distances,
+        ax=pcaax,
+        noodle_kws=dict(alpha=1, marker='.'),
+        hops_kws=dict(c='r', s=0.2),
+    )
+
+    pb.plot_clusters3(
+        loadings,
+        [clusters[i] for i in picks],
+        ax=pcaax,
+        axs=structaxs,
+        mol=mol,
+        labels=list('abcd'),
+    )
+    
+    plot_kdes(*kde_data, levels=levels, ax=pcaax)
+
+    return kde_data
