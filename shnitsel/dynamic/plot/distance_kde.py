@@ -81,7 +81,7 @@ def biplot_distance_time(frames, at1, at2, levels=None):
 
     # prepare data
     kde_data = fit_and_eval_kdes_dist(frames, distances, fineness=100)
-    d = pick_clusters(frames, nbins=4)
+    d = pb.pick_clusters(frames, nbins=4)
     
     loadings, clusters, picks = d['loadings'], d['clusters'], d['picks']
     
