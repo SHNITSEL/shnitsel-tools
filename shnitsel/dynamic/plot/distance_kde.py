@@ -106,7 +106,7 @@ def biplot_distance_time(frames, at1, at2, levels=None):
 
     return kde_data
 
-def biplot_distance(frames, at1, at2):
+def biplot_distance(frames, at1, at2, levels=None):
     
     if levels is None:
         levels = [0.08, 1]
