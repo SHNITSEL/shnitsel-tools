@@ -102,6 +102,6 @@ def biplot_distance_time(frames, at1, at2, levels=None):
         mol=mol,
         labels=list('abcd'),
     )
-    dk.plot_kdes(*kde_data, levels=levels, ax=pcaax)
+    plot_kdes(*kde_data, levels=levels, ax=pcaax)
 
     return kde_data
