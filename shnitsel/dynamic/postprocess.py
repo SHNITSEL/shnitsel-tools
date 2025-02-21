@@ -507,6 +507,12 @@ def dihedral(atXYZ, i, j, k, l):
     data = dihedral_(a, b, c, d)
     return data
 
+def distance(atXYZ, i, j):
+    a = atXYZ.isel(atom=i)    
+    b = atXYZ.isel(atom=j)
+    data = dnorm(a - b)
+    return data
+
 ###############################################
 # Functions to investigate hops in a trajectory
 # Note: some of these functions represent statecombs
