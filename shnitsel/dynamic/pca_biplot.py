@@ -449,13 +449,13 @@ def pick_clusters(frames, nbins):
 def binning_with_min_entries(nbins, angles, center, radii, min_entries=4, max_attempts=10):
     
     attempts = 0
-    bins, edges = pb.circbins(angles=angles, nbins=nbins, center=center)
+    bins, edges = circbins(angles=angles, nbins=nbins, center=center)
 
     # Repeat binning until all bins have at least 'min_entries' or exceed max_attempts
     while any(arr.size == 0 for arr in bins) and attempts < max_attempts:
         print(f"Less than {min_entries} directions found, procedure repeated with another binning.")
         nbins += 1  # Increase the number of bins
-        bins, edges = pb.circbins(angles, nbins, center=center)
+        bins, edges = circbins(angles, nbins, center=center)
         attempts += 1
 
     # If max attempts were reached without satisfying condition
