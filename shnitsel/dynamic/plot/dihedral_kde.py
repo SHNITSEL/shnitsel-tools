@@ -17,9 +17,9 @@ def eval_kde(kernel, xx, yy):
     return Z.reshape(xx.shape) / Z.max()
 
 
-def fit_and_eval_kdes(frames, fineness=500, extension=0.1):
+def fit_and_eval_kdes(frames, at1, at2, at3, at4, fineness=500, extension=0.1):
     noodle, hops = P.pca_and_hops(frames)
-    dihedrals = P.dihedral(frames['atXYZ'], 0, 1, 2, 3) * 180 / np.pi
+    dihedrals = P.dihedral(frames['atXYZ'], at1, at2, at3, at4) * 180 / np.pi
     c, t = fit_kdes(noodle, dihedrals)
     noodle = noodle.transpose('frame', 'PC')  # required order for the following 3 lines
     means = noodle.mean(dim='frame').values
@@ -38,7 +38,7 @@ def plot_kdes(xx, yy, Zcis, Ztrans, levels=None, fig=None, ax=None):
         ax.contourf(xx, yy, Z, levels=levels, colors=c, alpha=0.1)
         ax.contour(xx, yy, Z, levels=levels, colors=c, linewidths=0.5)
 
-def biplot_dihedral_time(frames, levels=None):
+def biplot_dihedral_time(frames, at1=0, at2=1, at3=2, at4=3, levels=None):
     if levels is None:
         levels = [0.08, 1]
 
@@ -54,7 +54,7 @@ def biplot_dihedral_time(frames, levels=None):
     structaxs = structsf.subplot_mosaic('ab\ncd')
 
     # prepare data
-    kde_data = fit_and_eval_kdes(frames, fineness=100)
+    kde_data = fit_and_eval_kdes(frames, at1=at1, at2=at2, at3=at3, at4=at4, fineness=100)
     d = pb.pick_clusters(frames, nbins=4)
     loadings, clusters, picks = d['loadings'], d['clusters'], d['picks']
     mol = pb.show_atom_numbers(frames['atXYZ'].isel(frame=0))
