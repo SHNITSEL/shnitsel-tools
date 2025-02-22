@@ -8,9 +8,15 @@ from ..pca_biplot import figax
 
 
 def fit_kdes(noodle, geo_prop, geo_filter):
-    
-    masks = tuple((p1 < geo_prop) & (geo_prop < p2) for p1, p2 in geo_filter)
-    return tuple(stats.gaussian_kde(noodle.sel(frame=m).T) for m in masks)
+    kernels = []
+    for p1, p2 in geo_filter:
+        mask = (p1 < geo_prop) & (geo_prop < p2)
+        subset = noodle.sel(frame=mask).T
+        print(subset)
+        if subset.size == 0:
+            raise ValueError(f"No points in range {p1} < x < {p2}")
+        kernels.append(stats.gaussian_kde(subset))
+    return kernels
 
 
 def eval_kde(kernel, xx, yy):
