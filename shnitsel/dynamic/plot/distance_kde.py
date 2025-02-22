@@ -34,7 +34,7 @@ def plot_kdes(xx, yy, Zcis, Ztrans, levels=None, fig=None, ax=None):
         ax.contourf(xx, yy, Z, levels=levels, colors=c, alpha=0.1)
         ax.contour(xx, yy, Z, levels=levels, colors=c, linewidths=0.5)
 
-def biplot_distance_time(frames, at1, at2, levels=None):
+def biplot_distance_time(frames, at1=0, at2=1, levels=None):
     """
     Generates a biplot that visualizes PCA projections and kernel density estimates (KDE) 
     of distances between two specified atoms over time.
@@ -106,7 +106,7 @@ def biplot_distance_time(frames, at1, at2, levels=None):
 
     return kde_data
 
-def biplot_distance(frames, at1, at2, levels=None):
+def biplot_distance(frames, at1=0, at2=1, levels=None):
     
     if levels is None:
         levels = [0.08, 1]
