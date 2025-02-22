@@ -491,13 +491,13 @@ def traj_to_xyz(traj_atXYZ):
 def dnorm(a): return norm(a, dim='direction')
 def dcross(a, b): return xr.cross(a, b, dim='direction')
 def ddot(a, b): return xr.dot(a, b, dim='direction')
-def angle(a, b): return np.arccos(ddot(a, b) / (dnorm(a) * dnorm(b)))
+def angle_(a, b): return np.arccos(ddot(a, b) / (dnorm(a) * dnorm(b)))
 def normal(a, b, c): return dcross(a-b, c-b)
 
 def dihedral_(a, b, c, d):
     abc = normal(a, b, c)
     bcd = normal(b, c, d)
-    return angle(abc, bcd)
+    return angle_(abc, bcd)
 
 def dihedral(atXYZ, i, j, k, l):
     a = atXYZ.isel(atom=i)    
@@ -507,6 +507,15 @@ def dihedral(atXYZ, i, j, k, l):
     data = dihedral_(a, b, c, d)
     return data
 
+def angle(atXYZ, i, j, k):
+    a = atXYZ.isel(atom=i)    
+    b = atXYZ.isel(atom=j)
+    c = atXYZ.isel(atom=k)
+    ab = a-b
+    cb = c-b
+    data = angle_(ab, cb)
+    return data
+    
 def distance(atXYZ, i, j):
     a = atXYZ.isel(atom=i)    
     b = atXYZ.isel(atom=j)
