@@ -9,7 +9,7 @@ from ..pca_biplot import figax
 
 def fit_kdes(noodle, geo_prop, geo_filter):
     
-    masks = tuple(p1 < geo_prop < p2 for p1, p2 in geo_filter)
+    masks = tuple((p1 < geo_prop) & (geo_prop < p2) for p1, p2 in geo_filter)
     return tuple(stats.gaussian_kde(noodle.sel(frame=m).T) for m in masks)
 
 
