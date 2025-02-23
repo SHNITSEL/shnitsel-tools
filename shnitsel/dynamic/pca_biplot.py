@@ -46,7 +46,16 @@ def plot_noodleplot(
 
     if c is None:
         c = noodle['time']
-        colorbar_label = colorbar_label or '$t$ / fs'
+        c_is_time = True
+
+    if colorbar_label is not None:
+        pass
+    elif hasattr(c, 'attrs') and 'long_name' in c.attrs:
+        colorbar_label = c.attrs['long_name']
+    elif hasattr(c, 'name'):
+        colorbar_label = c.name
+    elif c_is_time:
+        colorbar_label = '$t$ / fs'
 
     cmap = cmap or mpl.colormaps['cividis_r']
     if isinstance(cmap, str):
