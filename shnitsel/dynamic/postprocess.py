@@ -328,7 +328,7 @@ def assign_fosc(ds):
     return ds.assign(fosc=da)
 
 def broaden_gauss(E, fosc, agg_dim='frame', *, width=0.5, nsamples=1000, xmax=None):
-    """
+    r"""
     Parameters
     ----------
     E
@@ -499,28 +499,41 @@ def dihedral_(a, b, c, d):
     bcd = normal(b, c, d)
     return angle_(abc, bcd)
 
-def dihedral(atXYZ, i, j, k, l):
+def dihedral(atXYZ, i, j, k, l, *, deg=False):
     a = atXYZ.isel(atom=i)    
     b = atXYZ.isel(atom=j)
     c = atXYZ.isel(atom=k)
     d = atXYZ.isel(atom=l)
-    data = dihedral_(a, b, c, d)
-    return data
+    result = dihedral_(a, b, c, d)
+    if deg:
+        result = result * 180 / np.pi
+    result.name = 'dihedral'
+    result.attrs['long_name'] = r"$\varphi_{%d,%d,%d,%d}$" % (i, j, k, l)
+    return result
 
-def angle(atXYZ, i, j, k):
+
+def angle(atXYZ, i, j, k, *, deg=False):
     a = atXYZ.isel(atom=i)    
     b = atXYZ.isel(atom=j)
     c = atXYZ.isel(atom=k)
     ab = a-b
     cb = c-b
-    data = angle_(ab, cb)
-    return data
-    
+    result = angle_(ab, cb)
+    if deg:
+        result = result * 180 / np.pi
+    result.name = 'angle'
+    result.attrs['long_name'] = r"$\theta_{%d,%d,%d}$" % (i, j, k)
+    return result
+
+
 def distance(atXYZ, i, j):
     a = atXYZ.isel(atom=i)    
     b = atXYZ.isel(atom=j)
-    data = dnorm(a - b)
-    return data
+    result = dnorm(a - b)
+    result.name = 'distance'
+    result.attrs['long_name'] = r"$\|\mathbf{r}_{%d,%d}\|$" % (i, j)
+    return result
+
 
 ###############################################
 # Functions to investigate hops in a trajectory
