@@ -49,7 +49,7 @@ def fit_and_eval_kdes(noodle, geo_prop, geo_filter, fineness=500, extension=0.1)
     return xx, yy, eval_kdes(kernels, xx, yy)
 
 
-def plot_kdes(xx, yy, Zs, colors=None, levels=None, fig=None, ax=None):
+def plot_kdes(xx, yy, Zs, colors=None, levels=None, fill=True, fig=None, ax=None):
     fig, ax = figax(fig=fig, ax=ax)
     if colors is None:
         if len(Zs) == 2:
@@ -58,7 +58,8 @@ def plot_kdes(xx, yy, Zs, colors=None, levels=None, fig=None, ax=None):
             colors = plt.get_cmap('tab10')
 
     for Z, c in zip(Zs, colors):
-        ax.contourf(xx, yy, Z, levels=levels, colors=c, alpha=0.1)
+        if fill:
+            ax.contourf(xx, yy, Z, levels=levels, colors=c, alpha=0.1)
         ax.contour(xx, yy, Z, levels=levels, colors=c, linewidths=0.5)
 
 def biplot_kde(
@@ -70,6 +71,7 @@ def biplot_kde(
     geo_filter=None,
     levels=None,
     scatter_color: Literal['time', 'geo'] = 'time',
+    fill: bool = True,
 ):
     if scatter_color not in {'time', 'geo'}:
         raise ValueError("`scatter_color` must be 'time' or 'geo'")
@@ -139,7 +141,7 @@ def biplot_kde(
         mol=mol,
         labels=list('abcd'),
     )
-    plot_kdes(*kde_data, levels=levels, ax=pcaax)
+    plot_kdes(*kde_data, levels=levels, fill=fill, ax=pcaax)
 
     return kde_data
 
