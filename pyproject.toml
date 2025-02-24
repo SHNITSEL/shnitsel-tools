@@ -70,3 +70,11 @@ ignore = [
 
 [tool.ruff.lint.flake8-annotations]
 ignore-fully-untyped = true
+
+[tool.mypy]
+packages = "shnitsel"
+warn_return_any = true
+warn_unused_configs = true
+pretty = true
+color_output = true
+error_summary = true
