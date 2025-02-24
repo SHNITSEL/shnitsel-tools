@@ -8,6 +8,11 @@ from .dynamic.xrhelpers import (
     open_frames as open_frames,
     save_frames as save_frames,
 )
+from .dynamic.postprocess import (
+    dihedral as dihedral,
+    get_per_state as get_per_state,
+    get_inter_state as get_inter_state,
+)
 
 __all__ = [
     'static',
