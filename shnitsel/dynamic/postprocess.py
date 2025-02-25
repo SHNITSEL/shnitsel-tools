@@ -27,6 +27,21 @@ _var_delta_t_msg = "`delta_t` varies between the trajectories. Please separate t
 def norm(
     da: xr.DataArray, dim: DimName = 'direction', keep_attrs: bool | str | None = None
 ) -> xr.DataArray:
+    """Calculate the 2-norm of a DataArray, reducing the dimension with dame `dim`
+
+    Parameters
+    ----------
+    da
+        Array to calculate the norm of
+    dim, optional
+        Dimension to calculate norm along (and therby reduce), by default 'direction'
+    keep_attrs, optional
+        How to deal with attributes; passed to xr.apply_ufunc, by default None
+
+    Returns
+    -------
+        A DataArray with dimension `dim` reduced
+    """
     res: xr.DataArray = xr.apply_ufunc(
         np.linalg.norm,
         da,
@@ -39,8 +54,24 @@ def norm(
 
 
 def subtract_combinations(
-    da: xr.DataArray, dim: str, labels: bool = False
+    da: xr.DataArray, dim: DimName, labels: bool = False
 ) -> xr.DataArray:
+    """Calculate all possible pairwise differences over a given dimension
+
+    Parameters
+    ----------
+    da
+        Input DataArray; must contain dimension `dim`
+    dim
+        Dimension (of size $n$) to take pairwise differences over
+    labels, optional
+        If True, label the pairwise differences based on the index of `dim`, by default False
+
+    Returns
+    -------
+        A DataArray with the dimension `dim` replaced by a dimension '`dim`comb' of size $n(n-1)/2$
+    """
+
     def midx(da, dim):
         return xrhelpers.midx_combs(da.indexes[dim])[f'{dim}comb']
 
