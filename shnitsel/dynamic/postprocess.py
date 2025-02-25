@@ -2,6 +2,8 @@ import math
 import itertools
 from logging import warning
 
+from typing import Collection, Hashable, Literal, TypeAlias
+
 import numpy as np
 import xarray as xr
 
@@ -12,20 +14,33 @@ import rdkit.Chem as rc
 
 from . import xrhelpers
 
+Astates: TypeAlias = xr.DataArray
+AtXYZ: TypeAlias = xr.DataArray
+DimName: TypeAlias = Hashable
+Frames: TypeAlias = xr.Dataset
+PerState: TypeAlias = xr.Dataset
+InterState: TypeAlias = xr.Dataset
+
 _var_delta_t_msg = "`delta_t` varies between the trajectories. Please separate the trajectories into groups"
 
 
-def norm(da, dim='direction', keep_attrs=None):
-    return xr.apply_ufunc(
+def norm(
+    da: xr.DataArray, dim: DimName = 'direction', keep_attrs: bool | str | None = None
+) -> xr.DataArray:
+    res: xr.DataArray = xr.apply_ufunc(
         np.linalg.norm,
         da,
         input_core_dims=[[dim]],
         on_missing_core_dim='copy',
         kwargs={"axis": -1},
-        keep_attrs=keep_attrs
+        keep_attrs=keep_attrs,
     )
+    return res
 
-def subtract_combinations(da, dim, labels=False):
+
+def subtract_combinations(
+    da: xr.DataArray, dim: str, labels: bool = False
+) -> xr.DataArray:
     def midx(da, dim):
         return xrhelpers.midx_combs(da.indexes[dim])[f'{dim}comb']
 
@@ -43,15 +58,11 @@ def subtract_combinations(da, dim, labels=False):
         mat[r, c2] = 1
 
     if labels:
-        mat = xr.DataArray(
-            data=mat,
-            coords={
-              f'{dim}comb': midx(da, dim),
-              dim: da.indexes[dim]
-            }
+        xrmat = xr.DataArray(
+            data=mat, coords={f'{dim}comb': midx(da, dim), dim: da.indexes[dim]}
         )
     else:
-        mat = xr.DataArray(
+        xrmat = xr.DataArray(
             data=mat,
             dims=[f'{dim}comb', dim],
         )
@@ -59,7 +70,7 @@ def subtract_combinations(da, dim, labels=False):
     newdims = list(da.dims)
     newdims[newdims.index(dim)] = f'{dim}comb'
 
-    res = (mat @ da).transpose(*newdims)
+    res = (xrmat @ da).transpose(*newdims)
     res.attrs = da.attrs
     res.attrs['deltaed'] = set(res.attrs.get('deltaed', [])).union({dim})
     return res
@@ -76,10 +87,7 @@ def pca_for_plot(diffnorms):
     return pca_n2_scaled.transform(scaled), pca_n2_scaled
 
 def pca(
-  da: xr.DataArray,
-  dim: str,
-  n_components: int=2,
-  return_pca_object=False
+    da: xr.DataArray, dim: str, n_components: int = 2, return_pca_object=False
 ) -> tuple[xr.DataArray, PCA] | xr.DataArray:
     scaled = xr.apply_ufunc(
       MinMaxScaler().fit_transform,
@@ -88,11 +96,11 @@ def pca(
     
     pca_object = PCA(n_components=n_components)
     pca_object.fit(scaled)
-    pca_res = xr.apply_ufunc(
-      pca_object.transform,
-      scaled,
-      input_core_dims=[[dim]],
-      output_core_dims=[['PC']]
+    pca_res: xr.DataArray = xr.apply_ufunc(
+        pca_object.transform,
+        scaled,
+        input_core_dims=[[dim]],
+        output_core_dims=[['PC']],
     )
 
     if return_pca_object:
@@ -100,16 +108,22 @@ def pca(
     else:
         return pca_res
 
-def pairwise_dists_pca(atXYZ, **kwargs):
-    return (atXYZ
-      .pipe(subtract_combinations, 'atom')
-      .pipe(norm)
-      .pipe(pca, 'atomcomb', **kwargs))
+def pairwise_dists_pca(atXYZ: AtXYZ, **kwargs) -> xr.DataArray:
+    res = (
+        atXYZ.pipe(subtract_combinations, 'atom')
+        .pipe(norm)
+        .pipe(pca, 'atomcomb', **kwargs)
+    )
+    assert not isinstance(res, tuple)  # typing
+    return res
 
-def hop_indices(astates):
-    axidx_frame: int = astates.get_axis_num("frame")
+
+def hop_indices(astates: xr.DataArray) -> xr.DataArray:
+    axidx_frame = astates.get_axis_num("frame")
+    assert isinstance(axidx_frame, int)
     conseq_diffs = np.diff(astates, axis=axidx_frame, prepend=0)
-    return astates.copy(data=conseq_diffs) != 0     
+    return astates.copy(data=conseq_diffs) != 0
+
 
 def pca_and_hops(frames: xr.Dataset) -> tuple[xr.DataArray, xr.DataArray]:
     pca_res = pairwise_dists_pca(frames['atXYZ'])
@@ -117,12 +131,14 @@ def pca_and_hops(frames: xr.Dataset) -> tuple[xr.DataArray, xr.DataArray]:
     hops_pca_coords = pca_res[mask]
     return pca_res, hops_pca_coords
 
-def relativize(da: xr.DataArray, **sel):
+def relativize(da: xr.DataArray, **sel) -> xr.DataArray:
     res = da - da.sel(**sel).min()
     res.attrs = da.attrs
     return res
 
-def convert(da: xr.DataArray, to: str, quantity: str, conversions: dict):
+def convert(
+    da: xr.DataArray, to: str, quantity: str, conversions: dict
+) -> xr.DataArray:
     try:
         from_ = da.attrs['units']
     except AttributeError:
@@ -143,7 +159,7 @@ def convert(da: xr.DataArray, to: str, quantity: str, conversions: dict):
         raise ValueError(f"Can't convert {quantity} to {to!r}, only to: {targets}")
 
     with xr.set_options(keep_attrs=True):
-        res = da * dividend / divisor
+        res: xr.DataArray = da * dividend / divisor
     res.attrs.update({'units': to})
     return res
 
@@ -153,8 +169,7 @@ class Converter:
         self.conversions = conversions
         self.targets = list(self.conversions.keys())
 
-
-    def __call__(self, da: xr.DataArray, to: str):
+    def __call__(self, da: xr.DataArray, to: str) -> xr.DataArray:
         try:
             from_ = da.attrs['units']
         except AttributeError:
@@ -173,7 +188,7 @@ class Converter:
             raise ValueError(f"Can't convert {self.quantity} to {to!r}, only to: {self.targets}")
     
         with xr.set_options(keep_attrs=True):
-            res = da * dividend / divisor
+            res: xr.DataArray = da * dividend / divisor
         res.attrs.update({'units': to})
         return res
 
@@ -206,9 +221,7 @@ def changes(da):
     )
     return diffs != 0
 
-# def get_hops(ds, )
-
-def validate(frames) -> np.ndarray:
+def validate(frames: Frames) -> np.ndarray:
     if 'time' in frames.coords:
         tdim = 'time'
     elif 'ts' in frames.coords:
@@ -250,16 +263,22 @@ def validate(frames) -> np.ndarray:
         else:
             print(f"Variable `{varname}` does not contain {phname}")
 
+    res: np.ndarray
     if len(bad_frames):
-        return np.unique(xr.concat(bad_frames, dim='frame'))
+        res = np.unique(xr.concat(bad_frames, dim='frame'))
     else:
-        return np.array([])
+        res = np.array([])
+    return res
 
 
 ##############################################
 # Functions generally applicable to timeplots:
 
-def ts_to_time(data, delta_t=None, old='drop'):
+def ts_to_time(
+    data: xr.Dataset | xr.DataArray,
+    delta_t: float | None = None,
+    old: Literal['drop', 'to_var', 'keep'] = 'drop',
+):
     assert old in {'drop', 'to_var', 'keep'}
 
     if delta_t is None:
@@ -300,10 +319,12 @@ def ts_to_time(data, delta_t=None, old='drop'):
 
     return data
 
-def keep_norming(da, exclude=None):
+def keep_norming(
+    da: xr.DataArray, exclude: Collection[DimName] | None = None
+) -> xr.DataArray:
     if exclude is None:
         exclude = {'state', 'statecomb', 'frame'}
-    for dim in set(da.dims) - exclude:
+    for dim in set(da.dims).difference(exclude):
         da = norm(da, dim, keep_attrs=True)
         da.attrs['norm_order'] = 2
     return da
@@ -321,13 +342,21 @@ def _get_fosc(energy, dip_trans):
     return 2 / 3 * energy * dip_trans**2
 
 
-def assign_fosc(ds):
+def assign_fosc(ds: xr.Dataset) -> xr.Dataset:
     da = _get_fosc(convert_energy(ds['energy'], to='hartree'), ds['dip_trans'])
     da.name = 'fosc'
     da.attrs['long_name'] = r"$f_{\mathrm{osc}}$"
     return ds.assign(fosc=da)
 
-def broaden_gauss(E, fosc, agg_dim='frame', *, width=0.5, nsamples=1000, xmax=None):
+def broaden_gauss(
+    E: xr.DataArray,
+    fosc: xr.DataArray,
+    agg_dim: DimName = 'frame',
+    *,
+    width: float = 0.5,
+    nsamples: int = 1000,
+    xmax: float | None = None,
+) -> xr.DataArray:
     r"""
     Parameters
     ----------
@@ -363,7 +392,7 @@ def broaden_gauss(E, fosc, agg_dim='frame', *, width=0.5, nsamples=1000, xmax=No
         xs,
         dims=['energy'],
         attrs=E.attrs)
-    res = (g(Espace - E) * fosc).mean(dim=agg_dim)
+    res: xr.DataArray = (g(Espace - E) * fosc).mean(dim=agg_dim)
     res.name = 'fosc'
     res.attrs = fosc.attrs
     for cname, coord in res.coords.items():
@@ -371,13 +400,15 @@ def broaden_gauss(E, fosc, agg_dim='frame', *, width=0.5, nsamples=1000, xmax=No
             coord.attrs = fosc.coords[cname].attrs
     return res.assign_coords({'energy': Espace})
 
-def ds_broaden_gauss(ds, width=0.001, nsamples=1000, xmax=None):
+def ds_broaden_gauss(
+    ds: xr.Dataset, width: float = 0.5, nsamples: int = 1000, xmax: float | None = None
+) -> xr.DataArray:
     return broaden_gauss(
         ds['energy'], ds['fosc'], width=width, nsamples=nsamples, xmax=None
     )
 
 
-def get_per_state(frames):
+def get_per_state(frames: Frames) -> PerState:
     props_per = {'energy', 'forces', 'dip_perm'}.intersection(frames.keys())
     per_state = frames[props_per].map(keep_norming, keep_attrs=False)
     per_state['forces'] = per_state['forces'].where(per_state['forces'] != 0)
@@ -388,7 +419,7 @@ def get_per_state(frames):
         per_state['dip_perm'].attrs['long_name'] = r'$\mathbf{\mu}_i$'
     return per_state
 
-def get_inter_state(frames):
+def get_inter_state(frames: Frames) -> InterState:
     iprops = []
     for prop in ['energy', 'nacs', 'astate', 'dip_trans']:
         if prop in frames:
@@ -408,7 +439,7 @@ def get_inter_state(frames):
     inter_state['statecomb'].attrs['long_name'] = "States"
     return inter_state
 
-def calc_pops(frames):
+def calc_pops(frames: Frames) -> xr.DataArray:
     """Fast way to calculate populations
     Requires states ids to be small integers
     """
@@ -455,22 +486,25 @@ def ci_agg_last_dim(a, confidence=0.95):
         res[idxs, 2] = np.mean(a[idxs])
     return res
 
-def xr_calc_ci(a, dim, confidence=0.95):
-    return xr.apply_ufunc(
+def xr_calc_ci(a: xr.DataArray, dim: DimName, confidence: float = 0.95) -> xr.Dataset:
+    res_da: xr.DataArray = xr.apply_ufunc(
         ci_agg_last_dim,
         a,
         kwargs={'confidence': confidence},
         output_core_dims=[['bound']],
-        input_core_dims=[[dim]]
-    ).assign_coords(dict(bound=['lower', 'upper', 'mean'])
+        input_core_dims=[[dim]],
+    )
+    return res_da.assign_coords(  #
+        dict(bound=['lower', 'upper', 'mean'])
     ).to_dataset('bound')
 
-def time_grouped_ci(x, confidence=0.9):
+
+def time_grouped_ci(x: xr.Dataset, confidence: float = 0.9):
     return (
       x.groupby('time')
       .map(lambda x: xr_calc_ci(x, dim='frame', confidence=confidence)))
 
-def to_xyz(da, comment='#'):
+def to_xyz(da: AtXYZ, comment='#'):
     atXYZ = da.values
     atNames = da.atNames.values
     sxyz = np.char.mod('%s', atXYZ)
@@ -480,7 +514,7 @@ def to_xyz(da, comment='#'):
     return f'{len(sxyz):>12}\n  {comment}\n' + '\n'.join(sxyz)
 
 
-def traj_to_xyz(traj_atXYZ):
+def traj_to_xyz(traj_atXYZ: AtXYZ):
     return '\n'.join(
         to_xyz(t_atXYZ, comment=f"# t={t}") for t, t_atXYZ in traj_atXYZ.groupby('time')
     )
@@ -499,12 +533,14 @@ def dihedral_(a, b, c, d):
     bcd = normal(b, c, d)
     return angle_(abc, bcd)
 
-def dihedral(atXYZ, i, j, k, l, *, deg=False):
+def dihedral(
+    atXYZ: AtXYZ, i: int, j: int, k: int, l: int, *, deg: bool = False
+) -> xr.DataArray:
     a = atXYZ.isel(atom=i)    
     b = atXYZ.isel(atom=j)
     c = atXYZ.isel(atom=k)
     d = atXYZ.isel(atom=l)
-    result = dihedral_(a, b, c, d)
+    result: xr.DataArray = dihedral_(a, b, c, d)
     if deg:
         result = result * 180 / np.pi
     result.name = 'dihedral'
@@ -512,13 +548,13 @@ def dihedral(atXYZ, i, j, k, l, *, deg=False):
     return result
 
 
-def angle(atXYZ, i, j, k, *, deg=False):
+def angle(atXYZ: AtXYZ, i: int, j: int, k: int, *, deg: bool = False) -> xr.DataArray:
     a = atXYZ.isel(atom=i)    
     b = atXYZ.isel(atom=j)
     c = atXYZ.isel(atom=k)
     ab = a-b
     cb = c-b
-    result = angle_(ab, cb)
+    result: xr.DataArray = angle_(ab, cb)
     if deg:
         result = result * 180 / np.pi
     result.name = 'angle'
@@ -526,10 +562,10 @@ def angle(atXYZ, i, j, k, *, deg=False):
     return result
 
 
-def distance(atXYZ, i, j):
+def distance(atXYZ: AtXYZ, i: int, j: int) -> xr.DataArray:
     a = atXYZ.isel(atom=i)    
     b = atXYZ.isel(atom=j)
-    result = dnorm(a - b)
+    result: xr.DataArray = dnorm(a - b)
     result.name = 'distance'
     result.attrs['long_name'] = r"$\|\mathbf{r}_{%d,%d}\|$" % (i, j)
     return result
@@ -541,14 +577,14 @@ def distance(atXYZ, i, j):
 # using complex numbers, because MultiIndex was
 # getting awkward
 
-def trajs_with_hops(astates):
+def trajs_with_hops(astates: Astates) -> list[Hashable]:
     """Example usage: `trajs_with_hops(frames['astate'])`
     """
     return [
       trajid for trajid, traj in astates.groupby('trajid')
       if len(np.unique(traj)) > 1]
 
-def get_hop_types(astates):
+def get_hop_types(astates: Astates) -> dict[int, tuple[int, int]]:
     """Example usage:
     """
     pairs = np.c_[astates[:-1], astates[1:]]
@@ -558,7 +594,12 @@ def get_hop_types(astates):
             hop_types[i] = (s1, s2)
     return hop_types
 
-def pick_statecombs(da, statecombs, frames, framedim='frame'):
+def pick_statecombs(
+    da: xr.DataArray,
+    statecombs: xr.DataArray,
+    frames: Frames,
+    framedim: DimName = 'frame',
+) -> xr.DataArray:
     assert len(statecombs) == len(frames)
     if 'statecomb' not in da.sizes:
         # no picking to do
@@ -578,7 +619,7 @@ def pick_statecombs(da, statecombs, frames, framedim='frame'):
 
     return xr.DataArray(da.values[*indexer], coords=coords)
 
-def find_traj_hops(traj):
+def find_traj_hops(traj: xr.Dataset) -> xr.Dataset:
     def check(s): return s if s in traj.sizes else False
     framedim = check('frame') or check('time') or 'ts'
 
@@ -599,7 +640,7 @@ def find_traj_hops(traj):
       traj.apply(pick_statecombs, statecombs=statecombs, frames=frames, framedim=framedim)
       .assign(statecomb=xr.DataArray(statecombs, dims=[framedim])))
 
-def find_hops(frames):
+def find_hops(frames: Frames) -> Frames:
     mask = frames['trajid'].isin(trajs_with_hops(frames['astate']))
     return (
       frames.sel(frame=mask)
@@ -612,13 +653,13 @@ def find_hops(frames):
 # to maintain the order in the `atom` index
 
 
-def mol_to_numbered_smiles(mol):
+def mol_to_numbered_smiles(mol: rc.Mol) -> str:
     for atom in mol.GetAtoms():
         atom.SetProp("molAtomMapNumber", str(atom.GetIdx()))
     return rc.MolToSmiles(mol)
 
 
-def numbered_smiles_to_mol(smiles):
+def numbered_smiles_to_mol(smiles: str) -> rc.Mol:
     mol = rc.MolFromSmiles(smiles, sanitize=False)  # sanitizing would strip hydrogens
     map_new_to_old = [-1 for i in range(mol.GetNumAtoms())]
     for atom in mol.GetAtoms():
