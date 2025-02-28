@@ -45,6 +45,7 @@ extras = [
 dev = [
   "pytest>=5.2",
   "pytest-cov>=4.1.0",
+  "hypothesis", # ==6.127.3
   "tox>=4.10.0",
   "pre-commit>=2.20.0",
   "ruff==0.4.1",

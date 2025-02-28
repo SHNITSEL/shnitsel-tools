@@ -1,0 +1,38 @@
+from hypothesis import given
+import hypothesis.strategies as st
+from xarray.testing import assert_equal
+import xarray.testing.strategies as xrst
+
+import numpy as np
+import xarray as xr
+
+from shnitsel.dynamic.postprocess import (
+    norm,
+    subtract_combinations,
+)
+
+
+@given(
+    xrst.variables(
+        dims=st.just({'test1': 2, 'direction': 3, 'test2': 5}), dtype=st.just(float)
+    ),
+)
+def test_norm(da):
+    res = norm(da)
+    if not np.isnan(da).any():
+        assert (res >= 0).all()
+    assert len(res.dims) == len(da.dims) - 1
+
+
+@given(
+    xrst.variables(
+        dims=st.just({'test1': 2, 'target': 3, 'test2': 5}), dtype=st.just(float)
+    ),
+)
+def test_subtract_combinations(da):
+    da = xr.DataArray(da)
+    res = subtract_combinations(da, 'target')
+    for c, i, j in [(0, 1, 0), (1, 2, 0), (2, 2, 1)]:
+        da_diff = da.isel(target=i) - da.isel(target=j)
+        to_check = res.isel(targetcomb=c)
+        assert_equal(da_diff, to_check)
