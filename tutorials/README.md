@@ -17,7 +17,7 @@ The respective tutorial notebooks are: [01_sharc2hdf5.ipynb](https://github.com/
 ### 2.1 Static
 
 The `shnitsel.static` module provides tools for analyzing and visualizing the static datasets. 
-The tutorial notebook is: [15_stattic_module.ipynb] (https://github.com/SHNITSEL/shnitsel-tools/blob/main/tutorials/15_static_module.ipynb)
+The tutorial notebook is: [15_static_module.ipynb] (https://github.com/SHNITSEL/shnitsel-tools/blob/main/tutorials/15_static_module.ipynb)
 
 ### 2.2 Dynamic 
 
