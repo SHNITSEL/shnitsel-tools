@@ -1,7 +1,7 @@
 import xarray as xr
 import numpy as np
 from typing import List, Tuple, Optional
-from shnitsel.static.utils import distance_converter
+from shnitsel.static.utils import convert_distance
 
 
 class SOAP_creator():
@@ -42,7 +42,7 @@ class SOAP_creator():
             raise ValueError('DataArray must have dimensions (frame, atom, direction), got {}'.format(data.dims))
         
         # convert coordinates to dscribe default Angstrom
-        positions = distance_converter(data.positions, 'angstrom')
+        positions = convert_distance(data.positions, 'angstrom')
         symbols = data.symbols.values
         
         n_jobs = n_jobs if n_jobs != -1 else multiprocessing.cpu_count()
@@ -60,28 +60,11 @@ class SOAP_creator():
         soaps = self.soap.create_parallel(systems, n_jobs=-1, func=self.soap.create)
         return np.stack(soaps, axis=0)
     
-def pca_and_plot(descriptors:np.array, n_components: int=2, color_prop: xr.DataArray=None, fontsize: int=15, state: str=None):
+def pca_plot(pca_res:np.array, explained_variance: List[float]=None, color_prop: xr.DataArray=None, fontsize: int=15, state: str=None):
     
     import matplotlib.pyplot as plt
-    from sklearn.decomposition import PCA
-    from sklearn.preprocessing import MinMaxScaler  
-    
-    #check shapes of descriptors and color_prop
-    if color_prop is not None:
-        if color_prop.shape[0] != descriptors.shape[0]:
-            raise ValueError('color_prop and descriptors must have the same number of frames')
-        if color_prop.ndim != 1:
-            raise ValueError('color_prop must be a 1D array')
-        prop_norm = color_prop - color_prop.min()
-    if descriptors.ndim > 2:
-        descriptors = descriptors.reshape(descriptors.shape[0], -1) # flatten the descriptors
-        
-    pca = PCA(n_components=n_components)
-    scaler = MinMaxScaler()
-    descriptors = scaler.fit_transform(descriptors)
-    pca_res = pca.fit_transform(descriptors)
-    explained_variance = pca.explained_variance_ratio_  
-    print(f'Explained variance: {explained_variance}')  
+
+    n_components = pca_res.shape[1]
     
     x_min, x_max = np.min(pca_res[:, 0]), np.max(pca_res[:, 0])
     y_min, y_max = np.min(pca_res[:, 1]), np.max(pca_res[:, 1])
@@ -95,33 +78,33 @@ def pca_and_plot(descriptors:np.array, n_components: int=2, color_prop: xr.DataA
         'ytick.labelsize': fontsize-5,
         }
     plt.rcParams.update(params)
-
     
+    try:
+        key = list(color_prop.coords.keys())[0]
+        val = color_prop.coords[key].values
+    except:
+        key = None
+        val = None  
+
     if n_components == 3:
         z_min, z_max = np.min(pca_res[:, 2]), np.max(pca_res[:, 2])
         fig = plt.figure(figsize=(9,5))
         ax = fig.add_subplot(111, projection='3d')
-        scatter = ax.scatter(pca_res[:,0], pca_res[:,1], pca_res[:,2], c=prop_norm, cmap='viridis', s=1) if color_prop is not None else ax.scatter(pca_res[:,0], pca_res[:,1], pca_res[:,2], s=5)
+        scatter = ax.scatter(pca_res[:,0], pca_res[:,1], pca_res[:,2], c=color_prop, cmap='viridis', s=1) if color_prop is not None else ax.scatter(pca_res[:,0], pca_res[:,1], pca_res[:,2], s=5)
         ax.set_xlabel(f'PC1 ({explained_variance[0]*100:.2f}% var.)')
         ax.set_ylabel(f'PC2 ({explained_variance[1]*100:.2f}% var)')
         ax.set_zlabel(f'PC3 ({explained_variance[2]*100:.2f}% var)')
-        if state is not None:
-            plt.colorbar(scatter, label = f'{state} {color_prop.name} relative to minimum [{color_prop.attrs.get("unit", "unknown")}]') if color_prop is not None else None
-        else:
-            plt.colorbar(scatter, label = f'{color_prop.name} relative to minimum [{color_prop.attrs.get("unit", "unknown")}]') if color_prop is not None else None
+        plt.colorbar(scatter, label = f'{val} {color_prop.name} [{color_prop.attrs.get("unit", "unknown")}]') if color_prop is not None else None
         ax.set_xlim(x_min, x_max)
         ax.set_ylim(y_min, y_max)
         ax.set_zlim(z_min, z_max)
         plt.subplots_adjust(left=0.1, right=2.5, top=0.9, bottom=0.1)
     elif n_components == 2:
         fig, ax = plt.subplots(figsize=(5,5))
-        scatter = ax.scatter(pca_res[:,0], pca_res[:,1], c=prop_norm, cmap='viridis', s=5) if color_prop is not None else ax.scatter(pca_res[:,0], pca_res[:,1], s=5)
+        scatter = ax.scatter(pca_res[:,0], pca_res[:,1], c=color_prop, cmap='viridis', s=5) if color_prop is not None else ax.scatter(pca_res[:,0], pca_res[:,1], s=5)
         ax.set_xlabel(f'PC1 ({explained_variance[0]*100:.2f}%)')
         ax.set_ylabel(f'PC2 ({explained_variance[1]*100:.2f}%)')
-        if state is not None:
-            plt.colorbar(scatter, label = f'{state} {color_prop.name} relative to minimum [{color_prop.attrs.get("unit", "unknown")}]') if color_prop is not None else None
-        else:
-            plt.colorbar(scatter, label = f'{color_prop.name} relative to minimum [{color_prop.attrs.get("unit", "unknown")}]') if color_prop is not None else None
+        plt.colorbar(scatter, label = f'{val} {color_prop.name} [{color_prop.attrs.get("unit", "unknown")}]') if color_prop is not None else None
     else:
         raise ValueError('n_components must be 2 or 3')
 

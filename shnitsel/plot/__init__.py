@@ -1,5 +1,5 @@
 from ..static.plotting import (
-    plot_energy_hist as plot_energy_hist,
+    plot_color_hist as plot_color_hist,
     plot_hist as plot_hist,
     dihedral_plot as dihedral_plot,
 )
