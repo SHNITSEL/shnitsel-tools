@@ -107,6 +107,20 @@ def subtract_combinations(
     return res
 
 def pca_for_plot(diffnorms):
+    """Legacy method to calculate 2-component PCA
+
+    Parameters
+    ----------
+    diffnorms
+        Data to be transformed, usually norms of pairwise differences
+
+    Returns
+    -------
+    data
+        The transformed data
+    pca_n2_scaled
+        The trained PCA object produced by scikit-learn
+    """
     from sklearn.preprocessing import MinMaxScaler
     from sklearn.decomposition import PCA
     
@@ -120,6 +134,25 @@ def pca_for_plot(diffnorms):
 def pca(
     da: xr.DataArray, dim: str, n_components: int = 2, return_pca_object=False
 ) -> tuple[xr.DataArray, PCA] | xr.DataArray:
+    """xarray-oriented wrapper around scikit-learn's PCA
+
+    Parameters
+    ----------
+    da
+        A DataArray with at least a dimension with a name matching `dim`
+    dim
+        The name of the dimension to reduce
+    n_components, optional
+        The number of principle components to return, by default 2
+    return_pca_object, optional
+        Whether to return the scikit-learn `PCA` object as well as the
+        transformed data, by default False
+
+    Returns
+    -------
+        A DataArray with the same dimensions as `da`, except for the dimension
+        indicated by `dim`, which is replaced by a dimension `PC` of size `n_components`
+    """
     scaled = xr.apply_ufunc(
       MinMaxScaler().fit_transform,
       da.transpose(..., dim)
@@ -140,6 +173,20 @@ def pca(
         return pca_res
 
 def pairwise_dists_pca(atXYZ: AtXYZ, **kwargs) -> xr.DataArray:
+    """PCA-reduced pairwise interatomic distances
+
+    Parameters
+    ----------
+    atXYZ
+        A DataArray containing the atomic positions;
+        must have a dimension called 'atom'
+
+    Returns
+    -------
+        A DataArray with the same dimensions as `atXYZ`, except for the 'atom'
+        dimension, which is replaced by a dimension 'PC' containing the principal
+        components (by default 2)
+    """
     res = (
         atXYZ.pipe(subtract_combinations, 'atom')
         .pipe(norm)
@@ -150,6 +197,17 @@ def pairwise_dists_pca(atXYZ: AtXYZ, **kwargs) -> xr.DataArray:
 
 
 def hop_indices(astates: xr.DataArray) -> xr.DataArray:
+    """Find in which frames the active state changes
+
+    Parameters
+    ----------
+    astates
+        A DataArray of state indicators
+
+    Returns
+    -------
+        A boolean DataArray indicating whether a hop took place
+    """
     axidx_frame = astates.get_axis_num("frame")
     assert isinstance(axidx_frame, int)
     conseq_diffs = np.diff(astates, axis=axidx_frame, prepend=0)
@@ -157,6 +215,21 @@ def hop_indices(astates: xr.DataArray) -> xr.DataArray:
 
 
 def pca_and_hops(frames: xr.Dataset) -> tuple[xr.DataArray, xr.DataArray]:
+    """Get PCA points and info on which of them represent hops
+
+    Parameters
+    ----------
+    frames
+        A Dataset containing 'atXYZ' and 'astate' variables
+
+    Returns
+    -------
+    pca_res
+        The PCA-reduced pairwise interatomic distances
+    hops_pca_coords
+        `pca_res` filtered by hops, to facilitate marking hops when plotting
+
+    """
     pca_res = pairwise_dists_pca(frames['atXYZ'])
     mask = hop_indices(frames['astate'])
     hops_pca_coords = pca_res[mask]
