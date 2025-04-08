@@ -41,7 +41,7 @@ class Datasheet:
         if copy_data is not None:
             if path is not None or frames is not None:
                 raise ValueError(
-                    "if `copy` is set, neither `path` nor `frames` should be set"
+                    "if `copy_data` is set, neither `path` nor `frames` should be set"
                 )
             self._copy_data(old=copy_data)
             return
