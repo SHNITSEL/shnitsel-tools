@@ -57,6 +57,8 @@ class Datasheet:
 
         if spectra_times is not None:
             self.spectra_times = spectra_times
+        elif 'time' not in self.frames:
+            warning("No 'time' variable found. Have ICONDs been passed as frames?")
         elif self.frames is not None:
             max_time = self.frames.coords['time'].max().item()
             self.spectra_times = [max_time * i / 40 for i in range(5)]
@@ -105,7 +107,7 @@ class Datasheet:
             return all(k in self.frames for k in ks)
 
         self.can['per_state_histograms'] = check('energy', 'forces', 'dip_trans')
-        self.can['separated_spectra_and_hists'] = check('dip_trans')
+        self.can['separated_spectra_and_hists'] = check('dip_trans', 'time')
         self.can['noodle'] = check('atXYZ', 'state', 'time')
         self.can['structure'] = ('smiles_map' in self.frames.attrs) or check('atXYZ')
         self.can['nacs_histograms'] = check('nacs') and (
