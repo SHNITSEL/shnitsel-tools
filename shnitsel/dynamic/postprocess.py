@@ -308,6 +308,15 @@ convert_dipoles = Converter('dipoles', dict(
   debye=1/0.3934303
 ))
 
+convert_length = Converter(
+    'length',
+    dict(
+        pm=52.91772105,
+        angstrom=0.5291772105,
+        bohr=1,
+    ),
+)
+
 # def convert_energy(da: xr.DataArray, to: str):
 #     conversions = dict(
 #         hartree=1.0,
