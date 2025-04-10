@@ -16,6 +16,7 @@ from .common import (
     ConsistentValue,
     get_triangular,
 )
+from ..postprocess import convert_length
 
 _re_grads = re.compile('[(](?P<nstates>[0-9]+)x(?P<natoms>[0-9]+)x3')
 _re_nacs = re.compile('[(](?P<nstates>[0-9]+)x[0-9]+x(?P<natoms>[0-9]+)x3')
@@ -185,6 +186,8 @@ def read_iconds(pathlist, index=None):
                 See https://github.com/SHNITSEL/db-workflow/issues/3"""
             )
 
+    iconds.atXYZ.attrs['units'] = 'bohr'
+    iconds['atXYZ'] = convert_length(iconds.atXYZ, to='angstrom')
     return iconds
 
 
@@ -228,6 +231,7 @@ def parse_QM_log(log):
             info['nAtoms'] = natom
 
         elif line.startswith('Geometry in Bohrs:'):
+            # NB. Geometry is indeed in bohrs!
             atnames = []
             atxyz = np.zeros((natom, 3))
             for i in range(natom):
@@ -244,6 +248,7 @@ def parse_QM_log(log):
 
 
 def parse_QM_log_geom(f, out):
+    # NB. Geometry is indeed in bohrs!
     while not next(f).startswith('Geometry in Bohrs:'):
         pass
 
