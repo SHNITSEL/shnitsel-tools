@@ -620,10 +620,10 @@ def time_grouped_ci(x: xr.Dataset, confidence: float = 0.9):
 def to_xyz(da: AtXYZ, comment='#'):
     atXYZ = da.values
     atNames = da.atNames.values
-    sxyz = np.char.mod('%s', atXYZ)
+    sxyz = np.char.mod('% 23.15f', atXYZ)
     sxyz = np.squeeze(sxyz)
     sxyz = np.hstack((atNames.reshape(-1, 1), sxyz))
-    sxyz = np.apply_along_axis(lambda row: '\t'.join(row), axis=1, arr=sxyz)
+    sxyz = np.apply_along_axis(lambda row: ''.join(row), axis=1, arr=sxyz)
     return f'{len(sxyz):>12}\n  {comment}\n' + '\n'.join(sxyz)
 
 
