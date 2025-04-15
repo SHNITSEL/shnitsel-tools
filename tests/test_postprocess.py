@@ -9,6 +9,7 @@ import xarray as xr
 from shnitsel.dynamic.postprocess import (
     norm,
     subtract_combinations,
+    pca,
 )
 
 
@@ -32,10 +33,22 @@ def test_norm(da):
 def test_subtract_combinations(da):
     assume((da != np.inf).all())
     assume((da != -np.inf).all())
-    assume((~np.isnan(da)).all())
+    assume((~np.isnan(da)).all())  # no NaNs allowed
     da = xr.DataArray(da)
     res = subtract_combinations(da, 'target')
     for c, i, j in [(0, 1, 0), (1, 2, 0), (2, 2, 1)]:
         da_diff = da.isel(target=i) - da.isel(target=j)
         to_check = res.isel(targetcomb=c)
         assert_equal(da_diff, to_check)
+
+@given(xrst.variables(dims=st.just({'test': 2, 'target': 4}), dtype=st.just(float)))
+def test_pca(da):
+    assume((da != np.inf).all())
+    assume((da != -np.inf).all())
+    assume((~np.isnan(da)).all())  # no NaNs allowed
+    res = pca(da, dim='target')
+    assert 'PC' in res.dims
+
+
+def test_pairwise_dists_pca():
+    pass
