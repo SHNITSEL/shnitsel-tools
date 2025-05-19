@@ -116,15 +116,29 @@ def plot_separated_spectra_and_hists(
     hist2d_outputs = []
     # ground-state spectra and histograms
     plot_spectra(ground, ax=axs['sg'], cnorm=scnorm, cmap=scmap)
+
+    # We show at most the first two statecombs
+    if inter_state.sizes['statecomb'] >= 2:
+        selsc = [0, 1]
+        selaxs = [axs['t1'], axs['t0']]
+    elif inter_state.sizes['statecomb'] == 1:
+        selsc = [0]
+        selaxs = [axs['t1']]
+    else:
+        raise ValueError(
+            "Too few statecombs (expecting at least 2 states => 1 statecomb)"
+        )
     hist2d_outputs += plot_dip_trans_histograms(
-        inter_state.isel(statecomb=[0, 1]),
-        axs=[axs[k] for k in ['t1', 't0']],
+        inter_state.isel(statecomb=selsc),
+        axs=selaxs,
     )
+
     # excited-state spectra and histograms
-    plot_spectra(excited, ax=axs['se'], cnorm=scnorm, cmap=scmap)
-    hist2d_outputs += plot_dip_trans_histograms(
-        inter_state.isel(statecomb=[2]), axs=[axs['t2']]
-    )
+    if inter_state.sizes['statecomb'] >= 2:
+        plot_spectra(excited, ax=axs['se'], cnorm=scnorm, cmap=scmap)
+        hist2d_outputs += plot_dip_trans_histograms(
+            inter_state.isel(statecomb=[2]), axs=[axs['t2']]
+        )
 
     hists = np.array([tup[0] for tup in hist2d_outputs])
     hcnorm = plt.Normalize(hists.min(), hists.max())
