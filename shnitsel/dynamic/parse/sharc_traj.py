@@ -61,6 +61,7 @@ def parse_trajout_dat(f):
 
     # now we know the number of steps, we can initialize the data arrays:
     energy = np.full((nsteps, nstates), np.nan)
+    e_kin = np.full((nsteps,), np.nan)
     dip_all = np.full((nsteps, nstates, nstates, 3), np.nan)
     phases = np.full((nsteps, nstates), np.nan)
     sdiag = np.full((nsteps), -1, dtype=int)
@@ -125,6 +126,9 @@ def parse_trajout_dat(f):
 
             if found_overlap:
                 phases[ts] = phasevector
+
+        if line.startswith('! 7 Ekin'):
+            e_kin[ts] = float(next(f).strip())
 
         if line.startswith('! 8 states (diag, MCH)'):
             pair = re.split(' +', next(f).strip())
@@ -200,6 +204,11 @@ def parse_trajout_dat(f):
             'energy': (
                 ['ts', 'state'],
                 energy,
+                {'units': 'hartree', 'unitdim': 'Energy'},
+            ),
+            'e_kin': (
+                ['ts'],
+                e_kin,
                 {'units': 'hartree', 'unitdim': 'Energy'},
             ),
             # 'dip_all': (['ts', 'state', 'state2', 'direction'], dip_all),
