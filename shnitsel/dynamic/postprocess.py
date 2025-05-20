@@ -195,6 +195,13 @@ def pairwise_dists_pca(atXYZ: AtXYZ, **kwargs) -> xr.DataArray:
     assert not isinstance(res, tuple)  # typing
     return res
 
+def sudi(da):
+    """Successive differences"""
+    axidx_frame = da.get_axis_num("frame")
+    return da.groupby('trajid').apply(
+        lambda traj: np.diff(traj, axis=axidx_frame, prepend=traj[0])
+    )
+
 
 def hop_indices(astates: xr.DataArray) -> xr.DataArray:
     """Find in which frames the active state changes
