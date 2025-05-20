@@ -96,3 +96,14 @@ def find_eccentric(atXYZ, maskfn=None):
 
 def exclude_involving_state(frames, state):
     return exclude_trajs(frames, frames.trajid[frames.astate==3])
+
+def cutoffs(mask_da):
+    return (
+        mask_da.groupby('trajid')
+        .apply(
+            lambda traj: traj.coords['time'][-1]
+            if traj.all()
+            else traj.sel(frame=~traj).coords['time'][0]
+        )
+        .rename(trajid='trajid_')
+    )
