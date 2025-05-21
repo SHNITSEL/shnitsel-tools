@@ -133,6 +133,9 @@ def biplot_kde(
         hops_kws=dict(c='r', s=0.2),
     )
 
+    # in case more clusters were found than we have room for:
+    picks = picks[:4]
+
     pb.plot_clusters3(
         loadings,
         [clusters[i] for i in picks],
