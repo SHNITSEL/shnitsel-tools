@@ -31,4 +31,8 @@ def plot_per_state_histograms(per_state, axs=None, fig=None):
         long_name = per_state[quantity].attrs.get('long_name')
         units = per_state[quantity].attrs.get('units')
         axs[quantity].set_xlabel(rf'{long_name} / {units}')
+
+    # for quantity in ['forces', 'dip_perm']:
+    #     axs[quantity].
+    axs['energy'].set_ylabel('# points')
     return axs
