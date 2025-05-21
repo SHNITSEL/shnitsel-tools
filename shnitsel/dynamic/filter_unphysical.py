@@ -6,7 +6,7 @@ import xarray as xr
 from rdkit import Chem as rc
 from rdkit.Chem import rdDetermineBonds, AllChem
 
-from . import postprocess as P
+from . import postprocess as P, xrhelpers as xh, pca_biplot
 from .postprocess import (
     mol_to_numbered_smiles as mol_to_numbered_smiles,
     numbered_smiles_to_mol,
@@ -107,3 +107,47 @@ def cutoffs(mask_da):
         )
         .rename(trajid='trajid_')
     )
+
+def show_bonds_mol(mol, elem1, elem2, to2D):
+    pairs = find_bonds_by_element(mol, elem1, elem2)
+    for atom in mol.GetAtoms():
+        atom.SetProp("atomNote", str(atom.GetIdx()))
+    return pca_biplot.highlight_pairs(mol, pairs)
+
+
+def filter_cleavage(frames, *, CC=False, CH=False, verbose=2):
+    try:
+        from IPython.display import display, Image
+    except ImportError:
+        skip_show = True
+
+    def show(elem1, elem2):
+        mol = numbered_smiles_to_mol(frames.atXYZ.attrs['smiles_map'])
+        display(Image(show_bonds_mol(mol, elem1, elem2, to2D=True)))
+
+    def act(descr, elem1, elem2, cutoff):
+        nonlocal frames
+        overlong = find_overlong(frames.atXYZ, elem1, elem2, cutoff=cutoff)
+        if verbose:
+            print(f"Found following {descr} bonds:")
+            show(elem1, elem2)
+            ntraj = len(np.unique(overlong))
+            nframes = xh.sel_trajids(frames, overlong).sizes['frame']
+            print(
+                f"Remove {ntraj} trajectories ({nframes} frames) containing {descr} cleavage"
+            )
+            if verbose >= 2:
+                print("with IDs:", overlong)
+        frames = xh.sel_trajids(frames, overlong, invert=True)
+
+    if CC:
+        act('C-C', 6, 6, 2.8)
+    if CH:
+        act('C-H', 1, 6, 1.7)
+
+    if verbose:
+        ntraj = len(np.unique(frames.trajid))
+        nframes = frames.sizes['frame']
+        print(f"Keep {ntraj} trajectories ({nframes} frames)")
+
+    return frames
