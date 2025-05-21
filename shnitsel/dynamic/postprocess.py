@@ -599,7 +599,7 @@ def calc_ci(a, confidence=0.95):
     return np.stack(st.t.interval(confidence, len(a)-1, loc=np.mean(a), scale=st.sem(a)))
 
 def ci_agg_last_dim(a, confidence=0.95):
-    outer_shape = a.shape[:-1]
+    outer_shape = tuple(a.shape[:-1])
     res = np.full(outer_shape + (3,), np.nan)
     for idxs in np.ndindex(outer_shape):
         res[idxs, :2] = calc_ci(a[idxs], confidence=confidence)
