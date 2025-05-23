@@ -653,14 +653,28 @@ def dihedral_(a, b, c, d):
     bcd = normal(b, c, d)
     return angle_(abc, bcd)
 
+def full_dihedral_(a, b, c, d):
+    abc = normal(a, b, c)
+    bcd = normal(b, c, d)
+    sign = np.sign(ddot(dcross(abc, bcd), (c - b)))
+    return sign * angle_(abc, bcd)
+
+
 def dihedral(
-    atXYZ: AtXYZ, i: int, j: int, k: int, l: int, *, deg: bool = False
+    atXYZ: AtXYZ,
+    i: int,
+    j: int,
+    k: int,
+    l: int,
+    *,
+    deg: bool = False,
+    full: bool = False,
 ) -> xr.DataArray:
     a = atXYZ.isel(atom=i)    
     b = atXYZ.isel(atom=j)
     c = atXYZ.isel(atom=k)
     d = atXYZ.isel(atom=l)
-    result: xr.DataArray = dihedral_(a, b, c, d)
+    result: xr.DataArray = full_dihedral_(a, b, c, d) if full else dihedral_(a, b, c, d)
     if deg:
         result = result * 180 / np.pi
     result.name = 'dihedral'
