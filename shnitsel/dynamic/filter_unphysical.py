@@ -94,20 +94,6 @@ def find_eccentric(atXYZ, maskfn=None):
     mask = maskfn(noodle)
     return np.unique(noodle.sel(frame=mask).trajid)
 
-def exclude_involving_state(frames, state):
-    return exclude_trajs(frames, frames.trajid[frames.astate==3])
-
-def cutoffs(mask_da):
-    return (
-        mask_da.groupby('trajid')
-        .apply(
-            lambda traj: traj.coords['time'][-1]
-            if traj.all()
-            else traj.sel(frame=~traj).coords['time'][0]
-        )
-        .rename(trajid='trajid_')
-    )
-
 def show_bonds_mol(mol, elem1, elem2, to2D):
     pairs = find_bonds_by_element(mol, elem1, elem2)
     for atom in mol.GetAtoms():
@@ -151,3 +137,57 @@ def filter_cleavage(frames, *, CC=False, CH=False, verbose=2):
         print(f"Keep {ntraj} trajectories ({nframes} frames)")
 
     return frames
+
+
+#########################
+# Non-geometric filtering
+
+
+def exclude_involving_state(frames, state):
+    return exclude_trajs(frames, frames.trajid[frames.astate == 3])
+
+
+def cutoffs(mask_da):
+    return (
+        mask_da.groupby('trajid')
+        .apply(
+            lambda traj: traj.coords['time'][-1]
+            if traj.all()
+            else traj.sel(frame=~traj).coords['time'][0]
+        )
+        .rename(trajid='trajid_')
+    )
+
+
+def all_cutoffs(frames):
+    e = frames[['e_kin']]
+    e['e_pot'] = frames['energy'].sel(state=frames.astate).drop_vars('state')
+    e['e_tot'] = e['e_pot'] + e['e_kin']
+
+    feat = xr.Dataset()
+    feat['etot_drift'] = (
+        e['e_tot'].groupby('trajid').apply(lambda traj: abs(traj - traj.isel(frame=0)))
+    )
+    feat['ekin_step'] = P.sudi(e['e_kin'])
+    feat['epot_step'] = P.sudi(e['e_pot'])
+    feat['etot_step'] = P.sudi(e['e_tot'])
+    feat['is_hop'] = P.sudi(frames['astate']) != 0
+
+    c = xr.Dataset()
+    c['cutoff_length'] = (
+        'trajid_',
+        [traj.coords['time'][-1] for _, traj in feat.groupby('trajid')],
+    )
+    c['cutoff_etot_window'] = cutoffs(abs(feat['etot_drift']) < 0.2)
+    c['cutoff_etot_step'] = cutoffs(abs(feat['etot_step']) < 0.1)
+    c['cutoff_epot_step'] = cutoffs((abs(feat['epot_step']) < 0.7) | feat['is_hop'])
+    c['cutoff_ekin_step'] = cutoffs((abs(feat['ekin_step']) < 0.7) | feat['is_hop'])
+    c['cutoff_hop_epot'] = cutoffs((abs(feat['epot_step']) < 1.0) | ~feat['is_hop'])
+
+    typenames = list(c.data_vars)
+    cda = c.to_dataarray('cutoff')
+    c['cutoff_min'] = cda.min('cutoff')
+    c['cutoff_type'] = cda.argmin('cutoff')
+
+    c.attrs['types'] = typenames
+    return c
