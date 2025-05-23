@@ -30,7 +30,12 @@ class Trajres:
 
 def _default_idfn(path):
     global _exnum
-    return int(_exnum.search(os.path.basename(path))[0])
+    res = _exnum.search(os.path.basename(path))
+    if res is None:
+        raise ValueError(f"Could not extract trajid from path '{path}'")
+
+    return int(res[0])
+
 
 _idfn = _default_idfn
 _read_traj: Callable
@@ -48,9 +53,9 @@ def read_trajs_list(paths, kind, idfn=None, sort=True):
 
     datasets = []
     with logging_redirect_tqdm():
-        missing_files = {}
-        misc_errors = {}
-        incomplete = []
+        missing_files: dict[str, list[Trajid]] = {}
+        misc_errors: dict[Trajid, Exception] = {}
+        incomplete: list[Trajid] = []
         for trajdir in tqdm(paths):
             trajid = idfn(trajdir)
             try:
@@ -90,8 +95,8 @@ def read_trajs_list(paths, kind, idfn=None, sort=True):
 
     if len(misc_errors):
         print("Miscellaneous errors:")
-        for trajid, err in misc_errors.items():
-            print(f"{trajid:>6}  {err}")
+        for trajid, merr in misc_errors.items():
+            print(f"{trajid:>6}  {merr}")
     if len(missing_files):
         for fname, trajids in missing_files.items():
             trajids.sort()
