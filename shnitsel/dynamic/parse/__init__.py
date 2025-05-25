@@ -14,6 +14,7 @@ from tqdm.auto import tqdm
 from tqdm.contrib.logging import logging_redirect_tqdm
 
 from . import sharc_icond as sharc_icond
+from . import pyrai2md as pyrai2md
 from . import nx, sharc_traj
 
 Trajid: TypeAlias = int
