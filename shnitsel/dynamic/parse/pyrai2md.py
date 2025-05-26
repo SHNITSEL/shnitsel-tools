@@ -1,5 +1,4 @@
 import os
-import math
 from itertools import combinations
 from glob import glob
 import xarray as xr
