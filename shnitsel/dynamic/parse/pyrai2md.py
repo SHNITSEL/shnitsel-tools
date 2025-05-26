@@ -2,7 +2,6 @@ import os
 import math
 from itertools import combinations
 from glob import glob
-from ast import literal_eval
 import xarray as xr
 import pandas as pd
 import numpy as np
