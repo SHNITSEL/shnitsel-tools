@@ -46,7 +46,7 @@ def get_triangular(original_array):
     nstat1, nstat2, natoms, xyz = original_array.shape
 
     if nstat1 != nstat2:
-        raise(ValueError, "expected square input matrix")
+        raise ValueError("expected square input matrix")
 
     rows, cols = np.triu_indices(nstat2, k=1)
     upper_tril = np.zeros((len(cols), natoms, 3))
