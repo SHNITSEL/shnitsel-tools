@@ -12,11 +12,11 @@ def parse_md_energies(path):
     df = pd.read_csv(path, sep=r'\s+', header=None, skiprows=1).set_index(0)
     df.index.name = 'time'
     energy = df.loc[:, 4:]
-    state = len(energy.columns)
+    nstates = len(energy.columns)
     return (
         xr.Dataset.from_dataframe(energy)
         .to_array('state')
-        .assign_coords(state=[1, 2, 3])
+        .assign_coords(state=np.arange(1, nstates + 1))
     )
 
 
