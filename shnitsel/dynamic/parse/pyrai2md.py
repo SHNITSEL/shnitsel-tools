@@ -56,7 +56,6 @@ def parse_log(f, nsteps):
         if stripline.startswith('Active atoms:'):
             natoms = int(stripline.split()[2])
     del multiplicity, m
-    nscombs = math.comb(nstates, 2)
 
     # Set up numpy arrays
     astate = np.full((nsteps), -1, dtype=int)
@@ -65,7 +64,7 @@ def parse_log(f, nsteps):
     atNames = np.full((natoms), '', dtype=str)
     got_atNames = False
     veloc = np.full((nsteps, natoms, 3), np.nan)
-    dcmat = np.full((nsteps, nstates, 3), np.nan)
+    dcmat = np.full((nsteps, nstates, nstates), np.nan)
 
     for line in f:
         ## The start of a timestep
@@ -140,18 +139,18 @@ def parse_log(f, nsteps):
                 )
             assert next(f).startswith('---')
 
-        # ## Derivative coupling matrix:
-        # #  &derivative coupling matrix
-        # # -------------------------------------------------------------------------------
-        # #       0.0000000000000000       0.0000000000000004      -0.0000000000000001
-        # #      -0.0000000000000004       0.0000000000000000       0.0000000000000003
-        # #       0.0000000000000001      -0.0000000000000003       0.0000000000000000
-        # # -------------------------------------------------------------------------------
-        # if line.startswith('  &derivative coupling matrix'):
-        #     assert next(f).startswith('---')
-        #     for istate1 in range(nscombs):
-        #         forces[ts, istate1] = np.asarray(next(f).strip().split(), dtype=float)
-        #     assert next(f).startswith('---')
+        ## Derivative coupling matrix:
+        #  &derivative coupling matrix
+        # -------------------------------------------------------------------------------
+        #       0.0000000000000000       0.0000000000000004      -0.0000000000000001
+        #      -0.0000000000000004       0.0000000000000000       0.0000000000000003
+        #       0.0000000000000001      -0.0000000000000003       0.0000000000000000
+        # -------------------------------------------------------------------------------
+        if line.startswith('  &derivative coupling matrix'):
+            assert next(f).startswith('---')
+            for istate1 in range(nstates):
+                dcmat[ts, istate1] = np.asarray(next(f).strip().split(), dtype=float)
+            assert next(f).startswith('---')
 
     statecomb = xr.Coordinates.from_pandas_multiindex(
         pd.MultiIndex.from_tuples(combinations(states, 2), names=['from', 'to']),
@@ -190,6 +189,7 @@ def parse_log(f, nsteps):
             #     {'long_name': "nonadiabatic couplings", 'units': "au"},
             # ),
             'atXYZ': (['ts', 'atom', 'direction'], atXYZ),
+            'dcmat': (['ts', 'state', 'state2'], dcmat),
         },
         coords=coords,
         attrs={
