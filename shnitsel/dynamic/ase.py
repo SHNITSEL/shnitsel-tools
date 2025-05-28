@@ -32,8 +32,14 @@ def _prepare_for_write(frames: xr.Dataset) -> xr.Dataset:
     return frames
 
 
-def write_ase_db(frames: xr.Dataset, db_path: str, keys: Collection | None = None):
-    frames = _prepare_for_write(frames)
+def write_ase_db(
+    frames: xr.Dataset,
+    db_path: str,
+    keys: Collection | None = None,
+    preprocess: bool = True,
+):
+    if preprocess:
+        frames = _prepare_for_write(frames)
 
     if os.path.exists(db_path):
         os.remove(db_path)
