@@ -80,7 +80,7 @@ def read_ase_db(db_path: str):
 
         atXYZ = np.stack([row.positions for row in db.select()])
         data_vars['atXYZ'] = ['frame', 'atom', 'direction'], atXYZ
-        data_vars['atNames'] = ['atom'], next(db.select()).symbols
+        atNames = ['atom'], next(db.select()).symbols
 
     if 'dipoles' in data_vars:
         nstates = data_vars['energy'][1].shape[1]
@@ -93,4 +93,5 @@ def read_ase_db(db_path: str):
         data_vars['dip_perm'] = ['frame', 'state', 'direction'], dip_perm
         data_vars['dip_trans'] = ['frame', 'statecomb', 'direction'], dip_trans
 
-    return xr.Dataset(data_vars)
+    frames = xr.Dataset(data_vars).assign_coords(atNames=atNames)
+    return frames
