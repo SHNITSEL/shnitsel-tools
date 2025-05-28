@@ -4,48 +4,45 @@ from functools import partial  # , partialmethod
 import xarray as xr
 from .dynamic import postprocess
 
+DA_METHODS: dict[str, tuple[Callable, set[str]]] = {
+    'to_xyz': (postprocess.to_xyz, {'atNames'}),
+    'dihedral': (postprocess.dihedral, {'atom'}),
+    'sudi': (postprocess.sudi, set()),
+}
+
 
 @xr.register_dataarray_accessor('sh')
-class AAccessor:
-    _potential_methods: dict[str, tuple[set[str], Callable]] = {}
-
-    # @classmethod
-    # def _requires(cls, *required_coords):
-    #     def decorator(func):
-    #         name = func.__name__[1:]  # remove underscore
-    #         cls._potential_methods[name] = (set(required_coords), func)
-    #         return func
-
-    #     return decorator
-
+class DAShnitselAccessor:
     def __init__(self, da):
         self._da = da
-        self._methods = self._build_methods()
 
-    def _build_methods(self):
-        methods = {}
-        coords = set(self._da.coords)
-        for name, (required_coords, func) in self._potential_methods.items():
+        coords = set(da.coords)
+        for name, (func, required_coords) in DA_METHODS.items():
             if required_coords <= coords:
-                methods[name] = func
-        return methods
+                setattr(self, name, self._make_method(func))
 
-    def __getattr__(self, name):
-        if name in self._methods:
-            return self._methods[name]
-        raise AttributeError(
-            f"'{type(self).__name__}' object has no attribute '{name}'"
-        )
+    def _make_method(self, func):
+        def method(*args, **kwargs):
+            return func(self._da, *args, **kwargs)
 
-    def __dir__(self):
-        return list(super().__dir__()) + list(self._methods.keys())
+        method.__name__ = func.__name__
+        method.__doc__ = func.__doc__
+        return method
+
+    # def __getattr__(self, name):
+    #     if name in self._methods:
+    #         return self._methods[name]
+    #     raise AttributeError(
+    #         f"'{type(self).__name__}' object has no attribute '{name}'"
+    #     )
+
+    # def __dir__(self):
+    #     return list(super().__dir__()) + list(self._methods.keys())
 
     # let's try one way:
     # @_requires('atNames', 'atom')
     def _to_xyz(self, comment='#'):
         return postprocess.to_xyz(self._da, comment)
 
-    _potential_methods['to_xyz'] = ({'atNames'}, _to_xyz)
-
-    # and another:
-    _potential_methods['dihedral'] = ({'atom'}, partial(postprocess.dihedral))
+    def subtract_combinations(self, dim, labels=False):
+        return postprocess.subtract_combinations(self._da, dim, labels)
