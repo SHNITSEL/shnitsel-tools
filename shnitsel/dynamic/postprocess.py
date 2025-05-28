@@ -197,9 +197,11 @@ def pairwise_dists_pca(atXYZ: AtXYZ, **kwargs) -> xr.DataArray:
 
 def sudi(da):
     """Successive differences"""
-    axidx_frame = da.get_axis_num("frame")
+    da = da.transpose('frame', ...)
     return da.groupby('trajid').apply(
-        lambda traj: np.diff(traj, axis=axidx_frame, prepend=traj[0])
+        lambda traj: np.diff(
+            traj, axis=0, prepend=np.array(traj[0], ndmin=traj.values.ndim)
+        )
     )
 
 
