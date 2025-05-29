@@ -50,9 +50,8 @@ def test_subtract_combinations(da):
     ),
 )
 def test_pca(da):
-    assume((da != np.inf).all())
-    assume((da != -np.inf).all())
-    assume((~np.isnan(da)).all())  # no NaNs allowed
+    assume(not np.isinf(da).any())  # no +/-inf allowed
+    assume(not np.isnan(da).any())  # no NaNs allowed
     res = pca(da, dim='target')
     assert isinstance(res, xr.DataArray)
     assert 'PC' in res.dims
