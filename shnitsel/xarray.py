@@ -1,5 +1,4 @@
 from typing import Callable
-from functools import partial  # , partialmethod
 
 import xarray as xr
 from .dynamic import postprocess, xrhelpers
