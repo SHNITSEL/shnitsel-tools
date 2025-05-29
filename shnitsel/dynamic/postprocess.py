@@ -204,11 +204,11 @@ def _sudi_groupby(da):
         )
     )
 
-def sudi(da):
+def sudi(da: xr.DataArray) -> xr.DataArray:
     """Successive differences"""
     da = da.transpose('frame', ...)
     res = np.diff(da, axis=0, prepend=np.array(da[0], ndmin=da.values.ndim))
-    # Don't compare the last timestep of one trajectory to the first timestep of next:
+    # Don't compare the last timestep of one trajectory to the first timestep of the next:
     res[da.time == 0] = 0
     return da.copy(data=res)
 
@@ -550,6 +550,7 @@ def get_per_state(frames: Frames) -> PerState:
     return per_state
 
 def get_inter_state(frames: Frames) -> InterState:
+    prop: Hashable
     iprops = []
     for prop in ['energy', 'nacs', 'astate', 'dip_trans']:
         if prop in frames:
@@ -558,7 +559,9 @@ def get_inter_state(frames: Frames) -> InterState:
             warning(f"Dataset does not contain variable '{prop}'")
 
     inter_state = frames[iprops]
-    inter_state['energy'] = subtract_combinations(inter_state['energy'], dim='state')
+    for prop in inter_state:
+        if 'state' in inter_state[prop].dims:
+            inter_state[prop] = subtract_combinations(inter_state[prop], dim='state')
 
     inter_state = inter_state.apply(keep_norming)
     inter_state = xrhelpers.flatten_midx(
