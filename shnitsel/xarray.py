@@ -2,12 +2,13 @@ from typing import Callable
 from functools import partial  # , partialmethod
 
 import xarray as xr
-from .dynamic import postprocess
+from .dynamic import postprocess, xrhelpers
 
 DA_METHODS: dict[str, tuple[Callable, set[str]]] = {
     'to_xyz': (postprocess.to_xyz, {'atNames'}),
     'dihedral': (postprocess.dihedral, {'atom'}),
     'sudi': (postprocess.sudi, set()),
+    'sel_trajs': (xrhelpers.sel_trajs, {'frame'}),
 }
 
 
