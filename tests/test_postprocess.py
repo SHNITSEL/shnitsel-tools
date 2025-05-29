@@ -1,3 +1,4 @@
+import pytest
 from hypothesis import assume, given
 import hypothesis.strategies as st
 from xarray.testing import assert_equal
@@ -6,11 +7,17 @@ import xarray.testing.strategies as xrst
 import numpy as np
 import xarray as xr
 
+from shnitsel.dynamic import postprocess
 from shnitsel.dynamic.postprocess import (
     norm,
     subtract_combinations,
     pca,
-)
+@pytest.fixture
+def traj_butene():
+    frames = shnitsel.dynamic.parse.read_trajs(
+        'tutorials/test_data/sharc/traj_butene', kind='sharc'
+    )
+    return postprocess.ts_to_time(frames)
 
 
 @given(
