@@ -7,11 +7,17 @@ import xarray.testing.strategies as xrst
 import numpy as np
 import xarray as xr
 
+import shnitsel
 from shnitsel.dynamic import postprocess
 from shnitsel.dynamic.postprocess import (
     norm,
     subtract_combinations,
     pca,
+    _sudi_groupby,
+    sudi,
+)
+
+
 @pytest.fixture
 def traj_butene():
     frames = shnitsel.dynamic.parse.read_trajs(
@@ -66,3 +72,9 @@ def test_pca(da):
 
 def test_pairwise_dists_pca():
     pass
+
+def test_sudi2(traj_butene):
+    da = traj_butene.energy
+    left = _sudi_groupby(da)
+    right = sudi(da)
+    assert_equal(left, right)

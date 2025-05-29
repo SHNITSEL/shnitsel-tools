@@ -195,7 +195,7 @@ def pairwise_dists_pca(atXYZ: AtXYZ, **kwargs) -> xr.DataArray:
     assert not isinstance(res, tuple)  # typing
     return res
 
-def sudi(da):
+def _sudi_groupby(da):
     """Successive differences"""
     da = da.transpose('frame', ...)
     return da.groupby('trajid').apply(
@@ -203,6 +203,14 @@ def sudi(da):
             traj, axis=0, prepend=np.array(traj[0], ndmin=traj.values.ndim)
         )
     )
+
+def sudi(da):
+    """Successive differences"""
+    da = da.transpose('frame', ...)
+    res = np.diff(da, axis=0, prepend=np.array(da[0], ndmin=da.values.ndim))
+    # Don't compare the last timestep of one trajectory to the first timestep of next:
+    res[da.time == 0] = 0
+    return da.copy(data=res)
 
 
 def hop_indices(astates: xr.DataArray) -> xr.DataArray:
