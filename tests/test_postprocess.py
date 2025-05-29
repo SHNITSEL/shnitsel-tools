@@ -15,7 +15,8 @@ from shnitsel.dynamic.postprocess import (
 
 @given(
     xrst.variables(
-        dims=st.just({'test1': 2, 'direction': 3, 'test2': 5}), dtype=st.just(float)
+        dims=st.just({'test1': 2, 'direction': 3, 'test2': 5}),
+        dtype=st.just(float),  # type: ignore
     ),
 )
 def test_norm(da):
@@ -27,7 +28,8 @@ def test_norm(da):
 
 @given(
     xrst.variables(
-        dims=st.just({'test1': 2, 'target': 3, 'test2': 5}), dtype=st.just(float)
+        dims=st.just({'test1': 2, 'target': 3, 'test2': 5}),
+        dtype=st.just(float),  # type: ignore
     ),
 )
 def test_subtract_combinations(da):
@@ -41,12 +43,18 @@ def test_subtract_combinations(da):
         to_check = res.isel(targetcomb=c)
         assert_equal(da_diff, to_check)
 
-@given(xrst.variables(dims=st.just({'test': 2, 'target': 4}), dtype=st.just(float)))
+@given(
+    xrst.variables(
+        dims=st.just({'test': 2, 'target': 4}),
+        dtype=st.just(float),  # type: ignore
+    ),
+)
 def test_pca(da):
     assume((da != np.inf).all())
     assume((da != -np.inf).all())
     assume((~np.isnan(da)).all())  # no NaNs allowed
     res = pca(da, dim='target')
+    assert isinstance(res, xr.DataArray)
     assert 'PC' in res.dims
 
 
