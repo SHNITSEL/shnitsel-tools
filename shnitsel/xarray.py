@@ -1,4 +1,5 @@
 from collections import namedtuple
+from itertools import chain
 
 import xarray as xr
 from .dynamic import postprocess, xrhelpers
@@ -96,6 +97,7 @@ DS_METHODS: dict[str, M2] = {
 
 class ShnitselAccessor:
     _obj: xr.DataArray | xr.Dataset
+    _methods: list
 
     def _make_method(self, func):
         def method(*args, **kwargs):
@@ -108,10 +110,15 @@ class ShnitselAccessor:
         method.__doc__ = func.__doc__
         return method
 
+    def __dir__(self):
+        return chain(super().__dir__(), self._methods)
+
+
 @xr.register_dataarray_accessor('sh')
 class DAShnitselAccessor(ShnitselAccessor):
     def __init__(self, da):
         self._obj = da
+        self._methods = []
 
         dims = set(da.dims)
         coords = set(da.coords)
@@ -131,15 +138,17 @@ class DAShnitselAccessor(ShnitselAccessor):
                 and (rname is None or rname == da.name)
                 and (ratks is None or ratks <= atkeys)
                 and (ratd is None or all(ratd[k] == da.attrs[k] for k in ratd))
-                and (xdims is None or len(xdims & dims) == 0)
+                and (xdims is None or xdims.isdisjoint(dims))
             ):
                 setattr(self, name, self._make_method(func))
+                self._methods.append(name)
 
 
 @xr.register_dataset_accessor('sh')
 class DSShnitselAccessor(ShnitselAccessor):
     def __init__(self, ds):
         self._obj = ds
+        self._methods = []
 
         vars = set(ds.data_vars)
         dims = set(ds.dims)
@@ -165,3 +174,4 @@ class DSShnitselAccessor(ShnitselAccessor):
                 and (xdims is None or (xdims & dims == {}))
             ):
                 setattr(self, name, self._make_method(func))
+                self._methods.append(name)
