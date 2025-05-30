@@ -43,9 +43,6 @@ DA_METHODS: dict[str, M] = {
     'traj_to_xyz': M(
         postprocess.traj_to_xyz, required_dims={'frame'}, required_coords={'atNames'}
     ),
-    'dnorm': M(postprocess.dnorm, required_dims={'direction'}),
-    'dcross': M(postprocess.dcross, required_dims={'direction'}),
-    'ddot': M(postprocess.ddot, required_dims={'direction'}),
     'dihedral': M(postprocess.dihedral, required_dims={'atom'}),
     'angle': M(postprocess.angle, required_dims={'atom'}),
     'distance': M(postprocess.distance, required_dims={'atom'}),
