@@ -2,7 +2,7 @@ from collections import namedtuple
 from itertools import chain
 
 import xarray as xr
-from .dynamic import postprocess, xrhelpers
+from .dynamic import postprocess as P, xrhelpers
 
 M = namedtuple(
     'M',
@@ -20,38 +20,35 @@ M = namedtuple(
 
 DA_METHODS: dict[str, M] = {
     ## From postprocess:
-    'norm': M(postprocess.norm),
-    'subtract_combinations': M(postprocess.subtract_combinations),
-    'pca': M(postprocess.pca),
-    'pairwise_dists_pca': M(postprocess.pairwise_dists_pca, required_dims={'atom'}),
-    'sudi': M(postprocess.sudi, required_dims={'frame'}),
-    'hop_indices': M(
-        postprocess.hop_indices, required_dims={'frame'}, required_name='astate'
-    ),
-    'relativize': M(postprocess.relativize),
-    'convert_energy': M(postprocess.convert_energy, required_attrs={'units'}),
-    'convert_dipoles': M(postprocess.convert_dipoles, required_attrs={'units'}),
-    'convert_length': M(postprocess.convert_length, required_attrs={'units'}),
-    'ts_to_time': M(postprocess.ts_to_time, required_coords={'ts'}),
-    'keep_norming': M(postprocess.keep_norming),
-    'xr_calc_ci': M(postprocess.xr_calc_ci),
+    'norm': M(P.norm),
+    'subtract_combinations': M(P.subtract_combinations),
+    'pca': M(P.pca),
+    'pairwise_dists_pca': M(P.pairwise_dists_pca, required_dims={'atom'}),
+    'sudi': M(P.sudi, required_dims={'frame'}),
+    'hop_indices': M(P.hop_indices, required_dims={'frame'}, required_name='astate'),
+    'relativize': M(P.relativize),
+    'convert_energy': M(P.convert_energy, required_attrs={'units'}),
+    'convert_dipoles': M(P.convert_dipoles, required_attrs={'units'}),
+    'convert_length': M(P.convert_length, required_attrs={'units'}),
+    'ts_to_time': M(P.ts_to_time, required_coords={'ts'}),
+    'keep_norming': M(P.keep_norming),
+    'calc_ci': M(P.xr_calc_ci),  # name differs!
     'to_xyz': M(
-        postprocess.to_xyz,
+        P.to_xyz,
         required_coords={'atNames'},
         incompatible_dims={'frames'},
     ),
     'traj_to_xyz': M(
-        postprocess.traj_to_xyz, required_dims={'frame'}, required_coords={'atNames'}
+        P.traj_to_xyz, required_dims={'frame'}, required_coords={'atNames'}
     ),
-    'dihedral': M(postprocess.dihedral, required_dims={'atom'}),
-    'angle': M(postprocess.angle, required_dims={'atom'}),
-    'distance': M(postprocess.distance, required_dims={'atom'}),
-    'trajs_with_hops': M(postprocess.trajs_with_hops, required_name='astate'),
-    'get_hop_types': M(postprocess.get_hop_types, required_name='astate'),
-    # NOT pca_for_plot: da, legacy: leave out
-    # NOT changes -- this is a legacy equivalent to hop_indices; notably, it assumes that 'astates' is a coord
-    # NOT broaden_gauss: EXCLUDE because requires two DataArrays as input -- maybe let it get data from a coord  instead if one's 1D?
-    # NOT calc_ci NOR ci_agg_last_dim: EXCLUDE because takes ndarray
+    'dihedral': M(P.dihedral, required_dims={'atom'}),
+    'angle': M(P.angle, required_dims={'atom'}),
+    'distance': M(P.distance, required_dims={'atom'}),
+    'trajs_with_hops': M(P.trajs_with_hops, required_name='astate'),
+    'get_hop_types': M(P.get_hop_types, required_name='astate'),
+    # Do not include legacy functions pca_for_plot() or changes(). NB. changes expects astate to be a coord
+    # Do not include functions that expect multiple DataArrays: broaden_gauss(), dcross(), ddot(), dnorm()
+    # Do not include functions that expect an ndarrayNOT calc_ci NOR ci_agg_last_dim: EXCLUDE because takes ndarray
     #
     ## From xrhelpers:
     'sel_trajs': M(xrhelpers.sel_trajs, {'frame'}),
@@ -73,22 +70,23 @@ M2 = namedtuple(
 )
 
 DS_METHODS: dict[str, M2] = {
-    'pca_and_hops': M2(postprocess.pca_and_hops, required_vars={'atXYZ', 'astate'}),
-    'validate': M2(postprocess.validate),
-    'ts_to_time': M2(postprocess.ts_to_time, required_coords={'ts'}),
-    'assign_fosc': M2(postprocess.assign_fosc, required_vars={'energy', 'dip_trans'}),
-    # ds_broaden_gauss: requires 'energy' and 'fosc' -- but should it be so specific? Aren't there other thing one might want to broaden? Also should 'ds' stay in the name?
-    # get_per_state: only really makes sense with at least one of {'energy', 'forces', 'dip_perm'}
-    # get_inter_state: oh, just include it unconditionally
+    'pca_and_hops': M2(P.pca_and_hops, required_vars={'atXYZ', 'astate'}),
+    'validate': M2(P.validate),
+    'ts_to_time': M2(P.ts_to_time, required_coords={'ts'}),
+    'assign_fosc': M2(P.assign_fosc, required_vars={'energy', 'dip_trans'}),
+    'broaden_gauss': M2(
+        P.ds_broaden_gauss, required_vars={'energy', 'fosc'}
+    ),  # name differs!
+    'get_per_state': M2(P.get_per_state, required_dims={'state'}),
+    'get_inter_state': M2(P.get_inter_state, required_dims={'statecomb'}),
     # calc_pops: should really be a DataArray method; uses only the 'astate' variable, requires 'state' and 'frame' dims
     'time_grouped_ci': M2(
-        postprocess.time_grouped_ci, required_coords={'time'}, required_dims={'frame'}
+        P.time_grouped_ci, required_coords={'time'}, required_dims={'frame'}
     ),
-    'find_hops': M2(
-        postprocess.find_hops, required_coords={'trajid'}, required_vars={'astate'}
-    ),
+    'find_hops': M2(P.find_hops, required_coords={'trajid'}, required_vars={'astate'}),
     ## From xrhelpers:
     'save_frames': M2(xrhelpers.save_frames),
+    'sel_trajs': M2(xrhelpers.sel_trajs, required_dims={'frame'}),
 }
 
 
