@@ -198,7 +198,7 @@ def pairwise_dists_pca(atXYZ: AtXYZ, **kwargs) -> xr.DataArray:
 def _sudi_groupby(da):
     """Successive differences"""
     da = da.transpose('frame', ...)
-    return da.groupby('trajid').apply(
+    return da.groupby('trajid').map(
         lambda traj: np.diff(
             traj, axis=0, prepend=np.array(traj[0], ndmin=traj.values.ndim)
         )
@@ -563,7 +563,7 @@ def get_inter_state(frames: Frames) -> InterState:
         if 'state' in inter_state[prop].dims:
             inter_state[prop] = subtract_combinations(inter_state[prop], dim='state')
 
-    inter_state = inter_state.apply(keep_norming)
+    inter_state = inter_state.map(keep_norming)
     inter_state = xrhelpers.flatten_midx(
       inter_state,
       'statecomb',
@@ -783,9 +783,9 @@ def find_traj_hops(traj: xr.Dataset) -> xr.Dataset:
         frames += [idx, idx+1]
         statecombs += [min(h)+max(h)*1j]*2
 
-    return (
-      traj.apply(pick_statecombs, statecombs=statecombs, frames=frames, framedim=framedim)
-      .assign(statecomb=xr.DataArray(statecombs, dims=[framedim])))
+    return traj.map(
+        pick_statecombs, statecombs=statecombs, frames=frames, framedim=framedim
+    ).assign(statecomb=xr.DataArray(statecombs, dims=[framedim]))
 
 def find_hops(frames: Frames) -> Frames:
     mask = frames['trajid'].isin(trajs_with_hops(frames['astate']))
