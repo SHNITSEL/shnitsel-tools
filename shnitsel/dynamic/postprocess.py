@@ -414,22 +414,26 @@ def ts_to_time(
     if delta_t is None:
         if 'delta_t' in data:  # could be coord or var
             # ensure unique
-            if (data['delta_t'] == data['delta_t'][0]).all():
-                delta_t = data['delta_t'].item(0)
-                if data.attrs.get('delta_t', delta_t) != delta_t:
-                    raise ValueError(
-                        "'delta_t' attribute inconsistent with variable/coordinate"
-                    )
-                data = data.drop_vars('delta_t')
-                data.attrs['delta_t'] = delta_t
-            else:
-                raise ValueError(_var_delta_t_msg)
-        elif 'delta_t' in data.attrs:
+            arr_delta_t = np.unique(data['delta_t'])
+            assert len(arr_delta_t.shape) == 1
+            if arr_delta_t.shape[0] > 1:
+                msg = "`delta_t` varies between the trajectories. Please separate the trajectories into groups"
+                raise ValueError(msg)
+            delta_t = arr_delta_t.item()
+            data = data.drop_vars('delta_t')
+
+        if 'delta_t' in data.attrs:
+            if (
+                delta_t is not None  # If we already got delta_t from var/coord
+                and data.attrs['delta_t'] != delta_t
+            ):
+                msg = "'delta_t' attribute inconsistent with variable/coordinate"
+                raise ValueError(msg)
             delta_t = data.attrs['delta_t']
-        else:
-            raise ValueError(
-                "Could not extract `delta_t` from `data`; please pass explicitly"
-            )
+
+        if delta_t is None:  # neither var/coord nor attr
+            msg = "Could not extract `delta_t` from `data`; please pass explicitly"
+            raise ValueError(msg)
 
     data = (data
       .reset_index('frame')
@@ -446,6 +450,7 @@ def ts_to_time(
         data = data.drop_vars('ts')
 
     data['time'].attrs.update((dict(units='fs', long_name='$t$', tex_name='t')))
+    data.attrs['delta_t'] = delta_t
 
     return data
 
