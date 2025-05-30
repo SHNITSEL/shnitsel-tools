@@ -27,9 +27,9 @@ DA_METHODS: dict[str, M] = {
     'sudi': M(P.sudi, required_dims={'frame'}),
     'hop_indices': M(P.hop_indices, required_dims={'frame'}, required_name='astate'),
     'relativize': M(P.relativize),
-    'convert_energy': M(P.convert_energy, required_attrs={'units'}),
-    'convert_dipoles': M(P.convert_dipoles, required_attrs={'units'}),
-    'convert_length': M(P.convert_length, required_attrs={'units'}),
+    # 'convert_energy': M(P.convert_energy, required_attrs={'units'}),
+    # 'convert_dipoles': M(P.convert_dipoles, required_attrs={'units'}),
+    # 'convert_length': M(P.convert_length, required_attrs={'units'}),
     'ts_to_time': M(P.ts_to_time, required_coords={'ts'}),
     'keep_norming': M(P.keep_norming),
     'calc_ci': M(P.xr_calc_ci),  # name differs!
@@ -52,6 +52,12 @@ DA_METHODS: dict[str, M] = {
     #
     ## From xrhelpers:
     'sel_trajs': M(xrhelpers.sel_trajs, {'frame'}),
+}
+
+CONVERTERS: dict[str, P.Converter] = {
+    'convert_energy': P.convert_energy,
+    'convert_dipoles': P.convert_dipoles,
+    'convert_length': P.convert_length,
 }
 
 M2 = namedtuple(
@@ -136,6 +142,11 @@ class DAShnitselAccessor(ShnitselAccessor):
                 and (xdims is None or xdims.isdisjoint(dims))
             ):
                 setattr(self, name, self._make_method(func))
+                self._methods.append(name)
+
+        for name, converter in CONVERTERS.items():
+            if self._obj.attrs.get('units') in converter.conversions:
+                setattr(self, name, self._make_method(converter))
                 self._methods.append(name)
 
 
