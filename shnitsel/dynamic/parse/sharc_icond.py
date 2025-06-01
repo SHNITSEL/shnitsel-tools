@@ -153,6 +153,17 @@ def init_iconds(indices, nstates, natoms, **res):
         dim='statecomb',
     ).merge(coords)
 
+    attrs = {
+        'energy': {'units': 'hartree', 'unitdim': 'Energy'},
+        'e_kin': {'units': 'hartree', 'unitdim': 'Energy'},
+        'dip_perm': {'long_name': "permanent dipoles", 'units': 'au'},
+        'dip_trans': {'long_name': "transition dipoles", 'units': 'au'},
+        'sdiag': {'long_name': 'active state (diag)'},
+        'astate': {'long_name': 'active state (MCH)'},
+        'forces': {'units': 'hartree/bohr', 'unitdim': 'Force'},
+        'nacs': {'long_name': "nonadiabatic couplings", 'units': 'au'},
+    }
+
     datavars = {
         varname: (
             dims,
@@ -161,11 +172,12 @@ def init_iconds(indices, nstates, natoms, **res):
                 if (x := res.get(varname)) is not None
                 else nans(*[lens[d] for d in dims])
             ),
+            attrs[varname] if varname in attrs else {},
         )
         for varname, dims in template.items()
     }
 
-    datavars['atNames'] = (['atom'], np.full((natoms), ''))
+    datavars['atNames'] = (['atom'], np.full((natoms), ''), {})
 
     return xr.Dataset(datavars, coords)
 
