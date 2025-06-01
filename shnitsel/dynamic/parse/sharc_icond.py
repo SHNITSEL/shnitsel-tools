@@ -7,7 +7,7 @@ import re
 import math
 from itertools import product, combinations
 from glob import iglob
-from typing import NamedTuple
+from typing import NamedTuple, Any
 from tqdm.auto import tqdm
 from .common import (
     get_dipoles_per_xyz,
@@ -23,7 +23,7 @@ _re_nacs = re.compile('[(](?P<nstates>[0-9]+)x[0-9]+x(?P<natoms>[0-9]+)x3')
 
 
 class IcondPath(NamedTuple):
-    index: int
+    idx: int
     path: str
     # prefix: str | None
 
@@ -57,9 +57,11 @@ def dims_from_QM_out(f):
             nstates.v = int(dim[0])
         elif line.startswith('! 3 Gradient Vectors'):
             info = _re_grads.search(line)
+            assert info is not None
             nstates.v, natoms.v = map(int, info.group('nstates', 'natoms'))
         elif line.startswith('! 5 Non-adiabatic couplings'):
             info = _re_nacs.search(line)
+            assert info is not None
             nstates.v, natoms.v = map(int, info.group('nstates', 'natoms'))
 
     return nstates.v, natoms.v
@@ -125,7 +127,7 @@ def init_iconds(indices, nstates, natoms, **res):
         'statecomb': math.comb(nstates, 2),
     }
 
-    coords = {
+    coords: dict | xr.Dataset = {
         'state': (states := np.arange(nstates)),
         'state2': states,
         'atom': np.arange(natoms),
@@ -192,7 +194,7 @@ def read_iconds(pathlist, index=None):
 
 
 def parse_QM_log(log):
-    info = {}
+    info: dict[str, Any] = {}
     for line in log:
         if line.startswith('States:'):
             linecont = re.split(' +|\t', line.strip())
@@ -259,6 +261,7 @@ def parse_QM_log_geom(f, out):
 
 
 def parse_QM_out(f, out: (xr.Dataset | None) = None):
+    res: xr.Dataset | dict[str, np.ndarray]
     if out is not None:
         # write data directly into dataset
         res = out
@@ -302,7 +305,9 @@ def parse_QM_out(f, out: (xr.Dataset | None) = None):
         elif line.startswith('! 3 Gradient Vectors'):
             res['has_forces'] = np.array([1])
 
-            get_dim = _re_grads.search(line).group
+            search_res = _re_grads.search(line)
+            assert search_res is not None
+            get_dim = search_res.group
             nstates.v = int(get_dim('nstates'))
             natoms.v = int(get_dim('natoms'))
 
@@ -317,7 +322,9 @@ def parse_QM_out(f, out: (xr.Dataset | None) = None):
                     ]
 
         elif line.startswith('! 5 Non-adiabatic couplings'):
-            get_dim = _re_nacs.search(line).group
+            search_res = _re_nacs.search(line)
+            assert search_res is not None
+            get_dim = search_res.group
             nstates.v = int(get_dim('nstates'))
             natoms.v = int(get_dim('natoms'))
 
@@ -375,6 +382,7 @@ def parse_QM_out(f, out: (xr.Dataset | None) = None):
         if not res['has_forces']:
             res['forces'] = nans(natoms.v, 3)
 
+        assert isinstance(res, dict)
         return init_iconds(indices=None, nstates=nstates.v, natoms=natoms.v, **res)
 
         # xr.Dataset(
