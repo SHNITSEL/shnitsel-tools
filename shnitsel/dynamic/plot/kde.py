@@ -73,6 +73,36 @@ def biplot_kde(
     scatter_color: Literal['time', 'geo'] = 'time',
     fill: bool = True,
 ):
+    """\
+    Generates a biplot that visualizes PCA projections and kernel density estimates (KDE) 
+    of a property (distance, angle, dihedral angle) describing the geometry of specified
+    atoms. The property is chosen based on the number of atoms specified:
+        - 2 atoms => distance
+        - 3 atoms => angle
+        - 4 atoms => dihedral angle
+
+    Parameters:
+    -----------
+    frames : xarray.Dataset
+        A dataset containing trajectory frames with atomic coordinates.
+    at1, at2, at3, at4 : int
+        Indices of the first, second, third and fourth atoms for geometric property calculation.
+    levels : list of float, optional
+        Contour levels for the KDE plot. Defaults to [0.08, 1]. This parameter is passed to
+        matplotlib.axes.Axes.contour.
+
+    Returns:
+    --------
+    kde_data : tuple
+        The computed KDE data for the atom-atom distance distribution.
+
+    Notes:
+    ------
+    - Computes a geometric property of the specified atoms across all frames.
+    - Uses kernel density estimation (KDE) to analyze the distance distributions.
+    - Performs PCA on trajectory pairwise distances and visualizes clustering of structural changes.
+    - Produces a figure with PCA projection, cluster analysis, and KDE plots.
+    """
     if scatter_color not in {'time', 'geo'}:
         raise ValueError("`scatter_color` must be 'time' or 'geo'")
 
