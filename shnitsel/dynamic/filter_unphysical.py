@@ -41,7 +41,7 @@ def mol_from_atXYZ(atXYZ_frame, charge=0, covFactor=1.5, to2D=True):
         mol, charge=charge, useVdw=True, covFactor=covFactor
     )
     if to2D:
-        AllChem.Compute2DCoords(mol)
+        AllChem.Compute2DCoords(mol)  # type: ignore
     return mol
 
 def max_bond_lengths(atXYZ, elem1=1, elem2=6):
@@ -88,8 +88,8 @@ def exclude_overlong(frames, cutoff=2):
 def find_eccentric(atXYZ, maskfn=None):
     if not isinstance(atXYZ, xr.DataArray):
         raise TypeError()
-    noodle = P.pairwise_dists_pca(atXYZ)
-    noodle = noodle.to_dataset('PC').rename({0: 'PC1', 1: 'PC2'})
+    noodle_da = P.pairwise_dists_pca(atXYZ)
+    noodle = noodle_da.to_dataset('PC').rename({0: 'PC1', 1: 'PC2'})
     maskfn = maskfn or (lambda data: data.PC1**2 + data.PC2**2 > 1.5)
     mask = maskfn(noodle)
     return np.unique(noodle.sel(frame=mask).trajid)
@@ -105,7 +105,9 @@ def filter_cleavage(frames, *, CC=False, CH=False, verbose=2):
     try:
         from IPython.display import display, Image
     except ImportError:
-        skip_show = True
+        can_show = True
+    else:
+        can_show = False
 
     def show(elem1, elem2):
         mol = numbered_smiles_to_mol(frames.atXYZ.attrs['smiles_map'])
@@ -116,7 +118,8 @@ def filter_cleavage(frames, *, CC=False, CH=False, verbose=2):
         overlong = find_overlong(frames.atXYZ, elem1, elem2, cutoff=cutoff)
         if verbose:
             print(f"Found following {descr} bonds:")
-            show(elem1, elem2)
+            if can_show:
+                show(elem1, elem2)
             ntraj = len(np.unique(overlong))
             nframes = xh.sel_trajids(frames, overlong).sizes['frame']
             print(
