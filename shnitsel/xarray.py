@@ -174,7 +174,7 @@ class DSShnitselAccessor(ShnitselAccessor):
                 and (rname is None or rname == ds.name)
                 and (ratks is None or ratks <= atkeys)
                 and (ratd is None or all(ratd[k] == ds.attrs[k] for k in ratd))
-                and (xdims is None or (xdims & dims == {}))
+                and (xdims is None or (xdims.isdisjoint(dims)))
             ):
                 setattr(self, name, self._make_method(func))
                 self._methods.append(name)
