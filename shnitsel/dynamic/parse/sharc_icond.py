@@ -187,7 +187,7 @@ def read_iconds(pathlist, index=None):
     nstates, natoms = check_dims(pathlist)
     logging.info("Allocating Dataset for ICONDs")
     if index is None:
-        index = [p.index for p in pathlist]
+        index = [p.idx for p in pathlist]
     iconds = init_iconds(index, nstates, natoms)
     logging.info("Reading ICONDs data into Dataset...")
 
