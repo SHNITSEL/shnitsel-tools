@@ -1,11 +1,27 @@
 import shnitsel as sh
 import shnitsel.xarray
 import xarray as xr
+import pytest
 
 
-def test_da_accessors():
-    # frames = sh.dynamic.ase.read_ase_db('/nc/SHNITSEL-data/old_CH2NH2.db')
-    frames = sh.open_frames('/nc/SHNITSEL_databases/dynamic/A01_ethene_dynamic.nc')
+@pytest.fixture
+def traj_butene():
+    frames = sh.dynamic.parse.read_trajs(
+        'tutorials/test_data/sharc/traj_butene', kind='sharc'
+    )
+    return frames
+
+
+@pytest.fixture
+def iconds_butene():
+    iconds = sh.dynamic.parse.sharc_icond.dirs_of_iconds(
+        'tutorials/test_data/sharc/iconds_butene'
+    )
+    return iconds
+
+
+def test_da_accessors(traj_butene):
+    frames = sh.dynamic.postprocess.ts_to_time(traj_butene)
     e_step = frames.energy.sh.sudi()
     assert isinstance(e_step, xr.DataArray)
     xyz = frames.atXYZ.isel(frame=0).squeeze().sh.to_xyz()
@@ -20,5 +36,9 @@ def test_da_accessors():
     # astatesh = frames.astate.sh
 
 
-if __name__ == '__main__':
-    test_da_accessors()
+def test_ds_accessors(traj_butene, iconds_butene):
+    assert 'ts_to_time' in dir(traj_butene.sh)
+    frames = traj_butene.sh.ts_to_time()
+    assert 'time_grouped_ci' in dir(frames.sh)
+    # TODO Add more methods
+    assert 'iconds_to_frames' in dir(iconds_butene.sh)
