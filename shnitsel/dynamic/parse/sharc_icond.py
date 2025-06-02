@@ -6,7 +6,7 @@ import os
 import re
 import math
 from itertools import product, combinations
-from glob import iglob
+from glob import glob
 from typing import NamedTuple, Any
 from tqdm.auto import tqdm
 from .common import (
@@ -32,11 +32,18 @@ def nans(*dims):
     return np.full(dims, np.nan)
 
 
-def list_iconds(iconds_path='./iconds/'):
+def list_iconds(iconds_path='./iconds/', glob_expr='**/ICOND_*'):
+    dirs = glob(glob_expr, recursive=True, root_dir=iconds_path)
+    if len(dirs) == 0:
+        raise FileNotFoundError(
+            f"The search '{glob_expr}' didn't match any directories "
+            f"under {iconds_path=} "
+            f"relative to working directory '{os.getcwd()}'"
+        )
     names = sorted(
         [
             name
-            for name in iglob('**/ICOND_0*', recursive=True, root_dir=iconds_path)
+            for name in dirs
             if 'QM.out' in os.listdir(os.path.join(iconds_path, name))
         ]
     )
