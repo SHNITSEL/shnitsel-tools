@@ -257,6 +257,40 @@ def relativize(da: xr.DataArray, **sel) -> xr.DataArray:
     res.attrs = da.attrs
     return res
 
+
+def setup_frames(
+    ds: xr.Dataset,
+    *,
+    to_time: bool | None = None,
+    convert_to_eV: bool | None = None,
+    relativize_energy: bool | None = None,
+    relativize_selector=None,
+) -> xr.Dataset:
+    match to_time, 'time' in ds.coords, 'ts' in ds.coords:
+        case True, False, _:
+            raise ValueError("Timestep coordinate has already been converted to time")
+        case True, True, False:
+            raise ValueError("No 'ts' coordinate in Dataset")
+        case (None, True, True) | (True, True, True):
+            ds = ts_to_time(ds)
+
+    match convert_to_eV, ds['energy'].attrs.get('units') != 'eV':
+        case True, False:
+            raise ValueError("Energy is already in eV")
+        case (True, True) | (None, True):
+            assert 'energy' in ds.data_vars
+            ds = ds.assign({'energy': convert_energy(ds['energy'], 'eV')})
+
+    match relativize_energy, ds['energy'].min().item() != 0:
+        case True, False:
+            raise ValueError("Energy is already relativized")
+        case (True, True) | (None, True):
+            assert 'energy' in ds.data_vars
+            ds = ds.assign({'energy': relativize(ds['energy'], **relativize_selector)})
+
+    return ds
+
+
 def convert(
     da: xr.DataArray, to: str, quantity: str, conversions: dict
 ) -> xr.DataArray:

@@ -79,6 +79,7 @@ DS_METHODS: dict[str, M2] = {
     'pca_and_hops': M2(P.pca_and_hops, required_vars={'atXYZ', 'astate'}),
     'validate': M2(P.validate),
     'ts_to_time': M2(P.ts_to_time, required_coords={'ts'}),
+    'setup_frames': M2(P.relativize_energy),
     'assign_fosc': M2(P.assign_fosc, required_vars={'energy', 'dip_trans'}),
     'broaden_gauss': M2(
         P.ds_broaden_gauss, required_vars={'energy', 'fosc'}
