@@ -427,3 +427,12 @@ def parse_QM_out(f, out: (xr.Dataset | None) = None):
         # all the data has already been written to `out`
         # no need to return anything
         return None
+
+def iconds_to_frames(iconds: xr.Dataset):
+    return (
+        iconds.rename_dims(icond='trajid')
+        .rename_vars(icond='trajid')
+        .expand_dims('time')
+        .assign_coords(time=('time', [0.0]))
+        .stack(frame=['trajid', 'time'])
+    )

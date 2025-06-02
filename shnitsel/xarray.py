@@ -2,7 +2,7 @@ from collections import namedtuple
 from itertools import chain
 
 import xarray as xr
-from .dynamic import postprocess as P, xrhelpers
+from .dynamic import postprocess as P, xrhelpers, parse
 
 M = namedtuple(
     'M',
@@ -19,7 +19,8 @@ M = namedtuple(
 )
 
 DA_METHODS: dict[str, M] = {
-    ## From postprocess:
+    ###################
+    # From postprocess:
     'norm': M(P.norm),
     'subtract_combinations': M(P.subtract_combinations),
     'pca': M(P.pca),
@@ -46,8 +47,8 @@ DA_METHODS: dict[str, M] = {
     # Do not include legacy functions pca_for_plot() or changes(). NB. changes expects astate to be a coord
     # Do not include functions that expect multiple DataArrays: broaden_gauss(), dcross(), ddot(), dnorm()
     # Do not include functions that expect an ndarrayNOT calc_ci NOR ci_agg_last_dim: EXCLUDE because takes ndarray
-    #
-    ## From xrhelpers:
+    #################
+    # From xrhelpers:
     'sel_trajs': M(xrhelpers.sel_trajs, {'frame'}),
 }
 
@@ -73,6 +74,8 @@ M2 = namedtuple(
 )
 
 DS_METHODS: dict[str, M2] = {
+    ###################
+    # From postprocess:
     'pca_and_hops': M2(P.pca_and_hops, required_vars={'atXYZ', 'astate'}),
     'validate': M2(P.validate),
     'ts_to_time': M2(P.ts_to_time, required_coords={'ts'}),
@@ -87,9 +90,18 @@ DS_METHODS: dict[str, M2] = {
         P.time_grouped_ci, required_coords={'time'}, required_dims={'frame'}
     ),
     'find_hops': M2(P.find_hops, required_coords={'trajid'}, required_vars={'astate'}),
-    ## From xrhelpers:
+    #################
+    # From xrhelpers:
     'save_frames': M2(xrhelpers.save_frames),
     'sel_trajs': M2(xrhelpers.sel_trajs, required_dims={'frame'}),
+    ########################
+    # From parse.sharc_icond:
+    'iconds_to_frames': M2(
+        parse.sharc_icond.iconds_to_frames,
+        required_dims={'icond'},
+        required_coords={'icond'},
+        incompatible_dims={'time'},
+    ),
 }
 
 
