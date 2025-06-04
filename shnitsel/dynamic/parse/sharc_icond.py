@@ -55,6 +55,7 @@ def dims_from_QM_out(f):
     # faced with redundancy, use it to ensure consistency
     nstates = ConsistentValue('nstates')
     natoms = ConsistentValue('natoms')
+    found_natoms = False
 
     for index, line in enumerate(f):
         if line.startswith("! 1 Hamiltonian Matrix"):
@@ -70,6 +71,9 @@ def dims_from_QM_out(f):
             info = _re_nacs.search(line)
             assert info is not None
             nstates.v, natoms.v = map(int, info.group('nstates', 'natoms'))
+
+    if not found_natoms:
+        natoms.v = 0
 
     return nstates.v, natoms.v
 
@@ -114,6 +118,16 @@ def init_iconds(indices, nstates, natoms, **res):
         'nacs': ['statecomb', 'atom', 'direction'],
         'atXYZ': ['atom', 'direction'],
     }
+
+    if natoms == 0:
+        # This probably means that check_dims() couldn't find natoms,
+        # so we don't expect properties with an atom dimension.
+
+        del template['forces']
+        del template['nacs']
+
+        # On the other hand, we don't worry about not knowing nstates,
+        # because energy is always written.
 
     if indices is not None:
         niconds = len(indices)
