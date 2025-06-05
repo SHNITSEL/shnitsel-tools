@@ -30,11 +30,11 @@ from .plot.structure import plot_structure, xyz_to_mol
 class Datasheet:
     def __init__(
         self,
+        frames: xr.Dataset | None = None,
         *,
         path: str | None = None,
-        frames: xr.Dataset | None = None,
         copy_data: Self | None = None,
-        spectra_times: list[int | float] | None = None,
+        spectra_times: list[int | float] | np.ndarray | None = None,
         col_state: list | None = None,
         col_inter: list | None = None,
     ):
@@ -53,7 +53,9 @@ class Datasheet:
         elif path is not None:
             self.frames = xh.open_frames(path)
         else:
-            warning("Neither path nor frames given, please set frames manually")
+            raise TypeError("Neither path nor frames given.")
+
+        assert isinstance(frames, xr.Dataset)
 
         if spectra_times is not None:
             self.spectra_times = spectra_times
@@ -65,17 +67,21 @@ class Datasheet:
             self.spectra_times += [max_time * i / 20 for i in range(5)]
             self.spectra_times += [max_time * i / 3 for i in range(4)]
 
+        nstates = frames.sizes['state']
         if col_state is not None:
-            assert (ncols := len(col_state)) == (nstates := frames.sizes['state']), (
+            assert (ncols := len(col_state)) == nstates, (
                 f"`col_state` has {ncols} colors, "
                 f"but should contain one color for each of the {nstates} states"
             )
             self.col_state = col_state
-        elif (s := self.frames.sizes['state']) <= 3:
+        elif nstates <= 3:
             self.col_state = ['#4DAD15', '#AD2915', '#7515AD'][:s]  # SHNITSEL-colours
-        elif s <= 10:
+        elif nstates <= 10:
             cmap = plt.get_cmap('tab10')
-            self.col_state = [mpl.colors.rgb2hex(c) for c in cmap.colors][:s]
+            self.col_state = [mpl.colors.rgb2hex(c) for c in cmap.colors][:nstates]  # type: ignore
+        elif nstates <= 20:
+            cmap = plt.get_cmap('tab20')
+            self.col_state = [mpl.colors.rgb2hex(c) for c in cmap.colors][:nstates]  # type: ignore
         else:
             raise ValueError(
                 f"These data have {nstates} states. "
@@ -83,17 +89,22 @@ class Datasheet:
                 "also pass an appropriate colormap to `col_state`."
             )
 
+        ncombs = frames.sizes['statecomb']
         if col_inter is not None:
-            assert (ncols := len(col_inter)) == (ncombs := frames.sizes['statecomb']), (
+            assert (ncols := len(col_inter)) == ncombs, (
                 f"`col_inter` has {ncols} colors, "
                 f"but should contain one color for each of the {ncombs} state combinations"
             )
-        elif (s := self.frames.sizes['statecomb']) <= 3:
-            self.col_inter = col_inter or ['#2c3e50', '#C4A000', '#7E5273'][:s]
-        elif s <= 10:
+            self.col_inter = col_inter
+        elif ncombs <= 3:
+            self.col_inter = col_inter or ['#2c3e50', '#C4A000', '#7E5273'][:ncombs]
+        elif ncombs <= 10:
             # TODO: choose colours distinct from per_state colours
             cmap = plt.get_cmap('tab10')
-            self.col_inter = [mpl.colors.rgb2hex(c) for c in cmap.colors][:s]
+            self.col_inter = [mpl.colors.rgb2hex(c) for c in cmap.colors][:ncombs]  # type: ignore
+        elif ncombs <= 20:
+            cmap = plt.get_cmap('tab20')
+            self.col_inter = [mpl.colors.rgb2hex(c) for c in cmap.colors][:ncombs]  # type: ignore
         else:
             raise ValueError(
                 f"These data have {ncombs} state combinations. "
@@ -122,7 +133,7 @@ class Datasheet:
 
         return None
 
-    spectra_times: np.ndarray
+    spectra_times: list[int | float] | np.ndarray | None
     charge: int = 0
     structure_skeletal: bool = False
     name: str = ''
