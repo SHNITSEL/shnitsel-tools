@@ -286,6 +286,8 @@ def setup_frames(
             raise ValueError("Energy is already relativized")
         case (True, True) | (None, True):
             assert 'energy' in ds.data_vars
+            if relativize_selector is None:
+                relativize_selector = {}
             ds = ds.assign({'energy': relativize(ds['energy'], **relativize_selector)})
 
     return ds
