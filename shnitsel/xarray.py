@@ -95,6 +95,7 @@ DS_METHODS: dict[str, M2] = {
     # From xrhelpers:
     'save_frames': M2(xrhelpers.save_frames),
     'sel_trajs': M2(xrhelpers.sel_trajs, required_dims={'frame'}),
+    'expand_midx': M2(xrhelpers.expand_midx),
     ########################
     # From parse.sharc_icond:
     'iconds_to_frames': M2(
