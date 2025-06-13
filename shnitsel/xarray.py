@@ -2,7 +2,7 @@ from collections import namedtuple
 from itertools import chain
 
 import xarray as xr
-from .dynamic import postprocess as P, xrhelpers, parse
+from .dynamic import postprocess as P, xrhelpers, parse, plot
 
 M = namedtuple(
     'M',
@@ -102,6 +102,13 @@ DS_METHODS: dict[str, M2] = {
         required_dims={'icond'},
         required_coords={'icond'},
         incompatible_dims={'time'},
+    ),
+    #####################
+    # From plot.spectra3d
+    'spectra_all_times': M2(
+        plot.spectra3d.spectra_all_times,
+        required_vars={'energy', 'fosc'},
+        required_coords={'frame', 'trajid'},
     ),
 }
 
