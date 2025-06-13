@@ -105,9 +105,9 @@ def filter_cleavage(frames, *, CC=False, CH=False, verbose=2):
     try:
         from IPython.display import display, Image
     except ImportError:
-        can_show = True
-    else:
         can_show = False
+    else:
+        can_show = True
 
     def show(elem1, elem2):
         mol = numbered_smiles_to_mol(frames.atXYZ.attrs['smiles_map'])
