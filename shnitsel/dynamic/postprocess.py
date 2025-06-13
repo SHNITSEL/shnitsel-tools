@@ -266,7 +266,7 @@ def setup_frames(
     relativize_energy: bool | None = None,
     relativize_selector=None,
 ) -> xr.Dataset:
-    match to_time, 'time' in ds.coords, 'ts' in ds.coords:
+    match to_time, 'time' not in ds.coords, 'ts' in ds.coords:
         case True, False, _:
             raise ValueError("Timestep coordinate has already been converted to time")
         case True, True, False:
