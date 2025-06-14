@@ -53,9 +53,8 @@ def list_iconds(iconds_path='./iconds/', glob_expr='**/ICOND_*'):
 
 def dims_from_QM_out(f):
     # faced with redundancy, use it to ensure consistency
-    nstates = ConsistentValue('nstates')
-    natoms = ConsistentValue('natoms')
-    found_natoms = False
+    nstates = ConsistentValue('nstates', weak=True)
+    natoms = ConsistentValue('natoms', weak=True)
 
     for index, line in enumerate(f):
         if line.startswith("! 1 Hamiltonian Matrix"):
@@ -72,8 +71,31 @@ def dims_from_QM_out(f):
             assert info is not None
             nstates.v, natoms.v = map(int, info.group('nstates', 'natoms'))
 
-    if not found_natoms:
-        natoms.v = 0
+    return nstates.v, natoms.v
+
+
+def dims_from_QM_log(log):
+    nstates = ConsistentValue('nstates', weak=True)
+    natoms = ConsistentValue('natoms', weak=True)
+    for line in log:
+        if line.startswith('States:'):
+            linecont = line.strip().split()
+            if 'Singlet' in linecont and 'Triplet' not in linecont:
+                nsinglets = int(linecont[2])
+                ntriplets = 0
+            elif 'Singlet' in linecont and 'Triplet' in linecont:
+                nsinglets = int(linecont[1])
+                ntriplets = int(linecont[3])
+            elif 'Triplet' in linecont and 'Singlet' not in linecont:
+                ntriplets = int(linecont[2])
+                nsinglets = 0
+
+            # calculate total number of states
+            nstates.v = nsinglets + (3 * ntriplets)
+
+        elif line.startswith('Found Geo!'):
+            linecont = re.split(' ', line.strip())
+            natoms.v = int(linecont[-1][0:-1])
 
     return nstates.v, natoms.v
 
@@ -81,11 +103,16 @@ def dims_from_QM_out(f):
 def check_dims(pathlist):
     if len(pathlist) == 0:
         raise ValueError("pathlist is empty")
-    nstates = ConsistentValue('nstates')
-    natoms = ConsistentValue('natoms')
+    nstates = ConsistentValue('nstates', ignore_none=True)
+    natoms = ConsistentValue('natoms', ignore_none=True)
     for _, path in pathlist:
-        with open(os.path.join(path, 'QM.out')) as f:
-            nstates.v, natoms.v = dims_from_QM_out(f)
+        try:
+            with open(os.path.join(path, 'QM.out')) as f:
+                nstates.v, natoms.v = dims_from_QM_out(f)
+            with open(os.path.join(path, 'QM.log')) as f:
+                nstates.v, natoms.v = dims_from_QM_log(f)
+        except FileNotFoundError:
+            pass
     return nstates.v, natoms.v
 
 
@@ -383,8 +410,8 @@ def parse_QM_out(f, out: (xr.Dataset | None) = None):
             res['nacs'][:] = get_triangular(nacs_all)
 
         elif line.startswith('! 6 Overlap matrix'):
-            # TODO!!!
             nlines = int(re.split(' +', next(f).strip())[0])
+            assert nlines == nstates.v
 
             found_overlap = False
             phasevector = np.ones((nlines))
@@ -392,7 +419,7 @@ def parse_QM_out(f, out: (xr.Dataset | None) = None):
             wvoverlap = np.zeros((nlines, nlines))
             for j in range(nlines):
                 linecont = [float(n) for n in re.split(' +', next(f).strip())]
-                vec = [n for n in linecont if n != 0.0]
+                vec = [n for n in linecont[::2]]
                 assert len(vec) == nlines
                 wvoverlap[j] = vec
 
@@ -443,6 +470,18 @@ def parse_QM_out(f, out: (xr.Dataset | None) = None):
         return None
 
 def iconds_to_frames(iconds: xr.Dataset):
+    for name, var in iconds.data_vars.items():
+        shape = var.data.shape
+        if 0 in shape:
+            raise ValueError(
+                f"Variable '{name}' has shape {shape} which contains 0. "
+                "Please remove this variable before converting to frames. "
+                "Note: An empty variable could indicate a problem with parsing."
+            )
+
+    if 'atNames' in iconds.data_vars and 'atNames' not in iconds.coords:
+        iconds = iconds.assign_coords(atNames=iconds.atNames)
+
     return (
         iconds.rename_dims(icond='trajid')
         .rename_vars(icond='trajid')

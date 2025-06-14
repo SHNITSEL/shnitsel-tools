@@ -104,19 +104,25 @@ class ConsistentValue():
     defined = False
     _val = None
     name = "ConsistentValue"
-    
-    def __init__(self, name):
+
+    def __init__(self, name, weak=False, ignore_none=False):
         self.name = name
+        self._weak = weak
+        self._ignore_none = ignore_none
 
     @property
     def v(self):
         if self.defined:
             return self._val
-        else:
-            raise AttributeError(f"{self.name}.v accessed before assignment")
+        elif self._weak:
+            return None
+        raise AttributeError(f"{self.name}.v accessed before assignment")
 
     @v.setter
     def v(self, new_val):
+        if self._ignore_none and new_val is None:
+            return
+
         if self.defined and new_val != self._val:
             raise ValueError(
 f"""inconsistent assignment to {self.name}:
@@ -124,6 +130,6 @@ f"""inconsistent assignment to {self.name}:
     new value:  {type(new_val).__name__} = {repr(new_val)}
 """
             )
-        else:
-            self.defined = True
-            self._val = new_val
+
+        self.defined = True
+        self._val = new_val
