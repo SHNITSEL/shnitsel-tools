@@ -36,6 +36,32 @@ def flatten_midx(ds, idx_name, renamer=None):
         fidx = [renamer(x, y) for x,y in fidx]
     return ds.drop_vars(to_drop).assign_coords({idx_name: fidx})
 
+def flatten_levels(obj, idx_name, levels, new_name=None, position=0, renamer=None):
+    dims = obj.coords[idx_name].dims
+    if len(dims) != 1:
+        raise ValueError(
+            f"Expected index '{idx_name}' to be associated with one dimension, "
+            f"but it is associated with {len(dims)} dimensions: {dims}."
+        )
+    dim = dims[0]
+    old = obj.indexes[idx_name]
+    if new_name is None:
+        new_name = levels[-1]
+    df = old.to_frame().drop(columns=levels)
+
+    # Construct flat index with only the specified levels:
+    for level in old.names:
+        if level not in levels:
+            old = old.droplevel(level)
+    fidx = old.to_flat_index()
+
+    if renamer is not None:
+        fidx = [renamer(x, y) for x, y in fidx]
+    df.insert(position, new_name, fidx)
+    new = pd.MultiIndex.from_frame(df)
+    return obj.drop_vars(idx_name).assign_coords({idx_name: (dim, new)})
+
+
 def expand_midx(ds, midx_name, level_name, value):
     midx = ds.indexes[midx_name]
     to_drop = [midx.name] + midx.names
