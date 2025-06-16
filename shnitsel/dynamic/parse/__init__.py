@@ -41,16 +41,23 @@ def _default_idfn(path):
 _idfn = _default_idfn
 _read_traj: Callable
 
+READERS = {
+    'nx': nx.read_traj,
+    'sharc': sharc_traj.read_traj,
+    'pyrai2md': pyrai2md.read_traj,
+}
+
 
 def read_trajs_list(paths, kind, idfn=None, sort=True):
     global _default_idfn
     if idfn is None:
         idfn = _default_idfn
 
-    if kind == 'nx':
-        read_traj = nx.read_traj
-    elif kind == 'sharc':
-        read_traj = sharc_traj.read_traj
+    if kind not in READERS:
+        raise ValueError(
+            f"'kind' should be one of {list(READERS)}, rather than '{kind}'"
+        )
+    read_traj = READERS[kind]
 
     datasets = []
     with logging_redirect_tqdm():
@@ -176,10 +183,11 @@ def read_trajs_parallel(paths, kind, idfn=None, sort=True):
     else:
         _idfn = idfn
 
-    if kind == 'nx':
-        _read_traj = nx.read_traj
-    elif kind == 'sharc':
-        _read_traj = sharc_traj.read_traj
+    if kind not in READERS:
+        raise ValueError(
+            f"'kind' should be one of {list(READERS)}, rather than '{kind}'"
+        )
+    _read_traj = READERS[kind]
 
     with ProcessPoolExecutor(max_workers=os.cpu_count()) as executor:
         res = list(executor.map(_per_traj, paths))
