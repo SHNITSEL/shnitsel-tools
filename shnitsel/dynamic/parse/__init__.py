@@ -309,7 +309,8 @@ def read_trajs(path, kind, glob_suffix='TRAJ*', format='frames', parallel=False)
     if len(paths) == 0:
         raise FileNotFoundError(
             f"The search '{glob_expr}' didn't match any paths "
-            f"in working directory '{os.getcwd()}'"
+            f"under path '{path}' "
+            f"given working directory '{os.getcwd()}'"
         )
     if parallel:
         datasets = read_trajs_parallel(paths, kind)
