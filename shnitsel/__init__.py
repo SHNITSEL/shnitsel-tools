@@ -3,7 +3,7 @@ from . import (
     dynamic as dynamic,
     plot as plot,
 )
-from .dynamic import parse as parse
+from .dynamic import parse as parse, postprocess as postprocess, xrhelpers as xrhelpers
 from .dynamic.xrhelpers import (
     open_frames as open_frames,
     save_frames as save_frames,
