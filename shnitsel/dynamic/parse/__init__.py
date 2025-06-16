@@ -238,7 +238,7 @@ def read_trajs_parallel(paths, kind, idfn=None, sort=True):
     return datasets
 
 
-def gather_traj_metadata(datasets):
+def gather_traj_metadata(datasets, time_dim='ts'):
     traj_meta = np.zeros(
         len(datasets),
         dtype=[
@@ -255,19 +255,29 @@ def gather_traj_metadata(datasets):
         traj_meta['delta_t'][i] = ds.attrs['delta_t']
         traj_meta['max_ts'][i] = ds.attrs['max_ts']
         traj_meta['completed'][i] = ds.attrs['completed']
-        traj_meta['nsteps'][i] = len(ds.indexes['ts'])
+        traj_meta['nsteps'][i] = len(ds.indexes[time_dim])
 
     return traj_meta
 
 
 def concat_trajs(datasets):
+    if all('ts' in ds.coords for ds in datasets):
+        time_dim = 'ts'
+    elif all('time' in ds.coords for ds in datasets):
+        time_dim = 'time'
+    else:
+        ValueError(
+            "Some trajectories have coordinate 'ts', others 'time'. "
+            "Please resolve this inconsistency manually."
+        )
+
     datasets = [
-        ds.expand_dims(trajid=[ds.attrs['trajid']]).stack(frame=['trajid', 'ts'])
+        ds.expand_dims(trajid=[ds.attrs['trajid']]).stack(frame=['trajid', time_dim])
         for ds in datasets
     ]
 
     frames = xr.concat(datasets, dim='frame', combine_attrs='drop_conflicts')
-    traj_meta = gather_traj_metadata(datasets)
+    traj_meta = gather_traj_metadata(datasets, time_dim=time_dim)
     frames = frames.assign_coords(trajid_=traj_meta['trajid'])
     frames = frames.assign(
         delta_t=('trajid_', traj_meta['delta_t']),
