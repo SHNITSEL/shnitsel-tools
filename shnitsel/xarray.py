@@ -2,7 +2,7 @@ from collections import namedtuple
 from itertools import chain
 
 import xarray as xr
-from .dynamic import postprocess as P, xrhelpers, parse, plot
+from .dynamic import postprocess as P, xrhelpers, parse, plot, filter_unphysical
 
 M = namedtuple(
     'M',
@@ -34,7 +34,7 @@ DA_METHODS: dict[str, M] = {
     'to_xyz': M(
         P.to_xyz,
         required_coords={'atNames'},
-        incompatible_dims={'frames'},
+        incompatible_dims={'frame'},
     ),
     'traj_to_xyz': M(
         P.traj_to_xyz, required_dims={'frame'}, required_coords={'atNames'}
@@ -50,6 +50,14 @@ DA_METHODS: dict[str, M] = {
     #################
     # From xrhelpers:
     'sel_trajs': M(xrhelpers.sel_trajs, {'frame'}),
+    'sel_trajids': M(xrhelpers.sel_trajids, {'frame'}),
+    #########################
+    # From filter_unphysical:
+    'smiles_map': M(
+        filter_unphysical.smiles_map,
+        required_dims={'atom'},
+        incompatible_dims={'frame'},
+    ),
 }
 
 CONVERTERS: dict[str, P.Converter] = {

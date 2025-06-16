@@ -141,6 +141,11 @@ def filter_cleavage(frames, *, CC=False, CH=False, verbose=2):
 
     return frames
 
+# TODO 2025-06-16: Does this function belong here?
+def smiles_map(atXYZ_frame, charge=0, covFactor=1.5) -> str:
+    mol = mol_from_atXYZ(atXYZ_frame, charge=charge, covFactor=covFactor, to2D=True)
+    return mol_to_numbered_smiles(mol)
+
 
 #########################
 # Non-geometric filtering
