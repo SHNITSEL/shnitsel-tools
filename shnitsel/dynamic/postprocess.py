@@ -613,24 +613,23 @@ def get_inter_state(frames: Frames) -> InterState:
     inter_state['statecomb'].attrs['long_name'] = "States"
     return inter_state
 
-def calc_pops(frames: Frames) -> xr.DataArray:
+def da_calc_pops(astates: xr.DataArray) -> xr.DataArray:
     """Fast way to calculate populations
     Requires states ids to be small integers
     """
-    data = frames['astate']
-    if -1 in frames['astate']:
+    if -1 in astates:
         warning(
-            "`frames['astate']` contains the placeholder value `-1`, "
+            "State data contain the placeholder value `-1`, "
             "indicating missing state information.  "
             "The frames in question will be excluded from the "
             "population count altogether."
         )
-        data = data.sel(frame=(data != -1))
-    nstates=frames.sizes['state']
+        astates = astates.sel(frame=(astates != -1))
+    nstates = astates.sizes['state']
     # zero_or_one = int(frames.coords['state'].min())
     zero_or_one = 1  # TODO: For now, assume lowest state is 1
     assert zero_or_one in {0,1}
-    pops = data.groupby('time').map(
+    pops = astates.groupby('time').map(
         lambda group: xr.apply_ufunc(
             lambda values: np.bincount(values, minlength=nstates + zero_or_one)[
                 zero_or_one:
@@ -641,6 +640,12 @@ def calc_pops(frames: Frames) -> xr.DataArray:
         )
     )
     return pops / pops.sum('state')
+
+def calc_pops(frames: Frames) -> xr.DataArray:
+    # xr.Dataset variant of the above.
+    # This function exists for compatibility with Datasheet etc.
+    return da_calc_pops(frames['astate'])
+
 
 #####################################################
 # For calculating confidence intervals, the following

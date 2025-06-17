@@ -30,6 +30,12 @@ DA_METHODS: dict[str, M] = {
     'relativize': M(P.relativize),
     'ts_to_time': M(P.ts_to_time, required_coords={'ts'}),
     'keep_norming': M(P.keep_norming),
+    'calc_pops': M(
+        P.da_calc_pops,  # name differs!
+        required_dims={'frame'},
+        required_coords={'time'},
+        required_name='astate',
+    ),
     'calc_ci': M(P.xr_calc_ci),  # name differs!
     'time_grouped_ci': M(
         P.time_grouped_ci, required_coords={'time'}, required_dims={'frame'}
