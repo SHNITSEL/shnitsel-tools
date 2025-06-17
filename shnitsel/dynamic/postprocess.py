@@ -673,7 +673,7 @@ def xr_calc_ci(a: xr.DataArray, dim: DimName, confidence: float = 0.95) -> xr.Da
     ).to_dataset('bound')
 
 
-def time_grouped_ci(x: xr.Dataset, confidence: float = 0.9):
+def time_grouped_ci(x: xr.DataArray, confidence: float = 0.9):
     return (
       x.groupby('time')
       .map(lambda x: xr_calc_ci(x, dim='frame', confidence=confidence)))
