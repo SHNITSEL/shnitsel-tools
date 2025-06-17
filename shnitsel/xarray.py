@@ -30,12 +30,6 @@ DA_METHODS: dict[str, M] = {
     'relativize': M(P.relativize),
     'ts_to_time': M(P.ts_to_time, required_coords={'ts'}),
     'keep_norming': M(P.keep_norming),
-    'calc_pops': M(
-        P.da_calc_pops,  # name differs!
-        required_dims={'frame'},
-        required_coords={'time'},
-        required_name='astate',
-    ),
     'calc_ci': M(P.xr_calc_ci),  # name differs!
     'time_grouped_ci': M(
         P.time_grouped_ci, required_coords={'time'}, required_dims={'frame'}
@@ -103,7 +97,12 @@ DS_METHODS: dict[str, M2] = {
     ),  # name differs!
     'get_per_state': M2(P.get_per_state, required_dims={'state'}),
     'get_inter_state': M2(P.get_inter_state, required_dims={'statecomb'}),
-    # calc_pops: should really be a DataArray method; uses only the 'astate' variable, requires 'state' and 'frame' dims
+    'calc_pops': M2(
+        P.calc_pops,
+        required_dims={'frame', 'state'},
+        required_coords={'time'},
+        required_vars={'astate'},
+    ),
     'find_hops': M2(P.find_hops, required_coords={'trajid'}, required_vars={'astate'}),
     #################
     # From xrhelpers:
