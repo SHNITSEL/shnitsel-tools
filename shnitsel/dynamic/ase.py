@@ -1,6 +1,5 @@
 import os
 from typing import Collection
-from logging import warning
 
 from ase import Atoms
 from ase.db import connect
@@ -59,14 +58,44 @@ def write_ase_db(
             )
 
 
-def read_ase_db(db_path: str):
-    shapes = {
-        'energy': ['frame', 'state'],
-        'socs': ['frame', 'soc'],
-        'forces': ['frame', 'state', 'atom', 'direction'],
-        'nacs': ['frame', 'statecomb', 'atom', 'direction'],
-        'dipoles': ['frame', 'state_or_statecomb', 'direction'],
-    }
+def read_ase_db(db_path: str, kind: str):
+    """Reads an ASE DB containing data in the SPaiNN or SchNet format
+
+    Parameters
+    ----------
+    db_path
+        Path to the database
+    kind
+        Must be one of 'spainn' or 'schnet'; determines interpretation of array shapes
+
+    Returns
+    -------
+        An `xr.Dataset` of frames
+
+    Raises
+    ------
+    ValueError
+        If `kind` is not one of 'spainn' or 'schnet'
+    FileNotFoundError
+        If `db_path` is not a file
+    """
+    if kind == 'schnet':
+        shapes = {
+            'energy': ['frame', 'state'],
+            'socs': ['frame', 'soc'],
+            'forces': ['frame', 'state', 'atom', 'direction'],
+            'nacs': ['frame', 'statecomb', 'atom', 'direction'],
+            'dipoles': ['frame', 'state_or_statecomb', 'direction'],
+        }
+    elif kind == 'spainn':
+        shapes = {
+            'energy': ['frame', 'tmp', 'state'],  # Note the extra dim, removed below
+            'forces': ['frame', 'atom', 'state', 'direction'],
+            'nacs': ['frame', 'atom', 'statecomb', 'direction'],
+            'dipoles': ['frame', 'state_or_statecomb', 'direction'],
+        }
+    else:
+        raise ValueError(f"'kind' should be one of 'schnet' or 'spainn', not '{kind}'")
 
     if not os.path.isfile(db_path):
         raise FileNotFoundError(db_path)
@@ -95,15 +124,9 @@ def read_ase_db(db_path: str):
         data_vars['dip_perm'] = ['frame', 'state', 'direction'], dip_perm
         data_vars['dip_trans'] = ['frame', 'statecomb', 'direction'], dip_trans
 
-    energy = data_vars['energy'][1]
-    if len(energy.shape) > 2:
-        warning(
-            f"The 'energy' variable has excess dimensions: {energy.shape=} "
-            "Trying squeeze() to remove them."
-        )
-        energy = np.squeeze(energy)
-        warning(f"New shape: {energy.shape=}")
-        data_vars['energy'] = (data_vars['energy'][0], energy, *data_vars['energy'][2:])
-
     frames = xr.Dataset(data_vars).assign_coords(atNames=atNames)
+    if kind == 'spainn':
+        assert 'tmp' in frames.dims
+        frames = frames.squeeze('tmp')
+
     return frames
