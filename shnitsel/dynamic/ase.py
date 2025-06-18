@@ -36,11 +36,28 @@ def _prepare_for_write(frames: xr.Dataset) -> xr.Dataset:
 def write_ase_db(
     frames: xr.Dataset,
     db_path: str,
+    kind: str | None,
     keys: Collection | None = None,
     preprocess: bool = True,
 ):
     if preprocess:
         frames = _prepare_for_write(frames)
+
+    statedims = ['state', 'statecomb', 'state_or_statecomb']
+    if kind == 'schnet':
+        order = ['frame', *statedims, 'atom', 'direction']
+        frames = frames.transpose(*order, missing_dims='ignore')
+    elif kind == 'spainn':
+        frames['energy'] = frames['energy'].expand_dims('tmp', axis=1)
+        order = ['frame', 'tmp', 'atom', *statedims, 'direction']
+        frames = frames.transpose(*order, missing_dims='ignore')
+    elif kind is None:
+        # leave the axis orders as they are
+        pass
+    else:
+        raise ValueError(
+            f"'kind' should be one of 'schnet', 'spainn' or None, not '{kind}'"
+        )
 
     if os.path.exists(db_path):
         os.remove(db_path)
@@ -82,7 +99,6 @@ def read_ase_db(db_path: str, kind: str):
     if kind == 'schnet':
         shapes = {
             'energy': ['frame', 'state'],
-            'socs': ['frame', 'soc'],
             'forces': ['frame', 'state', 'atom', 'direction'],
             'nacs': ['frame', 'statecomb', 'atom', 'direction'],
             'dipoles': ['frame', 'state_or_statecomb', 'direction'],
