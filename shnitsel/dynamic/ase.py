@@ -1,9 +1,11 @@
 import os
+from typing import Collection
+from logging import warning
+
 from ase import Atoms
 from ase.db import connect
 import numpy as np
 import xarray as xr
-from typing import Collection
 
 
 def _prepare_for_write(frames: xr.Dataset) -> xr.Dataset:
@@ -92,6 +94,16 @@ def read_ase_db(db_path: str):
 
         data_vars['dip_perm'] = ['frame', 'state', 'direction'], dip_perm
         data_vars['dip_trans'] = ['frame', 'statecomb', 'direction'], dip_trans
+
+    energy = data_vars['energy'][1]
+    if len(energy.shape) > 2:
+        warning(
+            f"The 'energy' variable has excess dimensions: {energy.shape=} "
+            "Trying squeeze() to remove them."
+        )
+        energy = np.squeeze(energy)
+        warning(f"New shape: {energy.shape=}")
+        data_vars['energy'] = (data_vars['energy'][0], energy, *data_vars['energy'][2:])
 
     frames = xr.Dataset(data_vars).assign_coords(atNames=atNames)
     return frames
