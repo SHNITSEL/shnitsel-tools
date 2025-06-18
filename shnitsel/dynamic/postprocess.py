@@ -640,7 +640,8 @@ def calc_pops(frames: Frames) -> xr.DataArray:
             output_core_dims=[['state']],
         )
     )
-    return pops / pops.sum('state')
+    return (pops / pops.sum('state')).assign_coords(state=frames['state'])
+
 
 #####################################################
 # For calculating confidence intervals, the following
