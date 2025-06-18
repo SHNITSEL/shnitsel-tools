@@ -52,6 +52,7 @@ DA_METHODS: dict[str, M] = {
     # Do not include functions that expect an ndarrayNOT calc_ci NOR ci_agg_last_dim: EXCLUDE because takes ndarray
     #################
     # From xrhelpers:
+    'flatten_levels': M(xrhelpers.flatten_levels),
     'sel_trajs': M(xrhelpers.sel_trajs, {'frame'}),
     'sel_trajids': M(xrhelpers.sel_trajids, {'frame'}),
     #########################
@@ -106,9 +107,10 @@ DS_METHODS: dict[str, M2] = {
     'find_hops': M2(P.find_hops, required_coords={'trajid'}, required_vars={'astate'}),
     #################
     # From xrhelpers:
+    'flatten_levels': M2(xrhelpers.flatten_levels),
+    'expand_midx': M2(xrhelpers.expand_midx),
     'save_frames': M2(xrhelpers.save_frames),
     'sel_trajs': M2(xrhelpers.sel_trajs, required_dims={'frame'}),
-    'expand_midx': M2(xrhelpers.expand_midx),
     ########################
     # From parse.sharc_icond:
     'iconds_to_frames': M2(
