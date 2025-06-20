@@ -10,6 +10,40 @@ import xarray as xr
 import numpy as np
 import pandas as pd
 
+def replace_total(
+    da: xr.DataArray, to_replace: np.ndarray | list, value: np.ndarray | list
+):
+    """Replaces each occurence of `to_replace` in `da` with the corresponding element of `value`.
+    Replacement must be total, i.e. every element of `da` must be in `to_replace`.
+    This permits a change of dtype between `to_replace` and `value`.
+    This function is based on the snippets at https://github.com/pydata/xarray/issues/6377
+
+    Parameters
+    ----------
+    da
+        An xr.DataArray
+    to_replace
+        Values to replace
+    value
+        Values with which to replace them
+
+    Returns
+    -------
+        An xr.DataArray with dtype matching `value`.
+    """
+    to_replace = np.array(to_replace)
+    value = np.array(value)
+    flat = da.values.ravel()
+
+    sorter = np.argsort(to_replace)
+    insertion = np.searchsorted(to_replace, flat, sorter=sorter)
+    indices = np.take(sorter, insertion, mode='clip')
+    replaceable = to_replace[indices] == flat
+
+    out = value[indices[replaceable]]
+    return da.copy(data=out.reshape(da.shape))
+
+
 def midx_combs(values: pd.core.indexes.base.Index|list, name: str|None =None):
     if name is None:
         try:
