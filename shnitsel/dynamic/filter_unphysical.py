@@ -101,7 +101,8 @@ def show_bonds_mol(mol, elem1, elem2, to2D):
     return pca_biplot.highlight_pairs(mol, pairs)
 
 
-def filter_cleavage(frames, *, CC=False, CH=False, verbose=2):
+# TODO: refactor -- different way of specifying which bonds
+def filter_cleavage(frames, *, CC=False, CH=False, CN=False, NH=False, verbose=2):
     try:
         from IPython.display import display, Image
     except ImportError:
@@ -133,6 +134,10 @@ def filter_cleavage(frames, *, CC=False, CH=False, verbose=2):
         act('C-C', 6, 6, 2.8)
     if CH:
         act('C-H', 1, 6, 1.7)
+    if CN:
+        act('C-N', 6, 7, 1.54 * 2)
+    if NH:
+        act('C-N', 1, 7, 1.056 * 2)
 
     if verbose:
         ntraj = len(np.unique(frames.trajid))
