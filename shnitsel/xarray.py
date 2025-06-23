@@ -2,7 +2,7 @@ from collections import namedtuple
 from itertools import chain
 
 import xarray as xr
-from .dynamic import postprocess as P, xrhelpers, parse, plot, filter_unphysical
+from .dynamic import postprocess as P, xrhelpers, parse, plot, filter_unphysical, filtre
 
 M = namedtuple(
     'M',
@@ -62,6 +62,13 @@ DA_METHODS: dict[str, M] = {
         required_dims={'atom'},
         incompatible_dims={'frame'},
     ),
+    ##############
+    # From filtre:
+    'last_time_where': M(  # TODO: add required_dtype exposure constraint
+        filtre.last_time_where,
+        required_dims={'frame'},
+        required_coords={'trajid', 'time'},
+    ),
 }
 
 CONVERTERS: dict[str, P.Converter] = {
@@ -119,12 +126,23 @@ DS_METHODS: dict[str, M2] = {
         required_coords={'icond'},
         incompatible_dims={'time'},
     ),
-    #####################
-    # From plot.spectra3d
+    ######################
+    # From plot.spectra3d:
     'spectra_all_times': M2(
         plot.spectra3d.spectra_all_times,
         required_vars={'energy', 'fosc'},
         required_coords={'frame', 'trajid'},
+    ),
+    ##############
+    # From filtre:
+    'energy_filtranda': M2(filtre.energy_filtranda, required_vars={'energy', 'e_kin'}),
+    'last_time_where': M2(  # name!
+        filtre.ds_last_time_where,
+        required_dims={'frame'},
+        required_coords={'trajid', 'time'},
+    ),
+    'truncate': M2(
+        filtre.truncate, required_dims={'frame'}, required_coords={'trajid', 'time'}
     ),
 }
 
