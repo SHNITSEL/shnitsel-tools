@@ -263,9 +263,41 @@ def setup_frames(
     *,
     to_time: bool | None = None,
     convert_to_eV: bool | None = None,
+    convert_e_kin_to_eV: bool | None = None,
     relativize_energy: bool | None = None,
     relativize_selector=None,
 ) -> xr.Dataset:
+    """Performs several frequent setup tasks.
+    Each task can be skipped (by setting the corresponding parameter to False),
+    carried out if appropriate (None), or forced in the sense that an error is
+    thrown if the task is redundant (True).
+
+
+    Parameters
+    ----------
+    ds
+        The frames-like xr.Dataset to setup.
+    to_time, optional
+        Whether to convert a 'ts' (timestep) coordinate to a 'time' coordinate, by default None
+    convert_to_eV, optional
+        Whether to convert the 'energy' variable to eV, by default None
+    convert_e_kin_to_eV, optional
+        Whether to convert the 'e_kin' (kinetic energy) variable to eV, by default None
+    relativize_energy, optional
+        Whether to relativize energies, by default None
+    relativize_selector, optional
+        This argument is passed to relativize, by default None
+
+    Returns
+    -------
+        A modified frames-like xr.Dataset
+
+    Raises
+    ------
+    ValueError
+        If a task should be forced (i.e. the corresponding parameter is set to True)
+        but cannot be carried out (e.g. because the dataset was already processed previously)
+    """
     match to_time, 'time' not in ds.coords, 'ts' in ds.coords:
         case True, False, _:
             raise ValueError("Timestep coordinate has already been converted to time")
@@ -273,13 +305,6 @@ def setup_frames(
             raise ValueError("No 'ts' coordinate in Dataset")
         case (None, True, True) | (True, True, True):
             ds = ts_to_time(ds)
-
-    match convert_to_eV, ds['energy'].attrs.get('units') != 'eV':
-        case True, False:
-            raise ValueError("Energy is already in eV")
-        case (True, True) | (None, True):
-            assert 'energy' in ds.data_vars
-            ds = ds.assign({'energy': convert_energy(ds['energy'], 'eV')})
 
     match relativize_energy, ds['energy'].min().item() != 0:
         case True, False:
@@ -289,6 +314,23 @@ def setup_frames(
             if relativize_selector is None:
                 relativize_selector = {}
             ds = ds.assign({'energy': relativize(ds['energy'], **relativize_selector)})
+
+    match convert_to_eV, ds['energy'].attrs.get('units') != 'eV':
+        case True, False:
+            raise ValueError("Energy is already in eV")
+        case (True, True) | (None, True):
+            assert 'energy' in ds.data_vars
+            ds = ds.assign({'energy': convert_energy(ds['energy'], 'eV')})
+
+    if convert_e_kin_to_eV and 'e_kin' not in ds.data_vars:
+        raise ValueError("'frames' object does not have an 'e_kin' variable")
+    elif 'e_kin' in ds.data_vars:
+        match convert_e_kin_to_eV, ds['e_kin'].attrs.get('units') != 'eV':
+            case True, False:
+                raise ValueError("Energy is already in eV")
+            case (True, True) | (None, True):
+                assert 'e_kin' in ds.data_vars
+                ds = ds.assign({'e_kin': convert_energy(ds['e_kin'], 'eV')})
 
     return ds
 
