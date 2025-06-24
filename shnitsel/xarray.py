@@ -136,8 +136,8 @@ DS_METHODS: dict[str, M2] = {
     ##############
     # From filtre:
     'energy_filtranda': M2(filtre.energy_filtranda, required_vars={'energy', 'e_kin'}),
-    'last_time_where': M2(  # name!
-        filtre.ds_last_time_where,
+    'get_cutoffs': M2(
+        filtre.get_cutoffs,
         required_dims={'frame'},
         required_coords={'trajid', 'time'},
     ),

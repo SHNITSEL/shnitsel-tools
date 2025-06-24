@@ -55,7 +55,7 @@ def last_time_where(mask):
 #     ).fillna(fallback)
 
 
-def ds_last_time_where(masks_ds):
+def get_cutoffs(masks_ds):
     ds = masks_ds.map(last_time_where)
     ds['original'] = (
         masks_ds.coords['time'].groupby('trajid').max().rename(trajid='trajid_')
