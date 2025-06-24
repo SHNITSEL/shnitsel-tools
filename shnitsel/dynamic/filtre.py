@@ -57,15 +57,18 @@ def last_time_where(mask):
 
 def get_cutoffs(masks_ds):
     ds = masks_ds.map(last_time_where)
+    names = list(ds.data_vars)
     ds['original'] = (
         masks_ds.coords['time'].groupby('trajid').max().rename(trajid='trajid_')
     )
+    # Put 'original' first, so that min() chooses it in cases of ambiguity
+    ds = ds[['original'] + names]
+    names = list(ds.data_vars)
 
-    typenames = list(ds.data_vars)
     da = ds.to_dataarray('cutoff')
     ds['earliest'] = da.min('cutoff')
     ds['reason'] = da.argmin('cutoff')
-    ds.attrs['reasons'] = typenames
+    ds.attrs['reasons'] = names
     return ds
 
 
