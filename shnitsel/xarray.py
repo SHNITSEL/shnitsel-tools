@@ -50,9 +50,19 @@ DA_METHODS: dict[str, M] = {
     # Do not include legacy functions pca_for_plot() or changes(). NB. changes expects astate to be a coord
     # Do not include functions that expect multiple DataArrays: broaden_gauss(), dcross(), ddot(), dnorm()
     # Do not include functions that expect an ndarrayNOT calc_ci NOR ci_agg_last_dim: EXCLUDE because takes ndarray
+    'to_mol': M(
+        P.to_mol,
+        required_coords={'atNames'},
+        incompatible_dims={'frame'},
+    ),
+    'default_mol': M(
+        P.default_mol
+    ),  # TODO This requires EITHER 'smiles_map' in attrs OR that this is an atXYZ DataArray
     #################
     # From xrhelpers:
     'flatten_levels': M(xrhelpers.flatten_levels),
+    'expand_midx': M(xrhelpers.expand_midx),
+    'msel': M(xrhelpers.msel),
     'sel_trajs': M(xrhelpers.sel_trajs, {'frame'}),
     'sel_trajids': M(xrhelpers.sel_trajids, {'frame'}),
     #########################
@@ -68,6 +78,10 @@ DA_METHODS: dict[str, M] = {
         filtre.last_time_where,
         required_dims={'frame'},
         required_coords={'trajid', 'time'},
+    ),
+    'get_bond_lengths': M(
+        filtre.get_bond_lengths,
+        required_dims={'frame'},
     ),
 }
 
@@ -112,10 +126,14 @@ DS_METHODS: dict[str, M2] = {
         required_vars={'astate'},
     ),
     'find_hops': M2(P.find_hops, required_coords={'trajid'}, required_vars={'astate'}),
+    'default_mol': M2(
+        P.default_mol
+    ),  # TODO This requires EITHER 'atXYZ' in data_vars OR 'smiles_map' in attrs
     #################
     # From xrhelpers:
     'flatten_levels': M2(xrhelpers.flatten_levels),
     'expand_midx': M2(xrhelpers.expand_midx),
+    'msel': M2(xrhelpers.msel),
     'save_frames': M2(xrhelpers.save_frames),
     'sel_trajs': M2(xrhelpers.sel_trajs, required_dims={'frame'}),
     ########################
