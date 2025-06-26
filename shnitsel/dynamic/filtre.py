@@ -21,38 +21,11 @@ def energy_filtranda(frames: xr.Dataset) -> xr.Dataset:
     return res
 
 
-# def last_time_where(mask_da):
-#     return (
-#         mask_da.groupby('trajid')
-#         .map(
-#             lambda traj: traj.coords['time'][-1]
-#             if traj.all()
-#             else traj.sel(frame=~traj).coords['time'][0]
-#         )
-#         .rename(trajid='trajid_')
-#     )
-
-
 def last_time_where(mask):
-    before_first_false = ~((~mask).groupby('trajid').cumsum().astype(bool))
-    upto_first_false = mask.coords['time'][before_first_false].groupby('trajid').last()
-    fallback = (~before_first_false).groupby('trajid').all()
-    if fallback.any():
-        fallback = fallback.copy(
-            data=np.full((len(fallback),), -1)  # -1 indicates first ts fails test
-        )
-        res = upto_first_false.combine_first(fallback)
-    else:
-        res = upto_first_false
-    return res.rename(trajid='trajid_')
-
-
-# def earliest_false(mask):
-#     times_for_trajs_with_false = mask[~mask].coords['time'].groupby('trajid').min()
-#     fallback = mask.coords['time'].groupby('trajid').max()
-#     return xr.merge(
-#         [times_for_trajs_with_false, fallback], join='right', compat='override'
-#     ).fillna(fallback)
+    mask = mask.unstack('frame', fill_value=False).transpose('trajid', 'time', ...)
+    idxs = np.logical_not((~mask.values).cumsum(axis=1)).sum(axis=1)
+    times = np.concat([[-1], mask.time.values])
+    return mask[:, 0].copy(data=times[idxs]).drop_vars('time').rename('time')
 
 
 def get_cutoffs(masks_ds):
