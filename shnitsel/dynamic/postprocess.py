@@ -883,6 +883,15 @@ def find_hops(frames: Frames) -> Frames:
 # SMILES annotated with the original atom indices
 # to maintain the order in the `atom` index
 
+def to_mol(atXYZ_frame, charge=0, covFactor=1.5, to2D=True):
+    mol = rc.rdmolfiles.MolFromXYZBlock(to_xyz(atXYZ_frame))
+    rc.rdDetermineBonds.DetermineBonds(
+        mol, charge=charge, useVdw=True, covFactor=covFactor
+    )
+    if to2D:
+        rc.rdDepictor.Compute2DCoords(mol)  # type: ignore
+    return mol
+
 
 def mol_to_numbered_smiles(mol: rc.Mol) -> str:
     for atom in mol.GetAtoms():
@@ -897,3 +906,24 @@ def numbered_smiles_to_mol(smiles: str) -> rc.Mol:
         # Renumbering with e.g. [3, 2, 0, 1] means atom 3 gets new index 0, not vice-versa!
         map_new_to_old[int(atom.GetProp("molAtomMapNumber"))] = atom.GetIdx()
     return rc.RenumberAtoms(mol, map_new_to_old)
+
+def default_mol(obj):
+    if 'atXYZ' in obj:  # We have a frames Dataset
+        atXYZ = obj['atXYZ']
+    else:
+        atXYZ = obj  # We have an atXYZ DataArray
+
+    if 'smiles_map' in obj.attrs:
+        return numbered_smiles_to_mol(obj.attrs['smiles_map'])
+    elif 'smiles_map' in atXYZ.attrs:
+        return numbered_smiles_to_mol(atXYZ.attrs['smiles_map'])
+
+    try:
+        charge = obj.attrs.get('charge', 0)
+        return to_mol(atXYZ.isel(frame=0), charge=charge)
+    except (KeyError, ValueError):
+        raise ValueError(
+            "Failed to get default mol, please set a smiles map. "
+            "For example, if the compound has charge c and frame i contains a representative geometry, use "
+            "frames.attrs['smiles_map'] = frames.atXYZ.isel(frame=i).sh.get_smiles_map(charge=c)"
+        )
