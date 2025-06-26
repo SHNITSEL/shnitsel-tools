@@ -214,6 +214,26 @@ def save_split(
 #######################################
 # Functions to extend xarray selection:
 
+def msel(obj, **kwargs):
+    tuples = list(zip(*kwargs.items()))
+    ks, vs = list(tuples[0]), list(tuples[1])
+    # Find correct index and levels
+    for coord in obj.coords:
+        if set(obj.coords[coord].data) <= set(ks):
+            levels = obj.indexes[coord].names
+            break
+    else:
+        raise ValueError(f"Couldn't find a coordinate containing all keys {ks}")
+    to_reset = list(set(levels) - {coord})
+    # Construct selector
+    selectee = xr.DataArray(vs, coords=[(coord, ks)])
+    # Perform selection
+    return (
+        selectee.sel({coord: obj.coords[coord]})
+        .reset_index(to_reset)
+        .set_xindex(levels)
+    )
+
 
 def sel_trajs(
     frames: xr.Dataset, trajids_or_mask: int | Iterable[bool | int], invert=False
