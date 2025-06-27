@@ -23,17 +23,6 @@ def find_bonds_by_element(mol, elem1: int, elem2: int):
 
     return [indices(b) for b in mol.GetBonds() if elems_correct(b)]
 
-
-def is_c_h_bond(b):
-    atnums = {b.GetBeginAtom().GetAtomicNum(), b.GetEndAtom().GetAtomicNum()}
-    return atnums == {1, 6}
-
-def find_c_h_bonds(mol):
-    def indices(b):
-        return (b.GetBeginAtom().GetIdx(), b.GetEndAtom().GetIdx())
-
-    return [indices(b) for b in mol.GetBonds() if is_c_h_bond(b)]
-
 def mol_from_atXYZ(atXYZ_frame, charge=0, covFactor=1.5, to2D=True):
     mol = rc.rdmolfiles.MolFromXYZBlock(P.to_xyz(atXYZ_frame))
     # rdDetermineBonds.DetermineConnectivity(mol) # 2025-02-03 TODO Unify!
@@ -63,10 +52,6 @@ def max_bond_lengths(atXYZ, elem1=1, elem2=6):
     maxlengths.coords['atom2'] = 'bond',list(atoms2)
     maxlengths = maxlengths.set_xindex(['atom1', 'atom2'])
     return maxlengths
-
-def max_ch_lengths(atXYZ):
-    return max_bond_lengths(atXYZ, elem1=1, elem2=6)
-
 
 def lengths_sorted(atXYZ, elem1=1, elem2=6):
     lengths = max_bond_lengths(atXYZ, elem1, elem2)
