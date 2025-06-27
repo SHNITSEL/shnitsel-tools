@@ -88,6 +88,8 @@ def get_cutoffs(masks_ds):
 
 
 def truncate(frames, cutoffs):
+    if 'trajid_' not in cutoffs.coords and 'trajid' in cutoffs.coords:
+        cutoffs = cutoffs.rename(trajid='trajid_')
     expansion = cutoffs.sel(trajid_=frames.coords['trajid']).drop_vars('trajid_')
     mask = frames['time'] <= expansion
     return frames.sel(frame=mask)
