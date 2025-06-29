@@ -62,6 +62,7 @@ DA_METHODS: dict[str, M] = {
     # From xrhelpers:
     'flatten_levels': M(xrhelpers.flatten_levels),
     'expand_midx': M(xrhelpers.expand_midx),
+    'mgroupby': M(xrhelpers.mgroupby),
     'msel': M(xrhelpers.msel),
     'sel_trajs': M(xrhelpers.sel_trajs, {'frame'}),
     'sel_trajids': M(xrhelpers.sel_trajids, {'frame'}),
@@ -133,6 +134,7 @@ DS_METHODS: dict[str, M2] = {
     # From xrhelpers:
     'flatten_levels': M2(xrhelpers.flatten_levels),
     'expand_midx': M2(xrhelpers.expand_midx),
+    'mgroupby': M2(xrhelpers.mgroupby),
     'msel': M2(xrhelpers.msel),
     'save_frames': M2(xrhelpers.save_frames),
     'sel_trajs': M2(xrhelpers.sel_trajs, required_dims={'frame'}),
