@@ -214,6 +214,21 @@ def save_split(
 #######################################
 # Functions to extend xarray selection:
 
+def mgroupby(obj, levels):
+    # Ensure all levels belong to the same multiindex
+    midxs = set(obj.indexes[lvl].name for lvl in levels)
+    if len(midxs) == 0:
+        raise ValueError("No index found")
+    elif len(midxs) > 1:
+        raise ValueError(
+            f"The levels provided belong to multiple independent MultiIndexes: {midxs}"
+        )
+    midx = midxs.pop()
+    new_name = ','.join(levels)
+    # Flatten the specified levels to tuples and group the resulting object
+    return flatten_levels(obj, midx, levels, new_name=new_name).groupby(new_name)
+
+
 def msel(obj, **kwargs):
     tuples = list(zip(*kwargs.items()))
     ks, vs = list(tuples[0]), list(tuples[1])
