@@ -139,7 +139,7 @@ def xyz_to_mol(
     return mol
 
 def show_atom_numbers(atXYZ):
-    mol = xyz_to_mol(atXYZ)
+    mol = P.to_mol(atXYZ)
 
     for i, atom in enumerate(mol.GetAtoms()):
         atom.SetProp("atomLabel", str(atom.GetIdx()))
