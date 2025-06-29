@@ -149,24 +149,37 @@ def _ts_to_time(data, delta_t=None, swap_index=True):
     )
 
 def open_frames(path):
+    # The error raised for a missing file can be misleading
     try:
         frames = xr.open_dataset(path)
     except ValueError as err:
         if not os.path.exists(path):
-            raise FileNotFoundError
+            raise FileNotFoundError(path)
         else:
             raise err
 
-    tcoord = None
-    if 'time' in frames.coords:
-        tcoord = 'time'
-    elif 'ts' in frames.coords:
-        tcoord = 'ts'
+    # Restore MultiIndexes
+    indicator = '_MultiIndex_levels_from_attrs'
+    if frames.attrs.get(indicator, False):
+        # New way: get level names from attrs
+        del frames.attrs[indicator]
+        for k, v in frames.attrs.items():
+            if k.startswith('_MultiIndex_levels_for_'):
+                frames = frames.set_xindex(v)
+                del frames.attrs[k]
+    else:
+        # Old way: hardcoded level names
+        tcoord = None
+        if 'time' in frames.coords:
+            tcoord = 'time'
+        elif 'ts' in frames.coords:
+            tcoord = 'ts'
 
-    if tcoord is not None:
-        frames = frames.set_xindex(['trajid', tcoord])
+        if tcoord is not None:
+            frames = frames.set_xindex(['trajid', tcoord])
+        frames = frames.set_xindex(['from', 'to'])
 
-    return frames.set_xindex(['from', 'to'])
+    return frames
 
 
 def save_frames(frames, path, complevel=9):
@@ -174,16 +187,28 @@ def save_frames(frames, path, complevel=9):
         var: {"compression": "gzip", "compression_opts": complevel} for var in frames
     }
 
-    # TODO generalize?
-    # netcdf does not support bool
-    if 'completed' in frames.data_vars:
-        frames = frames.assign(completed=frames.completed.astype('i1'))
-    if 'completed' in frames.attrs:
-        frames.attrs['completed'] = int(frames.attrs['completed'])
-    # or MultiIndex
-    frames.reset_index(['frame', 'statecomb']).to_netcdf(
-        path, engine='h5netcdf', encoding=encoding
-    )
+    # NetCDF does not support booleans
+    for data_var in frames.data_vars:
+        if np.issubdtype(frames.data_vars[data_var].dtype, np.bool_):
+            frames = frames.assign({data_var: frames.data_vars[data_var].astype('i1')})
+    for coord in frames.coords:
+        if np.issubdtype(frames.coords[coord].dtype, np.bool_):
+            frames = frames.assign_coords({coord: frames.coords[coord].astype('i1')})
+    for attr in frames.attrs:
+        if np.issubdtype(np.asarray(frames.attrs[attr]).dtype, np.bool_):
+            frames.attrs[attr] = int(frames.attrs[attr])
+
+    # NetCDF does not support MultiIndex
+    # Keep a record of the level names in the attrs
+    midx_names = []
+    for name, index in frames.indexes.items():
+        if index.name == name and len(index.names) > 1:
+            midx_names.append(name)
+            midx_levels = list(index.names)
+            frames.attrs[f'_MultiIndex_levels_for_{name}'] = midx_levels
+    frames.attrs['_MultiIndex_levels_from_attrs'] = 1
+    frames.reset_index(midx_names).to_netcdf(path, engine='h5netcdf', encoding=encoding)
+
 
 def split_for_saving(frames, bytes_per_chunk=50e6):
     trajids = frames.get('trajid_', np.unique(frames['trajid']))
