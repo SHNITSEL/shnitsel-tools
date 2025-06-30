@@ -652,6 +652,9 @@ def get_inter_state(frames: Frames) -> InterState:
       'statecomb',
       lambda lo, hi: f'$S_{hi-1} - S_{lo-1}$'
     )
+    if {'energy', 'dip_trans'}.issubset(iprops):
+        inter_state = assign_fosc(inter_state)
+
     inter_state['statecomb'].attrs['long_name'] = "States"
     return inter_state
 
