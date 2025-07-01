@@ -135,6 +135,20 @@ def modify_midx_level(data, midx_name, coords, replace: set | None):
         )
     return data
 
+# NB: This deprecates the previous function (modify_midx_level)
+# for most use-cases.
+def assign_levels(obj, levels=None, **levels_kwargs):
+    if levels is None:
+        levels = levels_kwargs
+    lvl_names = list(levels.keys())
+    midxs = set(obj.indexes[lvl].name for lvl in lvl_names)
+    # Using sum() to ravel a list of lists
+    to_restore = sum([list(obj.indexes[midx].names) for midx in midxs], [])
+    obj = obj.reset_index(*midxs)
+    obj = obj.assign_coords(levels)
+    return obj.set_xindex(to_restore)
+
+
 def _ts_to_time(data, delta_t=None, swap_index=True):
     default_delta_t = 0.5
 
