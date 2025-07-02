@@ -1,6 +1,6 @@
 <div align="center">
   <h1>SHNITSEL</h1>
-  <img src="https://github.com/SHNITSEL/shnitsel-tools/blob/main/shnitsel_logo.png" alt="SHNITSEL Logo" width="200px">
+  <img src="https://github.com/SHNITSEL/shnitsel-tools/blob/main/logo_shnitsel_tools.png" alt="SHNITSEL-TOOLS Logo" width="200px">
   <h3>Surface Hopping Nested Instances Training Set for Excited-state Learning</h3>
 </div>
 
