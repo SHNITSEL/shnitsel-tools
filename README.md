@@ -16,6 +16,23 @@ The `shnitsel` code leverages Xarray to benefit from efficient multidimensional 
 
 The package is organized into ...
 
+> [!TIP]
+> ### Tutorials
+>
+> For a quick start, see the [tutorials](https://github.com/SHNITSEL/shnitsel-tools/blob/main/tutorials) directory,
+> which contains Jupyter Notebooks showing the workflow for parsing, writing and loading SHNITSEL databases as well as how to postprocess and visualize the respective data.
+> 
+> #### Generation of SHNITSEL databases
+> - [parsing trajcetory and initial condition data obtained by SHARC](https://github.com/SHNITSEL/shnitsel-tools/blob/main/tutorials/01_sharc2hdf5.ipynb)
+> - [parsing trajectory data produced with Newton-X](https://github.com/SHNITSEL/shnitsel-tools/blob/main/tutorials/02_nx2hdf5.ipynb)
+> - [convert ASE databases](https://github.com/SHNITSEL/shnitsel-tools/blob/main/tutorials/03_ase2hdf5.ipynb)
+>
+> #### Postprocessing and visualization of data
+> - [processing of dynamic data](https://github.com/SHNITSEL/shnitsel-tools/blob/main/tutorials/10_usage.ipynb)
+> - [datasheet for trajectory data](https://github.com/SHNITSEL/shnitsel-tools/blob/main/tutorials/11_datasheet.ipynb)
+> - [principal component analysis and trajectory classification](https://github.com/SHNITSEL/shnitsel-tools/blob/main/tutorials/12_butene_pca.ipynb)
+>
+
 ```bash
 shnitsel
 ├── __init__.py
@@ -60,23 +77,6 @@ shnitsel
     ├── plotting.py
     └── utils.py
 ```
-
-> [!TIP]
-> ### Tutorials
->
-> For a quick start, see the [tutorials](https://github.com/SHNITSEL/shnitsel-tools/blob/main/tutorials) directory,
-> which contains Jupyter Notebooks showing the workflow for parsing, writing and loading SHNITSEL databases as well as how to postprocess and visualize the respective data.
-> 
-> #### Generation of SHNITSEL databases
-> - [parsing trajcetory and initial condition data obtained by SHARC](https://github.com/SHNITSEL/shnitsel-tools/blob/main/tutorials/01_sharc2hdf5.ipynb)
-> - [parsing trajectory data produced with Newton-X](https://github.com/SHNITSEL/shnitsel-tools/blob/main/tutorials/02_nx2hdf5.ipynb)
-> - [convert ASE databases](https://github.com/SHNITSEL/shnitsel-tools/blob/main/tutorials/03_ase2hdf5.ipynb)
->
-> #### Postprocessing and visualization of data
-> - [processing of dynamic data](https://github.com/SHNITSEL/shnitsel-tools/blob/main/tutorials/10_usage.ipynb)
-> - [datasheet for trajectory data](https://github.com/SHNITSEL/shnitsel-tools/blob/main/tutorials/11_datasheet.ipynb)
-> - [principal component analysis and trajectory classification](https://github.com/SHNITSEL/shnitsel-tools/blob/main/tutorials/12_butene_pca.ipynb)
->
 
 ## Installation
 
