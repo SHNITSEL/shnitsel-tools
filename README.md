@@ -73,7 +73,6 @@ shnitsel
 > - [convert ASE databases](https://github.com/SHNITSEL/shnitsel-tools/blob/main/tutorials/03_ase2hdf5.ipynb)
 >
 > #### Postprocessing and visualization of data
-> - static data
 > - [processing of dynamic data](https://github.com/SHNITSEL/shnitsel-tools/blob/main/tutorials/10_usage.ipynb)
 > - [datasheet for trajectory data](https://github.com/SHNITSEL/shnitsel-tools/blob/main/tutorials/11_datasheet.ipynb)
 > - [principal component analysis and trajectory classification](https://github.com/SHNITSEL/shnitsel-tools/blob/main/tutorials/12_butene_pca.ipynb)
