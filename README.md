@@ -1,22 +1,20 @@
 <div align="center">
-  <h1>SHNITSEL</h1>
+  <h1>shnitsel-tools</h1>
   <img src="https://github.com/SHNITSEL/shnitsel-tools/blob/main/logo_shnitsel_tools.png" alt="SHNITSEL-TOOLS Logo" width="200px">
-  <h3>Surface Hopping Nested Instances Training Set for Excited-state Learning</h3>
+  <h3>Surface Hopping Nested Instances Training Set for Excited-state Learning Tools</h3>
 </div>
 
 --------------------
 
 ## About
 
-The `shnitsel` Python package is designed to read, process, and visualize data generated from workflows using [SHARC](https://sharc-md.org/), [Newton-X](https://newtonx.org/), and [ASE databases](https://wiki.fysik.dtu.dk/ase/ase/db/db.html).
+`shnitsel-tools` is designed to to support the entire data lifecycle of surface hopping (SH) trajectory data upon simulation: data managment, storage, processing, visualization and interpretation. 
+The tool is compatible with surface hopping data generated using the software packages [SHARC 3/4](https://sharc-md.org/), [Newton-X](https://newtonx.org/), and [PyRAI2MD]().
 The `shnitsel` code leverages Xarray to benefit from efficient multidimensional data handling, improved metadata management, and a structure that aligns naturally with the needs of quantum chemical datasets.
 
 ## Usage
 
-The package is organized into two main modules, reflecting the division between static and dynamic computational photochemistry methods:
-
-- `shnitsel.static`: For processing time-independent (static) data.
-- `shnitsel.dynamic`: For processing single or multiple trajectories (dynamic) data.
+The package is organized into ...
 
 ```bash
 shnitsel
