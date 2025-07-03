@@ -4,9 +4,8 @@ import numpy as np
 from scipy import stats
 import matplotlib.pyplot as plt
 
-from shnitsel.dynamic import postprocess as P
-from .. import pca_biplot as pb
-from ..pca_biplot import figax
+from shnitsel.core import postprocess as P, pca_biplot as pb
+from shnitsel.core.pca_biplot import figax
 
 
 def fit_kdes(noodle, geo_prop, geo_filter):
