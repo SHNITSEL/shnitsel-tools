@@ -1,8 +1,8 @@
 # noqa: F401
 
-from .. import pca_biplot
+from .. import pca_biplot as pca_biplot
 
-from .calc.spectra import (
+from ..spectra import (
     get_spectrum as get_spectrum,
     calc_spectra as calc_spectra,
     get_sgroups as get_sgroups,
@@ -21,13 +21,10 @@ from .plot.dip_trans_hist import (
 )
 
 # from .plot.dip_trans_hist import
-from .plot.structure import show_atXYZ
+from .plot.structure import show_atXYZ as show_atXYZ
 
 from .calc import calc_all as calc_all
 
-from .oop import Datasheet
+from .oop import Datasheet as Datasheet
 
 __all__ = ['Datasheet', 'show_atXYZ']
-
-if False:
-    pca_biplot
