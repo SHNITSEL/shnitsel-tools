@@ -2,10 +2,6 @@ import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 
-from . import (
-  postprocess,
-  xrhelpers)
-
 def pca_line_plot(
   pca_res,
   hue,
@@ -109,50 +105,3 @@ def pca_line_plot(
     # plt.close() # don't display duplicates, Jupyter!
 
     return fig, ax, legend
-
-def pca_scatter_plot():
-    ...
-
-def timeplot(da, *, hue=None, time_axis='ts', delta_t=None, **kwargs):
-    import seaborn as sns
-    
-    assert time_axis in {'ts', 'time'}
-    xlabel = None
-
-    default_delta_t = 0.5
-
-    if delta_t is None:
-        delta_t = da.attrs.get('delta_t', default_delta_t)
-
-    df = (da
-      .transpose('frame', ...)
-      .to_pandas()
-      .reset_index(['trajid', time_axis])
-      .melt(id_vars=['trajid', time_axis])
-    )
-
-    xlabel = '$t$ / fs' if time_axis == 'time' else time_axis
-    
-    ax = sns.lineplot(df, x=time_axis, y='value', hue=hue, **kwargs)
-    ax.set(xlabel=xlabel)
-    return ax
-
-def timeplot_interstate(da, delta_t=None, renamer=None, **kwargs):
-    default_delta_t = 0.5
-
-    if delta_t is None:
-        delta_t = da.attrs.get('delta_t', default_delta_t)
-
-    if 'statecomb' not in da.dims:
-        da = postprocess.subtract_combinations(da, 'state', labels=True)
-    da = postprocess.keep_norming(da)
-    
-    if 'statecomb' not in da.indexes:
-        da = da.set_xindex(['from', 'to'])
-
-    da = xrhelpers.flatten_midx(da, 'statecomb', renamer=renamer)
-
-    # Does this really fall under this function's remit?
-    da = postprocess.ts_to_time(da)
-    
-    return timeplot(da, hue='statecomb', time_axis='time', **kwargs)
