@@ -2,7 +2,7 @@ import xarray as xr
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 
-from shnitsel.dynamic import postprocess as P
+from shnitsel.core import postprocess as P
 
 
 def spectra_all_times(inter_state: xr.Dataset):
