@@ -1,5 +1,4 @@
 from . import (
-    static as static,
     core as core,
     plot as plot,
 )
