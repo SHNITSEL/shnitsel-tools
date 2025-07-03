@@ -173,7 +173,8 @@ def biplot_kde(
         mol=mol,
         labels=list('abcd'),
     )
-    plot_kdes(*kde_data, levels=levels, fill=fill, ax=pcaax)
+    xx, yy, Zs = kde_data
+    plot_kdes(xx, yy, Zs, levels=levels, fill=fill, ax=pcaax)
 
     return kde_data
 
