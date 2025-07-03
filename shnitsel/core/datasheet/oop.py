@@ -18,13 +18,13 @@ from .. import xrhelpers as xh
 
 from ..spectra import calc_spectra, get_sgroups
 
-from .plot.common import centertext
-from .plot.per_state_hist import plot_per_state_histograms
-from .plot.time import plot_timeplots
-from .plot.dip_trans_hist import plot_separated_spectra_and_hists
-from .plot.nacs_hist import plot_nacs_histograms
+from .common import centertext
+from .per_state_hist import plot_per_state_histograms
+from .time import plot_timeplots
+from .dip_trans_hist import plot_separated_spectra_and_hists
+from .nacs_hist import plot_nacs_histograms
 from ..pca_biplot import plot_noodleplot  # , xyz_to_mol
-from .plot.structure import plot_structure, xyz_to_mol
+from .structure import plot_structure, xyz_to_mol
 
 
 class Datasheet:
