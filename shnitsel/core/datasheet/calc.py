@@ -1,7 +1,6 @@
-from ... import postprocess as P
-from .spectra import get_spectrum, calc_spectra, get_sgroups
+from .. import postprocess as P
+from ..spectra import calc_spectra, get_sgroups
 
-__all__ = ['get_spectrum', 'calc_spectra', 'get_sgroups']
 
 # Calculate all at once
 # TODO: Consider making a dataclass with all the different
