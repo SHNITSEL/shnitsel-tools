@@ -2,7 +2,7 @@ from collections import namedtuple
 from itertools import chain
 
 import xarray as xr
-from .dynamic import postprocess as P, xrhelpers, parse, plot, filter_unphysical, filtre
+from .core import postprocess as P, xrhelpers, parse, plot, filter_unphysical, filtre
 
 M = namedtuple(
     'M',
