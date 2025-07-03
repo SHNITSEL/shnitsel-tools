@@ -23,8 +23,6 @@ from .plot.dip_trans_hist import (
 # from .plot.dip_trans_hist import
 from .plot.structure import show_atXYZ as show_atXYZ
 
-from .calc import calc_all as calc_all
-
 from .oop import Datasheet as Datasheet
 
 __all__ = ['Datasheet', 'show_atXYZ']
