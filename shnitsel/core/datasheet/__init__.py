@@ -8,7 +8,7 @@ if TYPE_CHECKING:
     from matplotlib.figure import SubFigure
     from matplotlib.axes import Axes
 
-from .. import pca_biplot as pca_biplot
+from ..plot import pca_biplot as pca_biplot
 
 from ..spectra import (
     get_spectrum as get_spectrum,

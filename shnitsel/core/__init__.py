@@ -2,9 +2,7 @@ from . import (
     ase,
     filter_unphysical,
     parse,
-    pca_biplot,
     plot,
-    plotting,
     postprocess,
     xrhelpers,
 )
@@ -20,12 +18,13 @@ from .postprocess import (
     assign_fosc as assign_fosc,
 )
 
+from .plot import pca_biplot
 from .plot.spectra3d import spectra_all_times as spectra_all_times
 
 __all__ = [
+    'ase',
     'parse',
     'postprocess',
-    'plotting',
     'xrhelpers',
     'filter_unphysical',
     'pca_biplot',

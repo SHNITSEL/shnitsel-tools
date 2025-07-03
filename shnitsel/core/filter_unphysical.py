@@ -6,7 +6,8 @@ import xarray as xr
 from rdkit import Chem as rc
 from rdkit.Chem import rdDetermineBonds, AllChem
 
-from . import postprocess as P, xrhelpers as xh, pca_biplot
+from . import postprocess as P, xrhelpers as xh
+from .plot import pca_biplot
 from .postprocess import (
     mol_to_numbered_smiles as mol_to_numbered_smiles,
     numbered_smiles_to_mol,

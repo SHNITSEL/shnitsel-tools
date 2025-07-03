@@ -6,7 +6,8 @@ import rdkit.Chem as rc
 
 import matplotlib as mpl
 
-from .. import pca_biplot, postprocess as P
+from ..plot import pca_biplot
+from .. import postprocess as P
 from .common import figax
 
 def xyz_to_mol(atXYZ, charge=0, covFactor=1.5) -> rc.Mol:

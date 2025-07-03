@@ -23,7 +23,7 @@ from .per_state_hist import plot_per_state_histograms
 from .time import plot_timeplots
 from .dip_trans_hist import plot_separated_spectra_and_hists
 from .nacs_hist import plot_nacs_histograms
-from ..pca_biplot import plot_noodleplot  # , xyz_to_mol
+from ..plot.pca_biplot import plot_noodleplot  # , xyz_to_mol
 from .structure import plot_structure, xyz_to_mol
 
 
