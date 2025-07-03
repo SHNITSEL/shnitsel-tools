@@ -4,7 +4,8 @@ import numpy as np
 from scipy import stats
 import matplotlib.pyplot as plt
 
-from shnitsel.core import postprocess as P, pca_biplot as pb
+from shnitsel.core import postprocess as P
+from shnitsel.core.plot import pca_biplot as pb
 from shnitsel.core.plot.pca_biplot import figax
 
 

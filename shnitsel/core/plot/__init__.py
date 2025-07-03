@@ -3,7 +3,7 @@ from .kde import (
     biplot_kde as biplot_kde,
     plot_cdf_for_kde as plot_cdf_for_kde,
 )
-from ..pca_biplot import show_atom_numbers as show_atom_numbers
+from .pca_biplot import show_atom_numbers as show_atom_numbers
 
 from .spectra3d import (
     ski_plots as ski_plots,
