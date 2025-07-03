@@ -1,6 +1,6 @@
 from itertools import product
 import numpy as np
-from ... import postprocess as P
+from . import postprocess as P
 
 
 def get_spectrum(data, t, sc, cutoff=0.01):
