@@ -14,8 +14,8 @@ from rdkit.Chem import AllChem # type: ignore
 import PIL
 import io
 
-from . import (
-  postprocess as P)
+from .. import postprocess as P
+
 
 def figax(fig: Figure | None = None, ax: Axes | None = None):
     """
