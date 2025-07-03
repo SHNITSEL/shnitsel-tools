@@ -16,7 +16,7 @@ except ImportError:
 from .. import postprocess as P
 from .. import xrhelpers as xh
 
-from .calc import calc_spectra, get_sgroups
+from ..spectra import calc_spectra, get_sgroups
 
 from .plot.common import centertext
 from .plot.per_state_hist import plot_per_state_histograms
@@ -75,7 +75,8 @@ class Datasheet:
             )
             self.col_state = col_state
         elif nstates <= 3:
-            self.col_state = ['#4DAD15', '#AD2915', '#7515AD'][:s]  # SHNITSEL-colours
+            # SHNITSEL-colours
+            self.col_state = ['#4DAD15', '#AD2915', '#7515AD'][:nstates]
         elif nstates <= 10:
             cmap = plt.get_cmap('tab10')
             self.col_state = [mpl.colors.rgb2hex(c) for c in cmap.colors][:nstates]  # type: ignore
@@ -401,6 +402,8 @@ class Datasheet:
         borders: bool = False,
         consitent_lettering: bool = True,
     ):
+        letters = iter('abcdef')
+
         def outlabel(ax):
             nonlocal letters
             fixedtrans = mpl.transforms.ScaledTranslation(
@@ -433,7 +436,6 @@ class Datasheet:
         fig, sfs = self.get_subfigures(
             include_per_state_hist=include_per_state_hist, borders=borders
         )
-        letters = iter('abcdef')
 
         ## separated_spectra_and_hists
         if self.can['separated_spectra_and_hists']:
