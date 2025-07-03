@@ -1,5 +1,13 @@
 # noqa: F401
 
+from typing import TYPE_CHECKING
+import matplotlib.pyplot as plt
+import numpy as np
+
+if TYPE_CHECKING:
+    from matplotlib.figure import SubFigure
+    from matplotlib.axes import Axes
+
 from .. import pca_biplot as pca_biplot
 
 from ..spectra import (
@@ -46,18 +54,16 @@ def plot_datasheet(
     skeletal=True,
 ):
     if axs is None:
-        mosaic = (
-            [
-                ['sg', 'pca', 'pca'],
-                ['t0', 'pca', 'pca'],
-                ['t1', 'mol', 'pop'],
-                ['se', 'nde', 'de'],
-                ['t2', 'ntd', 'ft'],
-            ],
-        )
+        mosaic = [
+            ('sg', 'pca', 'pca'),
+            ('t0', 'pca', 'pca'),
+            ('t1', 'mol', 'pop'),
+            ('se', 'nde', 'de'),
+            ('t2', 'ntd', 'ft'),
+        ]
         if include_hist:
-            mosaic = [['energy', 'forces', 'dip_perm']] + mosaic
-        fig, axs = plt.subplot_mosaic(mosaic, layout='constrained')
+            mosaic = [('energy', 'forces', 'dip_perm')] + mosaic
+        fig, axs = plt.subplot_mosaic(mosaic, layout='constrained')  # type: ignore
     else:
         fig = fig or list(axs.values())[0].figure
 
@@ -93,6 +99,9 @@ def plot_datasheet(
 
 
 def create_subfigures(include_hist=False, borders=False):
+    sfs: dict[str, SubFigure] = {}
+    axs: dict[str, Axes] = {}
+
     def f(sfname, sgs, nrows, ncols, *axnames, **kws):
         nonlocal sfs, axs
         sfs[sfname] = fig.add_subfigure(sgs)
@@ -113,27 +122,14 @@ def create_subfigures(include_hist=False, borders=False):
     for ax in oaxs.ravel():
         ax.remove()
 
-    sfs = {}
-    axs = {}
     if include_hist:
         f('hist', gs[0, :], 1, 3, 'energy', 'forces', 'dip_perm')
     f('time', gs[s + 2 :, 2], 3, 1, 'pop', 'de', 'ft')
     f('pca', gs[s + 0 : s + 2, 1:], 1, 1, 'pca')
     hr = ([1] * 5) + ([0.1] * 2)
-    f(
-        'de',
-        gs[s + 0 :, 0],
-        5 + 2,
-        1,
-        'sg',
-        't0',
-        't1',
-        'se',
-        't2',
-        'cb_spec',
-        'cb_hist',
-        height_ratios=hr,
-    )
+    f('de', gs[s + 0 :, 0], 5 + 2, 1,
+      'sg', 't0', 't1', 'se', 't2', 'cb_spec', 'cb_hist',
+       height_ratios=hr)  # fmt: skip
     f('nacs', gs[s + 3 :, 1], 2, 1, 'nde', 'ntd')
     f('mol', gs[s + 2, 1], 1, 1, 'mol')
     return fig, sfs, axs
