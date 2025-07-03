@@ -33,7 +33,7 @@ def _prepare_for_write(frames: xr.Dataset) -> xr.Dataset:
     return frames
 
 
-def write_ase_db(
+def write_ase(
     frames: xr.Dataset,
     db_path: str,
     kind: str | None,
@@ -75,7 +75,7 @@ def write_ase_db(
             )
 
 
-def read_ase_db(db_path: str, kind: str):
+def read_ase(db_path: str, kind: str):
     """Reads an ASE DB containing data in the SPaiNN or SchNet format
 
     Parameters
