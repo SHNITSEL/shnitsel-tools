@@ -401,9 +401,9 @@ def circbins(angles, nbins=4, center=0):
     # intermediate bins
     for ibin in range(1, nbins-1):
         way = ibin % 2
-        cur = sweepers[way] # sweepers[0] increases, sweepers[1] decreases
-        sgn = [1, -1][way] # bins 1,3,5 clockw; bins 2,4,6 anti
-        print(f"sweeping {["anti", "clock"][way]} from {cur.inner}°")
+        cur = sweepers[way]  # sweepers[0] increases, sweepers[1] decreases
+        sgn = [1, -1][way]  # bins 1,3,5 clockw; bins 2,4,6 anti
+        print(f"sweeping {['anti', 'clock'][way]} from {cur.inner}°")
         while sweepers[0].outer - sweepers[1].outer < 360:
             cur.outer += sgn*10
             idxs = np.nonzero(
