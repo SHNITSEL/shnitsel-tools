@@ -9,9 +9,9 @@ from ..spectra import (
     sep_ground_excited_spectra as sep_ground_excited_spectra,
 )
 
-from .plot.per_state_hist import plot_per_state_histograms as plot_per_state_histograms
-from .plot.time import plot_pops as plot_pops, plot_timeplots as plot_timeplots
-from .plot.dip_trans_hist import (
+from .per_state_hist import plot_per_state_histograms as plot_per_state_histograms
+from .time import plot_pops as plot_pops, plot_timeplots as plot_timeplots
+from .dip_trans_hist import (
     single_hist as single_hist,
     plot_dip_trans_histograms as plot_dip_trans_histograms,
     plot_spectra as plot_spectra,
@@ -20,8 +20,7 @@ from .plot.dip_trans_hist import (
 from .nacs_hist import plot_nacs_histograms as plot_nacs_histograms
 
 
-# from .plot.dip_trans_hist import
-from .plot.structure import show_atXYZ as show_atXYZ
+from .structure import show_atXYZ as show_atXYZ
 
 from .oop import Datasheet as Datasheet
 
