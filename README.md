@@ -2,10 +2,11 @@
   <h1>shnitsel-tools</h1>
   <img src="https://github.com/SHNITSEL/shnitsel-tools/blob/main/logo_shnitsel_tools.png" alt="SHNITSEL-TOOLS Logo" width="200px">
   <h3>Surface Hopping Nested Instances Training Set for Excited-state Learning Tools</h3>
+  <br>
+  <a href="[https://zenodo.org/records/15482819](https://shnitsel.github.io/)">
+    <img src="https://img.shields.io/badge/Website-shnitsel.github.io-yellow.svg" alt="DOI">
+  </a>
 </div>
-
-
-[![Website](https://img.shields.io/badge/Website-shnitsel.github.io-yellow.svg)](https://shnitsel.github.io/)
 
 --------------------
 
