@@ -4,6 +4,9 @@
   <h3>Surface Hopping Nested Instances Training Set for Excited-state Learning Tools</h3>
 </div>
 
+
+[![Website](https://img.shields.io/badge/Website-shnitsel.github.io-yellow.svg)](https://shnitsel.github.io/)
+
 --------------------
 
 ## About
@@ -146,5 +149,8 @@ You can create the environment with a custom path using one of the following met
   ```
 </details>
 
-## Citation
+## Further Information
+
+[![Website](https://img.shields.io/badge/Website-shnitsel.github.io-yellow.svg)](https://shnitsel.github.io/)
+
 
