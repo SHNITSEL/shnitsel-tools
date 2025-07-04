@@ -844,14 +844,16 @@ def pick_statecombs(
         framedim: frames}
     # but not frames, as these should be indices already
 
-    indexer = [
-        range(size) if (x:=picks.get(dim)) is None else x
-        for dim, size in da.sizes.items()]
-    
+    tmp = [
+        range(size) if (x := picks.get(dim)) is None else x
+        for dim, size in da.sizes.items()
+    ]
+    indexer = tuple(tmp)
+
     coords = da.isel({framedim: frames}).coords.copy()
     del(coords['statecomb'])
 
-    return xr.DataArray(da.values[*indexer], coords=coords)
+    return xr.DataArray(da.values[indexer], coords=coords)
 
 def find_traj_hops(traj: xr.Dataset) -> xr.Dataset:
     def check(s): return s if s in traj.sizes else False
