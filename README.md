@@ -1,9 +1,9 @@
 <div align="center">
   <h1>shnitsel-tools</h1>
-  <img src="https://github.com/SHNITSEL/shnitsel-tools/blob/main/logo_shnitsel_tools.png" alt="SHNITSEL-TOOLS Logo" width="200px">
+  <img src="https://raw.githubusercontent.com/SHNITSEL/shnitsel-tools/main/logo_shnitsel_tools.png" alt="SHNITSEL-TOOLS Logo" width="200px">
   <h3>Surface Hopping Nested Instances Training Set for Excited-state Learning Tools</h3>
   <br>
-  <a href="[https://zenodo.org/records/15482819](https://shnitsel.github.io/)">
+  <a href="https://shnitsel.github.io/">
     <img src="https://img.shields.io/badge/Website-shnitsel.github.io-yellow.svg" alt="DOI">
   </a>
 </div>
@@ -14,11 +14,14 @@
 
 `shnitsel-tools` is designed to to support the entire data lifecycle of surface hopping (SH) trajectory data upon simulation: data managment, storage, processing, visualization and interpretation. 
 The tool is compatible with surface hopping data generated using the software packages [SHARC 3/4](https://sharc-md.org/), [Newton-X](https://newtonx.org/), and [PyRAI2MD](https://github.com/lopez-lab/PyRAI2MD).
-The `shnitsel` code leverages Xarray to benefit from efficient multidimensional data handling, improved metadata management, and a structure that aligns naturally with the needs of quantum chemical datasets.
+The `shnitsel` code leverages [Xarray](https://xarray.dev/) to benefit from efficient multidimensional data handling, improved metadata management, and a structure that aligns naturally with the needs of quantum chemical datasets.
 
 ## Usage
 
-The package is organized into ...
+The package is organized into top-level functions for reading data (`shnitsel.read_trajs`, `shnitsel.read_ase`, ...),
+accessor methods available on `xr.Dataset` and `xr.DataArray` objects. Plotting routines can be found in the `shnitsel.plot` namespace,
+while functions taking an RDKit `Mol` object as their principal argument are under `shnitsel.rd`.
+The adventurous may find something useful under `shnitsel.core`, though this should be considered internal and therefore subject to change.
 
 > [!TIP]
 > ### Tutorials
@@ -39,9 +42,11 @@ The package is organized into ...
 > - [datasheet for trajectory data](https://github.com/SHNITSEL/shnitsel-tools/blob/main/tutorials/3_1_datasheet.ipynb)
 > - [principal component analysis and trajectory classification](https://github.com/SHNITSEL/shnitsel-tools/blob/main/tutorials/1_1_GS_PCA.ipynb)
 >
-> #### Walkthroughs
+> #### Walkthrough
 >
-> (Link to folder, further info in README)
+> Four [notebooks](https://github.com/SHNITSEL/shnitsel-tools/tree/main/tutorials/walkthrough) demonstrate a workflow for the comparative
+> analysis of homologous/isoelectronic molecules, starting from filtration and leading up to 
+> 
 >
 
 ```bash
@@ -97,8 +102,17 @@ shnitsel
 You can create the environment with a custom path using one of the following methods:
 
 <details open>
-  <summary><strong>Option 1: Using `uv`</strong></summary>
-  We recommend to use the `uv` tool, available at https://docs.astral.sh/uv/.  
+  <summary><strong>Option 1: Using pip</strong></summary>
+  The following should work as usual:
+  ```bash
+  pip install shnitsel-tools
+  ```
+</details>
+
+<details>
+  <summary><strong>Option 2: Using venvs with `uv`</strong></summary>
+  If you would like to work on the source code,
+  we recommend installing using the `uv` tool, available at https://docs.astral.sh/uv/.  
   Run the following in the `shnitsel-tools` directory:
 
   ```bash
@@ -115,8 +129,8 @@ You can create the environment with a custom path using one of the following met
   
 </details>
 
-<details open>
-  <summary><strong>Option 2: Using the `--prefix` Flag</strong></summary>
+<details>
+  <summary><strong>Option 3: Using the `--prefix` Flag</strong></summary>
   
   You can create the environment and specify the desired path by using the `conda env create` command with the `--prefix` flag:
   
@@ -126,7 +140,7 @@ You can create the environment with a custom path using one of the following met
 </details>
 
 <details>
-  <summary><strong>Option 3: Adding the Path to the .yml File</strong></summary>
+  <summary><strong>Option 4: Adding the Path to the .yml File</strong></summary>
   
   Alternatively, you can manually add the desired path to the shnitsel-tools.yml file and create the environment directly:
     
