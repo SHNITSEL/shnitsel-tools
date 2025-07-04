@@ -2,7 +2,15 @@ from collections import namedtuple
 from itertools import chain
 
 import xarray as xr
-from .core import postprocess as P, xrhelpers, parse, plot, filter_unphysical, filtre
+from .core import (
+    postprocess as P,
+    xrhelpers,
+    parse,
+    plot,
+    filter_unphysical,
+    filtre,
+    ase,
+)
 
 M = namedtuple(
     'M',
@@ -166,6 +174,9 @@ DS_METHODS: dict[str, M2] = {
     'truncate': M2(
         filtre.truncate, required_dims={'frame'}, required_coords={'trajid', 'time'}
     ),
+    ###########
+    # From ase:
+    'write_ase': M2(ase.write_ase, required_dims={'frame'}),
 }
 
 
