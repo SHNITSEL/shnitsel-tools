@@ -1,3 +1,4 @@
+print(f"{__file__=:<80} {__name__=}")
 from dataclasses import dataclass
 import numpy as np
 import xarray as xr

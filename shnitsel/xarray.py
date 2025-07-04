@@ -1,3 +1,4 @@
+print(f"{__file__=:<80} {__name__=}")
 from collections import namedtuple
 from itertools import chain
 

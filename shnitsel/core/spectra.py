@@ -1,3 +1,4 @@
+print(f"{__file__=:<80} {__name__=}")
 from itertools import product
 import numpy as np
 from . import postprocess as P

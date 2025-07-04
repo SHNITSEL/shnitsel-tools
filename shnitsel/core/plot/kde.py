@@ -1,3 +1,4 @@
+print(f"{__file__=:<80} {__name__=}")
 from typing import Literal
 
 import numpy as np

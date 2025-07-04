@@ -1,3 +1,4 @@
+print(f"{__file__=:<80} {__name__=}")
 import os
 from typing import Collection
 

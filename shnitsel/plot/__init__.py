@@ -1,3 +1,4 @@
+print(f"{__file__=:<80} {__name__=}")
 from ..core.datasheet import Datasheet as Datasheet
 from ..core.plot.kde import (
     biplot_kde as biplot_kde,

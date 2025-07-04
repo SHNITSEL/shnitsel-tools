@@ -1,3 +1,4 @@
+print(f"{__file__=:<80} {__name__=}")
 import py3Dmol
 import xarray as xr
 from math import sqrt, ceil

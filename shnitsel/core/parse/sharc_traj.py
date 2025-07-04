@@ -1,3 +1,4 @@
+print(f"{__file__=:<80} {__name__=}")
 import numpy as np
 import xarray as xr
 from itertools import combinations

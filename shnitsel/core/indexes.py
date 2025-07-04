@@ -1,3 +1,4 @@
+print(f"{__file__=:<80} {__name__=}")
 import xarray as xr
 
 from typing import Hashable, Tuple, List

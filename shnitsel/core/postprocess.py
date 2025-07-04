@@ -1,3 +1,4 @@
+print(f"{__file__=:<80} {__name__=}")
 import math
 import itertools
 from logging import warning

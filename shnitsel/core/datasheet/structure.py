@@ -1,3 +1,4 @@
+print(f"{__file__=:<80} {__name__=}")
 from logging import warning
 
 import rdkit

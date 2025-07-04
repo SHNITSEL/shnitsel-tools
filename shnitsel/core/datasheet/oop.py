@@ -1,3 +1,4 @@
+print(f"{__file__=:<80} {__name__=}")
 from functools import cached_property
 import xarray as xr
 import numpy as np

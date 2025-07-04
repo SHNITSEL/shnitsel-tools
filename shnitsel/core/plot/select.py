@@ -1,3 +1,4 @@
+print(f"{__file__=:<80} {__name__=}")
 from bokeh.layouts import column
 from bokeh.models import ColumnDataSource, CustomJS
 from bokeh.plotting import figure

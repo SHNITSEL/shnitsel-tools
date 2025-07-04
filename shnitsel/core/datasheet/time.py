@@ -1,3 +1,4 @@
+print(f"{__file__=:<80} {__name__=}")
 from matplotlib.axes import Axes
 
 from .common import figaxs_defaults, centertext

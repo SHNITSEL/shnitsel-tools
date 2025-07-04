@@ -1,3 +1,4 @@
+print(f"{__file__=:<80} {__name__=}")
 import xarray as xr
 import matplotlib as mpl
 import matplotlib.pyplot as plt

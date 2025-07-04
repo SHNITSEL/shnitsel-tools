@@ -1,3 +1,4 @@
+print(f"{__file__=:<80} {__name__=}")
 import glob
 import os
 import logging

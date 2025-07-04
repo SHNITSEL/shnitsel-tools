@@ -1,3 +1,4 @@
+print(f"{__file__=:<80} {__name__=}")
 # noqa: F401
 
 from typing import TYPE_CHECKING

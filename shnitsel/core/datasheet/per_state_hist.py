@@ -1,3 +1,4 @@
+print(f"{__file__=:<80} {__name__=}")
 import numpy as np
 
 from .common import figaxs_defaults, centertext, symbols

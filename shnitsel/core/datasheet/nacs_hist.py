@@ -1,3 +1,4 @@
+print(f"{__file__=:<80} {__name__=}")
 from .common import figaxs_defaults, centertext
 from .hist import create_marginals, trunc_max
 
