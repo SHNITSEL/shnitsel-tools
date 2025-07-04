@@ -55,9 +55,6 @@ dev = [
   "types-tqdm",
 ]
 
-#[tool.setuptools]
-#packages = ["shnitsel"]
-
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["shnitsel*"]
@@ -93,3 +90,14 @@ module = [
   "sklearn.*"
 ]
 ignore_missing_imports = true
+
+[tool.tox]
+min_version = "4.19"
+env_list = ["py313", "py312", "py311", "py310"]
+
+[tool.tox.testenv]
+deps = ["pytest"]
+commands = [
+  ["python", "--version"],
+  ["pytest"]
+]
