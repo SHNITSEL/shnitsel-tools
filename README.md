@@ -23,49 +23,40 @@ accessor methods available on `xr.Dataset` and `xr.DataArray` objects. Plotting 
 while functions taking an RDKit `Mol` object as their principal argument are under `shnitsel.rd`.
 The adventurous may find something useful under `shnitsel.core`, though this should be considered internal and therefore subject to change.
 
-> [!TIP]
-> ### Tutorials
->
-> For a quick start, see the [tutorials](https://github.com/SHNITSEL/shnitsel-tools/blob/main/tutorials) directory,
-> which contains Jupyter Notebooks showing the workflow for parsing, writing and loading SHNITSEL databases as well as how to postprocess and visualize the respective data.
-> 
-> #### Collection & storage
-> - [parsing trajcetory and initial condition data obtained by SHARC](https://github.com/SHNITSEL/shnitsel-tools/blob/main/tutorials/0_1_sharc2hdf5.ipynb)
-> - [parsing trajectory data produced with Newton-X](https://github.com/SHNITSEL/shnitsel-tools/blob/main/tutorials/0_2_nx2hdf5.ipynb)
-> - [convert ASE databases](https://github.com/SHNITSEL/shnitsel-tools/blob/main/tutorials/0_4_ase2hdf5.ipynb)
->
-> #### Management
->
-> [exploration of electronic properties](https://github.com/SHNITSEL/shnitsel-tools/blob/main/tutorials/2_2_PS_explore.ipynb)
->
-> #### Postprocessing & visualization of data
-> - [datasheet for trajectory data](https://github.com/SHNITSEL/shnitsel-tools/blob/main/tutorials/3_1_datasheet.ipynb)
-> - [principal component analysis and trajectory classification](https://github.com/SHNITSEL/shnitsel-tools/blob/main/tutorials/1_1_GS_PCA.ipynb)
->
-> #### Walkthrough
->
-> Four [notebooks](https://github.com/SHNITSEL/shnitsel-tools/tree/main/tutorials/walkthrough) demonstrate a workflow for the comparative
-> analysis of homologous/isoelectronic molecules, starting from filtration and leading up to 
-> 
->
+### Tutorials
+For a quick start, see the [tutorials](https://github.com/SHNITSEL/shnitsel-tools/blob/main/tutorials) directory,
+which contains Jupyter Notebooks showing the workflow for parsing, writing and loading SHNITSEL databases as well as how to postprocess and visualize the respective data.
+
+#### Collection & storage
+- [parsing trajcetory and initial condition data obtained by SHARC](https://github.com/SHNITSEL/shnitsel-tools/blob/main/tutorials/0_1_sharc2hdf5.ipynb)
+- [parsing trajectory data produced with Newton-X](https://github.com/SHNITSEL/shnitsel-tools/blob/main/tutorials/0_2_nx2hdf5.ipynb)
+- [convert ASE databases](https://github.com/SHNITSEL/shnitsel-tools/blob/main/tutorials/0_4_ase2hdf5.ipynb)
+#### Management
+[exploration of electronic properties](https://github.com/SHNITSEL/shnitsel-tools/blob/main/tutorials/2_2_PS_explore.ipynb)
+#### Postprocessing & visualization of data
+- [datasheet for trajectory data](https://github.com/SHNITSEL/shnitsel-tools/blob/main/tutorials/3_1_datasheet.ipynb)
+- [principal component analysis and trajectory classification](https://github.com/SHNITSEL/shnitsel-tools/blob/main/tutorials/1_1_GS_PCA.ipynb)
+#### Walkthrough
+Four [notebooks](https://github.com/SHNITSEL/shnitsel-tools/tree/main/tutorials/walkthrough) demonstrate a workflow for the comparative
+analysis of homologous/isoelectronic molecules, starting from filtration and leading up to 
+
+## Tree
 
 ```bash
 shnitsel
 ├── core
 │   ├── ase.py
 │   ├── datasheet
+│   │   ├── colormaps.py
+│   │   ├── common.py
+│   │   ├── dip_trans_hist.py
+│   │   ├── hist.py
 │   │   ├── __init__.py
+│   │   ├── nacs_hist.py
 │   │   ├── oop.py
-│   │   └── plot
-│   │       ├── colormaps.py
-│   │       ├── common.py
-│   │       ├── dip_trans_hist.py
-│   │       ├── hist.py
-│   │       ├── __init__.py
-│   │       ├── nacs_hist.py
-│   │       ├── per_state_hist.py
-│   │       ├── structure.py
-│   │       └── time.py
+│   │   ├── per_state_hist.py
+│   │   ├── structure.py
+│   │   └── time.py
 │   ├── filter_unphysical.py
 │   ├── filtre.py
 │   ├── indexes.py
@@ -78,14 +69,14 @@ shnitsel
 │   │   ├── sharc_icond.py
 │   │   ├── sharc_traj.py
 │   │   └── xyz.py
-│   ├── pca_biplot.py
 │   ├── plot
 │   │   ├── __init__.py
 │   │   ├── kde.py
 │   │   ├── p3mhelpers.py
+│   │   ├── pca_biplot.py
+│   │   ├── polychrom.py
 │   │   ├── select.py
 │   │   └── spectra3d.py
-│   ├── plotting.py
 │   ├── postprocess.py
 │   ├── spectra.py
 │   └── xrhelpers.py
@@ -93,7 +84,6 @@ shnitsel
 ├── plot
 │   └── __init__.py
 ├── rd.py
-├── README.md
 └── xarray.py
 ```
 
