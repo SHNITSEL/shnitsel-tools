@@ -4,15 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "shnitsel-tools"
-version = "0.0.1"
+version = "0.0.1.post1"
 authors = [
-  { name="Robin Curth", email="robin.curth@uni-leipzig.de" },
   { name="Theodor Everley Röhrkasten", email="theodor.roehrkasten@fau.de" },
   { name="Carolin Müller", email="carolin.cpc.mueller@fau.de" },
-  { name="Julia Westermayr", email="julia.westermayr@uni-leipzig.de" },
-
 ]
-description = "Display and interpret output of SHARC"
+
+description = "Collect, manage, process, analyse & visualize surface hopping data"
 readme = "README.md"
 requires-python = ">=3.10"
 classifiers = [
