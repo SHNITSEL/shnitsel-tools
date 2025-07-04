@@ -58,6 +58,9 @@ dev = [
 [tool.setuptools]
 packages = ["shnitsel"]
 
+[tool.setuptools.packages.find]
+include = ["shnitsel*"]
+
 [tool.ruff]
 include = ["shnitsel/**/*.py"]
 
