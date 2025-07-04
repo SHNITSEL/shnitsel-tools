@@ -95,6 +95,7 @@ You can create the environment with a custom path using one of the following met
 <details open>
   <summary><strong>Option 1: Using pip</strong></summary>
   The following should work as usual:
+  
   ```bash
   pip install shnitsel-tools
   ```
