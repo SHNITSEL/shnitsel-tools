@@ -55,10 +55,11 @@ dev = [
   "types-tqdm",
 ]
 
-[tool.setuptools]
-packages = ["shnitsel"]
+#[tool.setuptools]
+#packages = ["shnitsel"]
 
 [tool.setuptools.packages.find]
+where = ["."]
 include = ["shnitsel*"]
 
 [tool.ruff]
