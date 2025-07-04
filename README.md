@@ -18,9 +18,9 @@ The package leverages [Xarray](https://xarray.dev/) to benefit from efficient mu
 
 ## Usage
 
-The package is organized into top-level functions for reading data (`shnitsel.read_trajs`, `shnitsel.read_ase`, ...),
-accessor methods available on `xr.Dataset` and `xr.DataArray` objects. Plotting routines can be found in the `shnitsel.plot` namespace,
-while functions taking an RDKit `Mol` object as their principal argument are under `shnitsel.rd`.
+The package is organized into top-level functions for reading data,
+accessor methods available on `xr.Dataset` and `xr.DataArray` objects, plotting routines found in the `shnitsel.plot` namespace,
+and functions taking an RDKit `Mol` object as their principal argument under `shnitsel.rd`.
 The adventurous may find something useful under `shnitsel.core`, though this should be considered internal and therefore subject to change.
 
 ### Tutorials
@@ -36,9 +36,10 @@ which contains Jupyter Notebooks showing the workflow for parsing, writing and l
 #### Postprocessing & visualization of data
 - [datasheet for trajectory data](https://github.com/SHNITSEL/shnitsel-tools/blob/main/tutorials/3_1_datasheet.ipynb)
 - [principal component analysis and trajectory classification](https://github.com/SHNITSEL/shnitsel-tools/blob/main/tutorials/1_1_GS_PCA.ipynb)
-#### Walkthrough
+
+### Workflow walkthrough
 Four [notebooks](https://github.com/SHNITSEL/shnitsel-tools/tree/main/tutorials/walkthrough) demonstrate a workflow for the comparative
-analysis of homologous/isoelectronic molecules, starting from filtration and leading up to 
+analysis of homologous/isoelectronic molecules, from filtration via dimensional reduction and clustering to kinetics.
 
 ## Tree
 
