@@ -1,5 +1,5 @@
 from bokeh.layouts import column
-from bokeh.models import ColumnDataSource, CustomJS
+from bokeh.models import ColumnDataSource  # , CustomJS
 from bokeh.plotting import figure
 from bokeh.io import show, output_notebook
 from bokeh.settings import settings
