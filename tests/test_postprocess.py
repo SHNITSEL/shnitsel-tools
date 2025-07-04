@@ -8,8 +8,8 @@ import numpy as np
 import xarray as xr
 
 import shnitsel
-from shnitsel.dynamic import postprocess
-from shnitsel.dynamic.postprocess import (
+from shnitsel import postprocess
+from shnitsel.core.postprocess import (
     norm,
     subtract_combinations,
     pca,
@@ -20,9 +20,7 @@ from shnitsel.dynamic.postprocess import (
 
 @pytest.fixture
 def traj_butene():
-    frames = shnitsel.dynamic.parse.read_trajs(
-        'tutorials/test_data/sharc/traj_butene', kind='sharc'
-    )
+    frames = shnitsel.read_trajs('tutorials/test_data/sharc/traj_butene', kind='sharc')
     return postprocess.ts_to_time(frames)
 
 

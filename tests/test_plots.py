@@ -4,7 +4,7 @@ import tempfile
 import pytest
 from matplotlib.testing.decorators import image_comparison
 
-import shnitsel.dynamic as sh
+import shnitsel as sh
 import shnitsel.xarray
 
 # In this file, we aim to directly test the output of all plotting functions,
@@ -49,7 +49,7 @@ def test_ski_plots(spectra3d):
         name
         # os.path.join(FIXDIR, name, 'ski_plots.png')
         # with tempfile.NamedTemporaryFile() as f:
-        sh.plot.spectra3d.ski_plots(spectral)  # .savefig(f.name)
+        sh.plot.ski_plots(spectral)  # .savefig(f.name)
 
 
 def test_pcm_plots(): ...

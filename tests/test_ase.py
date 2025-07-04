@@ -2,7 +2,8 @@ import os
 
 import pytest
 from xarray.testing import assert_equal
-from shnitsel.dynamic.ase import read_ase_db, write_ase_db
+from shnitsel import read_ase
+import shnitsel.xarray
 
 @pytest.mark.parametrize(
     'path,kind',
@@ -18,9 +19,9 @@ def test_ase_round_trip(path, kind):
     except FileNotFoundError:
         pass
 
-    frames1 = read_ase_db(path, kind=kind)
-    write_ase_db(frames1, tmp_path, kind=kind)
-    frames2 = read_ase_db(tmp_path, kind=kind)
+    frames1 = read_ase(path, kind=kind)
+    frames1.sh.write_ase(tmp_path, kind=kind)
+    frames2 = read_ase(tmp_path, kind=kind)
     assert_equal(frames1, frames2)
 
 

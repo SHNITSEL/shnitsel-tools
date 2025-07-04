@@ -1,6 +1,6 @@
 import os
-import shnitsel.dynamic as sh
-from shnitsel.dynamic.plot import Datasheet
+import shnitsel as sh
+from shnitsel.plot import Datasheet
 
 
 def test_sharc_iconds():
@@ -61,9 +61,8 @@ def test_ski_plots():
     # load data
     spectra_data = (
         sh.open_frames(path='A01_ethene_dynamic.nc')
-        .pipe(sh.get_inter_state)
-        .pipe(sh.assign_fosc)
-        .pipe(sh.spectra_all_times)
+        .sh.get_inter_state()
+        .sh.spectra_all_times()
     )
     # plot spectra at different simulation times in one plot with a dahsed line that tracks the maximum
     sh.plot.ski_plots(spectra_data)

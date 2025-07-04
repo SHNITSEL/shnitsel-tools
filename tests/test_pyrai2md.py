@@ -1,4 +1,4 @@
-import shnitsel.dynamic as sh
+import shnitsel as sh
 
 
 def test_parse():
