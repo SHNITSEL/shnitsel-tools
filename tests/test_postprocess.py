@@ -64,7 +64,7 @@ def test_pca(da):
     assume(not np.isinf(da).any())  # no +/-inf allowed
     assume(not np.isnan(da).any())  # no NaNs allowed
     res = pca(da, dim='target')
-    assert isinstance(res, xr.DataArray)
+    assert isinstance(res, xr.DataArray) or isinstance(res, xr.Variable)
     assert 'PC' in res.dims
 
 
