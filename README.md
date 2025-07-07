@@ -32,7 +32,7 @@ which contains Jupyter Notebooks showing the workflow for parsing, writing and l
 - [parsing trajectory data produced with Newton-X](https://github.com/SHNITSEL/shnitsel-tools/blob/main/tutorials/0_2_nx2hdf5.ipynb)
 - [convert ASE databases](https://github.com/SHNITSEL/shnitsel-tools/blob/main/tutorials/0_4_ase2hdf5.ipynb)
 #### Management
-[exploration of electronic properties](https://github.com/SHNITSEL/shnitsel-tools/blob/main/tutorials/2_2_PS_explore.ipynb)
+- [exploration of electronic properties](https://github.com/SHNITSEL/shnitsel-tools/blob/main/tutorials/2_2_PS_explore.ipynb)
 #### Postprocessing & visualization of data
 - [datasheet for trajectory data](https://github.com/SHNITSEL/shnitsel-tools/blob/main/tutorials/3_1_datasheet.ipynb)
 - [principal component analysis and trajectory classification](https://github.com/SHNITSEL/shnitsel-tools/blob/main/tutorials/1_1_GS_PCA.ipynb)
@@ -143,7 +143,6 @@ You can create the environment with a custom path using one of the following met
   ```
   
   2) Add the following line to the file:
-  
   
   ```
   prefix: /home/user/anaconda3/envs/shnitsel
