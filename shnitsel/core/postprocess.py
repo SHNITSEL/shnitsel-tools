@@ -106,30 +106,6 @@ def subtract_combinations(
     res.attrs['deltaed'] = set(res.attrs.get('deltaed', [])).union({dim})
     return res
 
-def pca_for_plot(diffnorms):
-    """Legacy method to calculate 2-component PCA
-
-    Parameters
-    ----------
-    diffnorms
-        Data to be transformed, usually norms of pairwise differences
-
-    Returns
-    -------
-    data
-        The transformed data
-    pca_n2_scaled
-        The trained PCA object produced by scikit-learn
-    """
-    from sklearn.preprocessing import MinMaxScaler
-    from sklearn.decomposition import PCA
-    
-    
-    scaled = MinMaxScaler()\
-        .fit_transform(diffnorms)
-    pca_n2_scaled = PCA(n_components=2)
-    pca_n2_scaled.fit(scaled)
-    return pca_n2_scaled.transform(scaled), pca_n2_scaled
 
 def pca(
     da: xr.DataArray, dim: str, n_components: int = 2, return_pca_object=False
@@ -150,8 +126,11 @@ def pca(
 
     Returns
     -------
+    pca_res
         A DataArray with the same dimensions as `da`, except for the dimension
         indicated by `dim`, which is replaced by a dimension `PC` of size `n_components`
+    [pca_object]
+        The trained PCA object produced by scikit-learn, if return_pca_object=True
     """
     scaled = xr.apply_ufunc(
       MinMaxScaler().fit_transform,
@@ -195,14 +174,6 @@ def pairwise_dists_pca(atXYZ: AtXYZ, **kwargs) -> xr.DataArray:
     assert not isinstance(res, tuple)  # typing
     return res
 
-def _sudi_groupby(da):
-    """Successive differences"""
-    da = da.transpose('frame', ...)
-    return da.groupby('trajid').map(
-        lambda traj: np.diff(
-            traj, axis=0, prepend=np.array(traj[0], ndmin=traj.values.ndim)
-        )
-    )
 
 def sudi(da: xr.DataArray) -> xr.DataArray:
     """Successive differences"""
@@ -335,33 +306,6 @@ def setup_frames(
     return ds
 
 
-def convert(
-    da: xr.DataArray, to: str, quantity: str, conversions: dict
-) -> xr.DataArray:
-    try:
-        from_ = da.attrs['units']
-    except AttributeError:
-        raise TypeError("da should be a DataArray with a da.attr attribute.")
-    except KeyError:
-        raise KeyError("The 'units' attribute of the DataArray must be set.")
-
-    try:
-        divisor = conversions[from_]
-    except KeyError:
-        targets = list(conversions.keys())
-        raise ValueError(f"Can't convert {quantity} from {from_!r}, only from: {targets}")
-
-    try:
-        dividend = conversions[to]
-    except KeyError:
-        targets = list(conversions.keys())
-        raise ValueError(f"Can't convert {quantity} to {to!r}, only to: {targets}")
-
-    with xr.set_options(keep_attrs=True):
-        res: xr.DataArray = da * dividend / divisor
-    res.attrs.update({'units': to})
-    return res
-
 class Converter:
     def __init__(self, quantity, conversions):
         self.quantity = quantity
@@ -412,22 +356,6 @@ convert_length = Converter(
     ),
 )
 
-# def convert_energy(da: xr.DataArray, to: str):
-#     conversions = dict(
-#         hartree=1.0,
-#         eV=27.211386245988,
-#         keV=0.027211386245988
-#     )
-#     return convert(da, to, quantity='energy', conversions=conversions)
-
-def changes(da):
-    # TODO
-    diffs = da.copy(data=np.diff(
-      da.coords['astates'],
-      axis=da.coords['astates'].get_axis_num("frame"),
-      prepend=0) 
-    )
-    return diffs != 0
 
 def validate(frames: Frames) -> np.ndarray:
     if 'time' in frames.coords:
