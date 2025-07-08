@@ -196,7 +196,7 @@ class ShnitselAccessor:
         return method
 
     def __dir__(self):
-        return chain(super().__dir__(), self._methods)
+        return self._methods
 
 
 @xr.register_dataarray_accessor('sh')
