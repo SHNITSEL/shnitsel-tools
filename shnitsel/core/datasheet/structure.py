@@ -10,15 +10,6 @@ from ..plot import pca_biplot
 from .. import postprocess as P
 from .common import figax
 
-def xyz_to_mol(atXYZ, charge=0, covFactor=1.5) -> rc.Mol:
-    mol = rc.rdmolfiles.MolFromXYZBlock(P.to_xyz(atXYZ))
-    rc.rdDetermineBonds.DetermineBonds(
-        mol, charge=charge, useVdw=True, covFactor=covFactor
-    )
-    rc.rdDepictor.Compute2DCoords(mol)
-    return mol
-
-
 def mol_to_png(mol, width=320, height=240):
     d = rdkit.Chem.Draw.rdMolDraw2D.MolDraw2DCairo(width, height)
 

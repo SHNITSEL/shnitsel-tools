@@ -9,8 +9,7 @@ from matplotlib.figure import Figure
 
 from scipy import stats
 
-import rdkit # type: ignore
-from rdkit.Chem import AllChem # type: ignore
+import rdkit  # type: ignore
 import PIL
 import io
 
@@ -125,18 +124,6 @@ def plot_loadings(ax, loadings):
         ax.arrow(0, 0, pc1, pc2)
         a1, a2 = int(pcs['from']), int(pcs['to'])
         ax.text(pc1, pc2, f"{a1},{a2}")
-
-# WARNING there is a different version in datasheet/plot/structure
-# This is to keep pca_biplot working during development of datasheet
-# TODO unify the two implementations
-def xyz_to_mol(
-    atXYZ,
-    charge=0,
-):
-    mol = rdkit.Chem.rdmolfiles.MolFromXYZBlock(P.to_xyz(atXYZ))
-    rdkit.Chem.rdDetermineBonds.DetermineBonds(mol, charge=charge)
-    AllChem.Compute2DCoords(mol)
-    return mol
 
 def show_atom_numbers(atXYZ):
     mol = P.to_mol(atXYZ)

@@ -3,9 +3,6 @@ from logging import warning
 import numpy as np
 import xarray as xr
 
-from rdkit import Chem as rc
-from rdkit.Chem import rdDetermineBonds, AllChem
-
 from . import postprocess as P, xrhelpers as xh
 from .plot import pca_biplot
 from .postprocess import (
@@ -24,16 +21,6 @@ def find_bonds_by_element(mol, elem1: int, elem2: int):
 
     return [indices(b) for b in mol.GetBonds() if elems_correct(b)]
 
-def mol_from_atXYZ(atXYZ_frame, charge=0, covFactor=1.5, to2D=True):
-    mol = rc.rdmolfiles.MolFromXYZBlock(P.to_xyz(atXYZ_frame))
-    # rdDetermineBonds.DetermineConnectivity(mol) # 2025-02-03 TODO Unify!
-    rdDetermineBonds.DetermineBonds(
-        mol, charge=charge, useVdw=True, covFactor=covFactor
-    )
-    if to2D:
-        AllChem.Compute2DCoords(mol)  # type: ignore
-    return mol
-
 def max_bond_lengths(atXYZ, elem1=1, elem2=6):
     def dists(a1, a2):
         return P.norm(atXYZ.isel(atom=a1) - atXYZ.isel(atom=a2), dim='direction')
@@ -42,7 +29,7 @@ def max_bond_lengths(atXYZ, elem1=1, elem2=6):
         mol = numbered_smiles_to_mol(atXYZ.attrs['smiles_map'])
     else:
         warning("`smiles_map` attribute missing; falling back to frame 0")
-        mol = mol_from_atXYZ((atXYZ.isel(frame=0)))
+        mol = P.to_mol((atXYZ.isel(frame=0)))
 
     bonds = find_bonds_by_element(mol, elem1, elem2)
     maxlengths = xr.concat([
@@ -134,7 +121,7 @@ def filter_cleavage(frames, *, CC=False, CH=False, CN=False, NH=False, verbose=2
 
 # TODO 2025-06-16: Does this function belong here?
 def smiles_map(atXYZ_frame, charge=0, covFactor=1.5) -> str:
-    mol = mol_from_atXYZ(atXYZ_frame, charge=charge, covFactor=covFactor, to2D=True)
+    mol = P.to_mol(atXYZ_frame, charge=charge, covFactor=covFactor, to2D=True)
     return mol_to_numbered_smiles(mol)
 
 
