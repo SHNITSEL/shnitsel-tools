@@ -28,8 +28,6 @@ from .dip_trans_hist import (
 from .nacs_hist import plot_nacs_histograms as plot_nacs_histograms
 
 
-from .structure import show_atXYZ as show_atXYZ
-
 from .oop import Datasheet as Datasheet
 
 __all__ = ['Datasheet', 'show_atXYZ']
