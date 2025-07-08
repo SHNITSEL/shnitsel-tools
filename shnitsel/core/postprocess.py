@@ -543,14 +543,6 @@ def keep_norming(
     return da
 
 
-# def aggregate_trajs(frames):
-#     gb = frames.groupby('trajid')
-#     return gb.mean(), gb.stddev() 
-
-# def state_diffs(prpt):
-#     statecomb = xrhelpers.get_statecombs
-
-
 def _get_fosc(energy, dip_trans):
     return 2 / 3 * energy * dip_trans**2
 
