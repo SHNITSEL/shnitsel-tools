@@ -51,6 +51,8 @@ def parse_nx_log(f):
     nsteps = max_ts + 1
     nstates = settings['nstat']
     natoms = settings['Nat']
+    assert isinstance(nstates, int)
+    assert isinstance(natoms, int)
 
     # TODO: so far, we haven't needed to parse data that
     #       had dipoles etc.
@@ -62,8 +64,8 @@ def parse_nx_log(f):
     forces = np.full((nsteps, natoms, 3), np.nan)
     nacs = np.full((nsteps, math.comb(nstates, 2), natoms, 3), np.nan)
 
-    ts = 0
-    time = 0
+    ts: int = 0
+    time: float = 0
     # parse actual data
     for line in f:
         stripline = line.strip()
