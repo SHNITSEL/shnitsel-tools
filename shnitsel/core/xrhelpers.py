@@ -109,31 +109,6 @@ def expand_midx(ds, midx_name, level_name, value):
       .assign_coords(coords)
     )
 
-# TODO! Improve this, then use it to rewrite ts_to_time.
-# Only worth doing once you find a second situation in which
-# MultiIndex is to be modified.
-def modify_midx_level(data, midx_name, coords, replace: set | None):
-    """Turns the levels of a MultiIndex into coordinates,
-    modifies them as coordinates, then converts back.
-    """
-    # find MultiIndex name
-    # for idx_name, idx in data.indexes.values():
-        # if not set(coords).isdisjoint(getattr(idx, 'names', set())):
-
-    # 'frame' in energy_rel.reset_index('frame').coords['ts'].dims
-
-    level_names = list(data.indexes[midx_name].names)
-    data = (data
-      .reset_index(midx_name)
-      .assign_coords(coords)
-    )
-    if replace is not None:
-        new_levels = set(level_names).union(coords.keys()).difference(replace)
-        data = (data
-          .reset_index(midx_name)
-          .set_xindex(list(new_levels))
-        )
-    return data
 
 # NB: This deprecates the previous function (modify_midx_level)
 # for most use-cases.
@@ -148,19 +123,6 @@ def assign_levels(obj, levels=None, **levels_kwargs):
     obj = obj.assign_coords(levels)
     return obj.set_xindex(to_restore)
 
-
-def _ts_to_time(data, delta_t=None, swap_index=True):
-    default_delta_t = 0.5
-
-    if delta_t is None:
-        delta_t = data.attrs.get('delta_t', default_delta_t)
-
-    return modify_midx_level(
-      data,
-      midx_name='frame',
-      coords={'time': data.coords['ts'] * delta_t},
-      replace={'ts'} if swap_index else None
-    )
 
 def open_frames(path):
     # The error raised for a missing file can be misleading
@@ -336,7 +298,3 @@ def sel_trajids(
         actually_selected = np.unique(res['trajid'])
         res = res.sel(trajid_=actually_selected)
     return res
-
-
-# def selframemask(frames, frame_mask):
-#     return frames.sel(frame=frame_mask)
