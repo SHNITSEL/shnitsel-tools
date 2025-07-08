@@ -11,7 +11,9 @@ symbols = dict(energy=r"$E_i$", force=r"$\mathbf{F}_i$", dip_perm=r"$\mathbf{\mu
 def figaxs_defaults(mosaic, scale_factors=None, height_ratios=None):
     def decorator(func):
         @wraps(func)
-        def wrapper(*args, fig=None, axs=None, **kws):
+        def wrapper(
+            *args, fig: Figure | None = None, axs: dict[str, Axes] | None = None, **kws
+        ):
             nonlocal func, scale_factors, mosaic, height_ratios
             if scale_factors is None:
                 scale_factors = (1, 1)
