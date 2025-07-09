@@ -110,8 +110,6 @@ def expand_midx(ds, midx_name, level_name, value):
     )
 
 
-# NB: This deprecates the previous function (modify_midx_level)
-# for most use-cases.
 def assign_levels(obj, levels=None, **levels_kwargs):
     if levels is None:
         levels = levels_kwargs
