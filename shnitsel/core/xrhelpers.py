@@ -4,7 +4,7 @@ import os
 import logging
 import math
 
-from collections.abc import Iterable
+from numpy.typing import NDArray, ArrayLike
 
 import xarray as xr
 import numpy as np
@@ -46,11 +46,11 @@ def replace_total(
 
 def midx_combs(values: pd.core.indexes.base.Index|list, name: str|None =None):
     if name is None:
-        try:
+        if hasattr(values, 'name'):
             # if `values` is a `pandas.core.indexes.base.Index`
             # extract its name
             name = values.name
-        except AttributeError:
+        else:
             raise ValueError("need to specify name if values lack name attribute")
 
     return xr.Coordinates.from_pandas_multiindex(
@@ -252,12 +252,15 @@ def msel(obj, **kwargs):
 
 
 def sel_trajs(
-    frames: xr.Dataset, trajids_or_mask: int | Iterable[bool | int], invert=False
+    frames: xr.Dataset,
+    trajids_or_mask: ArrayLike,
+    invert=False,
 ) -> xr.Dataset:
     """Takes boolean mask (each entry corresponding to a trajectory in MuliIndex order)
     or an Iterable of trajids. In latter case, will not generally return trajectories in order given.
     `invert=True` selects those trajectories not specified."""
     trajids_or_mask = np.atleast_1d(trajids_or_mask)
+    trajids: NDArray | xr.DataArray
     if np.issubdtype(trajids_or_mask.dtype, np.integer):
         trajids = trajids_or_mask
     elif np.issubdtype(trajids_or_mask.dtype, bool):
@@ -277,9 +280,7 @@ def sel_trajs(
     return sel_trajids(frames=frames, trajids=trajids, invert=invert)
 
 
-def sel_trajids(
-    frames: xr.Dataset, trajids: int | Iterable[int], invert=False
-) -> xr.Dataset:
+def sel_trajids(frames: xr.Dataset, trajids: ArrayLike, invert=False) -> xr.Dataset:
     "Will not generally return trajectories in order given"
     trajids = np.atleast_1d(trajids)
     # check that all trajids are valid, as Dataset.sel() would
