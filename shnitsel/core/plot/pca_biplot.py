@@ -5,7 +5,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 
 from matplotlib.axes import Axes
-from matplotlib.figure import Figure
+from matplotlib.figure import Figure, SubFigure
 
 from scipy import stats
 
@@ -16,16 +16,23 @@ import io
 from .. import postprocess as P
 
 
-def figax(fig: Figure | None = None, ax: Axes | None = None):
+def figax(
+    fig: Figure | SubFigure | None = None,
+    ax: Axes | None = None,
+) -> tuple[Figure | SubFigure, Axes]:
     """
     Create figure and axes-object if an axes-object is not supplied.
     """
     if fig is None and ax is None:
         fig, ax = plt.subplots(1, 1)
     elif fig is None:
+        assert ax is not None
         fig = ax.figure
     elif ax is None:
         ax = fig.subplots(1, 1)
+
+    assert isinstance(fig, Figure) or isinstance(fig, SubFigure)
+    assert isinstance(ax, Axes)
     return fig, ax
 
 def plot_noodleplot(
@@ -40,9 +47,8 @@ def plot_noodleplot(
     cscale=None,
     noodle_kws=None,
     hops_kws=None,
-) -> mpl.axes.Axes:
+) -> Axes:
     fig, ax = figax(fig=fig, ax=ax)
-
     if c is None:
         c = noodle['time']
         c_is_time = True
@@ -86,6 +92,7 @@ def plot_noodleplot(
     # cax = d.append_axes("right", size="5%", pad="2%")
     # fig.colorbar(pc, cax=cax, label='dihedral')
 
+    assert isinstance(ax, Axes)
     return ax
 
 # TODO: finish later!
@@ -98,7 +105,7 @@ def plot_noodleplot_lines(noodle, #hops,
     for trajid, traj in noodle.groupby('trajid'):
 
         segments = np.concatenate([points[:-1], points[1:]], axis=1)
-        lc = mpl.collections.LineCollection()
+        lc = mpl.collections.LineCollection([[0, 0]])
 
     segments
     lc
@@ -182,7 +189,7 @@ def highlight_pairs(mol, pairs):
     # colors = iter(mpl.colormaps['tab10'](range(10)))
     colors = iter(mpl.colormaps['rainbow'](np.linspace(0, 1, len(pairs))))
 
-    acolors = {}
+    acolors: dict[int, list[tuple[float, float, float]]] = {}
     bonds = {}
     for a1, a2 in pairs:
         if (bond := mol.GetBondBetweenAtoms(a1, a2)) is not None:
@@ -239,7 +246,7 @@ def separate_angles(points, min_angle=10):
             [(idx, calc_dist(points[idx])) for idx in angle_cluster],
             dtype=[('idx', int), ('dist', float)])
         dists.sort(order='dist')
-        factor = 1
+        factor: float = 1
         for idx, dist in dists[::-1]:
             scalefactors[idx] = factor # less extrusion for the smaller radius
             factor *= 0.8
