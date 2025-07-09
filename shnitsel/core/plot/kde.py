@@ -64,12 +64,12 @@ def plot_kdes(xx, yy, Zs, colors=None, levels=None, fill=True, fig=None, ax=None
 
 def biplot_kde(
     frames,
-    at1=0,
-    at2=1,
-    at3=None,
-    at4=None,
-    geo_filter=None,
-    levels=None,
+    at1: int = 0,
+    at2: int = 1,
+    at3: int | None = None,
+    at4: int | None = None,
+    geo_filter: list[tuple[float, float]] | None = None,
+    levels: int | list[float] | None = None,
     scatter_color: Literal['time', 'geo'] = 'time',
     fill: bool = True,
 ):
@@ -81,23 +81,32 @@ def biplot_kde(
         - 3 atoms => angle
         - 4 atoms => dihedral angle
 
-    Parameters:
-    -----------
-    frames : xarray.Dataset
+    Parameters
+    ----------
+    frames
         A dataset containing trajectory frames with atomic coordinates.
-    at1, at2, at3, at4 : int
+    at1, at2, at3, at4
         Indices of the first, second, third and fourth atoms for geometric property calculation.
-    levels : list of float, optional
+    geo_filter
+        A list of tuples representing ranges. A KDE is plotted for each range, indicating the distribution of
+        points for which the value of the geometry feature falls in that range.
+    levels
         Contour levels for the KDE plot. Defaults to [0.08, 1]. This parameter is passed to
         matplotlib.axes.Axes.contour.
+    scatter_color
+        Must be one of 'time' or 'geo'. If 'time', the scatter-points will be colored based on the time coordinate;
+        if 'geo', the scatter-points will be colored based on the relevant geometry feature (see above).
+    fill
+        Whether to plot filled contours (``fill=True``, uses ``ax.contourf``)
+        or just contour lines (``fill=False``, uses ``ax.contour``).
 
-    Returns:
-    --------
-    kde_data : tuple
+    Returns
+    -------
+    kde_dat
         The computed KDE data for the atom-atom distance distribution.
 
-    Notes:
-    ------
+    Notes
+    -----
     - Computes a geometric property of the specified atoms across all frames.
     - Uses kernel density estimation (KDE) to analyze the distance distributions.
     - Performs PCA on trajectory pairwise distances and visualizes clustering of structural changes.
@@ -109,23 +118,26 @@ def biplot_kde(
     if levels is None:
         levels = [0.08, 1]
 
-    match [at1, at2, at3, at4]: 
-        case [at1, at2, None, None]:
+    match at1, at2, at3, at4:
+        case at1, at2, None, None:
             # compute distance between atoms at1 and at2
             geo_prop = P.distance(frames['atXYZ'], at1, at2)
             if not geo_filter:
-                geo_filter = [[0,3], [5,100]]
-        case [at1, at2, at3, None]:
+                geo_filter = [(0, 3), (5, 100)]
+        case at1, at2, at3, None:
             # compute angle between vectors at1 - at2 and at2 - at3
+            assert at3 is not None  # to satisfy the typechecker
             geo_prop = P.angle(frames['atXYZ'], at1, at2, at3, deg=True)
             if not geo_filter:
-                geo_filter = [[0,80], [110,180]]
-        case [at1, at2, at3, at4]:
+                geo_filter = [(0, 80), (110, 180)]
+        case at1, at2, at3, at4:
             # compute dihedral defined as angle between normals to planes (at1, at2, at3) and (at2, at3, at4)
+            assert at3 is not None
+            assert at4 is not None
             geo_prop = P.dihedral(frames['atXYZ'], at1, at2, at3, at4, deg=True)
             if not geo_filter:
-                geo_filter = [[0,80], [110,180]]
-  
+                geo_filter = [(0, 80), (110, 180)]
+
     # prepare layout
     fig, oaxs = plt.subplots(1, 2, layout='constrained', width_ratios=[3, 2])
     fig.set_size_inches(8.27, 11.69 / 3)  # a third of a page, spanning both columns
