@@ -442,15 +442,34 @@ def pick_clusters(frames, nbins):
     angles = np.degrees(np.arctan2(points[:, 1], points[:, 0]))
     radii = np.sqrt(points[:, 0] ** 2 + points[:, 1] ** 2)
     center = stats.circmean(angles, high=180, low=-180)
-    
-    picks = binning_with_min_entries(nbins=nbins, angles=angles, center=center, radii=radii)
+
+    picks, bins, edges = binning_with_min_entries(
+        nbins=nbins, angles=angles, center=center, radii=radii, return_bins_edges=True
+    )
     #bins, edges = circbins(angles, nbins=4, center=center)
     #picks = [b[np.argmax(radii[b])] for b in bins]
 
-    return dict(loadings=loadings, clusters=clusters, picks=picks)
+    return dict(
+        loadings=loadings,
+        clusters=clusters,
+        picks=picks,
+        angles=angles,
+        center=center,
+        radii=radii,
+        bins=bins,
+        edges=edges,
+    )
 
-def binning_with_min_entries(nbins, angles, center, radii, min_entries=4, max_attempts=10):
-    
+
+def binning_with_min_entries(
+    nbins,
+    angles,
+    center,
+    radii,
+    min_entries=4,
+    max_attempts=10,
+    return_bins_edges=False,
+):
     attempts = 0
     bins, edges = circbins(angles=angles, nbins=nbins, center=center)
 
@@ -467,4 +486,7 @@ def binning_with_min_entries(nbins, angles, center, radii, min_entries=4, max_at
 
     picks = [b[np.argmax(radii[b])] for b in bins]
 
-    return picks
+    if return_bins_edges:
+        return picks, bins, edges
+    else:
+        return picks
