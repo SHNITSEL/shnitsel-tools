@@ -10,7 +10,9 @@ import xarray as xr
 import scipy.stats as st
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.decomposition import PCA
+
 import rdkit.Chem as rc
+import rdkit.Chem.rdDetermineBonds
 
 from . import xrhelpers
 
