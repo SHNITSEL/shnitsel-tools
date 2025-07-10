@@ -99,7 +99,7 @@ def parse_nx_log(f):
             for istate in range(nstates):
                 energy[ts, istate] = float(next(f).strip())
 
-    states = [1, 2, 3]  # TODO: Proper state labels!
+    states = list(range(1, nstates + 1))
 
     statecomb = xr.Coordinates.from_pandas_multiindex(
         pd.MultiIndex.from_tuples(combinations(states, 2), names=['from', 'to']),
