@@ -1,20 +1,12 @@
-Functions mentioned in supporting information
-=============================================
+Functions to document first
+===========================
 
-The following are mentioned in the SI:
 
 .. autofunction:: shnitsel.parse.sharc_icond.dirs_of_iconds
 
 ----
 
 .. autofunction:: shnitsel.parse.read_trajs
-
-The same function is exposed as ``shnitsel.read_trajs``,
-and it might be better to change the SI to use this,
-at which point we hardly need to expose ``shnitsel.parse``.
-Oh, now I think about it, there should have been just a single
-function called ``read`` or ``parse`` that can handle anything
-based on the ``kind`` parameter...
 
 ----
 
@@ -24,9 +16,9 @@ based on the ``kind`` parameter...
 
 ----
 
-We'll have to refactor the accessor methods to document them properly.
+.. We'll have to refactor the accessor methods to document them properly.
 
-But for now:
+.. But for now:
 
 .. automethod:: shnitsel.core.filtre.get_bond_lengths
 
@@ -48,17 +40,94 @@ But for now:
 
 ----
 
-And now some bespoke plotting functions.
 
 .. autofunction:: shnitsel.plot.biplot_kde
 
 .. autofunction:: shnitsel.plot.ski_plots
 
 .. autoclass:: shnitsel.plot.Datasheet
-    :members: 
+    :members:
+    .. :py:method:: shnitsel.plot.Datasheet.plot_timeplots
+    .. :py:property:: shnitsel.plot.Datasheet.charge
+    .. :py:method:: shnitsel.plot.Datasheet.plot
+
 
 ----
 
-Next the SI mentions  
 
-.. .. autofunction:: shnitsel.
+.. automethod:: shnitsel.core.xrhelpers.save_frames
+    :no-index:
+
+.. autofunction:: shnitsel.open_frames
+    :no-index:
+
+.. .. automethod:: shnitsel.read_ase_db
+.. automethod:: shnitsel.read_ase
+.. ↑ NAME WRONG!
+
+.. .. automethod:: shnitsel.core.ase.write_ase_db
+.. automethod:: shnitsel.core.ase.write_ase
+.. ↑ NAME WRONG!
+
+.. autofunction:: shnitsel.datasheet
+
+.. automethod:: shnitsel.core.postprocess.relativize
+
+.. automodule:: shnitsel.filtre
+
+.. ↑ We shouldn't document modules whose contents will appear elsewhere
+
+.. automethod:: shnitsel.core.filtre.energy_filtranda
+
+.. automethod:: shnitsel.core.filtre.get_cutoffs
+
+.. automethod:: shnitsel.core.filtre.truncate
+
+.. automethod:: shnitsel.core.xrhelpers.sel_trajs
+    :no-index:
+
+.. automethod:: shnitsel.core.postprocess.distance
+
+.. automethod:: shnitsel.core.filtre.get_bond_lengths
+    :no-index:
+
+.. autofunction:: shnitsel.plot.pca_biplot
+
+.. automethod:: shnitsel.core.postprocess.assign_fosc
+
+.. automethod:: shnitsel.core.postprocess.get_inter_state
+    :no-index:
+
+.. autofunction:: shnitsel.plot.spectra_all_times
+    :no-index:
+
+.. autofunction:: shnitsel.broaden_gauss
+
+.. ↑ differs
+
+.. automethod:: shnitsel.plot.Datasheet.plot_separated_spectra_and_hists
+
+.. automethod:: shnitsel.plot.ski_plots
+
+.. automethod:: shnitsel.core.postprocess.calc_pops
+
+.. automethod:: shnitsel.core.xrhelpers.msel
+
+.. automethod:: shnitsel.core.filtre.last_time_where
+
+.. automethod:: shnitsel.core.postprocess.subtract_combinations
+
+.. automethod:: shnitsel.core.postprocess.to_mol
+
+.. automethod:: shnitsel.core.postprocess.subtract_combinations
+
+.. automethod:: shnitsel.core.postprocess.norm
+
+.. automethod:: shnitsel.core.postprocess.pca
+
+.. automethod:: shnitsel.core.postprocess.pairwise_dists_pca
+
+.. automethod:: shnitsel.core.xrhelpers.mgroupby
+
+.. automethod:: shnitsel.core.postprocess.dihedras
+
