@@ -19,7 +19,7 @@ documentation for details.
    accessors/ds_accessors
    accessors/da_accessors
    test-autosummary-accessors
-   supporting-information
+   priority
 
 testing
 -------
