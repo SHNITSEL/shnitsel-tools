@@ -4,7 +4,7 @@ import logging
 import re
 from dataclasses import dataclass
 from concurrent.futures import ProcessPoolExecutor
-from typing import TypeAlias, Callable
+from typing import TypeAlias, Callable, Literal
 
 import numpy as np
 import xarray as xr
@@ -303,7 +303,13 @@ def layer_trajs(datasets):
     return layers
 
 
-def read_trajs(path, kind, pattern='TRAJ*', format='frames', parallel=False):
+def read_trajs(
+    path: str,
+    kind: Literal['sharc', 'nx', 'pyrai2md'],
+    pattern: str = 'TRAJ*',
+    format: Literal['frames', 'layers'] = 'frames',
+    parallel: bool = False,
+) -> xr.Dataset:
     glob_expr = os.path.join(path, pattern)
     paths = glob.glob(glob_expr)
     if len(paths) == 0:
