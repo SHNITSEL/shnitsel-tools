@@ -4,7 +4,7 @@ import logging
 import re
 from dataclasses import dataclass
 from concurrent.futures import ProcessPoolExecutor
-from typing import TypeAlias, Callable, Literal
+from typing import TypeAlias, Callable, Literal, TYPE_CHECKING
 
 import numpy as np
 import xarray as xr
@@ -260,7 +260,7 @@ def gather_traj_metadata(datasets, time_dim='ts'):
     return traj_meta
 
 
-def concat_trajs(datasets):
+def concat_trajs(datasets) -> xr.Dataset:
     if all('ts' in ds.coords for ds in datasets):
         time_dim = 'ts'
     elif all('time' in ds.coords for ds in datasets):
@@ -285,10 +285,12 @@ def concat_trajs(datasets):
         completed=('trajid_', traj_meta['completed']),
         nsteps=('trajid_', traj_meta['nsteps']),
     )
+    if TYPE_CHECKING:
+        assert isinstance(frames, xr.Dataset)
     return frames
 
 
-def layer_trajs(datasets):
+def layer_trajs(datasets) -> xr.Dataset:
     meta = gather_traj_metadata(datasets)
 
     trajids = pd.Index(meta['trajid'], name='trajid')
@@ -300,6 +302,8 @@ def layer_trajs(datasets):
     layers = layers.assign(
         {k: xr.DataArray(v, coords_trajids) for k, v in meta.items()}
     )
+    if TYPE_CHECKING:
+        assert isinstance(layers, xr.Dataset)
     return layers
 
 
