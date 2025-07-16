@@ -303,8 +303,8 @@ def layer_trajs(datasets):
     return layers
 
 
-def read_trajs(path, kind, glob_suffix='TRAJ*', format='frames', parallel=False):
-    glob_expr = os.path.join(path, glob_suffix)
+def read_trajs(path, kind, pattern='TRAJ*', format='frames', parallel=False):
+    glob_expr = os.path.join(path, pattern)
     paths = glob.glob(glob_expr)
     if len(paths) == 0:
         raise FileNotFoundError(
