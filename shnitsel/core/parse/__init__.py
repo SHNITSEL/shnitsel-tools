@@ -313,11 +313,10 @@ def read_trajs(
     glob_expr = os.path.join(path, pattern)
     paths = glob.glob(glob_expr)
     if len(paths) == 0:
-        raise FileNotFoundError(
-            f"The search '{glob_expr}' didn't match any paths "
-            f"under path '{path}' "
-            f"given working directory '{os.getcwd()}'"
-        )
+        msg = f"The search '{glob_expr}' didn't match any paths"
+        if not os.path.isabs(path):
+            msg += f", relative to working directory '{os.getcwd()}'"
+        raise FileNotFoundError(msg)
     if parallel:
         datasets = read_trajs_parallel(paths, kind)
     else:
