@@ -310,6 +310,36 @@ def read_trajs(
     format: Literal['frames', 'layers'] = 'frames',
     parallel: bool = False,
 ) -> xr.Dataset:
+    """Read all trajectories from a folder of trajectory folders
+
+    Parameters
+    ----------
+    path
+        The path to the folder of folders
+    kind
+        The kind of trajectory, i.e. whether it was produced by SHARC, Newton-X or PyRAI2MD
+    pattern
+        The search pattern to append to the path (the whole thing will be read by :external:py:func:`glob.glob`),
+        by default 'TRAJ*'
+    format
+        Whether to return the trajectories concatenated along the time axis ('frames') using a
+        :external:py:class:`xarray.indexes.PandasMultiIndex`
+        or along a new axis ('layers'), by default 'frames'
+    parallel
+        Whether to read multiple trajectories at the same time (which, in the current implementation,
+        is only faster on storage that allows non-sequential reads), by default False
+
+    Returns
+    -------
+        The trajectory data
+
+    Raises
+    ------
+    FileNotFoundError
+        If the search (``= path + pattern``) doesn't match any paths according to :external:py:func:`glob.glob`
+    ValueError
+        If an invalid value for ``format`` is passed.
+    """
     glob_expr = os.path.join(path, pattern)
     paths = glob.glob(glob_expr)
     if len(paths) == 0:
