@@ -335,7 +335,7 @@ def read_trajs(
 
     Returns
     -------
-        The trajectory data
+        An :external:py:class:`xarray.Dataset` containing the data of the trajectories
 
     Raises
     ------
