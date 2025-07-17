@@ -44,6 +44,7 @@ autodoc_type_aliases = {
 
 # -- Options for intersphinx extension ---------------------------------------
 intersphinx_mapping = {
-    'xr': ('https://docs.xarray.dev/en/stable/', None),
-    'np': ('https://numpy.org/doc/stable/', None),
+    'xarray': ('https://docs.xarray.dev/en/stable/', None),
+    'numpy': ('https://numpy.org/doc/stable/', None),
+    'python': ('https://docs.python.org/3', None),
 }
