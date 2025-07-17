@@ -692,6 +692,24 @@ def dihedral(
     deg: bool = False,
     full: bool = False,
 ) -> xr.DataArray:
+    """Calculate all dihedral angles between the atoms specified.
+    The atoms specified needed be bonded.
+
+    Parameters
+    ----------
+    atXYZ
+        A ``DataArray`` of coordinates, with ``atom`` and ``direction`` dimensions
+    i, j, k, l
+        The four atom indices
+    deg
+        Whether to return angles in degrees (True) or radians (False), by default False
+    full
+        Whether to return signed angles between -180° and 180° (True) or unsigned angles between 0 and 180° (False), by default False
+
+    Returns
+    -------
+        A ``DataArray`` containing dihedral angles
+    """
     a = atXYZ.isel(atom=i)    
     b = atXYZ.isel(atom=j)
     c = atXYZ.isel(atom=k)
