@@ -16,6 +16,17 @@
 The tool is compatible with surface hopping data generated using the software packages [SHARC 3/4](https://sharc-md.org/), [Newton-X](https://newtonx.org/), and [PyRAI2MD](https://github.com/lopez-lab/PyRAI2MD).
 The package leverages [Xarray](https://xarray.dev/) to benefit from efficient multidimensional data handling, improved metadata management, and a structure that aligns naturally with the needs of quantum chemical datasets.
 
+## Installation
+
+`shnitsel-tools` is normally used interactively via Jupyter Notebook on a local machine.
+However, some users might find it convenient to convert trajectories to NetCDF
+on-cluster, as the NetCDF file will likely download faster than the raw text files.
+Either way the following should work as usual, ideally in a virtual (e.g. `conda`) environment:
+  
+  ```bash
+  pip install shnitsel-tools
+  ```
+
 ## Usage
 
 The package is organized into top-level functions for reading data,
@@ -88,72 +99,25 @@ shnitsel
 └── xarray.py
 ```
 
-## Installation
-
-You can create the environment with a custom path using one of the following methods:
-
-<details open>
-  <summary><strong>Option 1: Using pip</strong></summary>
-  The following should work as usual:
+## Development
   
-  ```bash
-  pip install shnitsel-tools
-  ```
-</details>
-
-<details>
-  <summary><strong>Option 2: Using venvs with `uv`</strong></summary>
-  If you would like to work on the source code,
-  we recommend installing using the `uv` tool, available at https://docs.astral.sh/uv/.  
-  Run the following in the `shnitsel-tools` directory:
+  We recommend installation using the `uv` tool, available at https://docs.astral.sh/uv/.
+  Please clone this repo and run the following in the `shnitsel-tools` directory:
 
   ```bash
+  git clone 'https://github.com/SHNITSEL/shnitsel-tools.git'
+  cd shnitsel-tools
   uv venv  # create an environment under ./.venv
-  . .venv/bin/activate  # activate the new environment
-  uv pip install -e .  # install shnitsel in editable mode
+  source .venv/bin/activate  # activate the new environment
+  uv pip install -e .[dev]  # install shnitsel in editable mode
   ```
 
-  To install the optional development dependencies run
+  In the above, the option `-e` installs in editable mode, meaning that Python will see changes you make
+  to the source, while `[dev]` installs the optional development dependencies.  
 
-  ```bash
-  uv pip install -e '.[dev]'
-  ```
-  
-</details>
-
-<details>
-  <summary><strong>Option 3: Using the `--prefix` Flag</strong></summary>
-  
-  You can create the environment and specify the desired path by using the `conda env create` command with the `--prefix` flag:
-  
-  ```bash
-  conda env create --prefix /home/user/anaconda3/envs/shnitsel -f shnitsel-tools.yml
-  ```
-</details>
-
-<details>
-  <summary><strong>Option 4: Adding the Path to the .yml File</strong></summary>
-  
-  Alternatively, you can manually add the desired path to the shnitsel-tools.yml file and create the environment directly:
-    
-  1) Open the shnitsel-tools.yml file for editing:
-  
-  ```bash
-  vi shnitsel-tools.yml
-  ```
-  
-  2) Add the following line to the file:
-  
-  ```
-  prefix: /home/user/anaconda3/envs/shnitsel
-  ```
-  
-  3) Create the environment with a custom path. 
-  
-  ```bash
-  conda env create -f shnitsel-rdkit.yml
-  ```
-</details>
+  If you would like to contribute your changes,
+  please [fork](https://github.com/SHNITSEL/shnitsel-tools/fork) this repo,
+  and make a pull request.
 
 ## Further Information
 
