@@ -13,7 +13,6 @@ from shnitsel.core.postprocess import (
     norm,
     subtract_combinations,
     pca,
-    _sudi_groupby,
     sudi,
 )
 
@@ -70,9 +69,3 @@ def test_pca(da):
 
 def test_pairwise_dists_pca():
     pass
-
-def test_sudi2(traj_butene):
-    da = traj_butene.energy
-    left = _sudi_groupby(da)
-    right = sudi(da)
-    assert_equal(left, right)
