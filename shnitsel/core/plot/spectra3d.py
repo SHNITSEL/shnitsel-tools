@@ -35,7 +35,7 @@ def ski_plots(spectra: xr.DataArray) -> mpl.figure.Figure:
     """Plot spectra for different times on top of each other,
     along with a dashed line that tracks the maximum.
     One plot per statecomb; plots stacked vertically.
-    Expected to be used on data produced by `spectra3d.spectra_all_times`.
+    Expected to be used on data produced by ``spectra3d.spectra_all_times``.
 
     Parameters
     ----------
@@ -49,8 +49,8 @@ def ski_plots(spectra: xr.DataArray) -> mpl.figure.Figure:
 
     Examples
     --------
-        >>> from shnitsel.dynamic import xrhelpers as xh, postprocess as P
-        >>> from shnitsel.dynamic.plot import spectra3d
+        >>> from shnitsel.core import xrhelpers as xh, postprocess as P
+        >>> from shnitsel.core.plot import spectra3d
         >>> spectra_data = (
                 xh.open_frames(path)
                 .pipe(P.get_inter_state)
@@ -104,8 +104,8 @@ def pcm_plots(spectra: xr.DataArray) -> mpl.figure.Figure:
 
     Examples
     --------
-        >>> from shnitsel.dynamic import xrhelpers as xh, postprocess as P
-        >>> from shnitsel.dynamic.plot import spectra3d
+        >>> from shnitsel.core import xrhelpers as xh, postprocess as P
+        >>> from shnitsel.core.plot import spectra3d
         >>> spectra_data = (
                 xh.open_frames(path)
                 .pipe(P.get_inter_state)
