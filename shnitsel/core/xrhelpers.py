@@ -1,10 +1,15 @@
-# pyright: basic
+from __future__ import annotations
+
 import itertools
 import os
 import logging
 import math
+import typing
+from typing import Sequence
 
-from numpy.typing import NDArray, ArrayLike
+import numpy.typing as npt
+
+from xarray.core.groupby import DatasetGroupBy, DataArrayGroupBy
 
 import xarray as xr
 import numpy as np
@@ -70,7 +75,14 @@ def flatten_midx(ds, idx_name, renamer=None):
         fidx = [renamer(x, y) for x,y in fidx]
     return ds.drop_vars(to_drop).assign_coords({idx_name: fidx})
 
-def flatten_levels(obj, idx_name, levels, new_name=None, position=0, renamer=None):
+def flatten_levels(
+    obj: xr.Dataset | xr.DataArray,
+    idx_name: str,
+    levels: Sequence[str],
+    new_name: str | None = None,
+    position: int = 0,
+    renamer: typing.Callable | None = None,
+) -> xr.Dataset | xr.DataArray:
     dims = obj.coords[idx_name].dims
     if len(dims) != 1:
         raise ValueError(
@@ -110,8 +122,35 @@ def expand_midx(ds, midx_name, level_name, value):
     )
 
 
-def assign_levels(obj, levels=None, **levels_kwargs):
+def assign_levels(
+    obj: xr.Dataset | xr.DataArray,
+    levels: dict[str, npt.ArrayLike] | None = None,
+    **levels_kwargs: npt.ArrayLike,
+) -> xr.Dataset | xr.DataArray:
+    """Assign new values to levels of MultiIndexes in ``obj``
+
+    Parameters
+    ----------
+    obj
+        An ``xarray`` object with at least one MultiIndex
+    levels, optional
+        A mapping whose keys are the names of the levels and whose values are the
+        levels to assign. The mapping will be passed to :py:meth:`xarray.DataArray.assign_coords`
+        (or the :py:class:`xarray.Dataset` equivalent).
+
+    Returns
+    -------
+        A new object with the new level values replacing the old level values.
+    Raises
+    ------
+    ValueError
+        If levels are provided in both keyword and dictionary form.
+    """
     if levels is None:
+        if levels_kwargs != {}:
+            raise ValueError(
+                "cannot specify both keyword and positional arguments to assign_levels"
+            )
         levels = levels_kwargs
     lvl_names = list(levels.keys())
     midxs = set(obj.indexes[lvl].name for lvl in lvl_names)
@@ -123,6 +162,24 @@ def assign_levels(obj, levels=None, **levels_kwargs):
 
 
 def open_frames(path):
+    """Opens a NetCDF4 file saved by shnitsel-tools, specially interpreting certain attributes.
+
+    Parameters
+    ----------
+    path
+        The path of the file to open.
+
+    Returns
+    -------
+        An :py:class:`xarray.Dataset` with any MultiIndex restored.
+
+    Raises
+    ------
+    FileNotFoundError
+        If there is is nothing at ``path``, or ``path`` is not a file.
+    ValueError (or other exception)
+        Raised by the underlying `h5netcdf <https://h5netcdf.org/>`_ engine if the file is corrupted.
+    """
     # The error raised for a missing file can be misleading
     try:
         frames = xr.open_dataset(path)
@@ -157,6 +214,21 @@ def open_frames(path):
 
 
 def save_frames(frames, path, complevel=9):
+    """Save a ``Dataset``, presumably (but not necessarily) consisting of frames of trajectories, to a file at ``path``.
+
+    Parameters
+    ----------
+    frames (omit if using accessor)
+        The ``Dataset`` to save
+    path
+        The path at which to save it
+    complevel, optional
+        The level of ``gzip`` compression which will be applied to all variables in the ``Dataset``, by default 9
+
+    Notes
+    -----
+    This function/accessor method wraps :py:meth:`xarray.Dataset.to_netcdf` but not :py:func:`numpy.any`.
+    """
     encoding = {
         var: {"compression": "gzip", "compression_opts": complevel} for var in frames
     }
@@ -213,7 +285,34 @@ def save_split(
 #######################################
 # Functions to extend xarray selection:
 
-def mgroupby(obj, levels):
+def mgroupby(
+    obj: xr.Dataset | xr.DataArray, levels: Sequence[str]
+) -> DataArrayGroupBy | DatasetGroupBy:
+    """Group a Dataset or DataArray by several levels of a MultiIndex it contains.
+
+    Parameters
+    ----------
+    obj
+        The :py:mod:`xr` object to group
+    levels
+        Names of MultiIndex levels all belonging to the *same* MultiIndex
+
+    Returns
+    -------
+        The grouped object, which behaves as documented at :py:meth:`xr.Dataset.groupby`
+        and `xr.DataArray.groupby` with the caveat that the specified levels have been
+        "flattened" into a single Multiindex level of tuples.
+
+    Raises
+    ------
+    ValueError
+        If no MultiIndex is found, or if the named levels belong to different MultiIndexes.
+
+    Warnings
+    --------
+    The function does not currently check whether the levels specified are really levels
+    of a MultiIndex, as opposed to names of non-MultiIndex indexes.
+    """
     # Ensure all levels belong to the same multiindex
     midxs = set(obj.indexes[lvl].name for lvl in levels)
     if len(midxs) == 0:
@@ -228,7 +327,7 @@ def mgroupby(obj, levels):
     return flatten_levels(obj, midx, levels, new_name=new_name).groupby(new_name)
 
 
-def msel(obj, **kwargs):
+def msel(obj: xr.Dataset | xr.DataArray, **kwargs):
     tuples = list(zip(*kwargs.items()))
     ks, vs = list(tuples[0]), list(tuples[1])
     # Find correct index and levels
@@ -251,14 +350,39 @@ def msel(obj, **kwargs):
 
 def sel_trajs(
     frames: xr.Dataset,
-    trajids_or_mask: ArrayLike,
+    trajids_or_mask: Sequence[int] | Sequence[bool],
     invert=False,
 ) -> xr.Dataset:
-    """Takes boolean mask (each entry corresponding to a trajectory in MuliIndex order)
-    or an Iterable of trajids. In latter case, will not generally return trajectories in order given.
-    `invert=True` selects those trajectories not specified."""
+    """Select trajectories using a list of trajectories IDs or a boolean mask
+
+    Parameters
+    ----------
+    frames
+        The :py:class:`xr.Dataset` from which a selection is to be drawn
+    trajids_or_mask
+        Either
+            - A sequences of integers representing trajectory IDs to be included, in which
+              case the trajectories **may not be returned in the order specified**.
+            - Or a sequence of booleans, each indicating whether the trajectory with an ID
+              in the corresponding entry in the ``Dataset``'s ``trajid_`` coordinate
+              should be included
+    invert, optional
+        Whether to invert the selection, i.e. return those trajectories not specified, by default False
+
+    Returns
+    -------
+        A new :py:class:`xr.Dataset` containing only the specified trajectories
+
+    Raises
+    ------
+    NotImplementedError
+        when an attempt is made to index an :py:class:`xr.Datset` without a
+        ``trajid_`` dimension/coordinate using a boolean mask
+    TypeError
+        If ``trajids_or_mask`` has a dtype other than integer or boolean
+    """
     trajids_or_mask = np.atleast_1d(trajids_or_mask)
-    trajids: NDArray | xr.DataArray
+    trajids: npt.NDArray | xr.DataArray
     if np.issubdtype(trajids_or_mask.dtype, np.integer):
         trajids = trajids_or_mask
     elif np.issubdtype(trajids_or_mask.dtype, bool):
@@ -278,7 +402,7 @@ def sel_trajs(
     return sel_trajids(frames=frames, trajids=trajids, invert=invert)
 
 
-def sel_trajids(frames: xr.Dataset, trajids: ArrayLike, invert=False) -> xr.Dataset:
+def sel_trajids(frames: xr.Dataset, trajids: npt.ArrayLike, invert=False) -> xr.Dataset:
     "Will not generally return trajectories in order given"
     trajids = np.atleast_1d(trajids)
     # check that all trajids are valid, as Dataset.sel() would
