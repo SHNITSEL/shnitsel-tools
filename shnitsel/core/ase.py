@@ -110,6 +110,8 @@ def read_ase(db_path: str, kind: str):
             'nacs': ['frame', 'atom', 'statecomb', 'direction'],
             'dipoles': ['frame', 'state_or_statecomb', 'direction'],
         }
+    elif kind is None:
+        shapes = {}
     else:
         raise ValueError(f"'kind' should be one of 'schnet' or 'spainn', not '{kind}'")
 
