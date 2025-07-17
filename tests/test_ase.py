@@ -10,6 +10,8 @@ import shnitsel.xarray
     [
         ('/nc/SHNITSEL-data/old_CH2NH2.db', 'schnet'),
         ('/nc/SHNITSEL-data/tobias_cis_new.db', 'spainn'),
+        ('/nc/SHNITSEL-data/old_CH2NH2.db', None),
+        ('/nc/SHNITSEL-data/tobias_cis_new.db', None),
     ],
 )
 def test_ase_round_trip(path, kind):
