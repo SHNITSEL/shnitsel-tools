@@ -32,7 +32,7 @@ def bond_type_to_symbols(e1, e2):
     return s1 + s2
 
 
-def get_bond_types(mol, symbols=True):
+def identify_bonds(mol, symbols=True):
     bond_types: dict[tuple[int, int], list[tuple[int, int]]] = {}
     for b in mol.GetBonds():
         a1 = b.GetBeginAtom()
@@ -52,7 +52,7 @@ def get_bond_lengths(atXYZ, bond_types=None, mol=None):
     if bond_types is None:
         if mol is None:
             mol = default_mol(atXYZ)
-        bond_types = get_bond_types(mol, symbols=True)
+        bond_types = identify_bonds(mol, symbols=True)
     else:
         raise UserWarning("bond_types passed, so mol will not be used")
     return (
@@ -71,7 +71,7 @@ def get_bond_lengths(atXYZ, bond_types=None, mol=None):
     )
 
 
-def get_triple_types(mol: Mol):
+def identify_angles(mol: Mol):
     triples = []
     at_nums = []
     bond_types = []
@@ -117,7 +117,7 @@ def get_bond_angles(atXYZ, angle_types=None, mol=None):
     if angle_types is None:
         if mol is None:
             mol = default_mol(atXYZ)
-        angle_types = get_triple_types(mol)
+        angle_types = identify_angles(mol)
     else:
         raise UserWarning("angle_types passed, so mol will not be used")
 
@@ -144,7 +144,8 @@ def get_bond_angles(atXYZ, angle_types=None, mol=None):
     return angles
 
 
-def get_quadruple_types(mol: Mol):
+def identify_torsions(mol: Mol) -> xr.Dataset:
+    """Finds sets of four contiguous atoms that form a torsion"""
     quadruples = []
     at_nums = []
     bond_types = []
@@ -201,7 +202,7 @@ def get_bond_torsions(atXYZ, quadruple_types=None, mol=None, signed=False):
     if quadruple_types is None:
         if mol is None:
             mol = default_mol(atXYZ)
-        quadruple_types = get_quadruple_types(mol)
+        quadruple_types = identify_torsions(mol)
     else:
         raise UserWarning("quadruple_types passed, so mol will not be used")
     if 'atNames' in atXYZ.coords or 'atNames' in atXYZ:
