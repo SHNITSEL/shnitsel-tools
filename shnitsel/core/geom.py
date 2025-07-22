@@ -13,9 +13,10 @@ import xarray as xr
 
 from .parse.common import __atnum2symbol__
 from .postprocess import (
-    distance,
+    distance as distance,
+    angle as angle,
+    dihedral as dihedral,
     angle_,
-    angle,
     dihedral_,
     full_dihedral_,
     subtract_combinations,
