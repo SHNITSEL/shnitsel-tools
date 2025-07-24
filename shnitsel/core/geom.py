@@ -233,3 +233,27 @@ def get_bond_torsions(atXYZ, quadruple_types=None, mol=None, signed=False):
         torsion_type=quadruple_types['torsion_type'],
         torsion_symbol=quadruple_types['torsion_symbol'],
     ).set_xindex('torsion_symbol')
+
+
+def get_bats(atXYZ, mol=None):
+    if mol is None:
+        mol = default_mol(atXYZ)
+    d = {
+        'bond': get_bond_lengths(atXYZ, mol=mol),
+        'angle': get_bond_angles(atXYZ, mol=mol),
+        'torsion': get_bond_torsions(atXYZ, mol=mol),
+    }
+
+    d['bond'] = (
+        d['bond']
+        .reset_index('bond')
+        .drop_vars(['atom1', 'atom2'])
+        .set_xindex('bond_symbol')
+    )
+
+    for k in d:
+        d[k] = d[k].rename(
+            {k: 'descriptor', f'{k}_symbol': 'descriptor', f'{k}_type': 'type'}
+        )
+
+    return xr.concat([d['bond'], d['angle'], d['torsion']], dim='descriptor')
