@@ -232,4 +232,4 @@ def get_bond_torsions(atXYZ, quadruple_types=None, mol=None, signed=False):
     return res.assign_coords(
         torsion_type=quadruple_types['torsion_type'],
         torsion_symbol=quadruple_types['torsion_symbol'],
-    )
+    ).set_xindex('torsion_symbol')
