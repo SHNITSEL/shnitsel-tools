@@ -76,6 +76,7 @@ def identify_angles(mol: Mol):
     at_nums = []
     bond_types = []
     angle_types = []
+    angle_symbols = []
     for a in mol.GetAtoms():
         bonds = a.GetBonds()
         if len(bonds) < 2:
@@ -102,6 +103,7 @@ def identify_angles(mol: Mol):
             bond_types.append((b10, b02))
             s = __atnum2symbol__
             angle_types.append(f"{s[n1]}{b10}{s[n0]}{b02}{s[n2]}")
+            angle_symbols.append(r"$\theta_{%d,%d,%d}$" % (a1, a0, a2))
 
     return xr.Dataset(
         {
@@ -109,6 +111,7 @@ def identify_angles(mol: Mol):
             'at_num': (('angle', 'atom'), np.array(at_nums)),
             'bond_type': (('angle', 'bond'), np.array(bond_types)),
             'angle_type': ('angle', angle_types),
+            'angle_symbol': ('angle', angle_symbols),
         }
     )
 
@@ -134,12 +137,17 @@ def get_bond_angles(atXYZ, angle_types=None, mol=None):
         dtype = ','.join(['i'] * n)
         return np.array([tuple(x) for x in xs], dtype=dtype)
 
-    angles = angle_(al - ac, ar - ac).assign_coords(
-        # at_nums=('angle', angle_types['at_num'].astype('i,i,i').data),
-        # bond_types=('angle', angle_types['bond_type'].astype('i,i').data),
-        # at_nums=('angle', f(angle_types['at_num'], 3)),
-        # bond_types=('angle', f(angle_types['bond_type'], 2)),
-        angle_type=angle_types['angle_type']
+    angles = (
+        angle_(al - ac, ar - ac)
+        .assign_coords(
+            # at_nums=('angle', angle_types['at_num'].astype('i,i,i').data),
+            # bond_types=('angle', angle_types['bond_type'].astype('i,i').data),
+            # at_nums=('angle', f(angle_types['at_num'], 3)),
+            # bond_types=('angle', f(angle_types['bond_type'], 2)),
+            angle_type=angle_types['angle_type'],
+            angle_symbol=angle_types['angle_symbol'],
+        )
+        .set_xindex('angle_symbol')
     )
     return angles
 
@@ -150,6 +158,7 @@ def identify_torsions(mol: Mol) -> xr.Dataset:
     at_nums = []
     bond_types = []
     torsion_types = []
+    torsion_symbols = []
     for b in mol.GetBonds():
         a1, a2 = b.GetBeginAtom(), b.GetEndAtom()
         if a1.GetAtomicNum() > a2.GetAtomicNum():
@@ -188,12 +197,14 @@ def identify_torsions(mol: Mol) -> xr.Dataset:
             bond_types.append(bt)
             s = __atnum2symbol__
             torsion_types.append('{}'.join([s[n] for n in an]).format(*bt))
+            torsion_symbols.append(r"$\varphi_{%d,%d,%d,%d}$" % (i0, i1, i2, i3))
     return xr.Dataset(
         {
             'at_idx': (('torsion', 'atom'), np.array(quadruples)),
             'at_num': (('torsion', 'atom'), np.array(at_nums)),
             'bond_type': (('torsion', 'bond'), np.array(bond_types)),
             'torsion_type': ('torsion', torsion_types),
+            'torsion_symbol': ('torsion', torsion_symbols),
         }
     )
 
@@ -212,4 +223,7 @@ def get_bond_torsions(atXYZ, quadruple_types=None, mol=None, signed=False):
         res = full_dihedral_(*atom_positions)
     else:
         res = dihedral_(*atom_positions)
-    return res.assign_coords(torsion_type=quadruple_types['torsion_type'])
+    return res.assign_coords(
+        torsion_type=quadruple_types['torsion_type'],
+        torsion_symbol=quadruple_types['torsion_symbol'],
+    )
