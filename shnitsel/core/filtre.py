@@ -1,10 +1,8 @@
 import numpy as np
 import xarray as xr
 
-from . import postprocess as P, xrhelpers as xh
-
 # link functions that will be moved:
-from .geom import get_bond_types, get_bond_lengths, bond_type_to_symbols
+from .geom import get_bond_lengths
 
 
 def energy_filtranda(frames: xr.Dataset) -> xr.Dataset:
