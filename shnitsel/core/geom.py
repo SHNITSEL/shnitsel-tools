@@ -53,7 +53,7 @@ def get_bond_lengths(atXYZ, bond_types=None, mol=None):
         if mol is None:
             mol = default_mol(atXYZ)
         bond_types = identify_bonds(mol, symbols=True)
-    else:
+    elif mol is not None:
         raise UserWarning("bond_types passed, so mol will not be used")
     return (
         # Change how this works! We don't need to calculate them separately!
@@ -121,7 +121,7 @@ def get_bond_angles(atXYZ, angle_types=None, mol=None):
         if mol is None:
             mol = default_mol(atXYZ)
         angle_types = identify_angles(mol)
-    else:
+    elif mol is not None:
         raise UserWarning("angle_types passed, so mol will not be used")
 
     al = atXYZ.sel(atom=angle_types.at_idx[:, 0])
@@ -214,7 +214,7 @@ def get_bond_torsions(atXYZ, quadruple_types=None, mol=None, signed=False):
         if mol is None:
             mol = default_mol(atXYZ)
         quadruple_types = identify_torsions(mol)
-    else:
+    elif mol is not None:
         raise UserWarning("quadruple_types passed, so mol will not be used")
     if 'atNames' in atXYZ.coords or 'atNames' in atXYZ:
         atXYZ = atXYZ.drop_vars('atNames')
