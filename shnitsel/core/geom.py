@@ -55,7 +55,7 @@ def get_bond_lengths(atXYZ, bond_types=None, mol=None):
         bond_types = identify_bonds(mol, symbols=True)
     elif mol is not None:
         raise UserWarning("bond_types passed, so mol will not be used")
-    return (
+    res = (
         # Change how this works! We don't need to calculate them separately!
         xr.concat(
             [
@@ -68,6 +68,12 @@ def get_bond_lengths(atXYZ, bond_types=None, mol=None):
         )
         .rename({'from': 'atom1', 'to': 'atom2', 'atomcomb': 'bond'})
         .transpose('frame', ...)
+    )
+    return res.assign_coords(
+        bond_symbol=(  # TODO Is this name confusing, given the other use above?
+            'bond',
+            [r'$r_{%d,%d}$' % (b['atom1'], b['atom2']) for b in res.bond],
+        )
     )
 
 
