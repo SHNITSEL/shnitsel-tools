@@ -81,13 +81,13 @@ def dims_from_QM_log(log):
         if line.startswith('States:'):
             linecont = line.strip().split()
             if 'Singlet' in linecont and 'Triplet' not in linecont:
-                nsinglets = int(linecont[2])
+                nsinglets = int(linecont[1])
                 ntriplets = 0
             elif 'Singlet' in linecont and 'Triplet' in linecont:
                 nsinglets = int(linecont[1])
                 ntriplets = int(linecont[3])
             elif 'Triplet' in linecont and 'Singlet' not in linecont:
-                ntriplets = int(linecont[2])
+                ntriplets = int(linecont[1])
                 nsinglets = 0
 
             # calculate total number of states
