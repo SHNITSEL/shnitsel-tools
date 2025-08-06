@@ -28,8 +28,8 @@ def read_traj(traj_path):
 
     with open(os.path.join(traj_path, 'output.dat')) as f:
         single_traj = parse_trajout_dat(f, nsteps=nsteps)
-    if nsteps is None:
-        nsteps = single_traj.sizes['ts']
+
+    nsteps = single_traj.sizes['ts']
 
     with open(os.path.join(traj_path, 'output.xyz')) as f:
         atNames, atXYZ = parse_trajout_xyz(nsteps, f)
