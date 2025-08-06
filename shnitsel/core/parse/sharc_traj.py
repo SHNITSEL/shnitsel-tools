@@ -10,16 +10,29 @@ import math
 from .common import get_dipoles_per_xyz, dip_sep, get_triangular
 
 def read_traj(traj_path):
-    with open(os.path.join(traj_path, 'output.dat')) as f:
-        single_traj = parse_trajout_dat(f)
+    # Read some settings from input
+    # In particular, if a trajectory is extended by increasing
+    # tmax and resuming, the header of output.dat will give
+    # only the original nsteps, leading to an ndarray IndexError
+    input_path = os.path.join(traj_path, 'input')
+    if os.path.isfile(input_path):
+        with open(input_path) as f:
+            settings = parse_input(f)
+        delta_t = float(settings['stepsize'])
+        tmax = float(settings['tmax'])
+        nsteps = int(tmax/delta_t) + 1
+    else:
+        delta_t = None
+        tmax= None
+        nsteps = None
 
-    nsteps = single_traj.sizes['ts']
+    with open(os.path.join(traj_path, 'output.dat')) as f:
+        single_traj = parse_trajout_dat(f, nsteps=nsteps)
+    if nsteps is None:
+        nsteps = single_traj.sizes['ts']
 
     with open(os.path.join(traj_path, 'output.xyz')) as f:
         atNames, atXYZ = parse_trajout_xyz(nsteps, f)
-
-    with open(os.path.join(traj_path, 'input')) as f:
-        settings = parse_input(f)
 
     single_traj.coords['atNames'] = 'atom', atNames
 
@@ -28,12 +41,13 @@ def read_traj(traj_path):
         coords={k: single_traj.coords[k] for k in ['ts', 'atom', 'direction']},
         dims=['ts', 'atom', 'direction'],
     )
-    single_traj.attrs['delta_t'] = float(settings['stepsize'])
+    if delta_t is not None:
+        single_traj.attrs['delta_t'] = delta_t
 
     return single_traj
 
 
-def parse_trajout_dat(f):
+def parse_trajout_dat(f, nsteps: int | None = None):
     settings = {}
     for line in f:
         if line.startswith('*'):
@@ -47,8 +61,12 @@ def parse_trajout_dat(f):
         else:
             logging.warning("Key without value in settings of output.dat")
 
-    nsteps = int(settings['nsteps']) + 1  # let's not forget ts=0
-    logging.debug(f"nsteps = {nsteps}")
+    nsteps_output_dat = int(settings['nsteps']) + 1  # let's not forget ts=0
+    if nsteps is None or nsteps < nsteps_output_dat:
+        nsteps = nsteps_output_dat
+        logging.debug(f"nsteps = {nsteps}")
+    else:
+        logging.debug(f"(From input file) nsteps = {nsteps}")
     natoms = int(settings['natom'])  # yes, really 'natom', not 'natoms'!
     logging.debug(f"natoms = {natoms}")
     ezero = float(settings['ezero'])
@@ -154,17 +172,11 @@ def parse_trajout_dat(f):
             nacs[ts] = nacs_tril
 
     # post-processing
-    dip_perm = np.full((nsteps, nstates, 3), np.nan)
-    dip_trans = np.full((nsteps, math.comb(nstates, 2), 3), np.nan)
-    has_forces = np.zeros((nsteps), dtype=bool)
-
-    for ts in range(nsteps):  # TODO: Vectorize over all frames, remove loop
-        p, t = dip_sep(dip_all[ts])
-        dip_perm[ts] = p
-        dip_trans[ts] = t
-
-        if np.any(forces[ts]):
-            has_forces[ts] = True
+    # np.diagonal swaps state and direction, so we transpose them back
+    dip_perm = np.diagonal(dip_all, axis1=1, axis2=2).transpose(0, 2, 1)
+    idxs_dip_trans = (slice(None), *np.triu_indices(nstates, k=1))
+    dip_trans = dip_all[idxs_dip_trans].transpose(0, 2, 1)
+    # has_forces = forces.any(axis=(1, 2, 3))
 
     if not max_ts + 1 <= nsteps:
         raise ValueError(
@@ -187,7 +199,7 @@ def parse_trajout_dat(f):
         {
             'ts': np.arange(nsteps),
             'state': states,
-            'state2': states,
+            # 'state2': states,
             'atom': np.arange(natoms),
             'direction': ['x', 'y', 'z'],
         }
