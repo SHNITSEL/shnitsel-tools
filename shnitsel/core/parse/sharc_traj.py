@@ -77,6 +77,11 @@ def parse_trajout_dat(f, nsteps: int | None = None):
     nstates = nsinglets + 2 * ndoublets + 3 * ntriplets
     logging.debug(f"nstates = {nstates}")
 
+    idx_table_nacs = {
+        (si, sj): idx
+        for idx, (si, sj) in enumerate(combinations(range(1, nstates+1), 2))
+    }
+
     # now we know the number of steps, we can initialize the data arrays:
     energy = np.full((nsteps, nstates), np.nan)
     e_kin = np.full((nsteps,), np.nan)
@@ -159,17 +164,16 @@ def parse_trajout_dat(f, nsteps: int | None = None):
 
         if line.startswith('! 16 NACdr matrix element'):
             linecont = line.strip().split()
-            si, sj = int(linecont[-2]) - 1, int(linecont[-1]) - 1
+            si, sj = int(linecont[-2]), int(linecont[-1])
 
-            if si == sj == 0:
-                nacs_matrix = np.zeros((nstates, nstates, natoms, 3))
+            if si < sj: # elements (si, si) are all zero; elements (sj, si) = -(si, sj)
+                sc = idx_table_nacs[(si, sj)]  # statecomb index
+                for atom in range(natoms):
+                    nacs[ts, sc, atom, :] = [float(n) for n in next(f).strip().split()]
+            else:  # we can skip the block
+                for _ in range(natoms):
+                    next(f)
 
-            for atom in range(natoms):
-                nacs_matrix[si, sj, atom] = [float(n) for n in next(f).strip().split()]
-
-            # get upper triangular of nacs matrix
-            nacs_tril = get_triangular(nacs_matrix)
-            nacs[ts] = nacs_tril
 
     # post-processing
     # np.diagonal swaps state and direction, so we transpose them back
@@ -180,7 +184,7 @@ def parse_trajout_dat(f, nsteps: int | None = None):
 
     if not max_ts + 1 <= nsteps:
         raise ValueError(
-            f"The output.dat header declared {nsteps=} timesteps, but the "
+            f"Metadata declared {nsteps=} timesteps, but the "
             f"greatest timestep index was {max_ts + 1=}"
         )
     completed = max_ts + 1 == nsteps
