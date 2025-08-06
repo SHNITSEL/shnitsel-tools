@@ -39,7 +39,7 @@ def parse_trajout_dat(f):
         if line.startswith('*'):
             break
 
-        parsed = re.split(' +', line.strip())
+        parsed = line.strip().split()
         if len(parsed) == 2:
             settings[parsed[0]] = parsed[1]
         elif len(parsed) > 2:
@@ -74,16 +74,19 @@ def parse_trajout_dat(f):
     # skip through until initial step:
     for line in f:
         if line.startswith('! 0 Step'):
-            ts = int(re.split(' +', next(f).strip())[-1])
+            ts = int(next(f).strip())
             if ts != 0:
                 logging.warning("Initial timestep's index is not 0")
             max_ts = max(max_ts, ts)
             break
 
     for index, line in enumerate(f):
+        if line[0] != '!':
+            continue
+
         if line.startswith('! 0 Step'):
             # update `ts` to current timestep #
-            new_ts = int(next(f).strip().split()[-1])
+            new_ts = int(next(f).strip())
             if new_ts != (ts or 0) + 1:
                 logging.warning(f"Non-consecutive timesteps: {ts} -> {new_ts}")
             ts = new_ts
@@ -94,17 +97,12 @@ def parse_trajout_dat(f):
             for istate in range(nstates):
                 energy[ts, istate] = float(next(f).strip().split()[istate * 2]) + ezero
 
-        if line.startswith('! 3 Dipole moments X'):
-            x_dip = get_dipoles_per_xyz(file=f, n=nstates, m=nstates)
-            dip_all[ts, :, :, 0] = x_dip
-
-        if line.startswith('! 3 Dipole moments Y'):
-            y_dip = get_dipoles_per_xyz(file=f, n=nstates, m=nstates)
-            dip_all[ts, :, :, 1] = y_dip
-
-        if line.startswith('! 3 Dipole moments Z'):
-            z_dip = get_dipoles_per_xyz(file=f, n=nstates, m=nstates)
-            dip_all[ts, :, :, 2] = z_dip
+        if line.startswith('! 3 Dipole moments'):
+            direction = {'X': 0, 'Y': 1, 'Z': 2}[line.strip().split()[4]]
+            for istate in range(nstates):
+                linecont = next(f).strip().split()
+                # delete every second element in list (imaginary values, all zero)
+                dip_all[ts, istate, :, direction] = [float(i) for i in linecont[::2]]
 
         if line.startswith('! 4 Overlap matrix'):
             found_overlap = False
@@ -112,9 +110,9 @@ def parse_trajout_dat(f):
 
             wvoverlap = np.zeros((nstates, nstates))
             for j in range(nstates):
-                linecont = [float(n) for n in re.split(' +', next(f).strip())]
+                linecont = next(f).strip().split()
                 # delete every second element in list (imaginary values, all zero)
-                wvoverlap[j] = linecont[::2]
+                wvoverlap[j] = [float(n) for n in linecont[::2]]
 
             for istate in range(nstates):
                 if np.abs(wvoverlap[istate, istate]) >= 0.5:
@@ -131,29 +129,25 @@ def parse_trajout_dat(f):
             e_kin[ts] = float(next(f).strip())
 
         if line.startswith('! 8 states (diag, MCH)'):
-            pair = re.split(' +', next(f).strip())
+            pair = next(f).strip().split()
             sdiag[ts] = int(pair[0])
             astate[ts] = int(pair[1])
 
         if line.startswith('! 15 Gradients (MCH)'):
-            state = int(re.split(' +', line.strip())[-1]) - 1
+            state = int(line.strip().split()[-1]) - 1
 
             for atom in range(natoms):
-                forces[ts, state, atom] = [
-                    float(n) for n in re.split(' +', next(f).strip())
-                ]
+                forces[ts, state, atom] = [float(n) for n in next(f).strip().split()]
 
         if line.startswith('! 16 NACdr matrix element'):
-            linecont = re.split(' +', line.strip())
+            linecont = line.strip().split()
             si, sj = int(linecont[-2]) - 1, int(linecont[-1]) - 1
 
             if si == sj == 0:
                 nacs_matrix = np.zeros((nstates, nstates, natoms, 3))
 
             for atom in range(natoms):
-                nacs_matrix[si, sj, atom] = [
-                    float(n) for n in re.split(' +', next(f).strip())
-                ]
+                nacs_matrix[si, sj, atom] = [float(n) for n in next(f).strip().split()]
 
             # get upper triangular of nacs matrix
             nacs_tril = get_triangular(nacs_matrix)
@@ -164,7 +158,7 @@ def parse_trajout_dat(f):
     dip_trans = np.full((nsteps, math.comb(nstates, 2), 3), np.nan)
     has_forces = np.zeros((nsteps), dtype=bool)
 
-    for ts in range(nsteps):
+    for ts in range(nsteps):  # TODO: Vectorize over all frames, remove loop
         p, t = dip_sep(dip_all[ts])
         dip_perm[ts] = p
         dip_trans[ts] = t
