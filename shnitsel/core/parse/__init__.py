@@ -199,7 +199,7 @@ def read_trajs_parallel(paths, kind, idfn=None, sort=True):
     _read_traj = READERS[kind]
 
     with ProcessPoolExecutor(max_workers=os.cpu_count()) as executor:
-        res = list(executor.map(_per_traj, paths))
+        res = list(tqdm(executor.map(_per_traj, paths), total=len(paths)))
 
     datasets = []
     missing_files: dict[str, list[Trajid]] = {}
