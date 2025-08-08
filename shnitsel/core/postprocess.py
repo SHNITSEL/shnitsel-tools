@@ -178,12 +178,30 @@ def pairwise_dists_pca(atXYZ: AtXYZ, **kwargs) -> xr.DataArray:
 
 
 def sudi(da: xr.DataArray) -> xr.DataArray:
-    """Successive differences"""
-    da = da.transpose('frame', ...)
-    res = np.diff(da, axis=0, prepend=np.array(da[0], ndmin=da.values.ndim))
-    # Don't compare the last timestep of one trajectory to the first timestep of the next:
-    res[da.time == 0] = 0
-    return da.copy(data=res)
+    """Take successive differences along the 'frame' dimension
+
+    Parameters
+    ----------
+    da
+        An ``xarray.DataArray`` with a 'frame' dimension corresponding
+        to a ``pandas.MultiIndex`` of which the innermost level is 'time'.
+
+    Returns
+    -------
+        An ``xarray.DataArray`` with the same shape, dimension names etc.,
+        but with the data of the (i)th frame replaced by the difference between
+        the original (i+1)th and (i)th frames, with zeros filling in for both the
+        initial frame and any frame for which time = 0, to avoid taking differences
+        between the last and first frames of successive trajectories.
+    """
+    res = xr.apply_ufunc(
+        lambda arr: np.diff(arr, prepend=np.array(arr[..., [0]], ndmin=arr.ndim)),
+        da,
+        input_core_dims=[['frame']],
+        output_core_dims=[['frame']],
+    )
+    res[{'frame': res['time'] == 0}] = 0
+    return res
 
 
 def hop_indices(astates: xr.DataArray) -> xr.DataArray:
@@ -198,10 +216,7 @@ def hop_indices(astates: xr.DataArray) -> xr.DataArray:
     -------
         A boolean DataArray indicating whether a hop took place
     """
-    axidx_frame = astates.get_axis_num("frame")
-    assert isinstance(axidx_frame, int)
-    conseq_diffs = np.diff(astates, axis=axidx_frame, prepend=0)
-    return astates.copy(data=conseq_diffs) != 0
+    return sudi(astates) != 0
 
 
 def pca_and_hops(frames: xr.Dataset) -> tuple[xr.DataArray, xr.DataArray]:
@@ -221,7 +236,7 @@ def pca_and_hops(frames: xr.Dataset) -> tuple[xr.DataArray, xr.DataArray]:
 
     """
     pca_res = pairwise_dists_pca(frames['atXYZ'])
-    mask = hop_indices(frames['astate'])
+    mask = sudi(frames['astate']) != 0
     hops_pca_coords = pca_res[mask]
     return pca_res, hops_pca_coords
 
@@ -828,7 +843,23 @@ def find_hops(frames: Frames) -> Frames:
 # SMILES annotated with the original atom indices
 # to maintain the order in the `atom` index
 
-def to_mol(atXYZ_frame, charge=None, covFactor=1.5, to2D=True):
+def set_atom_props(mol, **kws):
+    natoms = mol.GetNumAtoms()
+    for prop, vals in kws.items():
+        if vals is None:
+            continue
+        elif vals is True:
+            vals = range(natoms)
+        elif natoms != len(vals):
+            raise ValueError(
+                f"{len(vals)} values were passed for {prop}, but 'mol' has {natoms} atoms"
+            )
+
+        for atom, val in zip(mol.GetAtoms(), vals):
+            atom.SetProp(prop, str(val))
+    return mol
+
+def to_mol(atXYZ_frame, charge=None, covFactor=1.5, to2D=True, molAtomMapNumber=None, atomNote=None, atomLabel=None):
     mol = rc.rdmolfiles.MolFromXYZBlock(to_xyz(atXYZ_frame))
     rc.rdDetermineBonds.DetermineConnectivity(mol, useVdw=True, covFactor=covFactor)
     try:
@@ -838,7 +869,7 @@ def to_mol(atXYZ_frame, charge=None, covFactor=1.5, to2D=True):
             raise err
     if to2D:
         rc.rdDepictor.Compute2DCoords(mol)  # type: ignore
-    return mol
+    return set_atom_props(mol, molAtomMapNumber=molAtomMapNumber, atomNote=atomNote, atomLabel=atomLabel)
 
 
 def mol_to_numbered_smiles(mol: rc.Mol) -> str:
