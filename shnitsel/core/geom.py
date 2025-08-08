@@ -236,6 +236,27 @@ def get_bond_torsions(atXYZ, quadruple_types=None, mol=None, signed=False):
 
 
 def get_bats(atXYZ, mol=None):
+    """Get bond lengths, angles and torsions.
+
+    Parameters
+    ----------
+    atXYZ
+        The coordinates to use.
+    mol, optional
+        An rdkit Mol object used to determine connectivity; by default this is
+        determined automatically based on the first frame of ``atXYZ``.
+
+    Returns
+    -------
+        An :py:class:`xarray.DataArray` containing bond lengths, angles and tensions.
+
+    Examples
+    --------
+        >>> import shnitsel as st
+        >>> from shnitsel.core import geom
+        >>> frames = st.open_frames('/tmp/A03_filtered.nc')
+        >>> geom.get_bats(frames['atXYZ'])
+    """
     if mol is None:
         mol = default_mol(atXYZ)
     d = {
