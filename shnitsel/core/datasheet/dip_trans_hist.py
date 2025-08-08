@@ -168,7 +168,7 @@ def plot_separated_spectra_and_hists(
     for l in secax.get_xticklabels():
         l.set_horizontalalignment('left')
         l.set_verticalalignment('bottom')
-    secax.set_xlabel(r'$\Delta E$ / nm')
+    secax.set_xlabel(r'$\lambda$ / nm')
 
     for lax in ['cb_spec', 'cb_hist']:
         axs[lax].get_yaxis().set_visible(False)
