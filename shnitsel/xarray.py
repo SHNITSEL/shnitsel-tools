@@ -11,6 +11,7 @@ from .core import (
     filtre,
     ase,
 )
+from . import _state
 
 M = namedtuple(
     'M',
@@ -233,6 +234,8 @@ class DAShnitselAccessor(ShnitselAccessor):
                 setattr(self, name, self._make_method(converter))
                 self._methods.append(name)
 
+_state.DATAARRAY_ACCESSOR_NAME = 'sh'
+_state.DATAARRAY_ACCESSOR_REGISTERED = True
 
 @xr.register_dataset_accessor('sh')
 class DSShnitselAccessor(ShnitselAccessor):
@@ -265,3 +268,5 @@ class DSShnitselAccessor(ShnitselAccessor):
             ):
                 setattr(self, name, self._make_method(func))
                 self._methods.append(name)
+_state.DATASET_ACCESSOR_NAME = 'sh'
+_state.DATASET_ACCESSOR_REGISTERED = True
