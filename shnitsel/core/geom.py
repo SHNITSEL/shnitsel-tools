@@ -6,6 +6,7 @@
 """
 
 from itertools import combinations, product
+from typing import Literal
 
 import numpy as np
 from rdkit.Chem import Mol
@@ -278,3 +279,34 @@ def get_bats(atXYZ, mol=None):
         )
 
     return xr.concat([d['bond'], d['angle'], d['torsion']], dim='descriptor')
+
+
+def center_geoms(atXYZ, by_mass: Literal[False] = False):
+    if by_mass:
+        raise NotImplementedError
+    return atXYZ - atXYZ.mean('atom')
+
+def kabsch(atXYZ, reference_or_indexers: xr.DataArray | dict | None = None, **indexers_kwargs):
+    from scipy.linalg import orthogonal_procrustes
+
+    if isinstance(reference_or_indexers, xr.DataArray):
+        reference = reference_or_indexers
+    elif isinstance(reference_or_indexers, dict):
+        reference = atXYZ.sel(reference_or_indexers)
+    else:
+        reference = atXYZ.sel(indexers_kwargs)
+    
+    atXYZ = center_geoms(atXYZ)
+    reference = center_geoms(reference)
+
+    def applied_procrustes(A):
+        R, scale = orthogonal_procrustes(A, reference)
+        return A @ R
+
+    res = xr.apply_ufunc(
+        applied_procrustes,
+        atXYZ,
+        input_core_dims=[['atom', 'direction']],
+        output_core_dims=[['atom', 'direction']],
+    )
+    return res

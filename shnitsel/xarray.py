@@ -100,6 +100,7 @@ DA_METHODS: dict[str, M] = {
     'get_bond_angles':  M(geom.get_bond_angles, required_dims={'atom'}, required_coords={'atNames'}),
     'get_bond_torsions':  M(geom.get_bond_torsions, required_dims={'atom'}, required_coords={'atNames'}),
     'get_bats':  M(geom.get_bats, required_dims={'atom'}, required_coords={'atNames'}),
+    'kabsch':  M(geom.kabsch, required_dims={'atom', 'direction'}),
     ##############
     # From select:
     'FrameSelector': M(select.FrameSelector),
