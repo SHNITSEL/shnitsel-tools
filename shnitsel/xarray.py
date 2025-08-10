@@ -94,6 +94,15 @@ DA_METHODS: dict[str, M] = {
         filtre.get_bond_lengths,
         required_dims={'frame'},
     ),
+    ############
+    # From geom:
+    'get_bond_lengths':  M(geom.get_bond_lengths, required_dims={'atom'}, required_coords={'atNames'}),
+    'get_bond_angles':  M(geom.get_bond_angles, required_dims={'atom'}, required_coords={'atNames'}),
+    'get_bond_torsions':  M(geom.get_bond_torsions, required_dims={'atom'}, required_coords={'atNames'}),
+    'get_bats':  M(geom.get_bats, required_dims={'atom'}, required_coords={'atNames'}),
+    ##############
+    # From select:
+    'FrameSelector': M(select.FrameSelector),
 }
 
 CONVERTERS: dict[str, P.Converter] = {
