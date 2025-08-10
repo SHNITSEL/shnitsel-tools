@@ -15,6 +15,7 @@ import rdkit.Chem as rc
 import rdkit.Chem.rdDetermineBonds
 
 from . import xrhelpers
+from .. import _state
 
 Astates: TypeAlias = xr.DataArray
 AtXYZ: TypeAlias = xr.DataArray
@@ -110,7 +111,10 @@ def subtract_combinations(
 
 
 def pca(
-    da: xr.DataArray, dim: str, n_components: int = 2, return_pca_object=False
+    da: xr.DataArray,
+    dim: str,
+    n_components: int = 2,
+    return_pca_object: bool = False
 ) -> tuple[xr.DataArray, PCA] | xr.DataArray:
     """xarray-oriented wrapper around scikit-learn's PCA
 
@@ -147,6 +151,14 @@ def pca(
         input_core_dims=[[dim]],
         output_core_dims=[['PC']],
     )
+    loadings = xr.DataArray(
+        pca_object.components_,
+        coords=[pca_res.coords['PC'], da.coords[dim]]
+    )
+    if _state.DATAARRAY_ACCESSOR_REGISTERED:
+        accessor_object = getattr(pca_res, _state.DATAARRAY_ACCESSOR_NAME)
+        accessor_object.loadings = loadings
+        accessor_object.pca_object = pca_object
 
     if return_pca_object:
         return (pca_res, pca_object)
