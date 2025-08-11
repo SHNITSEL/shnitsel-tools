@@ -53,6 +53,13 @@ class FrameSelector:
         xname = str(xname)
         yname = str(yname)
 
+        self.df = df
+        self.da = da
+        self.xname = xname
+        self.yname = yname
+        self.title = title
+        self.webgl = webgl
+
         if allowed_ws_origin is not None:
             if isinstance(allowed_ws_origin, str):
                 allowed_ws_origin = [allowed_ws_origin]
@@ -64,28 +71,54 @@ class FrameSelector:
             )
             settings.allowed_ws_origin.set_value('*')
 
-        def bkapp(doc):
-            nonlocal df
-            nonlocal da
-            df = df.copy()
-            source = ColumnDataSource(data=df)
+        bkapp = self._bkapp()
+        show(bkapp)
+    
+    def _bkapp(self):
+        source = ColumnDataSource(data=self.df)
 
+        def callback(attr, old, new):
+            nonlocal self
+            self.selected_frame_indices = new
+            self.df_selection = self.df.iloc[new, :]
+            if self.da is not None:
+                self.selection = self.da[new, :]
+
+        def bkapp(doc):
+            nonlocal self, source, callback
             plot = figure(
                 tools='lasso_select',  # type: ignore
-                title=title,
-                output_backend='webgl' if webgl else 'canvas',
+                title=self.title,
+                output_backend='webgl' if self.webgl else 'canvas',
             )
-            plot.scatter(xname, yname, source=source, selection_color='red')
-
-            def callback(attr, old, new):
-                nonlocal self
-                self.selected_frame_indices = new
-                self.df_selection = df.iloc[new, :]
-                if da is not None:
-                    self.selection = da[new, :]
+            plot.scatter(self.xname, self.yname, source=source, selection_color='red')
 
             source.selected.on_change('indices', callback)
 
             doc.add_root(column(plot))
+        
+        return bkapp
+    def _bkapp(self):
+        source = ColumnDataSource(data=self.df)
 
-        show(bkapp)
+        def callback(attr, old, new):
+            nonlocal self
+            self.selected_frame_indices = new
+            self.df_selection = self.df.iloc[new, :]
+            if self.da is not None:
+                self.selection = self.da[new, :]
+
+        def bkapp(doc):
+            nonlocal self
+            plot = figure(
+                tools='lasso_select',  # type: ignore
+                title=self.title,
+                output_backend='webgl' if self.webgl else 'canvas',
+            )
+            plot.scatter(self.xname, self.yname, source=source, selection_color='red')
+
+            source.selected.on_change('indices', callback)
+
+            doc.add_root(column(plot))
+        
+        return bkapp
