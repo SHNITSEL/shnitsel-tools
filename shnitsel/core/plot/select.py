@@ -1,7 +1,10 @@
+import os
+from logging import warning
+
 from bokeh.layouts import column
-from bokeh.models import ColumnDataSource  # , CustomJS
+from bokeh.models import ColumnDataSource, CustomJS, Div
 from bokeh.plotting import figure
-from bokeh.io import show, output_notebook
+from bokeh.io import show, output_notebook, curdoc
 from bokeh.settings import settings
 
 import pandas as pd
@@ -50,6 +53,12 @@ class FrameSelector:
             if isinstance(allowed_ws_origin, str):
                 allowed_ws_origin = [allowed_ws_origin]
             settings.allowed_ws_origin.set_value(allowed_ws_origin)
+        elif 'VSCODE_PID' in os.environ:
+            warning(
+                "We appear to be running in VS Code and allowed_ws_origin "
+                "was not provided, so setting allowed_ws_origin='*'"
+            )
+            settings.allowed_ws_origin.set_value('*')
 
         def bkapp(doc):
             nonlocal df
@@ -76,6 +85,3 @@ class FrameSelector:
             doc.add_root(column(plot))
 
         show(bkapp)
-
-    # @property
-    # def allowed_ws_origin(self, value):
