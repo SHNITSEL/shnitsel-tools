@@ -23,6 +23,7 @@ class FrameSelector:
             da = df_or_da
             if len(da.dims) == 2:
                 df = da.to_pandas()
+                self.selection = da[[], :]
             else:
                 raise ValueError(
                     "When the first argument to FrameSelector is an "
@@ -34,6 +35,9 @@ class FrameSelector:
                 "The first argument to FrameSelector should be a "
                 "pandas.DataFrame or a 2-dimensional xarray.DataArray"
             )
+        
+        self.selected_frame_indices = []
+        self.df_selection = pd.DataFrame
 
         # Column names must be strings
         for col in df.columns:
