@@ -15,6 +15,7 @@ import rdkit.Chem as rc
 import rdkit.Chem.rdDetermineBonds
 
 from . import xrhelpers
+from .ml import pca  # backward compatibility
 from .. import _state
 
 Astates: TypeAlias = xr.DataArray
@@ -109,61 +110,6 @@ def subtract_combinations(
     res.attrs['deltaed'] = set(res.attrs.get('deltaed', [])).union({dim})
     return res
 
-
-def pca(
-    da: xr.DataArray,
-    dim: str,
-    n_components: int = 2,
-    return_pca_object: bool = False
-) -> tuple[xr.DataArray, PCA] | xr.DataArray:
-    """xarray-oriented wrapper around scikit-learn's PCA
-
-    Parameters
-    ----------
-    da
-        A DataArray with at least a dimension with a name matching `dim`
-    dim
-        The name of the dimension to reduce
-    n_components, optional
-        The number of principle components to return, by default 2
-    return_pca_object, optional
-        Whether to return the scikit-learn `PCA` object as well as the
-        transformed data, by default False
-
-    Returns
-    -------
-    pca_res
-        A DataArray with the same dimensions as `da`, except for the dimension
-        indicated by `dim`, which is replaced by a dimension `PC` of size `n_components`
-    [pca_object]
-        The trained PCA object produced by scikit-learn, if return_pca_object=True
-    """
-    scaled = xr.apply_ufunc(
-      MinMaxScaler().fit_transform,
-      da.transpose(..., dim)
-    )
-    
-    pca_object = PCA(n_components=n_components)
-    pca_object.fit(scaled)
-    pca_res: xr.DataArray = xr.apply_ufunc(
-        pca_object.transform,
-        scaled,
-        input_core_dims=[[dim]],
-        output_core_dims=[['PC']],
-    )
-    loadings = xr.DataArray(
-        pca_object.components_,
-        coords=[pca_res.coords['PC'], da.coords[dim]]
-    )
-    if _state.DATAARRAY_ACCESSOR_REGISTERED:
-        accessor_object = getattr(pca_res, _state.DATAARRAY_ACCESSOR_NAME)
-        accessor_object.loadings = loadings
-        accessor_object.pca_object = pca_object
-
-    if return_pca_object:
-        return (pca_res, pca_object)
-    else:
-        return pca_res
 
 def pairwise_dists_pca(atXYZ: AtXYZ, **kwargs) -> xr.DataArray:
     """PCA-reduced pairwise interatomic distances

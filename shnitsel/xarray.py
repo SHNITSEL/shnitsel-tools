@@ -10,6 +10,7 @@ from .core import (
     filter_unphysical,
     filtre,
     ase,
+    ml
 )
 from . import _state
 
@@ -104,6 +105,10 @@ DA_METHODS: dict[str, M] = {
     ##############
     # From select:
     'FrameSelector': M(select.FrameSelector),
+    ##########
+    # From ml:
+    'lda': M(ml.lda),
+    'pls': M(ml.pls),
 }
 
 CONVERTERS: dict[str, P.Converter] = {
@@ -188,6 +193,9 @@ DS_METHODS: dict[str, M2] = {
     ###########
     # From ase:
     'write_ase': M2(ase.write_ase, required_dims={'frame'}),
+    ##########
+    # From ml:
+    'pls_ds': M2(ml.pls_ds),
 }
 
 
