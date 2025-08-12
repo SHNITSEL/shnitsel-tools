@@ -449,11 +449,19 @@ def keep_norming(
 def _get_fosc(energy, dip_trans):
     return 2 / 3 * energy * dip_trans**2
 
-
-def assign_fosc(ds: xr.Dataset) -> xr.Dataset:
-    da = _get_fosc(convert_energy(ds['energy'], to='hartree'), ds['dip_trans'])
+def get_fosc(energy, dip_trans):
+    if 'state' in energy.dims:
+        assert 'statecomb' not in energy.dims
+        energy = subtract_combinations(energy, 'state')
+        
+    da = _get_fosc(convert_energy(energy, to='hartree'), dip_trans)
     da.name = 'fosc'
     da.attrs['long_name'] = r"$f_{\mathrm{osc}}$"
+    return da
+
+# TODO: deprecate (made redundant by DerivedProperties)
+def assign_fosc(ds: xr.Dataset) -> xr.Dataset:
+    da = get_fosc(ds['energy'], ds['dip_trans'])
     return ds.assign(fosc=da)
 
 def broaden_gauss(
