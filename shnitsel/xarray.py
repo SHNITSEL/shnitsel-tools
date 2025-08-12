@@ -10,9 +10,11 @@ from .core import (
     filter_unphysical,
     filtre,
     ase,
+    geom,
     ml
 )
 from . import _state
+from .core.plot import select, p3mhelpers
 
 M = namedtuple(
     'M',
@@ -105,6 +107,12 @@ DA_METHODS: dict[str, M] = {
     ##############
     # From select:
     'FrameSelector': M(select.FrameSelector),
+    ##################
+    # From p3mhelpers:
+    'frame3D': M(p3mhelpers.frame3D),
+    'frames3Dgrid': M(p3mhelpers.frames3Dgrid),
+    'traj3D': M(p3mhelpers.traj3D),
+    'trajs3Dgrid': M(p3mhelpers.trajs3Dgrid),
     ##########
     # From ml:
     'lda': M(ml.lda),
