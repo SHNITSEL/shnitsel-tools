@@ -1,6 +1,7 @@
 from sklearn.decomposition import PCA
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from sklearn.cross_decomposition import PLSRegression
+from sklearn.preprocessing import MinMaxScaler
 import xarray as xr
 
 from .. import _state
