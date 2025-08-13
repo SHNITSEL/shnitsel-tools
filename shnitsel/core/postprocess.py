@@ -10,11 +10,10 @@ import xarray as xr
 import scipy.stats as st
 
 import rdkit.Chem as rc
-import rdkit.Chem.rdDetermineBonds
+import rdkit.Chem.rdDetermineBonds  # noqa: F401
 
 from . import xrhelpers
 from .ml import pca  # backward compatibility
-from .. import _state
 
 Astates: TypeAlias = xr.DataArray
 AtXYZ: TypeAlias = xr.DataArray
