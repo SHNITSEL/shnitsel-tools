@@ -321,7 +321,7 @@ def read_trajs(
     kind: Literal['sharc', 'nx', 'pyrai2md'],
     pattern: str = 'TRAJ*',
     format: Literal['frames', 'layers'] = 'frames',
-    parallel: bool = False,
+    parallel: bool = True,
     errors: Literal['log', 'raise'] = 'log',
 ) -> xr.Dataset:
     """Read all trajectories from a folder of trajectory folders
