@@ -92,17 +92,19 @@ DA_METHODS: dict[str, M] = {
         required_dims={'frame'},
         required_coords={'trajid', 'time'},
     ),
-    'get_bond_lengths': M(
-        filtre.get_bond_lengths,
-        required_dims={'frame'},
-    ),
     ############
     # From geom:
-    'get_bond_lengths':  M(geom.get_bond_lengths, required_dims={'atom'}, required_coords={'atNames'}),
-    'get_bond_angles':  M(geom.get_bond_angles, required_dims={'atom'}, required_coords={'atNames'}),
-    'get_bond_torsions':  M(geom.get_bond_torsions, required_dims={'atom'}, required_coords={'atNames'}),
-    'get_bats':  M(geom.get_bats, required_dims={'atom'}, required_coords={'atNames'}),
-    'kabsch':  M(geom.kabsch, required_dims={'atom', 'direction'}),
+    'get_bond_lengths': M(
+        geom.get_bond_lengths, required_dims={'atom'}, required_coords={'atNames'}
+    ),
+    'get_bond_angles': M(
+        geom.get_bond_angles, required_dims={'atom'}, required_coords={'atNames'}
+    ),
+    'get_bond_torsions': M(
+        geom.get_bond_torsions, required_dims={'atom'}, required_coords={'atNames'}
+    ),
+    'get_bats': M(geom.get_bats, required_dims={'atom'}, required_coords={'atNames'}),
+    'kabsch': M(geom.kabsch, required_dims={'atom', 'direction'}),
     ##############
     # From select:
     'FrameSelector': M(select.FrameSelector),
@@ -277,11 +279,11 @@ class DerivedProperties:
         return set().union(self.derivers, self.properties)
 
 class DSDerivedProperties(DerivedProperties):
-    derivers = {
-        'fosc': M2(lambda ds, *a, **k: P.get_fosc(ds.energy, ds.dip_trans, *a, **k)),
-        'bond_lengths': M2(lambda ds, *a, **k: geom.get_bond_lengths(ds.atXYZ, *a, **k)),
-        'bond_angles': M2(lambda ds, *a, **k: geom.get_bond_angles(ds.atXYZ, *a, **k)),
-    }
+    derivers = dict(
+        fosc=M2(lambda ds, *a, **k: P.get_fosc(ds.energy, ds.dip_trans, *a, **k)),
+        bond_lengths=M2(lambda ds, *a, **k: geom.get_bond_lengths(ds.atXYZ, *a, **k)),
+        bond_angles=M2(lambda ds, *a, **k: geom.get_bond_angles(ds.atXYZ, *a, **k)),
+    )
     properties = {}
 
     def __getitem__(self, keys):
@@ -312,7 +314,6 @@ class DSDerivedProperties(DerivedProperties):
         else:
             selection = keys
 
-        new_obj = self._obj
         to_assign = {
             k: self.derivers[k].func(self._obj) for k in keys if k in self.derivers
         }
