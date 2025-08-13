@@ -1,6 +1,8 @@
+from math import sqrt, ceil
+
+import numpy as np
 import py3Dmol
 import xarray as xr
-from math import sqrt, ceil
 from .. import postprocess as P
 
 
@@ -54,7 +56,7 @@ def traj3D(traj: str | xr.DataArray):
 
 def trajs3Dgrid(atXYZ: xr.DataArray, trajids: list[int | str] | None = None):
     if trajids is None:
-        trajids = atXYZ.coords['trajid'].values
+        trajids = np.unique(atXYZ.coords['trajid'].values)
 
     n = ceil(sqrt(len(trajids)))
     view = py3Dmol.view(viewergrid=(n, n), width=1000, height=800, linked=True)
