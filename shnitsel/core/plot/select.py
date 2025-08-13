@@ -1,12 +1,14 @@
 import os
 from logging import warning
 
+from bokeh.io import show, output_notebook
 from bokeh.layouts import column
 from bokeh.models import ColumnDataSource, CustomJS, Div
 from bokeh.plotting import figure
-from bokeh.io import show, output_notebook, curdoc
 from bokeh.settings import settings
+from bokeh.transform import linear_cmap
 
+import numpy as np
 import pandas as pd
 import xarray as xr
 
@@ -118,7 +120,7 @@ class TrajSelector(FrameSelector):
             (102, 204, 136, 1),
             (85, 85, 85, 0.02)
         ]
-        scatter = plot.scatter(
+        plot.scatter(
             self.xname,
             self.yname,
             source=source,
