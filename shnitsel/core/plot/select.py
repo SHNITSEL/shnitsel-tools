@@ -67,30 +67,25 @@ class FrameSelector:
             )
             settings.allowed_ws_origin.set_value('*')
 
-        bkapp = self._bkapp()
-        show(bkapp)
-    
-    def _bkapp(self):
+        show(self.bkapp) 
+
+    def _selected_on_change(self, attr, old, new):
+        self.selected_frame_indices = new
+
+
+    def bkapp(self, doc):
         source = ColumnDataSource(data=self.df)
+        plot = figure(
+            tools='lasso_select',  # type: ignore
+            title=self.title,
+            output_backend='webgl' if self.webgl else 'canvas',
+        )
+        plot.scatter(self.xname, self.yname, source=source, selection_color='red')
 
-        def callback(attr, old, new):
-            nonlocal self
-            self.selected_frame_indices = new
+        source.selected.on_change('indices', self._selected_on_change)
 
-        def bkapp(doc):
-            nonlocal self, source, callback
-            plot = figure(
-                tools='lasso_select',  # type: ignore
-                title=self.title,
-                output_backend='webgl' if self.webgl else 'canvas',
-            )
-            plot.scatter(self.xname, self.yname, source=source, selection_color='red')
-
-            source.selected.on_change('indices', callback)
-
-            doc.add_root(column(plot))
+        doc.add_root(column(plot))
         
-        return bkapp
     
     @property
     def df_selection(self):
@@ -103,59 +98,60 @@ class FrameSelector:
         else:
             return self.da[self.selected_frame_indices, :]
 
+
 class TrajSelector(FrameSelector):
-    def _bkapp(self):
-        source = ColumnDataSource(data=self.df)
+    def _selected_on_change(self, attr, old, new):
+        self.selected_frame_indices = new
 
-        def callback(attr, old, new):
-            nonlocal self
-            self.selected_frame_indices = new
+    def bkapp(self, doc):
+        source = ColumnDataSource(data=self.df[[self.xname, self.yname]])
+        assert 'trajid_time' in source.data
+        plot = figure(
+            tools='lasso_select,tap',  # type: ignore
+            title=self.title,
+            output_backend='webgl' if self.webgl else 'canvas',
+        )
+        source.data['_color'] = np.zeros(len(self.df))
+        cmap = [
+            (85, 85, 85, 1),
+            (68, 119, 17, 1),
+            (102, 204, 136, 1),
+            (85, 85, 85, 0.02)
+        ]
+        scatter = plot.scatter(
+            self.xname,
+            self.yname,
+            source=source,
+            color=linear_cmap('_color', cmap, low=0, high=3),
+        )
 
-        def bkapp(doc):
-            nonlocal self
-            plot = figure(
-                tools='lasso_select,tap',  # type: ignore
-                title=self.title,
-                output_backend='webgl' if self.webgl else 'canvas',
-            )
-            source2 = ColumnDataSource({k: [] for k in source.column_names})
-            scatter2 = plot.scatter(self.xname, self.yname, source=source2, color='limegreen', nonselection_alpha=1)
-            scatter = plot.scatter(self.xname, self.yname, source=source, selection_color='red')
+        div = Div(width=plot.width, height=10, height_policy="fixed")
 
-            div = Div(width=plot.width, height=10, height_policy="fixed")
+        js_callback = CustomJS(
+            args=dict(source=source, div=div),
+            code="""
+            //debugger;
+            let trajids = source.selected.indices.map((i) => source.data.trajid_time[i][0]);        
+            const set_unique_trajids = new Set(trajids);
+            const unique_trajids = [...set_unique_trajids];
 
-            js_callback = CustomJS(args=dict(source=source, plot=plot, source2=source2, div=div), code="""
-                let trajids = source.selected.indices.map((i) => source.data.trajid_time[i][0]);        
-                const unique_trajids = [];
+            div.text = "<span><b>trajids:</b> " + unique_trajids.join(", ") + "</span>";
 
+            source.data['_color'] = new Uint8Array(source.data['0'].length).fill(3);
 
-                trajids.forEach((x) => {
-                    if (!unique_trajids.includes(x)) {
-                        unique_trajids.push(x);
-                    };
-                });
-
-                div.text = "<span><b>trajids:</b> " + unique_trajids + "</span>";
-
-                let new_indices = [];
-                for (let i = 0; i < source.data['0'].length; i++) {
-                    if (unique_trajids.includes(source.data.trajid_time[i][0])) {
-                        new_indices.push(i);
-                    }
+            for (let i = 0; i < source.data['0'].length; i++) {
+                if (set_unique_trajids.has(source.data.trajid_time[i][0])) {
+                    source.data['_color'][i] = 1;
                 };
-                const new_data = {};
-                for (const col in source.data) {
-                    new_data[col] = new_indices.map(i => source.data[col][i]);
-                };
-                source2.data = new_data;
-                source.change.emit();
-                source2.change.emit();
-            """
-            )
+            };
+            for (let i of source.selected.indices) {
+                source.data['_color'][i] = 2;
+            };
+            source.change.emit();
+        """
+        )
 
-            source.selected.js_on_change('indices', js_callback)
-            source.selected.on_change('indices', callback)
+        source.selected.js_on_change('indices', js_callback)
+        source.selected.on_change('indices', self._selected_on_change)
 
-            doc.add_root(column(plot, div))
-        
-        return bkapp
+        doc.add_root(column(plot, div))
