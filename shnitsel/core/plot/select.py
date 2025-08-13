@@ -23,7 +23,6 @@ class FrameSelector:
             da = df_or_da
             if len(da.dims) == 2:
                 df = da.to_pandas()
-                self.selection = da[[], :]
             else:
                 raise ValueError(
                     "When the first argument to FrameSelector is an "
@@ -35,9 +34,6 @@ class FrameSelector:
                 "The first argument to FrameSelector should be a "
                 "pandas.DataFrame or a 2-dimensional xarray.DataArray"
             )
-        
-        self.selected_frame_indices = []
-        self.df_selection = pd.DataFrame
 
         # Column names must be strings
         for col in df.columns:
@@ -80,9 +76,6 @@ class FrameSelector:
         def callback(attr, old, new):
             nonlocal self
             self.selected_frame_indices = new
-            self.df_selection = self.df.iloc[new, :]
-            if self.da is not None:
-                self.selection = self.da[new, :]
 
         def bkapp(doc):
             nonlocal self, source, callback
@@ -98,6 +91,17 @@ class FrameSelector:
             doc.add_root(column(plot))
         
         return bkapp
+    
+    @property
+    def df_selection(self):
+        return self.df.iloc[self.selected_frame_indices, :]
+
+    @property
+    def selection(self):
+        if self.da is None:
+            return None
+        else:
+            return self.da[self.selected_frame_indices, :]
 
 class TrajSelector(FrameSelector):
     def _bkapp(self):
@@ -106,9 +110,6 @@ class TrajSelector(FrameSelector):
         def callback(attr, old, new):
             nonlocal self
             self.selected_frame_indices = new
-            self.df_selection = self.df.iloc[new, :]
-            if self.da is not None:
-                self.selection = self.da[new, :]
 
         def bkapp(doc):
             nonlocal self
