@@ -27,7 +27,7 @@ def plot_pops(pops, ax):
     for state, sdata in pops.groupby('state'):
         c = sdata['_color'].item()
         ax.plot(sdata['time'], sdata, c=c, lw=0.5)
-        ax.text(sdata['time'][-1], sdata[-1], r"$S_%d$" % state, c=c)  # TODO
+        ax.text(sdata['time'][-1], sdata[-1], r"$S_%d$" % (state - 1), c=c)  # TODO
     ax.set_ylabel('Population')
     return ax
 
