@@ -98,6 +98,8 @@ class FrameSelector:
             doc.add_root(column(plot))
         
         return bkapp
+
+class TrajSelector(FrameSelector):
     def _bkapp(self):
         source = ColumnDataSource(data=self.df)
 
@@ -111,14 +113,48 @@ class FrameSelector:
         def bkapp(doc):
             nonlocal self
             plot = figure(
-                tools='lasso_select',  # type: ignore
+                tools='lasso_select,tap',  # type: ignore
                 title=self.title,
                 output_backend='webgl' if self.webgl else 'canvas',
             )
-            plot.scatter(self.xname, self.yname, source=source, selection_color='red')
+            source2 = ColumnDataSource({k: [] for k in source.column_names})
+            scatter2 = plot.scatter(self.xname, self.yname, source=source2, color='limegreen', nonselection_alpha=1)
+            scatter = plot.scatter(self.xname, self.yname, source=source, selection_color='red')
 
+            div = Div(width=plot.width, height=10, height_policy="fixed")
+
+            js_callback = CustomJS(args=dict(source=source, plot=plot, source2=source2, div=div), code="""
+                let trajids = source.selected.indices.map((i) => source.data.trajid_time[i][0]);        
+                const unique_trajids = [];
+
+
+                trajids.forEach((x) => {
+                    if (!unique_trajids.includes(x)) {
+                        unique_trajids.push(x);
+                    };
+                });
+
+                div.text = "<span><b>trajids:</b> " + unique_trajids + "</span>";
+
+                let new_indices = [];
+                for (let i = 0; i < source.data['0'].length; i++) {
+                    if (unique_trajids.includes(source.data.trajid_time[i][0])) {
+                        new_indices.push(i);
+                    }
+                };
+                const new_data = {};
+                for (const col in source.data) {
+                    new_data[col] = new_indices.map(i => source.data[col][i]);
+                };
+                source2.data = new_data;
+                source.change.emit();
+                source2.change.emit();
+            """
+            )
+
+            source.selected.js_on_change('indices', js_callback)
             source.selected.on_change('indices', callback)
 
-            doc.add_root(column(plot))
+            doc.add_root(column(plot, div))
         
         return bkapp
