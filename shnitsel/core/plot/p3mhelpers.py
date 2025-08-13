@@ -52,7 +52,10 @@ def traj3D(traj: str | xr.DataArray):
     return view
 
 
-def trajs3Dgrid(atXYZ: xr.DataArray, trajids: list[int | str]):
+def trajs3Dgrid(atXYZ: xr.DataArray, trajids: list[int | str] | None = None):
+    if trajids is None:
+        trajids = atXYZ.coords['trajid'].values
+
     n = ceil(sqrt(len(trajids)))
     view = py3Dmol.view(viewergrid=(n, n), width=1000, height=800, linked=True)
 
