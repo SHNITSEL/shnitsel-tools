@@ -19,7 +19,7 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
-  "scipy>=1.11.4",
+  "scipy>=1.16",
   "matplotlib",
   "xarray",
   "rdkit",
@@ -53,7 +53,9 @@ dev = [
   "types-tqdm",
   "sphinx",
   "sphinx-autobuild",
-  "sphinx-autosummary-accessors"
+  "sphinx-autosummary-accessors",
+  "nbsphinx",
+  "sphinx-design",
 ]
 
 [tool.setuptools.packages.find]
