@@ -144,6 +144,7 @@ def get_bond_angles(atXYZ, angle_types=None, mol=None):
         dtype = ','.join(['i'] * n)
         return np.array([tuple(x) for x in xs], dtype=dtype)
 
+    at_idxs = {f'atom{i}': angle_types['at_idx'].isel(atom=i) for i in range(3)}
     angles = (
         angle_(al - ac, ar - ac)
         .assign_coords(
@@ -153,6 +154,7 @@ def get_bond_angles(atXYZ, angle_types=None, mol=None):
             # bond_types=('angle', f(angle_types['bond_type'], 2)),
             angle_type=angle_types['angle_type'],
             angle_symbol=angle_types['angle_symbol'],
+            **at_idxs,
         )
         .set_xindex('angle_symbol')
     )
@@ -230,9 +232,11 @@ def get_bond_torsions(atXYZ, quadruple_types=None, mol=None, signed=False):
         res = full_dihedral_(*atom_positions)
     else:
         res = dihedral_(*atom_positions)
+    at_idxs = {f'atom{i}': quadruple_types['at_idx'].isel(atom=i) for i in range(4)}
     return res.assign_coords(
         torsion_type=quadruple_types['torsion_type'],
         torsion_symbol=quadruple_types['torsion_symbol'],
+        **at_idxs,
     ).set_xindex('torsion_symbol')
 
 
@@ -272,6 +276,8 @@ def get_bats(atXYZ, mol=None):
         .drop_vars(['atom1', 'atom2'])
         .set_xindex('bond_symbol')
     )
+    d['angle'] = d['angle'].drop_vars(['atom0', 'atom1', 'atom2'])
+    d['torsion'] = d['torsion'].drop_vars(['atom0', 'atom1', 'atom2', 'atom3'])
 
     for k in d:
         d[k] = d[k].rename(
