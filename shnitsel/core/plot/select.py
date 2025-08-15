@@ -118,13 +118,14 @@ class TrajSelector(FrameSelector):
             (85, 85, 85, 1),
             (68, 119, 17, 1),
             (102, 204, 136, 1),
-            (85, 85, 85, 0.02)
+            (85, 85, 85, 0.1)
         ]
         plot.scatter(
             self.xname,
             self.yname,
             source=source,
             color=linear_cmap('_color', cmap, low=0, high=3),
+            nonselection_alpha=1,
         )
 
         div = Div(width=plot.width, height=10, height_policy="fixed")
