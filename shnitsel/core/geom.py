@@ -293,9 +293,11 @@ def kabsch(atXYZ, reference_or_indexers: xr.DataArray | dict | None = None, **in
         reference = reference_or_indexers
     elif isinstance(reference_or_indexers, dict):
         reference = atXYZ.sel(reference_or_indexers)
-    else:
+    elif len(indexers_kwargs) != 0:
         reference = atXYZ.sel(indexers_kwargs)
-    
+    elif 'frame' in atXYZ.dims:
+        reference = atXYZ.isel(frame=0)
+
     atXYZ = center_geoms(atXYZ)
     reference = center_geoms(reference)
 
