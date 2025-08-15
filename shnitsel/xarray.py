@@ -108,6 +108,7 @@ DA_METHODS: dict[str, M] = {
     ##############
     # From select:
     'FrameSelector': M(select.FrameSelector),
+    'TrajSelector': M(select.TrajSelector),
     ##################
     # From p3mhelpers:
     'frame3D': M(p3mhelpers.frame3D),
