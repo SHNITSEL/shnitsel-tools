@@ -67,6 +67,8 @@ def lda(da, dim, cats, n_components=2):
         cats = da[cats]
     else:
         cats_name = cats.name
+
+    scaled = xr.apply_ufunc(MinMaxScaler().fit_transform, da.transpose(..., dim))
     lda_object = LinearDiscriminantAnalysis(n_components=n_components)
 
     def fit_transform(X):
@@ -75,7 +77,7 @@ def lda(da, dim, cats, n_components=2):
 
     lda_res: xr.DataArray = xr.apply_ufunc(
         fit_transform,
-        da,
+        scaled,
         input_core_dims=[[dim]],
         output_core_dims=[['PC']],
     )
@@ -83,8 +85,7 @@ def lda(da, dim, cats, n_components=2):
     lda_res[cats_name] = cats
 
     scalings = xr.DataArray(
-        lda_object.scalings_,
-        coords=[(cats_name, lda_object.classes_), lda_res.coords['PC']]
+        lda_object.scalings_, coords=[da.coords[dim], lda_res.coords['PC']]
     )
 
     if _state.DATAARRAY_ACCESSOR_REGISTERED:
@@ -121,10 +122,12 @@ def pls(xda, yda, n_components=2, common_dim=None):
     
     xdim = (set(xda.dims) - {common_dim}).pop()
     ydim = (set(yda.dims) - {common_dim}).pop()
+    xscaled = xr.apply_ufunc(MinMaxScaler().fit_transform, xda.transpose(..., xdim))
+    yscaled = xr.apply_ufunc(MinMaxScaler().fit_transform, yda.transpose(..., ydim))
     xres, yres = xr.apply_ufunc(
         pls_object.fit_transform,
-        xda,
-        yda,
+        xscaled,  # xda,
+        yscaled,  # yda,
         input_core_dims=[[xdim], [ydim]],
         output_core_dims=[['score'], ['score']],
     )
