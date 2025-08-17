@@ -227,6 +227,10 @@ class ShnitselAccessor:
     def __dir__(self):
         return self._methods
 
+    def _repr_html_(self):
+        lst = [f'<li>{met}</li>' for met in self.__dir__()]
+        return f'<b>Available methods:</b><ul>{''.join(lst)}</ul>'
+
 
 @xr.register_dataarray_accessor('sh')
 class DAShnitselAccessor(ShnitselAccessor):
