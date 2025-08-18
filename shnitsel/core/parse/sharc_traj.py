@@ -7,8 +7,6 @@ import os
 import re
 import math
 
-from .common import get_dipoles_per_xyz, dip_sep, get_triangular
-
 def read_traj(traj_path):
     # Read some settings from input
     # In particular, if a trajectory is extended by increasing
