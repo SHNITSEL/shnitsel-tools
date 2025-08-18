@@ -178,8 +178,8 @@ def parse_trajout_dat(f, nsteps: int | None = None):
     # post-processing
     # np.diagonal swaps state and direction, so we transpose them back
     dip_perm = np.diagonal(dip_all, axis1=1, axis2=2).transpose(0, 2, 1)
-    idxs_dip_trans = (slice(None), *np.triu_indices(nstates, k=1))
-    dip_trans = dip_all[idxs_dip_trans].transpose(0, 2, 1)
+    idxs_dip_trans = (slice(None), *np.triu_indices(nstates, k=1), slice(None))
+    dip_trans = dip_all[idxs_dip_trans]
     # has_forces = forces.any(axis=(1, 2, 3))
 
     if not max_ts + 1 <= nsteps:
