@@ -13,7 +13,7 @@ def plot_time_interstate_error(data, ax):
         c = scdata['_color'].item()
         scdata = scdata.squeeze('statecomb')
         ax.fill_between('time', 'upper', 'lower', data=scdata, color=c, alpha=0.3)
-        ax.plot('time', 'mean', data=scdata, c=c, lw=0.5)
+        ax.plot('time', 'mean', data=scdata, c=c, lw=0.8)
         va = vas.get(sc, 'baseline')
         ax.text(scdata['time'][-1], scdata['mean'][-1], sc, c=c, va=va, ha='right')
     ylabel = data.attrs['tex']
@@ -26,8 +26,8 @@ def plot_time_interstate_error(data, ax):
 def plot_pops(pops, ax):
     for state, sdata in pops.groupby('state'):
         c = sdata['_color'].item()
-        ax.plot(sdata['time'], sdata, c=c, lw=0.5)
-        ax.text(sdata['time'][-1], sdata[-1], r"$S_%d$" % state, c=c)  # TODO
+        ax.plot(sdata['time'], sdata, c=c, lw=1)
+        ax.text(sdata['time'][-1], sdata[-1], r"$S_%d$" % (state-1), c=c)  # TODO
     ax.set_ylabel('Population')
     return ax
 

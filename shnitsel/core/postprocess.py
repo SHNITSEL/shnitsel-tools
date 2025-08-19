@@ -828,14 +828,14 @@ def find_hops(frames: Frames) -> Frames:
 # SMILES annotated with the original atom indices
 # to maintain the order in the `atom` index
 
-def to_mol(atXYZ_frame, charge=None, covFactor=1.5, to2D=True):
+def to_mol(atXYZ_frame, charge=None, covFactor=1.2, to2D=True):
     mol = rc.rdmolfiles.MolFromXYZBlock(to_xyz(atXYZ_frame))
     rc.rdDetermineBonds.DetermineConnectivity(mol, useVdw=True, covFactor=covFactor)
     try:
         rc.rdDetermineBonds.DetermineBondOrders(mol, charge=(charge or 0))
     except ValueError as err:
         if charge is not None:
-            raise err
+            raise None
     if to2D:
         rc.rdDepictor.Compute2DCoords(mol)  # type: ignore
     return mol

@@ -8,6 +8,8 @@ from logging import info, warning
 from timeit import default_timer as timer
 
 from matplotlib.figure import Figure
+from matplotlib.axes import Axes
+from matplotlib.axis import Axis
 try:
     from typing import Self
 except ImportError:
@@ -21,7 +23,7 @@ from ..spectra import calc_spectra, get_sgroups
 from .common import centertext
 from .per_state_hist import plot_per_state_histograms
 from .time import plot_timeplots
-from .dip_trans_hist import plot_separated_spectra_and_hists
+from .dip_trans_hist import plot_separated_spectra_and_hists, plot_separated_spectra_and_hists_groundstate
 from .nacs_hist import plot_nacs_histograms
 from ..plot.pca_biplot import plot_noodleplot
 from .structure import plot_structure
@@ -339,6 +341,18 @@ class Datasheet:
         )
         end = timer()
         info(f"finished plot_separated_spectra_and_hists in {end - start} s")
+        return res
+
+    def plot_separated_spectra_and_hists_groundstate(self, fig: Figure | None = None, scmap = plt.get_cmap('turbo')):
+        start = timer()
+        res = plot_separated_spectra_and_hists_groundstate(
+            inter_state=self.inter_state,
+            sgroups=self.spectra_groups,
+            fig=fig,
+            scmap = scmap,
+        )
+        end = timer()
+        info(f"finished plot_separated_spectra_and_hists_groundstate in {end - start} s")
         return res
 
     def plot_nacs_histograms(self, fig: Figure | None = None):
