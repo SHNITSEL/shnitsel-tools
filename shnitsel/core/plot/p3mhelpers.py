@@ -54,7 +54,9 @@ def traj3D(traj: str | xr.DataArray):
     return view
 
 
-def trajs3Dgrid(atXYZ: xr.DataArray, trajids: list[int | str] | None = None):
+def trajs3Dgrid(
+    atXYZ: xr.DataArray, trajids: list[int | str] | None = None, loop='forward'
+):
     if trajids is None:
         trajids = np.unique(atXYZ.coords['trajid'].values)
 
@@ -76,6 +78,6 @@ def trajs3Dgrid(atXYZ: xr.DataArray, trajids: list[int | str] | None = None):
 
     view.setStyle({'stick': {'showNonBonded': True}})
     view.zoomTo()
-    view.animate({'loop': "forward"})
+    view.animate({'loop': loop})
     view.show()
     return view
