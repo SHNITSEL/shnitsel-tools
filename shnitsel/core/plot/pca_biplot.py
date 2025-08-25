@@ -132,8 +132,8 @@ def plot_loadings(ax, loadings):
         a1, a2 = int(pcs['from']), int(pcs['to'])
         ax.text(pc1, pc2, f"{a1},{a2}")
 
-def show_atom_numbers(atXYZ):
-    mol = P.to_mol(atXYZ)
+def show_atom_numbers(atXYZ, charge=None, covFactor=1.5, to2D=True):
+    mol = P.to_mol(atXYZ, charge=charge, covFactor=covFactor, to2D=to2D)
 
     for i, atom in enumerate(mol.GetAtoms()):
         atom.SetProp("atomLabel", str(atom.GetIdx()))

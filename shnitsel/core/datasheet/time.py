@@ -13,7 +13,7 @@ def plot_time_interstate_error(data, ax):
         c = scdata['_color'].item()
         scdata = scdata.squeeze('statecomb')
         ax.fill_between('time', 'upper', 'lower', data=scdata, color=c, alpha=0.3)
-        ax.plot('time', 'mean', data=scdata, c=c, lw=0.5)
+        ax.plot('time', 'mean', data=scdata, c=c, lw=0.8)
         va = vas.get(sc, 'baseline')
         ax.text(scdata['time'][-1], scdata['mean'][-1], sc, c=c, va=va, ha='right')
     ylabel = data.attrs['tex']

@@ -85,7 +85,7 @@ def plot_spectra(spectra, ax=None, cmap=None, cnorm=None, mark_peaks=False):
             # linestyle=linestyles[t], c=dcol_inter[sc],
             linestyle=linestyle,
             c=c,
-            linewidth=0.5,
+            linewidth=0.8,
         )
         if mark_peaks:
             try:
@@ -207,5 +207,119 @@ def plot_separated_spectra_and_hists(
         ]
     )
     axs['sg'].legend(legend_lines, legend_labels, fontsize='x-small')
+
+    return axs
+
+@figaxs_defaults(
+    #mosaic=[['sg'], ['t0'], ['t1'], ['se'], ['t2'], ['cb_spec'], ['cb_hist']],
+    mosaic=[['sg','t1'], ['cb_spec','cb_hist']],
+    scale_factors=(4/5, 4/5),
+    #height_ratios=([1] * 5) + ([0.1] * 2),
+    height_ratios=([1]) + ([0.1]),
+)
+def plot_separated_spectra_and_hists_groundstate(
+    inter_state, sgroups, fig=None, axs=None, cb_spec_vlines=True, scmap = plt.get_cmap('turbo')
+):
+    ground, excited = sgroups
+    times = [tup[0] for lst in sgroups for tup in lst]
+    scnorm = plt.Normalize(inter_state.time.min(), inter_state.time.max()+50)
+    scscale = mpl.cm.ScalarMappable(norm=scnorm, cmap=scmap)
+
+    hist2d_outputs = []
+    # ground-state spectra and histograms
+    plot_spectra(ground, ax=axs['sg'], cnorm=scnorm, cmap=scmap)
+
+    # We show at most the first two statecombs
+    if inter_state.sizes['statecomb'] >= 2:
+        selsc = [0, 1]
+        selaxs = [axs['t1'], axs['t0']]
+    elif inter_state.sizes['statecomb'] == 1:
+        selsc = [0]
+        selaxs = [axs['t1']]
+    else:
+        raise ValueError(
+            "Too few statecombs (expecting at least 2 states => 1 statecomb)"
+        )
+    hist2d_outputs += plot_dip_trans_histograms(
+        inter_state.isel(statecomb=selsc),
+        axs=selaxs,
+    )
+
+    # excited-state spectra and histograms
+    #if inter_state.sizes['statecomb'] >= 2:
+    #    plot_spectra(excited, ax=axs['se'], cnorm=scnorm, cmap=scmap)
+    #    hist2d_outputs += plot_dip_trans_histograms(
+    #        inter_state.isel(statecomb=[2]), axs=[axs['t2']]
+    #    )
+
+    hists = np.array([tup[0] for tup in hist2d_outputs])
+    hcnorm = plt.Normalize(hists.min(), hists.max())
+
+    quadmeshes = [tup[3] for tup in hist2d_outputs]
+    for quadmesh in quadmeshes:
+        quadmesh.set_norm(hcnorm)
+
+    def ev2nm(ev):
+        return 4.135667696 * 2.99792458 * 100 / np.where(ev != 0, ev, 1)
+
+    lims = [l for ax in axs.values() for l in ax.get_xlim()]
+    new_lims = (min(lims), max(lims))
+    for lax, ax in axs.items():
+        if lax.startswith('cb'):
+            continue
+        ax.set_xlim(*new_lims)
+        ax.invert_xaxis()
+
+    for ax in list(axs.values()):
+        ax.tick_params(axis="x", labelbottom=False)
+    axs['t1'].tick_params(axis="x", labelbottom=True)
+    axs['sg'].tick_params(axis="x", labelbottom=True)
+
+    secax = axs['sg'].secondary_xaxis('top', functions=(ev2nm, ev2nm))
+    secax.set_xticks([10, 25, 35, 40, 50, 75, 100, 125, 150, 200,250,300,350,400,500,750,1000])
+    secax.tick_params(axis='x', rotation=45, labelsize='small')
+    for l in secax.get_xticklabels():
+        l.set_horizontalalignment('left')
+        l.set_verticalalignment('bottom')
+    secax.set_xlabel(r'$\lambda$ / nm')
+
+    for lax in ['cb_spec', 'cb_hist']:
+        axs[lax].get_yaxis().set_visible(False)
+
+    cb_spec = axs['cb_spec'].figure.colorbar(
+        scscale,
+        cax=axs['cb_spec'],
+        location='bottom',
+        extend='both',
+        extendrect=True,
+    )
+    axs['cb_spec'].set_xlabel('time / fs')
+    if cb_spec_vlines:
+        for t in times:
+            lo, hi = scscale.get_clim()  # lines at these points don't show
+            if t == lo:
+                t += t / 100  # so we shift them slightly
+            elif t == hi:
+                t -= t / 100
+
+            cb_spec.ax.axvline(t, c='white', linewidth=2)
+
+    hcscale = mpl.cm.ScalarMappable(norm=hcnorm, cmap=magma_rw)
+    axs['cb_hist'].figure.colorbar(hcscale, cax=axs['cb_hist'], location='bottom')
+    axs['cb_hist'].set_xlabel('# data points')
+
+    #axs['se'].set_title(
+    #    r"$\uparrow$ground state" + "\n" + r"$\downarrow$excited state absorption"
+    #)
+    axs['t1'].set_xlabel(r'$\Delta E$ / eV')
+    axs['sg'].set_xlabel(r'$\Delta E$ / eV')
+
+    legend_lines, legend_labels = zip(
+        *[
+            (Line2D([0], [0], color='k', linestyle='-', linewidth=2), "$S_1/S_0$"),
+            #(Line2D([0], [0], color='k', linestyle='--', linewidth=0.5), "$S_2/S_0$"),
+        ]
+    )
+    axs['sg'].legend(legend_lines, legend_labels, fontsize='small')
 
     return axs

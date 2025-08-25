@@ -24,6 +24,7 @@ from .dip_trans_hist import (
     plot_dip_trans_histograms as plot_dip_trans_histograms,
     plot_spectra as plot_spectra,
     plot_separated_spectra_and_hists as plot_separated_spectra_and_hists,
+    plot_separated_spectra_and_hists_groundstate as plot_separated_spectra_and_hists_groundstate,
 )
 from .nacs_hist import plot_nacs_histograms as plot_nacs_histograms
 

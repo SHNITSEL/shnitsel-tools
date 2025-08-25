@@ -822,14 +822,15 @@ def set_atom_props(mol, **kws):
             atom.SetProp(prop, str(val))
     return mol
 
-def to_mol(atXYZ_frame, charge=None, covFactor=1.5, to2D=True, molAtomMapNumber=None, atomNote=None, atomLabel=None):
+  
+def to_mol(atXYZ_frame, charge=None, covFactor=1.2, to2D=True, molAtomMapNumber=None, atomNote=None, atomLabel=None):
     mol = rc.rdmolfiles.MolFromXYZBlock(to_xyz(atXYZ_frame))
     rc.rdDetermineBonds.DetermineConnectivity(mol, useVdw=True, covFactor=covFactor)
     try:
         rc.rdDetermineBonds.DetermineBondOrders(mol, charge=(charge or 0))
     except ValueError as err:
         if charge is not None:
-            raise err
+            raise None
     if to2D:
         rc.rdDepictor.Compute2DCoords(mol)  # type: ignore
     return set_atom_props(mol, molAtomMapNumber=molAtomMapNumber, atomNote=atomNote, atomLabel=atomLabel)

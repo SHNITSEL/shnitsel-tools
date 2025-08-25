@@ -68,6 +68,10 @@ def ski_plots(spectra: xr.DataArray) -> mpl.figure.Figure:
 
     cnorm = mpl.colors.Normalize(spectra.time.min(), spectra.time.max())
     cmap = plt.get_cmap('viridis')
+
+    if nstatecombs == 1:
+        axs = [axs]
+
     for ax, (sc, scdata) in zip(axs, spectra.groupby('statecomb')):
         for t, tdata in scdata.groupby('time'):
             ax.plot(tdata.energy, tdata.squeeze(), c=cmap(cnorm(t)), linewidth=0.2)
@@ -121,6 +125,9 @@ def pcm_plots(spectra: xr.DataArray) -> mpl.figure.Figure:
     fig, axs = plt.subplots(1, nstatecombs, layout='constrained')
 
     cnorm = mpl.colors.LogNorm(0.0005, spectra.max())
+    
+    if nstatecombs == 1:
+        axs = [axs]
     for ax, (sc, scdata) in zip(axs, spectra.groupby('statecomb')):
         qm = scdata.squeeze().plot.pcolormesh(x='energy', y='time', ax=ax, norm=cnorm)
         qm.axes.invert_yaxis()
