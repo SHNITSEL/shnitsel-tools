@@ -6,6 +6,7 @@
 """
 
 from itertools import combinations, product
+from typing import Literal
 
 import numpy as np
 from rdkit.Chem import Mol
@@ -143,6 +144,7 @@ def get_bond_angles(atXYZ, angle_types=None, mol=None):
         dtype = ','.join(['i'] * n)
         return np.array([tuple(x) for x in xs], dtype=dtype)
 
+    at_idxs = {f'atom{i}': angle_types['at_idx'].isel(atom=i) for i in range(3)}
     angles = (
         angle_(al - ac, ar - ac)
         .assign_coords(
@@ -152,6 +154,7 @@ def get_bond_angles(atXYZ, angle_types=None, mol=None):
             # bond_types=('angle', f(angle_types['bond_type'], 2)),
             angle_type=angle_types['angle_type'],
             angle_symbol=angle_types['angle_symbol'],
+            **at_idxs,
         )
         .set_xindex('angle_symbol')
     )
@@ -229,13 +232,36 @@ def get_bond_torsions(atXYZ, quadruple_types=None, mol=None, signed=False):
         res = full_dihedral_(*atom_positions)
     else:
         res = dihedral_(*atom_positions)
+    at_idxs = {f'atom{i}': quadruple_types['at_idx'].isel(atom=i) for i in range(4)}
     return res.assign_coords(
         torsion_type=quadruple_types['torsion_type'],
         torsion_symbol=quadruple_types['torsion_symbol'],
+        **at_idxs,
     ).set_xindex('torsion_symbol')
 
 
 def get_bats(atXYZ, mol=None):
+    """Get bond lengths, angles and torsions.
+
+    Parameters
+    ----------
+    atXYZ
+        The coordinates to use.
+    mol, optional
+        An rdkit Mol object used to determine connectivity; by default this is
+        determined automatically based on the first frame of ``atXYZ``.
+
+    Returns
+    -------
+        An :py:class:`xarray.DataArray` containing bond lengths, angles and tensions.
+
+    Examples
+    --------
+        >>> import shnitsel as st
+        >>> from shnitsel.core import geom
+        >>> frames = st.open_frames('/tmp/A03_filtered.nc')
+        >>> geom.get_bats(frames['atXYZ'])
+    """
     if mol is None:
         mol = default_mol(atXYZ)
     d = {
@@ -250,6 +276,8 @@ def get_bats(atXYZ, mol=None):
         .drop_vars(['atom1', 'atom2'])
         .set_xindex('bond_symbol')
     )
+    d['angle'] = d['angle'].drop_vars(['atom0', 'atom1', 'atom2'])
+    d['torsion'] = d['torsion'].drop_vars(['atom0', 'atom1', 'atom2', 'atom3'])
 
     for k in d:
         d[k] = d[k].rename(
@@ -257,3 +285,36 @@ def get_bats(atXYZ, mol=None):
         )
 
     return xr.concat([d['bond'], d['angle'], d['torsion']], dim='descriptor')
+
+
+def center_geoms(atXYZ, by_mass: Literal[False] = False):
+    if by_mass:
+        raise NotImplementedError
+    return atXYZ - atXYZ.mean('atom')
+
+def kabsch(atXYZ, reference_or_indexers: xr.DataArray | dict | None = None, **indexers_kwargs):
+    from scipy.linalg import orthogonal_procrustes
+
+    if isinstance(reference_or_indexers, xr.DataArray):
+        reference = reference_or_indexers
+    elif isinstance(reference_or_indexers, dict):
+        reference = atXYZ.sel(reference_or_indexers)
+    elif len(indexers_kwargs) != 0:
+        reference = atXYZ.sel(indexers_kwargs)
+    elif 'frame' in atXYZ.dims:
+        reference = atXYZ.isel(frame=0)
+
+    atXYZ = center_geoms(atXYZ)
+    reference = center_geoms(reference)
+
+    def applied_procrustes(A):
+        R, scale = orthogonal_procrustes(A, reference)
+        return A @ R
+
+    res = xr.apply_ufunc(
+        applied_procrustes,
+        atXYZ,
+        input_core_dims=[['atom', 'direction']],
+        output_core_dims=[['atom', 'direction']],
+    )
+    return res

@@ -58,16 +58,11 @@ def get_triangular(original_array):
     return upper_tril
 
 def get_dipoles_per_xyz(file, n, m):
-
     dip = np.zeros((n, m))
     for istate in range(n):
-        linecont = [float(i) for i in re.split(' +', next(file).strip())]
-        tmp = []
-        for element in linecont:
-            if element != 0.0:
-                tmp.append(element)
-        if len(tmp) == m:
-            dip[istate] = tmp
+        linecont = next(file).strip().split()
+        # delete every second element in list (imaginary values, all zero)
+        dip[istate] = [float(i) for i in linecont[::2]]
 
     return dip
 

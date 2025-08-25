@@ -229,6 +229,7 @@ def save_frames(frames, path, complevel=9):
     -----
     This function/accessor method wraps :py:meth:`xarray.Dataset.to_netcdf` but not :py:func:`numpy.any`.
     """
+    frames = frames.copy()  # Shallow copy to avoid adding attrs etc. to original
     encoding = {
         var: {"compression": "gzip", "compression_opts": complevel} for var in frames
     }

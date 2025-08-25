@@ -51,13 +51,14 @@ class Datasheet:
         if path is not None and frames is not None:
             raise ValueError("`path` and `frames` should not both be set")
         elif frames is not None:
-            self.frames = frames
+            pass
         elif path is not None:
-            self.frames = xh.open_frames(path)
+            frames = xh.open_frames(path)
         else:
             raise TypeError("Neither path nor frames given.")
 
         assert isinstance(frames, xr.Dataset)
+        self.frames = frames
 
         if spectra_times is not None:
             self.spectra_times = spectra_times

@@ -7,19 +7,30 @@ import os
 import re
 import math
 
-from .common import get_dipoles_per_xyz, dip_sep, get_triangular
-
 def read_traj(traj_path):
+    # Read some settings from input
+    # In particular, if a trajectory is extended by increasing
+    # tmax and resuming, the header of output.dat will give
+    # only the original nsteps, leading to an ndarray IndexError
+    input_path = os.path.join(traj_path, 'input')
+    if os.path.isfile(input_path):
+        with open(input_path) as f:
+            settings = parse_input(f)
+        delta_t = float(settings['stepsize'])
+        tmax = float(settings['tmax'])
+        nsteps = int(tmax/delta_t) + 1
+    else:
+        delta_t = None
+        tmax= None
+        nsteps = None
+
     with open(os.path.join(traj_path, 'output.dat')) as f:
-        single_traj = parse_trajout_dat(f)
+        single_traj = parse_trajout_dat(f, nsteps=nsteps)
 
     nsteps = single_traj.sizes['ts']
 
     with open(os.path.join(traj_path, 'output.xyz')) as f:
         atNames, atXYZ = parse_trajout_xyz(nsteps, f)
-
-    with open(os.path.join(traj_path, 'input')) as f:
-        settings = parse_input(f)
 
     single_traj.coords['atNames'] = 'atom', atNames
 
@@ -28,18 +39,19 @@ def read_traj(traj_path):
         coords={k: single_traj.coords[k] for k in ['ts', 'atom', 'direction']},
         dims=['ts', 'atom', 'direction'],
     )
-    single_traj.attrs['delta_t'] = float(settings['stepsize'])
+    if delta_t is not None:
+        single_traj.attrs['delta_t'] = delta_t
 
     return single_traj
 
 
-def parse_trajout_dat(f):
+def parse_trajout_dat(f, nsteps: int | None = None):
     settings = {}
     for line in f:
         if line.startswith('*'):
             break
 
-        parsed = re.split(' +', line.strip())
+        parsed = line.strip().split()
         if len(parsed) == 2:
             settings[parsed[0]] = parsed[1]
         elif len(parsed) > 2:
@@ -47,8 +59,12 @@ def parse_trajout_dat(f):
         else:
             logging.warning("Key without value in settings of output.dat")
 
-    nsteps = int(settings['nsteps']) + 1  # let's not forget ts=0
-    logging.debug(f"nsteps = {nsteps}")
+    nsteps_output_dat = int(settings['nsteps']) + 1  # let's not forget ts=0
+    if nsteps is None or nsteps < nsteps_output_dat:
+        nsteps = nsteps_output_dat
+        logging.debug(f"nsteps = {nsteps}")
+    else:
+        logging.debug(f"(From input file) nsteps = {nsteps}")
     natoms = int(settings['natom'])  # yes, really 'natom', not 'natoms'!
     logging.debug(f"natoms = {natoms}")
     ezero = float(settings['ezero'])
@@ -58,6 +74,11 @@ def parse_trajout_dat(f):
     nsinglets, ndoublets, ntriplets = state_settings
     nstates = nsinglets + 2 * ndoublets + 3 * ntriplets
     logging.debug(f"nstates = {nstates}")
+
+    idx_table_nacs = {
+        (si, sj): idx
+        for idx, (si, sj) in enumerate(combinations(range(1, nstates+1), 2))
+    }
 
     # now we know the number of steps, we can initialize the data arrays:
     energy = np.full((nsteps, nstates), np.nan)
@@ -74,16 +95,19 @@ def parse_trajout_dat(f):
     # skip through until initial step:
     for line in f:
         if line.startswith('! 0 Step'):
-            ts = int(re.split(' +', next(f).strip())[-1])
+            ts = int(next(f).strip())
             if ts != 0:
                 logging.warning("Initial timestep's index is not 0")
             max_ts = max(max_ts, ts)
             break
 
     for index, line in enumerate(f):
+        if line[0] != '!':
+            continue
+
         if line.startswith('! 0 Step'):
             # update `ts` to current timestep #
-            new_ts = int(next(f).strip().split()[-1])
+            new_ts = int(next(f).strip())
             if new_ts != (ts or 0) + 1:
                 logging.warning(f"Non-consecutive timesteps: {ts} -> {new_ts}")
             ts = new_ts
@@ -94,17 +118,12 @@ def parse_trajout_dat(f):
             for istate in range(nstates):
                 energy[ts, istate] = float(next(f).strip().split()[istate * 2]) + ezero
 
-        if line.startswith('! 3 Dipole moments X'):
-            x_dip = get_dipoles_per_xyz(file=f, n=nstates, m=nstates)
-            dip_all[ts, :, :, 0] = x_dip
-
-        if line.startswith('! 3 Dipole moments Y'):
-            y_dip = get_dipoles_per_xyz(file=f, n=nstates, m=nstates)
-            dip_all[ts, :, :, 1] = y_dip
-
-        if line.startswith('! 3 Dipole moments Z'):
-            z_dip = get_dipoles_per_xyz(file=f, n=nstates, m=nstates)
-            dip_all[ts, :, :, 2] = z_dip
+        if line.startswith('! 3 Dipole moments'):
+            direction = {'X': 0, 'Y': 1, 'Z': 2}[line.strip().split()[4]]
+            for istate in range(nstates):
+                linecont = next(f).strip().split()
+                # delete every second element in list (imaginary values, all zero)
+                dip_all[ts, istate, :, direction] = [float(i) for i in linecont[::2]]
 
         if line.startswith('! 4 Overlap matrix'):
             found_overlap = False
@@ -112,9 +131,9 @@ def parse_trajout_dat(f):
 
             wvoverlap = np.zeros((nstates, nstates))
             for j in range(nstates):
-                linecont = [float(n) for n in re.split(' +', next(f).strip())]
+                linecont = next(f).strip().split()
                 # delete every second element in list (imaginary values, all zero)
-                wvoverlap[j] = linecont[::2]
+                wvoverlap[j] = [float(n) for n in linecont[::2]]
 
             for istate in range(nstates):
                 if np.abs(wvoverlap[istate, istate]) >= 0.5:
@@ -131,50 +150,39 @@ def parse_trajout_dat(f):
             e_kin[ts] = float(next(f).strip())
 
         if line.startswith('! 8 states (diag, MCH)'):
-            pair = re.split(' +', next(f).strip())
+            pair = next(f).strip().split()
             sdiag[ts] = int(pair[0])
             astate[ts] = int(pair[1])
 
         if line.startswith('! 15 Gradients (MCH)'):
-            state = int(re.split(' +', line.strip())[-1]) - 1
+            state = int(line.strip().split()[-1]) - 1
 
             for atom in range(natoms):
-                forces[ts, state, atom] = [
-                    float(n) for n in re.split(' +', next(f).strip())
-                ]
+                forces[ts, state, atom] = [float(n) for n in next(f).strip().split()]
 
         if line.startswith('! 16 NACdr matrix element'):
-            linecont = re.split(' +', line.strip())
-            si, sj = int(linecont[-2]) - 1, int(linecont[-1]) - 1
+            linecont = line.strip().split()
+            si, sj = int(linecont[-2]), int(linecont[-1])
 
-            if si == sj == 0:
-                nacs_matrix = np.zeros((nstates, nstates, natoms, 3))
+            if si < sj: # elements (si, si) are all zero; elements (sj, si) = -(si, sj)
+                sc = idx_table_nacs[(si, sj)]  # statecomb index
+                for atom in range(natoms):
+                    nacs[ts, sc, atom, :] = [float(n) for n in next(f).strip().split()]
+            else:  # we can skip the block
+                for _ in range(natoms):
+                    next(f)
 
-            for atom in range(natoms):
-                nacs_matrix[si, sj, atom] = [
-                    float(n) for n in re.split(' +', next(f).strip())
-                ]
-
-            # get upper triangular of nacs matrix
-            nacs_tril = get_triangular(nacs_matrix)
-            nacs[ts] = nacs_tril
 
     # post-processing
-    dip_perm = np.full((nsteps, nstates, 3), np.nan)
-    dip_trans = np.full((nsteps, math.comb(nstates, 2), 3), np.nan)
-    has_forces = np.zeros((nsteps), dtype=bool)
-
-    for ts in range(nsteps):
-        p, t = dip_sep(dip_all[ts])
-        dip_perm[ts] = p
-        dip_trans[ts] = t
-
-        if np.any(forces[ts]):
-            has_forces[ts] = True
+    # np.diagonal swaps state and direction, so we transpose them back
+    dip_perm = np.diagonal(dip_all, axis1=1, axis2=2).transpose(0, 2, 1)
+    idxs_dip_trans = (slice(None), *np.triu_indices(nstates, k=1), slice(None))
+    dip_trans = dip_all[idxs_dip_trans]
+    # has_forces = forces.any(axis=(1, 2, 3))
 
     if not max_ts + 1 <= nsteps:
         raise ValueError(
-            f"The output.dat header declared {nsteps=} timesteps, but the "
+            f"Metadata declared {nsteps=} timesteps, but the "
             f"greatest timestep index was {max_ts + 1=}"
         )
     completed = max_ts + 1 == nsteps
@@ -193,7 +201,7 @@ def parse_trajout_dat(f):
         {
             'ts': np.arange(nsteps),
             'state': states,
-            'state2': states,
+            # 'state2': states,
             'atom': np.arange(natoms),
             'direction': ['x', 'y', 'z'],
         }

@@ -1,5 +1,4 @@
 from collections import namedtuple
-from itertools import chain
 
 import xarray as xr
 from .core import (
@@ -10,7 +9,11 @@ from .core import (
     filter_unphysical,
     filtre,
     ase,
+    geom,
+    ml
 )
+from . import _state
+from .core.plot import select, p3mhelpers
 
 M = namedtuple(
     'M',
@@ -89,10 +92,33 @@ DA_METHODS: dict[str, M] = {
         required_dims={'frame'},
         required_coords={'trajid', 'time'},
     ),
+    ############
+    # From geom:
     'get_bond_lengths': M(
-        filtre.get_bond_lengths,
-        required_dims={'frame'},
+        geom.get_bond_lengths, required_dims={'atom'}, required_coords={'atNames'}
     ),
+    'get_bond_angles': M(
+        geom.get_bond_angles, required_dims={'atom'}, required_coords={'atNames'}
+    ),
+    'get_bond_torsions': M(
+        geom.get_bond_torsions, required_dims={'atom'}, required_coords={'atNames'}
+    ),
+    'get_bats': M(geom.get_bats, required_dims={'atom'}, required_coords={'atNames'}),
+    'kabsch': M(geom.kabsch, required_dims={'atom', 'direction'}),
+    ##############
+    # From select:
+    'FrameSelector': M(select.FrameSelector),
+    'TrajSelector': M(select.TrajSelector),
+    ##################
+    # From p3mhelpers:
+    'frame3D': M(p3mhelpers.frame3D),
+    'frames3Dgrid': M(p3mhelpers.frames3Dgrid),
+    'traj3D': M(p3mhelpers.traj3D),
+    'trajs3Dgrid': M(p3mhelpers.trajs3Dgrid),
+    ##########
+    # From ml:
+    'lda': M(ml.lda),
+    'pls': M(ml.pls),
 }
 
 CONVERTERS: dict[str, P.Converter] = {
@@ -177,6 +203,9 @@ DS_METHODS: dict[str, M2] = {
     ###########
     # From ase:
     'write_ase': M2(ase.write_ase, required_dims={'frame'}),
+    ##########
+    # From ml:
+    'pls_ds': M2(ml.pls_ds),
 }
 
 
@@ -197,6 +226,10 @@ class ShnitselAccessor:
 
     def __dir__(self):
         return self._methods
+
+    def _repr_html_(self):
+        lst = [f'<li>{met}</li>' for met in self.__dir__()]
+        return f'<b>Available methods:</b><ul>{''.join(lst)}</ul>'
 
 
 @xr.register_dataarray_accessor('sh')
@@ -233,12 +266,72 @@ class DAShnitselAccessor(ShnitselAccessor):
                 setattr(self, name, self._make_method(converter))
                 self._methods.append(name)
 
+_state.DATAARRAY_ACCESSOR_NAME = 'sh'
+_state.DATAARRAY_ACCESSOR_REGISTERED = True
+
+class DerivedProperties:
+    derivers: dict[str, M2]
+    properties: dict[str, xr.DataArray]
+    groups: dict  # TODO Later!
+
+    def __init__(self, obj):
+        self._obj = obj
+    
+    def __getitem__(self, *keys):
+        return NotImplemented
+
+    def keys(self):
+        return set().union(self.derivers, self.properties)
+
+class DSDerivedProperties(DerivedProperties):
+    derivers = dict(
+        fosc=M2(lambda ds, *a, **k: P.get_fosc(ds.energy, ds.dip_trans, *a, **k)),
+        bond_lengths=M2(lambda ds, *a, **k: geom.get_bond_lengths(ds.atXYZ, *a, **k)),
+        bond_angles=M2(lambda ds, *a, **k: geom.get_bond_angles(ds.atXYZ, *a, **k)),
+    )
+    properties = {}
+
+    def __getitem__(self, keys):
+        if not isinstance(keys, tuple):
+            keys = (keys,)
+
+        if len(keys) == 1 and isinstance(keys[0], list):
+            force_ds = True
+            keys = keys[0]
+        else:
+            force_ds = False
+            keys = list(keys)
+            
+        if len(keys) == 1 and not force_ds:
+            k = keys[0]
+            if k in self.derivers:
+                return self.derivers[k].func(self._obj)
+            elif k in self.properties:
+                return self.properties[k]
+            else:
+                return self._obj[k]
+                
+        if Ellipsis in keys:
+            keys.remove(Ellipsis)
+            if Ellipsis in keys:
+                raise ValueError("Ellipsis ('...') should only be provided once")
+            selection = list(self._obj.data_vars) + keys
+        else:
+            selection = keys
+
+        to_assign = {
+            k: self.derivers[k].func(self._obj) for k in keys if k in self.derivers
+        }
+
+        return self._obj.assign(to_assign)[selection]
+
 
 @xr.register_dataset_accessor('sh')
 class DSShnitselAccessor(ShnitselAccessor):
     def __init__(self, ds):
         self._obj = ds
         self._methods = []
+        self.d = DSDerivedProperties(self._obj)
 
         vars = set(ds.data_vars)
         dims = set(ds.dims)
@@ -265,3 +358,6 @@ class DSShnitselAccessor(ShnitselAccessor):
             ):
                 setattr(self, name, self._make_method(func))
                 self._methods.append(name)
+
+_state.DATASET_ACCESSOR_NAME = 'sh'
+_state.DATASET_ACCESSOR_REGISTERED = True

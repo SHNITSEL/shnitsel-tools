@@ -48,7 +48,7 @@ READERS = {
 }
 
 
-def read_trajs_list(paths, kind, idfn=None, sort=True):
+def read_trajs_list(paths, kind, idfn=None, sort=True, errors='log'):
     global _default_idfn
     if idfn is None:
         idfn = _default_idfn
@@ -58,6 +58,11 @@ def read_trajs_list(paths, kind, idfn=None, sort=True):
             f"'kind' should be one of {list(READERS)}, rather than '{kind}'"
         )
     read_traj = READERS[kind]
+
+    if errors not in {'log', 'raise'}:
+        raise ValueError(
+            f"'errors' should be one of ['log', 'raise'], rather than '{errors}'"
+        )
 
     datasets = []
     with logging_redirect_tqdm():
@@ -79,16 +84,20 @@ def read_trajs_list(paths, kind, idfn=None, sort=True):
                 missing_files[missing] = missing_files.get(missing, []) + [trajid]
 
                 continue
+
             except Exception as err:
-                # Miscellaneous exceptions could indicate a problem with the parser
-                # so they enjoy a more imposing loglevel
-                logging.error(
-                    f"Error for trajectory {trajid} at path {trajdir}:\n"
-                    + str(err)
-                    + f"\nSkipping {trajid}."
-                )
-                misc_errors[trajid] = err
-                continue
+                if errors=='log':
+                    # Miscellaneous exceptions could indicate a problem with the parser
+                    # so they enjoy a more imposing loglevel
+                    logging.error(
+                        f"Error for trajectory {trajid} at path {trajdir}:\n"
+                        + str(err)
+                        + f"\nSkipping {trajid}."
+                    )
+                    misc_errors[trajid] = err
+                    continue
+                elif errors=='raise':
+                    raise err
 
             if not ds.attrs['completed']:
                 logging.info(f"Trajectory {trajid} at path {trajdir} did not complete")
@@ -190,7 +199,7 @@ def read_trajs_parallel(paths, kind, idfn=None, sort=True):
     _read_traj = READERS[kind]
 
     with ProcessPoolExecutor(max_workers=os.cpu_count()) as executor:
-        res = list(executor.map(_per_traj, paths))
+        res = list(tqdm(executor.map(_per_traj, paths), total=len(paths)))
 
     datasets = []
     missing_files: dict[str, list[Trajid]] = {}
@@ -312,7 +321,8 @@ def read_trajs(
     kind: Literal['sharc', 'nx', 'pyrai2md'],
     pattern: str = 'TRAJ*',
     format: Literal['frames', 'layers'] = 'frames',
-    parallel: bool = False,
+    parallel: bool = True,
+    errors: Literal['log', 'raise'] = 'log',
 ) -> xr.Dataset:
     """Read all trajectories from a folder of trajectory folders
 
@@ -344,6 +354,15 @@ def read_trajs(
     ValueError
         If an invalid value for ``format`` is passed.
     """
+    cats = {'frames': concat_trajs, 'layers': layer_trajs}
+    if format not in cats:
+        raise ValueError(f"`format` must be one of {cats.keys()!r}")
+    
+    cat_func = cats[format]
+    
+    if parallel and errors != 'log':
+        raise ValueError("parallel=True only supports errors='log' (the default)")
+
     glob_expr = os.path.join(path, pattern)
     paths = glob.glob(glob_expr)
     if len(paths) == 0:
@@ -354,13 +373,7 @@ def read_trajs(
     if parallel:
         datasets = read_trajs_parallel(paths, kind)
     else:
-        datasets = read_trajs_list(paths, kind)
+        datasets = read_trajs_list(paths, kind, errors=errors)
 
-    cats = {'frames': concat_trajs, 'layers': layer_trajs}
-
-    try:
-        cat_func = cats[format]
-    except KeyError:
-        raise ValueError(f"`format` must be one of {cats.keys()!r}")
 
     return cat_func(datasets)
