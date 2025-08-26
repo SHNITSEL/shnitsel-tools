@@ -213,6 +213,16 @@ class ShnitselAccessor:
     _obj: xr.DataArray | xr.Dataset
     _methods: list
 
+    def __dir__(self):
+        return self._methods
+
+    def __getattr__(self, key):
+        if key in self._potential_methods:
+            raise TypeError(
+                "This method is unavailable. Reasons: " + self._reasons_unavailable(key)
+            )
+        raise AttributeError(f"{type(self).__name__!r} object has no attribute {key!r}")
+
     def _make_method(self, func):
         def method(*args, **kwargs):
             return func(self._obj, *args, **kwargs)
@@ -224,16 +234,75 @@ class ShnitselAccessor:
         method.__doc__ = func.__doc__
         return method
 
-    def __dir__(self):
-        return self._methods
+    def _reasons_unavailable(self, met):
+        reasons = []
+        entry = self._potential_methods[met]
+        dims = set(self._obj.dims)
+        coords = set(self._obj.coords)
+        atkeys = set(self._obj.attrs)
+        if 'required_vars' in entry._fields:
+            vars_ = set(self._obj.data_vars)
+            if not vars_ >= (rvars := (entry.required_vars or set())):
+                reasons.append(f"missing required data_vars {rvars - vars_}")
+        if not dims >= (rdims := (entry.required_dims or set())):
+            reasons.append(f"missing required dims {rdims - dims}")
+        if not coords >= (rcoords := (entry.required_coords or set())):
+            reasons.append(f"missing required coords {rcoords - coords}")
+        if entry.required_name is not None and entry.required_name != self._obj.name:
+            reasons.append(f"expects name '{entry.required_name}'")
+        if not atkeys >= (ratks := (entry.required_attrs or set())):
+            reasons.append(f"missing required attrs {ratks - atkeys}")
+        if entry.required_attrs is not None:
+            for k, v in entry.required_attrs.items():
+                if (actual := self._obj.attrs[k]) != v:
+                    reasons.append(
+                        f"expected attr {k} to have value {v} "
+                        f"but it has value {actual}"
+                    )
+        if isect := dims.intersection(entry.incompatible_dims or set()):
+            reasons.append(f"has incompatible dims {isect}")
+        return "; ".join(reasons)
 
     def _repr_html_(self):
-        lst = [f'<li>{met}</li>' for met in self.__dir__()]
-        return f'<b>Available methods:</b><ul>{''.join(lst)}</ul>'
+        available = [f'<li>{met}</li>' for met in self.__dir__()]
+        unavailable = [
+            # f'<dt>{met}</dt><dd>{self._potential_methods[met]!r}</dd>'
+            f"""
+                <td>{met}</td>
+                <td style='text-align:left'>{self._reasons_unavailable(met)}</td>
+            """
+            for met in self._potential_methods
+            if met not in self.__dir__()
+        ]
+        return f"""
+<div style='display:flex;column-gap:20px;'> 
+    <div>
+        <b>Available methods:</b>
+        <ul>{''.join(available)}</ul>
+    </div>
+    <div>
+        <details>
+            <summary><b>Unavailable methods:</b></summary>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Method</th>
+                        <th style='text-align:left'>Reason unavailable</th></tr>
+                </thead>
+                <tbody>
+                    <tr>{'</tr><tr>'.join(unavailable)}</tr>
+                </tbody>
+            </table>
+        </details>
+    </div>
+</div>
+        """
 
 
 @xr.register_dataarray_accessor('sh')
 class DAShnitselAccessor(ShnitselAccessor):
+    _potential_methods = DA_METHODS
+
     def __init__(self, da):
         self._obj = da
         self._methods = []
@@ -328,6 +397,8 @@ class DSDerivedProperties(DerivedProperties):
 
 @xr.register_dataset_accessor('sh')
 class DSShnitselAccessor(ShnitselAccessor):
+    _potential_methods = DS_METHODS
+
     def __init__(self, ds):
         self._obj = ds
         self._methods = []
