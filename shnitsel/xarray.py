@@ -174,6 +174,8 @@ DS_METHODS: dict[str, M2] = {
     'msel': M2(xrhelpers.msel),
     'save_frames': M2(xrhelpers.save_frames),
     'sel_trajs': M2(xrhelpers.sel_trajs, required_dims={'frame'}),
+    'unstack_trajs': M2(xrhelpers.unstack_trajs, required_dims={'frame'}),
+    'stack_trajs': M2(xrhelpers.unstack_trajs, required_dims={'trajid', 'time'}),
     ########################
     # From parse.sharc_icond:
     'iconds_to_frames': M2(

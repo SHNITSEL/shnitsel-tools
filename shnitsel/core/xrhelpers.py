@@ -507,8 +507,6 @@ def stack_trajs(unstacked: xr.Dataset) -> xr.Dataset:
         dimensions named ``trajid_`` and ``time_``. The new dimensions ``trajid_`` and
         ``time_`` will be independent of the ``frame`` dimension and its ``trajid`` and
         ``time`` levels.
-
-
     """
     per_traj_coords = {
         k: v.rename(trajid='trajid_')
