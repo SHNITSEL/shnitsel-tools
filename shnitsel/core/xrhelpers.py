@@ -422,3 +422,129 @@ def sel_trajids(frames: xr.Dataset, trajids: npt.ArrayLike, invert=False) -> xr.
         actually_selected = np.unique(res['trajid'])
         res = res.sel(trajid_=actually_selected)
     return res
+
+def unstack_trajs(frames: xr.Dataset) -> xr.Dataset:
+    """Unstack the ``frame`` MultiIndex so that ``trajid`` and ``time`` become
+    separate dims. Wraps the :py:meth:`xarray.Dataset.unstack` method.
+
+    Parameters
+    ----------
+    frames
+        An :py:class:`xarray.Dataset` with a ``frame`` dimension associated with
+        a MultiIndex coordinate with levels named ``trajid`` and ``time``. The
+        Dataset may also have a ``trajid_`` dimension used for variables and coordinates
+        that store information pertaining to each trajectory in aggregate; this will be
+        aligned along the ``trajid`` dimension of the unstacked Dataset.
+
+    Returns
+    -------
+        An :py:class:`xarray.Dataset` with independent ``trajid`` and ``time``
+        dimensions.
+    """
+    per_traj_coords = {
+        k: v.rename(trajid_='trajid')
+        for k, v in dict(frames.coords).items()
+        if 'trajid_' in v.dims and 'frame' not in v.dims
+    }
+    per_traj_vars = {
+        k: v.rename(trajid_='trajid')
+        for k, v in dict(frames.data_vars).items()
+        if 'trajid_' in v.dims and 'frame' not in v.dims
+    }
+    per_time_coords = {
+        k: v.rename(time_='time')
+        for k, v in dict(frames.coords).items()
+        if 'time_' in v.dims and 'frame' not in v.dims
+    }
+    per_time_vars = {
+        k: v.rename(time_='time')
+        for k, v in dict(frames.data_vars).items()
+        if 'time_' in v.dims and 'frame' not in v.dims
+    }
+    to_drop = to_drop = (
+        list(per_traj_coords)
+        + list(per_traj_vars)
+        + list(per_time_coords)
+        + list(per_time_vars)
+    )
+
+    # Don't re-add to unstacked dataset
+    if 'trajid_' in per_traj_coords:
+        del per_traj_coords['trajid_']
+    if 'time_' in per_time_coords:
+        del per_time_coords['time_']
+
+    res = (
+        frames.drop_vars(to_drop)
+        .assign_coords({'is_frame': ('frame', np.ones(frames.sizes['frame']))})
+        .unstack('frame')
+        .assign_coords(per_traj_coords)
+        .assign_coords(per_time_coords)
+        .assign(per_traj_vars)
+        .assign(per_time_vars)
+    )
+    res['is_frame'] = res['is_frame'].fillna(0).astype(bool)
+    return res
+
+
+def stack_trajs(unstacked: xr.Dataset) -> xr.Dataset:
+    """Stack the ``trajid`` and ``time`` dims of an unstacked Dataset
+    into a MultiIndex along a new dimension called ``frame``.
+    Wraps the :py:meth:`xarray.Dataset.stack` method.
+
+    Parameters
+    ----------
+    frames
+        An :py:class:`xarray.Dataset` with independent ``trajid`` and ``time``
+        dimensions.
+
+    Returns
+    -------
+        An :py:class:`xarray.Dataset` with a ``frame`` dimension associated with
+        a MultiIndex coordinate with levels named ``trajid`` and ``time``. Those variables
+        and coordinates which only depended on one of ``trajid``
+        or ``time`` but not the other in the unstacked Dataset, will be aligned along new
+        dimensions named ``trajid_`` and ``time_``. The new dimensions ``trajid_`` and
+        ``time_`` will be independent of the ``frame`` dimension and its ``trajid`` and
+        ``time`` levels.
+
+
+    """
+    per_traj_coords = {
+        k: v.rename(trajid='trajid_')
+        for k, v in dict(unstacked.coords).items()
+        if 'trajid' in v.dims and 'time' not in v.dims and v.name != 'trajid'
+    }
+    per_traj_vars = {
+        k: v.rename(trajid='trajid_')
+        for k, v in (dict(unstacked.data_vars)).items()
+        if 'trajid' in v.dims and 'time' not in v.dims
+    }
+    per_time_coords = {
+        k: v.rename(time='time_')
+        for k, v in dict(unstacked.coords).items()
+        if 'time' in v.dims and 'trajid' not in v.dims and v.name != 'time'
+    }
+    per_time_vars = {
+        k: v.rename(time='time_')
+        for k, v in (dict(unstacked.data_vars)).items()
+        if 'time' in v.dims and 'trajid' not in v.dims
+    }
+    to_drop = (
+        list(per_traj_coords)
+        + list(per_traj_vars)
+        + list(per_time_coords)
+        + list(per_time_vars)
+    )
+    per_traj_coords['trajid_'] = unstacked.coords['trajid'].rename(trajid='trajid_')
+    per_time_coords['time_'] = unstacked.coords['time'].rename(time='time_')
+
+    res = unstacked.drop_vars(to_drop).stack({'frame': ['trajid', 'time']})
+    return (
+        res.isel(frame=res.is_frame)
+        .drop_vars('is_frame')
+        .assign_coords(per_traj_coords)
+        .assign_coords(per_time_coords)
+        .assign(per_traj_vars)
+        .assign(per_time_vars)
+    )
