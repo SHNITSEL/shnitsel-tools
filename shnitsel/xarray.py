@@ -219,7 +219,9 @@ class ShnitselAccessor:
     def __getattr__(self, key):
         if key in self._potential_methods:
             raise TypeError(
-                "This method is unavailable. Reasons: " + self._reasons_unavailable(key)
+                "This method is unavailable, because the "
+                + f"{type(self._obj).__name__!r} object "
+                + self._reasons_unavailable(key)
             )
         raise AttributeError(f"{type(self).__name__!r} object has no attribute {key!r}")
 
@@ -243,21 +245,21 @@ class ShnitselAccessor:
         if 'required_vars' in entry._fields:
             vars_ = set(self._obj.data_vars)
             if not vars_ >= (rvars := (entry.required_vars or set())):
-                reasons.append(f"missing required data_vars {rvars - vars_}")
+                reasons.append(f"is missing required data_vars {rvars - vars_}")
         if not dims >= (rdims := (entry.required_dims or set())):
-            reasons.append(f"missing required dims {rdims - dims}")
+            reasons.append(f"is missing required dims {rdims - dims}")
         if not coords >= (rcoords := (entry.required_coords or set())):
-            reasons.append(f"missing required coords {rcoords - coords}")
+            reasons.append(f"is missing required coords {rcoords - coords}")
         if entry.required_name is not None and entry.required_name != self._obj.name:
-            reasons.append(f"expects name '{entry.required_name}'")
+            reasons.append(f"is not named '{entry.required_name}'")
         if not atkeys >= (ratks := (entry.required_attrs or set())):
-            reasons.append(f"missing required attrs {ratks - atkeys}")
+            reasons.append(f"is missing required attrs {ratks - atkeys}")
         if entry.required_attrs is not None:
             for k, v in entry.required_attrs.items():
                 if (actual := self._obj.attrs[k]) != v:
                     reasons.append(
-                        f"expected attr {k} to have value {v} "
-                        f"but it has value {actual}"
+                        f"has attr {k!r} set to value {actual!r} "
+                        f"rather than expected {actual!r}"
                     )
         if isect := dims.intersection(entry.incompatible_dims or set()):
             reasons.append(f"has incompatible dims {isect}")
@@ -287,7 +289,7 @@ class ShnitselAccessor:
                 <thead>
                     <tr>
                         <th>Method</th>
-                        <th style='text-align:left'>Reason unavailable</th></tr>
+                        <th style='text-align:left'>Method unavailable because object</th></tr>
                 </thead>
                 <tbody>
                     <tr>{'</tr><tr>'.join(unavailable)}</tr>
