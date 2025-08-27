@@ -357,6 +357,11 @@ class DSDerivedProperties(DerivedProperties):
         fosc=M2(lambda ds, *a, **k: P.get_fosc(ds.energy, ds.dip_trans, *a, **k)),
         bond_lengths=M2(lambda ds, *a, **k: geom.get_bond_lengths(ds.atXYZ, *a, **k)),
         bond_angles=M2(lambda ds, *a, **k: geom.get_bond_angles(ds.atXYZ, *a, **k)),
+        bond_torsions=M2(lambda ds, *a, **k: geom.get_bond_torsions(ds.atXYZ, *a, **k)),
+        bats=M2(lambda ds, *a, **k: geom.get_bats(ds.atXYZ, *a, **k)),
+        pwdists=M2(
+            lambda ds, *a, **k: P.norm(P.subtract_combinations(ds.atXYZ, 'atom'))
+        ),
     )
     properties = {}
 
