@@ -830,7 +830,7 @@ def to_mol(atXYZ_frame, charge=None, covFactor=1.2, to2D=True, molAtomMapNumber=
         rc.rdDetermineBonds.DetermineBondOrders(mol, charge=(charge or 0))
     except ValueError as err:
         if charge is not None:
-            raise None
+            raise err
     if to2D:
         rc.rdDepictor.Compute2DCoords(mol)  # type: ignore
     return set_atom_props(mol, molAtomMapNumber=molAtomMapNumber, atomNote=atomNote, atomLabel=atomLabel)
