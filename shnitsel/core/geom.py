@@ -123,7 +123,7 @@ def identify_angles(mol: Mol):
     )
 
 
-def get_bond_angles(atXYZ, angle_types=None, mol=None):
+def get_bond_angles(atXYZ, angle_types=None, mol=None, deg=False):
     if angle_types is None:
         if mol is None:
             mol = default_mol(atXYZ)
@@ -158,6 +158,8 @@ def get_bond_angles(atXYZ, angle_types=None, mol=None):
         )
         .set_xindex('angle_symbol')
     )
+    if deg:
+        angles *= 180 / np.pi
     return angles
 
 
@@ -218,7 +220,7 @@ def identify_torsions(mol: Mol) -> xr.Dataset:
     )
 
 
-def get_bond_torsions(atXYZ, quadruple_types=None, mol=None, signed=False):
+def get_bond_torsions(atXYZ, quadruple_types=None, mol=None, signed=False, deg=False):
     if quadruple_types is None:
         if mol is None:
             mol = default_mol(atXYZ)
@@ -232,6 +234,8 @@ def get_bond_torsions(atXYZ, quadruple_types=None, mol=None, signed=False):
         res = full_dihedral_(*atom_positions)
     else:
         res = dihedral_(*atom_positions)
+    if deg:
+        res *= 180 / np.pi
     at_idxs = {f'atom{i}': quadruple_types['at_idx'].isel(atom=i) for i in range(4)}
     return res.assign_coords(
         torsion_type=quadruple_types['torsion_type'],
@@ -240,7 +244,7 @@ def get_bond_torsions(atXYZ, quadruple_types=None, mol=None, signed=False):
     ).set_xindex('torsion_symbol')
 
 
-def get_bats(atXYZ, mol=None):
+def get_bats(atXYZ, mol=None, signed=False, deg=False):
     """Get bond lengths, angles and torsions.
 
     Parameters
@@ -266,8 +270,8 @@ def get_bats(atXYZ, mol=None):
         mol = default_mol(atXYZ)
     d = {
         'bond': get_bond_lengths(atXYZ, mol=mol),
-        'angle': get_bond_angles(atXYZ, mol=mol),
-        'torsion': get_bond_torsions(atXYZ, mol=mol),
+        'angle': get_bond_angles(atXYZ, mol=mol, deg=deg),
+        'torsion': get_bond_torsions(atXYZ, mol=mol, signed=signed, deg=deg),
     }
 
     d['bond'] = (
