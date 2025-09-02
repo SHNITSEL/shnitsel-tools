@@ -285,6 +285,9 @@ def concat_trajs(datasets) -> xr.Dataset:
         for ds in datasets
     ]
 
+    if len(datasets) == 0:
+        raise ValueError("No trajectories were parsed successfully.")
+
     frames = xr.concat(datasets, dim='frame', combine_attrs='drop_conflicts')
     traj_meta = gather_traj_metadata(datasets, time_dim=time_dim)
     frames = frames.assign_coords(trajid_=traj_meta['trajid'])
