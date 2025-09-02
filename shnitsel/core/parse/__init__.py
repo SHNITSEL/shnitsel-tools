@@ -260,9 +260,9 @@ def gather_traj_metadata(datasets, time_dim='ts'):
     )
 
     for i, ds in enumerate(datasets):
-        traj_meta['trajid'][i] = ds.attrs['trajid']
-        traj_meta['delta_t'][i] = ds.attrs['delta_t']
-        traj_meta['max_ts'][i] = ds.attrs['max_ts']
+        traj_meta['trajid'][i] = ds.attrs.get('trajid', -1)
+        traj_meta['delta_t'][i] = ds.attrs.get('delta_t', np.nan)
+        traj_meta['max_ts'][i] = ds.attrs.get('max_ts', -1)
         traj_meta['completed'][i] = ds.attrs['completed']
         traj_meta['nsteps'][i] = len(ds.indexes[time_dim])
 
