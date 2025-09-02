@@ -1,5 +1,4 @@
 import sphinx_autosummary_accessors
-import shnitsel.xarray
 
 # Configuration file for the Sphinx documentation builder.
 #
@@ -25,7 +24,7 @@ extensions = [
 ]
 
 templates_path = ['_templates', sphinx_autosummary_accessors.templates_path]
-exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
+exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', 'priority.rst']
 
 
 # -- Options for HTML output -------------------------------------------------
