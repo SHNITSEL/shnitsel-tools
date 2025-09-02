@@ -24,7 +24,13 @@ extensions = [
 ]
 
 templates_path = ['_templates', sphinx_autosummary_accessors.templates_path]
-exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', 'priority.rst']
+exclude_patterns = [
+    '_build',
+    'Thumbs.db',
+    '.DS_Store',
+    'priority.rst',
+    'test-autosummary-accessors.rst'
+]
 
 
 # -- Options for HTML output -------------------------------------------------
