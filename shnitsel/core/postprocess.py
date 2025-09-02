@@ -62,15 +62,15 @@ def subtract_combinations(
     Parameters
     ----------
     da
-        Input DataArray; must contain dimension `dim`
+        Input DataArray; must contain dimension ``dim``
     dim
         Dimension (of size $n$) to take pairwise differences over
     labels, optional
-        If True, label the pairwise differences based on the index of `dim`, by default False
+        If True, label the pairwise differences based on the index of ``dim``, by default False
 
     Returns
     -------
-        A DataArray with the dimension `dim` replaced by a dimension '`dim`comb' of size $n(n-1)/2$
+        A DataArray with the dimension ``dim`` replaced by a dimension '\\ ``dim``\\ comb' of size $n(n-1)/2$
     """
 
     def midx(da, dim):
