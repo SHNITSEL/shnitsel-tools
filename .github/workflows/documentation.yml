@@ -13,17 +13,20 @@ jobs:
       - uses: actions/setup-python@v5
       - name: Install dependencies
         run: |
-	  sphinx-build docs docs/_build
+          pip install sphinx sphinx-autobuild sphinx-autosummary-accessors
+      - name: Sphinx Build
+        run: |
+          sphinx-build docs docs/_build
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
-	if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
-	with:
-	  publish_branch: gh-pages
-	  # external_repository: SHNITSEL/shnitsel.github.io
-	  deploy_key: ${{ secrets.GITHUB_TOKEN }}
-	  personal_token: ${{ secrets.PERSONAL_TOKEN }}
-	  external_repository: thevro/thevro.github.io
-	  github_token: ${{ secrets.GITHUB_TOKEN }}
-	  publish_dir: _build/
-	  destination_dir: _tools/_docs
-	  keep_files: true
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+        with:
+          publish_branch: gh-pages
+          # external_repository: SHNITSEL/shnitsel.github.io
+          deploy_key: ${{ secrets.GITHUB_TOKEN }}
+          personal_token: ${{ secrets.PERSONAL_TOKEN }}
+          external_repository: thevro/thevro.github.io
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: _build/
+          destination_dir: _tools/_docs
+          keep_files: true
