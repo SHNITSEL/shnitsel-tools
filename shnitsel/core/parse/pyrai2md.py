@@ -9,6 +9,7 @@ import numpy as np
 def parse_md_energies(path):
     df = pd.read_csv(path, sep=r'\s+', header=None, skiprows=1).set_index(0)
     df.index.name = 'time'
+    df.index *= 0.5 / 20.67  # convert a.u. to fs
     energy = df.loc[:, 4:]
     nstates = len(energy.columns)
     return (
