@@ -57,6 +57,7 @@ def parse_log(f, nsteps):
     del multiplicity, m
 
     # Set up numpy arrays
+    explicit_ts = np.full((nsteps,), -1, dtype=int)
     astate = np.full((nsteps), -1, dtype=int)
     forces = np.full((nsteps, nstates, natoms, 3), np.nan)
     atXYZ = np.full((nsteps, natoms, 3), np.nan)
@@ -65,12 +66,15 @@ def parse_log(f, nsteps):
     veloc = np.full((nsteps, natoms, 3), np.nan)
     dcmat = np.full((nsteps, nstates, nstates), np.nan)
 
+    ts_idx = -1
+    end_msg_count = 0
     for line in f:
         ## The start of a timestep
         # Iter:        1  Ekin =           0.1291084223229551 au T =   300.00 K dt =         20 CI:   3
         # Root chosen for geometry opt   2
         if line.startswith('  Iter:'):
-            ts = int(line.strip().split()[1]) - 1
+            ts_idx += 1
+            explicit_ts[ts_idx] = int(line.strip().split()[1])
 
             for _ in range(10):
                 ## Get active state
@@ -79,16 +83,16 @@ def parse_log(f, nsteps):
                 # At state:   2
                 line = next(f)
                 if line.startswith('  At state'):
-                    astate[ts] = int(line.strip().split()[2])
+                    astate[ts_idx] = int(line.strip().split()[2])
                     break
                 # A surface hopping event happened
                 # **
                 # From state:   2 to state:   3 *
                 elif line.startswith('  From state'):
-                    astate[ts] = int(line.strip().split()[5])
+                    astate[ts_idx] = int(line.strip().split()[5])
                     break
             else:
-                raise ValueError(f"No state info found for Iter: {ts+1}")
+                raise ValueError(f"No state info found for Iter: {ts_idx+1}")
 
         ## Positions:
         #   &coordinates in Angstrom
@@ -97,19 +101,22 @@ def parse_log(f, nsteps):
         # C          1.7325100000000000     -0.1032670000000000      0.1707480000000000
         # -------------------------------------------------------------------------------
         if line.startswith('  &coordinates'):
-            assert next(f).startswith('---')
+            hline = next(f)  # Assertions may be skipped, so must not have side-effects
+            assert hline.startswith('---')
             if got_atNames:
                 for iatom in range(natoms):
-                    atXYZ[ts, iatom] = np.asarray(
+                    atXYZ[ts_idx, iatom] = np.asarray(
                         next(f).strip().split()[1:], dtype=float
                     )
             else:
                 for iatom in range(natoms):
                     content = next(f).strip().split()
-                    atXYZ[ts, iatom] = np.asarray(content[1:], dtype=float)
+                    atXYZ[ts_idx, iatom] = np.asarray(content[1:], dtype=float)
                     atNames[iatom] = str(content[0])
+                    got_atNames = True
 
-            assert next(f).startswith('---')
+            hline = next(f)
+            assert hline.startswith('---')
 
         ## Velocities:
         #   &velocities in Bohr/au
@@ -118,10 +125,14 @@ def parse_log(f, nsteps):
         # C         -0.0005580000000000      0.0003118300000000     -0.0000154900000000
         # -------------------------------------------------------------------------------
         if line.startswith('  &velocities'):
-            assert next(f).startswith('---')
+            hline = next(f)
+            assert hline.startswith('---')
             for iatom in range(natoms):
-                veloc[ts, iatom] = np.asarray(next(f).strip().split()[1:], dtype=float)
-            assert next(f).startswith('---')
+                veloc[ts_idx, iatom] = np.asarray(
+                    next(f).strip().split()[1:], dtype=float
+                )
+            hline = next(f)
+            assert hline.startswith('---')
 
         ## Forces:
         #   &gradient state               1 in Eh/Bohr
@@ -131,12 +142,14 @@ def parse_log(f, nsteps):
         # -------------------------------------------------------------------------------
         if line.startswith('  &gradient'):
             istate = int(line.strip().split()[2]) - 1
-            assert next(f).startswith('---')
+            hline = next(f)
+            assert hline.startswith('---')
             for iatom in range(natoms):
-                forces[ts, istate, iatom] = np.asarray(
+                forces[ts_idx, istate, iatom] = np.asarray(
                     next(f).strip().split()[1:], dtype=float
                 )
-            assert next(f).startswith('---')
+            hline = next(f)
+            assert hline.startswith('---')
 
         ## Derivative coupling matrix:
         #  &derivative coupling matrix
@@ -146,10 +159,45 @@ def parse_log(f, nsteps):
         #       0.0000000000000001      -0.0000000000000003       0.0000000000000000
         # -------------------------------------------------------------------------------
         if line.startswith('  &derivative coupling matrix'):
-            assert next(f).startswith('---')
+            hline = next(f)
+            assert hline.startswith('---')
             for istate1 in range(nstates):
-                dcmat[ts, istate1] = np.asarray(next(f).strip().split(), dtype=float)
-            assert next(f).startswith('---')
+                dcmat[ts_idx, istate1] = np.asarray(
+                    next(f).strip().split(), dtype=float
+                )
+            hline = next(f)
+            assert hline.startswith('---')
+
+        ## Surface hopping information at the end of each timestep:
+        #  &surface hopping information
+        # -------------------------------------------------------
+        #
+        #     Random number:             0.15725129
+        #     Accumulated probability:   0.00000000
+        #     state mult  level   probability
+        #     1     1     1       0.00000000
+        #     2     1     2       0.00000000
+        #     3     1     3       0.00000000
+        #
+        #
+        # -------------------------------------------------------
+        if line.startswith('  &surface hopping information'):
+            hline = next(f)
+            assert hline.startswith('---')
+            # We don't currently parse this
+            while not next(f).startswith('---'):
+                pass
+
+        ## Completion indicator:
+        # Nonadiabatic Molecular Dynamics End:  2025-04-13 01:12:26 Total:     0 days    15 hours    59 minutes    20 seconds
+        if line.startswith('Nonadiabatic Molecular Dynamics End:'):
+            end_msg_count += 1
+
+    if end_msg_count > 1:
+        raise ValueError(
+            'Completion message "Nonadiabatic Molecular Dynamics End:" appeared '
+            f"{end_msg_count} times"
+        )
 
     statecomb = xr.Coordinates.from_pandas_multiindex(
         pd.MultiIndex.from_tuples(combinations(states, 2), names=['from', 'to']),
@@ -192,10 +240,10 @@ def parse_log(f, nsteps):
         },
         coords=coords,
         attrs={
-            # 'max_ts': max_ts,
+            'max_ts': explicit_ts.max(),
             # 'real_tmax': real_tmax,
             # 'delta_t': delta_t,
-            # 'completed': completed,
+            'completed': end_msg_count == 1,
         },
     )
 
@@ -220,5 +268,6 @@ def read_traj(traj_path):
         single_traj = parse_log(f, nsteps)
     single_traj = single_traj.rename(ts='time').assign_coords(time=energy['time'])
     single_traj['energy'] = energy
+    single_traj['energy'].attrs['units'] = 'hartree'
 
     return single_traj
