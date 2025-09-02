@@ -544,7 +544,9 @@ def get_inter_state(frames: Frames) -> InterState:
     inter_state = frames[iprops]
     for prop in inter_state:
         if 'state' in inter_state[prop].dims:
-            inter_state[prop] = subtract_combinations(inter_state[prop], dim='state')
+            inter_state[prop] = subtract_combinations(
+                inter_state[prop], dim='state', labels=True
+            )
 
     inter_state = inter_state.map(keep_norming)
     inter_state = xrhelpers.flatten_midx(
