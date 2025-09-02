@@ -289,14 +289,14 @@ def read_traj(traj_path):
             f"but found {n} files: {md_energies_paths}"
         )
     log_paths = glob(os.path.join(traj_path, '*.log'))
-    if (n := len(md_energies_paths)) != 1:
+    if (n := len(log_paths)) != 1:
         raise FileNotFoundError(
             "Expected to find a single file ending with '.log' "
             f"but found {n} files: {log_paths}"
         )
 
     energy = parse_md_energies(md_energies_paths[0])
-    with open(os.path.join(traj_path, log_paths[0])) as f:
+    with open(os.path.join(log_paths[0])) as f:
         single_traj = parse_log(f)
     single_traj = single_traj.rename(ts='time').assign_coords(time=energy['time'])
     single_traj['energy'] = energy
