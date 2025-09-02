@@ -19,8 +19,40 @@ def parse_md_energies(path):
     )
 
 
-def parse_log(f, nsteps):
-    ## First, read the settings.
+def parse_log(f):
+    ## Read MD settings:
+    #  &md
+    # -------------------------------------------------------
+    #  Initial state:              2
+    #  Initialize random velocity  0
+    #  Temperature (K):            300
+    #  Step:                       4000
+    #  Dt (au):                    20.67
+
+    # Don't use .startswith(), because there's also "&md velocity control"
+    while not next(f).strip() == '&md':
+        pass
+
+    hline = next(f)  # Assertions may be skipped, so must not have side-effects
+    assert hline.startswith('---')
+
+    nsteps: int | None = None
+    delta_t: float | None = None
+    for line in f:
+        stripline = line.strip()
+        if stripline.startswith("Step:"):
+            nsteps = int(stripline.split()[-1])
+        if stripline.startswith("Dt (au):"):
+            delta_t = float(stripline.split()[-1]) * 0.5 / 20.67
+        if stripline.startswith('---'):
+            break
+
+    if nsteps is None:
+        raise ValueError("Could not read `nsteps` ('Step:' in '&md' block)")
+    if delta_t is None:
+        raise ValueError("Could not read `delta_t` ('Dt (au):' in '&md' block)")
+
+    ## Read final settings:
     # *---------------------------------------------------*
     # |                                                   |
     # |          Nonadiabatic Molecular Dynamics          |
@@ -102,7 +134,7 @@ def parse_log(f, nsteps):
         # C          1.7325100000000000     -0.1032670000000000      0.1707480000000000
         # -------------------------------------------------------------------------------
         if line.startswith('  &coordinates'):
-            hline = next(f)  # Assertions may be skipped, so must not have side-effects
+            hline = next(f)
             assert hline.startswith('---')
             if got_atNames:
                 for iatom in range(natoms):
@@ -243,7 +275,7 @@ def parse_log(f, nsteps):
         attrs={
             'max_ts': explicit_ts.max(),
             # 'real_tmax': real_tmax,
-            # 'delta_t': delta_t,
+            'delta_t': delta_t,
             'completed': end_msg_count == 1,
         },
     )
@@ -264,9 +296,8 @@ def read_traj(traj_path):
         )
 
     energy = parse_md_energies(md_energies_paths[0])
-    nsteps = energy.sizes['time']
     with open(os.path.join(traj_path, log_paths[0])) as f:
-        single_traj = parse_log(f, nsteps)
+        single_traj = parse_log(f)
     single_traj = single_traj.rename(ts='time').assign_coords(time=energy['time'])
     single_traj['energy'] = energy
     single_traj['energy'].attrs['units'] = 'hartree'
