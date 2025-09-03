@@ -28,6 +28,7 @@ extensions = [
 templates_path = ['_templates', sphinx_autosummary_accessors.templates_path]
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', 'test_autosummary_accessors.rst']
 
+add_module_names = False
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
@@ -51,5 +52,6 @@ intersphinx_mapping = {
 }
 
 # -- Options for autoapi extension -------------------------------------------
-autoapi_dirs = '../shnitsel'
+autoapi_dirs = ['../shnitsel']
 autoapi_root = 'api/'
+# autoapi_keep_files = True
