@@ -103,23 +103,10 @@ Reference
 =========
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
 
    top-level
    accessors/ds_accessors
    accessors/da_accessors
-   test-autosummary-accessors
-   .. priority
-
-testing
--------
-
-.. automethod:: shnitsel.plot.biplot_kde
-
-.. automodule:: shnitsel.core.datasheet
-   :members:
-
-postprocess
------------
-.. automodule:: shnitsel.core.postprocess
-   :members:
+   priority
+   api/index
