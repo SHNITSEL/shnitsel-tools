@@ -18,10 +18,11 @@ release = '0.0.1'
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
 extensions = [
-    'sphinx.ext.autodoc',
-    'sphinx.ext.napoleon',
-    'sphinx_autosummary_accessors',
-    'sphinx.ext.intersphinx',
+    'sphinx.ext.autodoc',               # Reads docstrings from sourcecode
+    'sphinx.ext.napoleon',              # Converts numpy-formatted docstrings to reST
+    'sphinx_autosummary_accessors',     
+    'sphinx.ext.intersphinx',           # Produces links to external Sphinx-based docs
+    'autoapi.extension'                 # Finds all things to document automatically
 ]
 
 templates_path = ['_templates', sphinx_autosummary_accessors.templates_path]
@@ -48,3 +49,7 @@ intersphinx_mapping = {
     'numpy': ('https://numpy.org/doc/stable/', None),
     'python': ('https://docs.python.org/3', None),
 }
+
+# -- Options for autoapi extension -------------------------------------------
+autoapi_dirs = '../shnitsel'
+autoapi_root = 'api/'

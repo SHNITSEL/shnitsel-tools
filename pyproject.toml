@@ -51,11 +51,14 @@ dev = [
   "pandas-stubs",
   "scipy-stubs",
   "types-tqdm",
+
+  # Sphinx and its extensions for building documentation
   "sphinx",
   "sphinx-autobuild",
   "sphinx-autosummary-accessors",
   "nbsphinx",
   "sphinx-design",
+  "sphinx-autoapi",
 ]
 
 [tool.setuptools.packages.find]
