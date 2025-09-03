@@ -77,9 +77,10 @@ def biplot_kde(
     Generates a biplot that visualizes PCA projections and kernel density estimates (KDE) 
     of a property (distance, angle, dihedral angle) describing the geometry of specified
     atoms. The property is chosen based on the number of atoms specified:
-        - 2 atoms => distance
-        - 3 atoms => angle
-        - 4 atoms => dihedral angle
+    
+    * 2 atoms => distance
+    * 3 atoms => angle
+    * 4 atoms => dihedral angle
 
     Parameters
     ----------
@@ -107,10 +108,10 @@ def biplot_kde(
 
     Notes
     -----
-    - Computes a geometric property of the specified atoms across all frames.
-    - Uses kernel density estimation (KDE) to analyze the distance distributions.
-    - Performs PCA on trajectory pairwise distances and visualizes clustering of structural changes.
-    - Produces a figure with PCA projection, cluster analysis, and KDE plots.
+    * Computes a geometric property of the specified atoms across all frames.
+    * Uses kernel density estimation (KDE) to analyze the distance distributions.
+    * Performs PCA on trajectory pairwise distances and visualizes clustering of structural changes.
+    * Produces a figure with PCA projection, cluster analysis, and KDE plots.
     """
     if scatter_color not in {'time', 'geo'}:
         raise ValueError("`scatter_color` must be 'time' or 'geo'")

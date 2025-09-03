@@ -36,11 +36,15 @@ def get_triangular(original_array):
     The number of steps (k) to move the diagonal above the leading diagonal is 1.
     The returned matrix has shape (len(cols), natoms, 3)
 
-    Inputs:
-    original_array: 4D numpy array of shape (nstat1, nstat2, natoms, 3) representing the input matrix
+    Parameters
+    ----------
+    original_array
+        4D numpy array of shape (nstat1, nstat2, natoms, 3) representing the input matrix
 
-    Returns:
-    upper_tril: 3D numpy array of shape (len(cols), natoms, 3) representing the upper triangle of the input matrix
+    Returns
+    -------
+        upper_tril
+            3D numpy array of shape (len(cols), natoms, 3) representing the upper triangle of the input matrix
     """
     # Get the indices of the upper triangle
     nstat1, nstat2, natoms, xyz = original_array.shape
@@ -71,15 +75,20 @@ def dip_sep(dipoles):
     Separates a complete matrix of dipoles into permanent
     and transitional dipoles, removing redundancy in the process.
 
-    Inputs:
-    dipoles: 3D numpy array of shape (nstates, nstates, 3) where
+    Parameters
+    ----------
+    dipoles
+        3D numpy array of shape (nstates, nstates, 3) where
         the first axis represents state before transition,
         the second axis represents state after transition and
         the third axis contains x, y and z coordinates.
 
-    Outputs:
-    dip_perm: 2D numpy array of shape (nstates, 3)
-    dip_trans: 2D numpy array of shape (math.comb(nstates, 2), 3)
+    Returns
+    -------
+    dip_perm
+        2D numpy array of shape (nstates, 3)
+    dip_trans
+        2D numpy array of shape (math.comb(nstates, 2), 3)
         in the order e.g. (for nstates = 4)
         0->1, 0->2, 0->3, 1->2, 1->3, 2->3
         where 0->1 is the transitional dipole between
