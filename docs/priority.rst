@@ -3,17 +3,17 @@ Frequently-used functions
 
 
 .. autosummary::
-    :toctree: ../_generated
+    :toctree: _generated
     
     shnitsel.parse.sharc_icond.dirs_of_iconds
 
 .. autosummary::
-    :toctree: ../_generated
+    :toctree: _generated
     
     shnitsel.parse.read_trajs
 
 .. autosummary::
-    :toctree: ../_generated
+    :toctree: _generated
     
     shnitsel.open_frames
 
@@ -24,7 +24,7 @@ Frequently-used functions
 .. But for now:
 
 .. autosummary::
-    :toctree: ../_generated
+    :toctree: _generated
 
     shnitsel.core.filtre.get_bond_lengths
     shnitsel.core.xrhelpers.msel
@@ -35,7 +35,7 @@ Frequently-used functions
     shnitsel.core.plot.spectra3d.spectra_all_times
 
 .. autosummary::
-    :toctree: ../_generated
+    :toctree: _generated
 
     shnitsel.plot.biplot_kde
     shnitsel.plot.ski_plots
@@ -45,7 +45,7 @@ Frequently-used functions
     shnitsel.plot.Datasheet.plot
 
 .. autosummary::
-    :toctree: ../_generated
+    :toctree: _generated
 
     shnitsel.core.xrhelpers.save_frames
     shnitsel.open_frames
