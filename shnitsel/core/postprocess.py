@@ -314,6 +314,11 @@ convert_energy = Converter('energy', dict(
   keV=0.027211386245988
 ))
 
+convert_forces = Converter('forces', {
+  'hartree/bohr': 0.5291772105,
+  'hartree/angstrom': 1.0,
+})
+
 convert_dipoles = Converter('dipoles', dict(
   au=1.0,
   debye=1/0.3934303

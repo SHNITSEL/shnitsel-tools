@@ -123,6 +123,7 @@ DA_METHODS: dict[str, M] = {
 
 CONVERTERS: dict[str, P.Converter] = {
     'convert_energy': P.convert_energy,
+    'convert_forces': P.convert_forces, 
     'convert_dipoles': P.convert_dipoles,
     'convert_length': P.convert_length,
 }
