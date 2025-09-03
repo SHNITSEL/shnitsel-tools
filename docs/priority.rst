@@ -77,7 +77,7 @@ Frequently-used functions
     shnitsel.core.postprocess.pca
     shnitsel.core.postprocess.pairwise_dists_pca
     shnitsel.core.xrhelpers.mgroupby
-    shnitsel.core.postprocess.dihedras
+    shnitsel.core.postprocess.dihedral
 
 .. .. automethod:: shnitsel.read_ase_db
 .. ↑ NAME WRONG!
