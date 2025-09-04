@@ -1,8 +1,8 @@
 import numpy as np
 import xarray as xr
 
-# link functions that will be moved:
-from .geom import get_bond_lengths
+# link functions that have moved:
+from .geom import get_bond_lengths as get_bond_lengths
 
 
 def energy_filtranda(frames: xr.Dataset) -> xr.Dataset:
