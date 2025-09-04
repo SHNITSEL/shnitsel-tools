@@ -23,7 +23,7 @@ def generate_class_code(classes: dict[str, list[callable]]) -> str:
 
     def get_ann_str(annotation):
         """Convert annotation to string, handling complex types better."""
-        if annotation is None:
+        if annotation is None or annotation is inspect._empty:
             return ""
 
         # Handle string annotations (forward references)

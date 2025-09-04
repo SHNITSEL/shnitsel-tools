@@ -5,7 +5,6 @@ import sklearn
 import typing
 import xarray
 import xarray as xr
-from inspect import _empty
 from numpy import ndarray
 from rdkit.Chem.rdchem import Mol
 from shnitsel.core.ase import write_ase
@@ -24,7 +23,7 @@ from xarray.core.dataset import Dataset
 from xarray.core.groupby import DataArrayGroupBy, DatasetGroupBy
 
 
-class GeneratedDAAcessor:
+class GeneratedDAAccessor:
 
     def norm(self, dim: Hashable='direction', keep_attrs: bool | str | None=None) -> DataArray:
         """Wrapper for :py:func:`shnitsel.core.postprocess.norm`."""
@@ -36,7 +35,7 @@ class GeneratedDAAcessor:
         return subtract_combinations(self._obj, dim, labels=labels)
             
 
-    def pairwise_dists_pca(self, **kwargs: _empty) -> DataArray:
+    def pairwise_dists_pca(self, **kwargs) -> DataArray:
         """Wrapper for :py:func:`shnitsel.core.postprocess.pairwise_dists_pca`."""
         return pairwise_dists_pca(self._obj, **kwargs)
             
@@ -51,7 +50,7 @@ class GeneratedDAAcessor:
         return hop_indices(self._obj)
             
 
-    def relativize(self, **sel: _empty) -> DataArray:
+    def relativize(self, **sel) -> DataArray:
         """Wrapper for :py:func:`shnitsel.core.postprocess.relativize`."""
         return relativize(self._obj, **sel)
             
@@ -76,7 +75,7 @@ class GeneratedDAAcessor:
         return time_grouped_ci(self._obj, confidence=confidence)
             
 
-    def to_xyz(self, comment: _empty='#') -> str:
+    def to_xyz(self, comment='#') -> str:
         """Wrapper for :py:func:`shnitsel.core.postprocess.to_xyz`."""
         return to_xyz(self._obj, comment=comment)
             
@@ -111,7 +110,7 @@ class GeneratedDAAcessor:
         return get_hop_types(self._obj)
             
 
-    def to_mol(self, charge: _empty=None, covFactor: _empty=1.2, to2D: _empty=True, molAtomMapNumber: _empty=None, atomNote: _empty=None, atomLabel: _empty=None) -> Mol:
+    def to_mol(self, charge=None, covFactor=1.2, to2D=True, molAtomMapNumber=None, atomNote=None, atomLabel=None) -> Mol:
         """Wrapper for :py:func:`shnitsel.core.postprocess.to_mol`."""
         return to_mol(self._obj, charge=charge, covFactor=covFactor, to2D=to2D, molAtomMapNumber=molAtomMapNumber, atomNote=atomNote, atomLabel=atomLabel)
             
@@ -126,7 +125,7 @@ class GeneratedDAAcessor:
         return flatten_levels(self._obj, idx_name, levels, new_name=new_name, position=position, renamer=renamer)
             
 
-    def expand_midx(self, midx_name: _empty, level_name: _empty, value: _empty) -> xr.Dataset | xr.DataArray:
+    def expand_midx(self, midx_name, level_name, value) -> xr.Dataset | xr.DataArray:
         """Wrapper for :py:func:`shnitsel.core.xrhelpers.expand_midx`."""
         return expand_midx(self._obj, midx_name, level_name, value)
             
@@ -141,27 +140,27 @@ class GeneratedDAAcessor:
         return mgroupby(self._obj, levels)
             
 
-    def msel(self, **kwargs: _empty) -> xr.Dataset | xr.DataArray:
+    def msel(self, **kwargs) -> xr.Dataset | xr.DataArray:
         """Wrapper for :py:func:`shnitsel.core.xrhelpers.msel`."""
         return msel(self._obj, **kwargs)
             
 
-    def sel_trajs(self, trajids_or_mask: Sequence[int] | Sequence[bool], invert: _empty=False) -> xr.Dataset | xr.DataArray:
+    def sel_trajs(self, trajids_or_mask: Sequence[int] | Sequence[bool], invert=False) -> xr.Dataset | xr.DataArray:
         """Wrapper for :py:func:`shnitsel.core.xrhelpers.sel_trajs`."""
         return sel_trajs(self._obj, trajids_or_mask, invert=invert)
             
 
-    def sel_trajs(self, trajids_or_mask: Sequence[int] | Sequence[bool], invert: _empty=False) -> xr.Dataset | xr.DataArray:
+    def sel_trajs(self, trajids_or_mask: Sequence[int] | Sequence[bool], invert=False) -> xr.Dataset | xr.DataArray:
         """Wrapper for :py:func:`shnitsel.core.xrhelpers.sel_trajs`."""
         return sel_trajs(self._obj, trajids_or_mask, invert=invert)
             
 
-    def sel_trajids(self, trajids: npt.ArrayLike, invert: _empty=False) -> xr.Dataset:
+    def sel_trajids(self, trajids: npt.ArrayLike, invert=False) -> xr.Dataset:
         """Wrapper for :py:func:`shnitsel.core.xrhelpers.sel_trajids`."""
         return sel_trajids(self._obj, trajids, invert=invert)
             
 
-    def smiles_map(self, charge: _empty=0, covFactor: _empty=1.5) -> str:
+    def smiles_map(self, charge=0, covFactor=1.5) -> str:
         """Wrapper for :py:func:`shnitsel.core.filter_unphysical.smiles_map`."""
         return smiles_map(self._obj, charge=charge, covFactor=covFactor)
             
@@ -171,27 +170,27 @@ class GeneratedDAAcessor:
         return last_time_where(self._obj)
             
 
-    def get_bond_lengths(self, bond_types: _empty=None, mol: _empty=None):
+    def get_bond_lengths(self, bond_types=None, mol=None):
         """Wrapper for :py:func:`shnitsel.core.geom.get_bond_lengths`."""
         return get_bond_lengths(self._obj, bond_types=bond_types, mol=mol)
             
 
-    def get_bond_angles(self, angle_types: _empty=None, mol: _empty=None, deg: _empty=False):
+    def get_bond_angles(self, angle_types=None, mol=None, deg=False):
         """Wrapper for :py:func:`shnitsel.core.geom.get_bond_angles`."""
         return get_bond_angles(self._obj, angle_types=angle_types, mol=mol, deg=deg)
             
 
-    def get_bond_torsions(self, quadruple_types: _empty=None, mol: _empty=None, signed: _empty=False, deg: _empty=False):
+    def get_bond_torsions(self, quadruple_types=None, mol=None, signed=False, deg=False):
         """Wrapper for :py:func:`shnitsel.core.geom.get_bond_torsions`."""
         return get_bond_torsions(self._obj, quadruple_types=quadruple_types, mol=mol, signed=signed, deg=deg)
             
 
-    def get_bats(self, mol: _empty=None, signed: _empty=False, deg: _empty=False):
+    def get_bats(self, mol=None, signed=False, deg=False):
         """Wrapper for :py:func:`shnitsel.core.geom.get_bats`."""
         return get_bats(self._obj, mol=mol, signed=signed, deg=deg)
             
 
-    def kabsch(self, reference_or_indexers: xarray.core.dataarray.DataArray | dict | None=None, **indexers_kwargs: _empty):
+    def kabsch(self, reference_or_indexers: xarray.core.dataarray.DataArray | dict | None=None, **indexers_kwargs):
         """Wrapper for :py:func:`shnitsel.core.geom.kabsch`."""
         return kabsch(self._obj, reference_or_indexers=reference_or_indexers, **indexers_kwargs)
             
@@ -211,7 +210,7 @@ class GeneratedDAAcessor:
         return traj3D(self._obj)
             
 
-    def trajs3Dgrid(self, trajids: list[int | str] | None=None, loop: _empty='forward'):
+    def trajs3Dgrid(self, trajids: list[int | str] | None=None, loop='forward'):
         """Wrapper for :py:func:`shnitsel.core.plot.p3mhelpers.trajs3Dgrid`."""
         return trajs3Dgrid(self._obj, trajids=trajids, loop=loop)
             
@@ -221,17 +220,17 @@ class GeneratedDAAcessor:
         return pca(self._obj, dim, n_components=n_components, return_pca_object=return_pca_object)
             
 
-    def lda(self, dim: _empty, cats: _empty, n_components: _empty=2):
+    def lda(self, dim, cats, n_components=2):
         """Wrapper for :py:func:`shnitsel.core.ml.lda`."""
         return lda(self._obj, dim, cats, n_components=n_components)
             
 
-    def pls(self, yda: _empty, n_components: _empty=2, common_dim: _empty=None):
+    def pls(self, yda, n_components=2, common_dim=None):
         """Wrapper for :py:func:`shnitsel.core.ml.pls`."""
         return pls(self._obj, yda, n_components=n_components, common_dim=common_dim)
             
 
-class GeneratedDSAcessor:
+class GeneratedDSAccessor:
 
     def pca_and_hops(self) -> tuple:
         """Wrapper for :py:func:`shnitsel.core.postprocess.pca_and_hops`."""
@@ -248,12 +247,12 @@ class GeneratedDSAcessor:
         return ts_to_time(self._obj, delta_t=delta_t, old=old)
             
 
-    def setup_frames(self, to_time: bool | None=None, convert_to_eV: bool | None=None, convert_e_kin_to_eV: bool | None=None, relativize_energy: bool | None=None, relativize_selector: _empty=None) -> Dataset:
+    def setup_frames(self, to_time: bool | None=None, convert_to_eV: bool | None=None, convert_e_kin_to_eV: bool | None=None, relativize_energy: bool | None=None, relativize_selector=None) -> Dataset:
         """Wrapper for :py:func:`shnitsel.core.postprocess.setup_frames`."""
         return setup_frames(self._obj, to_time=to_time, convert_to_eV=convert_to_eV, convert_e_kin_to_eV=convert_e_kin_to_eV, relativize_energy=relativize_energy, relativize_selector=relativize_selector)
             
 
-    def setup_frames(self, to_time: bool | None=None, convert_to_eV: bool | None=None, convert_e_kin_to_eV: bool | None=None, relativize_energy: bool | None=None, relativize_selector: _empty=None) -> Dataset:
+    def setup_frames(self, to_time: bool | None=None, convert_to_eV: bool | None=None, convert_e_kin_to_eV: bool | None=None, relativize_energy: bool | None=None, relativize_selector=None) -> Dataset:
         """Wrapper for :py:func:`shnitsel.core.postprocess.setup_frames`."""
         return setup_frames(self._obj, to_time=to_time, convert_to_eV=convert_to_eV, convert_e_kin_to_eV=convert_e_kin_to_eV, relativize_energy=relativize_energy, relativize_selector=relativize_selector)
             
@@ -298,7 +297,7 @@ class GeneratedDSAcessor:
         return flatten_levels(self._obj, idx_name, levels, new_name=new_name, position=position, renamer=renamer)
             
 
-    def expand_midx(self, midx_name: _empty, level_name: _empty, value: _empty) -> xr.Dataset | xr.DataArray:
+    def expand_midx(self, midx_name, level_name, value) -> xr.Dataset | xr.DataArray:
         """Wrapper for :py:func:`shnitsel.core.xrhelpers.expand_midx`."""
         return expand_midx(self._obj, midx_name, level_name, value)
             
@@ -313,17 +312,17 @@ class GeneratedDSAcessor:
         return mgroupby(self._obj, levels)
             
 
-    def msel(self, **kwargs: _empty) -> xr.Dataset | xr.DataArray:
+    def msel(self, **kwargs) -> xr.Dataset | xr.DataArray:
         """Wrapper for :py:func:`shnitsel.core.xrhelpers.msel`."""
         return msel(self._obj, **kwargs)
             
 
-    def save_frames(self, path: _empty, complevel: _empty=9):
+    def save_frames(self, path, complevel=9):
         """Wrapper for :py:func:`shnitsel.core.xrhelpers.save_frames`."""
         return save_frames(self._obj, path, complevel=complevel)
             
 
-    def sel_trajs(self, trajids_or_mask: Sequence[int] | Sequence[bool], invert: _empty=False) -> xr.Dataset | xr.DataArray:
+    def sel_trajs(self, trajids_or_mask: Sequence[int] | Sequence[bool], invert=False) -> xr.Dataset | xr.DataArray:
         """Wrapper for :py:func:`shnitsel.core.xrhelpers.sel_trajs`."""
         return sel_trajs(self._obj, trajids_or_mask, invert=invert)
             
@@ -358,7 +357,7 @@ class GeneratedDSAcessor:
         return get_cutoffs(self._obj)
             
 
-    def truncate(self, cutoffs: _empty):
+    def truncate(self, cutoffs):
         """Wrapper for :py:func:`shnitsel.core.filtre.truncate`."""
         return truncate(self._obj, cutoffs)
             
@@ -368,7 +367,7 @@ class GeneratedDSAcessor:
         return write_ase(self._obj, db_path, kind, keys=keys, preprocess=preprocess)
             
 
-    def pls_ds(self, xname: _empty, yname: _empty, n_components: _empty=2):
+    def pls_ds(self, xname, yname, n_components=2):
         """Wrapper for :py:func:`shnitsel.core.ml.pls_ds`."""
         return pls_ds(self._obj, xname, yname, n_components=n_components)
             
