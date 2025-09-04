@@ -13,6 +13,7 @@ import scipy.stats as st
 import rdkit.Chem as rc
 import rdkit.Chem.rdDetermineBonds  # noqa: F401
 
+from .._contracts import needs
 from . import xrhelpers
 from .ml import pca  # backward compatibility
 
@@ -108,7 +109,7 @@ def subtract_combinations(
     res.attrs['deltaed'] = set(res.attrs.get('deltaed', [])).union({dim})
     return res
 
-
+@needs(dims={'atom'})
 def pairwise_dists_pca(atXYZ: AtXYZ, **kwargs) -> xr.DataArray:
     """PCA-reduced pairwise interatomic distances
 
@@ -132,7 +133,7 @@ def pairwise_dists_pca(atXYZ: AtXYZ, **kwargs) -> xr.DataArray:
     assert not isinstance(res, tuple)  # typing
     return res
 
-
+@needs(dims={'frame'})
 def sudi(da: xr.DataArray) -> xr.DataArray:
     """Take successive differences along the 'frame' dimension
 
@@ -174,7 +175,7 @@ def hop_indices(astates: xr.DataArray) -> xr.DataArray:
     """
     return sudi(astates) != 0
 
-
+@needs(coords_or_vars={'atXYZ', 'astate'})
 def pca_and_hops(frames: xr.Dataset) -> tuple[xr.DataArray, xr.DataArray]:
     """Get PCA points and info on which of them represent hops
 
@@ -388,6 +389,7 @@ def validate(frames: Frames) -> np.ndarray:
 ##############################################
 # Functions generally applicable to timeplots:
 
+@needs(coords={'ts'})
 def ts_to_time(
     data: xr.Dataset | xr.DataArray,
     delta_t: float | None = None,
@@ -463,10 +465,12 @@ def get_fosc(energy, dip_trans):
     return da
 
 # TODO: deprecate (made redundant by DerivedProperties)
+@needs(data_vars={'energy', 'dip_trans'})
 def assign_fosc(ds: xr.Dataset) -> xr.Dataset:
     da = get_fosc(ds['energy'], ds['dip_trans'])
     return ds.assign(fosc=da)
 
+@needs(data_vars={'energy', 'fosc'})
 def broaden_gauss(
     E: xr.DataArray,
     fosc: xr.DataArray,
@@ -527,6 +531,7 @@ def ds_broaden_gauss(
     )
 
 
+@needs(dims={'state'})
 def get_per_state(frames: Frames) -> PerState:
     props_per = {'energy', 'forces', 'dip_perm'}.intersection(frames.keys())
     per_state = frames[props_per].map(keep_norming, keep_attrs=False)
@@ -566,6 +571,7 @@ def get_inter_state(frames: Frames) -> InterState:
     inter_state['statecomb'].attrs['long_name'] = "States"
     return inter_state
 
+@needs(dims={'frame', 'state'}, coords={'time'}, data_vars={'astate'})
 def calc_pops(frames: Frames) -> xr.DataArray:
     """Fast way to calculate populations
     Requires states ids to be small integers
@@ -626,12 +632,13 @@ def xr_calc_ci(a: xr.DataArray, dim: DimName, confidence: float = 0.95) -> xr.Da
         dict(bound=['lower', 'upper', 'mean'])
     ).to_dataset('bound')
 
-
+@needs(groupable={'time'}, dims={'frame'})
 def time_grouped_ci(x: xr.DataArray, confidence: float = 0.9) -> xr.Dataset:
     return (
       x.groupby('time')
       .map(lambda x: xr_calc_ci(x, dim='frame', confidence=confidence)))
 
+@needs(coords_or_vars={'atNames'}, not_dims={'frame'})
 def to_xyz(da: AtXYZ, comment='#') -> str:
     atXYZ = da.values
     atNames = da.atNames.values
@@ -642,6 +649,7 @@ def to_xyz(da: AtXYZ, comment='#') -> str:
     return f'{len(sxyz):>12}\n  {comment}\n' + '\n'.join(sxyz)
 
 
+@needs(groupable={'time'}, coords_or_vars={'atNames'})
 def traj_to_xyz(traj_atXYZ: AtXYZ) -> str:
     return '\n'.join(
         to_xyz(t_atXYZ, comment=f"# t={t}") for t, t_atXYZ in traj_atXYZ.groupby('time')
@@ -667,7 +675,7 @@ def full_dihedral_(a, b, c, d):
     sign = np.sign(ddot(dcross(abc, bcd), (c - b)))
     return sign * angle_(abc, bcd)
 
-
+@needs(dims={'atom'})
 def dihedral(
     atXYZ: AtXYZ,
     i: int,
@@ -707,7 +715,7 @@ def dihedral(
     result.attrs['long_name'] = r"$\varphi_{%d,%d,%d,%d}$" % (i, j, k, l)
     return result
 
-
+@needs(dims={'atom'})
 def angle(atXYZ: AtXYZ, i: int, j: int, k: int, *, deg: bool = False) -> xr.DataArray:
     a = atXYZ.isel(atom=i)    
     b = atXYZ.isel(atom=j)
@@ -722,6 +730,7 @@ def angle(atXYZ: AtXYZ, i: int, j: int, k: int, *, deg: bool = False) -> xr.Data
     return result
 
 
+@needs(dims={'atom'})
 def distance(atXYZ: AtXYZ, i: int, j: int) -> xr.DataArray:
     a = atXYZ.isel(atom=i)    
     b = atXYZ.isel(atom=j)
@@ -802,6 +811,7 @@ def find_traj_hops(traj: xr.Dataset) -> xr.Dataset:
         pick_statecombs, statecombs=statecombs, frames=frames, framedim=framedim
     ).assign(statecomb=xr.DataArray(statecombs, dims=[framedim]))
 
+@needs(coords={'trajid'}, data_vars={'astate'})
 def find_hops(frames: Frames) -> Frames:
     mask = frames['trajid'].isin(trajs_with_hops(frames['astate']))
     return (
@@ -830,7 +840,7 @@ def set_atom_props(mol, **kws):
             atom.SetProp(prop, str(val))
     return mol
 
-  
+@needs(coords_or_vars={'atNames'}, not_dims={'frame'})
 def to_mol(
     atXYZ_frame,
     charge=None,

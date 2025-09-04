@@ -15,6 +15,9 @@ import xarray as xr
 import numpy as np
 import pandas as pd
 
+from .._contracts import needs
+
+
 def replace_total(
     da: xr.DataArray, to_replace: np.ndarray | list, value: np.ndarray | list
 ):
@@ -349,7 +352,7 @@ def msel(obj: xr.Dataset | xr.DataArray, **kwargs) -> xr.Dataset | xr.DataArray:
         .set_xindex(levels)
     )
 
-
+@needs(dims={'frame'}, coords_or_vars={'trajid'})
 def sel_trajs(
     frames: xr.Dataset | xr.DataArray,
     trajids_or_mask: Sequence[int] | Sequence[bool],
@@ -404,6 +407,7 @@ def sel_trajs(
     return sel_trajids(frames=frames, trajids=trajids, invert=invert)
 
 
+@needs(dims={'frame'}, coords_or_vars={'trajid'})
 def sel_trajids(frames: xr.Dataset, trajids: npt.ArrayLike, invert=False) -> xr.Dataset:
     "Will not generally return trajectories in order given"
     trajids = np.atleast_1d(trajids)

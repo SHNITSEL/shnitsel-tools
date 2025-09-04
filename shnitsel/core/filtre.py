@@ -1,10 +1,12 @@
 import numpy as np
 import xarray as xr
 
+from .._contracts import needs
+
 # link functions that have moved:
 from .geom import get_bond_lengths as get_bond_lengths
 
-
+@needs(data_vars={'energy', 'e_kin'})
 def energy_filtranda(frames: xr.Dataset) -> xr.Dataset:
     res = frames[['e_kin']]
     res['e_pot'] = frames.energy.sel(state=frames.astate).drop_vars('state')
@@ -21,6 +23,7 @@ def energy_filtranda(frames: xr.Dataset) -> xr.Dataset:
     return res
 
 
+@needs(dims={'frame'}, coords={'trajid', 'time'})
 def last_time_where(mask):
     mask = mask.unstack('frame', fill_value=False).transpose('trajid', 'time', ...)
     idxs = np.logical_not((~mask.values).cumsum(axis=1)).sum(axis=1)
@@ -28,6 +31,7 @@ def last_time_where(mask):
     return mask[:, 0].copy(data=times[idxs]).drop_vars('time').rename('time')
 
 
+@needs(dims={'frame'}, coords={'trajid', 'time'})
 def get_cutoffs(masks_ds):
     ds = masks_ds.map(last_time_where)
     names = list(ds.data_vars)
@@ -44,7 +48,7 @@ def get_cutoffs(masks_ds):
     ds.attrs['reasons'] = names
     return ds
 
-
+@needs(dims={'frame'}, coords={'trajid', 'time'})
 def truncate(frames, cutoffs):
     if 'trajid_' not in cutoffs.coords and 'trajid' in cutoffs.coords:
         cutoffs = cutoffs.rename(trajid='trajid_')

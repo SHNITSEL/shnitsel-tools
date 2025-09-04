@@ -3,8 +3,10 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 
 from shnitsel.core import postprocess as P
+from shnitsel._contracts import needs
 
 
+@needs(data_vars={'energy', 'fosc'}, coords={'frame', 'trajid'})
 def spectra_all_times(inter_state: xr.Dataset):
     assert isinstance(inter_state, xr.Dataset)
     if 'energy' not in inter_state.data_vars:

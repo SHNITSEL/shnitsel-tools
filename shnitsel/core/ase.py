@@ -6,6 +6,8 @@ from ase.db import connect
 import numpy as np
 import xarray as xr
 
+from shnitsel._contracts import needs
+
 
 def _prepare_for_write(frames: xr.Dataset) -> xr.Dataset:
     # Recombine permanent and transition dipoles, as schnetpack expects
@@ -32,7 +34,7 @@ def _prepare_for_write(frames: xr.Dataset) -> xr.Dataset:
 
     return frames
 
-
+@needs(dims={'frame'})
 def write_ase(
     frames: xr.Dataset,
     db_path: str,

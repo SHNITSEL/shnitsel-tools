@@ -1,7 +1,4 @@
 import inspect
-from textwrap import indent
-from typing import get_type_hints
-import sys
 
 
 def generate_class_code(classes: dict[str, list[callable]]) -> str:
@@ -41,13 +38,7 @@ def generate_class_code(classes: dict[str, list[callable]]) -> str:
                     imports[annotation.__name__] = module_name
             return annotation.__name__
 
-        # For complex typing constructs, use repr but clean it up
-        ann_str = repr(annotation)
-
-        # Clean up common typing module prefixes
-        ann_str = ann_str.replace('typing.', '')
-
-        return ann_str
+        return repr(annotation)
 
     lines = []
     imports = {
@@ -60,6 +51,7 @@ def generate_class_code(classes: dict[str, list[callable]]) -> str:
         'Literal': 'typing',
         'DataArrayGroupBy': 'xarray.core.groupby',
         'DatasetGroupBy': 'xarray.core.groupby',
+        'needs': '._contracts',
     }
     plain_imports = {
         'xarray as xr',
@@ -129,12 +121,26 @@ def generate_class_code(classes: dict[str, list[callable]]) -> str:
                 param_str = ", ".join(["self"] + params[1:])
                 arg_str = ", ".join(["self._obj"] + args[1:])
 
+                # Carry over needs decorator
+                needs_kws = []
+                if hasattr(func, '_needs'):
+                    for field in func._needs._fields:
+                        val = getattr(func._needs, field)
+                        if val is not None:
+                            needs_kws.append(f"{field}={val}")
+                    needs_str = ", ".join(needs_kws)
+                    needs_str = f"""\
+    @needs({needs_str})
+"""
+                else:
+                    needs_str = ""
+
                 # Build method
-                method = f"""
+                method = f"""{needs_str}\
     def {name}({param_str}){ret_str}:
         \"\"\"Wrapper for :py:func:`{module}.{name}`.\"\"\"
         return {name}({arg_str})
-            """
+"""
                 lines.append(method)
 
     # Generate import statements
@@ -156,10 +162,10 @@ def generate_class_code(classes: dict[str, list[callable]]) -> str:
 
     return import_str + "\n\n" + "\n".join(lines)
 
-
-if __name__ == "__main__":
+def main():
     import shnitsel as st
     from shnitsel.core.plot import p3mhelpers
+    from shnitsel.core.plot import select
 
     da_funcs = [
         # postprocess
@@ -189,7 +195,6 @@ if __name__ == "__main__":
         st.xrhelpers.mgroupby,
         st.xrhelpers.msel,
         st.xrhelpers.sel_trajs,
-        st.xrhelpers.sel_trajs,
         st.xrhelpers.sel_trajids,
         # filtre_unphysical
         st.core.filter_unphysical.smiles_map,
@@ -202,6 +207,9 @@ if __name__ == "__main__":
         st.core.geom.get_bats,
         st.core.geom.kabsch,
         # select
+        select.FrameSelector,
+        select.TrajSelector,
+        # p3mhelpers
         p3mhelpers.frame3D,
         p3mhelpers.frames3Dgrid,
         p3mhelpers.traj3D,
@@ -255,3 +263,6 @@ if __name__ == "__main__":
     )
     with open('../shnitsel/_generated_accessors.py', 'w') as f:
         print(code, file=f)
+
+if __name__ == "__main__":
+    main()

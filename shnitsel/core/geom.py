@@ -25,6 +25,7 @@ from .postprocess import (
     default_mol,
 )
 from .xrhelpers import expand_midx
+from .._contracts import needs
 
 
 def bond_type_to_symbols(e1, e2):
@@ -48,6 +49,7 @@ def identify_bonds(mol, symbols=True):
     return bond_types
 
 
+@needs(dims={'atom'})
 def get_bond_lengths(atXYZ, bond_types=None, mol=None):
     dists = atXYZ.pipe(subtract_combinations, 'atom', labels=True).pipe(norm)
     if bond_types is None:
@@ -123,6 +125,7 @@ def identify_angles(mol: Mol):
     )
 
 
+@needs(dims={'atom'})
 def get_bond_angles(atXYZ, angle_types=None, mol=None, deg=False):
     if angle_types is None:
         if mol is None:
@@ -220,6 +223,7 @@ def identify_torsions(mol: Mol) -> xr.Dataset:
     )
 
 
+@needs(dims={'atom'})
 def get_bond_torsions(atXYZ, quadruple_types=None, mol=None, signed=False, deg=False):
     if quadruple_types is None:
         if mol is None:
@@ -244,6 +248,7 @@ def get_bond_torsions(atXYZ, quadruple_types=None, mol=None, signed=False, deg=F
     ).set_xindex('torsion_symbol')
 
 
+@needs(dims={'atom'})
 def get_bats(atXYZ, mol=None, signed=False, deg=False):
     """Get bond lengths, angles and torsions.
 
@@ -296,7 +301,10 @@ def center_geoms(atXYZ, by_mass: Literal[False] = False):
         raise NotImplementedError
     return atXYZ - atXYZ.mean('atom')
 
-def kabsch(atXYZ, reference_or_indexers: xr.DataArray | dict | None = None, **indexers_kwargs):
+@needs(dims={'atom', 'direction'})
+def kabsch(
+    atXYZ, reference_or_indexers: xr.DataArray | dict | None = None, **indexers_kwargs
+):
     from scipy.linalg import orthogonal_procrustes
 
     if isinstance(reference_or_indexers, xr.DataArray):

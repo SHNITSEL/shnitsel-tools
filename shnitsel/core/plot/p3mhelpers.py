@@ -4,8 +4,10 @@ import numpy as np
 import py3Dmol
 import xarray as xr
 from .. import postprocess as P
+from ..._contracts import needs
 
 
+@needs(coords_or_vars={'atNames'}, not_dims={'frame'})
 def frame3D(atXYZ_frame: str | xr.DataArray):
     if isinstance(atXYZ_frame, xr.DataArray):
         atXYZ_frame = P.to_xyz(atXYZ_frame)
@@ -18,6 +20,7 @@ def frame3D(atXYZ_frame: str | xr.DataArray):
     return view
 
 
+@needs(groupable={'frame'}, coords_or_vars={'atNames'})
 def frames3Dgrid(atXYZ: xr.DataArray):
     n = ceil(sqrt(atXYZ.sizes['frame']))
     view = py3Dmol.view(viewergrid=(n, n), width=1000, height=800, linked=True)
@@ -41,6 +44,7 @@ def frames3Dgrid(atXYZ: xr.DataArray):
     return view
 
 
+@needs(groupable={'time'}, coords_or_vars={'atNames'})
 def traj3D(traj: str | xr.DataArray):
     if isinstance(traj, xr.DataArray):
         traj = P.traj_to_xyz(traj)
@@ -54,6 +58,7 @@ def traj3D(traj: str | xr.DataArray):
     return view
 
 
+@needs(groupable={'time'}, coords={'sel'}, coords_or_vars={'atNames'})
 def trajs3Dgrid(
     atXYZ: xr.DataArray, trajids: list[int | str] | None = None, loop='forward'
 ):

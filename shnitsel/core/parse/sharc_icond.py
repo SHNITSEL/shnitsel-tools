@@ -16,6 +16,7 @@ from .common import (
     ConsistentValue,
     get_triangular,
 )
+from shnitsel._contracts import needs
 from ..postprocess import convert_length
 
 _re_grads = re.compile('[(](?P<nstates>[0-9]+)x(?P<natoms>[0-9]+)x3')
@@ -469,6 +470,7 @@ def parse_QM_out(f, out: (xr.Dataset | None) = None):
         # no need to return anything
         return None
 
+@needs(dims={'icond'}, coords={'icond'}, not_dims={'time'})
 def iconds_to_frames(iconds: xr.Dataset):
     for name, var in iconds.data_vars.items():
         shape = var.data.shape
