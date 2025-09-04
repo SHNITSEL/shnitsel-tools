@@ -4,7 +4,7 @@ from typing import get_type_hints
 import sys
 
 
-def generate_class_code(class_name: str, functions: list) -> str:
+def generate_class_code(classes: dict[str, list[callable]]) -> str:
     """\
     Generate source code for a class with methods wrapping given functions, preserving
     signatures (including type hints when possible).
@@ -72,73 +72,70 @@ def generate_class_code(class_name: str, functions: list) -> str:
     }
 
     # Collect imports for all functions
-    for func in functions:
-        imports[func.__name__] = func.__module__
-
-    lines.append("")
-
-    # class header
-    lines.append(f"class {class_name}:")
-    if not functions:
-        lines.append(indent("pass", "    "))
-    else:
+    for class_name, functions in classes.items():
         for func in functions:
-            name = func.__name__
-            module = func.__module__
-            sig = inspect.signature(func)
+            imports[func.__name__] = func.__module__
 
-            # try:
-            #     hints = get_type_hints(func)
-            # except (NameError, AttributeError) as e:
-            #     # Fallback to raw annotations if get_type_hints fails
-            hints = getattr(func, '__annotations__', {})
+        lines.append("")
 
-            # Build signature string with type hints
-            # and arguments for wrapped function
-            params = []
-            args = []
+        # class header
+        lines.append(f"class {class_name}:")
+        if not functions:
+            lines.append("    pass")
+        else:
+            for func in functions:
+                name = func.__name__
+                module = func.__module__
+                sig = inspect.signature(func)
 
-            for pname, param in sig.parameters.items():
-                annotation = hints.get(pname, param.annotation)
-                ann_str = get_ann_str(annotation)
-                ann_str = f": {ann_str}" if ann_str else ""
+                hints = getattr(func, '__annotations__', {})
 
-                # Handle different parameter kinds
-                if param.kind == inspect.Parameter.VAR_POSITIONAL:
-                    # *args
-                    params.append(f"*{pname}{ann_str}")
-                    args.append(f"*{pname}")
-                elif param.kind == inspect.Parameter.VAR_KEYWORD:
-                    # **kwargs
-                    params.append(f"**{pname}{ann_str}")
-                    args.append(f"**{pname}")
-                else:
-                    # Regular parameters
-                    if param.default is not inspect.Parameter.empty:
-                        pdefault = f"={param.default!r}"
-                        adefault = f"={pname}"
+                # Build signature string with type hints
+                # and arguments for wrapped function
+                params = []
+                args = []
+
+                for pname, param in sig.parameters.items():
+                    annotation = hints.get(pname, param.annotation)
+                    ann_str = get_ann_str(annotation)
+                    ann_str = f": {ann_str}" if ann_str else ""
+
+                    # Handle different parameter kinds
+                    if param.kind == inspect.Parameter.VAR_POSITIONAL:
+                        # *args
+                        params.append(f"*{pname}{ann_str}")
+                        args.append(f"*{pname}")
+                    elif param.kind == inspect.Parameter.VAR_KEYWORD:
+                        # **kwargs
+                        params.append(f"**{pname}{ann_str}")
+                        args.append(f"**{pname}")
                     else:
-                        pdefault = ""
-                        adefault = ""
-                    params.append(f"{pname}{ann_str}{pdefault}")
-                    args.append(f"{pname}{adefault}")
+                        # Regular parameters
+                        if param.default is not inspect.Parameter.empty:
+                            pdefault = f"={param.default!r}"
+                            adefault = f"={pname}"
+                        else:
+                            pdefault = ""
+                            adefault = ""
+                        params.append(f"{pname}{ann_str}{pdefault}")
+                        args.append(f"{pname}{adefault}")
 
-            # Handle return annotation
-            ret_ann = hints.get("return", sig.return_annotation)
-            ret_str = get_ann_str(ret_ann)
-            ret_str = f" -> {ret_str}" if ret_str else ""
+                # Handle return annotation
+                ret_ann = hints.get("return")
+                ret_str = get_ann_str(ret_ann)
+                ret_str = f" -> {ret_str}" if ret_str else ""
 
-            # Build parameter and argument strings
-            param_str = ", ".join(["self"] + params[1:])
-            arg_str = ", ".join(["self._obj"] + args[1:])
+                # Build parameter and argument strings
+                param_str = ", ".join(["self"] + params[1:])
+                arg_str = ", ".join(["self._obj"] + args[1:])
 
-            # Build method
-            method = f"""
+                # Build method
+                method = f"""
     def {name}({param_str}){ret_str}:
         \"\"\"Wrapper for :py:func:`{module}.{name}`.\"\"\"
         return {name}({arg_str})
             """
-            lines.append(method)
+                lines.append(method)
 
     # Generate import statements
     import_lines = []
@@ -253,7 +250,8 @@ if __name__ == "__main__":
         st.core.ml.pls_ds,
     ]
 
-    da_code = generate_class_code("GeneratedDAAcessor", da_funcs)
-    ds_code = generate_class_code("GeneratedDSAcessor", ds_funcs)
+    code = generate_class_code(
+        {"GeneratedDAAccessor": da_funcs, "GeneratedDSAccessor": ds_funcs}
+    )
     with open('../shnitsel/_generated_accessors.py', 'w') as f:
-        print(da_code, ds_code, sep="\n", file=f)
+        print(code, file=f)
