@@ -5,6 +5,7 @@ from logging import warning
 from typing import Collection, Hashable, Literal, TypeAlias
 
 import numpy as np
+import numpy.typing as npt
 import xarray as xr
 
 import scipy.stats as st
@@ -391,7 +392,7 @@ def ts_to_time(
     data: xr.Dataset | xr.DataArray,
     delta_t: float | None = None,
     old: Literal['drop', 'to_var', 'keep'] = 'drop',
-):
+) -> xr.Dataset | xr.DataArray:
     assert old in {'drop', 'to_var', 'keep'}
 
     if delta_t is None:
@@ -600,7 +601,7 @@ def calc_pops(frames: Frames) -> xr.DataArray:
 # functions offer varying levels of abstraction
 # TODO make naming consistent
 
-def calc_ci(a, confidence=0.95):
+def calc_ci(a: npt.NDArray, confidence: float = 0.95) -> npt.NDArray:
     if np.array(a).ndim != 1:
         raise ValueError("This function accepts 1D input only")
     return np.stack(st.t.interval(confidence, len(a)-1, loc=np.mean(a), scale=st.sem(a)))
@@ -631,7 +632,7 @@ def time_grouped_ci(x: xr.DataArray, confidence: float = 0.9) -> xr.Dataset:
       x.groupby('time')
       .map(lambda x: xr_calc_ci(x, dim='frame', confidence=confidence)))
 
-def to_xyz(da: AtXYZ, comment='#'):
+def to_xyz(da: AtXYZ, comment='#') -> str:
     atXYZ = da.values
     atNames = da.atNames.values
     sxyz = np.char.mod('% 23.15f', atXYZ)
@@ -641,7 +642,7 @@ def to_xyz(da: AtXYZ, comment='#'):
     return f'{len(sxyz):>12}\n  {comment}\n' + '\n'.join(sxyz)
 
 
-def traj_to_xyz(traj_atXYZ: AtXYZ):
+def traj_to_xyz(traj_atXYZ: AtXYZ) -> str:
     return '\n'.join(
         to_xyz(t_atXYZ, comment=f"# t={t}") for t, t_atXYZ in traj_atXYZ.groupby('time')
     )
@@ -830,7 +831,15 @@ def set_atom_props(mol, **kws):
     return mol
 
   
-def to_mol(atXYZ_frame, charge=None, covFactor=1.2, to2D=True, molAtomMapNumber=None, atomNote=None, atomLabel=None):
+def to_mol(
+    atXYZ_frame,
+    charge=None,
+    covFactor=1.2,
+    to2D=True,
+    molAtomMapNumber=None,
+    atomNote=None,
+    atomLabel=None,
+) -> rc.Mol:
     mol = rc.rdmolfiles.MolFromXYZBlock(to_xyz(atXYZ_frame))
     rc.rdDetermineBonds.DetermineConnectivity(mol, useVdw=True, covFactor=covFactor)
     try:
@@ -857,7 +866,7 @@ def numbered_smiles_to_mol(smiles: str) -> rc.Mol:
         map_new_to_old[int(atom.GetProp("molAtomMapNumber"))] = atom.GetIdx()
     return rc.RenumberAtoms(mol, map_new_to_old)
 
-def default_mol(obj):
+def default_mol(obj) -> rc.Mol:
     if 'atXYZ' in obj:  # We have a frames Dataset
         atXYZ = obj['atXYZ']
     else:

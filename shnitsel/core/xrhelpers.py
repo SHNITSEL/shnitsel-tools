@@ -67,13 +67,16 @@ def midx_combs(values: pd.core.indexes.base.Index|list, name: str|None =None):
     )
 
 
-def flatten_midx(ds, idx_name, renamer=None):
-    midx = ds.indexes[idx_name]
+def flatten_midx(
+    obj: xr.Dataset | xr.DataArray, idx_name: str, renamer: callable | None = None
+) -> xr.Dataset | xr.DataArray:
+    midx = obj.indexes[idx_name]
     to_drop = midx.names + [midx.name]
     fidx = midx.to_flat_index()
     if renamer is not None:
         fidx = [renamer(x, y) for x,y in fidx]
-    return ds.drop_vars(to_drop).assign_coords({idx_name: fidx})
+    return obj.drop_vars(to_drop).assign_coords({idx_name: fidx})
+
 
 def flatten_levels(
     obj: xr.Dataset | xr.DataArray,
@@ -108,18 +111,16 @@ def flatten_levels(
     return obj.drop_vars(idx_name).assign_coords({idx_name: (dim, new)})
 
 
-def expand_midx(ds, midx_name, level_name, value):
-    midx = ds.indexes[midx_name]
+def expand_midx(
+    obj: xr.Dataset | xr.DataArray, midx_name, level_name, value
+) -> xr.Dataset | xr.DataArray:
+    midx = obj.indexes[midx_name]
     to_drop = [midx.name] + midx.names
     df = midx.to_frame()
     df.insert(0, level_name, [value]*len(midx)) # in place!
     midx = pd.MultiIndex.from_frame(df)
     coords = xr.Coordinates.from_pandas_multiindex(midx, dim=midx_name)
-    return (
-      ds
-      .drop_vars(to_drop)
-      .assign_coords(coords)
-    )
+    return obj.drop_vars(to_drop).assign_coords(coords)
 
 
 def assign_levels(
@@ -328,7 +329,7 @@ def mgroupby(
     return flatten_levels(obj, midx, levels, new_name=new_name).groupby(new_name)
 
 
-def msel(obj: xr.Dataset | xr.DataArray, **kwargs):
+def msel(obj: xr.Dataset | xr.DataArray, **kwargs) -> xr.Dataset | xr.DataArray:
     tuples = list(zip(*kwargs.items()))
     ks, vs = list(tuples[0]), list(tuples[1])
     # Find correct index and levels
@@ -350,10 +351,10 @@ def msel(obj: xr.Dataset | xr.DataArray, **kwargs):
 
 
 def sel_trajs(
-    frames: xr.Dataset,
+    frames: xr.Dataset | xr.DataArray,
     trajids_or_mask: Sequence[int] | Sequence[bool],
     invert=False,
-) -> xr.Dataset:
+) -> xr.Dataset | xr.DataArray:
     """Select trajectories using a list of trajectories IDs or a boolean mask
 
     Parameters
@@ -423,7 +424,7 @@ def sel_trajids(frames: xr.Dataset, trajids: npt.ArrayLike, invert=False) -> xr.
         res = res.sel(trajid_=actually_selected)
     return res
 
-def unstack_trajs(frames: xr.Dataset) -> xr.Dataset:
+def unstack_trajs(frames: xr.Dataset | xr.DataArray) -> xr.Dataset | xr.DataArray:
     """Unstack the ``frame`` MultiIndex so that ``trajid`` and ``time`` become
     separate dims. Wraps the :py:meth:`xarray.Dataset.unstack` method.
 
@@ -487,7 +488,7 @@ def unstack_trajs(frames: xr.Dataset) -> xr.Dataset:
     return res
 
 
-def stack_trajs(unstacked: xr.Dataset) -> xr.Dataset:
+def stack_trajs(unstacked: xr.Dataset | xr.DataArray) -> xr.Dataset | xr.DataArray:
     """Stack the ``trajid`` and ``time`` dims of an unstacked Dataset
     into a MultiIndex along a new dimension called ``frame``.
     Wraps the :py:meth:`xarray.Dataset.stack` method.
