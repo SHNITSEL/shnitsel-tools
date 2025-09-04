@@ -52,6 +52,8 @@ def generate_class_code(classes: dict[str, list[callable]]) -> str:
         'DataArrayGroupBy': 'xarray.core.groupby',
         'DatasetGroupBy': 'xarray.core.groupby',
         'needs': '._contracts',
+        'DAManualAccessor': '._accessors',
+        'DSManualAccessor': '._accessors',
     }
     plain_imports = {
         'xarray as xr',
@@ -226,7 +228,6 @@ def main():
         st.postprocess.validate,
         st.postprocess.ts_to_time,
         st.postprocess.setup_frames,
-        st.postprocess.setup_frames,
         st.postprocess.assign_fosc,
         st.postprocess.broaden_gauss,
         st.postprocess.get_per_state,
@@ -259,7 +260,10 @@ def main():
     ]
 
     code = generate_class_code(
-        {"GeneratedDAAccessor": da_funcs, "GeneratedDSAccessor": ds_funcs}
+        {
+            "DataArrayAccessor(DAManualAccessor)": da_funcs,
+            "DatasetAccessor(DSManualAccessor)": ds_funcs,
+        }
     )
     with open('../shnitsel/_generated_accessors.py', 'w') as f:
         print(code, file=f)

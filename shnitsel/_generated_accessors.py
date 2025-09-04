@@ -5,6 +5,7 @@ import sklearn
 import typing
 import xarray
 import xarray as xr
+from ._accessors import DAManualAccessor, DSManualAccessor
 from ._contracts import needs
 from numpy import ndarray
 from rdkit.Chem.rdchem import Mol
@@ -25,7 +26,7 @@ from xarray.core.dataset import Dataset
 from xarray.core.groupby import DataArrayGroupBy, DatasetGroupBy
 
 
-class GeneratedDAAccessor:
+class DataArrayAccessor(DAManualAccessor):
     def norm(self, dim: Hashable='direction', keep_attrs: bool | str | None=None) -> DataArray:
         """Wrapper for :py:func:`shnitsel.core.postprocess.norm`."""
         return norm(self._obj, dim=dim, keep_attrs=keep_attrs)
@@ -171,7 +172,7 @@ class GeneratedDAAccessor:
         """Wrapper for :py:func:`shnitsel.core.geom.get_bats`."""
         return get_bats(self._obj, mol=mol, signed=signed, deg=deg)
 
-    @needs(dims={'direction', 'atom'})
+    @needs(dims={'atom', 'direction'})
     def kabsch(self, reference_or_indexers: xarray.core.dataarray.DataArray | dict | None=None, **indexers_kwargs):
         """Wrapper for :py:func:`shnitsel.core.geom.kabsch`."""
         return kabsch(self._obj, reference_or_indexers=reference_or_indexers, **indexers_kwargs)
@@ -217,8 +218,8 @@ class GeneratedDAAccessor:
         return pls(self._obj, yda, n_components=n_components, common_dim=common_dim)
 
 
-class GeneratedDSAccessor:
-    @needs(coords_or_vars={'atXYZ', 'astate'})
+class DatasetAccessor(DSManualAccessor):
+    @needs(coords_or_vars={'astate', 'atXYZ'})
     def pca_and_hops(self) -> tuple:
         """Wrapper for :py:func:`shnitsel.core.postprocess.pca_and_hops`."""
         return pca_and_hops(self._obj)
@@ -231,10 +232,6 @@ class GeneratedDSAccessor:
     def ts_to_time(self, delta_t: float | None=None, old: Literal='drop') -> xarray.core.dataset.Dataset | xarray.core.dataarray.DataArray:
         """Wrapper for :py:func:`shnitsel.core.postprocess.ts_to_time`."""
         return ts_to_time(self._obj, delta_t=delta_t, old=old)
-
-    def setup_frames(self, to_time: bool | None=None, convert_to_eV: bool | None=None, convert_e_kin_to_eV: bool | None=None, relativize_energy: bool | None=None, relativize_selector=None) -> Dataset:
-        """Wrapper for :py:func:`shnitsel.core.postprocess.setup_frames`."""
-        return setup_frames(self._obj, to_time=to_time, convert_to_eV=convert_to_eV, convert_e_kin_to_eV=convert_e_kin_to_eV, relativize_energy=relativize_energy, relativize_selector=relativize_selector)
 
     def setup_frames(self, to_time: bool | None=None, convert_to_eV: bool | None=None, convert_e_kin_to_eV: bool | None=None, relativize_energy: bool | None=None, relativize_selector=None) -> Dataset:
         """Wrapper for :py:func:`shnitsel.core.postprocess.setup_frames`."""
@@ -315,7 +312,7 @@ class GeneratedDSAccessor:
         """Wrapper for :py:func:`shnitsel.core.parse.sharc_icond.iconds_to_frames`."""
         return iconds_to_frames(self._obj)
 
-    @needs(coords={'frame', 'trajid'}, data_vars={'energy', 'fosc'})
+    @needs(coords={'trajid', 'frame'}, data_vars={'energy', 'fosc'})
     def spectra_all_times(self):
         """Wrapper for :py:func:`shnitsel.core.plot.spectra3d.spectra_all_times`."""
         return spectra_all_times(self._obj)
