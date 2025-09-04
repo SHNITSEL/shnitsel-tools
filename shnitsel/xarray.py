@@ -4,7 +4,7 @@ from functools import wraps
 import xarray as xr
 
 
-from ._generated_accessors import GeneratedDAAcessor, GeneratedDSAcessor
+from ._generated_accessors import GeneratedDAAccessor, GeneratedDSAccessor
 
 from .core import (
     postprocess as P,
@@ -114,7 +114,7 @@ class ShnitselAccessor:
 
 
 @xr.register_dataarray_accessor('sh')
-class DAShnitselAccessor(ShnitselAccessor, GeneratedDAAcessor):
+class DAShnitselAccessor(ShnitselAccessor, GeneratedDAAccessor):
     pass
 
 
@@ -184,7 +184,7 @@ _state.DATAARRAY_ACCESSOR_REGISTERED = True
 
 
 @xr.register_dataset_accessor('sh')
-class DSShnitselAccessor(ShnitselAccessor, GeneratedDSAcessor):
+class DSShnitselAccessor(ShnitselAccessor, GeneratedDSAccessor):
     pass
 
 
