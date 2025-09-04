@@ -1,6 +1,7 @@
 import inspect
 from textwrap import indent
 from typing import get_type_hints
+import sys
 
 
 def generate_class_code(class_name: str, functions: list) -> str:
@@ -21,19 +22,56 @@ def generate_class_code(class_name: str, functions: list) -> str:
     """
 
     def get_ann_str(annotation):
-        if inspect.isclass(annotation):
-            if annotation.__module__ != "builtins":
-                imports[annotation.__name__] = annotation.__module__
-            return f"{annotation.__name__}"
-        elif annotation is not None:
-            return repr(annotation)
-        else:
+        """Convert annotation to string, handling complex types better."""
+        if annotation is None:
             return ""
 
+        # Handle string annotations (forward references)
+        if isinstance(annotation, str):
+            return annotation
+
+        # For simple types, use __name__ if available
+        if hasattr(annotation, '__name__'):
+            if (
+                hasattr(annotation, '__module__')
+                and annotation.__module__ != "builtins"
+            ):
+                module_name = annotation.__module__
+                if module_name not in ['typing', 'builtins']:
+                    imports[annotation.__name__] = module_name
+            return annotation.__name__
+
+        # For complex typing constructs, use repr but clean it up
+        ann_str = repr(annotation)
+
+        # Clean up common typing module prefixes
+        ann_str = ann_str.replace('typing.', '')
+
+        return ann_str
+
     lines = []
-    imports = {}
-    plain_imports = {'typing', 'xarray'}
-    # optional imports
+    imports = {
+        'Union': 'typing',
+        'Optional': 'typing',
+        'List': 'typing',
+        'Dict': 'typing',
+        'Hashable': 'typing',
+        'Sequence': 'typing',
+        'Literal': 'typing',
+        'DataArrayGroupBy': 'xarray.core.groupby',
+        'DatasetGroupBy': 'xarray.core.groupby',
+    }
+    plain_imports = {
+        'xarray as xr',
+        'xarray',
+        'collections',
+        'numpy',
+        'numpy.typing as npt',
+        'typing',
+        'sklearn',
+    }
+
+    # Collect imports for all functions
     for func in functions:
         imports[func.__name__] = func.__module__
 
@@ -48,32 +86,49 @@ def generate_class_code(class_name: str, functions: list) -> str:
             name = func.__name__
             module = func.__module__
             sig = inspect.signature(func)
-            hints = get_type_hints(func)
+
+            # try:
+            #     hints = get_type_hints(func)
+            # except (NameError, AttributeError) as e:
+            #     # Fallback to raw annotations if get_type_hints fails
+            hints = getattr(func, '__annotations__', {})
 
             # Build signature string with type hints
             # and arguments for wrapped function
             params = []
             args = []
+
             for pname, param in sig.parameters.items():
-                annotation = hints.get(pname)
-                # print(f"# {annotation.__name__} :: {annotation.__module__}")
-
-                if param.default is not inspect.Parameter.empty:
-                    pdefault = f"={param.default!r}"
-                    adefault = f"={pname}"
-                else:
-                    pdefault = ""
-                    adefault = ""
+                annotation = hints.get(pname, param.annotation)
                 ann_str = get_ann_str(annotation)
-                if ann_str:
-                    ann_str = ": " + ann_str
-                params.append(f"{pname}{ann_str}{pdefault}")
-                args.append(f"{pname}{adefault}")
+                ann_str = f": {ann_str}" if ann_str else ""
 
-            ret_ann = hints.get("return")
+                # Handle different parameter kinds
+                if param.kind == inspect.Parameter.VAR_POSITIONAL:
+                    # *args
+                    params.append(f"*{pname}{ann_str}")
+                    args.append(f"*{pname}")
+                elif param.kind == inspect.Parameter.VAR_KEYWORD:
+                    # **kwargs
+                    params.append(f"**{pname}{ann_str}")
+                    args.append(f"**{pname}")
+                else:
+                    # Regular parameters
+                    if param.default is not inspect.Parameter.empty:
+                        pdefault = f"={param.default!r}"
+                        adefault = f"={pname}"
+                    else:
+                        pdefault = ""
+                        adefault = ""
+                    params.append(f"{pname}{ann_str}{pdefault}")
+                    args.append(f"{pname}{adefault}")
+
+            # Handle return annotation
+            ret_ann = hints.get("return", sig.return_annotation)
             ret_str = get_ann_str(ret_ann)
-            if ret_str:
-                ret_str = " -> " + ret_str
+            ret_str = f" -> {ret_str}" if ret_str else ""
+
+            # Build parameter and argument strings
             param_str = ", ".join(["self"] + params[1:])
             arg_str = ", ".join(["self._obj"] + args[1:])
 
@@ -85,12 +140,22 @@ def generate_class_code(class_name: str, functions: list) -> str:
             """
             lines.append(method)
 
-    import_str = "\n".join(f"import {module}" for module in plain_imports)
-    import_str += "\n"
-    import_str += "\n".join(
-        [f"from {module} import {name}" for name, module in imports.items()]
-    )
-    # lines.append(f"from {func.__module__} import {func.__name__}")
+    # Generate import statements
+    import_lines = []
+    for module in sorted(plain_imports):
+        import_lines.append(f"import {module}")
+
+    # Group imports by module
+    module_imports = {}
+    for name, module in imports.items():
+        if module not in module_imports:
+            module_imports[module] = []
+        module_imports[module].append(name)
+
+    for module, names in sorted(module_imports.items()):
+        import_lines.append(f"from {module} import {', '.join(sorted(names))}")
+
+    import_str = "\n".join(import_lines)
 
     return import_str + "\n\n" + "\n".join(lines)
 
