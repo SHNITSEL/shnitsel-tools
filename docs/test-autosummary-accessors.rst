@@ -5,5 +5,5 @@ Test autosummary-accessors
     :toctree: _generated/
     :template: autosummary/accessor_attribute.rst
 
-    xarray.DataArray.test.sudi
-    xarray.DataArray.test.subtract_combinations
+    xarray.DataArray.sh.sudi
+    xarray.DataArray.sh.subtract_combinations
