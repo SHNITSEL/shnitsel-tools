@@ -282,6 +282,7 @@ def setup_frames(
 
 class Converter:
     def __init__(self, quantity, conversions):
+        self.__name__ = f"convert_{quantity}"
         self.quantity = quantity
         self.conversions = conversions
         self.targets = list(self.conversions.keys())

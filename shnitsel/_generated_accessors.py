@@ -18,7 +18,7 @@ from shnitsel.core.parse.sharc_icond import iconds_to_frames
 from shnitsel.core.plot.p3mhelpers import frame3D, frames3Dgrid, traj3D, trajs3Dgrid
 from shnitsel.core.plot.select import FrameSelector, TrajSelector
 from shnitsel.core.plot.spectra3d import spectra_all_times
-from shnitsel.core.postprocess import angle, assign_fosc, broaden_gauss, calc_ci, calc_pops, default_mol, dihedral, distance, find_hops, get_hop_types, get_inter_state, get_per_state, hop_indices, keep_norming, norm, pairwise_dists_pca, pca_and_hops, relativize, setup_frames, subtract_combinations, sudi, time_grouped_ci, to_mol, to_xyz, traj_to_xyz, trajs_with_hops, ts_to_time, validate
+from shnitsel.core.postprocess import angle, assign_fosc, broaden_gauss, calc_ci, calc_pops, convert_dipoles, convert_energy, convert_forces, convert_length, default_mol, dihedral, distance, find_hops, get_hop_types, get_inter_state, get_per_state, hop_indices, keep_norming, norm, pairwise_dists_pca, pca_and_hops, relativize, setup_frames, subtract_combinations, sudi, time_grouped_ci, to_mol, to_xyz, traj_to_xyz, trajs_with_hops, ts_to_time, validate
 from shnitsel.core.xrhelpers import assign_levels, expand_midx, flatten_levels, mgroupby, msel, save_frames, sel_trajids, sel_trajs, stack_trajs, unstack_trajs
 from typing import Dict, Hashable, List, Literal, Optional, Sequence, Union
 from xarray.core.dataarray import DataArray
@@ -113,6 +113,22 @@ class DataArrayAccessor(DAManualAccessor):
         """Wrapper for :py:func:`shnitsel.core.postprocess.default_mol`."""
         return default_mol(self._obj)
 
+    def convert_energy(self, to: str):
+        """Wrapper for :py:func:`shnitsel.core.postprocess.convert_energy`."""
+        return convert_energy(self._obj, to)
+
+    def convert_forces(self, to: str):
+        """Wrapper for :py:func:`shnitsel.core.postprocess.convert_forces`."""
+        return convert_forces(self._obj, to)
+
+    def convert_dipoles(self, to: str):
+        """Wrapper for :py:func:`shnitsel.core.postprocess.convert_dipoles`."""
+        return convert_dipoles(self._obj, to)
+
+    def convert_length(self, to: str):
+        """Wrapper for :py:func:`shnitsel.core.postprocess.convert_length`."""
+        return convert_length(self._obj, to)
+
     def flatten_levels(self, idx_name: str, levels: Sequence[str], new_name: str | None=None, position: int=0, renamer: typing.Callable | None=None) -> xr.Dataset | xr.DataArray:
         """Wrapper for :py:func:`shnitsel.core.xrhelpers.flatten_levels`."""
         return flatten_levels(self._obj, idx_name, levels, new_name=new_name, position=position, renamer=renamer)
@@ -172,7 +188,7 @@ class DataArrayAccessor(DAManualAccessor):
         """Wrapper for :py:func:`shnitsel.core.geom.get_bats`."""
         return get_bats(self._obj, mol=mol, signed=signed, deg=deg)
 
-    @needs(dims={'atom', 'direction'})
+    @needs(dims={'direction', 'atom'})
     def kabsch(self, reference_or_indexers: xarray.core.dataarray.DataArray | dict | None=None, **indexers_kwargs):
         """Wrapper for :py:func:`shnitsel.core.geom.kabsch`."""
         return kabsch(self._obj, reference_or_indexers=reference_or_indexers, **indexers_kwargs)
@@ -219,7 +235,7 @@ class DataArrayAccessor(DAManualAccessor):
 
 
 class DatasetAccessor(DSManualAccessor):
-    @needs(coords_or_vars={'astate', 'atXYZ'})
+    @needs(coords_or_vars={'atXYZ', 'astate'})
     def pca_and_hops(self) -> tuple:
         """Wrapper for :py:func:`shnitsel.core.postprocess.pca_and_hops`."""
         return pca_and_hops(self._obj)
@@ -256,7 +272,7 @@ class DatasetAccessor(DSManualAccessor):
         """Wrapper for :py:func:`shnitsel.core.postprocess.get_inter_state`."""
         return get_inter_state(self._obj)
 
-    @needs(dims={'frame', 'state'}, coords={'time'}, data_vars={'astate'})
+    @needs(dims={'state', 'frame'}, coords={'time'}, data_vars={'astate'})
     def calc_pops(self) -> DataArray:
         """Wrapper for :py:func:`shnitsel.core.postprocess.calc_pops`."""
         return calc_pops(self._obj)
@@ -317,7 +333,7 @@ class DatasetAccessor(DSManualAccessor):
         """Wrapper for :py:func:`shnitsel.core.plot.spectra3d.spectra_all_times`."""
         return spectra_all_times(self._obj)
 
-    @needs(data_vars={'e_kin', 'energy'})
+    @needs(data_vars={'energy', 'e_kin'})
     def energy_filtranda(self) -> Dataset:
         """Wrapper for :py:func:`shnitsel.core.filtre.energy_filtranda`."""
         return energy_filtranda(self._obj)

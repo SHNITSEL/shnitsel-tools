@@ -190,6 +190,11 @@ def main():
         st.postprocess.get_hop_types,
         st.postprocess.to_mol,
         st.postprocess.default_mol,
+        # postprocess converters
+        st.postprocess.convert_energy,
+        st.postprocess.convert_forces,
+        st.postprocess.convert_dipoles,
+        st.postprocess.convert_length,
         # xrhelpers
         st.xrhelpers.flatten_levels,
         st.xrhelpers.expand_midx,
