@@ -212,7 +212,7 @@ class DataArrayAccessor(DAManualAccessor):
         """Wrapper for :py:func:`shnitsel.core.filter_unphysical.smiles_map`."""
         return smiles_map(self._obj, charge=charge, covFactor=covFactor)
 
-    @needs(dims={'frame'}, coords={'trajid', 'time'})
+    @needs(dims={'frame'}, coords={'time', 'trajid'})
     def last_time_where(self):
         """Wrapper for :py:func:`shnitsel.core.filtre.last_time_where`."""
         return last_time_where(self._obj)
@@ -332,7 +332,7 @@ class DatasetAccessor(DSManualAccessor):
         """Wrapper for :py:func:`shnitsel.core.postprocess.setup_frames`."""
         return setup_frames(self._obj, to_time=to_time, convert_to_eV=convert_to_eV, convert_e_kin_to_eV=convert_e_kin_to_eV, relativize_energy=relativize_energy, relativize_selector=relativize_selector)
 
-    @needs(data_vars={'energy', 'dip_trans'})
+    @needs(data_vars={'dip_trans', 'energy'})
     def assign_fosc(self) -> Dataset:
         """Wrapper for :py:func:`shnitsel.core.postprocess.assign_fosc`."""
         return assign_fosc(self._obj)
@@ -412,17 +412,17 @@ class DatasetAccessor(DSManualAccessor):
         """Wrapper for :py:func:`shnitsel.core.plot.spectra3d.spectra_all_times`."""
         return spectra_all_times(self._obj)
 
-    @needs(data_vars={'energy', 'e_kin'})
+    @needs(data_vars={'e_kin', 'energy'})
     def energy_filtranda(self) -> Dataset:
         """Wrapper for :py:func:`shnitsel.core.filtre.energy_filtranda`."""
         return energy_filtranda(self._obj)
 
-    @needs(dims={'frame'}, coords={'trajid', 'time'})
+    @needs(dims={'frame'}, coords={'time', 'trajid'})
     def get_cutoffs(self):
         """Wrapper for :py:func:`shnitsel.core.filtre.get_cutoffs`."""
         return get_cutoffs(self._obj)
 
-    @needs(dims={'frame'}, coords={'trajid', 'time'})
+    @needs(dims={'frame'}, coords={'time', 'trajid'})
     def truncate(self, cutoffs):
         """Wrapper for :py:func:`shnitsel.core.filtre.truncate`."""
         return truncate(self._obj, cutoffs)

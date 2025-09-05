@@ -134,7 +134,14 @@ def generate_class_code(classes: dict[str, list[callable]]) -> str:
                 if hasattr(func, '_needs'):
                     for field in func._needs._fields:
                         val = getattr(func._needs, field)
-                        if val is not None:
+                        if val is None:
+                            continue
+                        elif isinstance(val, set):
+                            # Generate sets with consistent order
+                            reprs = [repr(x) for x in sorted(list(val))]
+                            set_str = '{' + ', '.join(reprs) + '}'
+                            needs_kws.append(f"{field}={set_str}")
+                        else:
                             needs_kws.append(f"{field}={val}")
                     needs_str = ", ".join(needs_kws)
                     needs_str = f"""\
