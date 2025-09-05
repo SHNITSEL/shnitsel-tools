@@ -77,6 +77,12 @@ def generate_class_code(classes: dict[str, list[callable]]) -> str:
         if not functions:
             lines.append("    pass")
         else:
+            lines.append("    _methods = [")
+            for func in functions:
+                lines.append(f"        {func.__name__!r},")
+
+            lines.append("    ]\n")
+
             for func in functions:
                 name = func.__name__
                 module = func.__module__

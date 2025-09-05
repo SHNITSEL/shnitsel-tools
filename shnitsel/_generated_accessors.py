@@ -27,6 +27,55 @@ from xarray.core.groupby import DataArrayGroupBy, DatasetGroupBy
 
 
 class DataArrayAccessor(DAManualAccessor):
+    _methods = [
+        'norm',
+        'subtract_combinations',
+        'pairwise_dists_pca',
+        'sudi',
+        'hop_indices',
+        'relativize',
+        'ts_to_time',
+        'keep_norming',
+        'calc_ci',
+        'time_grouped_ci',
+        'to_xyz',
+        'traj_to_xyz',
+        'dihedral',
+        'angle',
+        'distance',
+        'trajs_with_hops',
+        'get_hop_types',
+        'to_mol',
+        'default_mol',
+        'convert_energy',
+        'convert_forces',
+        'convert_dipoles',
+        'convert_length',
+        'flatten_levels',
+        'expand_midx',
+        'assign_levels',
+        'mgroupby',
+        'msel',
+        'sel_trajs',
+        'sel_trajids',
+        'smiles_map',
+        'last_time_where',
+        'get_bond_lengths',
+        'get_bond_angles',
+        'get_bond_torsions',
+        'get_bats',
+        'kabsch',
+        'FrameSelector',
+        'TrajSelector',
+        'frame3D',
+        'frames3Dgrid',
+        'traj3D',
+        'trajs3Dgrid',
+        'pca',
+        'lda',
+        'pls',
+    ]
+
     def norm(self, dim: Hashable='direction', keep_attrs: bool | str | None=None) -> DataArray:
         """Wrapper for :py:func:`shnitsel.core.postprocess.norm`."""
         return norm(self._obj, dim=dim, keep_attrs=keep_attrs)
@@ -71,12 +120,12 @@ class DataArrayAccessor(DAManualAccessor):
         """Wrapper for :py:func:`shnitsel.core.postprocess.time_grouped_ci`."""
         return time_grouped_ci(self._obj, confidence=confidence)
 
-    @needs(coords_or_vars={'atNames'}, not_dims={'frame'})
+    @needs(dims={'atom', 'direction'}, coords_or_vars={'atNames'}, not_dims={'frame'})
     def to_xyz(self, comment='#') -> str:
         """Wrapper for :py:func:`shnitsel.core.postprocess.to_xyz`."""
         return to_xyz(self._obj, comment=comment)
 
-    @needs(groupable={'time'}, coords_or_vars={'atNames'})
+    @needs(dims={'atom', 'direction'}, groupable={'time'}, coords_or_vars={'atNames'})
     def traj_to_xyz(self) -> str:
         """Wrapper for :py:func:`shnitsel.core.postprocess.traj_to_xyz`."""
         return traj_to_xyz(self._obj)
@@ -104,7 +153,7 @@ class DataArrayAccessor(DAManualAccessor):
         """Wrapper for :py:func:`shnitsel.core.postprocess.get_hop_types`."""
         return get_hop_types(self._obj)
 
-    @needs(coords_or_vars={'atNames'}, not_dims={'frame'})
+    @needs(dims={'atom', 'direction'}, coords_or_vars={'atNames'}, not_dims={'frame'})
     def to_mol(self, charge=None, covFactor=1.2, to2D=True, molAtomMapNumber=None, atomNote=None, atomLabel=None) -> Mol:
         """Wrapper for :py:func:`shnitsel.core.postprocess.to_mol`."""
         return to_mol(self._obj, charge=charge, covFactor=covFactor, to2D=to2D, molAtomMapNumber=molAtomMapNumber, atomNote=atomNote, atomLabel=atomLabel)
@@ -188,7 +237,7 @@ class DataArrayAccessor(DAManualAccessor):
         """Wrapper for :py:func:`shnitsel.core.geom.get_bats`."""
         return get_bats(self._obj, mol=mol, signed=signed, deg=deg)
 
-    @needs(dims={'direction', 'atom'})
+    @needs(dims={'atom', 'direction'})
     def kabsch(self, reference_or_indexers: xarray.core.dataarray.DataArray | dict | None=None, **indexers_kwargs):
         """Wrapper for :py:func:`shnitsel.core.geom.kabsch`."""
         return kabsch(self._obj, reference_or_indexers=reference_or_indexers, **indexers_kwargs)
@@ -201,22 +250,22 @@ class DataArrayAccessor(DAManualAccessor):
         """Wrapper for :py:func:`shnitsel.core.plot.select.TrajSelector`."""
         return TrajSelector(self._obj, xname=xname, yname=yname, title=title, allowed_ws_origin=allowed_ws_origin, webgl=webgl)
 
-    @needs(coords_or_vars={'atNames'}, not_dims={'frame'})
+    @needs(dims={'atom', 'direction'}, coords_or_vars={'atNames'}, not_dims={'frame'})
     def frame3D(self):
         """Wrapper for :py:func:`shnitsel.core.plot.p3mhelpers.frame3D`."""
         return frame3D(self._obj)
 
-    @needs(groupable={'frame'}, coords_or_vars={'atNames'})
+    @needs(dims={'atom', 'direction'}, groupable={'frame'}, coords_or_vars={'atNames'})
     def frames3Dgrid(self):
         """Wrapper for :py:func:`shnitsel.core.plot.p3mhelpers.frames3Dgrid`."""
         return frames3Dgrid(self._obj)
 
-    @needs(groupable={'time'}, coords_or_vars={'atNames'})
+    @needs(dims={'atom', 'direction'}, groupable={'time'}, coords_or_vars={'atNames'})
     def traj3D(self):
         """Wrapper for :py:func:`shnitsel.core.plot.p3mhelpers.traj3D`."""
         return traj3D(self._obj)
 
-    @needs(coords={'sel'}, groupable={'time'}, coords_or_vars={'atNames'})
+    @needs(dims={'atom', 'direction'}, coords={'trajid'}, groupable={'time'}, coords_or_vars={'atNames'})
     def trajs3Dgrid(self, trajids: list[int | str] | None=None, loop='forward'):
         """Wrapper for :py:func:`shnitsel.core.plot.p3mhelpers.trajs3Dgrid`."""
         return trajs3Dgrid(self._obj, trajids=trajids, loop=loop)
@@ -235,7 +284,37 @@ class DataArrayAccessor(DAManualAccessor):
 
 
 class DatasetAccessor(DSManualAccessor):
-    @needs(coords_or_vars={'atXYZ', 'astate'})
+    _methods = [
+        'pca_and_hops',
+        'validate',
+        'ts_to_time',
+        'setup_frames',
+        'assign_fosc',
+        'broaden_gauss',
+        'get_per_state',
+        'get_inter_state',
+        'calc_pops',
+        'find_hops',
+        'default_mol',
+        'flatten_levels',
+        'expand_midx',
+        'assign_levels',
+        'mgroupby',
+        'msel',
+        'save_frames',
+        'sel_trajs',
+        'unstack_trajs',
+        'stack_trajs',
+        'iconds_to_frames',
+        'spectra_all_times',
+        'energy_filtranda',
+        'get_cutoffs',
+        'truncate',
+        'write_ase',
+        'pls_ds',
+    ]
+
+    @needs(coords_or_vars={'astate', 'atXYZ'})
     def pca_and_hops(self) -> tuple:
         """Wrapper for :py:func:`shnitsel.core.postprocess.pca_and_hops`."""
         return pca_and_hops(self._obj)
@@ -272,7 +351,7 @@ class DatasetAccessor(DSManualAccessor):
         """Wrapper for :py:func:`shnitsel.core.postprocess.get_inter_state`."""
         return get_inter_state(self._obj)
 
-    @needs(dims={'state', 'frame'}, coords={'time'}, data_vars={'astate'})
+    @needs(dims={'frame', 'state'}, coords={'time'}, data_vars={'astate'})
     def calc_pops(self) -> DataArray:
         """Wrapper for :py:func:`shnitsel.core.postprocess.calc_pops`."""
         return calc_pops(self._obj)
@@ -328,7 +407,7 @@ class DatasetAccessor(DSManualAccessor):
         """Wrapper for :py:func:`shnitsel.core.parse.sharc_icond.iconds_to_frames`."""
         return iconds_to_frames(self._obj)
 
-    @needs(coords={'trajid', 'frame'}, data_vars={'energy', 'fosc'})
+    @needs(coords={'frame', 'trajid'}, data_vars={'energy', 'fosc'})
     def spectra_all_times(self):
         """Wrapper for :py:func:`shnitsel.core.plot.spectra3d.spectra_all_times`."""
         return spectra_all_times(self._obj)
