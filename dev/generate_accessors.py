@@ -202,6 +202,7 @@ def main():
         st.postprocess.trajs_with_hops,
         st.postprocess.get_hop_types,
         st.postprocess.to_mol,
+        st.postprocess.smiles_map,
         st.postprocess.default_mol,
         # postprocess converters
         st.postprocess.convert_energy,
@@ -216,8 +217,6 @@ def main():
         st.xrhelpers.msel,
         st.xrhelpers.sel_trajs,
         st.xrhelpers.sel_trajids,
-        # filtre_unphysical
-        st.core.filter_unphysical.smiles_map,
         # filtre
         st.core.filtre.last_time_where,
         # geom

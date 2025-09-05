@@ -10,7 +10,6 @@ from ._contracts import needs
 from numpy import ndarray
 from rdkit.Chem.rdchem import Mol
 from shnitsel.core.ase import write_ase
-from shnitsel.core.filter_unphysical import smiles_map
 from shnitsel.core.filtre import energy_filtranda, get_cutoffs, last_time_where, truncate
 from shnitsel.core.geom import get_bats, get_bond_angles, get_bond_lengths, get_bond_torsions, kabsch
 from shnitsel.core.ml import lda, pca, pls, pls_ds
@@ -18,7 +17,7 @@ from shnitsel.core.parse.sharc_icond import iconds_to_frames
 from shnitsel.core.plot.p3mhelpers import frame3D, frames3Dgrid, traj3D, trajs3Dgrid
 from shnitsel.core.plot.select import FrameSelector, TrajSelector
 from shnitsel.core.plot.spectra3d import spectra_all_times
-from shnitsel.core.postprocess import angle, assign_fosc, broaden_gauss, calc_ci, calc_pops, convert_dipoles, convert_energy, convert_forces, convert_length, default_mol, dihedral, distance, find_hops, get_hop_types, get_inter_state, get_per_state, hop_indices, keep_norming, norm, pairwise_dists_pca, pca_and_hops, relativize, setup_frames, subtract_combinations, sudi, time_grouped_ci, to_mol, to_xyz, traj_to_xyz, trajs_with_hops, ts_to_time, validate
+from shnitsel.core.postprocess import angle, assign_fosc, broaden_gauss, calc_ci, calc_pops, convert_dipoles, convert_energy, convert_forces, convert_length, default_mol, dihedral, distance, find_hops, get_hop_types, get_inter_state, get_per_state, hop_indices, keep_norming, norm, pairwise_dists_pca, pca_and_hops, relativize, setup_frames, smiles_map, subtract_combinations, sudi, time_grouped_ci, to_mol, to_xyz, traj_to_xyz, trajs_with_hops, ts_to_time, validate
 from shnitsel.core.xrhelpers import assign_levels, expand_midx, flatten_levels, mgroupby, msel, save_frames, sel_trajids, sel_trajs, stack_trajs, unstack_trajs
 from typing import Dict, Hashable, List, Literal, Optional, Sequence, Union
 from xarray.core.dataarray import DataArray
@@ -46,6 +45,7 @@ class DataArrayAccessor(DAManualAccessor):
         'trajs_with_hops',
         'get_hop_types',
         'to_mol',
+        'smiles_map',
         'default_mol',
         'convert_energy',
         'convert_forces',
@@ -58,7 +58,6 @@ class DataArrayAccessor(DAManualAccessor):
         'msel',
         'sel_trajs',
         'sel_trajids',
-        'smiles_map',
         'last_time_where',
         'get_bond_lengths',
         'get_bond_angles',
@@ -158,6 +157,11 @@ class DataArrayAccessor(DAManualAccessor):
         """Wrapper for :py:func:`shnitsel.core.postprocess.to_mol`."""
         return to_mol(self._obj, charge=charge, covFactor=covFactor, to2D=to2D, molAtomMapNumber=molAtomMapNumber, atomNote=atomNote, atomLabel=atomLabel)
 
+    @needs(dims={'atom', 'direction'}, coords_or_vars={'atNames'}, not_dims={'frame'})
+    def smiles_map(self, charge=0, covFactor=1.5) -> str:
+        """Wrapper for :py:func:`shnitsel.core.postprocess.smiles_map`."""
+        return smiles_map(self._obj, charge=charge, covFactor=covFactor)
+
     def default_mol(self) -> Mol:
         """Wrapper for :py:func:`shnitsel.core.postprocess.default_mol`."""
         return default_mol(self._obj)
@@ -207,10 +211,6 @@ class DataArrayAccessor(DAManualAccessor):
     def sel_trajids(self, trajids: npt.ArrayLike, invert=False) -> xr.Dataset:
         """Wrapper for :py:func:`shnitsel.core.xrhelpers.sel_trajids`."""
         return sel_trajids(self._obj, trajids, invert=invert)
-
-    def smiles_map(self, charge=0, covFactor=1.5) -> str:
-        """Wrapper for :py:func:`shnitsel.core.filter_unphysical.smiles_map`."""
-        return smiles_map(self._obj, charge=charge, covFactor=covFactor)
 
     @needs(dims={'frame'}, coords={'time', 'trajid'})
     def last_time_where(self):

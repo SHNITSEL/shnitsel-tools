@@ -878,6 +878,13 @@ def numbered_smiles_to_mol(smiles: str) -> rc.Mol:
         map_new_to_old[int(atom.GetProp("molAtomMapNumber"))] = atom.GetIdx()
     return rc.RenumberAtoms(mol, map_new_to_old)
 
+
+@needs(dims={'atom', 'direction'}, coords_or_vars={'atNames'}, not_dims={'frame'})
+def smiles_map(atXYZ_frame, charge=0, covFactor=1.5) -> str:
+    mol = to_mol(atXYZ_frame, charge=charge, covFactor=covFactor, to2D=True)
+    return mol_to_numbered_smiles(mol)
+
+
 def default_mol(obj) -> rc.Mol:
     if 'atXYZ' in obj:  # We have a frames Dataset
         atXYZ = obj['atXYZ']

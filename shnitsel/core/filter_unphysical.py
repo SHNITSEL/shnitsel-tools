@@ -6,8 +6,9 @@ import xarray as xr
 from . import postprocess as P, xrhelpers as xh
 from .plot import pca_biplot
 from .postprocess import (
-    mol_to_numbered_smiles as mol_to_numbered_smiles,
     numbered_smiles_to_mol,
+    mol_to_numbered_smiles as mol_to_numbered_smiles,
+    smiles_map as smiles_map,
 )
 
 
@@ -118,11 +119,6 @@ def filter_cleavage(frames, *, CC=False, CH=False, CN=False, NH=False, verbose=2
         print(f"Keep {ntraj} trajectories ({nframes} frames)")
 
     return frames
-
-# TODO 2025-06-16: Does this function belong here?
-def smiles_map(atXYZ_frame, charge=0, covFactor=1.5) -> str:
-    mol = P.to_mol(atXYZ_frame, charge=charge, covFactor=covFactor, to2D=True)
-    return mol_to_numbered_smiles(mol)
 
 
 #########################
