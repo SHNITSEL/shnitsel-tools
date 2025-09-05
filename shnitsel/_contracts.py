@@ -1,19 +1,17 @@
 from typing import Literal, Callable
 from collections import namedtuple
 
-Needs = namedtuple(
-    'Needs',
-    [
-        'to_be',
-        'dims',
-        'coords',
-        'data_vars',
-        'groupable',
-        'coords_or_vars',
-        'name',
-        'not_dims',
-    ],
-)
+_fields = [
+    'to_be',
+    'dims',
+    'coords',
+    'data_vars',
+    'groupable',
+    'coords_or_vars',
+    'name',
+    'not_dims',
+]
+Needs = namedtuple('Needs', _fields, defaults=(None,) * len(_fields))
 
 
 def needs(
