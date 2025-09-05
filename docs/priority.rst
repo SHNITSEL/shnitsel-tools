@@ -1,3 +1,5 @@
+.. currentmodule:: shnitsel
+
 Frequently-used functions
 =========================
 
@@ -5,17 +7,17 @@ Frequently-used functions
 .. autosummary::
     :toctree: _generated
     
-    shnitsel.parse.sharc_icond.dirs_of_iconds
+    parse.sharc_icond.dirs_of_iconds
 
 .. autosummary::
     :toctree: _generated
     
-    shnitsel.parse.read_trajs
+    parse.read_trajs
 
 .. autosummary::
     :toctree: _generated
     
-    shnitsel.open_frames
+    open_frames
 
 .. .. automethod:: shnitsel.xarray.DAShnitselAccessor.get_bond_lengths
 
@@ -26,58 +28,58 @@ Frequently-used functions
 .. autosummary::
     :toctree: _generated
 
-    shnitsel.core.filtre.get_bond_lengths
-    shnitsel.core.xrhelpers.msel
-    shnitsel.core.xrhelpers.sel_trajs
-    shnitsel.core.xrhelpers.save_frames
-    shnitsel.core.postprocess.dihedral
-    shnitsel.core.postprocess.get_inter_state
-    shnitsel.core.plot.spectra3d.spectra_all_times
+    core.filtre.get_bond_lengths
+    core.xrhelpers.msel
+    core.xrhelpers.sel_trajs
+    core.xrhelpers.save_frames
+    core.postprocess.dihedral
+    core.postprocess.get_inter_state
+    core.plot.spectra3d.spectra_all_times
 
 .. autosummary::
     :toctree: _generated
 
-    shnitsel.plot.biplot_kde
-    shnitsel.plot.ski_plots
-    shnitsel.plot.Datasheet
-    shnitsel.plot.Datasheet.plot_timeplots
-    shnitsel.plot.Datasheet.charge
-    shnitsel.plot.Datasheet.plot
+    plot.biplot_kde
+    plot.ski_plots
+    plot.Datasheet
+    plot.Datasheet.plot_timeplots
+    plot.Datasheet.charge
+    plot.Datasheet.plot
 
 .. autosummary::
     :toctree: _generated
 
-    shnitsel.core.xrhelpers.save_frames
-    shnitsel.open_frames
-    shnitsel.read_ase
-    shnitsel.core.ase.write_ase
-    shnitsel.datasheet
-    shnitsel.core.postprocess.relativize
-    shnitsel.filtre
-    shnitsel.core.filtre.energy_filtranda
-    shnitsel.core.filtre.get_cutoffs
-    shnitsel.core.filtre.truncate
-    shnitsel.core.xrhelpers.sel_trajs
-    shnitsel.core.postprocess.distance
-    shnitsel.core.filtre.get_bond_lengths
-    shnitsel.plot.pca_biplot
-    shnitsel.core.postprocess.assign_fosc
-    shnitsel.core.postprocess.get_inter_state
-    shnitsel.plot.spectra_all_times
-    shnitsel.broaden_gauss
-    shnitsel.plot.Datasheet.plot_separated_spectra_and_hists
-    shnitsel.plot.ski_plots
-    shnitsel.core.postprocess.calc_pops
-    shnitsel.core.xrhelpers.msel
-    shnitsel.core.filtre.last_time_where
-    shnitsel.core.postprocess.subtract_combinations
-    shnitsel.core.postprocess.to_mol
-    shnitsel.core.postprocess.subtract_combinations
-    shnitsel.core.postprocess.norm
-    shnitsel.core.postprocess.pca
-    shnitsel.core.postprocess.pairwise_dists_pca
-    shnitsel.core.xrhelpers.mgroupby
-    shnitsel.core.postprocess.dihedral
+    core.xrhelpers.save_frames
+    open_frames
+    read_ase
+    core.ase.write_ase
+    datasheet
+    core.postprocess.relativize
+    filtre
+    core.filtre.energy_filtranda
+    core.filtre.get_cutoffs
+    core.filtre.truncate
+    core.xrhelpers.sel_trajs
+    core.postprocess.distance
+    core.filtre.get_bond_lengths
+    plot.pca_biplot
+    core.postprocess.assign_fosc
+    core.postprocess.get_inter_state
+    plot.spectra_all_times
+    broaden_gauss
+    plot.Datasheet.plot_separated_spectra_and_hists
+    plot.ski_plots
+    core.postprocess.calc_pops
+    core.xrhelpers.msel
+    core.filtre.last_time_where
+    core.postprocess.subtract_combinations
+    core.postprocess.to_mol
+    core.postprocess.subtract_combinations
+    core.postprocess.norm
+    core.postprocess.pca
+    core.postprocess.pairwise_dists_pca
+    core.xrhelpers.mgroupby
+    core.postprocess.dihedral
 
 .. .. automethod:: shnitsel.read_ase_db
 .. ↑ NAME WRONG!
