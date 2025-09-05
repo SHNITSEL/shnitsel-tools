@@ -639,9 +639,9 @@ def time_grouped_ci(x: xr.DataArray, confidence: float = 0.9) -> xr.Dataset:
       x.groupby('time')
       .map(lambda x: xr_calc_ci(x, dim='frame', confidence=confidence)))
 
-@needs(coords_or_vars={'atNames'}, not_dims={'frame'})
+@needs(dims={'atom', 'direction'}, coords_or_vars={'atNames'}, not_dims={'frame'})
 def to_xyz(da: AtXYZ, comment='#') -> str:
-    atXYZ = da.values
+    atXYZ = da.transpose('atom', 'direction').values
     atNames = da.atNames.values
     sxyz = np.char.mod('% 23.15f', atXYZ)
     sxyz = np.squeeze(sxyz)
@@ -650,8 +650,9 @@ def to_xyz(da: AtXYZ, comment='#') -> str:
     return f'{len(sxyz):>12}\n  {comment}\n' + '\n'.join(sxyz)
 
 
-@needs(groupable={'time'}, coords_or_vars={'atNames'})
+@needs(dims={'atom', 'direction'}, groupable={'time'}, coords_or_vars={'atNames'})
 def traj_to_xyz(traj_atXYZ: AtXYZ) -> str:
+    traj_atXYZ = traj_atXYZ.transpose(..., 'atom', 'direction')
     return '\n'.join(
         to_xyz(t_atXYZ, comment=f"# t={t}") for t, t_atXYZ in traj_atXYZ.groupby('time')
     )
@@ -841,7 +842,7 @@ def set_atom_props(mol, **kws):
             atom.SetProp(prop, str(val))
     return mol
 
-@needs(coords_or_vars={'atNames'}, not_dims={'frame'})
+@needs(dims={'atom', 'direction'}, coords_or_vars={'atNames'}, not_dims={'frame'})
 def to_mol(
     atXYZ_frame,
     charge=None,
