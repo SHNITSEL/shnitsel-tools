@@ -76,7 +76,7 @@ def subtract_combinations(
     """
 
     def midx(da, dim):
-        return xrhelpers.midx_combs(da.indexes[dim])[f'{dim}comb']
+        return xrhelpers.midx_combs(da.get_index(dim))[f'{dim}comb']
 
     if dim not in da.dims:
         raise ValueError(f"'{dim}' is not a dimension of the DataArray")
@@ -93,7 +93,7 @@ def subtract_combinations(
 
     if labels:
         xrmat = xr.DataArray(
-            data=mat, coords={f'{dim}comb': midx(da, dim), dim: da.indexes[dim]}
+            data=mat, coords={f'{dim}comb': midx(da, dim), dim: da.get_index(dim)}
         )
     else:
         xrmat = xr.DataArray(
