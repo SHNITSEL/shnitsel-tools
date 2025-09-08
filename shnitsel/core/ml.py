@@ -85,7 +85,9 @@ def lda(da, dim, cats, n_components=2):
     lda_res[cats_name] = cats
 
     scalings = xr.DataArray(
-        lda_object.scalings_, coords=[da.coords[dim], lda_res.coords['PC']]
+        lda_object.scalings_,
+        dims=(dim, 'scaling'),
+        coords={'dim': da.coords[dim]},
     )
 
     if _state.DATAARRAY_ACCESSOR_REGISTERED:
