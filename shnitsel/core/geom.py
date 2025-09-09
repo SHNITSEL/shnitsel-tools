@@ -51,6 +51,31 @@ def identify_bonds(mol, symbols=True):
 
 @needs(dims={'atom'})
 def get_bond_lengths(atXYZ, bond_types=None, mol=None):
+    """Identify bonds (using RDKit) and find the length of each bond in each
+    frame.
+
+    Parameters
+    ----------
+    atXYZ
+        An :py:class:`xarray.DataArray` of molecular coordinates, with dimensions
+        `frame`, `atom` and `direction`
+    bond_types, optional
+        A dictionary containing types of bonds as keys, and lists of atom index pair
+        as values. It may be convenient to use :py:func:`shnitsel.core.geom.identify_bonds`
+        to create a dictionary in the correct format, and then customize it. If omitted,
+        bonds are identified automatically based on the `mol` argument.
+    mol, optional
+        An RDKit `Mol` object, which is generated from `atXYZ` if this argument is omitted.
+
+    Returns
+    -------
+        An :py:class:`xarray.DataArray` of bond lengths with dimensions `frame` and `bond`.
+
+    Raises
+    ------
+    UserWarning
+        If both `bond_types` and `mol` are specified.
+    """
     dists = atXYZ.pipe(subtract_combinations, 'atom', labels=True).pipe(norm)
     if bond_types is None:
         if mol is None:
@@ -127,6 +152,34 @@ def identify_angles(mol: Mol):
 
 @needs(dims={'atom'})
 def get_bond_angles(atXYZ, angle_types=None, mol=None, deg=False):
+    """Identify triples of bonded atoms (using RDKit) and calculate every bond angle for each
+    frame.
+
+    Parameters
+    ----------
+    atXYZ
+        An :py:class:`xarray.DataArray` of molecular coordinates, with dimensions
+        `frame`, `atom` and `direction`
+    angle_types, optional
+        An :py:class:`xarray.Dataset` containing atom indices, atomic numbers, bond types, angle type
+        and angle symbol for each angle to be calculated.
+        It may be convenient to use :py:func:`shnitsel.core.geom.identify_angles`
+        to create a Dataset in the correct format, and then customize it. If omitted,
+        angles are identified automatically based on the `mol` argument.
+    mol, optional
+        An RDKit `Mol` object, which is generated from `atXYZ` if this argument is omitted.
+    deg, optional
+        Whether to return angles in degrees (as opposed to radians), by default False
+
+    Returns
+    -------
+        An :py:class:`xarray.DataArray` of bond angles with dimensions `frame` and `angle`.
+
+    Raises
+    ------
+    UserWarning
+        If both `angle_types` and `mol` are specified.
+    """
     if angle_types is None:
         if mol is None:
             mol = default_mol(atXYZ)
@@ -225,6 +278,36 @@ def identify_torsions(mol: Mol) -> xr.Dataset:
 
 @needs(dims={'atom'})
 def get_bond_torsions(atXYZ, quadruple_types=None, mol=None, signed=False, deg=False):
+    """Identify quadruples of bonded atoms (using RDKit) and calculate the corresponding proper bond torsion for each
+    frame.
+
+    Parameters
+    ----------
+    atXYZ
+        An :py:class:`xarray.DataArray` of molecular coordinates, with dimensions
+        `frame`, `atom` and `direction`
+    quadruple_types, optional
+        An :py:class:`xarray.Dataset` containing atom indices, atomic numbers, bond types, torsion type
+        and torsion symbol for each angle to be calculated.
+        It may be convenient to use :py:func:`shnitsel.core.geom.identify_torsions`
+        to create a Dataset in the correct format, and then customize it. If omitted,
+        angles are identified automatically based on the `mol` argument.
+    mol, optional
+        An RDKit `Mol` object, which is generated from `atXYZ` if this argument is omitted.
+    signed, optional
+        Whether to distinguish between clockwise and anticlockwise rotation, by default False
+    deg, optional
+        Whether to return angles in degrees (as opposed to radians), by default False
+
+    Returns
+    -------
+        An :py:class:`xarray.DataArray` of bond torsions with dimensions `frame` and `torsion`.
+
+    Raises
+    ------
+    UserWarning
+        If both `torsion_types` and `mol` are specified.
+    """
     if quadruple_types is None:
         if mol is None:
             mol = default_mol(atXYZ)
