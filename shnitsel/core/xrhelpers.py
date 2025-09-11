@@ -150,8 +150,8 @@ def assign_levels(
     ValueError
         If levels are provided in both keyword and dictionary form.
     """
-    if levels is None:
-        if levels_kwargs != {}:
+    if levels_kwargs != {}:
+        if levels is not None:
             raise ValueError(
                 "cannot specify both keyword and positional arguments to assign_levels"
             )
