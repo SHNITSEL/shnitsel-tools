@@ -479,6 +479,7 @@ def broaden_gauss(
     *,
     width: float = 0.5,
     nsamples: int = 1000,
+    xmin: float = 0,
     xmax: float | None = None,
 ) -> xr.DataArray:
     r"""
@@ -508,21 +509,22 @@ def broaden_gauss(
         nonlocal stdev
         return 1 / (np.sqrt(2 * np.pi) * stdev) * np.exp(-(x**2) / (2 * stdev**2))
 
+    xname = getattr(E, 'name', 'energy') or 'xdim'
+    yname = getattr(fosc, 'name', 'fosc') or 'ydim'
+
     if xmax is None:
         # broadening could visibly overshoot the former maximum by 3 standard deviations
         xmax = E.max().item() * (1 + 1.5 * width)
     xs = np.linspace(0, xmax, num=nsamples)
-    Espace = xr.DataArray(
-        xs,
-        dims=['energy'],
-        attrs=E.attrs)
+    Espace = xr.DataArray(xs, dims=[xname], attrs=E.attrs)
     res: xr.DataArray = (g(Espace - E) * fosc).mean(dim=agg_dim)
-    res.name = 'fosc'
+    res.name = yname
     res.attrs = fosc.attrs
     for cname, coord in res.coords.items():
         if cname in fosc.coords:
             coord.attrs = fosc.coords[cname].attrs
-    return res.assign_coords({'energy': Espace})
+    return res.assign_coords({xname: Espace})
+
 
 def ds_broaden_gauss(
     ds: xr.Dataset, width: float = 0.5, nsamples: int = 1000, xmax: float | None = None
