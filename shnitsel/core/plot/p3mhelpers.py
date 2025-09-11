@@ -26,6 +26,8 @@ def frames3Dgrid(atXYZ: xr.DataArray):
     view = py3Dmol.view(viewergrid=(n, n), width=1000, height=800, linked=True)
 
     for i, (label, frameXYZ) in enumerate(atXYZ.groupby('frame')):
+        if 'frame' in frameXYZ.dims:
+            frameXYZ = frameXYZ.squeeze('frame')
         data = frameXYZ.pipe(P.to_xyz)
         viewer = (i // n, i % n)
         view.addModel(data, viewer=viewer)
