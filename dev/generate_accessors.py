@@ -246,7 +246,7 @@ def main():
         st.postprocess.ts_to_time,
         st.postprocess.setup_frames,
         st.postprocess.assign_fosc,
-        st.postprocess.broaden_gauss,
+        st.postprocess.ds_broaden_gauss,
         st.postprocess.get_per_state,
         st.postprocess.get_inter_state,
         st.postprocess.calc_pops,
