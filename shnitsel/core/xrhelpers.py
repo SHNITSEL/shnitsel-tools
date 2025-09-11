@@ -156,6 +156,12 @@ def assign_levels(
                 "cannot specify both keyword and positional arguments to assign_levels"
             )
         levels = levels_kwargs
+    # Assignment of DataArrays fails. Workaround:
+    for lvl in levels:
+        if isinstance(levels[lvl], xr.DataArray):
+            lvl_dims = levels[lvl].dims
+            assert len(lvl_dims) == 1
+            levels[lvl] = (lvl_dims[0], levels[lvl].data)
     lvl_names = list(levels.keys())
     midxs = set(obj.indexes[lvl].name for lvl in lvl_names)
     # Using sum() to ravel a list of lists
