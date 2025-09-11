@@ -2,6 +2,7 @@ from sklearn.decomposition import PCA
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from sklearn.cross_decomposition import PLSRegression
 from sklearn.preprocessing import MinMaxScaler
+from sklearn.pipeline import Pipeline
 import xarray as xr
 
 from .. import _state
@@ -34,30 +35,28 @@ def pca(
     [pca_object]
         The trained PCA object produced by scikit-learn, if return_pca_object=True
     """
-    scaled = xr.apply_ufunc(
-      MinMaxScaler().fit_transform,
-      da.transpose(..., dim)
-    )
-    
+    scaler = MinMaxScaler()
     pca_object = PCA(n_components=n_components)
-    pca_object.fit(scaled)
+
+    pipeline = Pipeline([('scaler', scaler), ('pca', pca_object)])
+
     pca_res: xr.DataArray = xr.apply_ufunc(
-        pca_object.transform,
-        scaled,
+        pipeline.fit_transform,
+        da,
         input_core_dims=[[dim]],
         output_core_dims=[['PC']],
     )
     loadings = xr.DataArray(
-        pca_object.components_,
-        coords=[pca_res.coords['PC'], da.coords[dim]]
+        pipeline[-1].components_, coords=[pca_res.coords['PC'], da.coords[dim]]
     )
     if _state.DATAARRAY_ACCESSOR_REGISTERED:
         accessor_object = getattr(pca_res, _state.DATAARRAY_ACCESSOR_NAME)
         accessor_object.loadings = loadings
-        accessor_object.pca_object = pca_object
+        accessor_object.pca_object = pipeline
 
     if return_pca_object:
-        return (pca_res, pca_object)
+        # Return only PCA part of pipeline for backward-compatibility
+        return (pca_res, pipeline[-1])
     else:
         return pca_res
 
