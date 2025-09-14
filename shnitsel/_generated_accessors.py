@@ -18,6 +18,7 @@ from shnitsel.core.plot.p3mhelpers import frame3D, frames3Dgrid, traj3D, trajs3D
 from shnitsel.core.plot.select import FrameSelector, TrajSelector
 from shnitsel.core.plot.spectra3d import spectra_all_times
 from shnitsel.core.postprocess import angle, assign_fosc, calc_ci, calc_pops, convert_dipoles, convert_energy, convert_forces, convert_length, default_mol, dihedral, distance, ds_broaden_gauss, find_hops, get_hop_types, get_inter_state, get_per_state, hop_indices, keep_norming, norm, pairwise_dists_pca, pca_and_hops, relativize, setup_frames, smiles_map, subtract_combinations, sudi, time_grouped_ci, to_mol, to_xyz, traj_to_xyz, trajs_with_hops, ts_to_time, validate
+from shnitsel.core.vmd import traj_vmd
 from shnitsel.core.xrhelpers import assign_levels, expand_midx, flatten_levels, mgroupby, msel, save_frames, sel_trajids, sel_trajs, stack_trajs, unstack_trajs
 from typing import Dict, Hashable, List, Literal, Optional, Sequence, Union
 from xarray.core.dataarray import DataArray
@@ -70,6 +71,7 @@ class DataArrayAccessor(DAManualAccessor):
         'frames3Dgrid',
         'traj3D',
         'trajs3Dgrid',
+        'traj_vmd',
         'pca',
         'lda',
         'pls',
@@ -269,6 +271,10 @@ class DataArrayAccessor(DAManualAccessor):
     def trajs3Dgrid(self, trajids: list[int | str] | None=None, loop='forward'):
         """Wrapper for :py:func:`shnitsel.core.plot.p3mhelpers.trajs3Dgrid`."""
         return trajs3Dgrid(self._obj, trajids=trajids, loop=loop)
+
+    def traj_vmd(self, groupby='trajid', scale=0.5):
+        """Wrapper for :py:func:`shnitsel.core.vmd.traj_vmd`."""
+        return traj_vmd(self._obj, groupby=groupby, scale=scale)
 
     def pca(self, dim: str, n_components: int=2, return_pca_object: bool=False) -> tuple[xarray.core.dataarray.DataArray, sklearn.decomposition._pca.PCA] | xarray.core.dataarray.DataArray:
         """Wrapper for :py:func:`shnitsel.core.ml.pca`."""

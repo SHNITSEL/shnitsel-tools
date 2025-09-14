@@ -180,6 +180,7 @@ def generate_class_code(classes: dict[str, list[callable]]) -> str:
 def main():
     import shnitsel as st
     from shnitsel.core.plot import p3mhelpers
+    from shnitsel.core import vmd
     from shnitsel.core.plot import select
 
     da_funcs = [
@@ -233,6 +234,8 @@ def main():
         p3mhelpers.frames3Dgrid,
         p3mhelpers.traj3D,
         p3mhelpers.trajs3Dgrid,
+        # vmd
+        vmd.traj_vmd,
         # ml
         st.core.ml.pca,
         st.core.ml.lda,
