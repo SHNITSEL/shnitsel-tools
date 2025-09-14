@@ -654,10 +654,20 @@ def to_xyz(da: AtXYZ, comment='#') -> str:
 
 @needs(dims={'atom', 'direction'}, groupable={'time'}, coords_or_vars={'atNames'})
 def traj_to_xyz(traj_atXYZ: AtXYZ) -> str:
-    traj_atXYZ = traj_atXYZ.transpose(..., 'atom', 'direction')
-    return '\n'.join(
-        to_xyz(t_atXYZ, comment=f"# t={t}") for t, t_atXYZ in traj_atXYZ.groupby('time')
-    )
+    atXYZ = traj_atXYZ.transpose(..., 'atom', 'direction').values
+    if atXYZ.ndim == 2:
+        atXYZ = atXYZ[None, :, :]
+    assert len(atXYZ.shape) == 3
+    atNames = traj_atXYZ.atNames.values
+    sxyz = np.strings.mod('% 13.9f', atXYZ)
+    sxyz = atNames[None, :] + sxyz[:, :, 0] + sxyz[:, :, 1] + sxyz[:, :, 2]
+    atom_lines = np.broadcast_to([f'{traj_atXYZ.sizes['atom']}'], (sxyz.shape[0], 1))
+    if 'time' in traj_atXYZ.coords:
+        time_values = np.atleast_1d(traj_atXYZ.coords['time'])
+        comment_lines = np.strings.mod('# t=%.2f', time_values)[:, None]
+    else:
+        comment_lines = np.broadcast_to([''], (sxyz.shape[0], 1))
+    return '\n'.join(np.concat([atom_lines, comment_lines, sxyz], 1).ravel())
 
 
 ######################################################
