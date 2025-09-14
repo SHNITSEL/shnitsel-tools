@@ -384,12 +384,44 @@ def center_geoms(atXYZ, by_mass: Literal[False] = False):
         raise NotImplementedError
     return atXYZ - atXYZ.mean('atom')
 
+
+def rotational_procrustes_(A, B, weight=None):
+    from scipy.linalg import svd
+
+    if weight is not None:
+        A = np.diag(weight) @ A
+
+    # np.matrix_transpose always swaps last two axes, whereas
+    # NDArray.T reverses the order of all axes.
+    t = np.matrix_transpose
+    # The following uses a double transpose in imitation of
+    # scipy's orthogonal_procrustes, where this is said to
+    # save memory. t(t(B) @ A) == t(A) @ B.
+    u, _, vt = svd(t((t(B) @ A)))
+    # Flip the sign of the last row of each stacked vt matrix
+    # depending on the sign of the corresponding determinant.
+    # This is an alternative implementation of the algorithm
+    # used in qcdev's procrustes.rotation.
+    vt[..., -1] *= np.sign(np.linalg.det(u @ vt))[:, None]
+    R = u @ vt
+    return A @ R
+
+
+def rotational_procrustes(A, B, dim0='atom', dim1='direction', weight=None):
+    return xr.apply_ufunc(
+        rotational_procrustes_,
+        A,
+        B,
+        input_core_dims=[[dim0, dim1], [dim0, dim1]],
+        output_core_dims=[[dim0, dim1]],
+        kwargs={'weight': weight},
+    )
+
+
 @needs(dims={'atom', 'direction'})
 def kabsch(
     atXYZ, reference_or_indexers: xr.DataArray | dict | None = None, **indexers_kwargs
 ):
-    from scipy.linalg import orthogonal_procrustes
-
     if isinstance(reference_or_indexers, xr.DataArray):
         reference = reference_or_indexers
     elif isinstance(reference_or_indexers, dict):
@@ -398,18 +430,10 @@ def kabsch(
         reference = atXYZ.sel(indexers_kwargs)
     elif 'frame' in atXYZ.dims:
         reference = atXYZ.isel(frame=0)
+    else:
+        raise ValueError("Please specify a reference geometry")
 
-    atXYZ = center_geoms(atXYZ)
-    reference = center_geoms(reference)
+    # atXYZ = center_geoms(atXYZ)
+    # reference = center_geoms(reference)
 
-    def applied_procrustes(A):
-        R, scale = orthogonal_procrustes(A, reference)
-        return A @ R
-
-    res = xr.apply_ufunc(
-        applied_procrustes,
-        atXYZ,
-        input_core_dims=[['atom', 'direction']],
-        output_core_dims=[['atom', 'direction']],
-    )
-    return res
+    return rotational_procrustes(atXYZ, reference)
