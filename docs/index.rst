@@ -67,7 +67,7 @@ Saving data to...
 
 .. code-block::
 
-      ds = st.write_ase('path/to/ase.db', kind='spainn')
+      ds.sh.write_ase('path/to/ase.db', kind='spainn')
       # see above for other kinds
 
 Select...
