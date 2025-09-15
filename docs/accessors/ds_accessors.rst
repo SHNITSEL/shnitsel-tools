@@ -32,7 +32,7 @@ available through the ``ds.sh.suitable`` list and the ``ds.sh.unsuitable`` dicti
 
     Dataset.sh.assign_fosc
     Dataset.sh.assign_levels
-    Dataset.sh.broaden_gauss
+    Dataset.sh.ds_broaden_gauss
     Dataset.sh.calc_pops
     Dataset.sh.default_mol
     Dataset.sh.energy_filtranda
