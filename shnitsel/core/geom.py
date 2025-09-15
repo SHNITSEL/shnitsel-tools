@@ -397,12 +397,12 @@ def rotational_procrustes_(A, B, weight=None):
     # The following uses a double transpose in imitation of
     # scipy's orthogonal_procrustes, where this is said to
     # save memory. t(t(B) @ A) == t(A) @ B.
-    u, _, vt = svd(t((t(B) @ A)))
+    u, _, vt = svd(t(t(B) @ A))
     # Flip the sign of the last row of each stacked vt matrix
     # depending on the sign of the corresponding determinant.
     # This is an alternative implementation of the algorithm
     # used in qcdev's procrustes.rotation.
-    vt[..., -1] *= np.sign(np.linalg.det(u @ vt))[:, None]
+    vt[..., -1, :] *= np.sign(np.linalg.det(u @ vt))[:, None]
     R = u @ vt
     return A @ R
 
