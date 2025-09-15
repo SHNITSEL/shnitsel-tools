@@ -224,6 +224,7 @@ def main():
         st.core.geom.get_bond_lengths,
         st.core.geom.get_bond_angles,
         st.core.geom.get_bond_torsions,
+        st.core.geom.get_pyramids,
         st.core.geom.get_bats,
         st.core.geom.kabsch,
         # select

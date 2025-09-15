@@ -20,6 +20,7 @@ from .postprocess import (
     angle_,
     dihedral_,
     full_dihedral_,
+    normal,
     subtract_combinations,
     norm,
     default_mol,
@@ -34,7 +35,7 @@ def bond_type_to_symbols(e1, e2):
     return s1 + s2
 
 
-def identify_bonds(mol, symbols=True):
+def identify_bonds(mol: Mol, symbols: bool = True) -> dict:
     bond_types: dict[tuple[int, int], list[tuple[int, int]]] = {}
     for b in mol.GetBonds():
         a1 = b.GetBeginAtom()
@@ -49,8 +50,10 @@ def identify_bonds(mol, symbols=True):
     return bond_types
 
 
-@needs(dims={'atom'})
-def get_bond_lengths(atXYZ, bond_types=None, mol=None):
+@needs(dims={'atom', 'direction'})
+def get_bond_lengths(
+    atXYZ: xr.DataArray, bond_types=None, mol: Mol | None = None
+) -> xr.DataArray:
     """Identify bonds (using RDKit) and find the length of each bond in each
     frame.
 
@@ -105,7 +108,7 @@ def get_bond_lengths(atXYZ, bond_types=None, mol=None):
     )
 
 
-def identify_angles(mol: Mol):
+def identify_angles(mol: Mol) -> xr.Dataset:
     triples = []
     at_nums = []
     bond_types = []
@@ -150,8 +153,13 @@ def identify_angles(mol: Mol):
     )
 
 
-@needs(dims={'atom'})
-def get_bond_angles(atXYZ, angle_types=None, mol=None, deg=False):
+@needs(dims={'atom', 'direction'})
+def get_bond_angles(
+    atXYZ: xr.DataArray,
+    angle_types: xr.Dataset | None = None,
+    mol: Mol | None = None,
+    deg: bool = False,
+):
     """Identify triples of bonded atoms (using RDKit) and calculate every bond angle for each
     frame.
 
@@ -276,8 +284,14 @@ def identify_torsions(mol: Mol) -> xr.Dataset:
     )
 
 
-@needs(dims={'atom'})
-def get_bond_torsions(atXYZ, quadruple_types=None, mol=None, signed=False, deg=False):
+@needs(dims={'atom', 'direction'})
+def get_bond_torsions(
+    atXYZ: xr.DataArray,
+    quadruple_types: xr.Dataset | None = None,
+    mol: Mol | None = None,
+    signed: bool = False,
+    deg: bool = False,
+):
     """Identify quadruples of bonded atoms (using RDKit) and calculate the corresponding proper bond torsion for each
     frame.
 
@@ -331,8 +345,10 @@ def get_bond_torsions(atXYZ, quadruple_types=None, mol=None, signed=False, deg=F
     ).set_xindex('torsion_symbol')
 
 
-@needs(dims={'atom'})
-def get_bats(atXYZ, mol=None, signed=False, deg=False):
+@needs(dims={'atom', 'direction'})
+def get_bats(
+    atXYZ: xr.DataArray, mol: Mol | None = None, signed: bool = False, deg: bool = False
+):
     """Get bond lengths, angles and torsions.
 
     Parameters
@@ -377,6 +393,109 @@ def get_bats(atXYZ, mol=None, signed=False, deg=False):
         )
 
     return xr.concat([d['bond'], d['angle'], d['torsion']], dim='descriptor')
+
+
+@needs(dims={'atom', 'direction'})
+def identify_pyramids(mol: Mol) -> dict[int, list[int]]:
+    res = {}
+    for a in mol.GetAtoms():
+        bonds = a.GetBonds()
+        if len(bonds) != 3:
+            continue
+
+        current_idx = a.GetIdx()
+        hydrogens = []
+        non_hydrogens = []
+        for b in bonds:
+            a1, a2 = b.GetBeginAtom(), b.GetEndAtom()
+            if a1.GetIdx() == current_idx:
+                other = a2
+            else:
+                assert a2.GetIdx() == current_idx
+                other = a1
+            if other.GetAtomicNum() == 1:
+                hydrogens.append(other.GetIdx())
+            else:
+                non_hydrogens.append(other.GetIdx())
+        if len(hydrogens) == 2:  # Terminal double bond
+            assert len(non_hydrogens) == 1
+            plane_idxs = [hydrogens[0], current_idx, hydrogens[1]]
+            bending_idx = non_hydrogens[0]
+        else:  # Chain-internal double bond
+            assert len(hydrogens) == 1
+            assert len(non_hydrogens) == 2
+            plane_idxs = [non_hydrogens[0], current_idx, non_hydrogens[1]]
+            bending_idx = hydrogens[0]
+        res[bending_idx] = plane_idxs
+    return res
+
+
+@needs(dims={'atom', 'direction'})
+def pyramid_(a, b, c, x):
+    abc = normal(a, b, c)
+    return 0.5 * np.pi - angle_(abc, x)
+
+
+def get_pyramids(
+    atXYZ: xr.DataArray,
+    pyramid_idxs: dict[int, list[int]] | None = None,
+    mol: Mol | None = None,
+    deg: bool = False,
+) -> xr.DataArray:
+    """Identify atoms with three bonds (using RDKit) and calculate the corresponding pyramidalization angles
+    for each frame.
+
+    Each 'pyramid' consists of four atoms. Three of these (the "plane" atoms) are consecutive, and the fourth (the "bending" atom)
+    is bonded to the middle atom of the plane atoms. The pyramidalization is the the angle between the plane of the plane atoms
+    and the bond from the middle plane atom to the bending atom.
+
+    Two sorts of pyramids are currently handled: terminal and chain-internal.
+
+    - Terminal pyramids are those where the central atom is bonded to two hydrogens and a single non-hydrogen;
+      for these, the central atom and the **hydrogens** constitute the plane and the non-hydrogen becomes the bending atom.
+    - Chain-internal pyramids are those where the central atom is bonded to non-hydrogens and a single hydrogen;
+      for these, the central atom and the **non-hydrogens** constitute the plane and the hydrogen becomes the bending atom.
+
+    Parameters
+    ----------
+    atXYZ
+        An :py:class:`xarray.DataArray` of molecular coordinates, with dimensions
+        ``frame``, ``atom`` and ``direction``
+    pyramid_idxs
+        A dictionary containing types of bonds as keys, and lists of atom index pair
+        as values. It may be convenient to use :py:func:`shnitsel.core.geom.identify_pyramids`
+        to create a dictionary in the correct format, and then customize it. If omitted,
+        relevant sets of atoms are identified automatically based on the ``mol`` argument.
+    mol
+        An RDKit ``Mol`` object, which is generated from ``atXYZ`` if this argument is omitted.
+    deg
+        Whether to return angles in degrees (as opposed to radians), by default False
+
+    Returns
+    -------
+        An :py:class:`xarray.DataArray` of pyramidalizations with dimensions ``frame`` and ``atom``.
+
+    Raises
+    ------
+    UserWarning
+        If both `pyramid_idxs` and `mol` are specified.
+    """
+    if pyramid_idxs is None:
+        if mol is None:
+            mol = default_mol(atXYZ)
+        pyramid_idxs = identify_pyramids(mol)
+    elif mol is not None:
+        raise UserWarning("pyramid_idxs passed, so mol will not be used")
+    x, a, b, c = zip(*[[x, a, b, c] for x, (a, b, c) in pyramid_idxs.items()])
+    data = [atXYZ.sel(atom=list(idxs)) for idxs in (a, b, c, x)]
+    for i in range(len(data)):
+        if 'atom' in data[i].indexes:
+            data[i] = data[i].reset_index('atom')
+
+    res = pyramid_(*data)
+    if deg:
+        res *= 180 / np.pi
+    return res
 
 
 def center_geoms(atXYZ, by_mass: Literal[False] = False):

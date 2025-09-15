@@ -11,7 +11,7 @@ from numpy import ndarray
 from rdkit.Chem.rdchem import Mol
 from shnitsel.core.ase import write_ase
 from shnitsel.core.filtre import energy_filtranda, get_cutoffs, last_time_where, truncate
-from shnitsel.core.geom import get_bats, get_bond_angles, get_bond_lengths, get_bond_torsions, kabsch
+from shnitsel.core.geom import get_bats, get_bond_angles, get_bond_lengths, get_bond_torsions, get_pyramids, kabsch
 from shnitsel.core.ml import lda, pca, pls, pls_ds
 from shnitsel.core.parse.sharc_icond import iconds_to_frames
 from shnitsel.core.plot.p3mhelpers import frame3D, frames3Dgrid, traj3D, trajs3Dgrid
@@ -63,6 +63,7 @@ class DataArrayAccessor(DAManualAccessor):
         'get_bond_lengths',
         'get_bond_angles',
         'get_bond_torsions',
+        'get_pyramids',
         'get_bats',
         'kabsch',
         'FrameSelector',
@@ -155,7 +156,7 @@ class DataArrayAccessor(DAManualAccessor):
         return get_hop_types(self._obj)
 
     @needs(dims={'atom', 'direction'}, coords_or_vars={'atNames'}, not_dims={'frame'})
-    def to_mol(self, charge=None, covFactor=1.2, to2D=True, molAtomMapNumber=None, atomNote=None, atomLabel=None) -> Mol:
+    def to_mol(self, charge: int | None=None, covFactor: float=1.2, to2D: bool=True, molAtomMapNumber: Union=None, atomNote: Union=None, atomLabel: Union=None) -> Mol:
         """Wrapper for :py:func:`shnitsel.core.postprocess.to_mol`."""
         return to_mol(self._obj, charge=charge, covFactor=covFactor, to2D=to2D, molAtomMapNumber=molAtomMapNumber, atomNote=atomNote, atomLabel=atomLabel)
 
@@ -219,22 +220,26 @@ class DataArrayAccessor(DAManualAccessor):
         """Wrapper for :py:func:`shnitsel.core.filtre.last_time_where`."""
         return last_time_where(self._obj)
 
-    @needs(dims={'atom'})
+    @needs(dims={'atom', 'direction'})
     def get_bond_lengths(self, bond_types=None, mol=None):
         """Wrapper for :py:func:`shnitsel.core.geom.get_bond_lengths`."""
         return get_bond_lengths(self._obj, bond_types=bond_types, mol=mol)
 
-    @needs(dims={'atom'})
+    @needs(dims={'atom', 'direction'})
     def get_bond_angles(self, angle_types=None, mol=None, deg=False):
         """Wrapper for :py:func:`shnitsel.core.geom.get_bond_angles`."""
         return get_bond_angles(self._obj, angle_types=angle_types, mol=mol, deg=deg)
 
-    @needs(dims={'atom'})
+    @needs(dims={'atom', 'direction'})
     def get_bond_torsions(self, quadruple_types=None, mol=None, signed=False, deg=False):
         """Wrapper for :py:func:`shnitsel.core.geom.get_bond_torsions`."""
         return get_bond_torsions(self._obj, quadruple_types=quadruple_types, mol=mol, signed=signed, deg=deg)
 
-    @needs(dims={'atom'})
+    def get_pyramids(self, pyramid_idxs: dict=None, mol=None, deg=False) -> DataArray:
+        """Wrapper for :py:func:`shnitsel.core.geom.get_pyramids`."""
+        return get_pyramids(self._obj, pyramid_idxs=pyramid_idxs, mol=mol, deg=deg)
+
+    @needs(dims={'atom', 'direction'})
     def get_bats(self, mol=None, signed=False, deg=False):
         """Wrapper for :py:func:`shnitsel.core.geom.get_bats`."""
         return get_bats(self._obj, mol=mol, signed=signed, deg=deg)
