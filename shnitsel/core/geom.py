@@ -433,7 +433,7 @@ def identify_pyramids(mol: Mol) -> dict[int, list[int]]:
 @needs(dims={'atom', 'direction'})
 def pyramid_(a, b, c, x):
     abc = normal(a, b, c)
-    return 0.5 * np.pi - angle_(abc, x)
+    return 0.5 * np.pi - angle_(abc, x - b)
 
 
 def get_pyramids(
@@ -495,6 +495,8 @@ def get_pyramids(
     res = pyramid_(*data)
     if deg:
         res *= 180 / np.pi
+    if 'atom' in x.coords:
+        res = res.assign_coords(atom=x.coords['atom'])
     return res
 
 
