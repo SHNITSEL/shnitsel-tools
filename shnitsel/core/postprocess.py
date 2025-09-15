@@ -30,7 +30,7 @@ _var_delta_t_msg = "`delta_t` varies between the trajectories. Please separate t
 def norm(
     da: xr.DataArray, dim: DimName = 'direction', keep_attrs: bool | str | None = None
 ) -> xr.DataArray:
-    """Calculate the 2-norm of a DataArray, reducing the dimension with dame `dim`
+    """Calculate the 2-norm of a DataArray, reducing the dimension with name *dim*
 
     Parameters
     ----------
@@ -43,7 +43,7 @@ def norm(
 
     Returns
     -------
-        A DataArray with dimension `dim` reduced
+        A DataArray with dimension *dim* reduced
     """
     res: xr.DataArray = xr.apply_ufunc(
         np.linalg.norm,
@@ -856,14 +856,46 @@ def set_atom_props(mol, **kws):
 
 @needs(dims={'atom', 'direction'}, coords_or_vars={'atNames'}, not_dims={'frame'})
 def to_mol(
-    atXYZ_frame,
-    charge=None,
-    covFactor=1.2,
-    to2D=True,
-    molAtomMapNumber=None,
-    atomNote=None,
-    atomLabel=None,
+    atXYZ_frame: xr.DataArray,
+    charge: int | None = None,
+    covFactor: float = 1.2,
+    to2D: bool = True,
+    molAtomMapNumber: list | Literal[True] | None = None,
+    atomNote: list | Literal[True] | None = None,
+    atomLabel: list | Literal[True] | None = None,
 ) -> rc.Mol:
+    """Convert a single frame's geometry to an RDKit Mol object
+
+    Parameters
+    ----------
+    atXYZ_frame
+        The ``xr.DataArray`` object to be converted; must have 'atom' and 'direction' dims,
+        must not have 'frame' dim.
+    charge
+        Charge of the molecule, used by RDKit to determine bond orders; if ``None`` (the default),
+        this function will try ``charge=0`` and leave the bond orders undetermined if that causes
+        an error; otherwise failure to determine bond order will raise an error.
+    covFactor
+        Scales the distance at which atoms are considered bonded, by default 1.2
+    to2D
+        Discard 3D information and generate 2D conformer (useful for displaying), by default True
+    molAtomMapNumber
+        Set the ``molAtomMapNumber`` properties to values provided in a list,
+        or (if ``True`` is passed) set the properties to the respective atom indices
+    atomNote
+        Behaves like the ``molAtomMapNumber`` parameter above, but for the ``atomNote`` properties
+    atomLabel
+        Behaves like the ``molAtomMapNumber`` parameter above, but for the ``atomLabel`` properties
+
+    Returns
+    -------
+        An RDKit Mol object
+
+    Raises
+    ------
+    ValueError
+        If ``charge`` is not ``None`` and bond order determination fails
+    """
     mol = rc.rdmolfiles.MolFromXYZBlock(to_xyz(atXYZ_frame))
     rc.rdDetermineBonds.DetermineConnectivity(mol, useVdw=True, covFactor=covFactor)
     try:
