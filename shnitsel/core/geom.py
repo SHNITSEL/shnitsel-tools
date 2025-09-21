@@ -347,7 +347,11 @@ def get_bond_torsions(
 
 @needs(dims={'atom', 'direction'})
 def get_bats(
-    atXYZ: xr.DataArray, mol: Mol | None = None, signed: bool = False, deg: bool = False
+    atXYZ: xr.DataArray,
+    mol: Mol | None = None,
+    signed: bool = False,
+    deg: bool = False,
+    pyr=False,
 ):
     """Get bond lengths, angles and torsions.
 
@@ -358,6 +362,8 @@ def get_bats(
     mol, optional
         An rdkit Mol object used to determine connectivity; by default this is
         determined automatically based on the first frame of ``atXYZ``.
+    pyr
+        Whether to include pyramidalizations from :py:func:`shnitsel.core.geom.get_pyramids`
 
     Returns
     -------
@@ -392,7 +398,26 @@ def get_bats(
             {k: 'descriptor', f'{k}_symbol': 'descriptor', f'{k}_type': 'type'}
         )
 
-    return xr.concat([d['bond'], d['angle'], d['torsion']], dim='descriptor')
+    if pyr:
+        d['pyr'] = get_pyramids(atXYZ, mol=mol, deg=deg, signed=signed)
+        if 'atNames' in d['pyr'].coords:
+            d['pyr'] = d['pyr'].drop_vars('atNames')
+
+        d['pyr'] = (
+            d['pyr']
+            .rename(atom='descriptor')
+            .assign_coords(
+                descriptor=('descriptor', d['pyr'].coords['atom'].data),
+                type=('descriptor', np.full(d['pyr'].sizes['atom'], 'pyr')),
+            )
+        )
+
+    to_concat = [d['bond'], d['angle'], d['torsion']]
+
+    if pyr:
+        to_concat.append(d['pyr'])
+
+    return xr.concat(to_concat, dim='descriptor')
 
 
 @needs(dims={'atom', 'direction'})
@@ -441,6 +466,7 @@ def get_pyramids(
     pyramid_idxs: dict[int, list[int]] | None = None,
     mol: Mol | None = None,
     deg: bool = False,
+    signed=True,
 ) -> xr.DataArray:
     """Identify atoms with three bonds (using RDKit) and calculate the corresponding pyramidalization angles
     for each frame.
@@ -495,8 +521,10 @@ def get_pyramids(
     res = pyramid_(*data)
     if deg:
         res *= 180 / np.pi
-    if 'atom' in x.coords:
-        res = res.assign_coords(atom=x.coords['atom'])
+    if 'atom' in atXYZ.coords:
+        res = res.assign_coords(atom=list(b))
+    if not signed:
+        res = np.abs(res)
     return res
 
 

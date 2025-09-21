@@ -1,6 +1,7 @@
 import collections
 import numpy
 import numpy.typing as npt
+import rdkit
 import sklearn
 import typing
 import xarray
@@ -221,28 +222,28 @@ class DataArrayAccessor(DAManualAccessor):
         return last_time_where(self._obj)
 
     @needs(dims={'atom', 'direction'})
-    def get_bond_lengths(self, bond_types=None, mol=None):
+    def get_bond_lengths(self, bond_types=None, mol: rdkit.Chem.rdchem.Mol | None=None) -> DataArray:
         """Wrapper for :py:func:`shnitsel.core.geom.get_bond_lengths`."""
         return get_bond_lengths(self._obj, bond_types=bond_types, mol=mol)
 
     @needs(dims={'atom', 'direction'})
-    def get_bond_angles(self, angle_types=None, mol=None, deg=False):
+    def get_bond_angles(self, angle_types: xarray.core.dataset.Dataset | None=None, mol: rdkit.Chem.rdchem.Mol | None=None, deg: bool=False):
         """Wrapper for :py:func:`shnitsel.core.geom.get_bond_angles`."""
         return get_bond_angles(self._obj, angle_types=angle_types, mol=mol, deg=deg)
 
     @needs(dims={'atom', 'direction'})
-    def get_bond_torsions(self, quadruple_types=None, mol=None, signed=False, deg=False):
+    def get_bond_torsions(self, quadruple_types: xarray.core.dataset.Dataset | None=None, mol: rdkit.Chem.rdchem.Mol | None=None, signed: bool=False, deg: bool=False):
         """Wrapper for :py:func:`shnitsel.core.geom.get_bond_torsions`."""
         return get_bond_torsions(self._obj, quadruple_types=quadruple_types, mol=mol, signed=signed, deg=deg)
 
-    def get_pyramids(self, pyramid_idxs: dict=None, mol=None, deg=False) -> DataArray:
+    def get_pyramids(self, pyramid_idxs: dict[int, list[int]] | None=None, mol: rdkit.Chem.rdchem.Mol | None=None, deg: bool=False) -> DataArray:
         """Wrapper for :py:func:`shnitsel.core.geom.get_pyramids`."""
         return get_pyramids(self._obj, pyramid_idxs=pyramid_idxs, mol=mol, deg=deg)
 
     @needs(dims={'atom', 'direction'})
-    def get_bats(self, mol=None, signed=False, deg=False):
+    def get_bats(self, mol: rdkit.Chem.rdchem.Mol | None=None, signed: bool=False, deg: bool=False, pyr=False):
         """Wrapper for :py:func:`shnitsel.core.geom.get_bats`."""
-        return get_bats(self._obj, mol=mol, signed=signed, deg=deg)
+        return get_bats(self._obj, mol=mol, signed=signed, deg=deg, pyr=pyr)
 
     @needs(dims={'atom', 'direction'})
     def kabsch(self, reference_or_indexers: xarray.core.dataarray.DataArray | dict | None=None, **indexers_kwargs):

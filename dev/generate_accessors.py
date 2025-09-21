@@ -63,6 +63,7 @@ def generate_class_code(classes: dict[str, list[callable]]) -> str:
         'numpy.typing as npt',
         'typing',
         'sklearn',
+        'rdkit',
     }
 
     # Collect imports for all functions
