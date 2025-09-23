@@ -31,16 +31,19 @@ proc spread {{scale 0.5} {ncols 5} {molids "sentinel"}} {
         set y [expr $scale * ($m / $ncols)]
         mtransl $m $x $y 0
     }
-
+    translate by [expr $scale * ($ncols - 1) / 2.0] 0 0
 }
 
-proc gui {} {
+proc spread_gui {} {
     toplevel .spread
-    label .spread.label_scale -text "Scale"
+    label .spread.label_scale -text "Separation"
     entry .spread.entry_scale -textvariable entry_scale
     label .spread.label_ncols -text "Columns"
     entry .spread.entry_ncols -textvariable entry_ncols
     button .spread.button_spread -text "Spread" -command {spread $entry_scale $entry_ncols}
+
+    bind .spread.entry_scale <Return> {spread $entry_scale $entry_ncols}
+    bind .spread.entry_ncols <Return> {spread $entry_scale $entry_ncols}
     
     grid .spread.label_scale .spread.entry_scale -sticky nsew
     grid .spread.label_ncols .spread.entry_ncols -sticky nsew
@@ -51,5 +54,5 @@ foreach m [molinfo list] {
     l $m
 }
 
-gui
+spread_gui
 
