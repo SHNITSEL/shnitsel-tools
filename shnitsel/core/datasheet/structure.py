@@ -2,12 +2,10 @@ from logging import warning
 
 import rdkit
 import rdkit.Chem.Draw
-import rdkit.Chem as rc
 
 import matplotlib as mpl
 
 from ..plot import pca_biplot
-from .. import postprocess as P
 from .common import figax
 
 def mol_to_png(mol, width=320, height=240):
