@@ -1,22 +1,30 @@
 import inspect
+import logging
 
 
 def generate_class_code(classes: dict[str, list[callable]]) -> str:
-    """\
+    """
     Generate source code for a class with methods wrapping given functions, preserving
     signatures (including type hints when possible).
 
+    The class names are indicated by the keys in the provided dict, whereas the
+    functions to be wrapped in the class methods are denoted by the list in
+    the values of the provided dict.
+
     Parameters
     ----------
-        class_name
-            Name of the class to generate.
-        functions
-            List of function objects.
+        classes dict[str, list[callable]]:
+            A dict mapping the names of classes to be generated to the list
+            of functions that should be wrapped in methods of that class.
 
     Returns
     -------
         A string with the generated Python source code.
     """
+
+    # TODO: FIXME: We should account for the import of modules to fail if they are imported from optional packages.\
+    # Maybe we should include a flag if the import failed for each individual module and throw an error only if an accessor method
+    # using that import is called?
 
     def get_ann_str(annotation):
         """Convert annotation to string, handling complex types better."""
@@ -292,8 +300,9 @@ def main():
             "DatasetAccessor(DSManualAccessor)": ds_funcs,
         }
     )
-    with open('../shnitsel/_generated_accessors.py', 'w') as f:
+    with open("../shnitsel/_generated_accessors.py", "w") as f:
         print(code, file=f)
+
 
 if __name__ == "__main__":
     main()
