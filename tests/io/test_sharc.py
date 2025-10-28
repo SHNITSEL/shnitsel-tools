@@ -17,7 +17,7 @@ class TestSHARC:
     def test_sharc_process_and_output_iconds():
         # parse icond data
         iconds_butene = sh.parse.sharc_icond.dirs_of_iconds(
-            path="test_data/sharc/iconds_butene"
+            path="tutorials/test_data/sharc/iconds_butene"
         )
         # save the parsed data to h5netcdf file
         savepath = os.path.join(os.getcwd(), "test_data", "sharc", "iconds_butene.hdf5")
@@ -26,5 +26,5 @@ class TestSHARC:
     def test_read_sharc_trajs():
         # parse trajectory data from SHARC output files
         traj_frames_butene = sh.parse.read_trajs(
-            "test_data/sharc/traj_butene", kind="sharc"
+            "tutorials/test_data/sharc/traj_butene", kind="sharc"
         )
