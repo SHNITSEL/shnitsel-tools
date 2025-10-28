@@ -600,7 +600,7 @@ def get_inter_state(frames: Frames) -> InterState:
     if {'energy', 'dip_trans'}.issubset(iprops):
         inter_state = assign_fosc(inter_state)
 
-    inter_state['statecomb'].attrs['long_name'] = "States"
+    inter_state['statecomb'].attrs['long_name'] = "State combinations"
     return inter_state
 
 @needs(dims={'frame', 'state'}, coords={'time'}, data_vars={'astate'})
