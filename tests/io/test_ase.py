@@ -11,10 +11,10 @@ class TestASEFunctionality:
     @pytest.mark.parametrize(
         'path,kind',
         [
-            ('./test_data/old_CH2NH2.db', 'schnet'),
-            ('./test_data/tobias_cis_new.db', 'spainn'),
-            ('./test_data/old_CH2NH2.db', None),
-            ('./test_data/tobias_cis_new.db', None),
+            ('tutorials/test_data/old_CH2NH2.db', 'schnet'),
+            ('tutorials/test_data/tobias_cis_new.db', 'spainn'),
+            ('tutorials/test_data/old_CH2NH2.db', None),
+            ('tutorials/test_data/tobias_cis_new.db', None),
         ],
     )
     def test_ase_round_trip(path, kind):
