@@ -81,6 +81,11 @@ def subtract_combinations(
     if dim not in da.dims:
         raise ValueError(f"'{dim}' is not a dimension of the DataArray")
     
+    combination_dimension_name = f"{dim}comb"
+    if combination_dimension_name in da:
+        #TODO: FIXME: Appropriately remove the 'combination_dimension_name' indices and coordinates from the Dataset
+        raise ValueError(f"'{combination_dimension_name}' is already an index, a variable or a coordinate of the DataArray")
+
     n = da.sizes[dim]
 
     mat = np.zeros((math.comb(n, 2), n))
@@ -565,6 +570,11 @@ def get_per_state(frames: Frames) -> PerState:
 
 def get_inter_state(frames: Frames) -> InterState:
     prop: Hashable
+
+    if 'statecomb' in frames:
+        #TODO: FIXME: Appropriately remove the 'statecomb' indices and coordinates from the Dataset
+        warning(f"'statecomb' already exists as an index, variable or coordinate in the dataset, hence it will be removed before recomputation")
+
     iprops = []
     # TODO: FIXME: check if astate is the correct variable to reference here
     for prop in ['energy', 'nacs', 'astate', 'dip_trans']:
@@ -579,7 +589,6 @@ def get_inter_state(frames: Frames) -> InterState:
             inter_state[prop] = subtract_combinations(
                 inter_state[prop], dim='state', labels=True
             )
-
     inter_state = inter_state.map(keep_norming)
 
     def state_renamer(lo, hi): 
