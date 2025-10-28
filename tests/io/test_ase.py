@@ -5,17 +5,18 @@ from xarray.testing import assert_equal
 from shnitsel import read_ase
 import shnitsel.xarray
 
-@pytest.mark.parametrize(
-    'path,kind',
-    [
-        ('./test_data/old_CH2NH2.db', 'schnet'),
-        ('./test_data/tobias_cis_new.db', 'spainn'),
-        ('./test_data/old_CH2NH2.db', None),
-        ('./test_data/tobias_cis_new.db', None),
-    ],
-)
 class TestASEFunctionality:
     """Class to test all functions of the shnitsel tools related to ASE (Atomic simulation Environment) Databases"""
+
+    @pytest.mark.parametrize(
+        'path,kind',
+        [
+            ('./test_data/old_CH2NH2.db', 'schnet'),
+            ('./test_data/tobias_cis_new.db', 'spainn'),
+            ('./test_data/old_CH2NH2.db', None),
+            ('./test_data/tobias_cis_new.db', None),
+        ],
+    )
     def test_ase_round_trip(path, kind):
         tmp_path = '/tmp/test_round_trip.db'
         try:
