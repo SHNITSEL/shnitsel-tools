@@ -20,7 +20,7 @@ import shnitsel.xarray
 # Framework for now: matplotlib.testing
 # Later: matplotcheck (additional dev dependency)
 
-FIXDIR = 'tutorials/test-data/fixtures'
+FIXDIR = 'tutorials/test_data/fixtures'
 
 
 

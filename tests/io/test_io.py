@@ -9,4 +9,4 @@ class TestGeneralIO:
     """Class to test general frame I/O functionality"""
 
     def test_open(self):
-        sh.open_frames('tutorials/test_data/butene.nc')
+        sh.open_frames('tutorials/test_data/fixtures/butene/data.nc')
