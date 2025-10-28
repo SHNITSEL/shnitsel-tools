@@ -108,3 +108,6 @@ commands = [
   ["python", "--version"],
   ["pytest"]
 ]
+
+[tool.pytest.ini_options]
+addopts = "--cov=testing_demo" # "--maxfail=1 "
