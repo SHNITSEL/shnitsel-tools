@@ -73,6 +73,18 @@ def midx_combs(values: pd.core.indexes.base.Index|list, name: str|None =None):
 def flatten_midx(
     obj: xr.Dataset | xr.DataArray, idx_name: str, renamer: callable | None = None
 ) -> xr.Dataset | xr.DataArray:
+    """Function to flatten a multi-index into a flat index.
+
+    Has the option to provide a custom renaming function
+
+    Args:
+        obj (xr.Dataset | xr.DataArray): The object with the index intended to be flattened
+        idx_name (str): The name of the index to flatten.
+        renamer (callable | None, optional): An optional function to carry out the renaming of the combined entry from individual entries. Defaults to None.
+
+    Returns:
+        xr.Dataset | xr.DataArray: The refactored object without the original index coordinates but with a combined index instead
+    """
     midx = obj.indexes[idx_name]
     to_drop = midx.names + [midx.name]
     fidx = midx.to_flat_index()
