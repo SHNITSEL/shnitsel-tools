@@ -10,7 +10,7 @@ authors = [
   { name="Carolin Müller", email="carolin.cpc.mueller@fau.de" },
 ]
 
-description = "Collect, manage, process, analyse & visualize surface hopping data"
+description = "Collect, manage, process, analyze & visualize surface hopping data"
 readme = "README.md"
 requires-python = ">=3.10"
 classifiers = [
