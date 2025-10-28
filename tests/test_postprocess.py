@@ -17,21 +17,24 @@ from shnitsel.core.postprocess import (
 )
 
 
-@pytest.fixture
-def traj_butene():
-    frames = shnitsel.read_trajs('tutorials/test_data/sharc/traj_butene', kind='sharc')
-    return postprocess.ts_to_time(frames)
 
 
 class TestProcessing:
     """Class to test all functions of the shnitsel tools related to postprocessing"""
+
+    @pytest.fixture
+    def traj_butene(self):
+        frames = shnitsel.read_trajs('tutorials/test_data/sharc/traj_butene', kind='sharc')
+        return postprocess.ts_to_time(frames)
+
     @given(
         xrst.variables(
             dims=st.just({'test1': 2, 'direction': 3, 'test2': 5}),
             dtype=st.just(float),  # type: ignore
         ),
     )
-    def test_norm(da):
+    def test_norm(self, da):
+        da = xr.DataArray(da)
         res = norm(da)
         if not np.isnan(da).any():
             assert (res >= 0).all()
@@ -44,7 +47,7 @@ class TestProcessing:
             dtype=st.just(float),  # type: ignore
         ),
     )
-    def test_subtract_combinations(da):
+    def test_subtract_combinations(self, da):
         assume((da != np.inf).all())
         assume((da != -np.inf).all())
         assume((~np.isnan(da)).all())  # no NaNs allowed
@@ -61,13 +64,15 @@ class TestProcessing:
             dtype=st.just(float),  # type: ignore
         ),
     )
-    def test_pca(da):
+    def test_pca(self, da):
         assume(not np.isinf(da).any())  # no +/-inf allowed
         assume(not np.isnan(da).any())  # no NaNs allowed
+        da = xr.DataArray(da)
+
         res = pca(da, dim='target')
         assert isinstance(res, xr.DataArray) or isinstance(res, xr.Variable)
         assert 'PC' in res.dims
 
 
-    def test_pairwise_dists_pca():
+    def test_pairwise_dists_pca(self):
         pass

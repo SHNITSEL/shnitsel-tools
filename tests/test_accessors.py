@@ -4,24 +4,24 @@ import xarray as xr
 import pytest
 
 
-@pytest.fixture
-def traj_butene():
-    frames = sh.parse.read_trajs('tutorials/test_data/sharc/traj_butene', kind='sharc')
-    return frames
-
-
-@pytest.fixture
-def iconds_butene():
-    iconds = sh.parse.sharc_icond.dirs_of_iconds(
-        'tutorials/test_data/sharc/iconds_butene'
-    )
-    return iconds
 
 
 class TestAccessors:
     """Class to test all functions of the shnitsel accessors provided to DataArray and DataSet objects"""
+    @pytest.fixture
+    def traj_butene(self):
+        frames = sh.parse.read_trajs('tutorials/test_data/sharc/traj_butene', kind='sharc')
+        return frames
 
-    def test_da_accessors(traj_butene):
+
+    @pytest.fixture
+    def iconds_butene(self):
+        iconds = sh.parse.sharc_icond.dirs_of_iconds(
+            'tutorials/test_data/sharc/iconds_butene'
+        )
+        return iconds
+
+    def test_da_accessors(self, traj_butene):
         frames = sh.postprocess.ts_to_time(traj_butene)
         e_step = frames.energy.sh.sudi()
         assert isinstance(e_step, xr.DataArray)
@@ -36,7 +36,7 @@ class TestAccessors:
         assert astate_methods <= set(dir(frames.astate.sh))
         # astatesh = frames.astate.sh
 
-    def test_ds_accessors(traj_butene, iconds_butene):
+    def test_ds_accessors(self, traj_butene, iconds_butene):
         assert 'ts_to_time' in dir(traj_butene.sh)
         frames = traj_butene.sh.ts_to_time()
         # TODO Add more methods -- by parametrizing.

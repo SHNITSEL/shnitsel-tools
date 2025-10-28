@@ -9,15 +9,15 @@ class TestASEFunctionality:
     """Class to test all functions of the shnitsel tools related to ASE (Atomic simulation Environment) Databases"""
 
     @pytest.mark.parametrize(
-        'path,kind',
+        'path, kind',
         [
-            ('tutorials/test_data/old_CH2NH2.db', 'schnet'),
-            ('tutorials/test_data/tobias_cis_new.db', 'spainn'),
-            ('tutorials/test_data/old_CH2NH2.db', None),
-            ('tutorials/test_data/tobias_cis_new.db', None),
+            ('tutorials/test_data/ase/old_CH2NH2.db', 'schnet'),
+            ('tutorials/test_data/ase/tobias_cis_new.db', 'spainn'),
+            ('tutorials/test_data/ase/old_CH2NH2.db', None),
+            ('tutorials/test_data/ase/tobias_cis_new.db', None),
         ],
     )
-    def test_ase_round_trip(path, kind):
+    def test_ase_round_trip(self, path, kind):
         tmp_path = '/tmp/test_round_trip.db'
         try:
             os.remove(tmp_path)
