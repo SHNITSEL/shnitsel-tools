@@ -39,127 +39,97 @@ def spectra3d(ensembles):
     }
 
 
-#################
-# plot.spectra3d:
+class TestPlotFunctionality:
+    """Class to test all plotting functionality included in Shnitsel-Tools"""
 
+    #################
+    # plot.spectra3d:
 
-@image_comparison(['ski_plots'])
-def test_ski_plots(spectra3d):
-    for name, spectral in spectra3d.items():
-        name
-        # os.path.join(FIXDIR, name, 'ski_plots.png')
-        # with tempfile.NamedTemporaryFile() as f:
-        sh.plot.ski_plots(spectral)  # .savefig(f.name)
+    @image_comparison(['ski_plots'])
+    def test_ski_plots(spectra3d):
+        for name, spectral in spectra3d.items():
+            name
+            # os.path.join(FIXDIR, name, 'ski_plots.png')
+            # with tempfile.NamedTemporaryFile() as f:
+            sh.plot.ski_plots(spectral)  # .savefig(f.name)
 
+    def test_pcm_plots(): ...
 
-def test_pcm_plots(): ...
+    ###########
+    # plot.kde:
+    def test_biplot_kde(): ...
 
+    def test_plot_kdes(): ...
 
-###########
-# plot.kde:
-def test_biplot_kde(): ...
+    def test_plot_cdf_for_kde(): ...
 
+    ##############################
+    # Functions from "pca_biplot":
 
-def test_plot_kdes(): ...
+    def test_plot_noodleplot(): ...
 
+    def test_plot_noodlelplot_lines(): ...  # once implemented!
 
-def test_plot_cdf_for_kde(): ...
+    def test_plot_loadings(): ...
 
+    ## Following two together
+    @pytest.fixture
+    def highlight_pairs(): ...  # careful -- this uses rdkit, not mpl. What's the return type? Annotate!
 
-##############################
-# Functions from "pca_biplot":
+    def test_mpl_imshow_png(highlight_pairs): ...  # maybe in combination with the above
 
+    def test_plot_clusters(): ...  # can we find better names for these? Maybe they're all special cases of a more general function?
 
-def test_plot_noodleplot(): ...
+    def test_plot_clusters2(): ...
 
+    def test_plot_clusters3(): ...
 
-def test_plot_noodlelplot_lines(): ...  # once implemented!
+    def test_plot_bin_edges(): ...
 
+    ############################
+    # Functions from "plotting":
 
-def test_plot_loadings(): ...
+    def test_pca_line_plot(): ...  # can we generalize this and use the result to finish implementing plot_noodleplot_lines()?
 
+    def test_pca_scatter_plot(): ...  # this is unimplemented, and if implemented would be identical to plot_noodleplot, I expect.
 
-## Following two together
-@pytest.fixture
-def highlight_pairs(): ...  # careful -- this uses rdkit, not mpl. What's the return type? Annotate!
+    def test_timeplot(): ...  # Legacy timeplot function using seaborn via conversion to pandas
 
+    def test_timeplot_interstate(): ...  # Legacy timeplot function which does something similar to postprocess.get_inter_state() before plotting
 
-def test_mpl_imshow_png(highlight_pairs): ...  # maybe in combination with the above
+    ###########################################
+    # Functions from the "datasheet" hierarchy:
 
+    # Skip plot/colormaps.py.
+    # TODO Skip plot/common.py?
+    # Skip plot/hist.py?
 
-def test_plot_clusters(): ...  # can we find better names for these? Maybe they're all special cases of a more general function?
+    ## plot/__init__.py:
+    def test_plot_datasheet(): ...  # Warning: this will take long to run -- make optional?
 
+    ## plot/per_state_hist.py
+    def test_plot_per_state_histograms(): ...
 
-def test_plot_clusters2(): ...
+    ## plot/dip_trans_hist.py
+    def test_single_hist(): ...
 
+    def test_plot_dip_trans_histograms(): ...
 
-def test_plot_clusters3(): ...
+    def test_plot_spectra(): ...
 
+    def test_plot_separated_spectra_and_hists(): ...  # Monster function! Break up?
 
-def test_plot_bin_edges(): ...
+    ## plot/nacs_hist.py
+    def test_plot_nacs_histograms(): ...
 
+    ## plot/structure.py
 
-############################
-# Functions from "plotting":
+    # TODO Why is show_atXYZ deprecated? What has replaced it? The composition of xyz_to_mol() and mol_to_png()?
+    def test_plot_structure(): ...
 
+    ## plot/time.py
+    def test_plot_time_interstate_error(): ...  # TODO 3 statecombs hard-coded for label positioning! Bad!
 
-def test_pca_line_plot(): ...  # can we generalize this and use the result to finish implementing plot_noodleplot_lines()?
+    def test_plot_pops(): ...
 
-
-def test_pca_scatter_plot(): ...  # this is unimplemented, and if implemented would be identical to plot_noodleplot, I expect.
-
-
-def test_timeplot(): ...  # Legacy timeplot function using seaborn via conversion to pandas
-
-
-def test_timeplot_interstate(): ...  # Legacy timeplot function which does something similar to postprocess.get_inter_state() before plotting
-
-
-###########################################
-# Functions from the "datasheet" hierarchy:
-
-# Skip plot/colormaps.py.
-# TODO Skip plot/common.py?
-# Skip plot/hist.py?
-
-
-## plot/__init__.py:
-def test_plot_datasheet(): ...  # Warning: this will take long to run -- make optional?
-
-
-## plot/per_state_hist.py
-def test_plot_per_state_histograms(): ...
-
-
-## plot/dip_trans_hist.py
-def test_single_hist(): ...
-
-
-def test_plot_dip_trans_histograms(): ...
-
-
-def test_plot_spectra(): ...
-
-
-def test_plot_separated_spectra_and_hists(): ...  # Monster function! Break up?
-
-
-## plot/nacs_hist.py
-def test_plot_nacs_histograms(): ...
-
-
-## plot/structure.py
-
-
-# TODO Why is show_atXYZ deprecated? What has replaced it? The composition of xyz_to_mol() and mol_to_png()?
-def test_plot_structure(): ...
-
-
-## plot/time.py
-def test_plot_time_interstate_error(): ...  # TODO 3 statecombs hard-coded for label positioning! Bad!
-
-
-def test_plot_pops(): ...
-
-
-def test_plot_timeplots(): ...
+    def test_plot_timeplots(): ...
