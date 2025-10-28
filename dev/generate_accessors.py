@@ -179,10 +179,15 @@ def generate_class_code(classes: dict[str, list[callable]]) -> str:
     return import_str + "\n\n" + "\n".join(lines)
 
 def main():
-    import shnitsel as st
-    from shnitsel.core.plot import p3mhelpers
-    from shnitsel.core import vmd
-    from shnitsel.core.plot import select
+    try:
+        import shnitsel as st
+        from shnitsel.core.plot import p3mhelpers
+        from shnitsel.core import vmd
+        from shnitsel.core.plot import select
+    except ImportError as e:
+        logging.error(
+            f"Import of module for generation of accessor classes failed: {e.msg}. \n Please ensure all modules are available."
+        )
 
     da_funcs = [
         # postprocess
