@@ -53,6 +53,30 @@ class TestPlotFunctionality:
             # with tempfile.NamedTemporaryFile() as f:
             sh.plot.ski_plots(spectral)  # .savefig(f.name)
 
+    def test_biplot():
+        # load trajectory data of A01
+        a01 = sh.open_frames('.A01_ethene_dynamic.nc')
+        # create PCA plot over all trajectories with visualization of the
+        # four most important PCA-axis on the molecular structure
+        # C=C bond color highlighgting via KDE in PCA
+        sh.plot.biplot_kde(
+            frames=a01, at1=0, at2=1, geo_filter=[[0, 3], [5, 20]], levels=10
+        )
+        # C-H bond color highlighting via KDE in PCA
+        sh.plot.biplot_kde(
+            frames=a01, at1=0, at2=2, geo_filter=[[0, 3], [5, 20]], levels=10
+        )
+
+    def test_ski_plots_accessor_conversion():
+        # load data
+        spectra_data = (
+            sh.open_frames(path='A01_ethene_dynamic.nc')
+            .sh.get_inter_state()
+            .sh.spectra_all_times()
+        )
+        # plot spectra at different simulation times in one plot with a dahsed line that tracks the maximum
+        sh.plot.ski_plots(spectra_data)
+
     def test_pcm_plots(): ...
 
     ###########
