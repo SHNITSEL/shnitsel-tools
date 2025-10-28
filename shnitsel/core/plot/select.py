@@ -10,7 +10,7 @@ try:
     from bokeh.transform import linear_cmap
 
     __bokeh_package_available = True
-except ImportError as e:
+except ImportError:
     __bokeh_package_available = False
     logging.warning("Bokeh package missing. Plotting capabilities limited")
 
@@ -22,6 +22,9 @@ class FrameSelector:
     selected_frame_indices: list[int] = []
 
     def __init__(self, df_or_da, xname=None, yname=None, title="", allowed_ws_origin=None, webgl=True):
+        if not __bokeh_package_available:
+            logging.error(f"ERROR: Package <bokeh> was not found in the current environment. Please install the missing package to use the {self.__class__.__name__} class.")
+
         output_notebook()
 
         if isinstance(df_or_da, pd.DataFrame):
