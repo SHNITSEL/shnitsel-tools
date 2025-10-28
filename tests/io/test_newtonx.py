@@ -10,5 +10,5 @@ class TestNewtonX:
 
     def test_nx():
         # parse trajectory data from Newton-X output files
-        traj_frames_chd = sh.parse.read_trajs('test_data/newtonx/', kind='nx')
+        traj_frames_chd = sh.parse.read_trajs('tutorials/test_data/newtonx/', kind='nx')
 
