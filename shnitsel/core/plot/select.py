@@ -1,12 +1,18 @@
 import os
-from logging import warning
+import logging
 
-from bokeh.io import show, output_notebook
-from bokeh.layouts import column
-from bokeh.models import ColumnDataSource, CustomJS, Div
-from bokeh.plotting import figure
-from bokeh.settings import settings
-from bokeh.transform import linear_cmap
+try:
+    from bokeh.io import show, output_notebook
+    from bokeh.layouts import column
+    from bokeh.models import ColumnDataSource, CustomJS, Div
+    from bokeh.plotting import figure
+    from bokeh.settings import settings
+    from bokeh.transform import linear_cmap
+
+    __bokeh_package_available = True
+except ImportError as e:
+    __bokeh_package_available = False
+    logging.warning("Bokeh package missing. Plotting capabilities limited")
 
 import numpy as np
 import pandas as pd
@@ -63,7 +69,7 @@ class FrameSelector:
                 allowed_ws_origin = [allowed_ws_origin]
             settings.allowed_ws_origin.set_value(allowed_ws_origin)
         elif 'VSCODE_PID' in os.environ:
-            warning(
+            logging.warning(
                 "We appear to be running in VS Code and allowed_ws_origin "
                 "was not provided, so setting allowed_ws_origin='*'"
             )
