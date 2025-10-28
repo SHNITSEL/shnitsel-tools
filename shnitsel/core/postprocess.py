@@ -549,7 +549,7 @@ def get_per_state(frames: Frames) -> PerState:
 def get_inter_state(frames: Frames) -> InterState:
     prop: Hashable
     iprops = []
-    for prop in ['energy', 'nacs', 'astate', 'dip_trans']:
+    for prop in ['energy', 'nacs', 'state', 'dip_trans']:
         if prop in frames:
             iprops.append(prop)
         else:
