@@ -456,6 +456,15 @@ def _get_fosc(energy, dip_trans):
     return 2 / 3 * energy * dip_trans**2
 
 def get_fosc(energy, dip_trans):
+    """Function to obtain a dataarray containing the oscillator strength as a dataarray.
+
+    Args:
+        energy (DataArray): _description_
+        dip_trans (DataArray): _description_
+
+    Returns:
+        DataArray: The resulting datarray of oscillator strength f_osc
+    """
     if 'state' in energy.dims:
         assert 'statecomb' not in energy.dims
         energy = subtract_combinations(energy, 'state')
@@ -468,6 +477,14 @@ def get_fosc(energy, dip_trans):
 # TODO: deprecate (made redundant by DerivedProperties)
 @needs(data_vars={'energy', 'dip_trans'})
 def assign_fosc(ds: xr.Dataset) -> xr.Dataset:
+    """Function to calculate oscillator strength fosc and create a new dataset with this variable assigned.
+
+    Args:
+        ds (xr.Dataset): Dataset from which to calculate fosc
+
+    Returns:
+        xr.Dataset: Dataset with the member variable fosc set
+    """
     da = get_fosc(ds['energy'], ds['dip_trans'])
     return ds.assign(fosc=da)
 
@@ -563,10 +580,22 @@ def get_inter_state(frames: Frames) -> InterState:
             )
 
     inter_state = inter_state.map(keep_norming)
+
+    def state_renamer(lo, hi): 
+        if isinstance(lo, int):
+            lower_str = f"S_{lo-1}"
+        else:
+            lower_str = lo
+        if isinstance(hi, int):
+            higher_str = f"S_{hi-1}"
+        else:
+            higher_str = hi
+        f'${higher_str} - {lower_str}$'
+
     inter_state = xrhelpers.flatten_midx(
       inter_state,
       'statecomb',
-      lambda lo, hi: f'$S_{hi-1} - S_{lo-1}$'
+      state_renamer
     )
     if {'energy', 'dip_trans'}.issubset(iprops):
         inter_state = assign_fosc(inter_state)
