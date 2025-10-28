@@ -218,7 +218,9 @@ def open_frames(path):
 
         if tcoord is not None:
             frames = frames.set_xindex(['trajid', tcoord])
-        frames = frames.set_xindex(['from', 'to'])
+
+        if 'from' in frames.coords and 'to'in frames.coords:
+            frames = frames.set_xindex(['from', 'to'])
 
     return frames
 
