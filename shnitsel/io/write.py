@@ -1,0 +1,3 @@
+
+def write():
+    pass
