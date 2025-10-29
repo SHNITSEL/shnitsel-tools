@@ -1,6 +1,6 @@
-from typing import Dict
+from typing import Callable, Dict
 import xarray as xr
-import shnitsel.units.units as units
+import shnitsel.units.definitions as definitions
 
 
 class Converter:

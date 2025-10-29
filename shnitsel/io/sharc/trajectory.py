@@ -10,7 +10,8 @@ import re
 import math
 
 from shnitsel.io.helpers import get_atom_number_from_symbol
-from shnitsel.units.units import convert_all_units_to_shnitsel_defaults, get_default_input_attributes
+from shnitsel.units.definitions import get_default_input_attributes
+from shnitsel.units.conversion import convert_all_units_to_shnitsel_defaults
 
 
 def read_traj(traj_path: str | os.PathLike):

@@ -8,18 +8,19 @@ import re
 import math
 from itertools import product, combinations
 from glob import glob
-from typing import Dict, List, NamedTuple, Any, Sequence, Set, Sized, Tuple
+from typing import Dict, List, NamedTuple, Any, Sequence, Set, Tuple
 from tqdm.auto import tqdm
-from shnitsel.core.parse.common import (
-    get_dipoles_per_xyz,
+from shnitsel.io.helpers import (
     dip_sep,
     __atnum2symbol__,
     get_triangular,
+    ConsistentValue,
+    get_atom_number_from_symbol
 )
+from shnitsel.io.xyz import get_dipoles_per_xyz
 from shnitsel._contracts import needs
-from shnitsel.units.units import convert_all_units_to_shnitsel_defaults, get_default_input_attributes
-from units.conversion import convert_length
-from io.helpers import ConsistentValue, get_atom_number_from_symbol
+from shnitsel.units.definitions import get_default_input_attributes
+from shnitsel.units.conversion import convert_all_units_to_shnitsel_defaults
 
 _re_grads = re.compile('[(](?P<nstates>[0-9]+)x(?P<natoms>[0-9]+)x3')
 _re_nacs = re.compile('[(](?P<nstates>[0-9]+)x[0-9]+x(?P<natoms>[0-9]+)x3')
@@ -467,6 +468,14 @@ def parse_QM_log(log: TextIOWrapper) -> Dict[str, Any]:
 
 
 def parse_QM_log_geom(f: TextIOWrapper, out: xr.Dataset):
+    """Read geometry into an xr.Dataset object from the provided file input stream `f`.
+
+    f must be the contents of a `QM.log` file.
+
+    Args:
+        f (TextIOWrapper): File wrapper for a `QM.log` file's contents
+        out (xr.Dataset): The dataset to write the resulting geometry to
+    """
 
     # NB. Geometry is indeed in bohrs!
     while not next(f).startswith('Geometry in Bohrs:'):

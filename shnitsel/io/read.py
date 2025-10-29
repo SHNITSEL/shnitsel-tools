@@ -9,12 +9,14 @@ from tqdm.auto import tqdm
 import pandas as pd
 import xarray as xr
 import numpy as np
-from typing import TypeAlias, Callable, Literal, TYPE_CHECKING
+from typing import Dict, Iterable, List, TypeAlias, Callable, Literal, TYPE_CHECKING
 from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass
 import re
 import logging
 import os
+import pathlib
+
 
 
 # def read_trajs(
