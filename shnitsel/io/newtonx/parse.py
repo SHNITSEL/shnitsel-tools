@@ -19,11 +19,12 @@ def parse_newtonx(traj_path) -> xr.Dataset:
     # nsteps = single_traj.sizes['ts']
 
     with open(os.path.join(traj_path, 'RESULTS', 'dyn.xyz')) as f:
-        atNames, atXYZ = parse_xyz(f)
+        atNames, atNums, atXYZ = parse_xyz(f)
 
     # single_traj.attrs['atNames'] = atNames
     dims = ['ts', 'atom', 'direction']
-    single_traj = single_traj.assign_coords({'atNames': ('atom', atNames)})
+    single_traj = single_traj.assign_coords(
+        {'atNames': ('atom', atNames), 'atNums': ('atom', atNums)})
 
     if (
         not single_traj.attrs['completed']
