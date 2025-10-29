@@ -348,7 +348,7 @@ def concat_trajs(datasets) -> xr.Dataset:
     elif all('time' in ds.coords for ds in datasets):
         time_dim = 'time'
     else:
-        ValueError(
+        raise ValueError(
             "Some trajectories have coordinate 'ts', others 'time'. "
             "Please resolve this inconsistency manually."
         )
