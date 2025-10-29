@@ -2,7 +2,7 @@ import os
 
 import pytest
 from xarray.testing import assert_equal
-from shnitsel import read_ase
+from shnitsel.io.ase import parse_ase
 import shnitsel.xarray
 
 
@@ -42,10 +42,10 @@ class TestASEFunctionality:
     @pytest.mark.parametrize(
         'path, kind',
         [
-            ('tutorials/test_data/ase/old_CH2NH2.db', 'schnet'),
-            ('tutorials/test_data/ase/tobias_cis_new.db', 'spainn'),
-            ('tutorials/test_data/ase/old_CH2NH2.db', None),
-            ('tutorials/test_data/ase/tobias_cis_new.db', None),
+            ('tutorials/test_data/ase/schnarc_ch2nh2+.db', 'schnet'),
+            ('tutorials/test_data/ase/spainn_ch2nh2+.db', 'spainn'),
+            ('tutorials/test_data/ase/schnarc_ch2nh2+.db', None),
+            ('tutorials/test_data/ase/spainn_ch2nh2+.db', None),
         ],
     )
     def test_ase_round_trip(self, path, kind):
@@ -55,19 +55,19 @@ class TestASEFunctionality:
         except FileNotFoundError:
             pass
 
-        frames1 = read_ase(path, kind=kind)
+        frames1 = parse_ase(path, kind=kind)
         frames1.sh.write_ase(tmp_path, kind=kind)
-        frames2 = read_ase(tmp_path, kind=kind)
+        frames2 = parse_ase(tmp_path, kind=kind)
         assert_equal(frames1, frames2)
 
     def test_generic_ase(self, FauxBulkDataDB):
         # Just test if we can open it. Should not fail
-        frames1 = read_ase(FauxBulkDataDB, kind=None)
+        frames1 = parse_ase(FauxBulkDataDB, kind=None)
 
     def test_invalid_kinds_raises_valueerror(self, FauxBulkDataDB):
         with pytest.raises(ValueError) as excinfo:
             # Should fail because of invalid kind of DB
-            frames1 = read_ase(FauxBulkDataDB, kind="harlow")
+            frames1 = parse_ase(FauxBulkDataDB, kind="harlow")
         assert "'kind' should be one of 'schnet' or 'spainn'" in str(
             excinfo.value)
 
