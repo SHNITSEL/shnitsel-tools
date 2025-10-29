@@ -3,7 +3,6 @@ from typing import Callable, Dict, Literal
 import ase.units as si
 import numpy as np
 import xarray as xr
-from conversion import convert_energy, convert_dipole, convert_force, convert_length, convert_nacs, convert_socs, convert_time
 
 # TODO: FIXME: Check all atomic units for correctness
 
@@ -206,36 +205,6 @@ def get_default_input_attributes(kind: Literal['sharc', 'newtonx', 'ase', 'pyrai
     }
 
     return res
-
-
-def convert_all_units_to_shnitsel_defaults(data: xr.Dataset) -> xr.Dataset:
-    new_vars = {}
-    with xr.set_options(keep_attrs=True):
-        for var_name in data.variables:
-            data = data.ass
-            new_vars[var_name] = convert_datarray_with_unitdim(data[var_name])
-        return data.assign(new_vars)
-
-
-_CONVERTERS: Dict[str, Callable[[xr.DataArray, str], xr.DataArray]] = {
-    unit_dimensions.energy: convert_energy,
-    unit_dimensions.force: convert_force,
-    unit_dimensions.dipole: convert_dipole,
-    unit_dimensions.length: convert_length,
-    unit_dimensions.time: convert_time,
-    unit_dimensions.nacs: convert_nacs,
-    unit_dimensions.soc: convert_socs,
-}
-
-
-def convert_datarray_with_unitdim(data: xr.DataArray) -> xr.DataArray:
-    if 'unitdim' in data.attrs:
-        unit_dimension = data.attrs['unitdim']
-
-        if unit_dimension in standard_shnitsel_units and unit_dimension in _CONVERTERS:
-            return _CONVERTERS[unit_dimension](data, standard_shnitsel_units[unit_dimension])
-
-    return data
 
 
 standard_units_of_formats = {
