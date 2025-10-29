@@ -9,18 +9,21 @@ import xarray as xr
 from ._accessors import DAManualAccessor, DSManualAccessor
 from ._contracts import needs
 from numpy import ndarray
+from os import PathLike
 from rdkit.Chem.rdchem import Mol
-from shnitsel.core.ase import write_ase
 from shnitsel.core.filtre import energy_filtranda, get_cutoffs, last_time_where, truncate
 from shnitsel.core.geom import get_bats, get_bond_angles, get_bond_lengths, get_bond_torsions, get_pyramids, kabsch
 from shnitsel.core.ml import lda, pca, pls, pls_ds
-from shnitsel.core.parse.sharc_icond import iconds_to_frames
 from shnitsel.core.plot.p3mhelpers import frame3D, frames3Dgrid, traj3D, trajs3Dgrid
 from shnitsel.core.plot.select import FrameSelector, TrajSelector
 from shnitsel.core.plot.spectra3d import spectra_all_times
-from shnitsel.core.postprocess import angle, assign_fosc, calc_ci, calc_pops, convert_dipoles, convert_energy, convert_forces, convert_length, default_mol, dihedral, distance, ds_broaden_gauss, find_hops, get_hop_types, get_inter_state, get_per_state, hop_indices, keep_norming, norm, pairwise_dists_pca, pca_and_hops, relativize, setup_frames, smiles_map, subtract_combinations, sudi, time_grouped_ci, to_mol, to_xyz, traj_to_xyz, trajs_with_hops, ts_to_time, validate
+from shnitsel.core.postprocess import angle, assign_fosc, calc_ci, calc_pops, default_mol, dihedral, distance, ds_broaden_gauss, find_hops, get_hop_types, get_inter_state, get_per_state, hop_indices, keep_norming, norm, pairwise_dists_pca, pca_and_hops, relativize, setup_frames, smiles_map, subtract_combinations, sudi, time_grouped_ci, to_mol, to_xyz, traj_to_xyz, trajs_with_hops, ts_to_time, validate
 from shnitsel.core.vmd import traj_vmd
-from shnitsel.core.xrhelpers import assign_levels, expand_midx, flatten_levels, mgroupby, msel, save_frames, sel_trajids, sel_trajs, stack_trajs, unstack_trajs
+from shnitsel.core.xrhelpers import assign_levels, expand_midx, flatten_levels, mgroupby, msel, sel_trajids, sel_trajs, stack_trajs, unstack_trajs
+from shnitsel.io.ase.write import write_ase
+from shnitsel.io.sharc.initial_conditions import iconds_to_frames
+from shnitsel.io.shnitsel.write import write_shnitsel_file
+from shnitsel.units.conversion import convert_dipole, convert_energy, convert_force, convert_length, convert_nacs, convert_time
 from typing import Dict, Hashable, List, Literal, Optional, Sequence, Union
 from xarray.core.dataarray import DataArray
 from xarray.core.dataset import Dataset
@@ -50,9 +53,12 @@ class DataArrayAccessor(DAManualAccessor):
         'smiles_map',
         'default_mol',
         'convert_energy',
-        'convert_forces',
-        'convert_dipoles',
+        'convert_force',
+        'convert_dipole',
         'convert_length',
+        'convert_time',
+        'convert_nacs',
+        'convert_time',
         'flatten_levels',
         'expand_midx',
         'assign_levels',
@@ -170,27 +176,39 @@ class DataArrayAccessor(DAManualAccessor):
         """Wrapper for :py:func:`shnitsel.core.postprocess.default_mol`."""
         return default_mol(self._obj)
 
-    def convert_energy(self, to: str):
-        """Wrapper for :py:func:`shnitsel.core.postprocess.convert_energy`."""
-        return convert_energy(self._obj, to)
+    def convert_energy(self, to: str, convert_from: str | None=None):
+        """Wrapper for :py:func:`shnitsel.units.conversion.convert_energy`."""
+        return convert_energy(self._obj, to, convert_from=convert_from)
 
-    def convert_forces(self, to: str):
-        """Wrapper for :py:func:`shnitsel.core.postprocess.convert_forces`."""
-        return convert_forces(self._obj, to)
+    def convert_force(self, to: str, convert_from: str | None=None):
+        """Wrapper for :py:func:`shnitsel.units.conversion.convert_force`."""
+        return convert_force(self._obj, to, convert_from=convert_from)
 
-    def convert_dipoles(self, to: str):
-        """Wrapper for :py:func:`shnitsel.core.postprocess.convert_dipoles`."""
-        return convert_dipoles(self._obj, to)
+    def convert_dipole(self, to: str, convert_from: str | None=None):
+        """Wrapper for :py:func:`shnitsel.units.conversion.convert_dipole`."""
+        return convert_dipole(self._obj, to, convert_from=convert_from)
 
-    def convert_length(self, to: str):
-        """Wrapper for :py:func:`shnitsel.core.postprocess.convert_length`."""
-        return convert_length(self._obj, to)
+    def convert_length(self, to: str, convert_from: str | None=None):
+        """Wrapper for :py:func:`shnitsel.units.conversion.convert_length`."""
+        return convert_length(self._obj, to, convert_from=convert_from)
 
-    def flatten_levels(self, idx_name: str, levels: Sequence[str], new_name: str | None=None, position: int=0, renamer: typing.Callable | None=None) -> xr.Dataset | xr.DataArray:
+    def convert_time(self, to: str, convert_from: str | None=None):
+        """Wrapper for :py:func:`shnitsel.units.conversion.convert_time`."""
+        return convert_time(self._obj, to, convert_from=convert_from)
+
+    def convert_nacs(self, to: str, convert_from: str | None=None):
+        """Wrapper for :py:func:`shnitsel.units.conversion.convert_nacs`."""
+        return convert_nacs(self._obj, to, convert_from=convert_from)
+
+    def convert_time(self, to: str, convert_from: str | None=None):
+        """Wrapper for :py:func:`shnitsel.units.conversion.convert_time`."""
+        return convert_time(self._obj, to, convert_from=convert_from)
+
+    def flatten_levels(self, idx_name: str, levels: Sequence[str], new_name: str | None=None, position: int=0, renamer: Callable | None=None) -> xr.Dataset | xr.DataArray:
         """Wrapper for :py:func:`shnitsel.core.xrhelpers.flatten_levels`."""
         return flatten_levels(self._obj, idx_name, levels, new_name=new_name, position=position, renamer=renamer)
 
-    def expand_midx(self, midx_name, level_name, value) -> xr.Dataset | xr.DataArray:
+    def expand_midx(self, midx_name: str, level_name: str, value) -> xr.Dataset | xr.DataArray:
         """Wrapper for :py:func:`shnitsel.core.xrhelpers.expand_midx`."""
         return expand_midx(self._obj, midx_name, level_name, value)
 
@@ -236,9 +254,9 @@ class DataArrayAccessor(DAManualAccessor):
         """Wrapper for :py:func:`shnitsel.core.geom.get_bond_torsions`."""
         return get_bond_torsions(self._obj, quadruple_types=quadruple_types, mol=mol, signed=signed, deg=deg)
 
-    def get_pyramids(self, pyramid_idxs: dict[int, list[int]] | None=None, mol: rdkit.Chem.rdchem.Mol | None=None, deg: bool=False) -> DataArray:
+    def get_pyramids(self, pyramid_idxs: dict[int, list[int]] | None=None, mol: rdkit.Chem.rdchem.Mol | None=None, deg: bool=False, signed=True) -> DataArray:
         """Wrapper for :py:func:`shnitsel.core.geom.get_pyramids`."""
-        return get_pyramids(self._obj, pyramid_idxs=pyramid_idxs, mol=mol, deg=deg)
+        return get_pyramids(self._obj, pyramid_idxs=pyramid_idxs, mol=mol, deg=deg, signed=signed)
 
     @needs(dims={'atom', 'direction'})
     def get_bats(self, mol: rdkit.Chem.rdchem.Mol | None=None, signed: bool=False, deg: bool=False, pyr=False):
@@ -313,7 +331,7 @@ class DatasetAccessor(DSManualAccessor):
         'assign_levels',
         'mgroupby',
         'msel',
-        'save_frames',
+        'write_shnitsel_file',
         'sel_trajs',
         'unstack_trajs',
         'stack_trajs',
@@ -376,11 +394,11 @@ class DatasetAccessor(DSManualAccessor):
         """Wrapper for :py:func:`shnitsel.core.postprocess.default_mol`."""
         return default_mol(self._obj)
 
-    def flatten_levels(self, idx_name: str, levels: Sequence[str], new_name: str | None=None, position: int=0, renamer: typing.Callable | None=None) -> xr.Dataset | xr.DataArray:
+    def flatten_levels(self, idx_name: str, levels: Sequence[str], new_name: str | None=None, position: int=0, renamer: Callable | None=None) -> xr.Dataset | xr.DataArray:
         """Wrapper for :py:func:`shnitsel.core.xrhelpers.flatten_levels`."""
         return flatten_levels(self._obj, idx_name, levels, new_name=new_name, position=position, renamer=renamer)
 
-    def expand_midx(self, midx_name, level_name, value) -> xr.Dataset | xr.DataArray:
+    def expand_midx(self, midx_name: str, level_name: str, value) -> xr.Dataset | xr.DataArray:
         """Wrapper for :py:func:`shnitsel.core.xrhelpers.expand_midx`."""
         return expand_midx(self._obj, midx_name, level_name, value)
 
@@ -396,9 +414,9 @@ class DatasetAccessor(DSManualAccessor):
         """Wrapper for :py:func:`shnitsel.core.xrhelpers.msel`."""
         return msel(self._obj, **kwargs)
 
-    def save_frames(self, path, complevel=9):
-        """Wrapper for :py:func:`shnitsel.core.xrhelpers.save_frames`."""
-        return save_frames(self._obj, path, complevel=complevel)
+    def write_shnitsel_file(self, path: PathLike, complevel=9):
+        """Wrapper for :py:func:`shnitsel.io.shnitsel.write.write_shnitsel_file`."""
+        return write_shnitsel_file(self._obj, path, complevel=complevel)
 
     @needs(dims={'frame'}, coords_or_vars={'trajid'})
     def sel_trajs(self, trajids_or_mask: Sequence[int] | Sequence[bool], invert=False) -> xr.Dataset | xr.DataArray:
@@ -414,8 +432,8 @@ class DatasetAccessor(DSManualAccessor):
         return stack_trajs(self._obj)
 
     @needs(dims={'icond'}, coords={'icond'}, not_dims={'time'})
-    def iconds_to_frames(self):
-        """Wrapper for :py:func:`shnitsel.core.parse.sharc_icond.iconds_to_frames`."""
+    def iconds_to_frames(self) -> Dataset:
+        """Wrapper for :py:func:`shnitsel.io.sharc.initial_conditions.iconds_to_frames`."""
         return iconds_to_frames(self._obj)
 
     @needs(coords={'frame', 'trajid'}, data_vars={'energy', 'fosc'})
@@ -440,7 +458,7 @@ class DatasetAccessor(DSManualAccessor):
 
     @needs(dims={'frame'})
     def write_ase(self, db_path: str, kind: str | None, keys: Optional=None, preprocess: bool=True):
-        """Wrapper for :py:func:`shnitsel.core.ase.write_ase`."""
+        """Wrapper for :py:func:`shnitsel.io.ase.write.write_ase`."""
         return write_ase(self._obj, db_path, kind, keys=keys, preprocess=preprocess)
 
     def pls_ds(self, xname, yname, n_components=2):
