@@ -24,7 +24,7 @@ from shnitsel.io.ase.write import write_ase
 from shnitsel.io.sharc.initial_conditions import iconds_to_frames
 from shnitsel.io.shnitsel.write import write_shnitsel_file
 from shnitsel.units.conversion import convert_dipole, convert_energy, convert_force, convert_length, convert_nacs, convert_time
-from typing import Dict, Hashable, List, Literal, Optional, Sequence, Union
+from typing import Callable, Dict, Hashable, List, Literal, Optional, Sequence, Union
 from xarray.core.dataarray import DataArray
 from xarray.core.dataset import Dataset
 from xarray.core.groupby import DataArrayGroupBy, DatasetGroupBy

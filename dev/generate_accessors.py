@@ -57,6 +57,7 @@ def generate_class_code(classes: dict[str, list[callable]]) -> str:
         'Hashable': 'typing',
         'Sequence': 'typing',
         'Literal': 'typing',
+        'Callable': 'typing',
         'DataArrayGroupBy': 'xarray.core.groupby',
         'DatasetGroupBy': 'xarray.core.groupby',
         'needs': '._contracts',
