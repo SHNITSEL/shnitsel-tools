@@ -2,11 +2,11 @@ import os
 
 import xarray as xr
 
-import shnitsel as sh
+from shnitsel.io import read_shnitsel_file
 
 
 class TestGeneralIO:
     """Class to test general frame I/O functionality"""
 
     def test_open(self):
-        sh.open_frames('tutorials/test_data/fixtures/butene/data.nc')
+        read_shnitsel_file('tutorials/test_data/fixtures/butene/data.nc')
