@@ -1,3 +1,4 @@
+from io import TextIOWrapper
 import numpy as np
 import pandas as pd
 import xarray as xr
@@ -7,17 +8,18 @@ import re
 import math
 from itertools import product, combinations
 from glob import glob
-from typing import NamedTuple, Any
+from typing import Dict, List, NamedTuple, Any, Sequence, Set, Sized, Tuple
 from tqdm.auto import tqdm
 from shnitsel.core.parse.common import (
     get_dipoles_per_xyz,
     dip_sep,
     __atnum2symbol__,
-    ConsistentValue,
     get_triangular,
 )
 from shnitsel._contracts import needs
-from shnitsel.core.postprocess import convert_length
+from shnitsel.units.units import convert_all_units_to_shnitsel_defaults, get_default_input_attributes
+from units.conversion import convert_length
+from io.helpers import ConsistentValue, get_atom_number_from_symbol
 
 _re_grads = re.compile('[(](?P<nstates>[0-9]+)x(?P<natoms>[0-9]+)x3')
 _re_nacs = re.compile('[(](?P<nstates>[0-9]+)x[0-9]+x(?P<natoms>[0-9]+)x3')
@@ -33,7 +35,19 @@ def nans(*dims):
     return np.full(dims, np.nan)
 
 
-def list_iconds(iconds_path='./iconds/', glob_expr='**/ICOND_*'):
+def list_iconds(iconds_path: str | os.PathLike = './iconds/', glob_expr: str = '**/ICOND_*') -> List[IcondPath]:
+    """Retrieve a list of all potential initial condition directories to be parsed given the input path and matching patter.
+
+    Args:
+        iconds_path (str | os.PathLike, optional): The path where to look for initial condition directories. Defaults to './iconds/'.
+        glob_expr (str, optional): The pattern for finding initial conditions. Defaults to '**/ICOND_*'.
+
+    Raises:
+        FileNotFoundError: If no directories match the pattern.
+
+    Returns:
+        List[IcondPath]: The list of Tuples of the parsed ID and the full path of the initial conditions
+    """
     dirs = glob(glob_expr, recursive=True, root_dir=iconds_path)
     if len(dirs) == 0:
         raise FileNotFoundError(
@@ -52,7 +66,15 @@ def list_iconds(iconds_path='./iconds/', glob_expr='**/ICOND_*'):
     return [IcondPath(int(name[6:]), os.path.join(iconds_path, name)) for name in names]
 
 
-def dims_from_QM_out(f):
+def dims_from_QM_out(f: TextIOWrapper) -> Tuple[int | None, int | None]:
+    """Function to also read the relevant dimensions (number of atoms, number of states) from WM.out
+
+    Args:
+        f (TextIOWrapper): The QM.out file to read from
+
+    Returns:
+        Tuple[int,int]: First the number of states, second the number of atoms or respectively None if not found.
+    """
     # faced with redundancy, use it to ensure consistency
     nstates = ConsistentValue('nstates', weak=True)
     natoms = ConsistentValue('natoms', weak=True)
@@ -75,8 +97,23 @@ def dims_from_QM_out(f):
     return nstates.v, natoms.v
 
 
-def dims_from_QM_log(log):
+def dims_from_QM_log(log: TextIOWrapper) -> Tuple[int, int, int, int, int]:
+    """Function to retrieve the listed number of states and the number of atoms from the Qm.log file of initial conditions
+
+    Args:
+        log (TextIOWrapper): Input file handle to read the log file contents from
+
+    Raises:
+        ValueError: If the log file contains an inconsistently structured Line about states but does neither specify Singlet nor Triplet states.
+
+    Returns:
+        Tuple[int,int,int,int,int]: First the number of states, then the number of atoms. This is followed by the number of singlet, doublet and triplet states (if available). If a value is not available, it will default to 0.
+    """
     nstates = ConsistentValue('nstates', weak=True)
+    nstates_singlet = ConsistentValue('nstates_singlet', weak=True)
+    nstates_doublet = ConsistentValue('nstates_doublet', weak=True)
+    nstates_triplet = ConsistentValue('nstates_triplet', weak=True)
+
     natoms = ConsistentValue('natoms', weak=True)
     for line in log:
         if line.startswith('States:'):
@@ -90,50 +127,105 @@ def dims_from_QM_log(log):
             elif 'Triplet' in linecont and 'Singlet' not in linecont:
                 ntriplets = int(linecont[1])
                 nsinglets = 0
+            else:
+                raise ValueError(f"Invalid State line in QM.log: {line}")
 
             # calculate total number of states
             nstates.v = nsinglets + (3 * ntriplets)
+            nstates_singlet.v = nsinglets
+            nstates_triplet.v = ntriplets
 
         elif line.startswith('Found Geo!'):
             linecont = re.split(' ', line.strip())
             natoms.v = int(linecont[-1][0:-1])
 
-    return nstates.v, natoms.v
+    num_states = nstates.v if nstates.v is not None else 0
+    num_atoms = natoms.v if natoms.v is not None else 0
+    num_singlets = nstates_singlet.v if nstates_singlet.v is not None else 0
+    num_doublets = nstates_doublet.v if nstates_doublet.v is not None else 0
+    num_triplets = nstates_triplet.v if nstates_triplet.v is not None else 0
+
+    return num_states, num_atoms, num_singlets, num_doublets, num_triplets
 
 
-def check_dims(pathlist):
-    if len(pathlist) == 0:
-        raise ValueError("pathlist is empty")
+def check_dims(pathlist: Sequence[IcondPath]) -> Tuple[int, int, int, int, int]:
+    """Function to obtain the number of atoms and states across all input paths. 
+
+    Will only return the tuple of (number_states, number_atoms) if these numbers are consistent across all paths.
+    Otherwise, an error will be raised.
+
+    Args:
+        pathlist (Sequence[str | os.PathLike]): The list of paths belonging to this same system to check for consistent dimensions 
+
+    Raises:
+        FileNotFoundError: If the number of valid input paths in pathlist is zero, a FileNotFoundError is raised
+        ValueError: If the number of states and the number of atoms does not agree across all systems a ValueError is raised
+
+    Returns:
+        Tuple[int, int, int, int, int]: The number of states and the number of atoms, then the number of singlets, doublets and triplets in this order
+    """
+
     nstates = ConsistentValue('nstates', ignore_none=True)
+    nstates_singlet = ConsistentValue('nstates_singlet', weak=True)
+    nstates_doublet = ConsistentValue('nstates_doublet', weak=True)
+    nstates_triplet = ConsistentValue('nstates_triplet', weak=True)
+
     natoms = ConsistentValue('natoms', ignore_none=True)
     for _, path in pathlist:
         try:
             with open(os.path.join(path, 'QM.out')) as f:
                 nstates.v, natoms.v = dims_from_QM_out(f)
-            with open(os.path.join(path, 'QM.log')) as f:
-                nstates.v, natoms.v = dims_from_QM_log(f)
         except FileNotFoundError:
             pass
-    return nstates.v, natoms.v
+        try:
+            with open(os.path.join(path, 'QM.log')) as f:
+                nstates.v, natoms.v, nstates_singlet.v, nstates_doublet.v, nstates_triplet.v, = dims_from_QM_log(
+                    f)
+        except FileNotFoundError:
+            pass
+
+    if not nstates.defined or not natoms.defined:
+        raise FileNotFoundError(
+            "Pathlist empty or no valid path found within pathlist for initial condition input")
+
+    num_singlets = nstates_singlet.v if nstates_singlet.v is not None else 0
+    num_doublets = nstates_doublet.v if nstates_doublet.v is not None else 0
+    num_triplets = nstates_triplet.v if nstates_triplet.v is not None else 0
+
+    return nstates.v, natoms.v, num_singlets, num_doublets, num_triplets
 
 
-def dir_of_iconds(path='./iconds/', *, subset: (set | None) = None):
-    pathlist = list_iconds(path)
-    if subset is not None:
-        pathlist = [icond for icond in pathlist if icond.name in subset]
-
-    return read_iconds(pathlist)
+def dir_of_iconds(path: str | os.PathLike = './iconds/', *, levels: int = 1, id_subset: (Set[int] | None) = None):
+    """Function to retrieve all initial conditions from subdirectories of the provided `path`.
 
 
-def dirs_of_iconds(path='./iconds/', *, levels=1, subset: (set | None) = None):
-    pathlist = list_iconds(path)
-    if subset is not None:
-        pathlist = [icond for icond in pathlist if icond.name in subset]
+    Args:
+        path (str | os.PathLike, optional): The path to a directory containing the directories with initial conditions. Defaults to './iconds/'.
+        levels (int, optional): Currently unused. Intended to denote how many levels down initial conditions will be looked for. Defaults to 1.
+        id_subset (Set[int]  |  None, optional): An optional set of ids to restrict the anaylsis to. No initial conditions with an id outside of this set will be loaded. Defaults to None.
 
-    return read_iconds(pathlist)
+    Returns:
+        _type_: _description_
+    """
+    initial_condition_paths: List[IcondPath] = list_iconds(path)
+    if id_subset is not None:
+        initial_condition_paths = [
+            icond for icond in initial_condition_paths if icond.idx in id_subset]
+
+    return read_iconds(initial_condition_paths)
 
 
-def init_iconds(indices, nstates, natoms, **res):
+def create_icond_dataset(indices: List[int] | None, nstates: int, natoms: int, **kwargs) -> xr.Dataset:
+    """Function to initialize an `xr.Dataset` with appropriate variables and coordinates to acommodate loaded data.
+
+    Args:
+        indices (List[int]): List of indices for the different initial conditions
+        nstates (int): Number of states within the datasets
+        natoms (int): The number of atoms within the datasets
+
+    Returns:
+        xr.Dataset: An xarray Dataset with appropriately sized DataArrays and coordinates also including default attributes for all variables.
+    """
     template = {
         'energy': ['state'],
         'dip_all': ['state', 'state2', 'direction'],
@@ -145,29 +237,48 @@ def init_iconds(indices, nstates, natoms, **res):
         'phases': ['state'],
         'nacs': ['statecomb', 'atom', 'direction'],
         'atXYZ': ['atom', 'direction'],
+        'atNames': ['atom'],
+        'atNums': ['atom'],
+        'state_names': ['state'],
+        'state_types': ['state'],
+    }
+
+    template_default_values = {
+        'energy': np.nan,
+        'dip_all': np.nan,
+        'dip_perm': np.nan,
+        'dip_trans': np.nan,
+        'forces': np.nan,
+        'phases': np.nan,
+        'nacs': np.nan,
+        'atXYZ': np.nan,
+        'atNames': '',
+        'atNums': -1,
+        'state_types': 0,
     }
 
     if natoms == 0:
         # This probably means that check_dims() couldn't find natoms,
         # so we don't expect properties with an atom dimension.
-
         del template['forces']
         del template['nacs']
+        del template['atXYZ']
+        del template['atNames']
+        del template['atNums']
 
+    if nstates == 0:
         # On the other hand, we don't worry about not knowing nstates,
         # because energy is always written.
+        pass
 
-    if indices is not None:
+    if indices is not None and len(indices) > 0:
         niconds = len(indices)
         for varname, dims in template.items():
             dims.insert(0, 'icond')
     else:
         niconds = 0
 
-    template['atNames'] = ['atom']
-
-    lens = {
-        # 'placeholder': 1,
+    dim_lengths = {
         'icond': niconds,
         'state': nstates,
         'state2': nstates,
@@ -177,13 +288,14 @@ def init_iconds(indices, nstates, natoms, **res):
     }
 
     coords: dict | xr.Dataset = {
-        'state': (states := np.arange(nstates)),
+        'state': (states := np.arange(1, nstates+1)),
         'state2': states,
         'atom': np.arange(natoms),
         'direction': ['x', 'y', 'z'],
         'has_forces': (
             'icond',
-            x if (x := res.get('has_forces')) is not None else nans(niconds),
+            x if (x := kwargs.get('has_forces')
+                  ) is not None else nans(niconds),
         ),
     }
 
@@ -191,71 +303,113 @@ def init_iconds(indices, nstates, natoms, **res):
         coords['icond'] = indices
 
     coords = xr.Coordinates.from_pandas_multiindex(
-        pd.MultiIndex.from_tuples(combinations(states, 2), names=['from', 'to']),
+        pd.MultiIndex.from_tuples(combinations(
+            states, 2), names=['from', 'to']),
         dim='statecomb',
     ).merge(coords)
 
-    attrs = {
-        'energy': {'units': 'hartree', 'unitdim': 'Energy'},
-        'e_kin': {'units': 'hartree', 'unitdim': 'Energy'},
-        'dip_perm': {'long_name': "permanent dipoles", 'units': 'au'},
-        'dip_trans': {'long_name': "transition dipoles", 'units': 'au'},
-        'sdiag': {'long_name': 'active state (diag)'},
-        'astate': {'long_name': 'active state (MCH)'},
-        'forces': {'units': 'hartree/bohr', 'unitdim': 'Force'},
-        'nacs': {'long_name': "nonadiabatic couplings", 'units': 'au'},
-    }
+    # attrs = {
+    #    'atXYZ': {'long_name': "positions", 'units': 'Bohr', 'unitdim': 'Length'},
+    #    'energy': {'units': 'hartree', 'unitdim': 'Energy'},
+    #    'e_kin': {'units': 'hartree', 'unitdim': 'Energy'},
+    #    'dip_perm': {'long_name': "permanent dipoles", 'units': 'au'},
+    #    'dip_trans': {'long_name': "transition dipoles", 'units': 'au'},
+    #    'sdiag': {'long_name': 'active state (diag)'},
+    #    'astate': {'long_name': 'active state (MCH)'},
+    #    'forces': {'units': 'hartree/bohr', 'unitdim': 'Force'},
+    #    'nacs': {'long_name': "nonadiabatic couplings", 'units': 'au'},
+    # }
+    default_sharc_attributes = get_default_input_attributes('sharc')
 
     datavars = {
         varname: (
             dims,
             (
                 x
-                if (x := res.get(varname)) is not None
-                else nans(*[lens[d] for d in dims])
+                if (x := kwargs.get(varname)) is not None
+                else np.full([dim_lengths[d] for d in dims], fill_value=template_default_values[varname],)
             ),
-            attrs[varname] if varname in attrs else {},
+            default_sharc_attributes[varname] if varname in default_sharc_attributes else {
+            },
         )
         for varname, dims in template.items()
     }
 
-    datavars['atNames'] = (['atom'], np.full((natoms), ''), {})
+    res_dataset = xr.Dataset(datavars, coords)
 
-    return xr.Dataset(datavars, coords)
+    # Try and set some default attributes on the coordinates for the dataset
+    for coord_name in res_dataset.coords:
+        if coord_name in default_sharc_attributes:
+            res_dataset[coord_name].attrs.update(
+                default_sharc_attributes[str(coord_name)])
+
+    res_dataset.attrs['input_format'] = 'sharc'
+    res_dataset.attrs['input_type'] = 'static'
+
+    return res_dataset
 
 
-def read_iconds(pathlist, index=None):
+def read_iconds(pathlist: List[IcondPath], indices: List[int] | None = None) -> xr.Dataset:
+    """Function to read initial condition directories into a Dataset with standard shnitsel annotations and units
+
+    Args:
+        pathlist (List[IcondPath]): Lists of Initial condition paths from which we can parse the results into the dataset
+        indices (List[int] | None, optional): Optional. The list of indices of initial conditions we want to limit the parsing to. Defaults to None.
+
+    Returns:
+        xr.Dataset: The Dataset object containing all of the loaded data in default shnitsel units
+    """
     logging.info("Ensuring consistency of ICONDs dimensions")
-    nstates, natoms = check_dims(pathlist)
+    nstates, natoms, nsinglets, ndoublets, ntriplets = check_dims(pathlist)
     logging.info("Allocating Dataset for ICONDs")
-    if index is None:
-        index = [p.idx for p in pathlist]
-    iconds = init_iconds(index, nstates, natoms)
+    if indices is None:
+        indices = [p.idx for p in pathlist]
+    iconds = create_icond_dataset(indices, nstates, natoms)
+
+    # Set information on the singlet, doublet and triplet states, if available
+    iconds["state_types"][:nsinglets] = 1
+    iconds["state_types"][nsinglets:nsinglets+2*ndoublets] = 2
+    iconds["state_types"][nsinglets+2*ndoublets:] = 3
+
+    iconds.attrs['num_singlets'] = nsinglets
+    iconds.attrs['num_doublets'] = ndoublets
+    iconds.attrs['num_triplets'] = ntriplets
+
     logging.info("Reading ICONDs data into Dataset...")
 
-    for icond, path in tqdm(pathlist):
+    for icond_index, path in tqdm(pathlist):
         with open(os.path.join(path, 'QM.out')) as f:
-            parse_QM_out(f, out=iconds.sel(icond=icond))
+            parse_QM_out(f, out=iconds.sel(icond=icond_index))
 
-    for icond, path in tqdm(pathlist):
+    for icond_index, path in tqdm(pathlist):
         try:
             with open(os.path.join(path, 'QM.log')) as f:
-                parse_QM_log_geom(f, out=iconds.sel(icond=icond))
+                parse_QM_log_geom(f, out=iconds.sel(icond=icond_index))
         except FileNotFoundError:
-            logging.warning(
+            # This should be an error. We probably cannot recover from this and action needs to be taken
+            logging.error(
                 f"""no QM.log file found in {path}.
                 This is currently used to determine geometry.
                 Eventually, user-inputs will be accepted as an alternative.
                 See https://github.com/SHNITSEL/db-workflow/issues/3"""
             )
 
-    iconds.atXYZ.attrs['units'] = 'bohr'
-    iconds['atXYZ'] = convert_length(iconds.atXYZ, to='angstrom')
-    return iconds
+    return convert_all_units_to_shnitsel_defaults(iconds)
 
 
-def parse_QM_log(log):
-    info: dict[str, Any] = {}
+def parse_QM_log(log: TextIOWrapper) -> Dict[str, Any]:
+    """Function to parse main information from the QM.log file
+
+    Args:
+        log (TextIOWrapper): Input file wrapper to read the information from
+
+    Raises:
+        ValueError: If there are neither singlet nor triplet states listed in the QM.log file
+
+    Returns:
+        Dict[str, Any]: Dictionary with key information about the system
+    """
+    info: Dict[str, Any] = {}
     for line in log:
         if line.startswith('States:'):
             linecont = re.split(' +|\t', line.strip())
@@ -268,6 +422,9 @@ def parse_QM_log(log):
             elif 'Triplet' in linecont and 'Singlet' not in linecont:
                 ntriplets = int(linecont[2])
                 nsinglets = 0
+            else:
+                raise ValueError(
+                    "QM.log file is malformed. States have neither singlet nor triplet states listed")
 
             # calculate total number of states
             nstates = nsinglets + (3 * ntriplets)
@@ -300,28 +457,41 @@ def parse_QM_log(log):
             for i in range(natom):
                 geometry_line = re.split(' +', next(log).strip())
                 atnames.append(geometry_line[0])
-                atxyz[i] = [geometry_line[j] for j in range(1, 4)]
+                atxyz[i] = [float(geometry_line[j]) for j in range(1, 4)]
 
             info['atNames'] = atnames
-            r = {j: i for i, j in __atnum2symbol__.items()}
-            info['atNums'] = [r[i] for i in atnames]
+            info['atNums'] = [get_atom_number_from_symbol(n) for n in atnames]
             info['atXYZ'] = atxyz
 
     return info
 
 
-def parse_QM_log_geom(f, out):
+def parse_QM_log_geom(f: TextIOWrapper, out: xr.Dataset):
+
     # NB. Geometry is indeed in bohrs!
     while not next(f).startswith('Geometry in Bohrs:'):
         pass
 
     for i in range(out.sizes['atom']):
         geometry_line = next(f).strip().split()
-        out['atNames'][i] = geometry_line[0]
-        out['atXYZ'][i] = geometry_line[1:4]
+        atom_symbol = geometry_line[0].strip()
+        out['atNames'][i] = atom_symbol
+        out['atNums'][i] = get_atom_number_from_symbol(atom_symbol)
+        out['atXYZ'][i] = map(float, geometry_line[1:4])
 
 
-def parse_QM_out(f, out: (xr.Dataset | None) = None):
+def parse_QM_out(f: TextIOWrapper, out: (xr.Dataset | None) = None) -> xr.Dataset | None:
+    """Function to read all information about forces, energies, dipoles, nacs, etc. from initial condition QM.out files.
+
+    if ``out=None`` is provided, a new Dataset is constructed and returned by the function
+
+    Args:
+        f (TextIOWrapper): File input of the QM.out file to parse the data from
+        out (xr.Dataset  |  None, optional): Optional target Dataset to write the loaded data into. Defaults to None. 
+
+    Returns:
+        xr.Dataset | None: If a new Dataset was constructed instead of being written to `out`, it will be returned.
+    """
     res: xr.Dataset | dict[str, np.ndarray]
     if out is not None:
         # write data directly into dataset
@@ -361,7 +531,8 @@ def parse_QM_out(f, out: (xr.Dataset | None) = None):
             next(f)
             res['dip_all'][:, :, 2] = get_dipoles_per_xyz(f, n, m)
 
-            res['dip_perm'][:], res['dip_trans'][:] = dip_sep(np.array(res['dip_all']))
+            res['dip_perm'][:], res['dip_trans'][:] = dip_sep(
+                np.array(res['dip_all']))
 
         elif line.startswith('! 3 Gradient Vectors'):
             res['has_forces'] = np.array([1])
@@ -404,7 +575,7 @@ def parse_QM_out(f, out: (xr.Dataset | None) = None):
 
             # all nacs, i.e., nacs of all singlet and triplet states
             # all diagonal elements are zero (self-coupling, e.g. S1 and S1)
-            # off-diagonal elements conatin couplings of different states (e.g. S0 and S1)
+            # off-diagonal elements contain couplings of different states (e.g. S0 and S1)
             # in principle one has here the full matrix for the nacs between all singlet and triplet states
             # in the following we extract only the upper triangular elements of the matrix
 
@@ -444,7 +615,7 @@ def parse_QM_out(f, out: (xr.Dataset | None) = None):
             res['forces'] = nans(natoms.v, 3)
 
         assert isinstance(res, dict)
-        return init_iconds(indices=None, nstates=nstates.v, natoms=natoms.v, **res)
+        return create_icond_dataset(indices=None, nstates=nstates.v, natoms=natoms.v, **res)
 
         # xr.Dataset(
         #     {
@@ -470,8 +641,22 @@ def parse_QM_out(f, out: (xr.Dataset | None) = None):
         # no need to return anything
         return None
 
+
 @needs(dims={'icond'}, coords={'icond'}, not_dims={'time'})
-def iconds_to_frames(iconds: xr.Dataset):
+def iconds_to_frames(iconds: xr.Dataset) -> xr.Dataset:
+    """Function to convert the `icond` coordinate into a `trajid` coordinate and also build a combined `frame`+`time` multiindex as `frame`
+
+    Will exempt atNames and atNums from the rearrangement.
+
+    Args:
+        iconds (xr.Dataset): input dataset to replace the dimension in
+
+    Raises:
+        ValueError: Raised if at least one array has size 0 in one coordinate
+
+    Returns:
+        xr.Dataset: The transformed dataset
+    """
     for name, var in iconds.data_vars.items():
         shape = var.data.shape
         if 0 in shape:
@@ -481,13 +666,18 @@ def iconds_to_frames(iconds: xr.Dataset):
                 "Note: An empty variable could indicate a problem with parsing."
             )
 
-    if 'atNames' in iconds.data_vars and 'atNames' not in iconds.coords:
-        iconds = iconds.assign_coords(atNames=iconds.atNames)
+    # if 'atNames' in iconds.data_vars and 'atNames' not in iconds.coords:
+    #    iconds = iconds.assign_coords(atNames=iconds.atNames)
+
+    isolated_keys = ['atNames', 'atNums', 'state_names', 'state_types']
+
+    res = iconds.rename_dims(icond='trajid').rename_vars(icond='trajid')
+
+    for var in res.data_vars:
+        if var not in isolated_keys:
+            res[var] = res[var].expand_dims('time')
 
     return (
-        iconds.rename_dims(icond='trajid')
-        .rename_vars(icond='trajid')
-        .expand_dims('time')
-        .assign_coords(time=('time', [0.0]))
+        res.assign_coords(time=('time', [0.0]))
         .stack(frame=['trajid', 'time'])
     )
