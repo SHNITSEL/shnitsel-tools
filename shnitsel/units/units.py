@@ -1,8 +1,21 @@
 
+from typing import Callable, Dict, Literal
 import ase.units as si
 import numpy as np
+import xarray as xr
+from conversion import convert_energy, convert_dipole, convert_force, convert_length, convert_nacs, convert_socs, convert_time
 
 # TODO: FIXME: Check all atomic units for correctness
+
+
+class unit_dimensions:
+    length = 'length'
+    energy = 'energy'
+    force = 'force'
+    dipole = 'dipole'
+    nacs = 'nacs'
+    time = 'time'
+    soc = 'soc'
 
 
 class time:
@@ -11,15 +24,17 @@ class time:
     nano_seconds = 'ns'
     seconds = 's'
     ase_time_units = 'ase_time'
+    au = 'au'
 
 
-time_unit_scales = {
+_time_unit_scales = {
     time.pico_seconds: si.fs*1e3,
     time.femto_seconds: si.fs,
     time.nano_seconds: si.fs*1e6,
     time.seconds: si.second,
     'seconds': si.second*1e-12,
-    # 'au': si._aut,
+    # TODO: FIXME: set actual atomic time unit possibly:  si._aut
+    'au': np.nan,
     # ASE uses this time unit: Ang/sqrt(u/eV) which might differ slightly from 10fs
     time.ase_time_units: si.Angstrom/np.sqrt(si._amu/si.eV)
 }
@@ -32,6 +47,7 @@ class energy:
     J = 'J'
     kJ = 'kJ'
     kcal = 'kcal'
+    au = 'au'
 
 
 _energy_unit_scales = {
@@ -41,7 +57,8 @@ _energy_unit_scales = {
     'joule': si.J,
     energy.J: si.J,
     energy.kJ: si.kJ,
-    energy.kcal: si.kcal
+    energy.kcal: si.kcal,
+    energy.au: si.Hartree
 }
 
 
@@ -51,6 +68,7 @@ class force:
     eV_per_Bohr = 'eV/Bohr'
     eV_per_Angstrom = 'eV/Angstrom'
     Newton = 'N'
+    au = 'au'
 
 
 _force_unit_scales = {
@@ -61,7 +79,7 @@ _force_unit_scales = {
     'Hartree/A': si.Hartree/si.Angstrom,
     'eV/A': si.eV/si.Angstrom,
     force.Newton: si.J/si.m,
-    'au': si.Hartree/si.Bohr,
+    force.au: si.Hartree/si.Bohr,
 }
 
 
@@ -71,6 +89,7 @@ class distance:
     meter = 'meter'
     pico_meter = 'pm'
     nano_meter = 'nm'
+    au = 'au'
 
 
 _distance_unit_scales = {
@@ -81,7 +100,7 @@ _distance_unit_scales = {
     distance.pico_meter: si.nm*1e-3,
     distance.nano_meter: si.nm,
     "1": 1.0,
-    "au": si.Bohr,
+    distance.au: si.Bohr,
 }
 
 # An alias
@@ -91,11 +110,34 @@ _length_unit_scales = _distance_unit_scales
 
 class dipole:
     Debye = 'Debye'
+    au = 'au'
 
 
 _dipole_unit_scales = {
     "1": 1.0,
-    dipole.Debye: si.Debye,  # 1/0.3934303,
+    dipole.Debye: si.Debye,
+    # TODO: FIXME: set actual atomic dipole unit.
+    dipole.au: np.nan,
+}
+
+
+class nacs:
+    # TODO: FIXME: Figure out nacs units
+    au = 'au'
+
+
+_nacs_unit_scales = {
+    dipole.au: 1.0,
+}
+
+
+class socs:
+    # TODO: FIXME: Figure out nacs units
+    au = 'au'
+
+
+_socs_unit_scale = {
+    socs.au: 1.0,
 }
 
 
@@ -112,49 +154,136 @@ _amount_unit_scales = {
 __codata_version__ = si.__codata_version__
 
 standard_shnitsel_units = {
-    "length": "Bohr",
-    "energy": "Hartree",
-    "force": "Hartree/Bohr",
-    "time": "ps",  # TODO: FIXME: Check which default time unit is used in shnitsel
-    "nacs": "1",
-    "dipole": "debye",
-    "dipole_trans": "1",
-    "soc": "1"
+    unit_dimensions.length: "Bohr",
+    unit_dimensions.energy: "Hartree",
+    unit_dimensions.force: "Hartree/Bohr",
+    # TODO: FIXME: Check which default time unit is used in shnitsel
+    unit_dimensions.time: "fs",
+    unit_dimensions.nacs: "1",
+    unit_dimensions.dipole: "debye",
+    # "dipole_trans": "1",
+    unit_dimensions.soc: socs.au
 }
+
+"""
+Previously used settings for SHARC input:
+    attrs = {
+        'atXYZ': {'long_name': "positions", 'units': 'Bohr', 'unitdim': 'Length'},
+        'energy': {'units': 'hartree', 'unitdim': 'Energy'},
+        'e_kin': {'units': 'hartree', 'unitdim': 'Energy'},
+        'dip_perm': {'long_name': "permanent dipoles", 'units': 'au'},
+        'dip_trans': {'long_name': "transition dipoles", 'units': 'au'},
+        'sdiag': {'long_name': 'active state (diag)'},
+        'astate': {'long_name': 'active state (MCH)'},
+        'forces': {'units': 'hartree/bohr', 'unitdim': 'Force'},
+        'nacs': {'long_name': "nonadiabatic couplings", 'units': 'au'},
+    }
+"""
+
+
+def get_default_input_attributes(kind: Literal['sharc', 'newtonx', 'ase', 'pyrai2md']) -> Dict[str, Dict[str, str]]:
+    format_default_units = standard_units_of_formats[kind]
+
+    res = {
+        'atXYZ': {'long_name': "Positions", 'unitdim': unit_dimensions.length, 'units': format_default_units[unit_dimensions.length]},
+        'energy': {'long_name': "Absolute energy", 'unitdim':  unit_dimensions.energy, 'units': format_default_units[unit_dimensions.energy]},
+        'e_kin': {'long_name': "Kinetic_energy", 'unitdim': unit_dimensions.energy, 'units': format_default_units[unit_dimensions.energy]},
+        'dip_all': {'long_name': "Complete dipoles", 'unitdim': unit_dimensions.dipole, 'units': format_default_units[unit_dimensions.dipole]},
+        'dip_perm': {'long_name': "Permanent dipoles", 'unitdim': unit_dimensions.dipole, 'units': format_default_units[unit_dimensions.dipole]},
+        'dip_trans': {'long_name': "Transition dipoles", 'unitdim': unit_dimensions.dipole, 'units': format_default_units[unit_dimensions.dipole]},
+        'phases': {'long_name': 'Phase vector'},
+        'sdiag': {'long_name': 'Active state (diag)'},
+        'astate': {'long_name': 'Active state in dynamic trajectories (MCH)'},
+        'state': {'long_name': 'Index of relevant states for indexing'},
+        'state_names': {'long_name': 'String representations of the states.'},
+        'state_types': {'long_name': 'Index to indicate whether the state is singlet (1), doublet (2), or triplet(3)'},
+        'state2': {'long_name': 'The second state to build state combinations out of'},
+        'statecomb': {'long_name': 'Combination of two states used to index inter-state properties'},
+        'atNames': {'long_name': 'Names of atomic elements (short form)'},
+        'atNums': {'long_name': 'Periodic number of atomic elements'},
+        'forces': {'long_name': 'Per-atom forces', 'unitdim': unit_dimensions.force, 'units': format_default_units[unit_dimensions.force]},
+        'nacs': {'long_name': "nonadiabatic couplings", 'unitdim': unit_dimensions.nacs, 'units': format_default_units[unit_dimensions.nacs]},
+    }
+
+    return res
+
+
+def convert_all_units_to_shnitsel_defaults(data: xr.Dataset) -> xr.Dataset:
+    new_vars = {}
+    with xr.set_options(keep_attrs=True):
+        for var_name in data.variables:
+            data = data.ass
+            new_vars[var_name] = convert_datarray_with_unitdim(data[var_name])
+        return data.assign(new_vars)
+
+
+_CONVERTERS: Dict[str, Callable[[xr.DataArray, str], xr.DataArray]] = {
+    unit_dimensions.energy: convert_energy,
+    unit_dimensions.force: convert_force,
+    unit_dimensions.dipole: convert_dipole,
+    unit_dimensions.length: convert_length,
+    unit_dimensions.time: convert_time,
+    unit_dimensions.nacs: convert_nacs,
+    unit_dimensions.soc: convert_socs,
+}
+
+
+def convert_datarray_with_unitdim(data: xr.DataArray) -> xr.DataArray:
+    if 'unitdim' in data.attrs:
+        unit_dimension = data.attrs['unitdim']
+
+        if unit_dimension in standard_shnitsel_units and unit_dimension in _CONVERTERS:
+            return _CONVERTERS[unit_dimension](data, standard_shnitsel_units[unit_dimension])
+
+    return data
+
 
 standard_units_of_formats = {
     "sharc": {
-        "length": length.Bohr,
-        "energy": energy.eV,
-        "force": force.eV_per_Angstrom,
-        "time": time.femto_seconds,  # TODO: FIXME: Check which default unit
-        "nacs": "1",
-        "dipole": dipole.Debye,
-        "dipole_trans": "1",
-        "soc": "1"
-    },
-    "xyz": {
-        "length": "Bohr",
+        unit_dimensions.length: length.Bohr,
+        unit_dimensions.energy: energy.Hartree,
+        unit_dimensions.force: force.Hartree_per_Bohr,
+        unit_dimensions.time: time.femto_seconds,  # TODO: Confirm default time unit
+        unit_dimensions.nacs: nacs.au,
+        unit_dimensions.dipole: dipole.au,
+        # "dipole_trans": dipole.au,
+        unit_dimensions.soc: socs.au
     },
     "ase": {
-        "length": length.Bohr,
-        "energy": energy.Hartree,
-        "force": force.Hartree_per_Bohr,
-        "time": time.ase_time_units,  # Ang/sqrt(u/eV)
-        "nacs": "1",
-        "dipole": dipole.Debye,
-        "dipole_trans": "1",
-        "soc": "1"
+        unit_dimensions.length: length.Bohr,
+        unit_dimensions.energy: energy.Hartree,
+        unit_dimensions.force: force.Hartree_per_Bohr,
+        # Ang/sqrt(u/eV) approx 10fs
+        unit_dimensions.time: time.ase_time_units,
+        unit_dimensions.nacs: nacs.au,
+        unit_dimensions.dipole: dipole.au,
+        # "dipole_trans": dipole.au,
+        unit_dimensions.soc: socs.au
     },
-    "newtonx": {  # Generallz uses atomic units
-        "length": length.Angstrom,  # TODO: FIXME: Until 1.3 it was AU
-        "energy": energy.eV,  # Hartree or eV, it depends
-        "force": force.Hartree_per_Bohr,
-        "time": time.femto_seconds,
-        "nacs": "1",
-        "dipole": dipole.Debye,
-        "dipole_trans": "1",
-        "soc": "1"
+    "newtonx": {  # Generally uses atomic units
+        unit_dimensions.length: length.Angstrom,  # TODO: FIXME: Until 1.3 it was AU
+        unit_dimensions.energy: energy.eV,  # Hartree or eV, it depends || energy.Hartree,
+        unit_dimensions.force: force.Hartree_per_Bohr,
+        unit_dimensions.time: time.femto_seconds,
+        unit_dimensions.nacs: nacs.au,
+        unit_dimensions.dipole: dipole.Debye,
+        # "dipole_trans": dipole.au,
+        unit_dimensions.soc: socs.au
     },
-    "shnitsel": standard_shnitsel_units
+    "shnitsel": standard_shnitsel_units,
+    "xyz": {
+        unit_dimensions.length: length.Bohr,
+    },
+    # Below is tentative support for Pyrai2MD file reading
+    "pyrai2md": {  # TODO: FIXME: Pyrai2MD parameters are quite uncertain based on their documentation
+        unit_dimensions.length: length.Bohr,
+        unit_dimensions.energy: energy.Hartree,
+        unit_dimensions.force: force.Hartree_per_Bohr,
+        # Ang/sqrt(u/eV) approx 10fs
+        unit_dimensions.time: time.ase_time_units,
+        unit_dimensions.nacs: nacs.au,
+        unit_dimensions.dipole: dipole.au,
+        # "dipole_trans": dipole.au,
+        unit_dimensions.soc: socs.au
+    },
 }
