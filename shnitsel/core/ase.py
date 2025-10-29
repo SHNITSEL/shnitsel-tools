@@ -77,7 +77,7 @@ def write_ase(
             )
 
 
-def read_ase(db_path: str, kind: str):
+def read_ase(db_path: str, kind: str | None):
     """Reads an ASE DB containing data in the SPaiNN or SchNet format
 
     Parameters
@@ -85,7 +85,7 @@ def read_ase(db_path: str, kind: str):
     db_path
         Path to the database
     kind
-        Must be one of 'spainn' or 'schnet'; determines interpretation of array shapes
+        Must be one of 'spainn' or 'schnet' or None; determines interpretation of array shapes If None is provided, no shape will be assumed
 
     Returns
     -------
