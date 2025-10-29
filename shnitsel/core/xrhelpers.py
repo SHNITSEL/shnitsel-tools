@@ -5,7 +5,7 @@ import os
 import logging
 import math
 import typing
-from typing import Sequence
+from typing import Callable, Sequence
 
 import numpy.typing as npt
 
@@ -71,7 +71,7 @@ def midx_combs(values: pd.core.indexes.base.Index|list, name: str|None =None):
 
 
 def flatten_midx(
-    obj: xr.Dataset | xr.DataArray, idx_name: str, renamer: callable | None = None
+    obj: xr.Dataset | xr.DataArray, idx_name: str, renamer: Callable | None = None
 ) -> xr.Dataset | xr.DataArray:
     """Function to flatten a multi-index into a flat index.
 
@@ -99,7 +99,7 @@ def flatten_levels(
     levels: Sequence[str],
     new_name: str | None = None,
     position: int = 0,
-    renamer: typing.Callable | None = None,
+    renamer: Callable | None = None,
 ) -> xr.Dataset | xr.DataArray:
     dims = obj.coords[idx_name].dims
     if len(dims) != 1:
@@ -127,7 +127,7 @@ def flatten_levels(
 
 
 def expand_midx(
-    obj: xr.Dataset | xr.DataArray, midx_name, level_name, value
+    obj: xr.Dataset | xr.DataArray, midx_name: str, level_name: str, value
 ) -> xr.Dataset | xr.DataArray:
     midx = obj.indexes[midx_name]
     to_drop = [midx.name] + midx.names
@@ -183,7 +183,7 @@ def assign_levels(
     return obj.set_xindex(to_restore)
 
 
-def open_frames(path):
+def open_frames(path: os.PathLike):
     """Opens a NetCDF4 file saved by shnitsel-tools, specially interpreting certain attributes.
 
     Parameters
@@ -237,7 +237,7 @@ def open_frames(path):
     return frames
 
 
-def save_frames(frames, path, complevel=9):
+def save_frames(frames, path: os.PathLike, complevel=9):
     """Save a ``Dataset``, presumably (but not necessarily) consisting of frames of trajectories, to a file at ``path``.
 
     Parameters
