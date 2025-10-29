@@ -45,7 +45,7 @@ _energy_unit_scales = {
 }
 
 
-class force_units:
+class force:
     Hartree_per_Bohr = 'Hartree/Bohr'
     Hartree_per_Angstrom = 'Hartree/Angstrom'
     eV_per_Bohr = 'eV/Bohr'
@@ -54,18 +54,18 @@ class force_units:
 
 
 _force_unit_scales = {
-    force_units.Hartree_per_Bohr: si.Hartree/si.Bohr,
-    force_units.eV_per_Bohr: si.eV/si.Bohr,
-    force_units.Hartree_per_Angstrom: si.Hartree/si.Angstrom,
-    force_units.eV_per_Angstrom: si.eV/si.Angstrom,
+    force.Hartree_per_Bohr: si.Hartree/si.Bohr,
+    force.eV_per_Bohr: si.eV/si.Bohr,
+    force.Hartree_per_Angstrom: si.Hartree/si.Angstrom,
+    force.eV_per_Angstrom: si.eV/si.Angstrom,
     'Hartree/A': si.Hartree/si.Angstrom,
     'eV/A': si.eV/si.Angstrom,
-    force_units.Newton: si.J/si.m,
+    force.Newton: si.J/si.m,
     'au': si.Hartree/si.Bohr,
 }
 
 
-class distance_units:
+class distance:
     Bohr = 'Bohr'
     Angstrom = 'Angstrom'
     meter = 'meter'
@@ -74,28 +74,28 @@ class distance_units:
 
 
 _distance_unit_scales = {
-    distance_units.Bohr: si.Bohr,
-    distance_units.Angstrom: si.Angstrom,
+    distance.Bohr: si.Bohr,
+    distance.Angstrom: si.Angstrom,
     'A': si.Angstrom,
-    distance_units.meter: si.m,
-    distance_units.pico_meter: si.nm*1e-3,
-    distance_units.nano_meter: si.nm,
+    distance.meter: si.m,
+    distance.pico_meter: si.nm*1e-3,
+    distance.nano_meter: si.nm,
     "1": 1.0,
     "au": si.Bohr,
 }
 
 # An alias
-length_units = distance_units
+length = distance
 _length_unit_scales = _distance_unit_scales
 
 
-class dipole_units:
+class dipole:
     Debye = 'Debye'
 
 
 _dipole_unit_scales = {
     "1": 1.0,
-    dipole_units.Debye: si.Debye,  # 1/0.3934303,
+    dipole.Debye: si.Debye,  # 1/0.3934303,
 }
 
 
@@ -124,12 +124,12 @@ standard_shnitsel_units = {
 
 standard_units_of_formats = {
     "sharc": {
-        "length": "Bohr",
-        "energy": "eV",
-        "force": "eV/Angstrom",
-        "time": "fs",  # TODO: FIXME: Check which default unit
+        "length": length.Bohr,
+        "energy": energy.eV,
+        "force": force.eV_per_Angstrom,
+        "time": time.femto_seconds,  # TODO: FIXME: Check which default unit
         "nacs": "1",
-        "dipole": "debye",
+        "dipole": dipole.Debye,
         "dipole_trans": "1",
         "soc": "1"
     },
@@ -137,22 +137,22 @@ standard_units_of_formats = {
         "length": "Bohr",
     },
     "ase": {
-        "length": "Bohr",
-        "energy": "Hartree",
-        "force": "Hartree/Bohr",
-        "time": "ase_time",  # Ang/sqrt(u/eV)
+        "length": length.Bohr,
+        "energy": energy.Hartree,
+        "force": force.Hartree_per_Bohr,
+        "time": time.ase_time_units,  # Ang/sqrt(u/eV)
         "nacs": "1",
-        "dipole": "debye",
+        "dipole": dipole.Debye,
         "dipole_trans": "1",
         "soc": "1"
     },
     "newtonx": {  # Generallz uses atomic units
-        "length": "Angstrom",  # TODO: FIXME: Until 1.3 it was AU
-        "energy": "eV",  # Hartree or eV, it depends
-        "force": "Hartree/Bohr",
-        "time": "fs",
+        "length": length.Angstrom,  # TODO: FIXME: Until 1.3 it was AU
+        "energy": energy.eV,  # Hartree or eV, it depends
+        "force": force.Hartree_per_Bohr,
+        "time": time.femto_seconds,
         "nacs": "1",
-        "dipole": "debye",
+        "dipole": dipole.Debye,
         "dipole_trans": "1",
         "soc": "1"
     },

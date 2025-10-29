@@ -1,10 +1,12 @@
 from typing import Dict
 import xarray as xr
-import shnitsel.units as units
+import shnitsel.units.units as units
 
 
 class Converter:
-    """Implements a generic Callable object to convert DataArrays between different units. 
+    """Implements a generic Callable object to convert DataArrays between different units.
+
+    See documentation of the ``__call__`` method for details on the implementation of the conversion.
     """
 
     def __init__(self, quantity_name: str, conversions: Dict[str, float]):
@@ -75,8 +77,8 @@ class Converter:
 # Helper to convert energies
 convert_energy = Converter('energy', units._energy_unit_scales)
 # Helper to convert forces
-convert_forces = Converter('forces', units._force_unit_scales)
+convert_force = Converter('force', units._force_unit_scales)
 # Helper to convert dipole moments
-convert_dipoles = Converter('dipoles', units._dipole_unit_scales)
+convert_dipole = Converter('dipole', units._dipole_unit_scales)
 # Helper to convert lengths and distances
 convert_length = Converter('length', units._distance_unit_scales)
