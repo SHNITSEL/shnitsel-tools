@@ -18,12 +18,34 @@ import os
 import pathlib
 
 
+@dataclass
+class LoadingParameters:
+    # The path to either an input file or an input trajectory depending on the kind of trajectory being requested
+    input_path: str | os.PathLike
+    # An indicator as to which kind of trajectory is being loaded
+    kind: Literal['sharc', 'newtonx', 'pyrai2md', 'shnitsel'] | None
+
+    # A dict containing the information, which input observable has which unit. If not provided, the loader will guess the units either based on the default values of that simulator or the data in `path`
+    input_units: Dict[str, str] | None = None
+    # List of the names of states or a function to label them or None and let the trajectory loader make an educated guess
+    state_names: List[str] | Callable | None = None
+
+    # Parameter to control whether multiple trajectories will be concatenated into a continuous trajectory or layered as trajectories indexed by
+    concat_function: Callable = 'frames'
+    # Flag to indicate whether parallel loading is requested
+    parallel: bool = True
+    # Flag to set how errors during loading are reported
+    error_reporting: Literal['log', 'raise'] = 'log'
+
+    # Pattern for matching paths within `input_path` for certain loaders depending on `kind`
+    sub_pattern: str | None = 'TRAJ*'
+
 
 # def read_trajs(
 def read(
-    path: str,
-    kind: Literal['sharc', 'nx', 'pyrai2md', 'shnitsel'],
-    pattern: str = 'TRAJ*',
+    path: str | os.PathLike,
+    kind: Literal['sharc', 'newtonx', 'pyrai2md', 'shnitsel'] | None,
+    sub_pattern: str | None = 'TRAJ*',
     concat_method: Literal['frames', 'layers'] = 'frames',
     parallel: bool = True,
     error_reporting: Literal['log', 'raise'] = 'log',
@@ -35,19 +57,24 @@ def read(
     path
         The path to the folder of folders
     kind
-        The kind of trajectory, i.e. whether it was produced by SHARC, Newton-X, PyRAI2MD or Shnitsel-Tools
-    pattern
-        The search pattern to append to the path (the whole thing will be read by :external:py:func:`glob.glob`),
-        by default 'TRAJ*'
+        The kind of trajectory, i.e. whether it was produced by SHARC, Newton-X, PyRAI2MD or Shnitsel-Tools.
+        If None is provided, the function will make a best-guess effort to identify, which kind of trajectory has been provided
+    sub_pattern
+        If the input is a format with multiple input trajectories in different directories, this is the search pattern to append 
+        to the `path` (the whole thing will be read by :external:py:func:`glob.glob`).
+        By default 'TRAJ*'.
+        If the `kind` does not support multi-folder inputs (like `shnitsel`), this will be ignored
     concat_method
         Whether to return the trajectories concatenated along the time axis ('frames') using a
         :external:py:class:`xarray.indexes.PandasMultiIndex`
         or along a new axis ('layers'), by default 'frames'
     parallel
-        Whether to read multiple trajectories at the same time (which, in the current implementation,
-        is only faster on storage that allows non-sequential reads), by default False
+        Whether to read multiple trajectories at the same time via parallel processing (which, in the current implementation,
+        is only faster on storage that allows non-sequential reads).
+        By default True.
     error_reporting:
-        Choose whether to log or to raise errors as they occur during the import process
+        Choose whether to log or to raise errors as they occur during the import process. 
+        Currently, the implementation does not support `error_reporting='raise'` while `parallel=True`.
 
     Returns
     -------
@@ -55,6 +82,8 @@ def read(
 
     Raises
     ------
+    FileNotFoundError
+        If the `kind` of input requires a single file and `path` does not exist or does not denote a file.
     FileNotFoundError
         If the search (``= path + pattern``) doesn't match any paths according to :external:py:func:`glob.glob`
     ValueError
@@ -74,8 +103,8 @@ def read(
         raise ValueError(
             "parallel=True only supports errors='log' (the default)")
 
-    glob_expr = os.path.join(path, pattern)
-    paths = glob.glob(glob_expr)
+    glob_expr = os.path.join(path, sub_pattern)
+    paths = glob.glob(glob_expr, root_dir=path)
     if len(paths) == 0:
         msg = f"The search '{glob_expr}' didn't match any paths"
         if not os.path.isabs(path):
@@ -85,9 +114,32 @@ def read(
     if parallel:
         datasets = read_trajs_parallel(paths, kind)
     else:
-        datasets = read_trajs_list(paths, kind, error_reporting=error_reporting)
+        datasets = read_trajs_list(
+            paths, kind, error_reporting=error_reporting)
 
     return cat_func(datasets)
+
+
+def guess_input_kind(path: str | os.PathLike, sub_pattern: str | None) -> Literal['sharc', 'newtonx', 'pyrai2md', 'shnitsel', 'ase'] | None:
+    # TODO: FIXME: Add ASE loading capability
+
+    path_obj = pathlib.Path(path)
+
+    if not path_obj.exists():
+        return None
+
+    if path_obj.is_file():
+        # Only shnitsel and ase are file-based
+        if path_obj.parts[-1].endswith(".nc"):
+            return 'shnitsel'
+        elif path_obj.parts[-1].endswith(".db"):
+            return 'ase'
+        else:
+            return None
+    elif path_obj.is_dir():
+        possible_formats = ['sharc', 'newtonx', 'pyrai2md']
+
+        
 
 
 Trajid: TypeAlias = int
@@ -260,7 +312,7 @@ def _per_traj(trajdir):
     )
 
 
-def read_trajs_parallel(paths, kind, idfn=None, sort=True):
+def read_trajs_parallel(paths: Iterable[str | os.PathLike], kind: Literal['sharc', 'newtonx', 'pyrai2md', 'shnitsel'], idfn=None, sort=True):
     global _idfn
     global _read_traj
 
@@ -324,7 +376,7 @@ def read_trajs_parallel(paths, kind, idfn=None, sort=True):
     return datasets
 
 
-def gather_traj_metadata(datasets, time_dim='ts'):
+def gather_traj_metadata(datasets: Iterable[xr.Dataset], time_dim='ts') -> np.ndarray:
     traj_meta = np.zeros(
         len(datasets),
         dtype=[
@@ -346,7 +398,7 @@ def gather_traj_metadata(datasets, time_dim='ts'):
     return traj_meta
 
 
-def concat_trajs(datasets) -> xr.Dataset:
+def concat_trajs(datasets: Iterable[xr.Dataset]) -> xr.Dataset:
     if all('ts' in ds.coords for ds in datasets):
         time_dim = 'ts'
     elif all('time' in ds.coords for ds in datasets):
@@ -380,7 +432,7 @@ def concat_trajs(datasets) -> xr.Dataset:
     return frames
 
 
-def layer_trajs(datasets) -> xr.Dataset:
+def layer_trajs(datasets: Iterable[xr.Dataset]) -> xr.Dataset:
     meta = gather_traj_metadata(datasets)
 
     trajids = pd.Index(meta['trajid'], name='trajid')
