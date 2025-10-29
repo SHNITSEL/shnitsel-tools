@@ -97,6 +97,8 @@ def read_ase(db_path: str, kind: str | None):
         If `kind` is not one of 'spainn' or 'schnet'
     FileNotFoundError
         If `db_path` is not a file
+    ValueError
+        If `db_path` does not contain data corresponding to the format `kind`
     """
     if kind == 'schnet':
         shapes = {
@@ -107,7 +109,8 @@ def read_ase(db_path: str, kind: str | None):
         }
     elif kind == 'spainn':
         shapes = {
-            'energy': ['frame', 'tmp', 'state'],  # Note the extra dim, removed below
+            # Note the extra dim, removed below
+            'energy': ['frame', 'tmp', 'state'],
             'forces': ['frame', 'atom', 'state', 'direction'],
             'nacs': ['frame', 'atom', 'statecomb', 'direction'],
             'dipoles': ['frame', 'state_or_statecomb', 'direction'],
@@ -115,19 +118,27 @@ def read_ase(db_path: str, kind: str | None):
     elif kind is None:
         shapes = {}
     else:
-        raise ValueError(f"'kind' should be one of 'schnet' or 'spainn', not '{kind}'")
+        raise ValueError(
+            f"'kind' should be one of 'schnet' or 'spainn', not '{kind}'")
 
     if not os.path.isfile(db_path):
         raise FileNotFoundError(db_path)
 
     with connect(db_path) as db:
         data_vars = {}
+        found_rows = 0
         for name, dims in shapes.items():
             try:
                 data = np.stack([row.data[name] for row in db.select()])
                 data_vars[name] = dims, data
+                found_rows += 1
             except KeyError:
                 pass
+
+        # If there are no valid rows, raise a ValueError
+        if found_rows == 0:
+            raise ValueError(
+                f"No rows with the appropriate format for kind={kind} were found in {db_path}")
 
         atXYZ = np.stack([row.positions for row in db.select()])
         data_vars['atXYZ'] = ['frame', 'atom', 'direction'], atXYZ
