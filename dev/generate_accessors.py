@@ -186,15 +186,19 @@ def generate_class_code(classes: dict[str, list[callable]]) -> str:
 
     return import_str + "\n\n" + "\n".join(lines)
 
+
 def main():
     try:
         import shnitsel as st
+        import shnitsel.units as units
+        from shnitsel.io.ase.write import write_ase
         from shnitsel.core.plot import p3mhelpers
         from shnitsel.core import vmd
         from shnitsel.core.plot import select
     except ImportError as e:
         logging.error(
-            f"Import of module for generation of accessor classes failed: {e.msg}. \n Please ensure all modules are available."
+            f"Import of module for generation of accessor classes failed: {e.msg} \n{repr(e)}. \n Please ensure all modules are available."
+
         )
 
     da_funcs = [
@@ -220,10 +224,13 @@ def main():
         st.postprocess.smiles_map,
         st.postprocess.default_mol,
         # postprocess converters
-        st.postprocess.convert_energy,
-        st.postprocess.convert_forces,
-        st.postprocess.convert_dipoles,
-        st.postprocess.convert_length,
+        units.convert_energy,
+        units.convert_force,
+        units.convert_dipole,
+        units.convert_length,
+        units.convert_time,
+        units.convert_nacs,
+        units.convert_socs,
         # xrhelpers
         st.xrhelpers.flatten_levels,
         st.xrhelpers.expand_midx,
@@ -276,12 +283,12 @@ def main():
         st.xrhelpers.assign_levels,
         st.xrhelpers.mgroupby,
         st.xrhelpers.msel,
-        st.xrhelpers.save_frames,
+        st.io.write_shnitsel_file,
         st.xrhelpers.sel_trajs,
         st.xrhelpers.unstack_trajs,
         st.xrhelpers.stack_trajs,
         # parse
-        st.parse.sharc_icond.iconds_to_frames,
+        st.io.sharc.iconds_to_frames,
         # plot
         st.core.plot.spectra3d.spectra_all_times,
         # filtre
@@ -289,7 +296,7 @@ def main():
         st.core.filtre.get_cutoffs,
         st.core.filtre.truncate,
         # ase
-        st.core.ase.write_ase,
+        write_ase,
         # ml
         st.core.ml.pls_ds,
     ]
