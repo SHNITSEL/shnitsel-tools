@@ -12,7 +12,7 @@ import numpy as np
 from rdkit.Chem import Mol
 import xarray as xr
 
-from .parse.common import __atnum2symbol__
+from shnitsel.io.helpers import get_atom_number_from_symbol, get_symbol_from_atom_number
 from .postprocess import (
     distance as distance,
     angle as angle,
@@ -30,8 +30,8 @@ from .._contracts import needs
 
 
 def bond_type_to_symbols(e1, e2):
-    s1 = __atnum2symbol__[e1]
-    s2 = __atnum2symbol__[e2]
+    s1 = get_atom_number_from_symbol(e1)
+    s2 = get_atom_number_from_symbol(e2)
     return s1 + s2
 
 
@@ -208,7 +208,8 @@ def get_bond_angles(
         dtype = ','.join(['i'] * n)
         return np.array([tuple(x) for x in xs], dtype=dtype)
 
-    at_idxs = {f'atom{i}': angle_types['at_idx'].isel(atom=i) for i in range(3)}
+    at_idxs = {f'atom{i}': angle_types['at_idx'].isel(
+        atom=i) for i in range(3)}
     angles = (
         angle_(al - ac, ar - ac)
         .assign_coords(
@@ -272,7 +273,8 @@ def identify_torsions(mol: Mol) -> xr.Dataset:
             bond_types.append(bt)
             s = __atnum2symbol__
             torsion_types.append('{}'.join([s[n] for n in an]).format(*bt))
-            torsion_symbols.append(r"$\varphi_{%d,%d,%d,%d}$" % (i0, i1, i2, i3))
+            torsion_symbols.append(
+                r"$\varphi_{%d,%d,%d,%d}$" % (i0, i1, i2, i3))
     return xr.Dataset(
         {
             'at_idx': (('torsion', 'atom'), np.array(quadruples)),
@@ -330,14 +332,16 @@ def get_bond_torsions(
         raise UserWarning("quadruple_types passed, so mol will not be used")
     if 'atNames' in atXYZ.coords or 'atNames' in atXYZ:
         atXYZ = atXYZ.drop_vars('atNames')
-    atom_positions = [atXYZ.sel(atom=quadruple_types.at_idx[:, i]) for i in range(4)]
+    atom_positions = [atXYZ.sel(atom=quadruple_types.at_idx[:, i])
+                      for i in range(4)]
     if signed:
         res = full_dihedral_(*atom_positions)
     else:
         res = dihedral_(*atom_positions)
     if deg:
         res *= 180 / np.pi
-    at_idxs = {f'atom{i}': quadruple_types['at_idx'].isel(atom=i) for i in range(4)}
+    at_idxs = {f'atom{i}': quadruple_types['at_idx'].isel(
+        atom=i) for i in range(4)}
     return res.assign_coords(
         torsion_type=quadruple_types['torsion_type'],
         torsion_symbol=quadruple_types['torsion_symbol'],
