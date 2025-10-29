@@ -8,8 +8,9 @@ from shnitsel._contracts import Needs
 #     'convert_dipoles': P.convert_dipoles,
 #     'convert_length': P.convert_length,
 # }
-DATASET_ACCESSOR_NAME = 'sh'
-DATAARRAY_ACCESSOR_NAME = 'sh'
+
+DATASET_ACCESSOR_NAME = 'st'
+DATAARRAY_ACCESSOR_NAME = 'st'
 
 
 class ShnitselAccessor:
@@ -39,7 +40,8 @@ class ShnitselAccessor:
         if 'data_vars' in entry._fields:
             vars_ = set(getattr(self._obj, 'data_vars', []))
             if not vars_ >= (rvars := (entry.data_vars or set())):
-                reasons.append(f"is missing required data_vars {rvars - vars_}")
+                reasons.append(
+                    f"is missing required data_vars {rvars - vars_}")
         if not dims >= (rdims := (entry.dims or set())):
             reasons.append(f"is missing required dims {rdims - dims}")
         if not coords >= (rcoords := (entry.coords or set())):
