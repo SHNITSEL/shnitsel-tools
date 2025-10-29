@@ -285,62 +285,6 @@ def setup_frames(
     return ds
 
 
-class Converter:
-    def __init__(self, quantity, conversions):
-        self.__name__ = f"convert_{quantity}"
-        self.quantity = quantity
-        self.conversions = conversions
-        self.targets = list(self.conversions.keys())
-
-    def __call__(self, da: xr.DataArray, to: str) -> xr.DataArray:
-        try:
-            from_ = da.attrs['units']
-        except AttributeError:
-            raise TypeError("da should be a DataArray with a da.attr attribute.")
-        except KeyError:
-            raise KeyError("The 'units' attribute of the DataArray must be set.")
-
-        try:
-            divisor = self.conversions[from_]
-        except KeyError:
-            raise ValueError(f"Can't convert {self.quantity} from {from_!r}, only from: {self.targets}")
-    
-        try:
-            dividend = self.conversions[to]
-        except KeyError:
-            raise ValueError(f"Can't convert {self.quantity} to {to!r}, only to: {self.targets}")
-    
-        with xr.set_options(keep_attrs=True):
-            res: xr.DataArray = da * dividend / divisor
-        res.attrs.update({'units': to})
-        return res
-
-convert_energy = Converter('energy', dict(
-  hartree=1.0,
-  au=1.0,
-  eV=27.211386245988,
-  keV=0.027211386245988
-))
-
-convert_forces = Converter('forces', {
-  'hartree/bohr': 0.5291772105,
-  'hartree/angstrom': 1.0,
-})
-
-convert_dipoles = Converter('dipoles', dict(
-  au=1.0,
-  debye=1/0.3934303
-))
-
-convert_length = Converter(
-    'length',
-    dict(
-        pm=52.91772105,
-        angstrom=0.5291772105,
-        bohr=1,
-    ),
-)
-
 
 def validate(frames: Frames) -> np.ndarray:
     if 'time' in frames.coords:
