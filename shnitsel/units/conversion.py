@@ -79,10 +79,26 @@ class Converter:
 
 
 # Helper to convert energies
-convert_energy = Converter('energy', units._energy_unit_scales)
+convert_energy = Converter(
+    units.unit_dimensions.energy, units._energy_unit_scales)
+
 # Helper to convert forces
-convert_force = Converter('force', units._force_unit_scales)
+convert_force = Converter(units.unit_dimensions.force,
+                          units._force_unit_scales)
+
 # Helper to convert dipole moments
-convert_dipole = Converter('dipole', units._dipole_unit_scales)
+convert_dipole = Converter(
+    units.unit_dimensions.dipole, units._dipole_unit_scales)
+
 # Helper to convert lengths and distances
-convert_length = Converter('length', units._distance_unit_scales)
+convert_length = Converter(
+    units.unit_dimensions.length, units._distance_unit_scales)
+
+# Helper to convert time
+convert_time = Converter(units.unit_dimensions.time, units._time_unit_scales)
+
+# Helper to convert nacs
+convert_nacs = Converter(units.unit_dimensions.nacs, units._nacs_unit_scales)
+
+# Helper to convert socs
+convert_socs = Converter(units.unit_dimensions.time, units._socs_unit_scale)
