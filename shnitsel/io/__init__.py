@@ -8,6 +8,6 @@ from .read import read
 from .write import write
 
 # Backward compatibility
-from .shnitsel.parse import read_shnitsel_file
+from .shnitsel import read_shnitsel_file, write_shnitsel_file
 
-__all__ = ['read', 'write', 'read_shnitsel_file']
+__all__ = ['read', 'write', 'read_shnitsel_file', 'write_shnitsel_file']
