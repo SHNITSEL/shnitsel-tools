@@ -1,7 +1,5 @@
 
 import glob
-from . import nx, sharc_traj
-from . import pyrai2md as pyrai2md
 from .pyrai2md import parse_pyrai2md
 from .newtonx.parse import parse_newtonx
 from .sharc.parse import parse_sharc
