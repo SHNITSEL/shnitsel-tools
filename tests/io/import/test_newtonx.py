@@ -10,17 +10,17 @@ from shnitsel.io.newtonx import parse_newtonx
 class TestNewtonX:
     """Class to test functionality related to NewtonX file format"""
 
-    def test_nx_direct(self):
+    def test_nx_direct_R02(self):
         # parse trajectory data from Newton-X output files
         traj_frames_chd = parse_newtonx(
-            'tutorials/test_data/newtonx/')
+            'tutorials/test_data/newtonx/test_trajectory_R02/TRAJ1/')
 
-    def test_nx_general_wrapper_with_kind(self):
+    def test_nx_general_wrapper_with_kind_R02(self):
         # parse trajectory data from Newton-X output files
         traj_frames_chd = read(
-            'tutorials/test_data/newtonx/', kind='newtonx')
+            'tutorials/test_data/newtonx/test_trajectory_R02/', kind='newtonx')
 
-    def test_nx_detected(self):
+    def test_nx_detected_R02(self):
         # parse trajectory data from Newton-X output files
         traj_frames_chd = read(
-            'tutorials/test_data/newtonx/', kind=None)
+            'tutorials/test_data/newtonx/test_trajectory_R02/', kind=None)

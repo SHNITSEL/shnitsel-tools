@@ -56,7 +56,7 @@ class TestASEFunctionality:
             pass
 
         frames1 = parse_ase(path, kind=kind)
-        frames1.sh.write_ase(tmp_path, kind=kind)
+        frames1.st.write_ase(tmp_path, kind=kind)
         frames2 = parse_ase(tmp_path, kind=kind)
         assert_equal(frames1, frames2)
 
@@ -74,17 +74,17 @@ class TestASEFunctionality:
     def test_missing_file(self):
         with pytest.raises(FileNotFoundError) as excinfo:
             # Should fail because of file not existing
-            read_ase("./nowhere.db", kind=None)
+            parse_ase("./nowhere.db", kind=None)
 
     def test_invalid_formats(self, FauxBulkDataDB):
         with pytest.raises(ValueError) as excinfo:
             # Should fail because DB is not in correct format
-            read_ase(FauxBulkDataDB, kind="spainn")
+            parse_ase(FauxBulkDataDB, kind="spainn")
         assert "No rows with the appropriate format" in str(excinfo.value)
 
         with pytest.raises(ValueError) as excinfo:
             # Should fail because DB is not in correct format
-            read_ase(FauxBulkDataDB, kind="schnet")
+            parse_ase(FauxBulkDataDB, kind="schnet")
         assert "No rows with the appropriate format" in str(excinfo.value)
 
 

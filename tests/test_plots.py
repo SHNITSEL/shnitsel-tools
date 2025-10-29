@@ -22,7 +22,7 @@ from shnitsel.io import read_shnitsel_file
 # Framework for now: matplotlib.testing
 # Later: matplotcheck (additional dev dependency)
 
-FIXDIR = 'tutorials/test_data/fixtures'
+FIXDIR = 'tutorials/test_data/shnitsel/fixtures'
 
 
 class TestPlotFunctionality:
@@ -30,7 +30,7 @@ class TestPlotFunctionality:
 
     @pytest.fixture
     def ensembles(self):
-        names = ['butene']
+        names = ['butene_static', 'butene_dynamic', 'butene_grid']
         return {
             name: read_shnitsel_file(os.path.join(FIXDIR, name, 'data.nc')) for name in names
         }

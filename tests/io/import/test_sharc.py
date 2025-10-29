@@ -2,6 +2,7 @@ import os
 
 import xarray as xr
 
+from shnitsel.io import read
 from shnitsel.io.sharc.trajectory import read_traj
 from shnitsel.io.sharc.initial_conditions import dir_of_iconds
 from shnitsel.units import standard_shnitsel_units
@@ -46,10 +47,27 @@ class TestSHARC:
         iconds_butene.reset_index("statecomb").to_netcdf(
             savepath, engine="h5netcdf")
 
-    def test_read_sharc_trajs(self):
+    def test_read_sharc_trajs_direct(self):
         # parse trajectory data from SHARC output files
         traj_frames_butene = read_traj(
-            "tutorials/test_data/sharc/traj_butene"
+            "tutorials/test_data/sharc/traj_butene/TRAJ_00002"
+        )
+
+        assert isinstance(traj_frames_butene, xr.Dataset)
+
+    def test_read_sharc_glob_match(self):
+        # Read a set of trajectories from a directory
+        traj_frames_butene = read(
+            "tutorials/test_data/sharc/traj_butene/",
+            kind='sharc'
+        )
+        assert isinstance(traj_frames_butene, xr.Dataset)
+
+    def test_read_sharc_wrapper_direct(self):
+        # Directly read one single trajectory from a directory
+        traj_frames_butene = read(
+            "tutorials/test_data/sharc/traj_butene/TRAJ_00002",
+            kind='sharc'
         )
 
         assert isinstance(traj_frames_butene, xr.Dataset)
