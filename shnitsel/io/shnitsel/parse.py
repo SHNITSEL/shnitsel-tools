@@ -6,7 +6,7 @@ import xarray as xr
 # def open_frames(path):
 
 
-def read_shnitsel_file(path: os.PathLike):
+def read_shnitsel_file(path: str | os.PathLike):
     """Opens a NetCDF4 file saved by shnitsel-tools, specially interpreting certain attributes.
 
     Parameters
