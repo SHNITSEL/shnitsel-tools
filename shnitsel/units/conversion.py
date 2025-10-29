@@ -51,6 +51,10 @@ class Converter:
         else:
             from_ = convert_from
 
+        if to.lower() == from_.lower():
+            # If unit is the same, do not convert
+            return da
+
         try:
             divisor = self.conversions[from_.lower()]
         except KeyError:
