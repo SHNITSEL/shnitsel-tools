@@ -8,6 +8,7 @@ import numpy as np
 import xarray as xr
 
 import shnitsel
+from shnitsel.io.sharc import read_traj
 from shnitsel import postprocess
 from shnitsel.core.postprocess import (
     norm,
@@ -17,14 +18,13 @@ from shnitsel.core.postprocess import (
 )
 
 
-
-
 class TestProcessing:
     """Class to test all functions of the shnitsel tools related to postprocessing"""
 
     @pytest.fixture
     def traj_butene(self):
-        frames = shnitsel.read_trajs('tutorials/test_data/sharc/traj_butene', kind='sharc')
+        frames = read_traj(
+            'tutorials/test_data/sharc/traj_butene', kind='sharc')
         return postprocess.ts_to_time(frames)
 
     @given(
@@ -39,7 +39,6 @@ class TestProcessing:
         if not np.isnan(da).any():
             assert (res >= 0).all()
         assert len(res.dims) == len(da.dims) - 1
-
 
     @given(
         xrst.variables(
@@ -72,7 +71,6 @@ class TestProcessing:
         res = pca(da, dim='target')
         assert isinstance(res, xr.DataArray) or isinstance(res, xr.Variable)
         assert 'PC' in res.dims
-
 
     def test_pairwise_dists_pca(self):
         pass
