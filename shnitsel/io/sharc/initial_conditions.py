@@ -9,7 +9,7 @@ from itertools import product, combinations
 from glob import glob
 from typing import NamedTuple, Any
 from tqdm.auto import tqdm
-from .common import (
+from shnitsel.core.parse.common import (
     get_dipoles_per_xyz,
     dip_sep,
     __atnum2symbol__,
@@ -17,7 +17,7 @@ from .common import (
     get_triangular,
 )
 from shnitsel._contracts import needs
-from ..postprocess import convert_length
+from shnitsel.core.postprocess import convert_length
 
 _re_grads = re.compile('[(](?P<nstates>[0-9]+)x(?P<natoms>[0-9]+)x3')
 _re_nacs = re.compile('[(](?P<nstates>[0-9]+)x[0-9]+x(?P<natoms>[0-9]+)x3')

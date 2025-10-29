@@ -1,6 +1,9 @@
 
 import os
 import xarray as xr
+# TODO: We probably need a fallback version for old and new shnitsel file formats
+
+# def open_frames(path):
 
 
 def read_shnitsel_file(path: os.PathLike):
@@ -51,8 +54,7 @@ def read_shnitsel_file(path: os.PathLike):
         if tcoord is not None:
             frames = frames.set_xindex(['trajid', tcoord])
 
-        if 'from' in frames.coords and 'to'in frames.coords:
+        if 'from' in frames.coords and 'to' in frames.coords:
             frames = frames.set_xindex(['from', 'to'])
 
     return frames
-
