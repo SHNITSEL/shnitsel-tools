@@ -7,6 +7,8 @@ from matplotlib.testing.decorators import image_comparison
 import shnitsel as sh
 import shnitsel.xarray
 
+from shnitsel.io import read_shnitsel_file
+
 # In this file, we aim to directly test the output of all plotting functions,
 # by comparing their output for a test dataset to a pre-made reference plot.
 # This does nothing to guarantee the correctness of the reference, but it
@@ -23,23 +25,20 @@ import shnitsel.xarray
 FIXDIR = 'tutorials/test_data/fixtures'
 
 
-
 class TestPlotFunctionality:
     """Class to test all plotting functionality included in Shnitsel-Tools"""
-
 
     @pytest.fixture
     def ensembles(self):
         names = ['butene']
         return {
-            name: sh.open_frames(os.path.join(FIXDIR, name, 'data.nc')) for name in names
+            name: read_shnitsel_file(os.path.join(FIXDIR, name, 'data.nc')) for name in names
         }
-
 
     @pytest.fixture
     def spectra3d(self, ensembles):
         return {
-            name: frames.sh.get_inter_state().sh.assign_fosc().sh.spectra_all_times()
+            name: frames.st.get_inter_state().st.assign_fosc().stsh.spectra_all_times()
             for name, frames in ensembles.items()
         }
 
@@ -56,24 +55,26 @@ class TestPlotFunctionality:
 
     def test_biplot(self):
         # load trajectory data of A01
-        a01 = sh.open_frames('tutorials/test_data/shnitsel/A01_ethene_dynamic.nc')
+        a01 = read_shnitsel_file(
+            'tutorials/test_data/shnitsel/A01_ethene_dynamic.nc')
         # create PCA plot over all trajectories with visualization of the
         # four most important PCA-axis on the molecular structure
         # C=C bond color highlighgting via KDE in PCA
         sh.plot.biplot_kde(
-            frames=a01, at1=0, at2=1, geo_filter=[[0, 3], [5, 20]], levels=10
+            frames=a01, at1=0, at2=1, geo_filter=[[0., 3.], [5., 20.]], levels=10
         )
         # C-H bond color highlighting via KDE in PCA
         sh.plot.biplot_kde(
-            frames=a01, at1=0, at2=2, geo_filter=[[0, 3], [5, 20]], levels=10
+            frames=a01, at1=0, at2=2, geo_filter=[[0., 3.], [5., 20.]], levels=10
         )
 
     def test_ski_plots_accessor_conversion(self):
         # load data
         spectra_data = (
-            sh.open_frames(path='tutorials/test_data/shnitsel/A01_ethene_dynamic.nc')
-            .sh.get_inter_state()
-            .sh.spectra_all_times()
+            read_shnitsel_file(
+                path='tutorials/test_data/shnitsel/A01_ethene_dynamic.nc')
+            .st.get_inter_state()
+            .st.spectra_all_times()
         )
         # plot spectra at different simulation times in one plot with a dahsed line that tracks the maximum
         sh.plot.ski_plots(spectra_data)
@@ -111,14 +112,14 @@ class TestPlotFunctionality:
         # TODO
         ...
 
-    ## Following two together
+    # Following two together
     @pytest.fixture
     def highlight_pairs(self):
         # careful -- this uses rdkit, not mpl. What's the return type? Annotate!
         # TODO
         ...
 
-    def test_mpl_imshow_png(self,highlight_pairs):
+    def test_mpl_imshow_png(self, highlight_pairs):
         # maybe in combination with the above
         # TODO
         ...
@@ -173,19 +174,19 @@ class TestPlotFunctionality:
     # TODO Skip plot/common.py?
     # Skip plot/hist.py?
 
-    ## plot/__init__.py:
+    # plot/__init__.py:
     def test_plot_datasheet(self):
         # Warning: this will take long to run -- make optional?
 
         # TODO
         ...
 
-    ## plot/per_state_hist.py
+    # plot/per_state_hist.py
     def test_plot_per_state_histograms(self):
         # TODO
         ...
 
-    ## plot/dip_trans_hist.py
+    # plot/dip_trans_hist.py
     def test_single_hist(self):
         # TODO
         ...
@@ -203,19 +204,19 @@ class TestPlotFunctionality:
         # TODO
         ...
 
-    ## plot/nacs_hist.py
+    # plot/nacs_hist.py
     def test_plot_nacs_histograms(self):
         # TODO
         ...
 
-    ## plot/structure.py
+    # plot/structure.py
 
     # TODO Why is show_atXYZ deprecated? What has replaced it? The composition of xyz_to_mol() and mol_to_png()?
     def test_plot_structure(self):
         # TODO
         ...
 
-    ## plot/time.py
+    # plot/time.py
     def test_plot_time_interstate_error(self):
         # TODO 3 statecombs hard-coded for label positioning! Bad!
         ...
