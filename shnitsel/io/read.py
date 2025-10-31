@@ -37,7 +37,7 @@ class LoadingParameters:
     state_names: List[str] | Callable | None = None
 
     # Parameter to control whether multiple trajectories will be concatenated into a continuous trajectory or layered as trajectories indexed by
-    concat_function: Callable = 'frames'
+    concat_function: Callable = concat_trajs
     # Flag to indicate whether parallel loading is requested
     parallel: bool = True
     # Flag to set how errors during loading are reported
@@ -415,6 +415,26 @@ def gather_traj_metadata(datasets: Iterable[xr.Dataset], time_dim='ts') -> np.nd
 
 
 def concat_trajs(datasets: Iterable[xr.Dataset]) -> xr.Dataset:
+    """Function to concatenate multiple trajectories along their `time` dimension.
+
+    Will create one continuous time dimension like an extended trajectory
+
+    Args:
+        datasets (Iterable[xr.Dataset]): Datasets representing the individual trajectories
+
+    Raises:
+        ValueError: Raised if there are conflicting `time` or `ts` dimensions
+        ValueError: Raised if there are no trajectories provided to this function.
+
+    Returns:
+        xr.Dataset: The combined and extended trajectory with a new leading `frame` dimension
+    """
+    
+    datasets = list(datasets)
+
+    if len(datasets) == 0:
+        raise ValueError("No trajectories were provided.")
+    
     if all('ts' in ds.coords for ds in datasets):
         time_dim = 'ts'
     elif all('time' in ds.coords for ds in datasets):
@@ -430,9 +450,6 @@ def concat_trajs(datasets: Iterable[xr.Dataset]) -> xr.Dataset:
             frame=['trajid', time_dim])
         for ds in datasets
     ]
-
-    if len(datasets) == 0:
-        raise ValueError("No trajectories were parsed successfully.")
 
     frames = xr.concat(datasets, dim='frame', combine_attrs='drop_conflicts')
     traj_meta = gather_traj_metadata(datasets, time_dim=time_dim)
