@@ -5,6 +5,7 @@ import pathlib
 from typing import Dict
 
 from shnitsel.data.TrajectoryFormat import Trajectory
+from shnitsel.io.helpers import PathOptionsType
 
 
 @dataclass
@@ -25,7 +26,7 @@ class FormatReader(ABC):
 
     @abstractmethod
     def check_path_for_format_info(
-        self, path: pathlib.Path, hints_or_settings: Dict | None = None
+        self, path: PathOptionsType, hints_or_settings: Dict | None = None
     ) -> FormatInformation:
         """Checks if a path is of a given format and returns a struct containing all relevant info for reading
         the format at this location. Additionally checks configured user settings provided in `hints_or_settings` whether they are
@@ -57,7 +58,7 @@ class FormatReader(ABC):
 
     @abstractmethod
     def read_from_path(
-        self, path: pathlib.Path | None, format_info: FormatInformation | None = None
+        self, path: PathOptionsType | None, format_info: FormatInformation | None = None
     ) -> Trajectory:
         """Method to read a path of the respective format (e.g. ) into a shnitsel-conform trajectory.
 

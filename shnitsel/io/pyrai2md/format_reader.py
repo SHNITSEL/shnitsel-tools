@@ -5,6 +5,7 @@ import pathlib
 from typing import Dict
 
 from shnitsel.data.TrajectoryFormat import Trajectory
+from shnitsel.io.helpers import PathOptionsType, make_uniform_path
 from ..FormatReader import FormatInformation, FormatReader
 from .parse import parse_pyrai2md
 
@@ -20,14 +21,14 @@ class PyrAI2mdFormatReader(FormatReader):
     """Class for providing the SHARC format reading functionality in the standardized `FormatReader` interface"""
 
     def check_path_for_format_info(
-        self, path: pathlib.Path, hints_or_settings: Dict | None = None
+        self, path: PathOptionsType, hints_or_settings: Dict | None = None
     ) -> FormatInformation:
         """Check if the `path` is a SHARC-style output directory.
 
         Designed for a single input trajectory.
 
         Args:
-            path (pathlib.Path): The path to check for SHARC data
+            path (PathOptionsType): The path to check for SHARC data
             hints_or_settings (Dict): Configuration options provided to the reader by the user
 
         Raises:
@@ -37,7 +38,7 @@ class PyrAI2mdFormatReader(FormatReader):
         Returns:
             FormatInformation: _description_
         """
-
+        path: pathlib.Path = make_uniform_path(path)
         is_request_specific_to_pyrai2md = (
             hints_or_settings is not None
             and "kind" in hints_or_settings
@@ -83,12 +84,12 @@ class PyrAI2mdFormatReader(FormatReader):
         )
 
     def read_from_path(
-        self, path: pathlib.Path | None, format_info: FormatInformation | None = None
+        self, path: PathOptionsType | None, format_info: FormatInformation | None = None
     ) -> Trajectory:
         """Read a PyrAI2md-style trajcetory from path at `path`. Implements `FormatReader.read_from_path()`
 
         Args:
-            path (pathlib.Path | None): Path to a PyrAI2md-format directory. If not provided explicitly, needs to be included in `format_info.path`
+            path (PathOptionsType | None): Path to a PyrAI2md-format directory. If not provided explicitly, needs to be included in `format_info.path`
             format_info (FormatInformation | None, optional): Format information on the provided `path` if previously parsed. Will be parsed from `path` if not provided. Defaults to None.
 
         Raises:
@@ -98,6 +99,8 @@ class PyrAI2mdFormatReader(FormatReader):
         Returns:
             Trajectory: The loaded Shnitsel-conforming trajectory
         """
+
+        path: pathlib.Path = make_uniform_path(path)
 
         if path is not None and format_info is None:
             format_info = self.check_path_for_format_info(path)
