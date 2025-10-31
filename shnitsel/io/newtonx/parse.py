@@ -1,5 +1,4 @@
-
-
+import pathlib
 import numpy as np
 import xarray as xr
 from itertools import combinations
@@ -12,7 +11,7 @@ import math
 from ..xyz import parse_xyz
 
 
-def parse_newtonx(traj_path) -> xr.Dataset:
+def parse_newtonx(traj_path: pathlib.Path) -> xr.Dataset:
     with open(os.path.join(traj_path, 'RESULTS', 'nx.log')) as f:
         single_traj = parse_nx_log(f)
 
