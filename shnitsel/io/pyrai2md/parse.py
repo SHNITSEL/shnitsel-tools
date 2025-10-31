@@ -2,12 +2,13 @@
 import os
 from itertools import combinations
 from glob import glob
+import pathlib
 import xarray as xr
 import pandas as pd
 import numpy as np
 
 
-def parse_pyrai2md(traj_path) -> xr.Dataset:
+def parse_pyrai2md(traj_path: str | pathlib.Path ) -> xr.Dataset:
     md_energies_paths = glob(os.path.join(traj_path, '*.md.energies'))
     if (n := len(md_energies_paths)) != 1:
         raise FileNotFoundError(

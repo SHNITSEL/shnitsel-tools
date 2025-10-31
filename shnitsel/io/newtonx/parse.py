@@ -11,7 +11,7 @@ import math
 from ..xyz import parse_xyz
 
 
-def parse_newtonx(traj_path: pathlib.Path) -> xr.Dataset:
+def parse_newtonx(traj_path: str |pathlib.Path) -> xr.Dataset:
     with open(os.path.join(traj_path, 'RESULTS', 'nx.log')) as f:
         single_traj = parse_nx_log(f)
 

@@ -1,12 +1,13 @@
-
 import os
+import pathlib
 import xarray as xr
+
 # TODO: We probably need a fallback version for old and new shnitsel file formats
 
 # def open_frames(path):
 
 
-def read_shnitsel_file(path: str | os.PathLike):
+def read_shnitsel_file(path: str | pathlib.Path):
     """Opens a NetCDF4 file saved by shnitsel-tools, specially interpreting certain attributes.
 
     Parameters
@@ -35,26 +36,27 @@ def read_shnitsel_file(path: str | os.PathLike):
             raise err
 
     # Restore MultiIndexes
-    indicator = '_MultiIndex_levels_from_attrs'
+    indicator = "_MultiIndex_levels_from_attrs"
     if frames.attrs.get(indicator, False):
         # New way: get level names from attrs
         del frames.attrs[indicator]
         for k, v in frames.attrs.items():
-            if k.startswith('_MultiIndex_levels_for_'):
+            if k.startswith("_MultiIndex_levels_for_"):
                 frames = frames.set_xindex(v)
                 del frames.attrs[k]
     else:
+        # TODO: FIXME: rename time trajectory to same name everywhere
         # Old way: hardcoded level names
         tcoord = None
-        if 'time' in frames.coords:
-            tcoord = 'time'
-        elif 'ts' in frames.coords:
-            tcoord = 'ts'
+        if "time" in frames.coords:
+            tcoord = "time"
+        elif "ts" in frames.coords:
+            tcoord = "ts"
 
         if tcoord is not None:
-            frames = frames.set_xindex(['trajid', tcoord])
+            frames = frames.set_xindex(["trajid", tcoord])
 
-        if 'from' in frames.coords and 'to' in frames.coords:
-            frames = frames.set_xindex(['from', 'to'])
+        if "from" in frames.coords and "to" in frames.coords:
+            frames = frames.set_xindex(["from", "to"])
 
     return frames
