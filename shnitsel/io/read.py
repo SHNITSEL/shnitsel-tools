@@ -1,4 +1,10 @@
 import glob
+
+from shnitsel.data.TrajectoryFormat import Trajectory
+from shnitsel.io.newtonx.format_reader import NewtonXFormatReader
+from shnitsel.io.pyrai2md.format_reader import PyrAI2mdFormatReader
+from shnitsel.io.sharc.format_reader import SHARCFormatReader
+from shnitsel.io.shnitsel.format_reader import ShnitselFormatReader
 from .pyrai2md import parse_pyrai2md
 from .newtonx.parse import parse_newtonx
 from .sharc.parse import parse_sharc
@@ -172,10 +178,11 @@ _idfn = _default_idfn
 _read_traj: Callable
 
 READERS = {
-    'nx': parse_newtonx,
-    'sharc': parse_sharc,
-    'pyrai2md': parse_pyrai2md,
-    'shnitsel': read_shnitsel_file
+    'nx': NewtonXFormatReader(),  # parse_newtonx,
+    'newtonx': NewtonXFormatReader(),  # parse_newtonx,
+    'sharc': SHARCFormatReader(),  # parse_sharc,
+    'pyrai2md': PyrAI2mdFormatReader(),
+    'shnitsel': ShnitselFormatReader(),  # read_shnitsel_file,
 }
 
 
