@@ -91,6 +91,9 @@ def read(
     ValueError
         If ``error_reporting`` is set to `'raise'` in combination with ``parallel=True``, the code cannot execute correctly. Only ``'log'`` is supported for parallel reading
     """
+    if not isinstance(path, pathlib.Path):
+        path = pathlib.Path(path)
+
     cats = {'frames': concat_trajs, 'layers': layer_trajs}
     if concat_method not in cats:
         raise ValueError(f"`concat_method` must be one of {cats.keys()!r}")
@@ -144,7 +147,7 @@ def guess_input_kind(path: str | os.PathLike, sub_pattern: str | None) -> Litera
 
 Trajid: TypeAlias = int
 
-_exnum = re.compile('[0-9]+')
+_exnum = re.compile("[0-9]+")
 
 
 @dataclass
