@@ -5,8 +5,8 @@ from typing import Dict, List
 
 from shnitsel.data.TrajectoryFormat import Trajectory
 from ..FormatReader import FormatInformation, FormatReader
-from .trajectory import read_traj
-from .initial_conditions import list_iconds, dir_of_iconds
+from .parse_trajectory import read_traj
+from .parse_initial_conditions import list_iconds, dir_of_iconds
 
 
 @dataclass

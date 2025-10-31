@@ -3,8 +3,8 @@ import os
 import xarray as xr
 
 from shnitsel.io import read
-from shnitsel.io.sharc.trajectory import read_traj
-from shnitsel.io.sharc.initial_conditions import dir_of_iconds
+from shnitsel.io.sharc.parse_trajectory import read_traj
+from shnitsel.io.sharc.parse_initial_conditions import dir_of_iconds
 from shnitsel.units import standard_shnitsel_units
 from shnitsel.units.definitions import unit_dimensions
 
