@@ -90,7 +90,8 @@ class SHARCFormatReader(FormatReader):
                         logging.debug(message)
                     raise FileNotFoundError(message)
             is_dynamic = True
-            SHARCDynamicFormatInformation("SHARC", "unkown", path_obj)
+            format_information = SHARCDynamicFormatInformation("sharc", "unkown", path_obj)
+            logging.debug( f"Input directory `{path}` fulfils data requirements of dynamic SHARC trajectory")
         except Exception as e:
             dynamic_check_error = e
 
@@ -100,9 +101,10 @@ class SHARCFormatReader(FormatReader):
         try:
             list_of_initial_condition_paths = list_iconds(path_obj)
             is_static = True
-            SHARCInitialFormatInformation(
-                "SHARC", "unkown", path_obj, list_of_initial_condition_paths
+            format_information = SHARCInitialFormatInformation(
+                "sharc", "unkown", path_obj, list_of_initial_condition_paths
             )
+            logging.debug( f"Input directory `{path}` fulfils data requirements of SHARC Initial Conditions")
         except Exception as e:
             static_check_error = e
 
