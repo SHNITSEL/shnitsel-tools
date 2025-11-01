@@ -21,7 +21,7 @@ from shnitsel.core.postprocess import angle, assign_fosc, calc_ci, calc_pops, de
 from shnitsel.core.vmd import traj_vmd
 from shnitsel.core.xrhelpers import assign_levels, expand_midx, flatten_levels, mgroupby, msel, sel_trajids, sel_trajs, stack_trajs, unstack_trajs
 from shnitsel.io.ase.write import write_ase
-from shnitsel.io.sharc.initial_conditions import iconds_to_frames
+from shnitsel.io.sharc.parse_initial_conditions import iconds_to_frames
 from shnitsel.io.shnitsel.write import write_shnitsel_file
 from shnitsel.units.conversion import convert_dipole, convert_energy, convert_force, convert_length, convert_nacs, convert_time
 from typing import Callable, Dict, Hashable, List, Literal, Optional, Sequence, Union
@@ -433,7 +433,7 @@ class DatasetAccessor(DSManualAccessor):
 
     @needs(dims={'icond'}, coords={'icond'}, not_dims={'time'})
     def iconds_to_frames(self) -> Dataset:
-        """Wrapper for :py:func:`shnitsel.io.sharc.initial_conditions.iconds_to_frames`."""
+        """Wrapper for :py:func:`shnitsel.io.sharc.parse_initial_conditions.iconds_to_frames`."""
         return iconds_to_frames(self._obj)
 
     @needs(coords={'frame', 'trajid'}, data_vars={'energy', 'fosc'})

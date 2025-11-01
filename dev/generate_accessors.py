@@ -1,8 +1,9 @@
 import inspect
 import logging
+from typing import Callable, Dict, List
 
 
-def generate_class_code(classes: dict[str, list[callable]]) -> str:
+def generate_class_code(classes: Dict[str, List[Callable]]) -> str:
     """
     Generate source code for a class with methods wrapping given functions, preserving
     signatures (including type hints when possible).
@@ -284,12 +285,12 @@ def main():
         st.xrhelpers.assign_levels,
         st.xrhelpers.mgroupby,
         st.xrhelpers.msel,
-        st.io.write_shnitsel_file,
+        st.io.shnitsel.write_shnitsel_file,
         st.xrhelpers.sel_trajs,
         st.xrhelpers.unstack_trajs,
         st.xrhelpers.stack_trajs,
         # parse
-        st.io.sharc.iconds_to_frames,
+        st.io.sharc.parse_initial_conditions.iconds_to_frames,
         # plot
         st.core.plot.spectra3d.spectra_all_times,
         # filtre
