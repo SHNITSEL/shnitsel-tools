@@ -249,7 +249,7 @@ standard_units_of_formats = {
         unit_dimensions.energy: energy.Hartree,
         unit_dimensions.force: force.Hartree_per_Bohr,
         # Ang/sqrt(u/eV) approx 10fs
-        unit_dimensions.time: time.ase_time_units,
+        unit_dimensions.time: "1", # TODO: FIXME: check pyrai2md time scale
         unit_dimensions.nacs: nacs.au,
         unit_dimensions.dipole: dipole.au,
         # "dipole_trans": dipole.au,
