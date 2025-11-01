@@ -28,7 +28,7 @@ import pathlib
 # def read_trajs(
 def read(
     path: PathOptionsType,
-    kind: KindType | None,
+    kind: KindType | None = None,
     sub_pattern: str | None = None,
     multiple: bool = True,
     concat_method: Literal['layers', 'list', 'frames'] = 'layers',
@@ -46,7 +46,7 @@ def read(
         Depending on the kind of trajectory to be loaded should denote the path of the trajectory file (``kind='shnitsel'`` or ``kind='ase'`) or a directory containing the files of the respective file format. 
         Alternatively, if ``multiple=True`, this can also denote a directory containing multiple sub-directories with the actual Trajectories. 
         In that case, the `concat_method` parameter should be set to specify how the .
-    kind (Literal['sharc', 'nx', 'newtonx', 'pyrai2md', 'shnitsel'] | None):
+    kind (Literal['sharc', 'nx', 'newtonx', 'pyrai2md', 'shnitsel'] | None, optional):
         The kind of trajectory, i.e. whether it was produced by SHARC, Newton-X, PyRAI2MD or Shnitsel-Tools.
         If None is provided, the function will make a best-guess effort to identify which kind of trajectory has been provided.
     sub_pattern (str|None, optional):
@@ -236,7 +236,7 @@ def identify_or_check_input_kind(
 
     # We only bother if there has been a hint to the kind of format
     # If none was specified, we take whichever fits
-    is_specified_kind_satisfied = kind_hint is not None
+    is_specified_kind_satisfied = kind_hint is None
     # If the specified kind was an alias like for newtonx
     new_specified_kind = None
 
