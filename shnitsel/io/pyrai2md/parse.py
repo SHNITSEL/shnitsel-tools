@@ -39,7 +39,9 @@ def parse_pyrai2md(traj_path: PathOptionsType,
     with open(os.path.join(log_paths[0])) as f:
         single_traj = parse_log(f)
 
-    # TODO: FIXME: conflicting dimension sizes "time"
+    # TODO: FIXME: conflicting dimension sizes "time". We need to deal with trajectory not finishing its full run.
+    # One test trajectory did not finish its full number of steps as denoted in the log, so we need to check if the trajectory has finished
+    # before sizing the output.
     single_traj = single_traj.rename(
         ts='time').assign_coords(time=energy['time'])
     single_traj['energy'] = energy
