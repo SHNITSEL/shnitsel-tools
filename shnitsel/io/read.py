@@ -2,7 +2,7 @@ import glob
 
 from shnitsel.data.TrajectoryFormat import Trajectory
 from shnitsel.io.FormatReader import FormatInformation, FormatReader
-from shnitsel.io.helpers import PathOptionsType, make_uniform_path
+from shnitsel.io.helpers import KindType, PathOptionsType, make_uniform_path
 from shnitsel.io.newtonx.format_reader import NewtonXFormatReader
 from shnitsel.io.pyrai2md.format_reader import PyrAI2mdFormatReader
 from shnitsel.io.sharc.format_reader import SHARCFormatReader
