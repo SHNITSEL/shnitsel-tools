@@ -177,6 +177,8 @@ def read_folder_multi(
         error_reporting: Literal['log', 'raise'] = 'log',
         base_loading_parameters: LoadingParameters | None = None) -> List[Trajectory] | None:
 
+    # TODO: Go over readers, find matched trajectories, deal with multiple matches, read all matches and return.
+    # TODO: Read in parallel if setting allows it.
     if parallel:
         datasets = read_trajs_parallel(paths, kind)
     else:
