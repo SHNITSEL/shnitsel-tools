@@ -1,6 +1,7 @@
 import glob
 
 from shnitsel.data.TrajectoryFormat import Trajectory
+from shnitsel.io.helpers import PathOptionsType
 from shnitsel.io.newtonx.format_reader import NewtonXFormatReader
 from shnitsel.io.pyrai2md.format_reader import PyrAI2mdFormatReader
 from shnitsel.io.sharc.format_reader import SHARCFormatReader
@@ -24,6 +25,7 @@ import pathlib
 
 KindType = Literal['sharc', 'nx', 'newtonx', 'pyrai2md', 'shnitsel']
 
+
 @dataclass
 class LoadingParameters:
     # The path to either an input file or an input trajectory depending on the kind of trajectory being requested
@@ -36,8 +38,9 @@ class LoadingParameters:
     # List of the names of states or a function to label them or None and let the trajectory loader make an educated guess
     state_names: List[str] | Callable | None = None
 
-    # Parameter to control whether multiple trajectories will be concatenated into a continuous trajectory or layered as trajectories indexed by
-    concat_function: Callable = concat_trajs
+    # Parameter to control whether multiple trajectories will be concatenated into a continuous trajectory along the `time` axis or layered as trajectories indexed by a new axis `trajid`
+    concat_function: Callable = lambda x: x
+
     # Flag to indicate whether parallel loading is requested
     parallel: bool = True
     # Flag to set how errors during loading are reported
@@ -49,37 +52,49 @@ class LoadingParameters:
 
 # def read_trajs(
 def read(
-    path: str | os.PathLike | pathlib.Path,
+    path: PathOptionsType,
     kind: KindType | None,
-    sub_pattern: str | None = 'TRAJ*',
-    concat_method: Literal['frames', 'layers'] = 'frames',
+    sub_pattern: str | None = None,
+    multiple: bool = True,
+    concat_method: Literal['layers', 'list', 'frames'] = 'layers',
     parallel: bool = True,
     error_reporting: Literal['log', 'raise'] = 'log',
-) -> xr.Dataset:
+) -> xr.Dataset | Trajectory | List[Trajectory]:
     """Read all trajectories from a folder of trajectory folders
 
     Parameters
     ----------
-    path
-        The path to the folder of folders
-    kind
+    path (PathOptionsType):
+        The path to the folder of folders. Can be provided as `str`, `os.PathLike` or `pathlib.Path`.
+        Depending on the kind of trajectory to be loaded should denote the path of the trajectory file (``kind='shnitsel'`` or ``kind='ase'`) or a directory containing the files of the respective file format. 
+        Alternatively, if ``multiple=True`, this can also denote a directory containing multiple sub-directories with the actual Trajectories. 
+        In that case, the `concat_method` parameter should be set to specify how the .
+    kind (Literal['sharc', 'nx', 'newtonx', 'pyrai2md', 'shnitsel'] | None):
         The kind of trajectory, i.e. whether it was produced by SHARC, Newton-X, PyRAI2MD or Shnitsel-Tools.
-        If None is provided, the function will make a best-guess effort to identify, which kind of trajectory has been provided
-    sub_pattern
+        If None is provided, the function will make a best-guess effort to identify which kind of trajectory has been provided.
+    sub_pattern (str|None, optional):
         If the input is a format with multiple input trajectories in different directories, this is the search pattern to append
         to the `path` (the whole thing will be read by :external:py:func:`glob.glob`).
-        By default 'TRAJ*'.
-        If the `kind` does not support multi-folder inputs (like `shnitsel`), this will be ignored
-    concat_method
-        Whether to return the trajectories concatenated along the time axis ('frames') using a
-        :external:py:class:`xarray.indexes.PandasMultiIndex`
-        or along a new axis ('layers'), by default 'frames'
-    parallel
+        The default will be chosen based on `kind`, e.g., for SHARC 'TRAJ_*' or 'ICOND*' and for NewtonX 'TRAJ*'.
+        If the `kind` does not support multi-folder inputs (like `shnitsel`), this will be ignored.
+        If ``multiple=False``, this pattern will be ignored.
+    multiple (bool, optional):
+        A flag to enable loading of multiple trajectories from the subdirectories of the provided `path`.
+        If set to False, only the provided path will be attempted to be loaded. 
+        If `sub_pattern` is provided, this parameter should not be set to `False` or the matching will be ignored.
+    concat_method (Literal['layers', 'list', 'frames'])
+        How to combine the loaded trajectories if multiple trajectories have been loaded.
+        Defaults to ``concat_method='layers``.
+        The available methods are:
+        `'layers'`: Introduce a new axis `trajid` along which the different trajectories are indexed in a combined `xr.Dataset` structure.
+        `'list'`: Return the multiple trajectories as a list of individually loaded data.
+        `'frames'`: Concatenate the individual trajectories along the time axis ('frames') using a :external:py:class:`xarray.indexes.PandasMultiIndex`
+    parallel (bool, optional):
         Whether to read multiple trajectories at the same time via parallel processing (which, in the current implementation,
         is only faster on storage that allows non-sequential reads).
         By default True.
-    error_reporting:
-        Choose whether to log or to raise errors as they occur during the import process.
+    error_reporting (Literal['log','raise']):
+        Choose whether to `log` or to `raise` errors as they occur during the import process.
         Currently, the implementation does not support `error_reporting='raise'` while `parallel=True`.
 
     Returns
@@ -100,7 +115,7 @@ def read(
     if not isinstance(path, pathlib.Path):
         path = pathlib.Path(path)
 
-    cats = {'frames': concat_trajs, 'layers': layer_trajs}
+    cats = {'frames': concat_trajs, 'layers': layer_trajs, 'list': lambda x: x}
     if concat_method not in cats:
         raise ValueError(f"`concat_method` must be one of {cats.keys()!r}")
 
@@ -123,7 +138,8 @@ def read(
     if parallel:
         datasets = read_trajs_parallel(paths, kind)
     else:
-        datasets = read_trajs_list(paths, kind, error_reporting=error_reporting)
+        datasets = read_trajs_list(
+            paths, kind, error_reporting=error_reporting)
 
     return cat_func(datasets)
 
@@ -131,6 +147,15 @@ def read(
 def guess_input_kind(
     path: str | os.PathLike, sub_pattern: str | None
 ) -> KindType | None:
+    """_summary_
+
+    Args:
+        path (str | os.PathLike): _description_
+        sub_pattern (str | None): _description_
+
+    Returns:
+        KindType | None: _description_
+    """
     # TODO: FIXME: Add ASE loading capability
 
     path_obj = pathlib.Path(path)
@@ -148,8 +173,6 @@ def guess_input_kind(
             return None
     elif path_obj.is_dir():
         possible_formats = ['sharc', 'newtonx', 'pyrai2md']
-
-        
 
 
 Trajid: TypeAlias = int
@@ -429,12 +452,12 @@ def concat_trajs(datasets: Iterable[xr.Dataset]) -> xr.Dataset:
     Returns:
         xr.Dataset: The combined and extended trajectory with a new leading `frame` dimension
     """
-    
+
     datasets = list(datasets)
 
     if len(datasets) == 0:
         raise ValueError("No trajectories were provided.")
-    
+
     if all('ts' in ds.coords for ds in datasets):
         time_dim = 'ts'
     elif all('time' in ds.coords for ds in datasets):
