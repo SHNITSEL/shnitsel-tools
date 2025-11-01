@@ -405,6 +405,7 @@ def read_iconds(pathlist: List[IcondPath],
                 Eventually, user-inputs will be accepted as an alternative.
                 See https://github.com/SHNITSEL/db-workflow/issues/3"""
             )
+            logging.error(f"No positional information found in {path}, the loaded trajectory does not contain positional data 'atXYZ'.")
 
     return convert_all_units_to_shnitsel_defaults(iconds)
 
