@@ -72,8 +72,8 @@ class FormatReader(ABC):
 
     @abstractmethod
     def read_from_path(
-        self, path: PathOptionsType | None, 
-        format_info: FormatInformation | None = None, 
+        self, path: PathOptionsType | None,
+        format_info: FormatInformation | None = None,
         loading_parameters: LoadingParameters | None = None
     ) -> Trajectory:
         """Method to read a path of the respective format (e.g. ) into a shnitsel-conform trajectory.
@@ -96,3 +96,33 @@ class FormatReader(ABC):
             Trajectory: The parsed dataset as wrapper around `xarray.Dataset` to keep track of original data.
         """
         ...
+
+    @abstractmethod
+    def get_units_with_defaults(self, unit_overrides: Dict[str, str] | None = None) -> Dict[str, str]:
+        """Apply units to the default unit dictionary of the format
+
+        Args:
+            unit_overrides (Dict[str, str] | None, optional): Units denoted by the user to override format default settings. Defaults to None.
+
+        Raises:
+            NotImplementedError: The class does not provide this functionality yet
+
+        Returns:
+            Dict[str, str]: The resulting, overridden default units
+        """
+        raise NotImplementedError()
+
+    def get_loading_parameters_with_defaults(self, base_loading_parameters: LoadingParameters | None) -> LoadingParameters:
+        """Populate loading parameters with default settings for this format
+
+        Args:
+            base_loading_parameters (LoadingParameters | None): User-provided parameter overrides
+
+        Returns:
+            LoadingParameters: The default parameters modified by user overrides
+        """
+
+        return LoadingParameters(self.get_units_with_defaults(base_loading_parameters.input_units if base_loading_parameters is not None else None),
+                                 base_loading_parameters.state_names if base_loading_parameters is not None else None,
+                                 base_loading_parameters.error_reporting if base_loading_parameters is not None else 'raise',
+                                 )

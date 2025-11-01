@@ -8,6 +8,7 @@ from shnitsel.data.TrajectoryFormat import Trajectory
 from shnitsel.io.helpers import LoadingParameters, PathOptionsType, make_uniform_path
 from ..FormatReader import FormatInformation, FormatReader
 from .parse import read_shnitsel_file
+from shnitsel.units.definitions import standard_shnitsel_units
 
 
 @dataclass
@@ -110,7 +111,7 @@ class ShnitselFormatReader(FormatReader):
 
         try:
             loaded_dataset = read_shnitsel_file(
-                path_obj, loading_parameters=loading_parameters)
+                path_obj, loading_parameters=self.get_loading_parameters_with_defaults(loading_parameters))
         except FileNotFoundError as fnf_e:
             raise fnf_e
         except ValueError as v_e:
@@ -119,3 +120,23 @@ class ShnitselFormatReader(FormatReader):
             raise FileNotFoundError(message)
 
         return Trajectory(loaded_dataset)
+    
+    def get_units_with_defaults(self, unit_overrides: Dict[str, str] | None = None) -> Dict[str, str]:
+        """Apply units to the default unit dictionary of the format SHNITSEL
+
+        Args:
+            unit_overrides (Dict[str, str] | None, optional): Units denoted by the user to override format default settings. Defaults to None.
+
+        Raises:
+            NotImplementedError: The class does not provide this functionality yet
+
+        Returns:
+            Dict[str, str]: The resulting, overridden default units
+        """
+
+        res_units = standard_shnitsel_units.copy()
+
+        if unit_overrides is not None:
+            res_units.update(unit_overrides)
+
+        return res_units

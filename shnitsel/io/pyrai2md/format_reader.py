@@ -131,7 +131,7 @@ class PyrAI2mdFormatReader(FormatReader):
 
         try:
             loaded_dataset = parse_pyrai2md(
-                path_obj, loading_parameters=loading_parameters)
+                path_obj, loading_parameters=self.get_loading_parameters_with_defaults(loading_parameters))
         except FileNotFoundError as fnf_e:
             raise fnf_e
         except ValueError as v_e:
@@ -140,3 +140,24 @@ class PyrAI2mdFormatReader(FormatReader):
             raise FileNotFoundError(message)
 
         return Trajectory(loaded_dataset)
+
+    def get_units_with_defaults(self, unit_overrides: Dict[str, str] | None = None) -> Dict[str, str]:
+        """Apply units to the default unit dictionary of the format PyrAI2md
+
+        Args:
+            unit_overrides (Dict[str, str] | None, optional): Units denoted by the user to override format default settings. Defaults to None.
+
+        Raises:
+            NotImplementedError: The class does not provide this functionality yet
+
+        Returns:
+            Dict[str, str]: The resulting, overridden default units
+        """
+        from shnitsel.units.definitions import standard_units_of_formats
+
+        res_units = standard_units_of_formats['pyrai2md'].copy()
+
+        if unit_overrides is not None:
+            res_units.update(unit_overrides)
+            
+        return res_units
