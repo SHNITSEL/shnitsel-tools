@@ -1,7 +1,8 @@
 import glob
 
 from shnitsel.data.TrajectoryFormat import Trajectory
-from shnitsel.io.helpers import PathOptionsType
+from shnitsel.io.FormatReader import FormatInformation, FormatReader
+from shnitsel.io.helpers import PathOptionsType, make_uniform_path
 from shnitsel.io.newtonx.format_reader import NewtonXFormatReader
 from shnitsel.io.pyrai2md.format_reader import PyrAI2mdFormatReader
 from shnitsel.io.sharc.format_reader import SHARCFormatReader
@@ -144,35 +145,96 @@ def read(
     return cat_func(datasets)
 
 
-def guess_input_kind(
-    path: str | os.PathLike, sub_pattern: str | None
-) -> KindType | None:
-    """_summary_
+
+def identify_or_check_input_kind(
+    path: PathOptionsType,
+    kind_hint: KindType | None,
+) -> FormatInformation | None:
+    """Function to identify/guess which kind of input type the current path has if no kind was provided.
+    If a kind_hint is provided, it will verify, if the path actually is of that kind
 
     Args:
-        path (str | os.PathLike): _description_
-        sub_pattern (str | None): _description_
+        path (PathOptionsType): Path to a directory to be checked whether it can be read by available input readers
+        kind_hint (str | None): If set, the input format specified by the user. Only that reader's result will be used eventually.
+
+    Raises:
+        FileNotFoundError: If the `path` is not valid
+        ValueError: If the specified reader for `kind_hint` does not confirm validity of the directory
+        ValueError: If multiple readers match and no `kind_hint` was provided.
 
     Returns:
-        KindType | None: _description_
+        FormatInformation | None: The `FormatInformation` returned by the only successful check or None if no reader matched
     """
     # TODO: FIXME: Add ASE loading capability
 
-    path_obj = pathlib.Path(path)
+    path_obj: pathlib.Path = make_uniform_path(path)
 
     if not path_obj.exists():
-        return None
+        raise FileNotFoundError("The path `{path}` is not valid.")
 
-    if path_obj.is_file():
-        # Only shnitsel and ase are file-based
-        if path_obj.parts[-1].endswith(".nc"):
-            return 'shnitsel'
-        elif path_obj.parts[-1].endswith(".db"):
-            return 'ase'
+    # We only bother if there has been a hint to the kind of format
+    # If none was specified, we take whichever fits
+    is_specified_kind_satisfied = kind_hint is not None
+    # If the specified kind was an alias like for newtonx
+    new_specified_kind = None
+
+    resulting_format_info = {}
+
+    hints_or_settings = {'kind': kind_hint} if kind_hint is not None else None
+
+    for reader_kind, reader in READERS.items():
+        try:
+            res_format_info = reader.check_path_for_format_info(
+                path_obj, hints_or_settings)
+
+            if kind_hint is not None and reader_kind == kind_hint:
+                is_specified_kind_satisfied = True
+                new_specified_kind = res_format_info.format_name
+
+            resulting_format_info[res_format_info.format_name] = res_format_info
+
+        except FileNotFoundError as fn_e:
+            # If required files were not found, i.e. if the path does not actually constitute input data of the denoted format
+            pass
+        except ValueError as v_e:
+            # If the hints/settings provided by the user conflict with the requirements of the format
+            pass
+
+    if kind_hint is not None:
+        if is_specified_kind_satisfied:
+            return resulting_format_info[new_specified_kind]
         else:
-            return None
-    elif path_obj.is_dir():
-        possible_formats = ['sharc', 'newtonx', 'pyrai2md']
+            # The format does not fit, but another might
+            message = f"The path `{path}` does not represent a directory of format `{kind_hint}`."
+            possible_formats = list(resulting_format_info.keys())
+            if len(possible_formats) > 0:
+                joined_formats = ", ".join(possible_formats)
+                message += f"\n It, however, would qualify as one of the following formats: {joined_formats}"
+            else:
+                message += f"\n It also didn't satisfy the conditions of any of the other known formats."
+
+            logging.error(message)
+            raise ValueError(
+                f"The path `{path}` is not of the denoted format {kind_hint}.")
+    else:
+        # If there is a unique format match, use that:
+        possible_formats = list(resulting_format_info.keys())
+        if len(possible_formats) == 1:
+            res_format = possible_formats[0]
+            logging.info(
+                f"Identified the path `{path}` to be of format `{res_format}`.")
+            return resulting_format_info[res_format]
+        elif len(possible_formats) > 1:
+            joined_formats = ", ".join(possible_formats)
+            logging.error(
+                f" The path `{path}` satisfies the conditions of multiple of the known formats.: {joined_formats}. Please only provide paths containing the output data of one format.")
+            raise ValueError(
+                f"The path `{path}` is not of the denoted format {kind_hint}.")
+        else:
+            logging.error(
+                f"The path `{path}` didn't satisfy the conditions of any of the known formats. Available options are: {list(READERS.keys())}")
+
+    return None
 
 
 Trajid: TypeAlias = int
@@ -200,9 +262,11 @@ def _default_idfn(path):
 _idfn = _default_idfn
 _read_traj: Callable
 
-READERS = {
-    'nx': NewtonXFormatReader(),  # parse_newtonx,
-    'newtonx': NewtonXFormatReader(),  # parse_newtonx,
+# TODO: FIXME: add ASE support
+_newton_reader = NewtonXFormatReader()
+READERS: Dict[str, FormatReader] = {
+    'nx': _newton_reader,  # parse_newtonx,
+    'newtonx': _newton_reader,  # parse_newtonx,
     'sharc': SHARCFormatReader(),  # parse_sharc,
     'pyrai2md': PyrAI2mdFormatReader(),
     'shnitsel': ShnitselFormatReader(),  # read_shnitsel_file,
