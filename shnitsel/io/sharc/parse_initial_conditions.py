@@ -260,6 +260,7 @@ def create_icond_dataset(indices: List[int] | None, nstates: int, natoms: int, *
         'atXYZ': np.nan,
         'atNames': '',
         'atNums': -1,
+        'state_names': '',
         'state_types': 0,
     }
 
