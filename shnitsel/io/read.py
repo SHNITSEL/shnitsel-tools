@@ -179,6 +179,7 @@ def read_folder_multi(
 
     # TODO: Go over readers, find matched trajectories, deal with multiple matches, read all matches and return.
     # TODO: Read in parallel if setting allows it.
+    # TODO: Make individual reader routines use the loading parameters to construct the Dataset
     if parallel:
         datasets = read_trajs_parallel(paths, kind)
     else:
