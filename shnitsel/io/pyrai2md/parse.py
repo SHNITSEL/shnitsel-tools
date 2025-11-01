@@ -7,8 +7,21 @@ import xarray as xr
 import pandas as pd
 import numpy as np
 
+from shnitsel.io.helpers import LoadingParameters, PathOptionsType
 
-def parse_pyrai2md(traj_path: str | pathlib.Path ) -> xr.Dataset:
+
+def parse_pyrai2md(traj_path: PathOptionsType,
+                   loading_parameters: LoadingParameters | None = None) -> xr.Dataset:
+    """Function to read a trajector of the PyrAI2md format.
+
+    Args:
+        pathlist (PathOptionsType): Path to the directory containing a PyrAI2md output file list
+        loading_parameters (LoadingParameters | None, optional): Parameter settings for e.g. standard units or state names.
+
+    Returns:
+        xr.Dataset: The Dataset object containing all of the loaded data in default shnitsel units
+    """
+    # TODO: FIXME: use loading_parameters to configure units and state names
     md_energies_paths = glob(os.path.join(traj_path, '*.md.energies'))
     if (n := len(md_energies_paths)) != 1:
         raise FileNotFoundError(

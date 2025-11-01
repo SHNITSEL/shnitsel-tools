@@ -5,7 +5,7 @@ import re
 from typing import Dict, List, Tuple
 
 from shnitsel.data.TrajectoryFormat import Trajectory
-from shnitsel.io.helpers import PathOptionsType, make_uniform_path
+from shnitsel.io.helpers import LoadingParameters, PathOptionsType, make_uniform_path
 from ..FormatReader import FormatInformation, FormatReader
 from .parse_trajectory import read_traj
 from .parse_initial_conditions import list_iconds, dir_of_iconds
@@ -130,13 +130,16 @@ class SHARCFormatReader(FormatReader):
         return format_information
 
     def read_from_path(
-        self, path: PathOptionsType | None, format_info: FormatInformation | None = None
+        self, path: PathOptionsType | None,
+        format_info: FormatInformation | None = None,
+        loading_parameters: LoadingParameters | None = None
     ) -> Trajectory:
         """Read a SHARC-style trajcetory from path at `path`. Implements `FormatReader.read_from_path()`
 
         Args:
             path (PathOptionsType | None): Path to a shnitsel-format `.nc` file. If not provided explicitly, needs to be included in `format_info.path`
             format_info (FormatInformation | None, optional): Format information on the provided `path` if previously parsed. Will be parsed from `path` if not provided. Defaults to None.
+            loading_parameters: (LoadingParameters|None, optional): Loading parameters to e.g. override default state names, units or configure the error reporting behavior
 
         Raises:
             ValueError: Not enough loading information was provided via `path` and `format_info`, e.g. if both are None.
@@ -173,9 +176,11 @@ class SHARCFormatReader(FormatReader):
 
         try:
             if is_dynamic:
-                loaded_dataset = read_traj(path_obj)
+                loaded_dataset = read_traj(
+                    path_obj, loading_parameters=loading_parameters)
             else:
-                loaded_dataset = dir_of_iconds(path_obj)
+                loaded_dataset = dir_of_iconds(
+                    path_obj, loading_parameters=loading_parameters)
         except FileNotFoundError as fnf_e:
             raise fnf_e
         except ValueError as v_e:

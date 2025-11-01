@@ -5,7 +5,7 @@ import pathlib
 from typing import Dict, Tuple
 
 from shnitsel.data.TrajectoryFormat import Trajectory
-from shnitsel.io.helpers import PathOptionsType
+from shnitsel.io.helpers import LoadingParameters, PathOptionsType
 
 import re
 
@@ -72,7 +72,9 @@ class FormatReader(ABC):
 
     @abstractmethod
     def read_from_path(
-        self, path: PathOptionsType | None, format_info: FormatInformation | None = None
+        self, path: PathOptionsType | None, 
+        format_info: FormatInformation | None = None, 
+        loading_parameters: LoadingParameters | None = None
     ) -> Trajectory:
         """Method to read a path of the respective format (e.g. ) into a shnitsel-conform trajectory.
 
@@ -82,6 +84,7 @@ class FormatReader(ABC):
         Args:
             path (os.PathLike): Path to either the input file or input folder to be read.
             format_info (FormatInformation | None, optional): Format information previously constructed by `check_path_for_format_info()`. If None, will be constructed by calling `Self.check_path_for_format_info()` first. Defaults to None.
+            loading_parameters: (LoadingParameters|None, optional): Loading parameters to e.g. override default state names, units or configure the error reporting behavior
 
         Raises:
             FileNotFoundError: If required files were not found, i.e. if the path does not actually constitute input data of the denoted format

@@ -6,7 +6,7 @@ import re
 from typing import Dict, Tuple
 
 from shnitsel.data.TrajectoryFormat import Trajectory
-from shnitsel.io.helpers import PathOptionsType, make_uniform_path
+from shnitsel.io.helpers import LoadingParameters, PathOptionsType, make_uniform_path
 from ..FormatReader import FormatInformation, FormatReader
 from .parse import parse_pyrai2md
 
@@ -95,13 +95,16 @@ class PyrAI2mdFormatReader(FormatReader):
         )
 
     def read_from_path(
-        self, path: PathOptionsType | None, format_info: FormatInformation | None = None
+        self, path: PathOptionsType | None,
+        format_info: FormatInformation | None = None,
+        loading_parameters: LoadingParameters | None = None
     ) -> Trajectory:
         """Read a PyrAI2md-style trajcetory from path at `path`. Implements `FormatReader.read_from_path()`
 
         Args:
             path (PathOptionsType | None): Path to a PyrAI2md-format directory. If not provided explicitly, needs to be included in `format_info.path`
             format_info (FormatInformation | None, optional): Format information on the provided `path` if previously parsed. Will be parsed from `path` if not provided. Defaults to None.
+            loading_parameters: (LoadingParameters|None, optional): Loading parameters to e.g. override default state names, units or configure the error reporting behavior
 
         Raises:
             ValueError: Not enough loading information was provided via `path` and `format_info`, e.g. if both are None.
@@ -127,7 +130,8 @@ class PyrAI2mdFormatReader(FormatReader):
             )
 
         try:
-            loaded_dataset = parse_pyrai2md(path_obj)
+            loaded_dataset = parse_pyrai2md(
+                path_obj, loading_parameters=loading_parameters)
         except FileNotFoundError as fnf_e:
             raise fnf_e
         except ValueError as v_e:

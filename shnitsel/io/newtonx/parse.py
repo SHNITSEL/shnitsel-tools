@@ -8,10 +8,24 @@ import os
 import re
 import math
 
+from shnitsel.io.helpers import LoadingParameters, PathOptionsType
+
 from ..xyz import parse_xyz
 
 
-def parse_newtonx(traj_path: str |pathlib.Path) -> xr.Dataset:
+# TODO: FIXME: use loading_parameters to configure units and state names
+def parse_newtonx(traj_path: PathOptionsType,
+                  loading_parameters: LoadingParameters | None = None) -> xr.Dataset:
+    """Function to read a NewtonX trajectory directory into a Dataset with standard shnitsel annotations and units
+
+    Args:
+        pathlist (PathOptionsType): Path to the NewtonX trajectory output
+        loading_parameters (LoadingParameters | None, optional): Parameter settings for e.g. standard units or state names.
+
+    Returns:
+        xr.Dataset: The Dataset object containing all of the loaded data in default shnitsel units
+    """
+    # TODO: FIXME: use loading_parameters to configure units and state names
     with open(os.path.join(traj_path, 'RESULTS', 'nx.log')) as f:
         single_traj = parse_nx_log(f)
 

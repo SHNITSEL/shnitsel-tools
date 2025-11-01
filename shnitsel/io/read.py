@@ -2,7 +2,7 @@ import glob
 
 from shnitsel.data.TrajectoryFormat import Trajectory
 from shnitsel.io.FormatReader import FormatInformation, FormatReader
-from shnitsel.io.helpers import KindType, PathOptionsType, make_uniform_path
+from shnitsel.io.helpers import KindType, LoadingParameters, PathOptionsType, make_uniform_path
 from shnitsel.io.newtonx.format_reader import NewtonXFormatReader
 from shnitsel.io.pyrai2md.format_reader import PyrAI2mdFormatReader
 from shnitsel.io.sharc.format_reader import SHARCFormatReader
@@ -25,7 +25,6 @@ import os
 import pathlib
 
 
-
 # def read_trajs(
 def read(
     path: PathOptionsType,
@@ -35,6 +34,8 @@ def read(
     concat_method: Literal['layers', 'list', 'frames'] = 'layers',
     parallel: bool = True,
     error_reporting: Literal['log', 'raise'] = 'log',
+    state_names: List[str] | Callable | None = None,
+    input_units: Dict[str, str] | None = None,
 ) -> xr.Dataset | Trajectory | List[Trajectory]:
     """Read all trajectories from a folder of trajectory folders
 
@@ -72,6 +73,13 @@ def read(
     error_reporting (Literal['log','raise']):
         Choose whether to `log` or to `raise` errors as they occur during the import process.
         Currently, the implementation does not support `error_reporting='raise'` while `parallel=True`.
+    state_names (List[str] | Callable | None, optional):
+        Either a list of names to assign to states in the loaded file or a function that assigns a state name to each state id.
+        If not provided or set to None, default naming will be applied, naming singlet states S0, S1,.., doublet states D0,... and triplet states T0, etc in ascending order.
+    input_units: (Dict[str, str] | None, optional):
+        An optional dictionary to set the units in the loaded trajectory. 
+        Only necessary if the units differ from that tool's default convention or if there is no default convention for the tool. 
+        Please refer to the names of the different unit kinds and possible values for different units in `shnitsel.units.definitions`.
 
     Returns
     -------
@@ -80,7 +88,7 @@ def read(
     Raises
     ------
     FileNotFoundError
-        If the `kind` of input requires a single file and `path` does not exist or does not denote a file.
+        If the `kind` does not match the provided `path` format, e.g because it does not exist or does not denote a file/directory with the required contents.
     FileNotFoundError
         If the search (``= path + pattern``) doesn't match any paths according to :external:py:func:`glob.glob`
     ValueError
@@ -103,13 +111,49 @@ def read(
         raise ValueError(
             "parallel=True only supports errors='log' (the default)")
 
-    glob_expr = sub_pattern
-    paths = glob.glob(glob_expr, root_dir=path)
-    if len(paths) == 0:
-        msg = f"The search '{glob_expr}' didn't match any paths"
-        if not os.path.isabs(path):
-            msg += f", relative to working directory '{os.getcwd()}'"
-        raise FileNotFoundError(msg)
+    loading_parameters = LoadingParameters(
+        input_units=input_units, state_names=state_names, error_reporting=error_reporting)
+
+    # First check if the target path can directly be read as a Trajectory
+    stored_single_error = None
+    stored_multiple_error = None
+    try:
+        res = read_single(path, kind, error_reporting,
+                          base_loading_parameters=loading_parameters)
+
+        if res is not None:
+            return res
+
+        logging.info(f"Could not read `{path}` directly as a trajectory.")
+    except Exception as e:
+        # Keep error in case the multiple reading also fails
+        stored_single_error = e
+
+    if multiple:
+        logging.info(
+            f"Attempt to read `{path}` as a directory containing multiple trajectories.")
+
+        try:
+            res_list = read_folder_multi(
+                path, kind, sub_pattern, parallel, error_reporting, base_loading_parameters=loading_parameters)
+
+            if res_list is not None:
+                if len(res_list) == 1:
+                    return res_list[0]
+                elif len(res_list) == 0:
+                    raise FileNotFoundError(
+                        "No trajectories could be loaded from path `{path}`.")
+                else:
+                    return cat_func(res_list)
+
+            glob_expr = sub_pattern
+            paths = glob.glob(glob_expr, root_dir=path)
+            if len(paths) == 0:
+                msg = f"The search '{glob_expr}' didn't match any paths"
+                if not os.path.isabs(path):
+                    msg += f", relative to working directory '{os.getcwd()}'"
+                raise FileNotFoundError(msg)
+        except Exception as e:
 
     if parallel:
         datasets = read_trajs_parallel(paths, kind)
@@ -120,11 +164,22 @@ def read(
     return cat_func(datasets)
 
 
+def read_folder_multi(
+        path: PathOptionsType,
+        kind: KindType | None,
+        sub_pattern: str | None = None,
+        parallel: bool = True,
+        error_reporting: Literal['log', 'raise'] = 'log',
+        base_loading_parameters: LoadingParameters | None = None) -> List[Trajectory] | None:
+
+    pass
+
 
 def read_single(
         path: PathOptionsType,
         kind: KindType | None,
-        error_reporting: Literal['log', 'raise'] = 'log',) -> Trajectory | None:
+        error_reporting: Literal['log', 'raise'] = 'log',
+        base_loading_parameters: LoadingParameters | None = None) -> Trajectory | None:
     try:
         res_format = identify_or_check_input_kind(path, kind)
         if res_format is not None:

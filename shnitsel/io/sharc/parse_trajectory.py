@@ -9,12 +9,27 @@ import os
 import re
 import math
 
-from shnitsel.io.helpers import get_atom_number_from_symbol
+from shnitsel.io.helpers import PathOptionsType, get_atom_number_from_symbol
 from shnitsel.units.definitions import get_default_input_attributes
 from shnitsel.units.conversion import convert_all_units_to_shnitsel_defaults
 
 
-def read_traj(traj_path: str | os.PathLike):
+from shnitsel.io.helpers import LoadingParameters
+
+
+def read_traj(traj_path: PathOptionsType,
+              loading_parameters: LoadingParameters | None = None) -> xr.Dataset:
+    """Function to read a single SHARC trajectory directory
+
+    Args:
+        traj_path (PathOptionsType): The path to load the trajectory form
+        loading_parameters (LoadingParameters | None, optional): Parameter settings for e.g. standard units or state names.
+
+    Returns:
+        xr.Dataset: The parsed SHARC directory as a Dataset 
+    """
+    # TODO: FIXME: use loading_parameters to configure units and state names
+
     # Read some settings from input
     # In particular, if a trajectory is extended by increasing
     # tmax and resuming, the header of output.dat will give

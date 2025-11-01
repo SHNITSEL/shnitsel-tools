@@ -1,3 +1,4 @@
+from shnitsel.io.helpers import LoadingParameters
 from io import TextIOWrapper
 import numpy as np
 import pandas as pd
@@ -11,6 +12,7 @@ from glob import glob
 from typing import Dict, List, NamedTuple, Any, Sequence, Set, Tuple
 from tqdm.auto import tqdm
 from shnitsel.io.helpers import (
+    PathOptionsType,
     dip_sep,
     __atnum2symbol__,
     get_triangular,
@@ -196,7 +198,10 @@ def check_dims(pathlist: Sequence[IcondPath]) -> Tuple[int, int, int, int, int]:
     return nstates.v, natoms.v, num_singlets, num_doublets, num_triplets
 
 
-def dir_of_iconds(path: str | os.PathLike = './iconds/', *, levels: int = 1, id_subset: (Set[int] | None) = None):
+def dir_of_iconds(path: PathOptionsType, *,
+                  levels: int = 1,
+                  id_subset: (Set[int] | None) = None,
+                  loading_parameters: LoadingParameters | None = None) -> xr.Dataset:
     """Function to retrieve all initial conditions from subdirectories of the provided `path`.
 
 
@@ -213,7 +218,7 @@ def dir_of_iconds(path: str | os.PathLike = './iconds/', *, levels: int = 1, id_
         initial_condition_paths = [
             icond for icond in initial_condition_paths if icond.idx in id_subset]
 
-    return read_iconds(initial_condition_paths)
+    return read_iconds(initial_condition_paths, loading_parameters)
 
 
 def create_icond_dataset(indices: List[int] | None, nstates: int, natoms: int, **kwargs) -> xr.Dataset:
@@ -350,16 +355,21 @@ def create_icond_dataset(indices: List[int] | None, nstates: int, natoms: int, *
     return res_dataset
 
 
-def read_iconds(pathlist: List[IcondPath], indices: List[int] | None = None) -> xr.Dataset:
+
+def read_iconds(pathlist: List[IcondPath],
+                indices: List[int] | None = None,
+                loading_parameters: LoadingParameters | None = None) -> xr.Dataset:
     """Function to read initial condition directories into a Dataset with standard shnitsel annotations and units
 
     Args:
         pathlist (List[IcondPath]): Lists of Initial condition paths from which we can parse the results into the dataset
         indices (List[int] | None, optional): Optional. The list of indices of initial conditions we want to limit the parsing to. Defaults to None.
+        loading_parameters (LoadingParameters | None, optional): Parameter settings for e.g. standard units or state names.
 
     Returns:
         xr.Dataset: The Dataset object containing all of the loaded data in default shnitsel units
     """
+    # TODO: FIXME: use loading_parameters to configure units and state names
     logging.info("Ensuring consistency of ICONDs dimensions")
     nstates, natoms, nsinglets, ndoublets, ntriplets = check_dims(pathlist)
     logging.info("Allocating Dataset for ICONDs")

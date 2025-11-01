@@ -2,18 +2,22 @@ import os
 import pathlib
 import xarray as xr
 
+from shnitsel.io.helpers import LoadingParameters, PathOptionsType
+
 # TODO: We probably need a fallback version for old and new shnitsel file formats
 
 # def open_frames(path):
 
 
-def read_shnitsel_file(path: str | pathlib.Path):
+def read_shnitsel_file(path: PathOptionsType,
+                       loading_parameters: LoadingParameters | None = None) -> xr.Dataset:
     """Opens a NetCDF4 file saved by shnitsel-tools, specially interpreting certain attributes.
 
     Parameters
     ----------
-    path
+    path (PathOptionsType):
         The path of the file to open.
+    loading_parameters (LoadingParameters,optional): Parameter settings for e.g. standard units or state names.
 
     Returns
     -------
@@ -26,6 +30,7 @@ def read_shnitsel_file(path: str | pathlib.Path):
     ValueError (or other exception)
         Raised by the underlying `h5netcdf <https://h5netcdf.org/>`_ engine if the file is corrupted.
     """
+    # TODO: FIXME: use loading_parameters to configure units and state names
     # The error raised for a missing file can be misleading
     try:
         frames = xr.open_dataset(path)
