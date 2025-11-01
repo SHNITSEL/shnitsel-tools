@@ -1,3 +1,4 @@
+import logging
 from typing import Callable, Dict
 import xarray as xr
 import shnitsel.units.definitions as definitions
@@ -21,12 +22,12 @@ class Converter:
         self.targets = list(conversions.keys())
 
     def __call__(self, da: xr.DataArray, to: str, convert_from: str | None = None) -> xr.DataArray:
-        """Function to convert an xr.DataArray between two different units. 
+        """Function to convert an xr.DataArray between two different units.
 
-        The function needs to be provided with a target unit `to` as well as with either an attribute `units` of the 
+        The function needs to be provided with a target unit `to` as well as with either an attribute `units` of the
         input data array or by setting the input unit `convert_from`.
         A new datarray with converted units will be returned, if successful.
-        The resulting array will have the new unit set as its `units` attribute and if no prior conversion has happened, 
+        The resulting array will have the new unit set as its `units` attribute and if no prior conversion has happened,
         the previous unit will be set to the `original_units` attribute.
 
         Args:
@@ -42,6 +43,11 @@ class Converter:
         Returns:
             xr.DataArray: The array containing the unit-converted data out of `da` with a new `units` and potentially `original_units` attribute set.
         """
+
+        if to == "1":
+            logging.warning(f"Target is {to} for {da.name}, which means we do not care about the target unit or do not have a standard.")
+            return da
+
         if convert_from is None:
             try:
                 from_ = da.attrs['units']
@@ -84,7 +90,7 @@ convert_energy = Converter(
 
 # Helper to convert forces
 convert_force = Converter(definitions.unit_dimensions.force,
-                          definitions._force_unit_scales)
+                            definitions._force_unit_scales)
 
 # Helper to convert dipole moments
 convert_dipole = Converter(
@@ -108,7 +114,6 @@ def convert_all_units_to_shnitsel_defaults(data: xr.Dataset) -> xr.Dataset:
     new_vars = {}
     with xr.set_options(keep_attrs=True):
         for var_name in data.variables:
-            data = data.ass
             new_vars[var_name] = convert_datarray_with_unitdim(data[var_name])
         return data.assign(new_vars)
 
