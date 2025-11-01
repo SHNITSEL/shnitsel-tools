@@ -24,31 +24,6 @@ import logging
 import os
 import pathlib
 
-KindType = Literal['sharc', 'nx', 'newtonx', 'pyrai2md', 'shnitsel']
-
-
-@dataclass
-class LoadingParameters:
-    # The path to either an input file or an input trajectory depending on the kind of trajectory being requested
-    input_path: str | os.PathLike
-    # An indicator as to which kind of trajectory is being loaded
-    kind: KindType | None
-
-    # A dict containing the information, which input observable has which unit. If not provided, the loader will guess the units either based on the default values of that simulator or the data in `path`
-    input_units: Dict[str, str] | None = None
-    # List of the names of states or a function to label them or None and let the trajectory loader make an educated guess
-    state_names: List[str] | Callable | None = None
-
-    # Parameter to control whether multiple trajectories will be concatenated into a continuous trajectory along the `time` axis or layered as trajectories indexed by a new axis `trajid`
-    concat_function: Callable = lambda x: x
-
-    # Flag to indicate whether parallel loading is requested
-    parallel: bool = True
-    # Flag to set how errors during loading are reported
-    error_reporting: Literal['log', 'raise'] = 'log'
-
-    # Pattern for matching paths within `input_path` for certain loaders depending on `kind`
-    sub_pattern: str | None = 'TRAJ*'
 
 
 # def read_trajs(
