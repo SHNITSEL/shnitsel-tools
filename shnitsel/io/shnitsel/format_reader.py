@@ -1,7 +1,8 @@
 from dataclasses import dataclass
 import logging
 import pathlib
-from typing import Dict
+import re
+from typing import Dict, Tuple
 
 from shnitsel.data.TrajectoryFormat import Trajectory
 from shnitsel.io.helpers import PathOptionsType, make_uniform_path
@@ -14,8 +15,22 @@ class ShnitselFormatInformation(FormatInformation):
     pass
 
 
+_shnitsel_default_pattern_regex = None
+_shnitsel_default_pattern_glob = r"*.nc"
+
+
 class ShnitselFormatReader(FormatReader):
     """Class for providing the Shnitsel format reading functionality in the standardized `FormatReader` interface"""
+
+    def get_default_trajectory_pattern(self) -> Tuple[str, re.Pattern | None] | None:
+        """Function to retrieve SHNITSEL specific naming convention for trajectory directories.
+
+        The default pattern is `*.nc` so that all `.nc` files will attempt to be loaded.
+
+        Returns:
+            Tuple[str, re.Pattern | None] | None: Will always return a pattern but no regex for more specific filtering
+        """
+        return (_shnitsel_default_pattern_glob, _shnitsel_default_pattern_regex)
 
     def check_path_for_format_info(
         self, path: PathOptionsType, hints_or_settings: Dict | None = None
@@ -33,7 +48,7 @@ class ShnitselFormatReader(FormatReader):
         Returns:
             FormatInformation: _description_
         """
-        path: pathlib.Path = make_uniform_path(path)
+        path_obj: pathlib.Path = make_uniform_path(path)
 
         is_request_specific_to_shnitsel = (
             hints_or_settings is not None
@@ -41,7 +56,7 @@ class ShnitselFormatReader(FormatReader):
             and hints_or_settings["kind"] == "shnitsel"
         )
 
-        if not path.exists() or not path.is_file():
+        if not path_obj.exists() or not path_obj.is_file():
             message = f"Path `{path}` does not constitute a Shnitsel style trajectory file. Does not exist or is not a file."
             if is_request_specific_to_shnitsel:
                 logging.error(message)
@@ -49,7 +64,7 @@ class ShnitselFormatReader(FormatReader):
                 logging.debug(message)
             raise FileNotFoundError(message)
 
-        if not path.suffix.endswith(".nc"):
+        if not path_obj.suffix.endswith(".nc"):
             message = f"Path `{path}` is not a NetCdf file (extension `.nc`)"
             if is_request_specific_to_shnitsel:
                 logging.error(message)
@@ -57,7 +72,7 @@ class ShnitselFormatReader(FormatReader):
                 logging.debug(message)
             raise FileNotFoundError(message)
 
-        return ShnitselFormatInformation("shnitsel", "0.1", path)
+        return ShnitselFormatInformation("shnitsel", "0.1", path_obj)
 
     def read_from_path(
         self, path: PathOptionsType | None, format_info: FormatInformation | None = None
@@ -75,22 +90,23 @@ class ShnitselFormatReader(FormatReader):
         Returns:
             Trajectory: The loaded Shnitsel-conforming trajectory
         """
-        path: pathlib.Path = make_uniform_path(path)
+        path_obj: pathlib.Path = make_uniform_path(path)
 
-        if path is not None and format_info is None:
-            format_info = self.check_path_for_format_info(path)
-        elif path is None and format_info is not None:
-            path = format_info.path
-        elif path is None and format_info is None:
-            raise ValueError("Either `path` or `format_info` needs to be provided to ")
+        if path_obj is not None and format_info is None:
+            format_info = self.check_path_for_format_info(path_obj)
+        elif path_obj is None and format_info is not None:
+            path_obj = format_info.path
+        elif path_obj is None and format_info is None:
+            raise ValueError(
+                "Either `path` or `format_info` needs to be provided to ")
 
-        if path is None:
+        if path_obj is None:
             raise ValueError(
                 "Not sufficient `path` information provided. Please set the `path` parameter"
             )
 
         try:
-            loaded_dataset = read_shnitsel_file(path)
+            loaded_dataset = read_shnitsel_file(path_obj)
         except FileNotFoundError as fnf_e:
             raise fnf_e
         except ValueError as v_e:

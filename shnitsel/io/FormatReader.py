@@ -2,10 +2,12 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 import os
 import pathlib
-from typing import Dict
+from typing import Dict, Tuple
 
 from shnitsel.data.TrajectoryFormat import Trajectory
 from shnitsel.io.helpers import PathOptionsType
+
+import re
 
 
 @dataclass
@@ -23,6 +25,18 @@ class FormatReader(ABC):
     Should be subclassed and the functions `check_path_for_format_info()` and `read_from_path()`
     overridden in the subclass
     """
+
+    @abstractmethod
+    def get_default_trajectory_pattern(self) -> Tuple[str, re.Pattern | None] | None:
+        """Function to return a default pattern for identifying potential files/subdirectories in a path that could 
+        conform to the file format read by this reader.
+
+        Returns:
+            Tuple[str, re.Pattern|None] : First the default pattern that this file naming format uses for its trajectories as a glob expression string.
+                Optionally, the second entry in the tuple can be a `re.Pattern` object to more specifically match the results of `glob.glob()`.
+            None: No specific pattern matching desired
+        """
+        return None
 
     @abstractmethod
     def check_path_for_format_info(

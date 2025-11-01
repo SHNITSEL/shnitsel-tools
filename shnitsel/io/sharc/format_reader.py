@@ -1,7 +1,8 @@
 from dataclasses import dataclass
 import logging
 import pathlib
-from typing import Dict, List
+import re
+from typing import Dict, List, Tuple
 
 from shnitsel.data.TrajectoryFormat import Trajectory
 from shnitsel.io.helpers import PathOptionsType, make_uniform_path
@@ -20,8 +21,23 @@ class SHARCInitialFormatInformation(FormatInformation):
     list_of_iconds: List | None = None
 
 
+_sharc_default_pattern_regex = re.compile(
+    r"(?P<dynstat>TRAJ|ICOND)_(?P<trajid>\d+)")
+_sharc_default_pattern_glob = r"(TRAJ_*)|(ICOND_*)"
+
+
 class SHARCFormatReader(FormatReader):
     """Class for providing the SHARC format reading functionality in the standardized `FormatReader` interface"""
+
+    def get_default_trajectory_pattern(self) -> Tuple[str, re.Pattern | None] | None:
+        """Function to retrieve SHARC specific naming convention for trajectory and initial condition directories.
+
+        The default pattern is `TRAJ_(\\d+)` with an underscore for dynamic data and `ICOND_(\\d+)` for static initial conditions.
+
+        Returns:
+            Tuple[str, re.Pattern | None] | None: Will always return a pattern and a regex
+        """
+        return (_sharc_default_pattern_glob, _sharc_default_pattern_regex)
 
     def check_path_for_format_info(
         self, path: PathOptionsType, hints_or_settings: Dict | None = None
@@ -41,7 +57,7 @@ class SHARCFormatReader(FormatReader):
         Returns:
             FormatInformation: _description_
         """
-        path: pathlib.Path = make_uniform_path(path)
+        path_obj: pathlib.Path = make_uniform_path(path)
 
         is_request_specific_to_sharc = (
             hints_or_settings is not None
@@ -49,7 +65,7 @@ class SHARCFormatReader(FormatReader):
             and hints_or_settings["kind"] == "sharc"
         )
 
-        if not path.exists() or not path.is_dir():
+        if not path_obj.exists() or not path_obj.is_dir():
             message = f"Path `{path}` does not constitute a SHARC style output directory: Does not exist or is not a directory."
             if is_request_specific_to_sharc:
                 logging.error(message)
@@ -61,9 +77,9 @@ class SHARCFormatReader(FormatReader):
         is_dynamic = False
         format_information: FormatInformation | None = None
         try:
-            input_file_path = path / "input"
-            input_dat_path = path / "output.dat"
-            input_xyz_path = path / "output.xyz"
+            input_file_path = path_obj / "input"
+            input_dat_path = path_obj / "output.dat"
+            input_xyz_path = path_obj / "output.xyz"
 
             for file in [input_file_path, input_dat_path, input_xyz_path]:
                 if not file.is_file():
@@ -74,7 +90,7 @@ class SHARCFormatReader(FormatReader):
                         logging.debug(message)
                     raise FileNotFoundError(message)
             is_dynamic = True
-            SHARCDynamicFormatInformation("SHARC", "unkown", path)
+            SHARCDynamicFormatInformation("SHARC", "unkown", path_obj)
         except Exception as e:
             dynamic_check_error = e
 
@@ -82,10 +98,10 @@ class SHARCFormatReader(FormatReader):
 
         is_static = False
         try:
-            list_of_initial_condition_paths = list_iconds(path)
+            list_of_initial_condition_paths = list_iconds(path_obj)
             is_static = True
             SHARCInitialFormatInformation(
-                "SHARC", "unkown", path, list_of_initial_condition_paths
+                "SHARC", "unkown", path_obj, list_of_initial_condition_paths
             )
         except Exception as e:
             static_check_error = e
@@ -130,34 +146,36 @@ class SHARCFormatReader(FormatReader):
         Returns:
             Trajectory: The loaded Shnitsel-conforming trajectory
         """
-        path: pathlib.Path = make_uniform_path(path)
+        path_obj: pathlib.Path = make_uniform_path(path)
 
         is_dynamic = False
 
-        if path is not None and format_info is None:
-            format_info = self.check_path_for_format_info(path)
-        elif path is None and format_info is not None:
-            path = format_info.path
-        elif path is None and format_info is None:
-            raise ValueError("Either `path` or `format_info` needs to be provided")
+        if path_obj is not None and format_info is None:
+            format_info = self.check_path_for_format_info(path_obj)
+        elif path_obj is None and format_info is not None:
+            path_obj = format_info.path
+        elif path_obj is None and format_info is None:
+            raise ValueError(
+                "Either `path` or `format_info` needs to be provided")
 
         if isinstance(format_info, SHARCDynamicFormatInformation):
             is_dynamic = True
         elif isinstance(format_info, SHARCInitialFormatInformation):
             is_dynamic = False
         else:
-            raise ValueError("The provided `format_info` object is not SHARC-specific.")
+            raise ValueError(
+                "The provided `format_info` object is not SHARC-specific.")
 
-        if path is None:
+        if path_obj is None:
             raise ValueError(
                 "Not sufficient `path` information provided. Please set the `path` parameter"
             )
 
         try:
             if is_dynamic:
-                loaded_dataset = read_traj(path)
+                loaded_dataset = read_traj(path_obj)
             else:
-                loaded_dataset = dir_of_iconds(path)
+                loaded_dataset = dir_of_iconds(path_obj)
         except FileNotFoundError as fnf_e:
             raise fnf_e
         except ValueError as v_e:

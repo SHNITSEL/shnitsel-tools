@@ -2,7 +2,8 @@ from dataclasses import dataclass
 from glob import glob
 import logging
 import pathlib
-from typing import Dict
+import re
+from typing import Dict, Tuple
 
 from shnitsel.data.TrajectoryFormat import Trajectory
 from shnitsel.io.helpers import PathOptionsType, make_uniform_path
@@ -19,6 +20,16 @@ class PyrAI2mdFormatInformation(FormatInformation):
 
 class PyrAI2mdFormatReader(FormatReader):
     """Class for providing the SHARC format reading functionality in the standardized `FormatReader` interface"""
+
+    def get_default_trajectory_pattern(self) -> Tuple[str, re.Pattern | None] | None:
+        """Function to retrieve PyrAI2md specific naming convention for trajectory directories.
+
+        Defaults to checking all subdirectories
+
+        Returns:
+            Tuple[str, re.Pattern | None] | None: _description_
+        """
+        return ("*", None)
 
     def check_path_for_format_info(
         self, path: PathOptionsType, hints_or_settings: Dict | None = None
@@ -38,7 +49,7 @@ class PyrAI2mdFormatReader(FormatReader):
         Returns:
             FormatInformation: _description_
         """
-        path: pathlib.Path = make_uniform_path(path)
+        path_obj: pathlib.Path = make_uniform_path(path)
         is_request_specific_to_pyrai2md = (
             hints_or_settings is not None
             and "kind" in hints_or_settings
@@ -47,7 +58,7 @@ class PyrAI2mdFormatReader(FormatReader):
 
         md_energies_paths = glob(
             "*.md.energies",
-            root_dir=path,
+            root_dir=path_obj,
         )
         if (n := len(md_energies_paths)) != 1:
             message = (
@@ -60,11 +71,11 @@ class PyrAI2mdFormatReader(FormatReader):
                 logging.debug(message)
             raise FileNotFoundError(message)
 
-        energy_file_path = path / md_energies_paths[0]
+        energy_file_path = path_obj / md_energies_paths[0]
 
         log_paths = glob(
             "*.log",
-            root_dir=path,
+            root_dir=path_obj,
         )
         if (n := len(md_energies_paths)) != 1:
             message = (
@@ -77,10 +88,10 @@ class PyrAI2mdFormatReader(FormatReader):
                 logging.debug(message)
             raise FileNotFoundError(message)
 
-        log_file_path = path / log_paths[0]
+        log_file_path = path_obj / log_paths[0]
 
         return PyrAI2mdFormatInformation(
-            "SHARC", "unkown", path, energy_file_path, log_file_path
+            "sharc", "unkown", path_obj, energy_file_path, log_file_path
         )
 
     def read_from_path(
@@ -100,22 +111,23 @@ class PyrAI2mdFormatReader(FormatReader):
             Trajectory: The loaded Shnitsel-conforming trajectory
         """
 
-        path: pathlib.Path = make_uniform_path(path)
+        path_obj: pathlib.Path = make_uniform_path(path)
 
-        if path is not None and format_info is None:
-            format_info = self.check_path_for_format_info(path)
-        elif path is None and format_info is not None:
-            path = format_info.path
-        elif path is None and format_info is None:
-            raise ValueError("Either `path` or `format_info` needs to be provided")
+        if path_obj is not None and format_info is None:
+            format_info = self.check_path_for_format_info(path_obj)
+        elif path_obj is None and format_info is not None:
+            path_obj = format_info.path
+        elif path_obj is None and format_info is None:
+            raise ValueError(
+                "Either `path` or `format_info` needs to be provided")
 
-        if path is None:
+        if path_obj is None:
             raise ValueError(
                 "Not sufficient `path` information provided. Please set the `path` parameter"
             )
 
         try:
-            loaded_dataset = parse_pyrai2md(path)
+            loaded_dataset = parse_pyrai2md(path_obj)
         except FileNotFoundError as fnf_e:
             raise fnf_e
         except ValueError as v_e:
