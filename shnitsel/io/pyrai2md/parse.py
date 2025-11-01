@@ -38,6 +38,8 @@ def parse_pyrai2md(traj_path: PathOptionsType,
     energy = parse_md_energies(md_energies_paths[0])
     with open(os.path.join(log_paths[0])) as f:
         single_traj = parse_log(f)
+
+    # TODO: FIXME: conflicting dimension sizes "time"
     single_traj = single_traj.rename(
         ts='time').assign_coords(time=energy['time'])
     single_traj['energy'] = energy
