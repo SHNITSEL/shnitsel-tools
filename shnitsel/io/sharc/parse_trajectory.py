@@ -17,8 +17,9 @@ from shnitsel.units.conversion import convert_all_units_to_shnitsel_defaults
 from shnitsel.io.helpers import LoadingParameters
 
 
-def read_traj(traj_path: PathOptionsType,
-              loading_parameters: LoadingParameters | None = None) -> xr.Dataset:
+def read_traj(
+    traj_path: PathOptionsType, loading_parameters: LoadingParameters | None = None
+) -> xr.Dataset:
     """Function to read a single SHARC trajectory directory
 
     Args:
@@ -26,7 +27,7 @@ def read_traj(traj_path: PathOptionsType,
         loading_parameters (LoadingParameters | None, optional): Parameter settings for e.g. standard units or state names.
 
     Returns:
-        xr.Dataset: The parsed SHARC directory as a Dataset 
+        xr.Dataset: The parsed SHARC directory as a Dataset
     """
     # TODO: FIXME: use loading_parameters to configure units and state names
 
@@ -34,36 +35,38 @@ def read_traj(traj_path: PathOptionsType,
     # In particular, if a trajectory is extended by increasing
     # tmax and resuming, the header of output.dat will give
     # only the original nsteps, leading to an ndarray IndexError
-    input_path = os.path.join(traj_path, 'input')
+    input_path = os.path.join(traj_path, "input")
     if os.path.isfile(input_path):
         with open(input_path) as f:
             settings = parse_input_settings(f)
-        delta_t = float(settings['stepsize'])
-        tmax = float(settings['tmax'])
-        nsteps = int(tmax/delta_t) + 1
+        delta_t = float(settings["stepsize"])
+        tmax = float(settings["tmax"])
+        nsteps = int(tmax / delta_t) + 1
     else:
         delta_t = None
         tmax = None
         nsteps = None
 
-    with open(os.path.join(traj_path, 'output.dat')) as f:
+    with open(os.path.join(traj_path, "output.dat")) as f:
         single_traj = parse_trajout_dat(f, nsteps=nsteps)
 
-    nsteps = single_traj.sizes['ts']
+    # TODO: Note that for consistency, we renamed the ts dimension to time to agree with other format
 
-    with open(os.path.join(traj_path, 'output.xyz')) as f:
+    nsteps = single_traj.sizes["time"]
+
+    with open(os.path.join(traj_path, "output.xyz")) as f:
         atNames, atNums, atXYZ = parse_trajout_xyz(nsteps, f)
 
-    single_traj.coords['atNames'] = 'atom', atNames
-    single_traj.coords['atNums'] = 'atom', atNums
+    single_traj.coords["atNames"] = "atom", atNames
+    single_traj.coords["atNums"] = "atom", atNums
 
-    single_traj['atXYZ'][...] = atXYZ
+    single_traj["atXYZ"][...] = atXYZ
 
     if delta_t is not None:
-        single_traj.attrs['delta_t'] = delta_t
+        single_traj.attrs["delta_t"] = delta_t
 
-    single_traj.attrs['input_format'] = 'sharc'
-    single_traj.attrs['input_type'] = 'dynamic'
+    single_traj.attrs["input_format"] = "sharc"
+    single_traj.attrs["input_type"] = "dynamic"
 
     return convert_all_units_to_shnitsel_defaults(single_traj)
 
@@ -83,7 +86,7 @@ def parse_trajout_dat(f: TextIOWrapper, nsteps: int | None = None) -> xr.Dataset
     """
     settings = {}
     for line in f:
-        if line.startswith('*'):
+        if line.startswith("*"):
             break
 
         parsed = line.strip().split()
@@ -94,17 +97,17 @@ def parse_trajout_dat(f: TextIOWrapper, nsteps: int | None = None) -> xr.Dataset
         else:
             logging.warning("Key without value in settings of output.dat")
 
-    nsteps_output_dat = int(settings['nsteps']) + 1  # let's not forget ts=0
+    nsteps_output_dat = int(settings["nsteps"]) + 1  # let's not forget ts=0
     if nsteps is None or nsteps < nsteps_output_dat:
         nsteps = nsteps_output_dat
         logging.debug(f"nsteps = {nsteps}")
     else:
         logging.debug(f"(From input file) nsteps = {nsteps}")
-    natoms = int(settings['natom'])  # yes, really 'natom', not 'natoms'!
+    natoms = int(settings["natom"])  # yes, really 'natom', not 'natoms'!
     logging.debug(f"natoms = {natoms}")
-    ezero = float(settings['ezero'])
+    ezero = float(settings["ezero"])
     logging.debug(f"ezero = {ezero}")
-    state_settings = [int(s) for s in settings['nstates_m']]
+    state_settings = [int(s) for s in settings["nstates_m"]]
     state_settings += [0] * (3 - len(state_settings))
     nsinglets, ndoublets, ntriplets = state_settings
     nstates = nsinglets + 2 * ndoublets + 3 * ntriplets
@@ -112,51 +115,53 @@ def parse_trajout_dat(f: TextIOWrapper, nsteps: int | None = None) -> xr.Dataset
 
     idx_table_nacs = {
         (si, sj): idx
-        for idx, (si, sj) in enumerate(combinations(range(1, nstates+1), 2))
+        for idx, (si, sj) in enumerate(combinations(range(1, nstates + 1), 2))
     }
 
     template = {
-        'energy': ['ts', 'state'],
-        'e_kin': ['ts'],
-        'dip_all': ['ts', 'state', 'state2', 'direction'],
-        'dip_perm': ['ts', 'state', 'direction'],
-        'dip_trans': ['ts', 'statecomb', 'direction'],
-        'forces': ['ts', 'state', 'atom', 'direction'],
+        "energy": ["time", "state"],
+        "e_kin": ["time"],
+        "dip_all": ["time", "state", "state2", "direction"],
+        "dip_perm": ["time", "state", "direction"],
+        "dip_trans": ["time", "statecomb", "direction"],
+        "forces": ["time", "state", "atom", "direction"],
         # 'has_forces': ['placeholder'],
         # 'has_forces': [],
-        'phases': ['ts', 'state'],
-        'nacs': ['ts', 'statecomb', 'atom', 'direction'],
-        'atXYZ': ['ts', 'atom', 'direction'],
-        'atNames': ['atom'],
-        'atNums': ['atom'],
-        'state_names': ['state'],
-        'state_type': ['state'],
+        "phases": ["time", "state"],
+        "nacs": ["time", "statecomb", "atom", "direction"],
+        "atXYZ": ["time", "atom", "direction"],
+        "atNames": ["atom"],
+        "atNums": ["atom"],
+        "state_names": ["state"],
+        "state_type": ["state"],
+        "astate": ["time"],
+        "sdiag": ["time"],
     }
     dim_lengths = {
-        'ts': nsteps,
-        'state': nstates,
-        'state2': nstates,
-        'atom': natoms,
-        'direction': 3,
-        'statecomb': math.comb(nstates, 2),
+        "time": nsteps,
+        "state": nstates,
+        "state2": nstates,
+        "atom": natoms,
+        "direction": 3,
+        "statecomb": math.comb(nstates, 2),
     }
 
     template_default_values = {
-        'energy': np.nan,
-        'e_kin': np.nan,
-        'dip_all': np.nan,
-        'dip_perm': np.nan,
-        'dip_trans': np.nan,
-        'sdiag': -1,
-        'astate': -1,
-        'forces': np.nan,
-        'phases': np.nan,
-        'nacs': np.nan,
-        'atXYZ': np.nan,
-        'state_names': '',
-        'atNames': '',
-        'atNums': -1,
-        'state_type': 0,
+        "energy": np.nan,
+        "e_kin": np.nan,
+        "dip_all": np.nan,
+        "dip_perm": np.nan,
+        "dip_trans": np.nan,
+        "sdiag": -1,
+        "astate": -1,
+        "forces": np.nan,
+        "phases": np.nan,
+        "nacs": np.nan,
+        "atXYZ": np.nan,
+        "state_names": "",
+        "atNames": "",
+        "atNums": -1,
+        "state_type": 0,
     }
 
     def default_fill_prop(name):
@@ -166,34 +171,36 @@ def parse_trajout_dat(f: TextIOWrapper, nsteps: int | None = None) -> xr.Dataset
         return np.full([dim_lengths[d] for d in dims], default_value)
 
     # now we know the number of steps, we can initialize the data arrays:
-    energy = default_fill_prop('energy')
-    e_kin = default_fill_prop('e_kin')
-    dip_all = default_fill_prop('dip_all')
-    phases = default_fill_prop('phases')
-    astate = default_fill_prop('astate')
-    sdiag = default_fill_prop('sdiag')
-    forces = default_fill_prop('forces')
-    nacs = default_fill_prop('nacs')
+    positions = default_fill_prop("atXYZ")
+    energy = default_fill_prop("energy")
+    e_kin = default_fill_prop("e_kin")
+    dip_all = default_fill_prop("dip_all")
+    phases = default_fill_prop("phases")
+    astate = default_fill_prop("astate")
+    sdiag = default_fill_prop("sdiag")
+    forces = default_fill_prop("forces")
+    nacs = default_fill_prop("nacs")
 
-    atNums = default_fill_prop('atNums')
-    atNames = default_fill_prop('atNames')
-    state_names = default_fill_prop('state_names')
+    atNums = default_fill_prop("atNums")
+    atNames = default_fill_prop("atNames")
+    state_names = default_fill_prop("state_names")
 
-    state_type = default_fill_prop('state_type')
+    state_type = default_fill_prop("state_type")
 
     state_type[:nsinglets] = 1
     state_names[:nsinglets] = [f"S{i}" for i in range(nsinglets)]
-    state_type[nsinglets:nsinglets+2*ndoublets] = 2
-    state_names[nsinglets:nsinglets+2 *
-                ndoublets] = [f"D{i}" for i in range(2*ndoublets)]
-    state_type[nsinglets+2*ndoublets:] = 3
-    state_names[nsinglets+2*ndoublets] = [f"T{i}" for i in range(3*ntriplets)]
+    state_type[nsinglets : nsinglets + 2 * ndoublets] = 2
+    state_names[nsinglets : nsinglets + 2 * ndoublets] = [
+        f"D{i}" for i in range(2 * ndoublets)
+    ]
+    state_type[nsinglets + 2 * ndoublets :] = 3
+    state_names[nsinglets + 2 * ndoublets :] = [f"T{i}" for i in range(3 * ntriplets)]
 
     max_ts = -1
 
     # skip through until initial step:
     for line in f:
-        if line.startswith('! 0 Step'):
+        if line.startswith("! 0 Step"):
             ts = int(next(f).strip())
             if ts != 0:
                 logging.warning("Initial timestep's index is not 0")
@@ -201,10 +208,10 @@ def parse_trajout_dat(f: TextIOWrapper, nsteps: int | None = None) -> xr.Dataset
             break
 
     for index, line in enumerate(f):
-        if line[0] != '!':
+        if line[0] != "!":
             continue
 
-        if line.startswith('! 0 Step'):
+        if line.startswith("! 0 Step"):
             # update `ts` to current timestep #
             new_ts = int(next(f).strip())
             if new_ts != (ts or 0) + 1:
@@ -213,20 +220,18 @@ def parse_trajout_dat(f: TextIOWrapper, nsteps: int | None = None) -> xr.Dataset
             max_ts = max(max_ts, ts)
             logging.debug(f"timestep = {ts}")
 
-        if line.startswith('! 1 Hamiltonian'):
+        if line.startswith("! 1 Hamiltonian"):
             for istate in range(nstates):
-                energy[ts, istate] = float(
-                    next(f).strip().split()[istate * 2]) + ezero
+                energy[ts, istate] = float(next(f).strip().split()[istate * 2]) + ezero
 
-        if line.startswith('! 3 Dipole moments'):
-            direction = {'X': 0, 'Y': 1, 'Z': 2}[line.strip().split()[4]]
+        if line.startswith("! 3 Dipole moments"):
+            direction = {"X": 0, "Y": 1, "Z": 2}[line.strip().split()[4]]
             for istate in range(nstates):
                 linecont = next(f).strip().split()
                 # delete every second element in list (imaginary values, all zero)
-                dip_all[ts, istate, :, direction] = [
-                    float(i) for i in linecont[::2]]
+                dip_all[ts, istate, :, direction] = [float(i) for i in linecont[::2]]
 
-        if line.startswith('! 4 Overlap matrix'):
+        if line.startswith("! 4 Overlap matrix"):
             found_overlap = False
             phasevector = np.ones((nstates))
 
@@ -247,30 +252,28 @@ def parse_trajout_dat(f: TextIOWrapper, nsteps: int | None = None) -> xr.Dataset
             if found_overlap:
                 phases[ts] = phasevector
 
-        if line.startswith('! 7 Ekin'):
+        if line.startswith("! 7 Ekin"):
             e_kin[ts] = float(next(f).strip())
 
-        if line.startswith('! 8 states (diag, MCH)'):
+        if line.startswith("! 8 states (diag, MCH)"):
             pair = next(f).strip().split()
             sdiag[ts] = int(pair[0])
             astate[ts] = int(pair[1])
 
-        if line.startswith('! 15 Gradients (MCH)'):
+        if line.startswith("! 15 Gradients (MCH)"):
             state = int(line.strip().split()[-1]) - 1
 
             for atom in range(natoms):
-                forces[ts, state, atom] = [
-                    float(n) for n in next(f).strip().split()]
+                forces[ts, state, atom] = [float(n) for n in next(f).strip().split()]
 
-        if line.startswith('! 16 NACdr matrix element'):
+        if line.startswith("! 16 NACdr matrix element"):
             linecont = line.strip().split()
             si, sj = int(linecont[-2]), int(linecont[-1])
 
             if si < sj:  # elements (si, si) are all zero; elements (sj, si) = -(si, sj)
                 sc = idx_table_nacs[(si, sj)]  # statecomb index
                 for atom in range(natoms):
-                    nacs[ts, sc, atom, :] = [
-                        float(n) for n in next(f).strip().split()]
+                    nacs[ts, sc, atom, :] = [float(n) for n in next(f).strip().split()]
             else:  # we can skip the block
                 for _ in range(natoms):
                     next(f)
@@ -293,98 +296,106 @@ def parse_trajout_dat(f: TextIOWrapper, nsteps: int | None = None) -> xr.Dataset
     # Ultimately aiming to replace numbers with labels ('S0', 'S1', ...),
     # but that has disadvantages in postprocessing.
     coords: dict | xr.Dataset = {
-        'time': np.arange(nsteps),
-        'state': (states := np.arange(1, nstates+1)),
-        'state2': states,
-        'atom': np.arange(natoms),
-        'direction': ['x', 'y', 'z'],
+        "time": np.arange(nsteps),
+        "state": (states := np.arange(1, nstates + 1)),
+        "state2": states,
+        "atom": np.arange(natoms),
+        "direction": ["x", "y", "z"],
     }
 
     statecomb = xr.Coordinates.from_pandas_multiindex(
-        pd.MultiIndex.from_tuples(combinations(
-            states, 2), names=['from', 'to']),
-        dim='statecomb',
+        pd.MultiIndex.from_tuples(combinations(states, 2), names=["from", "to"]),
+        dim="statecomb",
     )
 
     coords = statecomb.merge(coords)
 
-    default_sharc_attributes = get_default_input_attributes('sharc')
+    default_sharc_attributes = get_default_input_attributes("sharc")
+
+    # TODO: FIXME: Use input names and input units and only apply attributes if there are attributes
 
     res = xr.Dataset(
         {
-            'energy': (
-                template['energy'],
+            "atXYZ": (
+                template["atXYZ"],
+                positions,
+                default_sharc_attributes["atXYZ"],
+            ),
+            "energy": (
+                template["energy"],
                 energy,
-                default_sharc_attributes['energy'],
+                default_sharc_attributes["energy"],
             ),
-            'e_kin': (
-                template['e_kin'],
+            "e_kin": (
+                template["e_kin"],
                 e_kin,
-                default_sharc_attributes['e_kin'],
+                default_sharc_attributes["e_kin"],
             ),
-            'dip_perm': (
-                template['dip_perm'],
+            "dip_perm": (
+                template["dip_perm"],
                 dip_perm,
-                default_sharc_attributes['dip_perm'],
+                default_sharc_attributes["dip_perm"],
             ),
-            'dip_trans': (
-                template['dip_trans'],
+            "dip_trans": (
+                template["dip_trans"],
                 dip_trans,
-                default_sharc_attributes['dip_trans'],
+                default_sharc_attributes["dip_trans"],
             ),
-            'sdiag': (
-                template['sdiag'], sdiag,
-                default_sharc_attributes['sdiag'],),
-            'astate': (
-                template['astate'], astate,
-                default_sharc_attributes['astate']),
-            'forces': (
-                template['forces'],
-                forces,
-                default_sharc_attributes['forces']
+            "sdiag": (
+                template["sdiag"],
+                sdiag,
+                default_sharc_attributes["sdiag"],
             ),
+            "astate": (template["astate"], astate, default_sharc_attributes["astate"]),
+            "forces": (template["forces"], forces, default_sharc_attributes["forces"]),
             # 'has_forces': (['ts'], has_forces),
-            'phases': (template['phases'], phases,
-                       default_sharc_attributes['phases']),
-            'nacs': (template['nacs'],
-                     nacs,
-                     default_sharc_attributes['nacs']),
-            'atNums': (template['atNums'],
-                       atNums,
-                       default_sharc_attributes['atNums']),
-            'atNames': (template['atNames'],
-                        atNames,
-                        default_sharc_attributes['atNames']),
-            'state_names': (template['state_names'],
-                            state_names,
-                            default_sharc_attributes['state_names']),
-            'state_type': (template['state_type'],
-                           state_type,
-                           default_sharc_attributes['state_type']),
+            "phases": (template["phases"], phases, default_sharc_attributes["phases"]),
+            "nacs": (template["nacs"], nacs, default_sharc_attributes["nacs"]),
+            "atNums": (template["atNums"], atNums, default_sharc_attributes["atNums"]),
+            "atNames": (
+                template["atNames"],
+                atNames,
+                default_sharc_attributes["atNames"],
+            ),
+            "state_names": (
+                template["state_names"],
+                state_names,
+                default_sharc_attributes["state_names"],
+            ),
+            "state_type": (
+                template["state_type"],
+                state_type,
+                (
+                    default_sharc_attributes["state_type"]
+                    if "state_type" in default_sharc_attributes
+                    else {}
+                ),
+            ),
         },
         coords=coords,
-        attrs={'max_ts': max_ts, 'completed': completed},
+        attrs={"max_ts": max_ts, "completed": completed},
     )
 
     for coord_name in res.coords:
         if coord_name in default_sharc_attributes:
-            res[coord_name].attrs.update(
-                default_sharc_attributes[str(coord_name)])
+            res[coord_name].attrs.update(default_sharc_attributes[str(coord_name)])
 
-    res.attrs['input_format'] = 'sharc'
-    res.attrs['input_type'] = 'dynamic'
+    res.attrs["input_format"] = "sharc"
+    res.attrs["input_type"] = "dynamic"
 
-    res.attrs['num_singlets'] = nsinglets
-    res.attrs['num_doublets'] = ndoublets
-    res.attrs['num_triplets'] = ntriplets
+    res.attrs["num_singlets"] = nsinglets
+    res.attrs["num_doublets"] = ndoublets
+    res.attrs["num_triplets"] = ntriplets
 
     if not completed:
-        res = res.sel(ts=res.ts <= res.attrs['max_ts'])
+        res = res.sel(ts=res.ts <= res.attrs["max_ts"])
 
     return res
 
 
-def parse_trajout_xyz(nsteps: int, f: TextIOWrapper) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+def parse_trajout_xyz(
+    nsteps: int, f: TextIOWrapper
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Read atom names, atom numbers and positions for each time step up until a maximum of `nsteps` from an `output.xyz` file and returm them.
 
     Args:
@@ -398,20 +409,22 @@ def parse_trajout_xyz(nsteps: int, f: TextIOWrapper) -> Tuple[np.ndarray, np.nda
             Other entries are 1d arrays.
     """
     first = next(f)
-    assert first.startswith(' ' * 6)
+    assert first.startswith(" " * 6)
     natoms = int(first.strip())
 
-    atNames = np.full((natoms), '')
+    atNames = np.full((natoms), "")
     atNums = np.full((natoms), -1)
     atXYZ = np.full((nsteps, natoms, 3), np.nan)
 
     ts = 0
 
     for index, line in enumerate(f):
-        if 't=' in line:
-            assert ts < nsteps, f"Excess time step at ts={ts}, for a maximum nsteps={nsteps}"
+        if "t=" in line:
+            assert (
+                ts < nsteps
+            ), f"Excess time step at ts={ts}, for a maximum nsteps={nsteps}"
             for atom in range(natoms):
-                linecont = re.split(' +', next(f).strip())
+                linecont = re.split(" +", next(f).strip())
                 if ts == 0:
                     atNames[atom] = linecont[0]
                 atNums[atom] = get_atom_number_from_symbol(linecont[0])
