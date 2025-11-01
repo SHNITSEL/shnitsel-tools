@@ -36,6 +36,8 @@ class FormatReader(ABC):
                 Optionally, the second entry in the tuple can be a `re.Pattern` object to more specifically match the results of `glob.glob()`.
             None: No specific pattern matching desired
         """
+        # TODO: FIXME: Add option to specify if we want only file or only directory paths
+        # TODO: FIXME: maybe just turn into a "filter" function and provide the paths?
         return None
 
     @abstractmethod
