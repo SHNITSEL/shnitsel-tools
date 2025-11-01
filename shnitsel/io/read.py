@@ -36,7 +36,7 @@ def read(
     error_reporting: Literal['log', 'raise'] = 'log',
     state_names: List[str] | Callable | None = None,
     input_units: Dict[str, str] | None = None,
-) -> xr.Dataset | Trajectory | List[Trajectory]:
+) -> xr.Dataset | Trajectory | List[Trajectory] | None:
     """Read all trajectories from a folder of trajectory folders
 
     Parameters
@@ -83,7 +83,9 @@ def read(
 
     Returns
     -------
-        An :external:py:class:`xarray.Dataset` containing the data of the trajectories
+        An :external:py:class:`xarray.Dataset` containing the data of the trajectories, 
+        a `Trajectory` wrapper object, a list of `Trajectory` wrapper objects or `None` 
+        if no data could be loaded and `error_reporting='log'`.
 
     Raises
     ------
@@ -112,11 +114,12 @@ def read(
             "parallel=True only supports errors='log' (the default)")
 
     loading_parameters = LoadingParameters(
-        input_units=input_units, state_names=state_names, error_reporting=error_reporting)
+        input_units=input_units,
+        state_names=state_names,
+        error_reporting=error_reporting)
 
     # First check if the target path can directly be read as a Trajectory
-    stored_single_error = None
-    stored_multiple_error = None
+    combined_error = None
     try:
         res = read_single(path, kind, error_reporting,
                           base_loading_parameters=loading_parameters)
@@ -127,7 +130,7 @@ def read(
         logging.info(f"Could not read `{path}` directly as a trajectory.")
     except Exception as e:
         # Keep error in case the multiple reading also fails
-        stored_single_error = e
+        combined_error = f"While trying to read as a direct trajectory: {e}"
 
     if multiple:
         logging.info(
@@ -135,33 +138,35 @@ def read(
 
         try:
             res_list = read_folder_multi(
-                path, kind, sub_pattern, parallel, error_reporting, base_loading_parameters=loading_parameters)
+                path, kind, sub_pattern,
+                parallel, error_reporting,
+                base_loading_parameters=loading_parameters)
 
             if res_list is not None:
                 if len(res_list) == 1:
                     return res_list[0]
                 elif len(res_list) == 0:
-                    raise FileNotFoundError(
-                        "No trajectories could be loaded from path `{path}`.")
+                    message = "No trajectories could be loaded from path `{path}`."
+                    if error_reporting == 'log':
+                        logging.error(message)
+                    else:
+                        raise FileNotFoundError(message)
                 else:
                     return cat_func(res_list)
-
-            glob_expr = sub_pattern
-            paths = glob.glob(glob_expr, root_dir=path)
-            if len(paths) == 0:
-                msg = f"The search '{glob_expr}' didn't match any paths"
-                if not os.path.isabs(path):
-                    msg += f", relative to working directory '{os.getcwd()}'"
-                raise FileNotFoundError(msg)
         except Exception as e:
+            multi_error = f"While trying to read as a directory containing multiple trajectories: {e}"
+            combined_error = multi_error if combined_error is None else combined_error+"\n" + multi_error
 
-    if parallel:
-        datasets = read_trajs_parallel(paths, kind)
+    message = f"Could not load trajectory data from `{path}`."
+
+    if combined_error is not None:
+        message += f"\nEncountered multipe errors trying to load:\n"+combined_error
+
+    if error_reporting == 'log':
+        logging.error(message)
+        return None
     else:
-        datasets = read_trajs_list(
-            paths, kind, error_reporting=error_reporting)
-
-    return cat_func(datasets)
+        raise FileNotFoundError(message)
 
 
 def read_folder_multi(
@@ -172,6 +177,11 @@ def read_folder_multi(
         error_reporting: Literal['log', 'raise'] = 'log',
         base_loading_parameters: LoadingParameters | None = None) -> List[Trajectory] | None:
 
+    if parallel:
+        datasets = read_trajs_parallel(paths, kind)
+    else:
+        datasets = read_trajs_list(
+            paths, kind, error_reporting=error_reporting)
     pass
 
 
