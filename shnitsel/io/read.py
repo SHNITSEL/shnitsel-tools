@@ -146,6 +146,25 @@ def read(
 
 
 
+def read_single(
+        path: PathOptionsType,
+        kind: KindType | None,
+        error_reporting: Literal['log', 'raise'] = 'log',) -> Trajectory | None:
+    try:
+        res_format = identify_or_check_input_kind(path, kind)
+        if res_format is not None:
+            reader = READERS[res_format.format_name]
+            trajectory = reader.read_from_path(path, res_format)
+            return trajectory
+    except Exception as e:
+        if error_reporting == 'log':
+            logging.exception(
+                f"Caught exception while reading single trajectory input from `{path}`: \n{e}")
+        else:
+            raise e
+    return None
+
+
 def identify_or_check_input_kind(
     path: PathOptionsType,
     kind_hint: KindType | None,
