@@ -5,7 +5,7 @@ import os
 from shnitsel.io import read
 from shnitsel.io.sharc.parse_trajectory import read_traj
 from shnitsel.io.sharc.parse_initial_conditions import dir_of_iconds
-from TrajectoryVerification import verify_trajectory_format
+from shnitsel.test_support.TrajectoryVerification import verify_trajectory_format
 
 
 class TestSHARC:

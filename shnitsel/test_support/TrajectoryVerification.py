@@ -20,11 +20,12 @@ def is_permitted_traj_result(obj: Any) -> bool:
     )
 
 
-def has_required_properties(self, traj: List[Trajectory] | Trajectory) -> bool:
+def has_required_properties(traj: List[Trajectory] | Trajectory) -> bool:
     res = True
     if isinstance(traj, list):
         for i_traj in traj:
-            res = res and self.has_required_properties(i_traj)
+            res = res and has_required_properties(i_traj)
+        return res
     else:
 
         print(traj.variables.keys())
