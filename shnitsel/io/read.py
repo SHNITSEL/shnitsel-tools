@@ -2,7 +2,12 @@ import glob
 
 from shnitsel.data.TrajectoryFormat import Trajectory
 from shnitsel.io.FormatReader import FormatInformation, FormatReader
-from shnitsel.io.helpers import KindType, LoadingParameters, PathOptionsType, make_uniform_path
+from shnitsel.io.helpers import (
+    KindType,
+    LoadingParameters,
+    PathOptionsType,
+    make_uniform_path,
+)
 from shnitsel.io.newtonx.format_reader import NewtonXFormatReader
 from shnitsel.io.pyrai2md.format_reader import PyrAI2mdFormatReader
 from shnitsel.io.sharc.format_reader import SHARCFormatReader
@@ -16,7 +21,16 @@ from tqdm.auto import tqdm
 import pandas as pd
 import xarray as xr
 import numpy as np
-from typing import Dict, Iterable, List, TypeAlias, Callable, Literal, TYPE_CHECKING
+from typing import (
+    Dict,
+    Iterable,
+    List,
+    Tuple,
+    TypeAlias,
+    Callable,
+    Literal,
+    TYPE_CHECKING,
+)
 from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass
 import re
@@ -31,9 +45,9 @@ def read(
     kind: KindType | None = None,
     sub_pattern: str | None = None,
     multiple: bool = True,
-    concat_method: Literal['layers', 'list', 'frames'] = 'layers',
+    concat_method: Literal["layers", "list", "frames"] = "layers",
     parallel: bool = True,
-    error_reporting: Literal['log', 'raise'] = 'log',
+    error_reporting: Literal["log", "raise"] = "log",
     state_names: List[str] | Callable | None = None,
     input_units: Dict[str, str] | None = None,
 ) -> xr.Dataset | Trajectory | List[Trajectory] | None:
@@ -43,8 +57,8 @@ def read(
     ----------
     path (PathOptionsType):
         The path to the folder of folders. Can be provided as `str`, `os.PathLike` or `pathlib.Path`.
-        Depending on the kind of trajectory to be loaded should denote the path of the trajectory file (``kind='shnitsel'`` or ``kind='ase'`) or a directory containing the files of the respective file format. 
-        Alternatively, if ``multiple=True`, this can also denote a directory containing multiple sub-directories with the actual Trajectories. 
+        Depending on the kind of trajectory to be loaded should denote the path of the trajectory file (``kind='shnitsel'`` or ``kind='ase'`) or a directory containing the files of the respective file format.
+        Alternatively, if ``multiple=True`, this can also denote a directory containing multiple sub-directories with the actual Trajectories.
         In that case, the `concat_method` parameter should be set to specify how the .
     kind (Literal['sharc', 'nx', 'newtonx', 'pyrai2md', 'shnitsel'] | None, optional):
         The kind of trajectory, i.e. whether it was produced by SHARC, Newton-X, PyRAI2MD or Shnitsel-Tools.
@@ -57,7 +71,7 @@ def read(
         If ``multiple=False``, this pattern will be ignored.
     multiple (bool, optional):
         A flag to enable loading of multiple trajectories from the subdirectories of the provided `path`.
-        If set to False, only the provided path will be attempted to be loaded. 
+        If set to False, only the provided path will be attempted to be loaded.
         If `sub_pattern` is provided, this parameter should not be set to `False` or the matching will be ignored.
     concat_method (Literal['layers', 'list', 'frames'])
         How to combine the loaded trajectories if multiple trajectories have been loaded.
@@ -77,14 +91,14 @@ def read(
         Either a list of names to assign to states in the loaded file or a function that assigns a state name to each state id.
         If not provided or set to None, default naming will be applied, naming singlet states S0, S1,.., doublet states D0,... and triplet states T0, etc in ascending order.
     input_units: (Dict[str, str] | None, optional):
-        An optional dictionary to set the units in the loaded trajectory. 
-        Only necessary if the units differ from that tool's default convention or if there is no default convention for the tool. 
+        An optional dictionary to set the units in the loaded trajectory.
+        Only necessary if the units differ from that tool's default convention or if there is no default convention for the tool.
         Please refer to the names of the different unit kinds and possible values for different units in `shnitsel.units.definitions`.
 
     Returns
     -------
-        An :external:py:class:`xarray.Dataset` containing the data of the trajectories, 
-        a `Trajectory` wrapper object, a list of `Trajectory` wrapper objects or `None` 
+        An :external:py:class:`xarray.Dataset` containing the data of the trajectories,
+        a `Trajectory` wrapper object, a list of `Trajectory` wrapper objects or `None`
         if no data could be loaded and `error_reporting='log'`.
 
     Raises
@@ -101,28 +115,30 @@ def read(
     if not isinstance(path, pathlib.Path):
         path = pathlib.Path(path)
 
-    cats = {'frames': concat_trajs, 'layers': layer_trajs, 'list': lambda x: x}
+    cats = {"frames": concat_trajs, "layers": layer_trajs, "list": lambda x: x}
     if concat_method not in cats:
         raise ValueError(f"`concat_method` must be one of {cats.keys()!r}")
 
     cat_func = cats[concat_method]
 
-    if parallel and error_reporting != 'log':
+    if parallel and error_reporting != "log":
         logging.error(
-            "Reading trajectories with `parallel=True` only supports `errors='log'` (the default)")
-        raise ValueError(
-            "parallel=True only supports errors='log' (the default)")
+            "Reading trajectories with `parallel=True` only supports `errors='log'` (the default)"
+        )
+        raise ValueError("parallel=True only supports errors='log' (the default)")
 
     loading_parameters = LoadingParameters(
         input_units=input_units,
         state_names=state_names,
-        error_reporting=error_reporting)
+        error_reporting=error_reporting,
+    )
 
     # First check if the target path can directly be read as a Trajectory
     combined_error = None
     try:
-        res = read_single(path, kind, error_reporting,
-                          base_loading_parameters=loading_parameters)
+        res = read_single(
+            path, kind, error_reporting, base_loading_parameters=loading_parameters
+        )
 
         if res is not None:
             return res
@@ -134,20 +150,25 @@ def read(
 
     if multiple:
         logging.info(
-            f"Attempt to read `{path}` as a directory containing multiple trajectories.")
+            f"Attempt to read `{path}` as a directory containing multiple trajectories."
+        )
 
         try:
             res_list = read_folder_multi(
-                path, kind, sub_pattern,
-                parallel, error_reporting,
-                base_loading_parameters=loading_parameters)
+                path,
+                kind,
+                sub_pattern,
+                parallel,
+                error_reporting,
+                base_loading_parameters=loading_parameters,
+            )
 
             if res_list is not None:
                 if len(res_list) == 1:
                     return res_list[0]
                 elif len(res_list) == 0:
                     message = "No trajectories could be loaded from path `{path}`."
-                    if error_reporting == 'log':
+                    if error_reporting == "log":
                         logging.error(message)
                     else:
                         raise FileNotFoundError(message)
@@ -155,14 +176,18 @@ def read(
                     return cat_func(res_list)
         except Exception as e:
             multi_error = f"While trying to read as a directory containing multiple trajectories: {e}"
-            combined_error = multi_error if combined_error is None else combined_error+"\n" + multi_error
+            combined_error = (
+                multi_error
+                if combined_error is None
+                else combined_error + "\n" + multi_error
+            )
 
     message = f"Could not load trajectory data from `{path}`."
 
     if combined_error is not None:
-        message += f"\nEncountered multipe errors trying to load:\n"+combined_error
+        message += f"\nEncountered multipe errors trying to load:\n" + combined_error
 
-    if error_reporting == 'log':
+    if error_reporting == "log":
         logging.error(message)
         return None
     else:
@@ -170,39 +195,166 @@ def read(
 
 
 def read_folder_multi(
-        path: PathOptionsType,
-        kind: KindType | None,
-        sub_pattern: str | None = None,
-        parallel: bool = True,
-        error_reporting: Literal['log', 'raise'] = 'log',
-        base_loading_parameters: LoadingParameters | None = None) -> List[Trajectory] | None:
+    path: PathOptionsType,
+    kind: KindType | None = None,
+    sub_pattern: str | None = None,
+    parallel: bool = True,
+    error_reporting: Literal["log", "raise"] = "log",
+    base_loading_parameters: LoadingParameters | None = None,
+) -> List[Trajectory] | None:
+    """Function to read multiple trajectories from an input directory.
 
-    # TODO: Go over readers, find matched trajectories, deal with multiple matches, read all matches and return.
-    # TODO: Read in parallel if setting allows it.
-    # TODO: Make individual reader routines use the loading parameters to construct the Dataset
-    if parallel:
-        datasets = read_trajs_parallel(paths, kind)
+    You can either specify the kind and pattern to match relevant entries or the default pattern for `kind` will be used.
+    If no `kind` is specified, all possible input formats will be checked.
+
+    If multiple formats fit, no input will be read and either an Error will be rased or an Error will be logged and None returned.
+
+    Otherwise, all successful reads will be returned as a list.
+
+    Args:
+        path (PathOptionsType): The path pointing to the directory where multiple trajectories may be located in the subdirectory
+        kind (KindType | None,optional): The key indicating the input format.
+        sub_pattern (str | None, optional): The pattern provided to "glob" to identify relevant entries in the `path` subtree. Defaults to None.
+        parallel (bool, optional): A flag to enable parallel loading of trajectories. Only faster if postprocessing of read data takes up significant amounts of time. Defaults to True.
+        error_reporting (Literal[&quot;log&quot;, &quot;raise&quot;], optional): Whether to raise or to log resulting errors. If errors are raised, they may also be logged. 'raise' conflicts with ``parallel=True`` setting. Defaults to "log".
+        base_loading_parameters (LoadingParameters | None, optional): Base parameters to influence the loading of individual trajectories. Can be used to set default inputs and variable name mappings. Defaults to None.
+
+    Raises:
+        FileNotFoundError: If the path does not exist or Files were not founds.
+        ValueError: If conflicting information of file format is detected in the target directory
+
+    Returns:
+        List[Trajectory] | None: Either a list of individual trajectories or None if loading failed.
+    """
+
+    path_obj = make_uniform_path(path)
+
+    if not path_obj.exists() and path_obj.is_dir():
+        message = f"{path} is no valid directory"
+        if error_reporting == "raise":
+            raise FileNotFoundError(message)
+        else:
+            logging.errror(message)
+            return None
+
+    relevant_kinds = [kind] if kind is not None else list(READERS.keys())
+
+    # The kinds for which we had matches
+    fitting_kinds: List[Tuple[pathlib.Path, FormatInformation]] = []
+    # Entries for each kind
+    matching_entries = {}
+
+    for relevant_kind in relevant_kinds:
+        relevant_reader = READERS[relevant_kind]
+
+        glob_pattern, regex_matcher = relevant_reader.get_default_trajectory_pattern()
+
+        # If no pattern provided, use default pattern
+        curr_sub_pattern = glob_pattern if sub_pattern is None else sub_pattern
+        if sub_pattern is not None:
+            # Do not perform regex matching if the user provides the pattern
+            regex_matcher = None
+
+        kind_matches = []
+        # Consider everything matchin the general pattern
+        for relevant_entry in path_obj.glob(curr_sub_pattern):
+            # If general pattern matches but specific checks are provided: Filter further
+            if regex_matcher is not None:
+                if not regex_matcher.match(relevant_entry):
+                    logging.info(
+                        f"Entry {relevant_entry} in directory list matched the general pattern of type {relevant_kind} but not the specific pattern. Skipping."
+                    )
+                    continue
+
+            # We have a match
+            total_path = path_obj / relevant_entry
+            try:
+                res_format = identify_or_check_input_kind(total_path, relevant_kind)
+                kind_matches.append((total_path, res_format))
+            except Exception as e:
+                # Only consider if we hit something
+                logging.debug(
+                    f"Skipping {total_path} for {relevant_kind} because of issue during format check: {e}"
+                )
+                pass
+
+        if len(kind_matches) > 0:
+            fitting_kinds.append(relevant_kind)
+            matching_entries[relevant_kind] = kind_matches
+
+    if len(fitting_kinds) == 0:
+        message = "Did not detect any matching subdirectories or files for any input format in {path}"
+        logging.error(message)
+        if error_reporting == "raise":
+            raise FileNotFoundError(message)
+        else:
+            return None
+    elif len(fitting_kinds) > 1:
+        available_formats = list(READERS.keys())
+        message = "Detected subdirectories or files of different input formats in {path} with no input format specified. Detected formats are: {kinds}. Please ensure only one format matches subdirectories in the path or denote a specific format out of {available_formats}."
+        logging.error(message)
+        if error_reporting == "raise":
+            raise ValueError(message)
+        else:
+            return None
     else:
-        datasets = read_trajs_list(
-            paths, kind, error_reporting=error_reporting)
-    pass
+        fitting_kind = fitting_kinds[0]
+        fitting_paths = matching_entries[fitting_kind]
+
+        fitting_reader = READERS[fitting_kind]
+
+        input_set_params = [
+            (fitting_reader, trajpath, formatinfo, base_loading_parameters)
+            for trajpath, formatinfo in fitting_paths
+        ]
+
+        res_trajectories = []
+        if parallel:
+            with ProcessPoolExecutor(max_workers=os.cpu_count()) as executor:
+                for result in tqdm(
+                    executor.map(_per_traj, input_set_params),
+                    total=len(input_set_params),
+                ):
+                    if result is not None:
+                        res_trajectories.append(result)
+                    else:
+                        logging.debug(
+                            "Reading of at least one trajectory failed. Reading routine returned value {result}."
+                        )
+        else:
+            for params in tqdm(input_set_params, total=len(input_set_params)):
+                result = _per_traj(*params)
+                if result is not None:
+                    res_trajectories.append(result)
+                else:
+                    logging.debug(f"Failed to read trajectory from {params[1]}.")
+
+        # TODO: FIXME: Check if
+        res_trajectories.sort(
+            key=lambda x: x.attrs["trajid"] if "trajid" in x.attrs else 0
+        )
+        return res_trajectories
 
 
 def read_single(
-        path: PathOptionsType,
-        kind: KindType | None,
-        error_reporting: Literal['log', 'raise'] = 'log',
-        base_loading_parameters: LoadingParameters | None = None) -> Trajectory | None:
+    path: PathOptionsType,
+    kind: KindType | None,
+    error_reporting: Literal["log", "raise"] = "log",
+    base_loading_parameters: LoadingParameters | None = None,
+) -> Trajectory | None:
     try:
         res_format = identify_or_check_input_kind(path, kind)
         if res_format is not None:
             reader = READERS[res_format.format_name]
-            trajectory = reader.read_from_path(path, res_format)
+            trajectory = reader.read_from_path(
+                path, res_format, base_loading_parameters
+            )
             return trajectory
     except Exception as e:
-        if error_reporting == 'log':
+        if error_reporting == "log":
             logging.exception(
-                f"Caught exception while reading single trajectory input from `{path}`: \n{e}")
+                f"Caught exception while reading single trajectory input from `{path}`: \n{e}"
+            )
         else:
             raise e
     return None
@@ -242,12 +394,13 @@ def identify_or_check_input_kind(
 
     resulting_format_info = {}
 
-    hints_or_settings = {'kind': kind_hint} if kind_hint is not None else None
+    hints_or_settings = {"kind": kind_hint} if kind_hint is not None else None
 
     for reader_kind, reader in READERS.items():
         try:
             res_format_info = reader.check_path_for_format_info(
-                path_obj, hints_or_settings)
+                path_obj, hints_or_settings
+            )
 
             if kind_hint is not None and reader_kind == kind_hint:
                 is_specified_kind_satisfied = True
@@ -277,352 +430,209 @@ def identify_or_check_input_kind(
 
             logging.error(message)
             raise ValueError(
-                f"The path `{path}` is not of the denoted format {kind_hint}.")
+                f"The path `{path}` is not of the denoted format {kind_hint}."
+            )
     else:
         # If there is a unique format match, use that:
         possible_formats = list(resulting_format_info.keys())
         if len(possible_formats) == 1:
             res_format = possible_formats[0]
             logging.info(
-                f"Identified the path `{path}` to be of format `{res_format}`.")
+                f"Identified the path `{path}` to be of format `{res_format}`."
+            )
             return resulting_format_info[res_format]
         elif len(possible_formats) > 1:
             joined_formats = ", ".join(possible_formats)
             logging.error(
-                f" The path `{path}` satisfies the conditions of multiple of the known formats.: {joined_formats}. Please only provide paths containing the output data of one format.")
+                f" The path `{path}` satisfies the conditions of multiple of the known formats.: {joined_formats}. Please only provide paths containing the output data of one format."
+            )
             raise ValueError(
-                f"The path `{path}` is not of the denoted format {kind_hint}.")
+                f"The path `{path}` is not of the denoted format {kind_hint}."
+            )
         else:
             logging.error(
-                f"The path `{path}` didn't satisfy the conditions of any of the known formats. Available options are: {list(READERS.keys())}")
+                f"The path `{path}` didn't satisfy the conditions of any of the known formats. Available options are: {list(READERS.keys())}"
+            )
 
     return None
 
 
 Trajid: TypeAlias = int
 
-_exnum = re.compile("[0-9]+")
-
 
 @dataclass
 class Trajres:
-    trajid: int
-    missing_file: str | None
-    misc_error: Exception | None
-    data: xr.Dataset | None
+    path: pathlib.Path
+    misc_error: Exception | Iterable[Exception] | None
+    data: Trajectory | None
 
-
-def _default_idfn(path):
-    global _exnum
-    res = _exnum.search(os.path.basename(path))
-    if res is None:
-        raise ValueError(f"Could not extract trajid from path '{path}'")
-
-    return int(res[0])
-
-
-_idfn = _default_idfn
-_read_traj: Callable
 
 # TODO: FIXME: add ASE support
 _newton_reader = NewtonXFormatReader()
 READERS: Dict[str, FormatReader] = {
-    'nx': _newton_reader,  # parse_newtonx,
-    'newtonx': _newton_reader,  # parse_newtonx,
-    'sharc': SHARCFormatReader(),  # parse_sharc,
-    'pyrai2md': PyrAI2mdFormatReader(),
-    'shnitsel': ShnitselFormatReader(),  # read_shnitsel_file,
+    "nx": _newton_reader,  # parse_newtonx,
+    "newtonx": _newton_reader,  # parse_newtonx,
+    "sharc": SHARCFormatReader(),  # parse_sharc,
+    "pyrai2md": PyrAI2mdFormatReader(),
+    "shnitsel": ShnitselFormatReader(),  # read_shnitsel_file,
 }
 
 
-def read_trajs_list(paths, kind, idfn=None, sort=True, error_reporting='log'):
-    global _default_idfn
-    if idfn is None:
-        idfn = _default_idfn
+def _per_traj(
+    trajdir: pathlib.Path,
+    reader: FormatReader,
+    format_info: FormatInformation,
+    base_loading_parameters: LoadingParameters,
+) -> Trajres:
+    """Internal function to carry out loading of trajectories to allow for parallel processing with a ProcessExecutor.
 
-    if kind not in READERS:
-        raise ValueError(
-            f"'kind' should be one of {list(READERS)}, rather than '{kind}'"
-        )
-    read_traj = READERS[kind]
+    Args:
+        trajdir (pathlib.Path): The path to read a single trajectory from
+        reader (FormatReader): The reader instance to use for reading from that directory `path`.
+        format_info (FormatInformation): FormatInformation obtained from previous checks of the format.
+        base_loading_parameters (LoadingParameters): Settings for Loading individual trajectories like initial units and mappings of parameter names to Shnitsel variable names.
 
-    if error_reporting not in {'log', 'raise'}:
-        raise ValueError(
-            f"'errors' should be one of ['log', 'raise'], rather than '{error_reporting}'"
-        )
-
-    datasets = []
-    with logging_redirect_tqdm():
-        missing_files: dict[str, list[Trajid]] = {}
-        misc_errors: dict[Trajid, Exception] = {}
-        incomplete: list[Trajid] = []
-        for trajdir in tqdm(paths):
-            trajid = idfn(trajdir)
-            try:
-                ds = read_traj(trajdir)
-            except FileNotFoundError as err:
-                # This is fairly common and will be reported at the end
-                logging.info(
-                    f"Missing file for trajectory {trajid} at path {trajdir}:\n"
-                    + str(err)
-                    + f"\nSkipping {trajid}."
-                )
-                missing = os.path.basename(err.filename)
-                missing_files[missing] = missing_files.get(
-                    missing, []) + [trajid]
-
-                continue
-
-            except Exception as err:
-                if error_reporting == 'log':
-                    # Miscellaneous exceptions could indicate a problem with the parser
-                    # so they enjoy a more imposing loglevel
-                    logging.error(
-                        f"Error for trajectory {trajid} at path {trajdir}:\n"
-                        + str(err)
-                        + f"\nSkipping {trajid}."
-                    )
-                    misc_errors[trajid] = err
-                    continue
-                elif error_reporting == 'raise':
-                    raise err
-
-            if not ds.attrs['completed']:
-                logging.info(
-                    f"Trajectory {trajid} at path {trajdir} did not complete")
-                incomplete.append(trajid)
-
-            ds.attrs['trajid'] = trajid
-
-            datasets.append(ds)
-
-    if sort:
-        datasets.sort(key=lambda x: x.attrs['trajid'])
-
-    if len(misc_errors):
-        print("Miscellaneous errors:")
-        for trajid, merr in misc_errors.items():
-            print(f"{trajid:>6}  {merr}")
-    if len(missing_files):
-        for fname, trajids in missing_files.items():
-            trajids.sort()
-            print(
-                f"Skipped {len(trajids)} trajectories missing file '{fname}', IDs:",
-                ' '.join([str(t) for t in trajids]),
-            )
-
-    if len(incomplete):
-        incomplete.sort()
-        print(
-            f"Included {len(incomplete)} incomplete trajectories, IDs:",
-            ' '.join([str(i) for i in incomplete]),
-        )
-
-    return datasets
-
-
-def _per_traj(trajdir):
-    trajid = _idfn(trajdir)
-    missing_file = None
-    misc_error = None
+    Returns:
+        Trajres|None: Either the successfully loaded trajectory in a wrapper, or the wrapper containing error information
+    """
 
     try:
-        ds = _read_traj(trajdir)
+        ds = reader.read_from_path(trajdir, format_info, base_loading_parameters)
+        if not ds.attrs["completed"]:
+            logging.info(f"Trajectory at path {trajdir} did not complete")
 
-    except FileNotFoundError as err:
-        # This is fairly common and will be reported at the end
-        logging.info(
-            f"Missing file for trajectory {trajid} at path {trajdir}:\n"
-            + str(err)
-            + f"\nSkipping {trajid}."
-        )
-        missing_file = os.path.basename(err.filename)
-
-        return Trajres(
-            trajid=trajid,
-            missing_file=missing_file,
-            misc_error=misc_error,
-            data=None,
-        )
+        return Trajres(misc_error=None, data=ds)
 
     except Exception as err:
-        # Miscellaneous exceptions could indicate a problem with the parser
-        # so they enjoy a more imposing loglevel
-        logging.error(
-            f"Error for trajectory {trajid} at path {trajdir}:\n"
+        # This is fairly common and will be reported at the end
+        logging.info(
+            f"Reading of trajectory from path {trajdir} failed:\n"
             + str(err)
-            + f"\nSkipping {trajid}."
+            + f"\nSkipping {trajdir}."
         )
-        misc_error = err
 
         return Trajres(
-            trajid=trajid,
-            missing_file=missing_file,
-            misc_error=misc_error,
+            misc_error=[err],
             data=None,
         )
 
-    if not ds.attrs['completed']:
-        logging.info(f"Trajectory {trajid} at path {trajdir} did not complete")
 
-    ds.attrs['trajid'] = trajid
+def gather_traj_metadata(datasets: Iterable[xr.Dataset], time_dim="time") -> np.ndarray:
+    """Function to gather metadate from a set of trajectories.
 
-    return Trajres(
-        trajid=trajid, missing_file=missing_file, misc_error=misc_error, data=ds
-    )
+    Used to combine trajectories into one Dataset.
 
+    Args:
+        datasets (Iterable[xr.Dataset]): The sequence of trajctories for which metadata should be collected
+        time_dim (str, optional): The name of the time dimension in the input datasets. Defaults to "time".
 
-def read_trajs_parallel(
-    paths: Iterable[str | os.PathLike],
-    kind: KindType,
-    idfn=None,
-    sort=True,
-):
-    global _idfn
-    global _read_traj
-
-    if idfn is None:
-        _idfn = _default_idfn
-    else:
-        _idfn = idfn
-
-    if kind not in READERS:
-        raise ValueError(
-            f"'kind' should be one of {list(READERS)}, rather than '{kind}'"
-        )
-    _read_traj = READERS[kind]
-
-    with ProcessPoolExecutor(max_workers=os.cpu_count()) as executor:
-        res = list(tqdm(executor.map(_per_traj, paths), total=len(paths)))
-
-    datasets = []
-    missing_files: dict[str, list[Trajid]] = {}
-    misc_errors: dict[str, list[Trajid]] = {}
-    incomplete: list[Trajid] = []
-    for t in res:
-        if (ds := t.data) is not None:
-            datasets.append(ds)
-            if not ds.attrs['completed']:
-                incomplete.append(t.trajid)
-
-        if (mf := t.missing_file) is not None:
-            if mf not in missing_files:
-                missing_files[mf] = []
-            missing_files[mf].append(t.trajid)
-
-        if (me := t.misc_error) is not None:
-            sme = str(me)
-            if sme not in missing_files:
-                missing_files[sme] = []
-            missing_files[sme].append(t.trajid)
-
-    if sort:
-        datasets.sort(key=lambda x: x.attrs['trajid'])
-
-    if len(misc_errors):
-        print("Miscellaneous errors:")
-        for trajid, err in misc_errors.items():
-            print(f"{trajid:>6}  {err}")
-    if len(missing_files):
-        for fname, trajids in missing_files.items():
-            trajids.sort()
-            print(
-                f"Skipped {len(trajids)} trajectories missing file '{fname}', IDs:",
-                ' '.join([str(t) for t in trajids]),
-            )
-
-    if len(incomplete):
-        incomplete.sort()
-        print(
-            f"Included {len(incomplete)} incomplete trajectories, IDs:",
-            ' '.join([str(i) for i in incomplete]),
-        )
-
-    return datasets
-
-
-def gather_traj_metadata(datasets: Iterable[xr.Dataset], time_dim='ts') -> np.ndarray:
+    Returns:
+        np.ndarray: The resulting meta information
+    """
+    # TODO: Potentially also collect atom number and other information that needs to match to be combined
     traj_meta = np.zeros(
         len(datasets),
         dtype=[
-            ('trajid', 'i4'),
-            ('delta_t', 'f8'),
-            ('max_ts', 'i4'),
-            ('completed', '?'),
-            ('nsteps', 'i4'),
+            ("trajid", "i4"),
+            ("delta_t", "f8"),
+            ("max_ts", "i4"),
+            ("completed", "?"),
+            ("nsteps", "i4"),
         ],
     )
 
     for i, ds in enumerate(datasets):
-        traj_meta['trajid'][i] = ds.attrs.get('trajid', -1)
-        traj_meta['delta_t'][i] = ds.attrs.get('delta_t', np.nan)
-        traj_meta['max_ts'][i] = ds.attrs.get('max_ts', -1)
-        traj_meta['completed'][i] = ds.attrs['completed']
-        traj_meta['nsteps'][i] = len(ds.indexes[time_dim])
+        traj_meta["trajid"][i] = ds.attrs.get("trajid", -1)
+        traj_meta["delta_t"][i] = ds.attrs.get("delta_t", np.nan)
+        traj_meta["max_ts"][i] = ds.attrs.get("max_ts", -1)
+        traj_meta["completed"][i] = ds.attrs["completed"]
+        traj_meta["nsteps"][i] = len(ds.indexes[time_dim])
 
     return traj_meta
 
 
-def concat_trajs(datasets: Iterable[xr.Dataset]) -> xr.Dataset:
+def concat_trajs(datasets: Iterable[Trajectory]) -> Trajectory:
     """Function to concatenate multiple trajectories along their `time` dimension.
 
     Will create one continuous time dimension like an extended trajectory
 
     Args:
-        datasets (Iterable[xr.Dataset]): Datasets representing the individual trajectories
+        datasets (Iterable[Trajectory]): Datasets representing the individual trajectories
 
     Raises:
-        ValueError: Raised if there are conflicting `time` or `ts` dimensions
+        ValueError: Raised if there is conflicting input meta data.
         ValueError: Raised if there are no trajectories provided to this function.
 
     Returns:
-        xr.Dataset: The combined and extended trajectory with a new leading `frame` dimension
+        Trajectory: The combined and extended trajectory with a new leading `frame` dimension
     """
 
+    # TODO:FIXME:
     datasets = list(datasets)
 
     if len(datasets) == 0:
         raise ValueError("No trajectories were provided.")
 
-    if all('ts' in ds.coords for ds in datasets):
-        time_dim = 'ts'
-    elif all('time' in ds.coords for ds in datasets):
-        time_dim = 'time'
+    if all("time" in ds.coords for ds in datasets):
+        # We ensure time is always called time when loading
+        time_dim = "time"
     else:
-        raise ValueError(
-            "Some trajectories have coordinate 'ts', others 'time'. "
-            "Please resolve this inconsistency manually."
-        )
+        raise ValueError("Some trajectories do not have a 'time' coordinate.")
 
     datasets = [
-        ds.expand_dims(trajid=[ds.attrs['trajid']]).stack(
-            frame=['trajid', time_dim])
+        ds.expand_dims(trajid=[ds.attrs["trajid"]]).stack(frame=["trajid", time_dim])
         for ds in datasets
     ]
 
-    frames = xr.concat(datasets, dim='frame', combine_attrs='drop_conflicts')
+    # TODO: FIXME: Deal with issues arising from inconsisten meta information. E.g. ensure same number of atoms, consistent units, etc.
+    frames = xr.concat(datasets, dim="frame", combine_attrs="drop_conflicts")
     traj_meta = gather_traj_metadata(datasets, time_dim=time_dim)
-    frames = frames.assign_coords(trajid_=traj_meta['trajid'])
+    frames = frames.assign_coords(trajid_=traj_meta["trajid"])
+    # TODO: FIXME: Consider the naming convention of trajid and trajid_ being somewhat confusing
     frames = frames.assign(
-        delta_t=('trajid_', traj_meta['delta_t']),
-        max_ts=('trajid_', traj_meta['max_ts']),
-        completed=('trajid_', traj_meta['completed']),
-        nsteps=('trajid_', traj_meta['nsteps']),
+        delta_t=("trajid_", traj_meta["delta_t"]),
+        max_ts=("trajid_", traj_meta["max_ts"]),
+        completed=("trajid_", traj_meta["completed"]),
+        nsteps=("trajid_", traj_meta["nsteps"]),
     )
+
+    frames = Trajectory(frames)
+
     if TYPE_CHECKING:
-        assert isinstance(frames, xr.Dataset)
-    return frames
+        assert isinstance(frames, Trajectory)
+
+    return
 
 
-def layer_trajs(datasets: Iterable[xr.Dataset]) -> xr.Dataset:
+def layer_trajs(datasets: Iterable[Trajectory]) -> Trajectory:
+    """Function to combine trajctories into one Dataset by creating a new dimension 'trajid' and indexing the different trajectories along that.
+
+    Will create one new trajid dimension.
+
+    Args:
+        datasets (Iterable[xr.Dataset]): Datasets representing the individual trajectories
+
+    Raises:
+        ValueError: Raised if there is conflicting input meta data.
+        ValueError: Raised if there are no trajectories provided to this function.
+
+
+    Returns:
+        xr.Dataset: The combined and extended trajectory with a new leading `trajid` dimension
+    """
+
     meta = gather_traj_metadata(datasets)
 
-    trajids = pd.Index(meta['trajid'], name='trajid')
-    coords_trajids = xr.Coordinates(indexes={'trajid': trajids})
+    trajids = pd.Index(meta["trajid"], name="trajid")
+    coords_trajids = xr.Coordinates(indexes={"trajid": trajids})
     breakpoint()
-    layers = xr.concat(datasets, dim=trajids, combine_attrs='drop_conflicts')
+    # TODO: FIXME: Deal with issues arising from inconsisten meta information. E.g. ensure same number of atoms, consistent units, etc.
+    layers = xr.concat(datasets, dim=trajids, combine_attrs="drop_conflicts")
 
-    del meta['trajid']
+    # TODO: FIXME: All units should be converted to same unit
+    # TODO: FIXME: All inconsistent meta data/attr should be stored into a meta_data object or lead to an error
+
+    del meta["trajid"]
     layers = layers.assign(
         {k: xr.DataArray(v, coords_trajids) for k, v in meta.items()}
     )
