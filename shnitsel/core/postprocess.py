@@ -248,6 +248,7 @@ def setup_frames(
         If a task should be forced (i.e. the corresponding parameter is set to True)
         but cannot be carried out (e.g. because the dataset was already processed previously)
     """
+    # TODO: Reconsider how the conversion works here
     match to_time, 'time' not in ds.coords, 'ts' in ds.coords:
         case True, False, _:
             raise ValueError("Timestep coordinate has already been converted to time")
