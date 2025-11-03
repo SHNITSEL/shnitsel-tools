@@ -34,11 +34,7 @@ class PyrAI2mdFormatReader(FormatReader):
         # TODO: FIXME: maybe just turn into a "filter" function and provide the paths?
         path_obj = make_uniform_path(path)
 
-        res_entries = [
-            e
-            for e in path_obj.glob("*")
-            if e.is_dir()
-        ]
+        res_entries = [e for e in path_obj.glob("*") if e.is_dir()]
         return None if len(res_entries) == 0 else res_entries
 
     def check_path_for_format_info(
@@ -105,9 +101,10 @@ class PyrAI2mdFormatReader(FormatReader):
         )
 
     def read_from_path(
-        self, path: PathOptionsType | None,
+        self,
+        path: PathOptionsType | None,
         format_info: FormatInformation | None = None,
-        loading_parameters: LoadingParameters | None = None
+        loading_parameters: LoadingParameters | None = None,
     ) -> Trajectory:
         """Read a PyrAI2md-style trajcetory from path at `path`. Implements `FormatReader.read_from_path()`
 
@@ -131,8 +128,7 @@ class PyrAI2mdFormatReader(FormatReader):
         elif path_obj is None and format_info is not None:
             path_obj = format_info.path
         elif path_obj is None and format_info is None:
-            raise ValueError(
-                "Either `path` or `format_info` needs to be provided")
+            raise ValueError("Either `path` or `format_info` needs to be provided")
 
         if path_obj is None:
             raise ValueError(
@@ -141,7 +137,11 @@ class PyrAI2mdFormatReader(FormatReader):
 
         try:
             loaded_dataset = parse_pyrai2md(
-                path_obj, loading_parameters=self.get_loading_parameters_with_defaults(loading_parameters))
+                path_obj,
+                loading_parameters=self.get_loading_parameters_with_defaults(
+                    loading_parameters
+                ),
+            )
         except FileNotFoundError as fnf_e:
             raise fnf_e
         except ValueError as v_e:
@@ -149,9 +149,17 @@ class PyrAI2mdFormatReader(FormatReader):
             logging.error(message)
             raise FileNotFoundError(message)
 
+        # If trajid has been extracted from the input path, set it
+        if format_info.trajid is not None:
+            loaded_dataset.attrs["trajid"] = format_info.trajid
+
+        loaded_dataset.attrs["trajectory_input_path"] = format_info.path.as_posix()
+
         return Trajectory(loaded_dataset)
 
-    def get_units_with_defaults(self, unit_overrides: Dict[str, str] | None = None) -> Dict[str, str]:
+    def get_units_with_defaults(
+        self, unit_overrides: Dict[str, str] | None = None
+    ) -> Dict[str, str]:
         """Apply units to the default unit dictionary of the format PyrAI2md
 
         Args:
@@ -165,9 +173,9 @@ class PyrAI2mdFormatReader(FormatReader):
         """
         from shnitsel.units.definitions import standard_units_of_formats
 
-        res_units = standard_units_of_formats['pyrai2md'].copy()
+        res_units = standard_units_of_formats["pyrai2md"].copy()
 
         if unit_overrides is not None:
             res_units.update(unit_overrides)
-            
+
         return res_units

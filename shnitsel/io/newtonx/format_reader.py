@@ -86,9 +86,18 @@ class NewtonXFormatReader(FormatReader):
                     logging.debug(message)
                 raise FileNotFoundError(message)
 
-        return NewtonXFormatInformation(
+        format_information = NewtonXFormatInformation(
             "newtonx", "unkown", path_obj, nx_log_path, nx_positions_path
         )
+
+        # Try and extract a trajectory ID from the path name
+        match_attempt = _newtonx_default_pattern_regex.match(path.name)
+
+        if match_attempt:
+            path_based_trajid = match_attempt.group("trajid")
+            format_information.trajid = int(path_based_trajid)
+
+        return format_information
 
     def read_from_path(
         self,
@@ -138,6 +147,12 @@ class NewtonXFormatReader(FormatReader):
             message = f"Attempt at reading NewtonX trajectory from path `{path}` failed because of original error: {v_e}"
             logging.error(message)
             raise FileNotFoundError(message)
+
+        # If trajid has been extracted from the input path, set it
+        if format_info.trajid is not None:
+            loaded_dataset.attrs["trajid"] = format_info.trajid
+
+        loaded_dataset.attrs["trajectory_input_path"] = format_info.path.as_posix()
 
         return Trajectory(loaded_dataset)
 

@@ -16,6 +16,7 @@ class FormatInformation:
 
     format_name: str = "none"
     version: str = "none"
+    trajid: str | int | None = None
     path: pathlib.Path | None = None
 
 
