@@ -1,18 +1,21 @@
+from shnitsel.data.Proxy import Proxy
 import xarray as xr
 
 
-class Trajectory:
-    """Class to wrap read trajectory information in a shnitsel-conform format.
+class Trajectory(Proxy):
+    """Class to wrap trajectory information in a shnitsel-conform format.
 
     Used to keep track of original data while the trajectory data is modified
     """
 
     def __init__(self, initial_ds: xr.Dataset) -> None:
+        super().__init__(initial_ds)
         self.original_dataset = initial_ds
-        self.current_derived_dataset = initial_ds.copy(deep=True)
+        self.__current_derived_dataset = initial_ds.copy(deep=True)
 
     def get_current_raw(self) -> xr.Dataset:
-        return self.current_derived_dataset
+        return object.__getattribute__(self, "_obj")
 
     def get_original_raw(self) -> xr.Dataset:
+        # TODO: Make Proxy wrapper functions return wrappers as well
         return self.original_dataset
