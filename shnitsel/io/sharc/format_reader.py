@@ -8,7 +8,7 @@ from shnitsel.data.TrajectoryFormat import Trajectory
 from shnitsel.io.helpers import LoadingParameters, PathOptionsType, make_uniform_path
 from ..FormatReader import FormatInformation, FormatReader
 from .parse_trajectory import read_traj
-from .parse_initial_conditions import list_iconds, dir_of_iconds
+from .parse_initial_conditions import list_iconds, dir_of_iconds, read_iconds_individual
 
 
 @dataclass
@@ -216,7 +216,7 @@ class SHARCFormatReader(FormatReader):
                     ),
                 )
             else:
-                loaded_dataset = dir_of_iconds(
+                loaded_dataset = read_iconds_individual(
                     path_obj,
                     loading_parameters=self.get_loading_parameters_with_defaults(
                         loading_parameters
