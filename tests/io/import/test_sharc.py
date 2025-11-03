@@ -61,12 +61,15 @@ class TestSHARC:
 
             for var in traj:
                 if "unitdim" in traj[var].attrs:
-                    assert "units" in traj[var].attrs
-                    unit_dim = traj[var].attrs["unitdim"]
                     assert (
-                        standard_shnitsel_units[unit_dim] == "1"
-                        or traj[var].attrs["units"] == standard_shnitsel_units[unit_dim]
-                    )
+                        "units" in traj[var].attrs
+                    ), f"Variable {var} has property `unitdim` but no `units` set."
+                    unit_dim = traj[var].attrs["unitdim"]
+                    actual_unit = traj[var].attrs["units"]
+                    required_unit = standard_shnitsel_units[unit_dim]
+                    assert (
+                        required_unit == "1" or actual_unit == required_unit
+                    ), f"Variable {var} has unit {actual_unit} instead of required unit {required_unit}."
 
             return True
 
