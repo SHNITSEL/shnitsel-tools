@@ -276,6 +276,8 @@ def finalize_icond_dataset(
         )
         dataset_res["time"].attrs.update(default_sharc_attributes["time"])
 
+    # Set completed flag
+    dataset_res.atts["completed"] = True
     return dataset_res
 
 
@@ -298,7 +300,7 @@ def create_icond_dataset(
     """
     template = {
         "energy": ["state"],
-        "dip_all": ["state", "state2", "direction"],
+        # "dip_all": ["state", "state2", "direction"],
         "dip_perm": ["state", "direction"],
         "dip_trans": ["statecomb", "direction"],
         "forces": ["state", "atom", "direction"],
@@ -315,7 +317,7 @@ def create_icond_dataset(
 
     template_default_values = {
         "energy": np.nan,
-        "dip_all": np.nan,
+        # "dip_all": np.nan,
         "dip_perm": np.nan,
         "dip_trans": np.nan,
         "forces": np.nan,
