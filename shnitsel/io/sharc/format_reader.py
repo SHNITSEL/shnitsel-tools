@@ -21,21 +21,45 @@ class SHARCInitialFormatInformation(FormatInformation):
     list_of_iconds: List | None = None
 
 
-_sharc_default_pattern_regex = re.compile(
-    r"(?P<dynstat>TRAJ|ICOND)_(?P<trajid>\d+)")
-_sharc_default_pattern_glob = r"(TRAJ_*)|(ICOND_*)"
+_sharc_default_pattern_regex = re.compile(r"(?P<dynstat>TRAJ|ICOND)_(?P<trajid>\d+)")
+_sharc_default_pattern_glob_traj = "TRAJ_*"
+_sharc_default_pattern_glob_icond = "ICOND_*"
 
 
 class SHARCFormatReader(FormatReader):
     """Class for providing the SHARC format reading functionality in the standardized `FormatReader` interface"""
 
-    def get_default_trajectory_pattern(self) -> Tuple[str, re.Pattern | None] | None:
+    def find_candidates_in_directory(
+        self, path: PathOptionsType
+    ) -> List[pathlib.Path] | None:
+        """Function to return a all potential matches for the current file format  within a provided directory at `path`.
+
+        Returns:
+            List[PathOptionsType] : A list of paths that should be checked in detail for whether they represent the format of this FormatReader.
+            None: No potential candidate found
+        """
+        path_obj = make_uniform_path(path)
+
+        tmp_entries_traj = [e for e in path_obj.glob(_sharc_default_pattern_glob_traj)]
+        tmp_entries_icond = [
+            e for e in path_obj.glob(_sharc_default_pattern_glob_icond)
+        ]
+        res_entries = [
+            e
+            for e in tmp_entries_traj + tmp_entries_icond
+            if _sharc_default_pattern_regex.match(e.name) and e.is_dir()
+        ]
+        return None if len(res_entries) == 0 else res_entries
+
+    def get_default_trajectory_pattern(
+        self,
+    ) -> Tuple[List[str], re.Pattern | None] | None:
         """Function to retrieve SHARC specific naming convention for trajectory and initial condition directories.
 
         The default pattern is `TRAJ_(\\d+)` with an underscore for dynamic data and `ICOND_(\\d+)` for static initial conditions.
 
         Returns:
-            Tuple[str, re.Pattern | None] | None: Will always return a pattern and a regex
+            Tuple[List[str], re.Pattern | None] | None: Will always return a pattern and a regex
         """
         return (_sharc_default_pattern_glob, _sharc_default_pattern_regex)
 
@@ -90,8 +114,12 @@ class SHARCFormatReader(FormatReader):
                         logging.debug(message)
                     raise FileNotFoundError(message)
             is_dynamic = True
-            format_information = SHARCDynamicFormatInformation("sharc", "unkown", path_obj)
-            logging.debug( f"Input directory `{path}` fulfils data requirements of dynamic SHARC trajectory")
+            format_information = SHARCDynamicFormatInformation(
+                "sharc", "unkown", path_obj
+            )
+            logging.debug(
+                f"Input directory `{path}` fulfils data requirements of dynamic SHARC trajectory"
+            )
         except Exception as e:
             dynamic_check_error = e
 
@@ -104,7 +132,9 @@ class SHARCFormatReader(FormatReader):
             format_information = SHARCInitialFormatInformation(
                 "sharc", "unkown", path_obj, list_of_initial_condition_paths
             )
-            logging.debug( f"Input directory `{path}` fulfils data requirements of SHARC Initial Conditions")
+            logging.debug(
+                f"Input directory `{path}` fulfils data requirements of SHARC Initial Conditions"
+            )
         except Exception as e:
             static_check_error = e
 
@@ -132,9 +162,10 @@ class SHARCFormatReader(FormatReader):
         return format_information
 
     def read_from_path(
-        self, path: PathOptionsType | None,
+        self,
+        path: PathOptionsType | None,
         format_info: FormatInformation | None = None,
-        loading_parameters: LoadingParameters | None = None
+        loading_parameters: LoadingParameters | None = None,
     ) -> Trajectory:
         """Read a SHARC-style trajcetory from path at `path`. Implements `FormatReader.read_from_path()`
 
@@ -160,16 +191,14 @@ class SHARCFormatReader(FormatReader):
         elif path_obj is None and format_info is not None:
             path_obj = format_info.path
         elif path_obj is None and format_info is None:
-            raise ValueError(
-                "Either `path` or `format_info` needs to be provided")
+            raise ValueError("Either `path` or `format_info` needs to be provided")
 
         if isinstance(format_info, SHARCDynamicFormatInformation):
             is_dynamic = True
         elif isinstance(format_info, SHARCInitialFormatInformation):
             is_dynamic = False
         else:
-            raise ValueError(
-                "The provided `format_info` object is not SHARC-specific.")
+            raise ValueError("The provided `format_info` object is not SHARC-specific.")
 
         if path_obj is None:
             raise ValueError(
@@ -179,10 +208,18 @@ class SHARCFormatReader(FormatReader):
         try:
             if is_dynamic:
                 loaded_dataset = read_traj(
-                    path_obj, loading_parameters=self.get_loading_parameters_with_defaults(loading_parameters))
+                    path_obj,
+                    loading_parameters=self.get_loading_parameters_with_defaults(
+                        loading_parameters
+                    ),
+                )
             else:
                 loaded_dataset = dir_of_iconds(
-                    path_obj, loading_parameters=self.get_loading_parameters_with_defaults(loading_parameters))
+                    path_obj,
+                    loading_parameters=self.get_loading_parameters_with_defaults(
+                        loading_parameters
+                    ),
+                )
         except FileNotFoundError as fnf_e:
             raise fnf_e
         except ValueError as v_e:
@@ -192,8 +229,9 @@ class SHARCFormatReader(FormatReader):
 
         return Trajectory(loaded_dataset)
 
-    
-    def get_units_with_defaults(self, unit_overrides: Dict[str, str] | None = None) -> Dict[str, str]:
+    def get_units_with_defaults(
+        self, unit_overrides: Dict[str, str] | None = None
+    ) -> Dict[str, str]:
         """Apply units to the default unit dictionary of the format SHARC
 
         Args:
@@ -208,9 +246,9 @@ class SHARCFormatReader(FormatReader):
         from shnitsel.units.definitions import standard_units_of_formats
 
         # TODO: FIXME: Check if default units are the same for icond and traj
-        res_units = standard_units_of_formats['sharc'].copy()
+        res_units = standard_units_of_formats["sharc"].copy()
 
         if unit_overrides is not None:
             res_units.update(unit_overrides)
-            
+
         return res_units

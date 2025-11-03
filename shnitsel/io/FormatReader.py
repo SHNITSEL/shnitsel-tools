@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 import os
 import pathlib
-from typing import Dict, Tuple
+from typing import Dict, List, Tuple
 
 from shnitsel.data.TrajectoryFormat import Trajectory
 from shnitsel.io.helpers import LoadingParameters, PathOptionsType
@@ -27,14 +27,14 @@ class FormatReader(ABC):
     """
 
     @abstractmethod
-    def get_default_trajectory_pattern(self) -> Tuple[str, re.Pattern | None] | None:
-        """Function to return a default pattern for identifying potential files/subdirectories in a path that could 
-        conform to the file format read by this reader.
+    def find_candidates_in_directory(
+        self, path: PathOptionsType
+    ) -> List[pathlib.Path] | None:
+        """Function to return a all potential matches for the current file format  within a provided directory at `path`.
 
         Returns:
-            Tuple[str, re.Pattern|None] : First the default pattern that this file naming format uses for its trajectories as a glob expression string.
-                Optionally, the second entry in the tuple can be a `re.Pattern` object to more specifically match the results of `glob.glob()`.
-            None: No specific pattern matching desired
+            List[PathOptionsType] : A list of paths that should be checked in detail for whether they represent the format of this FormatReader.
+            None: No potential candidate found
         """
         # TODO: FIXME: Add option to specify if we want only file or only directory paths
         # TODO: FIXME: maybe just turn into a "filter" function and provide the paths?
@@ -74,9 +74,10 @@ class FormatReader(ABC):
 
     @abstractmethod
     def read_from_path(
-        self, path: PathOptionsType | None,
+        self,
+        path: PathOptionsType | None,
         format_info: FormatInformation | None = None,
-        loading_parameters: LoadingParameters | None = None
+        loading_parameters: LoadingParameters | None = None,
     ) -> Trajectory:
         """Method to read a path of the respective format (e.g. ) into a shnitsel-conform trajectory.
 
@@ -100,7 +101,9 @@ class FormatReader(ABC):
         ...
 
     @abstractmethod
-    def get_units_with_defaults(self, unit_overrides: Dict[str, str] | None = None) -> Dict[str, str]:
+    def get_units_with_defaults(
+        self, unit_overrides: Dict[str, str] | None = None
+    ) -> Dict[str, str]:
         """Apply units to the default unit dictionary of the format
 
         Args:
@@ -114,7 +117,9 @@ class FormatReader(ABC):
         """
         raise NotImplementedError()
 
-    def get_loading_parameters_with_defaults(self, base_loading_parameters: LoadingParameters | None) -> LoadingParameters:
+    def get_loading_parameters_with_defaults(
+        self, base_loading_parameters: LoadingParameters | None
+    ) -> LoadingParameters:
         """Populate loading parameters with default settings for this format
 
         Args:
@@ -124,7 +129,20 @@ class FormatReader(ABC):
             LoadingParameters: The default parameters modified by user overrides
         """
 
-        return LoadingParameters(self.get_units_with_defaults(base_loading_parameters.input_units if base_loading_parameters is not None else None),
-                                 base_loading_parameters.state_names if base_loading_parameters is not None else None,
-                                 base_loading_parameters.error_reporting if base_loading_parameters is not None else 'raise',
-                                 )
+        return LoadingParameters(
+            self.get_units_with_defaults(
+                base_loading_parameters.input_units
+                if base_loading_parameters is not None
+                else None
+            ),
+            (
+                base_loading_parameters.state_names
+                if base_loading_parameters is not None
+                else None
+            ),
+            (
+                base_loading_parameters.error_reporting
+                if base_loading_parameters is not None
+                else "raise"
+            ),
+        )

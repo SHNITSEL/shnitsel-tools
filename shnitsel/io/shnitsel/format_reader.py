@@ -2,7 +2,7 @@ from dataclasses import dataclass
 import logging
 import pathlib
 import re
-from typing import Dict, Tuple
+from typing import Dict, List, Tuple
 
 from shnitsel.data.TrajectoryFormat import Trajectory
 from shnitsel.io.helpers import LoadingParameters, PathOptionsType, make_uniform_path
@@ -17,21 +17,28 @@ class ShnitselFormatInformation(FormatInformation):
 
 
 _shnitsel_default_pattern_regex = None
-_shnitsel_default_pattern_glob = r"*.nc"
+_shnitsel_default_pattern_glob = "*.nc"
 
 
 class ShnitselFormatReader(FormatReader):
     """Class for providing the Shnitsel format reading functionality in the standardized `FormatReader` interface"""
 
-    def get_default_trajectory_pattern(self) -> Tuple[str, re.Pattern | None] | None:
-        """Function to retrieve SHNITSEL specific naming convention for trajectory directories.
-
-        The default pattern is `*.nc` so that all `.nc` files will attempt to be loaded.
+    def find_candidates_in_directory(
+        self, path: PathOptionsType
+    ) -> List[pathlib.Path] | None:
+        """Function to return a all potential matches for the current file format  within a provided directory at `path`.
 
         Returns:
-            Tuple[str, re.Pattern | None] | None: Will always return a pattern but no regex for more specific filtering
+            List[PathOptionsType] : A list of paths that should be checked in detail for whether they represent the format of this FormatReader.
+            None: No potential candidate found
         """
-        return (_shnitsel_default_pattern_glob, _shnitsel_default_pattern_regex)
+        # TODO: FIXME: Add option to specify if we want only file or only directory paths
+        # TODO: FIXME: maybe just turn into a "filter" function and provide the paths?
+        path_obj = make_uniform_path(path)
+        res_entries = [
+            e for e in path_obj.glob(_shnitsel_default_pattern_glob) if e.is_file()
+        ]
+        return None if len(res_entries) == 0 else res_entries
 
     def check_path_for_format_info(
         self, path: PathOptionsType, hints_or_settings: Dict | None = None
@@ -76,9 +83,10 @@ class ShnitselFormatReader(FormatReader):
         return ShnitselFormatInformation("shnitsel", "0.1", path_obj)
 
     def read_from_path(
-        self, path: PathOptionsType | None,
+        self,
+        path: PathOptionsType | None,
         format_info: FormatInformation | None = None,
-        loading_parameters: LoadingParameters | None = None
+        loading_parameters: LoadingParameters | None = None,
     ) -> Trajectory:
         """Read a shnitsel-style file from `path`. Implements `FormatReader.read_from_path()`
 
@@ -101,8 +109,7 @@ class ShnitselFormatReader(FormatReader):
         elif path_obj is None and format_info is not None:
             path_obj = format_info.path
         elif path_obj is None and format_info is None:
-            raise ValueError(
-                "Either `path` or `format_info` needs to be provided to ")
+            raise ValueError("Either `path` or `format_info` needs to be provided to ")
 
         if path_obj is None:
             raise ValueError(
@@ -111,7 +118,11 @@ class ShnitselFormatReader(FormatReader):
 
         try:
             loaded_dataset = read_shnitsel_file(
-                path_obj, loading_parameters=self.get_loading_parameters_with_defaults(loading_parameters))
+                path_obj,
+                loading_parameters=self.get_loading_parameters_with_defaults(
+                    loading_parameters
+                ),
+            )
         except FileNotFoundError as fnf_e:
             raise fnf_e
         except ValueError as v_e:
@@ -120,8 +131,10 @@ class ShnitselFormatReader(FormatReader):
             raise FileNotFoundError(message)
 
         return Trajectory(loaded_dataset)
-    
-    def get_units_with_defaults(self, unit_overrides: Dict[str, str] | None = None) -> Dict[str, str]:
+
+    def get_units_with_defaults(
+        self, unit_overrides: Dict[str, str] | None = None
+    ) -> Dict[str, str]:
         """Apply units to the default unit dictionary of the format SHNITSEL
 
         Args:

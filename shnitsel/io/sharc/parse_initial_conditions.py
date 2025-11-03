@@ -211,7 +211,7 @@ def dir_of_iconds(path: PathOptionsType, *,
         id_subset (Set[int]  |  None, optional): An optional set of ids to restrict the anaylsis to. No initial conditions with an id outside of this set will be loaded. Defaults to None.
 
     Returns:
-        _type_: _description_
+        xr.Dataset: The resulting dataset containing all of the initial conditions as separate trajectories
     """
     initial_condition_paths: List[IcondPath] = list_iconds(path)
     if id_subset is not None:
@@ -220,8 +220,32 @@ def dir_of_iconds(path: PathOptionsType, *,
 
     return read_iconds(initial_condition_paths, loading_parameters)
 
+def finalize_icond_dataset(dataset:xr.Dataset, loading_parameters: LoadingParameters) -> xr.Dataset:
+    """Function to expand the initial conditions dataset with a time dimension.
 
-def create_icond_dataset(indices: List[int] | None, nstates: int, natoms: int, **kwargs) -> xr.Dataset:
+    Also sets the default unit on the time dimension
+
+    Args:
+        dataset (xr.Dataset): The initial conditions dataset. Should not have a "time" dimension yet.
+        loading_parameters (LoadingParameters): Loading parameters to override units
+
+    Returns:
+        xr.Dataset: The modified dataset
+    """
+    isolated_keys = ['atNames', 'atNums', 'state', 'statecomb', 'state_names', 'state_types']
+
+    if "time" not in dataset.coords:
+        dataset_res = dataset.set_coords(isolated_keys)
+        dataset_res = dataset_res.expand_dims('time')
+        dataset_res = dataset_res.assign_coords(time=('time', [0.0]))
+
+        default_sharc_attributes = get_default_input_attributes('sharc', loading_parameters)
+        dataset_res['time'].attrs.update(
+                    default_sharc_attributes['time'])
+
+    return dataset_res
+
+def create_icond_dataset(indices: List[int] | None, nstates: int, natoms: int, loading_parameters:LoadingParameters|None, **kwargs) -> xr.Dataset:
     """Function to initialize an `xr.Dataset` with appropriate variables and coordinates to acommodate loaded data.
 
     Args:
@@ -326,7 +350,7 @@ def create_icond_dataset(indices: List[int] | None, nstates: int, natoms: int, *
     #    'forces': {'units': 'hartree/bohr', 'unitdim': 'Force'},
     #    'nacs': {'long_name': "nonadiabatic couplings", 'units': 'au'},
     # }
-    default_sharc_attributes = get_default_input_attributes('sharc')
+    default_sharc_attributes = get_default_input_attributes('sharc', loading_parameters)
 
     datavars = {
         varname: (
@@ -376,7 +400,7 @@ def read_iconds(pathlist: List[IcondPath],
     logging.info("Allocating Dataset for ICONDs")
     if indices is None:
         indices = [p.idx for p in pathlist]
-    iconds = create_icond_dataset(indices, nstates, natoms)
+    iconds = create_icond_dataset(indices, nstates, natoms, loading_parameters=loading_parameters)
 
     # Set information on the singlet, doublet and triplet states, if available
     iconds["state_types"][:nsinglets] = 1
@@ -391,7 +415,7 @@ def read_iconds(pathlist: List[IcondPath],
 
     for icond_index, path in tqdm(pathlist):
         with open(os.path.join(path, 'QM.out')) as f:
-            parse_QM_out(f, out=iconds.sel(icond=icond_index))
+            parse_QM_out(f, out=iconds.sel(icond=icond_index), loading_parameters=loading_parameters)
 
     for icond_index, path in tqdm(pathlist):
         try:
@@ -406,8 +430,9 @@ def read_iconds(pathlist: List[IcondPath],
                 See https://github.com/SHNITSEL/db-workflow/issues/3"""
             )
             logging.warning(f"No positional information found in {path}, the loaded trajectory does not contain positional data 'atXYZ'.")
+            return None
 
-    return convert_all_units_to_shnitsel_defaults(iconds)
+    return convert_all_units_to_shnitsel_defaults(finalize_icond_dataset(iconds, loading_parameters=loading_parameters))
 
 
 def parse_QM_log(log: TextIOWrapper) -> Dict[str, Any]:
@@ -501,14 +526,15 @@ def parse_QM_log_geom(f: TextIOWrapper, out: xr.Dataset):
         out['atXYZ'][i] = map(float, geometry_line[1:4])
 
 
-def parse_QM_out(f: TextIOWrapper, out: (xr.Dataset | None) = None) -> xr.Dataset | None:
+def parse_QM_out(f: TextIOWrapper, out: (xr.Dataset | None) = None, loading_parameters:LoadingParameters|None = None) -> xr.Dataset | None:
     """Function to read all information about forces, energies, dipoles, nacs, etc. from initial condition QM.out files.
 
     if ``out=None`` is provided, a new Dataset is constructed and returned by the function
 
     Args:
         f (TextIOWrapper): File input of the QM.out file to parse the data from
-        out (xr.Dataset  |  None, optional): Optional target Dataset to write the loaded data into. Defaults to None. 
+        out (xr.Dataset  |  None, optional): Optional target Dataset to write the loaded data into. Defaults to None.
+        loading_parameters (LoadingParameters,optional): Optional loading parameters to override variable mappings and units.
 
     Returns:
         xr.Dataset | None: If a new Dataset was constructed instead of being written to `out`, it will be returned.
@@ -636,7 +662,7 @@ def parse_QM_out(f: TextIOWrapper, out: (xr.Dataset | None) = None) -> xr.Datase
             res['forces'] = nans(natoms.v, 3)
 
         assert isinstance(res, dict)
-        return create_icond_dataset(indices=None, nstates=nstates.v, natoms=natoms.v, **res)
+        return create_icond_dataset(indices=None, nstates=nstates.v, natoms=natoms.v, loading_parameters=loading_parameters,**res)
 
         # xr.Dataset(
         #     {

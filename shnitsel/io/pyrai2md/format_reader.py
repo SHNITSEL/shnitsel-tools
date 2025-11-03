@@ -3,7 +3,7 @@ from glob import glob
 import logging
 import pathlib
 import re
-from typing import Dict, Tuple
+from typing import Dict, List, Tuple
 
 from shnitsel.data.TrajectoryFormat import Trajectory
 from shnitsel.io.helpers import LoadingParameters, PathOptionsType, make_uniform_path
@@ -21,15 +21,25 @@ class PyrAI2mdFormatInformation(FormatInformation):
 class PyrAI2mdFormatReader(FormatReader):
     """Class for providing the SHARC format reading functionality in the standardized `FormatReader` interface"""
 
-    def get_default_trajectory_pattern(self) -> Tuple[str, re.Pattern | None] | None:
-        """Function to retrieve PyrAI2md specific naming convention for trajectory directories.
-
-        Defaults to checking all subdirectories
+    def find_candidates_in_directory(
+        self, path: PathOptionsType
+    ) -> List[pathlib.Path] | None:
+        """Function to return a all potential matches for the current file format  within a provided directory at `path`.
 
         Returns:
-            Tuple[str, re.Pattern | None] | None: _description_
+            List[PathOptionsType] : A list of paths that should be checked in detail for whether they represent the format of this FormatReader.
+            None: No potential candidate found
         """
-        return ("*", None)
+        # TODO: FIXME: Add option to specify if we want only file or only directory paths
+        # TODO: FIXME: maybe just turn into a "filter" function and provide the paths?
+        path_obj = make_uniform_path(path)
+
+        res_entries = [
+            e
+            for e in path_obj.glob("*")
+            if e.is_dir()
+        ]
+        return None if len(res_entries) == 0 else res_entries
 
     def check_path_for_format_info(
         self, path: PathOptionsType, hints_or_settings: Dict | None = None

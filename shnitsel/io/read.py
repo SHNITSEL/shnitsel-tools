@@ -247,43 +247,40 @@ def read_folder_multi(
     for relevant_kind in relevant_kinds:
         relevant_reader = READERS[relevant_kind]
 
-        glob_pattern, regex_matcher = relevant_reader.get_default_trajectory_pattern()
-
-        # If no pattern provided, use default pattern
-        curr_sub_pattern = glob_pattern if sub_pattern is None else sub_pattern
         if sub_pattern is not None:
-            # Do not perform regex matching if the user provides the pattern
-            regex_matcher = None
+            filter_matches = list(path_obj.glob(sub_pattern))
+        else:
+            filter_matches = relevant_reader.find_candidates_in_directory(path_obj)
+
+        logging.debug(
+            f"Found {len(filter_matches)} matches for kind={relevant_kind}: {filter_matches}"
+        )
 
         kind_matches = []
-        # Consider everything matchin the general pattern
-        for relevant_entry in path_obj.glob(curr_sub_pattern):
-            # If general pattern matches but specific checks are provided: Filter further
-            if regex_matcher is not None:
-                if not regex_matcher.match(relevant_entry):
-                    logging.info(
-                        f"Entry {relevant_entry} in directory list matched the general pattern of type {relevant_kind} but not the specific pattern. Skipping."
-                    )
-                    continue
+
+        kind_key = None
+
+        for entry in filter_matches:
 
             # We have a match
-            total_path = path_obj / relevant_entry
+            logging.debug(f"Checking {entry}")
             try:
-                res_format = identify_or_check_input_kind(total_path, relevant_kind)
-                kind_matches.append((total_path, res_format))
+                res_format = identify_or_check_input_kind(entry, relevant_kind)
+                kind_key = res_format.format_name
+                kind_matches.append((entry, res_format))
             except Exception as e:
                 # Only consider if we hit something
                 logging.debug(
-                    f"Skipping {total_path} for {relevant_kind} because of issue during format check: {e}"
+                    f"Skipping {entry} for {relevant_kind} because of issue during format check: {e}"
                 )
                 pass
 
         if len(kind_matches) > 0:
             fitting_kinds.append(relevant_kind)
-            matching_entries[relevant_kind] = kind_matches
+            matching_entries[kind_key] = kind_matches
 
     if len(fitting_kinds) == 0:
-        message = "Did not detect any matching subdirectories or files for any input format in {path}"
+        message = f"Did not detect any matching subdirectories or files for any input format in {path}"
         logging.error(message)
         if error_reporting == "raise":
             raise FileNotFoundError(message)
@@ -291,7 +288,7 @@ def read_folder_multi(
             return None
     elif len(fitting_kinds) > 1:
         available_formats = list(READERS.keys())
-        message = "Detected subdirectories or files of different input formats in {path} with no input format specified. Detected formats are: {kinds}. Please ensure only one format matches subdirectories in the path or denote a specific format out of {available_formats}."
+        message = f"Detected subdirectories or files of different input formats in {path} with no input format specified. Detected formats are: {available_formats}. Please ensure only one format matches subdirectories in the path or denote a specific format out of {available_formats}."
         logging.error(message)
         if error_reporting == "raise":
             raise ValueError(message)
@@ -304,28 +301,37 @@ def read_folder_multi(
         fitting_reader = READERS[fitting_kind]
 
         input_set_params = [
-            (fitting_reader, trajpath, formatinfo, base_loading_parameters)
+            (trajpath, fitting_reader, formatinfo, base_loading_parameters)
             for trajpath, formatinfo in fitting_paths
         ]
+        input_paths, input_readers, input_format_info, input_loading_params = zip(
+            *input_set_params
+        )
 
         res_trajectories = []
         if parallel:
             with ProcessPoolExecutor(max_workers=os.cpu_count()) as executor:
                 for result in tqdm(
-                    executor.map(_per_traj, input_set_params),
+                    executor.map(
+                        _per_traj,
+                        input_paths,
+                        input_readers,
+                        input_format_info,
+                        input_loading_params,
+                    ),
                     total=len(input_set_params),
                 ):
-                    if result is not None:
-                        res_trajectories.append(result)
+                    if result is not None and result.data is not None:
+                        res_trajectories.append(result.data)
                     else:
                         logging.debug(
-                            "Reading of at least one trajectory failed. Reading routine returned value {result}."
+                            f"Reading of at least one trajectory failed. Reading routine returned value {result}."
                         )
         else:
             for params in tqdm(input_set_params, total=len(input_set_params)):
                 result = _per_traj(*params)
-                if result is not None:
-                    res_trajectories.append(result)
+                if result is not None and result.data is not None:
+                    res_trajectories.append(result.data)
                 else:
                     logging.debug(f"Failed to read trajectory from {params[1]}.")
 
@@ -501,7 +507,7 @@ def _per_traj(
         if not ds.attrs["completed"]:
             logging.info(f"Trajectory at path {trajdir} did not complete")
 
-        return Trajres(misc_error=None, data=ds)
+        return Trajres(path=trajdir, misc_error=None, data=ds)
 
     except Exception as err:
         # This is fairly common and will be reported at the end
@@ -512,6 +518,7 @@ def _per_traj(
         )
 
         return Trajres(
+            path=trajdir,
             misc_error=[err],
             data=None,
         )
