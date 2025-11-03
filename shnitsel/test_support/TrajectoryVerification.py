@@ -46,10 +46,10 @@ def has_required_properties(traj: List[Trajectory] | Trajectory) -> bool:
             ), f"Property {prop} is missing in resulting trajectory"
             if "unit" in check_prop_units[prop]:
                 assert (
-                    "units" in traj["atXYZ"].attrs
+                    "units" in traj[prop].attrs
                 ), f"Property {prop} has no unit set in resulting trajectory"
                 required_unit = check_prop_units[prop]["unit"]
-                actual_unit = traj["atXYZ"].attrs["units"]
+                actual_unit = traj[prop].attrs["units"]
                 assert (
                     actual_unit == required_unit
                 ), f"Property {prop} has unit {actual_unit} instead of required unit {required_unit}"
