@@ -13,11 +13,16 @@ def verify_trajectory_format(obj: Any) -> bool:
 
 def is_permitted_traj_result(obj: Any) -> bool:
     logging.debug(f"Obj has type: {type(obj)}")
-    return (
+    type_check_result = (
         isinstance(obj, xr.Dataset)
         or isinstance(obj, Trajectory)
         or (isinstance(obj, list) and (len(obj) == 0 or isinstance(obj[0], Trajectory)))
     )
+    if not type_check_result:
+        logging.error(
+            "Object is not of type {xr.Dataset}, {Trajectory} or List of {Trajectory}."
+        )
+    return type_check_result
 
 
 def has_required_properties(traj: List[Trajectory] | Trajectory) -> bool:
@@ -37,7 +42,8 @@ def has_required_properties(traj: List[Trajectory] | Trajectory) -> bool:
             "energy": {"unit": standard_shnitsel_units[unit_dimensions.energy]},
             "dip_trans": {"unit": standard_shnitsel_units[unit_dimensions.dipole]},
             "dip_perm": {"unit": standard_shnitsel_units[unit_dimensions.dipole]},
-            "states": {},
+            "state": {},
+            "time": {"unit": standard_shnitsel_units[unit_dimensions.time]},
         }
 
         for prop in check_prop_units:
