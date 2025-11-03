@@ -335,7 +335,7 @@ def read_folder_multi(
                 else:
                     logging.debug(f"Failed to read trajectory from {params[1]}.")
 
-        # TODO: FIXME: Check if
+        # TODO: FIXME: Check if trajid is actually set?
         res_trajectories.sort(
             key=lambda x: x.attrs["trajid"] if "trajid" in x.attrs else 0
         )
