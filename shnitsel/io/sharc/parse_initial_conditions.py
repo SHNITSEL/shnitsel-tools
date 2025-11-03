@@ -235,7 +235,7 @@ def dir_of_iconds(
             icond for icond in initial_condition_paths if icond.idx in id_subset
         ]
 
-    return read_iconds(initial_condition_paths, loading_parameters)
+    return read_iconds_multi_directory(initial_condition_paths, loading_parameters)
 
 
 def finalize_icond_dataset(
