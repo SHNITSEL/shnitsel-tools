@@ -18,6 +18,11 @@ class SHARCDynamicFormatInformation(FormatInformation):
 
 @dataclass
 class SHARCInitialFormatInformation(FormatInformation):
+    pass
+
+
+@dataclass
+class SHARCMultiInitialFormatInformation(FormatInformation):
     list_of_iconds: List | None = None
 
 
@@ -122,10 +127,23 @@ class SHARCFormatReader(FormatReader):
 
         is_static = False
         try:
-            list_of_initial_condition_paths = list_iconds(path_obj)
+
+            qm_out_path = path_obj / "QM.out"
+            qm_log_path = path_obj / "QM.log"
+
+            for file in [qm_out_path, qm_log_path]:
+                if not file.is_file():
+                    message = f"Input directory `{path}` is missing {file}"
+                    if is_request_specific_to_sharc:
+                        logging.error(message)
+                    else:
+                        logging.debug(message)
+                    raise FileNotFoundError(message)
+
+            # list_of_initial_condition_paths = list_iconds(path_obj)
             is_static = True
             format_information = SHARCInitialFormatInformation(
-                "sharc", "unkown", path_obj, list_of_initial_condition_paths
+                "sharc", "unkown", path_obj  # , list_of_initial_condition_paths
             )
             logging.debug(
                 f"Input directory `{path}` fulfils data requirements of SHARC Initial Conditions"
@@ -230,10 +248,11 @@ class SHARCFormatReader(FormatReader):
             raise FileNotFoundError(message)
 
         # If trajid has been extracted from the input path, set it
-        if format_info.trajid is not None:
-            loaded_dataset.attrs["trajid"] = format_info.trajid
+        if format_info is not None:
+            if format_info.trajid is not None:
+                loaded_dataset.attrs["trajid"] = format_info.trajid
 
-        loaded_dataset.attrs["trajectory_input_path"] = format_info.path.as_posix()
+            loaded_dataset.attrs["trajectory_input_path"] = format_info.path.as_posix()
 
         return Trajectory(loaded_dataset)
 
