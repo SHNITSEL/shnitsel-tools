@@ -1,3 +1,4 @@
+import logging
 import os
 import pathlib
 import xarray as xr
@@ -9,8 +10,9 @@ from shnitsel.io.helpers import LoadingParameters, PathOptionsType
 # def open_frames(path):
 
 
-def read_shnitsel_file(path: PathOptionsType,
-                       loading_parameters: LoadingParameters | None = None) -> xr.Dataset:
+def read_shnitsel_file(
+    path: PathOptionsType, loading_parameters: LoadingParameters | None = None
+) -> xr.Dataset:
     """Opens a NetCDF4 file saved by shnitsel-tools, specially interpreting certain attributes.
 
     Parameters
@@ -56,7 +58,11 @@ def read_shnitsel_file(path: PathOptionsType,
         if "time" in frames.coords:
             tcoord = "time"
         elif "ts" in frames.coords:
-            tcoord = "ts"
+            logging.info(
+                "Renaming 'ts' dimension to 'time' to make trajectory conform to standard shnitsel format."
+            )
+            frames.rename({"ts": "time"})
+            tcoord = "time"
 
         if tcoord is not None:
             frames = frames.set_xindex(["trajid", tcoord])
