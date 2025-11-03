@@ -10,12 +10,11 @@ class Trajectory(Proxy):
 
     def __init__(self, initial_ds: xr.Dataset) -> None:
         super().__init__(initial_ds)
-        self.original_dataset = initial_ds
-        self.__current_derived_dataset = initial_ds.copy(deep=True)
+        self.attrs["__original_dataset"] = initial_ds.copy(deep=True)
 
     def get_current_raw(self) -> xr.Dataset:
         return object.__getattribute__(self, "_obj")
 
     def get_original_raw(self) -> xr.Dataset:
         # TODO: Make Proxy wrapper functions return wrappers as well
-        return self.original_dataset
+        return self.attrs["__original_dataset"]
