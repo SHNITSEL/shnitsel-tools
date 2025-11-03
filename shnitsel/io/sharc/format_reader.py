@@ -51,18 +51,6 @@ class SHARCFormatReader(FormatReader):
         ]
         return None if len(res_entries) == 0 else res_entries
 
-    def get_default_trajectory_pattern(
-        self,
-    ) -> Tuple[List[str], re.Pattern | None] | None:
-        """Function to retrieve SHARC specific naming convention for trajectory and initial condition directories.
-
-        The default pattern is `TRAJ_(\\d+)` with an underscore for dynamic data and `ICOND_(\\d+)` for static initial conditions.
-
-        Returns:
-            Tuple[List[str], re.Pattern | None] | None: Will always return a pattern and a regex
-        """
-        return (_sharc_default_pattern_glob, _sharc_default_pattern_regex)
-
     def check_path_for_format_info(
         self, path: PathOptionsType, hints_or_settings: Dict | None = None
     ) -> FormatInformation:
@@ -95,6 +83,13 @@ class SHARCFormatReader(FormatReader):
                 logging.error(message)
             else:
                 logging.debug(message)
+            raise FileNotFoundError(message)
+
+        dontanalyze_file_path = path_obj / "DONT_ANALYZE"
+
+        if dontanalyze_file_path.exists() and dontanalyze_file_path.is_file():
+            message = f"The path {path} does contain a `DONT_ANALYZE` file and will therefore be skipped. Please remove that file if you want the directory to be read."
+            logging.warning(message)
             raise FileNotFoundError(message)
 
         # Check if dynamic SHARC format satisfied
