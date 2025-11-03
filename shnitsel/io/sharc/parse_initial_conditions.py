@@ -56,7 +56,12 @@ def list_iconds(
     """
     path_obj: pathlib.Path = make_uniform_path(iconds_path)
 
-    dirs = [path_obj.glob(glob_expr, recursive=True)]
+    dirs = [
+        path_obj.glob(
+            glob_expr,
+            # recursive=True
+        )
+    ]
     if len(dirs) == 0:
         raise FileNotFoundError(
             f"The search '{glob_expr}' didn't match any directories "
