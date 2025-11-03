@@ -114,8 +114,11 @@ def convert_all_units_to_shnitsel_defaults(data: xr.Dataset) -> xr.Dataset:
     new_vars = {}
     with xr.set_options(keep_attrs=True):
         for var_name in data.variables:
-            new_vars[var_name] = convert_datarray_with_unitdim_to_shnitsel_defaults(data[var_name])
-        return data.assign(new_vars)
+            if 'unitdim' in data[var_name].attrs:
+                new_vars[var_name] = convert_datarray_with_unitdim_to_shnitsel_defaults(data[var_name])
+
+    logging.warning("Converting: " +str(list(new_vars.keys())))
+    return data.assign(new_vars)
 
 
 _CONVERTERS: Dict[str, Callable[[xr.DataArray, str], xr.DataArray]] = {
