@@ -524,13 +524,13 @@ def _per_traj(
         )
 
 
-def gather_traj_metadata(datasets: Iterable[xr.Dataset], time_dim="time") -> np.ndarray:
+def gather_traj_metadata(datasets: Iterable[Trajectory], time_dim="time") -> np.ndarray:
     """Function to gather metadate from a set of trajectories.
 
-    Used to combine trajectories into one Dataset.
+    Used to combine trajectories into one aggregate Dataset.
 
     Args:
-        datasets (Iterable[xr.Dataset]): The sequence of trajctories for which metadata should be collected
+        datasets (Iterable[Trajectory]): The sequence of trajctories for which metadata should be collected
         time_dim (str, optional): The name of the time dimension in the input datasets. Defaults to "time".
 
     Returns:
@@ -548,11 +548,13 @@ def gather_traj_metadata(datasets: Iterable[xr.Dataset], time_dim="time") -> np.
         ],
     )
 
+    # TODO: FIXME: Check for consistency of more of the units and attributes
     for i, ds in enumerate(datasets):
         traj_meta["trajid"][i] = ds.attrs.get("trajid", -1)
         traj_meta["delta_t"][i] = ds.attrs.get("delta_t", np.nan)
         traj_meta["max_ts"][i] = ds.attrs.get("max_ts", -1)
-        traj_meta["completed"][i] = ds.attrs["completed"]
+        # TODO: FIXME: think about whether or not to default to False for completed parameter
+        traj_meta["completed"][i] = ds.attrs.get("completed", False)
         traj_meta["nsteps"][i] = len(ds.indexes[time_dim])
 
     return traj_meta
@@ -586,6 +588,7 @@ def concat_trajs(datasets: Iterable[Trajectory]) -> Trajectory:
     else:
         raise ValueError("Some trajectories do not have a 'time' coordinate.")
 
+    # TODO: Deal with trajid not being set yet
     datasets = [
         ds.expand_dims(trajid=[ds.attrs["trajid"]]).stack(frame=["trajid", time_dim])
         for ds in datasets
@@ -608,7 +611,7 @@ def concat_trajs(datasets: Iterable[Trajectory]) -> Trajectory:
     if TYPE_CHECKING:
         assert isinstance(frames, Trajectory)
 
-    return
+    return Trajectory(frames)
 
 
 def layer_trajs(datasets: Iterable[Trajectory]) -> Trajectory:
@@ -645,4 +648,4 @@ def layer_trajs(datasets: Iterable[Trajectory]) -> Trajectory:
     )
     if TYPE_CHECKING:
         assert isinstance(layers, xr.Dataset)
-    return layers
+    return Trajectory(layers)
