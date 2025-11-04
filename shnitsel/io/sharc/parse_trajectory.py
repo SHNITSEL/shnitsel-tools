@@ -48,7 +48,9 @@ def read_traj(
         nsteps = None
 
     with open(os.path.join(traj_path, "output.dat")) as f:
-        single_traj = parse_trajout_dat(f, nsteps=nsteps)
+        single_traj = parse_trajout_dat(
+            f, nsteps=nsteps, loading_parameters=loading_parameters
+        )
 
     # TODO: Note that for consistency, we renamed the ts dimension to time to agree with other format
 
@@ -65,13 +67,20 @@ def read_traj(
     if delta_t is not None:
         single_traj.attrs["delta_t"] = delta_t
 
+    if tmax is not None:
+        single_traj.attrs["t_max"] = tmax
+
     single_traj.attrs["input_format"] = "sharc"
     single_traj.attrs["input_type"] = "dynamic"
 
     return convert_all_units_to_shnitsel_defaults(single_traj)
 
 
-def parse_trajout_dat(f: TextIOWrapper, nsteps: int | None = None) -> xr.Dataset:
+def parse_trajout_dat(
+    f: TextIOWrapper,
+    nsteps: int | None = None,
+    loading_parameters: LoadingParameters = None,
+) -> xr.Dataset:
     """Function to parse the contents of an 'output.dat' in a sharc trajectory output directory into a Dataset.
 
     Args:
@@ -310,7 +319,7 @@ def parse_trajout_dat(f: TextIOWrapper, nsteps: int | None = None) -> xr.Dataset
 
     coords = statecomb.merge(coords)
 
-    default_sharc_attributes = get_default_input_attributes("sharc")
+    default_sharc_attributes = get_default_input_attributes("sharc", loading_parameters)
 
     # TODO: FIXME: Use input names and input units and only apply attributes if there are attributes
 
@@ -388,7 +397,9 @@ def parse_trajout_dat(f: TextIOWrapper, nsteps: int | None = None) -> xr.Dataset
     res.attrs["num_triplets"] = ntriplets
 
     if not completed:
-        res = res.sel(ts=res.ts <= res.attrs["max_ts"])
+        # Filter by index not by ts
+        # res = res.sel(ts=res.ts <= res.attrs["max_ts"])
+        res = res.isel(time=slice(0, max_ts + 1))
 
     return res
 
