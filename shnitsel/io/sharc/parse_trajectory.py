@@ -142,7 +142,7 @@ def parse_trajout_dat(
         "atNames": ["atom"],
         "atNums": ["atom"],
         "state_names": ["state"],
-        "state_type": ["state"],
+        "state_types": ["state"],
         "astate": ["time"],
         "sdiag": ["time"],
     }
@@ -170,7 +170,7 @@ def parse_trajout_dat(
         "state_names": "",
         "atNames": "",
         "atNums": -1,
-        "state_type": 0,
+        "state_types": 0,
     }
 
     def default_fill_prop(name):
@@ -194,15 +194,15 @@ def parse_trajout_dat(
     atNames = default_fill_prop("atNames")
     state_names = default_fill_prop("state_names")
 
-    state_type = default_fill_prop("state_type")
+    state_types = default_fill_prop("state_types")
 
-    state_type[:nsinglets] = 1
+    state_types[:nsinglets] = 1
     state_names[:nsinglets] = [f"S{i}" for i in range(nsinglets)]
-    state_type[nsinglets : nsinglets + 2 * ndoublets] = 2
+    state_types[nsinglets : nsinglets + 2 * ndoublets] = 2
     state_names[nsinglets : nsinglets + 2 * ndoublets] = [
         f"D{i}" for i in range(2 * ndoublets)
     ]
-    state_type[nsinglets + 2 * ndoublets :] = 3
+    state_types[nsinglets + 2 * ndoublets :] = 3
     state_names[nsinglets + 2 * ndoublets :] = [f"T{i}" for i in range(3 * ntriplets)]
 
     max_ts = -1
@@ -371,12 +371,12 @@ def parse_trajout_dat(
                 state_names,
                 default_sharc_attributes["state_names"],
             ),
-            "state_type": (
-                template["state_type"],
-                state_type,
+            "state_types": (
+                template["state_types"],
+                state_types,
                 (
-                    default_sharc_attributes["state_type"]
-                    if "state_type" in default_sharc_attributes
+                    default_sharc_attributes["state_types"]
+                    if "state_types" in default_sharc_attributes
                     else {}
                 ),
             ),
