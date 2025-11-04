@@ -47,9 +47,10 @@ def has_required_properties(traj: List[Trajectory] | Trajectory) -> bool:
         }
 
         for prop in check_prop_units:
+            available_keys = list(traj.variables.keys())
             assert (
-                prop in traj.variables.keys()
-            ), f"Property {prop} is missing in resulting trajectory"
+                prop in traj.variables.keys() or prop in traj.coords.keys()
+            ), f"Property {prop} is missing in resulting trajectory.Only has: {available_keys}"
             if "unit" in check_prop_units[prop]:
                 assert (
                     "units" in traj[prop].attrs
