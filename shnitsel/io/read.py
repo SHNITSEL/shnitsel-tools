@@ -8,6 +8,7 @@ from shnitsel.io.helpers import (
     PathOptionsType,
     make_uniform_path,
 )
+import traceback
 from shnitsel.io.newtonx.format_reader import NewtonXFormatReader
 from shnitsel.io.pyrai2md.format_reader import PyrAI2mdFormatReader
 from shnitsel.io.sharc.format_reader import SHARCFormatReader
@@ -146,7 +147,11 @@ def read(
         logging.info(f"Could not read `{path}` directly as a trajectory.")
     except Exception as e:
         # Keep error in case the multiple reading also fails
-        combined_error = f"While trying to read as a direct trajectory: {e}"
+        combined_error = (
+            f"While trying to read as a direct trajectory: {e} [Trace:"
+            + "\n".join(traceback.format_tb(e.__traceback__))
+            + "]"
+        )
 
     if multiple:
         logging.info(
@@ -175,7 +180,11 @@ def read(
                 else:
                     return cat_func(res_list)
         except Exception as e:
-            multi_error = f"While trying to read as a directory containing multiple trajectories: {e}"
+            multi_error = (
+                f"While trying to read as a directory containing multiple trajectories: {e} [Trace:"
+                + "\n".join(traceback.format_tb(e.__traceback__))
+                + "]"
+            )
             combined_error = (
                 multi_error
                 if combined_error is None
@@ -185,7 +194,9 @@ def read(
     message = f"Could not load trajectory data from `{path}`."
 
     if combined_error is not None:
-        message += f"\nEncountered multipe errors trying to load:\n" + combined_error
+        message += (
+            f"\nEncountered (multipe) error(s) trying to load:\n" + combined_error
+        )
 
     if error_reporting == "log":
         logging.error(message)
@@ -244,13 +255,20 @@ def read_folder_multi(
     # Entries for each kind
     matching_entries = {}
 
+    hints_or_settings = {"kind": kind} if kind is not None else None
+
     for relevant_kind in relevant_kinds:
+        # logging.warning(f"Considering: {relevant_kind}")
         relevant_reader = READERS[relevant_kind]
 
         if sub_pattern is not None:
             filter_matches = list(path_obj.glob(sub_pattern))
         else:
             filter_matches = relevant_reader.find_candidates_in_directory(path_obj)
+
+        if filter_matches is None:
+            logging.debug(f"No matches for format {relevant_kind}")
+            continue
 
         logging.debug(
             f"Found {len(filter_matches)} matches for kind={relevant_kind}: {filter_matches}"
@@ -263,11 +281,20 @@ def read_folder_multi(
         for entry in filter_matches:
 
             # We have a match
-            logging.debug(f"Checking {entry}")
+            # logging.debug(f"Checking {entry} for format {relevant_kind}")
             try:
-                res_format = identify_or_check_input_kind(entry, relevant_kind)
+                res_format = relevant_reader.check_path_for_format_info(
+                    entry, hints_or_settings
+                )
+                # res_format = identify_or_check_input_kind(entry, relevant_kind)
+                if res_format is None:
+                    # logging.warning(f"For {entry}, the format was None")
+                    continue
                 kind_key = res_format.format_name
                 kind_matches.append((entry, res_format))
+                # logging.info(
+                #     f"Adding identified {relevant_kind}-style trajectory: {res_format}"
+                # )
             except Exception as e:
                 # Only consider if we hit something
                 logging.debug(
@@ -276,8 +303,15 @@ def read_folder_multi(
                 pass
 
         if len(kind_matches) > 0:
-            fitting_kinds.append(relevant_kind)
+            # We need to deal with the NewtonX aliases nx/newtonx
+            if kind_key not in fitting_kinds:
+                fitting_kinds.append(kind_key)
             matching_entries[kind_key] = kind_matches
+            logging.debug(
+                f"Found {len(fitting_kinds)} any appropriate matches for {relevant_kind}"
+            )
+        else:
+            logging.debug(f"Did not find any appropriate matches for {relevant_kind}")
 
     if len(fitting_kinds) == 0:
         message = f"Did not detect any matching subdirectories or files for any input format in {path}"
@@ -288,7 +322,7 @@ def read_folder_multi(
             return None
     elif len(fitting_kinds) > 1:
         available_formats = list(READERS.keys())
-        message = f"Detected subdirectories or files of different input formats in {path} with no input format specified. Detected formats are: {available_formats}. Please ensure only one format matches subdirectories in the path or denote a specific format out of {available_formats}."
+        message = f"Detected subdirectories or files of different input formats in {path} with no input format specified. Detected formats are: {fitting_kinds}. Please ensure only one format matches subdirectories in the path or denote a specific format out of {available_formats}."
         logging.error(message)
         if error_reporting == "raise":
             raise ValueError(message)
@@ -296,6 +330,7 @@ def read_folder_multi(
             return None
     else:
         fitting_kind = fitting_kinds[0]
+        logging.debug("Opting for input format: {fitting_kind}")
         fitting_paths = matching_entries[fitting_kind]
 
         fitting_reader = READERS[fitting_kind]
@@ -536,23 +571,26 @@ def gather_traj_metadata(datasets: Iterable[Trajectory], time_dim="time") -> np.
     Returns:
         np.ndarray: The resulting meta information
     """
+    # TODO: FIXME: Rewrite such that result is a dict of conflicting settings and another one of parameters in agreement.
+    # Only conflicting settings need to be indexed, others can be applied to full trajectory instead.
     # TODO: Potentially also collect atom number and other information that needs to match to be combined
-    traj_meta = np.zeros(
-        len(datasets),
-        dtype=[
-            ("trajid", "i4"),
-            ("delta_t", "f8"),
-            ("max_ts", "i4"),
-            ("completed", "?"),
-            ("nsteps", "i4"),
-        ],
-    )
+
+    num_datasets = len(datasets)
+    traj_meta = {
+        "trajid": np.full((num_datasets,), -1, dtype="i4"),
+        "delta_t": np.full((num_datasets,), np.nan, dtype="f8"),
+        "max_ts": np.full((num_datasets,), -1, dtype="i4"),
+        "t_max": np.full((num_datasets,), np.nan, dtype="f8"),
+        "completed": np.full((num_datasets,), False, dtype="?"),
+        "nsteps": np.full((num_datasets,), -1, dtype="i4"),
+    }
 
     # TODO: FIXME: Check for consistency of more of the units and attributes
     for i, ds in enumerate(datasets):
         traj_meta["trajid"][i] = ds.attrs.get("trajid", -1)
         traj_meta["delta_t"][i] = ds.attrs.get("delta_t", np.nan)
         traj_meta["max_ts"][i] = ds.attrs.get("max_ts", -1)
+        traj_meta["t_max"][i] = ds.attrs.get("t_max", np.nan)
         # TODO: FIXME: think about whether or not to default to False for completed parameter
         traj_meta["completed"][i] = ds.attrs.get("completed", False)
         traj_meta["nsteps"][i] = len(ds.indexes[time_dim])
@@ -633,18 +671,24 @@ def layer_trajs(datasets: Iterable[Trajectory]) -> Trajectory:
 
     meta = gather_traj_metadata(datasets)
 
-    trajids = pd.Index(meta["trajid"], name="trajid")
-    coords_trajids = xr.Coordinates(indexes={"trajid": trajids})
-    breakpoint()
+    trajids = meta["trajid"]
+
+    datasets = [ds.expand_dims(trajid=[id]) for ds, id in zip(datasets, trajids)]
+
+    # trajids = pd.Index(meta["trajid"], name="trajid")
+    # coords_trajids = xr.Coordinates(indexes={"trajid": trajids})
+    # breakpoint()
     # TODO: FIXME: Deal with issues arising from inconsisten meta information. E.g. ensure same number of atoms, consistent units, etc.
-    layers = xr.concat(datasets, dim=trajids, combine_attrs="drop_conflicts")
+    layers = xr.concat(datasets, dim="trajid", combine_attrs="drop_conflicts")
+
+    layers = layers.assign_coords(trajid=trajids)
 
     # TODO: FIXME: All units should be converted to same unit
     # TODO: FIXME: All inconsistent meta data/attr should be stored into a meta_data object or lead to an error
 
-    del meta["trajid"]
+    # del meta["trajid"]
     layers = layers.assign(
-        {k: xr.DataArray(v, coords_trajids) for k, v in meta.items()}
+        {k: xr.DataArray(v, dims=["trajid"]) for k, v in meta.items() if k != "trajid"}
     )
     if TYPE_CHECKING:
         assert isinstance(layers, xr.Dataset)

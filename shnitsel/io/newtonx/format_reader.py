@@ -96,6 +96,7 @@ class NewtonXFormatReader(FormatReader):
         if match_attempt:
             path_based_trajid = match_attempt.group("trajid")
             format_information.trajid = int(path_based_trajid)
+            logging.info(f"Assigning id {path_based_trajid} to trajectory")
 
         return format_information
 
