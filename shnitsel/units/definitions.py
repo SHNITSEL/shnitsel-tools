@@ -114,7 +114,7 @@ _length_unit_scales = _distance_unit_scales
 
 
 class dipole:
-    Debye = "Debye"
+    Debye = "debye"
     au = "au"
 
 
@@ -156,13 +156,13 @@ _amount_unit_scales = {"mol": si.mol, "1": 1}
 __codata_version__ = si.__codata_version__
 
 standard_shnitsel_units = {
-    unit_dimensions.length: "Bohr",
-    unit_dimensions.energy: "Hartree",
-    unit_dimensions.force: "Hartree/Bohr",
+    unit_dimensions.length: length.Bohr,
+    unit_dimensions.energy: energy.Hartree,
+    unit_dimensions.force: force.Hartree_per_Bohr,
     # TODO: FIXME: Check which default time unit is used in shnitsel
-    unit_dimensions.time: "fs",
+    unit_dimensions.time: time.femto_seconds,
     unit_dimensions.nacs: "1",
-    unit_dimensions.dipole: "debye",
+    unit_dimensions.dipole: dipole.Debye,
     # "dipole_trans": "1",
     unit_dimensions.soc: socs.au,
 }
