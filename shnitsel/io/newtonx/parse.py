@@ -316,7 +316,13 @@ def parse_nx_log_data(f: TextIOWrapper, dataset: xr.Dataset) -> int:
         elif stripline.startswith("Nonadiabatic coupling vectors"):
             # TODO: FIXME: Are we sure that all NACS are in identical order in all formats?
             for icomb in range(math.comb(nstates, 2)):
-                tmp_nacs[icomb] = [float(n) for n in next(f).strip().split()]
+                # Order is: V(from, to),iatom, dir
+                # Increase steps from rightmost dimension to leftmost.
+                # I.e. each line has x,y,z value.
+                # First natoms lines have the values for the different atoms in first state combination
+                # Each block of natoms represents successive state combinations
+                for iatom in range(natoms):
+                    tmp_nacs[icomb, iatom] = [float(n) for n in next(f).strip().split()]
 
         elif stripline.startswith("Energy ="):
             for istate in range(nstates):
