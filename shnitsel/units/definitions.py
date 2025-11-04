@@ -33,7 +33,7 @@ _time_unit_scales = {
     time.seconds: si.second,
     "seconds": si.second * 1e-12,
     # TODO: FIXME: set actual atomic time unit possibly:  si._aut
-    "au": np.nan,
+    time.au: si._aut,
     # ASE uses this time unit: Ang/sqrt(u/eV) which might differ slightly from 10fs
     time.ase_time_units: si.Angstrom / np.sqrt(si._amu / si.eV),
 }
@@ -301,11 +301,11 @@ standard_units_of_formats = {
     },
     # Below is tentative support for Pyrai2MD file reading
     "pyrai2md": {  # TODO: FIXME: Pyrai2MD parameters are quite uncertain based on their documentation
-        unit_dimensions.length: length.Bohr,
+        unit_dimensions.length: length.Angstrom,
         unit_dimensions.energy: energy.Hartree,
         unit_dimensions.force: force.Hartree_per_Bohr,
         # Ang/sqrt(u/eV) approx 10fs
-        unit_dimensions.time: "1",  # TODO: FIXME: check pyrai2md time scale
+        unit_dimensions.time: time.au,
         unit_dimensions.nacs: nacs.au,
         unit_dimensions.dipole: dipole.au,
         # "dipole_trans": dipole.au,
