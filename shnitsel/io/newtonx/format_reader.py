@@ -87,7 +87,7 @@ class NewtonXFormatReader(FormatReader):
                 raise FileNotFoundError(message)
 
         format_information = NewtonXFormatInformation(
-            "newtonx", "unkown", path_obj, nx_log_path, nx_positions_path
+            "newtonx", "unkown", None, path_obj, nx_log_path, nx_positions_path
         )
 
         # Try and extract a trajectory ID from the path name
@@ -150,12 +150,14 @@ class NewtonXFormatReader(FormatReader):
             raise FileNotFoundError(message)
 
         # If trajid has been extracted from the input path, set it
-        if format_info.trajid is not None:
-            loaded_dataset.attrs["trajid"] = format_info.trajid
-            logging.info(f"Assigning id {format_info.trajid} to trajectory")
+        if format_info is not None:
+            # If trajid has been extracted from the input path, set it
+            if format_info.trajid is not None:
+                loaded_dataset.attrs["trajid"] = format_info.trajid
 
-        loaded_dataset.attrs["trajectory_input_path"] = format_info.path.as_posix()
-
+            if format_info.path is not None and not "trajectory_input_path" in loaded_dataset.attrs:
+                loaded_dataset.attrs["trajectory_input_path"] = format_info.path.as_posix()
+                
         return Trajectory(loaded_dataset)
 
     def get_units_with_defaults(

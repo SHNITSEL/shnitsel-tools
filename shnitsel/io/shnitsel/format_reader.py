@@ -80,7 +80,7 @@ class ShnitselFormatReader(FormatReader):
                 logging.debug(message)
             raise FileNotFoundError(message)
 
-        return ShnitselFormatInformation("shnitsel", "0.1", path_obj)
+        return ShnitselFormatInformation("shnitsel", "0.1", None, path_obj)
 
     def read_from_path(
         self,
@@ -129,6 +129,10 @@ class ShnitselFormatReader(FormatReader):
             message = f"Attempt at reading shnitsel file from path `{path}` failed because of original error: {v_e}"
             logging.error(message)
             raise FileNotFoundError(message)
+        
+        if format_info is not None:
+            if format_info.path is not None and not "trajectory_input_path" in loaded_dataset.attrs:
+                loaded_dataset.attrs["trajectory_input_path"] = format_info.path.as_posix()
 
         return Trajectory(loaded_dataset)
 

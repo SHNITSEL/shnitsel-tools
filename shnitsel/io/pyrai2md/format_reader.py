@@ -97,7 +97,7 @@ class PyrAI2mdFormatReader(FormatReader):
         log_file_path = path_obj / log_paths[0]
 
         return PyrAI2mdFormatInformation(
-            "sharc", "unkown", path_obj, energy_file_path, log_file_path
+            "sharc", "unkown", None, path_obj, energy_file_path, log_file_path
         )
 
     def read_from_path(
@@ -149,12 +149,13 @@ class PyrAI2mdFormatReader(FormatReader):
             logging.error(message)
             raise FileNotFoundError(message)
 
-        # If trajid has been extracted from the input path, set it
-        if format_info.trajid is not None:
-            loaded_dataset.attrs["trajid"] = format_info.trajid
+        if format_info is not None:
+            # If trajid has been extracted from the input path, set it
+            if format_info.trajid is not None:
+                loaded_dataset.attrs["trajid"] = format_info.trajid
 
-        loaded_dataset.attrs["trajectory_input_path"] = format_info.path.as_posix()
-
+            if format_info.path is not None and not "trajectory_input_path" in loaded_dataset.attrs:
+                loaded_dataset.attrs["trajectory_input_path"] = format_info.path.as_posix()
         return Trajectory(loaded_dataset)
 
     def get_units_with_defaults(
