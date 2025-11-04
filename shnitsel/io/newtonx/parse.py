@@ -70,6 +70,16 @@ def parse_newtonx(
                 )
             }
         )
+        trajectory = trajectory.assign_coords(
+            {
+                "time": xr.DataArray(
+                    np.arange(0, settings.num_steps) * settings.delta_t,
+                    dims=["time"],
+                    name="time",
+                    attrs=default_attributes["astate"],
+                ),
+            }
+        )
 
         # trajectory = trajectory.assign_coords(time=("time", [0.0]))
 
@@ -293,7 +303,9 @@ def create_initial_dataset(
     return res_dataset
 
 
-def parse_nx_log_data(f: TextIOWrapper, dataset: xr.Dataset) -> int:
+def parse_nx_log_data(
+    f: TextIOWrapper, dataset: xr.Dataset
+) -> int:  # Tuple[int, xr.Dataset]:
     # f should be after the setting
 
     natoms = dataset.sizes["atom"]
@@ -309,6 +321,7 @@ def parse_nx_log_data(f: TextIOWrapper, dataset: xr.Dataset) -> int:
     time: float = 0
 
     tmp_astate = np.zeros((ntimesteps,))
+    tmp_times = np.zeros((ntimesteps,))
     tmp_forces = np.zeros((natoms, 3))
     tmp_energy = np.zeros((nstates,))
     tmp_nacs = np.zeros((nstatecomb, natoms, 3))
@@ -339,9 +352,9 @@ def parse_nx_log_data(f: TextIOWrapper, dataset: xr.Dataset) -> int:
             tmp_astate[ts] = int(stripline.split()[8])
 
             # Set step number and time for _the following_ time step
-            time = float(stripline.split()[4])
+            tmp_times[ts] = float(stripline.split()[4])
             # TODO: Why can't we take the time step denoted in the log?
-            ts = int(round(time / delta_t))
+            ts = int(round(tmp_times[ts] / delta_t))
             # logging.debug(f"{ts}=round({time}/{delta_t})")
 
             actual_max_ts = max(actual_max_ts, ts)
@@ -373,8 +386,9 @@ def parse_nx_log_data(f: TextIOWrapper, dataset: xr.Dataset) -> int:
     dataset.forces.values = tmp_full_forces
     dataset.energy.values = tmp_full_energy
     dataset.nacs.values = tmp_full_nacs
+    # dataset = dataset.assign_coords(time=tmp_times)
 
-    return actual_max_ts + 1
+    return actual_max_ts + 1  # , dataset
 
     # TODO: Are these units even correct?
     # return #xr.Dataset(
