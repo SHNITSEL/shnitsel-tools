@@ -317,7 +317,7 @@ def create_icond_dataset(
 
     template_default_values = {
         "energy": np.nan,
-        # "dip_all": np.nan,
+        "dip_all": np.nan,
         "dip_perm": np.nan,
         "dip_trans": np.nan,
         "forces": np.nan,
