@@ -294,17 +294,29 @@ def parse_nx_log_data(f: TextIOWrapper, dataset: xr.Dataset) -> int:
     natoms = dataset.sizes["atom"]
     nstates = dataset.sizes["state"]
     nstatecomb = dataset.sizes["statecomb"]
+    ntimesteps = dataset.sizes["time"]
 
     actual_max_ts: int = -1
+
+    delta_t = dataset.attrs["delta_t"]
 
     ts: int = 0
     time: float = 0
 
-    tmp_astate = None
+    tmp_astate = np.zeros((ntimesteps,))
     tmp_forces = np.zeros((natoms, 3))
     tmp_energy = np.zeros((nstates,))
     tmp_nacs = np.zeros((nstatecomb, natoms, 3))
+    tmp_full_forces = np.zeros((ntimesteps, natoms, 3))
+    tmp_full_energy = np.zeros(
+        (
+            ntimesteps,
+            nstates,
+        )
+    )
+    tmp_full_nacs = np.zeros((ntimesteps, nstatecomb, natoms, 3))
 
+    # See page 101, section 16.3 of newtonX documentation for order of output values.
     # parse actual data
     for line in f:
         stripline = line.strip()
@@ -319,18 +331,18 @@ def parse_nx_log_data(f: TextIOWrapper, dataset: xr.Dataset) -> int:
         # THIS MIGHT BE SOLVED WITH ABOVE TMP STORAGE AND ONLY WRITING UPON READING THE FINISHING LINE
         if stripline.startswith("FINISHING"):
             # Set active state for _current_ time step
-            tmp_astate = int(stripline.split()[8])
+            tmp_astate[ts] = int(stripline.split()[8])
 
             # Set step number and time for _the following_ time step
-            time = float(stripline.split()[4]) + dataset.attrs["delta_t"]
+            time = float(stripline.split()[4])
             # TODO: Why can't we take the time step denoted in the log?
-            ts = int(time / dataset.attrs["delta_t"])
+            ts = int(round(time / delta_t))
+            logging.debug(f"{ts}=round({time}/{delta_t})")
 
             actual_max_ts = max(actual_max_ts, ts)
-            dataset.astate[ts] = tmp_astate
-            dataset.forces[ts] = tmp_forces
-            dataset.energy[ts] = tmp_energy
-            dataset.nacs[ts] = tmp_nacs
+            tmp_full_forces[ts] = tmp_forces
+            tmp_full_energy[ts] = tmp_energy
+            tmp_full_nacs[ts] = tmp_nacs
             logging.debug(f"finished ts {ts - 1}")
 
         elif stripline.startswith("Gradient vectors"):
@@ -351,6 +363,11 @@ def parse_nx_log_data(f: TextIOWrapper, dataset: xr.Dataset) -> int:
         elif stripline.startswith("Energy ="):
             for istate in range(nstates):
                 tmp_energy[istate] = float(next(f).strip())
+
+    dataset.assign_coords(astate=tmp_astate)
+    dataset.forces.values = tmp_full_forces
+    dataset.energy.values = tmp_full_energy
+    dataset.nacs.values = tmp_full_nacs
 
     return actual_max_ts + 1
 
