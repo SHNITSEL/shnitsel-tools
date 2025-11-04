@@ -337,7 +337,7 @@ def parse_nx_log_data(f: TextIOWrapper, dataset: xr.Dataset) -> int:
             time = float(stripline.split()[4])
             # TODO: Why can't we take the time step denoted in the log?
             ts = int(round(time / delta_t))
-            logging.debug(f"{ts}=round({time}/{delta_t})")
+            # logging.debug(f"{ts}=round({time}/{delta_t})")
 
             actual_max_ts = max(actual_max_ts, ts)
             tmp_full_forces[ts] = tmp_forces
