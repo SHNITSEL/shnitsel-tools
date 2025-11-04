@@ -12,11 +12,22 @@ from shnitsel.io.newtonx.format_reader import NewtonXFormatReader
 class TestNewtonX:
     """Class to test functionality related to NewtonX file format"""
 
+    asserted_properties_in_trajectory = [
+        "energy",
+        "forces",
+        "atXYZ",
+        "state_types",
+        "nacs",
+        "astate",
+        "atNums",
+        "atNames",
+    ]
+
     def test_nx_direct_R02(self):
         # parse trajectory data from Newton-X output files
         traj_frames_chd = parse_newtonx("tutorials/test_data/newtonx/test_R02/TRAJ1/")
         assert verify_trajectory_format(
-            traj_frames_chd
+            traj_frames_chd, self.asserted_properties_in_trajectory
         ), f"Resulting trajectory from NewtonX trajectory does not satisfy the Shnitsel standard format"
 
     def test_nx_FormatDetection_R02(self):
@@ -35,14 +46,14 @@ class TestNewtonX:
             "tutorials/test_data/newtonx/test_R02/TRAJ1/"
         )
         assert verify_trajectory_format(
-            traj_frames_chd
+            traj_frames_chd, self.asserted_properties_in_trajectory
         ), f"Resulting trajectory from NewtonX trajectory does not satisfy the Shnitsel standard format"
 
     def test_nx_general_wrapper_with_kind_R02_multiple(self):
         # parse multiple trajectory datasets from Newton-X output directories
         traj_frames_chd = read("tutorials/test_data/newtonx/test_R02/", kind="newtonx")
         assert verify_trajectory_format(
-            traj_frames_chd
+            traj_frames_chd, self.asserted_properties_in_trajectory
         ), f"Resulting trajectory from NewtonX trajectory does not satisfy the Shnitsel standard format"
 
     def test_nx_general_wrapper_with_kind_R02_single(self):
@@ -51,12 +62,12 @@ class TestNewtonX:
             "tutorials/test_data/newtonx/test_R02/TRAJ1", kind="newtonx"
         )
         assert verify_trajectory_format(
-            traj_frames_chd
+            traj_frames_chd, self.asserted_properties_in_trajectory
         ), f"Resulting trajectory from NewtonX trajectory does not satisfy the Shnitsel standard format"
 
     def test_nx_detected_R02(self):
         # parse trajectory data from Newton-X output files
         traj_frames_chd = read("tutorials/test_data/newtonx/test_R02/", kind=None)
         assert verify_trajectory_format(
-            traj_frames_chd
+            traj_frames_chd, self.asserted_properties_in_trajectory
         ), f"Resulting trajectory from NewtonX trajectory does not satisfy the Shnitsel standard format"
