@@ -277,9 +277,9 @@ def parse_nx_log_data(f: TextIOWrapper, dataset: xr.Dataset) -> int:
     time: float = 0
 
     tmp_astate = None
-    tmp_forces = np.zeros((natoms,))
+    tmp_forces = np.zeros((natoms, 3))
     tmp_energy = np.zeros((nstates,))
-    tmp_nacs = np.zeros((nstatecomb,))
+    tmp_nacs = np.zeros((nstatecomb, natoms, 3))
 
     # parse actual data
     for line in f:
