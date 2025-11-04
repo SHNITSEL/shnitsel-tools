@@ -7,8 +7,12 @@ from shnitsel.units import standard_shnitsel_units
 from shnitsel.units.definitions import unit_dimensions
 
 
-def verify_trajectory_format(obj: Any) -> bool:
-    return is_permitted_traj_result(obj) and has_required_properties(obj)
+def verify_trajectory_format(
+    obj: Any, asserted_properties: List[str] | None = None
+) -> bool:
+    return is_permitted_traj_result(obj) and has_required_properties(
+        obj, asserted_properties
+    )
 
 
 def is_permitted_traj_result(obj: Any) -> bool:
@@ -25,7 +29,9 @@ def is_permitted_traj_result(obj: Any) -> bool:
     return type_check_result
 
 
-def has_required_properties(traj: List[Trajectory] | Trajectory) -> bool:
+def has_required_properties(
+    traj: List[Trajectory] | Trajectory, asserted_properties: List[str] | None = None
+) -> bool:
     res = True
     if isinstance(traj, list):
         for i_traj in traj:
@@ -46,20 +52,28 @@ def has_required_properties(traj: List[Trajectory] | Trajectory) -> bool:
             "time": {"unit": standard_shnitsel_units[unit_dimensions.time]},
         }
 
+        available_keys = list(traj.variables.keys())
+
+        if asserted_properties is not None:
+            for prop in asserted_properties:
+                assert (
+                    prop in traj.variables.keys() or prop in traj.coords.keys()
+                ), f"Asserted property {prop} of format is missing in resulting trajectory. Only has: {available_keys}"
+
         for prop in check_prop_units:
-            available_keys = list(traj.variables.keys())
-            assert (
-                prop in traj.variables.keys() or prop in traj.coords.keys()
-            ), f"Property {prop} is missing in resulting trajectory.Only has: {available_keys}"
-            if "unit" in check_prop_units[prop]:
+            if asserted_properties is not None and prop in asserted_properties:
                 assert (
-                    "units" in traj[prop].attrs
-                ), f"Property {prop} has no unit set in resulting trajectory"
-                required_unit = check_prop_units[prop]["unit"]
-                actual_unit = traj[prop].attrs["units"]
-                assert (
-                    actual_unit == required_unit
-                ), f"Property {prop} has unit {actual_unit} instead of required unit {required_unit}"
+                    prop in traj.variables.keys() or prop in traj.coords.keys()
+                ), f"Property {prop} is missing in resulting trajectory. Only has: {available_keys}"
+                if "unit" in check_prop_units[prop]:
+                    assert (
+                        "units" in traj[prop].attrs
+                    ), f"Property {prop} has no unit set in resulting trajectory"
+                    required_unit = check_prop_units[prop]["unit"]
+                    actual_unit = traj[prop].attrs["units"]
+                    assert (
+                        actual_unit == required_unit
+                    ), f"Property {prop} has unit {actual_unit} instead of required unit {required_unit}"
 
         for var in traj:
             if "unitdim" in traj[var].attrs:
