@@ -39,13 +39,37 @@ def parse_newtonx(
             settings.num_states, settings.num_atoms, loading_parameters
         )
 
+        default_attributes = get_default_input_attributes("newtonx", loading_parameters)
         # Add time dimension
+
+        isolated_keys = [
+            "atNames",
+            "atNums",
+            "state",
+            "statecomb",
+            "state_names",
+            "state_types",
+        ]
+
+        trajectory = trajectory.set_coords(isolated_keys)
+
         trajectory = trajectory.expand_dims({"time": settings.num_steps}, axis=0)
         trajectory.attrs["delta_t"] = settings.delta_t
         # TODO: FIXME: Make sure this is actually a common naming scheme
         trajectory.attrs["real_tmax"] = settings.t_max
         trajectory.attrs["max_ts"] = settings.num_steps
         trajectory.attrs["completed"] = settings.completed
+        # Create "active state" variable
+        trajectory = trajectory.assign(
+            {
+                "astate": xr.DataArray(
+                    np.zeros((settings.num_steps)),
+                    dims=["time"],
+                    name="astate",
+                    attrs=default_attributes["astate"],
+                )
+            }
+        )
 
         # trajectory = trajectory.assign_coords(time=("time", [0.0]))
 
@@ -79,8 +103,6 @@ def parse_newtonx(
     trajectory.atNames.values = atNames
     trajectory.atNums.values = atNums
     trajectory.atXYZ.values = atXYZ
-
-    default_attributes = get_default_input_attributes("newtonx", loading_parameters)
 
     trajectory["time"].attrs.update(default_attributes[str("time")])
     return convert_all_units_to_shnitsel_defaults(trajectory)
