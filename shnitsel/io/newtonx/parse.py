@@ -191,9 +191,10 @@ def create_initial_dataset(
     """
     template = {
         "energy": ["state"],
+        # NOTE: No dipoles in NewtonX output per default.
         # "dip_all": ["state", "state2", "direction"],
-        "dip_perm": ["state", "direction"],
-        "dip_trans": ["statecomb", "direction"],
+        # "dip_perm": ["state", "direction"],
+        # "dip_trans": ["statecomb", "direction"],
         # Has only active state forces
         "forces": ["atom", "direction"],  # ["state", "atom", "direction"],
         # 'has_forces': ['placeholder'],
@@ -210,8 +211,8 @@ def create_initial_dataset(
     template_default_values = {
         "energy": np.nan,
         # "dip_all": np.nan,
-        "dip_perm": np.nan,
-        "dip_trans": np.nan,
+        # "dip_perm": np.nan,
+        # "dip_trans": np.nan,
         "forces": np.nan,
         "phases": np.nan,
         "nacs": np.nan,
@@ -237,7 +238,7 @@ def create_initial_dataset(
 
     dim_lengths = {
         "state": nstates,
-        "state2": nstates,
+        # "state2": nstates,
         "atom": natoms,
         "direction": 3,
         "statecomb": math.comb(nstates, 2),
@@ -245,7 +246,7 @@ def create_initial_dataset(
 
     coords: dict | xr.Dataset = {
         "state": (states := np.arange(1, nstates + 1)),
-        "state2": states,
+        # "state2": states,
         "atom": np.arange(natoms),
         "direction": ["x", "y", "z"],
     }
