@@ -184,7 +184,8 @@ def create_initial_dataset(
         # "dip_all": ["state", "state2", "direction"],
         "dip_perm": ["state", "direction"],
         "dip_trans": ["statecomb", "direction"],
-        "forces": ["state", "atom", "direction"],
+        # Has only active state forces
+        "forces": ["atom", "direction"],  # ["state", "atom", "direction"],
         # 'has_forces': ['placeholder'],
         # 'has_forces': [],
         "phases": ["state"],
@@ -282,6 +283,7 @@ def create_initial_dataset(
 
     res_dataset.attrs["input_format"] = "newtonx"
     res_dataset.attrs["input_type"] = "dynamic"
+    res_dataset.attrs["has_forces"] = "active_only"
 
     return res_dataset
 
