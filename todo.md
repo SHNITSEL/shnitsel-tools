@@ -18,3 +18,5 @@ We are currently suffering from missing input files for tests:
 - Check whether each format actually sets all of the variables currently defined. 
 - - Unset variables not assigned by the routine.
 - Check whether NACS are actually available for different formats and what units they have: unit_dimensions.nacs: "1", # TODO: FIXME: NACS in molcas: 1/Bohr, SHARC liest 1/Bohr
+- Read settings from output.dat in SHARC directories instead of output.log
+
