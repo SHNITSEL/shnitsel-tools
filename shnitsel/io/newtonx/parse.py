@@ -67,7 +67,7 @@ def parse_newtonx(
     # nsteps = single_traj.sizes['ts']
 
     with open(os.path.join(traj_path, "RESULTS", "dyn.xyz")) as f:
-        atNames, atNums, atXYZ = parse_xyz(f, trajectory)
+        atNames, atNums, atXYZ = parse_xyz(f)
 
     # if (
     #     not single_traj.attrs["completed"]
