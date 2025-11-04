@@ -285,6 +285,11 @@ def create_initial_dataset(
     res_dataset.attrs["input_type"] = "dynamic"
     res_dataset.attrs["has_forces"] = "active_only"
 
+    # TODO: FIXME: No dipoles read?
+    logging.error(
+        "Attention: NewtonX parsing currently does not read dipole information"
+    )
+
     return res_dataset
 
 
