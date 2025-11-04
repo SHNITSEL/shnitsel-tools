@@ -300,7 +300,7 @@ def create_icond_dataset(
     """
     template = {
         "energy": ["state"],
-        # "dip_all": ["state", "state2", "direction"],
+        "dip_all": ["state", "state2", "direction"],
         "dip_perm": ["state", "direction"],
         "dip_trans": ["statecomb", "direction"],
         "forces": ["state", "atom", "direction"],
