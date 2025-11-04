@@ -97,7 +97,7 @@ class PyrAI2mdFormatReader(FormatReader):
         log_file_path = path_obj / log_paths[0]
 
         return PyrAI2mdFormatInformation(
-            "sharc", "unkown", None, path_obj, energy_file_path, log_file_path
+            "pyrai2md", "unkown", None, path_obj, energy_file_path, log_file_path
         )
 
     def read_from_path(
