@@ -56,7 +56,7 @@ def parse_newtonx(
         trajectory = trajectory.expand_dims({"time": settings.num_steps}, axis=0)
         trajectory.attrs["delta_t"] = settings.delta_t
         # TODO: FIXME: Make sure this is actually a common naming scheme
-        trajectory.attrs["real_tmax"] = settings.t_max
+        trajectory.attrs["t_max"] = settings.t_max
         trajectory.attrs["max_ts"] = settings.num_steps
         trajectory.attrs["completed"] = settings.completed
         # Create "active state" variable
