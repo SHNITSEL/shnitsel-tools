@@ -163,7 +163,7 @@ standard_shnitsel_units = {
     unit_dimensions.force: force.Hartree_per_Bohr,
     # TODO: FIXME: Check which default time unit is used in shnitsel
     unit_dimensions.time: time.femto_seconds,
-    unit_dimensions.nacs: "1",
+    unit_dimensions.nacs: "1", # TODO: FIXME: NACS in molcas: 1/Bohr, SHARC liest 1/Bohr
     unit_dimensions.dipole: dipole.Debye,
     # "dipole_trans": "1",
     unit_dimensions.soc: socs.au,
@@ -270,7 +270,7 @@ standard_units_of_formats = {
         unit_dimensions.length: length.Bohr,
         unit_dimensions.energy: energy.Hartree,
         unit_dimensions.force: force.Hartree_per_Bohr,
-        unit_dimensions.time: time.femto_seconds,  # TODO: Confirm default time unit
+        unit_dimensions.time: time.au,  # TODO: Confirm default time unit
         unit_dimensions.nacs: nacs.au,
         unit_dimensions.dipole: dipole.au,
         # "dipole_trans": dipole.au,
