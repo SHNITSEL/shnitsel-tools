@@ -589,7 +589,7 @@ def check_matching_dimensions(
     return res_matching
 
 
-def compare_dicts_or_values(
+def compare_dicts_of_values(
     curr_root_a: Any, curr_root_b: Any, base_key: List[str] = []
 ) -> Tuple[List[List[str]] | None, List[List[str]] | None]:
     """Compare two dicts and return the lists of matching and non-matching recursive keys.
@@ -623,7 +623,7 @@ def compare_dicts_or_values(
             for key in shared_keys:
                 new_base = base_key + [key]
 
-                res_matching, res_non_matching = compare_dicts_or_values(
+                res_matching, res_non_matching = compare_dicts_of_values(
                     curr_root_a[key], curr_root_b[key], new_base
                 )
 
@@ -668,7 +668,7 @@ def check_matching_var_meta(
     is_equal = True
 
     for i in range(len(datasets) - 1):
-        _matching, distinct_keys = compare_dicts_or_values(
+        _matching, distinct_keys = compare_dicts_of_values(
             collected_meta[i], collected_meta[i + 1]
         )
         if distinct_keys is not None and len(distinct_keys) > 0:
