@@ -128,10 +128,12 @@ _dipole_unit_scales = {
 
 class nacs:
     # TODO: FIXME: Figure out nacs units
+    one_per_Bohr = "one_per_Bohr"
     au = "au"
 
 
 _nacs_unit_scales = {
+    dipole.one_per_Bohr: 1.0,
     dipole.au: 1.0,
 }
 
