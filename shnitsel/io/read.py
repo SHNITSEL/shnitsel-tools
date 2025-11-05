@@ -128,7 +128,8 @@ def read(
         logging.error(
             "Reading trajectories with `parallel=True` only supports `errors='log'` (the default)"
         )
-        raise ValueError("parallel=True only supports errors='log' (the default)")
+        raise ValueError(
+            "parallel=True only supports errors='log' (the default)")
 
     loading_parameters = LoadingParameters(
         input_units=input_units,
@@ -197,7 +198,8 @@ def read(
 
     if combined_error is not None:
         message += (
-            f"\nEncountered (multipe) error(s) trying to load:\n" + combined_error
+            f"\nEncountered (multipe) error(s) trying to load:\n" +
+            combined_error
         )
 
     if error_reporting == "log":
@@ -266,7 +268,8 @@ def read_folder_multi(
         if sub_pattern is not None:
             filter_matches = list(path_obj.glob(sub_pattern))
         else:
-            filter_matches = relevant_reader.find_candidates_in_directory(path_obj)
+            filter_matches = relevant_reader.find_candidates_in_directory(
+                path_obj)
 
         if filter_matches is None:
             logging.debug(f"No matches for format {relevant_kind}")
@@ -313,7 +316,8 @@ def read_folder_multi(
                 f"Found {len(fitting_kinds)} any appropriate matches for {relevant_kind}"
             )
         else:
-            logging.debug(f"Did not find any appropriate matches for {relevant_kind}")
+            logging.debug(
+                f"Did not find any appropriate matches for {relevant_kind}")
 
     if len(fitting_kinds) == 0:
         message = f"Did not detect any matching subdirectories or files for any input format in {path}"
@@ -370,7 +374,8 @@ def read_folder_multi(
                 if result is not None and result.data is not None:
                     res_trajectories.append(result.data)
                 else:
-                    logging.debug(f"Failed to read trajectory from {params[1]}.")
+                    logging.debug(
+                        f"Failed to read trajectory from {params[1]}.")
 
         # TODO: FIXME: Check if trajid is actually set?
         res_trajectories.sort(
@@ -540,7 +545,8 @@ def _per_traj(
     """
 
     try:
-        ds = reader.read_from_path(trajdir, format_info, base_loading_parameters)
+        ds = reader.read_from_path(
+            trajdir, format_info, base_loading_parameters)
         if not ds.attrs["completed"]:
             logging.info(f"Trajectory at path {trajdir} did not complete")
 
@@ -564,6 +570,19 @@ def _per_traj(
 def check_matching_dimensions(
     datasets: Iterable[Trajectory], excluded_dimensions: Set[str] = set()
 ) -> bool:
+    """Function to check whether all dimensions are equally sized.
+
+    Excluded dimensions can be provided as a set of strings.
+
+    Args:
+        datasets (Iterable[Trajectory]): The series of datasets to be checked for equal dimensions
+        excluded_dimensions (Set[str], optional): The set of dimension names to be excluded from the comparison. Defaults to set().
+
+    Returns:
+        bool: True if all non-excluded dimensions match in size. False otherwise.
+    """
+
+    # TODO: FIXME: Should we check that the values are also the same?
 
     res_matching = True
     matching_dims = {}
@@ -584,7 +603,8 @@ def check_matching_dimensions(
                     distinct_dims.append(dim)
         is_first = False
 
-    logging.info(f"Found discrepancies in the following dimensions: {distinct_dims}")
+    logging.info(
+        f"Found discrepancies in the following dimensions: {distinct_dims}")
 
     return res_matching
 
@@ -648,7 +668,7 @@ def check_matching_var_meta(
 
     We do not want to merge trajectories with different metadata on variables.
 
-    TODO: FIXME: Allow for variables being denoted that we do not care for.
+    TODO: Allow for variables being denoted that we do not care for.
 
     Args:
         datasets (List[Trajectory]): The trajectories to compare the variable metadata for.
@@ -678,7 +698,7 @@ def check_matching_var_meta(
     return is_equal
 
 
-def merge_traj_metadata(datasets: List[Trajectory]) -> Tuple[Dict[str, Any],Dict[str, np.ndarray]]:
+def merge_traj_metadata(datasets: List[Trajectory]) -> Tuple[Dict[str, Any], Dict[str, np.ndarray]]:
     """Function to gather metadate from a set of trajectories.
 
     Used to combine trajectories into one aggregate Dataset.
@@ -706,26 +726,50 @@ def merge_traj_metadata(datasets: List[Trajectory]) -> Tuple[Dict[str, Any],Dict
         "nsteps": np.full((num_datasets,), -1, dtype="i4"),
     }
 
-    all_keys = set()
+    # Assert the existence of a trajectory id for each trajectory.
+    all_keys = set("trajid")
 
     for ds in datasets:
         all_keys.add(ds.attrs.keys())
-    
+
+    all_meta = {}
+    for key in all_keys:
+        kept_array = None
+        if key in traj_meta_distinct_defaults:
+            kept_array = traj_meta_distinct_defaults[key]
+        else:
+            kept_array = np.full((num_datasets,), None, dtype=object)
+
+        for i, ds in enumerate(datasets):
+            if key in ds.attrs:
+                kept_array[i] = ds.attrs[key]
+
+        all_meta[key] = kept_array
+
+    keep_distinct = ["trajid", "delta_t", "max_ts", "t_max", "completed"]
 
     for key in all_keys:
-        if key in traj_meta_distinct_defaults
+        if key in keep_distinct:
+            # We treat some specific values different
+            distinct_meta[key] = all_meta[key]
+        else:
+            set_of_vals = set(all_meta[key])
 
+            # If there are distinct meta values, we assign the values all to the distinct set. Otherwise, we only keep the one as shared.
+            if len(set_of_vals) > 1:
+                distinct_meta[key] = all_meta[key]
+            else:
+                shared_meta[key] = set_of_vals.pop()
 
+    # Add missing trajectory ids:
+    used_trajectory_ids = set(distinct_meta["trajid"])
+    next_candidate_id = 0
 
-    # TODO: FIXME: Check for consistency of more of the units and attributes
-    for i, ds in enumerate(datasets):
-        traj_meta["trajid"][i] = ds.attrs.get("trajid", -1)
-        traj_meta["delta_t"][i] = ds.attrs.get("delta_t", np.nan)
-        traj_meta["max_ts"][i] = ds.attrs.get("max_ts", -1)
-        traj_meta["t_max"][i] = ds.attrs.get("t_max", np.nan)
-        # TODO: FIXME: think about whether or not to default to False for completed parameter
-        traj_meta["completed"][i] = ds.attrs.get("completed", False)
-        traj_meta["nsteps"][i] = len(ds.indexes[time_dim])
+    for i in range(num_datasets):
+        if distinct_meta["trajid"][i] < 0 or distinct_meta["trajid"][i] is None:
+            while next_candidate_id in used_trajectory_ids:
+                next_candidate_id += 1
+            distinct_meta["trajid"][i] = next_candidate_id
 
     return shared_meta, distinct_meta
 
@@ -753,43 +797,50 @@ def concat_trajs(datasets: Iterable[Trajectory]) -> Trajectory:
 
     if len(datasets) == 0:
         raise ValueError("No trajectories were provided.")
-    
+
+    # Check that all dimensions match. May want to check the values match as well?
     if not check_matching_dimensions(datasets, set("time")):
-        message= "Dimensions of the provided data vary."
-        logging.warning(f"{message} Merge result may be inconsistent")
+        message = "Dimensions of the provided data vary."
+        logging.warning(
+            f"{message} Merge result may be inconsistent. Please ensure you only merge consistent trajectories.")
+        # TODO: Do we want to merge anyway?
         raise ValueError(f"{message} Will not merge.")
-    
+
+    # All units should be converted to same unit
     if not check_matching_var_meta(datasets):
-        message= "Variable meta attributes vary between different tajectories. " \
-        "This indicates inconsitencies like distinct units between trajectories. " \
-        "Please ensure consistency between datasets."
-        logging.warning(f"{message} Merge result may be inconsistent")
+        message = "Variable meta attributes vary between different tajectories. " \
+            "This indicates inconsitencies like distinct units between trajectories. " \
+            "Please ensure consistency between datasets before merging."
+        logging.warning(f"{message} Merge result may be inconsistent.")
+        # TODO: Do we want to merge anyway?
         raise ValueError(f"{message} Will not merge.")
 
-    if all("time" in ds.coords for ds in datasets):
-        # We ensure time is always called time when loading
-        time_dim = "time"
-    else:
-        raise ValueError("Some trajectories do not have a 'time' coordinate.")
+    # trajid set by merge_traj_metadata
+    consistent_metadata, distinct_metadata = merge_traj_metadata(
+        datasets)
 
-    # TODO: Deal with trajid not being set yet
     datasets = [
-        ds.expand_dims(trajid=[ds.attrs["trajid"]]).stack(frame=["trajid", time_dim])
-        for ds in datasets
+        ds.expand_dims(trajid=[distinct_metadata["trajid"][i]]).stack(
+            frame=["trajid", "time"])
+        for i, ds in enumerate(datasets)
     ]
-    consistent_metadata, distinct_metadata = merge_traj_metadata(datasets, time_dim=time_dim)
 
-    # TODO: FIXME: Deal with issues arising from inconsisten meta information. E.g. ensure same number of atoms, consistent units, etc.
+    # TODO: Check if the order of datasets stays the same. Otherwise distinct attributes may not be appropriately sorted.
     frames = xr.concat(datasets, dim="frame", combine_attrs="drop_conflicts")
-    frames = frames.assign_coords(trajid_=traj_meta["trajid"])
-    # TODO: FIXME: Consider the naming convention of trajid and trajid_ being somewhat confusing
-    frames = frames.assign(
-        delta_t=("trajid_", traj_meta["delta_t"]),
-        max_ts=("trajid_", traj_meta["max_ts"]),
-        completed=("trajid_", traj_meta["completed"]),
-        nsteps=("trajid_", traj_meta["nsteps"]),
-    )
+    # frames = frames.assign_coords(trajid_=traj_meta["trajid"])
+    # TODO: I Consider the naming convention of trajid and trajid_ being somewhat confusing
+    # frames = frames.assign(
+    #    delta_t=("trajid", traj_meta["delta_t"]),
+    #    max_ts=("trajid", traj_meta["max_ts"]),
+    #    completed=("trajid", traj_meta["completed"]),
+    #    nsteps=("trajid", traj_meta["nsteps"]),
+    # )
 
+    # Set merged metadata
+    frames.attrs.update(consistent_metadata)
+    frames.attrs.update(distinct_metadata)
+
+    # Envelop in the wrapper proxy
     frames = Trajectory(frames)
 
     if TYPE_CHECKING:
@@ -815,27 +866,54 @@ def layer_trajs(datasets: Iterable[Trajectory]) -> Trajectory:
         xr.Dataset: The combined and extended trajectory with a new leading `trajid` dimension
     """
 
-    meta_matching, meta_distinct = merge_traj_metadata(datasets)
+    datasets = list(datasets)
 
-    trajids = meta["trajid"]
+    if len(datasets) == 0:
+        raise ValueError("No trajectories were provided.")
 
-    datasets = [ds.expand_dims(trajid=[id]) for ds, id in zip(datasets, trajids)]
+    if not check_matching_dimensions(datasets, set("time")):
+        message = "Dimensions of the provided data vary."
+        logging.warning(
+            f"{message} Merge result may be inconsistent. Please ensure you only merge consistent trajectories.")
+        # TODO: Do we want to merge anyway?
+        raise ValueError(f"{message} Will not merge.")
+
+    # All units should be converted to same unit
+    if not check_matching_var_meta(datasets):
+        message = "Variable meta attributes vary between different tajectories. " \
+            "This indicates inconsitencies like distinct units between trajectories. " \
+            "Please ensure consistency between datasets before merging."
+        logging.warning(f"{message} Merge result may be inconsistent.")
+        # TODO: Do we want to merge anyway?
+        raise ValueError(f"{message} Will not merge.")
+
+    consistent_metadata, distinct_metadata = merge_traj_metadata(
+        datasets)
+
+    trajids = distinct_metadata["trajid"]
+
+    datasets = [ds.expand_dims(trajid=[id])
+                for ds, id in zip(datasets, trajids)]
 
     # trajids = pd.Index(meta["trajid"], name="trajid")
     # coords_trajids = xr.Coordinates(indexes={"trajid": trajids})
     # breakpoint()
-    # TODO: FIXME: Deal with issues arising from inconsisten meta information. E.g. ensure same number of atoms, consistent units, etc.
     layers = xr.concat(datasets, dim="trajid", combine_attrs="drop_conflicts")
 
-    layers = layers.assign_coords(trajid=trajids)
-
-    # TODO: FIXME: All units should be converted to same unit
-    # TODO: FIXME: All inconsistent meta data/attr should be stored into a meta_data object or lead to an error
+    # layers = layers.assign_coords(trajid=trajids)
 
     # del meta["trajid"]
-    layers = layers.assign(
-        {k: xr.DataArray(v, dims=["trajid"]) for k, v in meta.items() if k != "trajid"}
-    )
+    # layers = layers.assign(
+    #    {k: xr.DataArray(v, dims=["trajid"])
+    #     for k, v in meta.items() if k != "trajid"}
+    # )
+    layers.attrs.update(consistent_metadata)
+
+    # NOTE: All inconsistent meta data/attr should be stored into a meta_data object
+    layers.attrs.update(distinct_metadata)
+
+    layers = Trajectory(layers)
     if TYPE_CHECKING:
-        assert isinstance(layers, xr.Dataset)
-    return Trajectory(layers)
+        assert isinstance(layers, Trajectory)
+
+    return layers
