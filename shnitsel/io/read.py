@@ -846,6 +846,8 @@ def concat_trajs(datasets: Iterable[Trajectory]) -> Trajectory:
     if TYPE_CHECKING:
         assert isinstance(frames, Trajectory)
 
+    frames.attrs["is_multi_trajectory"] = True
+
     return frames
 
 
@@ -911,6 +913,8 @@ def layer_trajs(datasets: Iterable[Trajectory]) -> Trajectory:
 
     # NOTE: All inconsistent meta data/attr should be stored into a meta_data object
     layers.attrs.update(distinct_metadata)
+
+    layers.attrs["is_multi_trajectory"] = True
 
     layers = Trajectory(layers)
     if TYPE_CHECKING:
