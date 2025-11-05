@@ -6,6 +6,7 @@ import xarray as xr
 from shnitsel.units import standard_shnitsel_units
 from shnitsel.units.definitions import unit_dimensions
 
+# TODO: FIXME: Some attributes are turned into variables on merged trajectories.
 _required_shnitsel_variables = ["energy", "forces", "time"]
 _optional_shnitsel_variables = ["atXYZ", "nacs", "dip_perm", "dip_trans", "socs", "state_names",
                                 "state_types", "states", "astate", "sdiag", "state2", "statecomb", "phases", "atNames", "atNums", "e_kin", "from", "to", "atom", "state", "direction"]
