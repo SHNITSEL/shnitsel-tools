@@ -6,11 +6,11 @@ import xarray as xr
 from shnitsel.units import standard_shnitsel_units
 from shnitsel.units.definitions import unit_dimensions
 
-
-_required_shnitsel_variables = []
-_optional_shnitsel_variables = []
-_required_shnitsel_attributes = []
-_optional_shnitsel_attributes = []
+_required_shnitsel_variables = ["energy", "forces", "time"]
+_optional_shnitsel_variables = ["atXYZ", "nacs", "dip_perm", "dip_trans", "socs", "state_names",
+                                "state_types", "states", "astate", "sdiag", "state2", "statecomb", "phases", "atNames", "atNums", "e_kin", "from", "to", "atom", "state", "direction"]
+_required_shnitsel_attributes = ["input_format", "input_type", "completed", "max_ts", "delta_t", "num_singlets", "num_doublets", "num_triplets", "t_max"]
+_optional_shnitsel_attributes = ["has_forces", "trajectory_input_path", "trajid", "__original_dataset"]
 
 
 def check_shnitsel_trajectory_data(trajectory: Trajectory | xr.Dataset, report: bool = False) -> Tuple[Set[str], Set[str], Set[str], Set[str]] | None:
@@ -100,6 +100,7 @@ def has_required_properties(
 
         print(traj.variables.keys())
         print(traj["atXYZ"].attrs.keys())
+        assert check_shnitsel_trajectory_data(traj, report=True) is None
 
         check_prop_units = {
             "atXYZ": {"unit": standard_shnitsel_units[unit_dimensions.length]},
