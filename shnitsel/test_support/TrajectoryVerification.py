@@ -11,7 +11,7 @@ _required_shnitsel_variables = ["energy", "forces", "time"]
 _optional_shnitsel_variables = ["atXYZ", "nacs", "dip_perm", "dip_trans", "socs", "state_names",
                                 "state_types", "states", "astate", "sdiag", "state2", "statecomb", "phases", "atNames", "atNums", "e_kin", "from", "to", "atom", "state", "direction"]
 _required_shnitsel_attributes = ["input_format", "input_type", "completed", "max_ts", "delta_t", "num_singlets", "num_doublets", "num_triplets", "t_max"]
-_optional_shnitsel_attributes = ["has_forces", "trajectory_input_path", "trajid", "__original_dataset"]
+_optional_shnitsel_attributes = ["has_forces", "trajectory_input_path", "trajid", "__original_dataset", "is_multi_trajectory"]
 
 
 def check_shnitsel_trajectory_data(trajectory: Trajectory | xr.Dataset, report: bool = False) -> Tuple[Set[str], Set[str], Set[str], Set[str]] | None:
