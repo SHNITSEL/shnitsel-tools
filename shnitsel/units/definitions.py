@@ -133,8 +133,8 @@ class nacs:
 
 
 _nacs_unit_scales = {
-    dipole.one_per_Bohr: 1.0,
-    dipole.au: 1.0,
+    nacs.one_per_Bohr: 1.0,
+    nacs.au: 1.0,
 }
 
 
