@@ -1,10 +1,69 @@
 import logging
-from typing import Any, List
+from typing import Any, List, Set, Tuple
 
 from shnitsel.data.TrajectoryFormat import Trajectory
 import xarray as xr
 from shnitsel.units import standard_shnitsel_units
 from shnitsel.units.definitions import unit_dimensions
+
+
+_required_shnitsel_variables = []
+_optional_shnitsel_variables = []
+_required_shnitsel_attributes = []
+_optional_shnitsel_attributes = []
+
+
+def check_shnitsel_trajectory_data(trajectory: Trajectory | xr.Dataset, report: bool = False) -> Tuple[Set[str], Set[str], Set[str], Set[str]] | None:
+    """Function to check whether all required and only denoted optional variables and meta information is available on a shnitsel-loaded trajectory.
+
+    Args:
+        trajectory (Trajectory | xr.Dataset): The trajectory to check for the presence of variables and settings
+        report (bool, optional): Whether to raise an error if discrepancies were found. Defaults to False.
+
+    Raises:
+        ValueError: If missing variables or attributes or unexpected variables or attributes are encountered in the provided trajectory and ``report=True`` is set.
+
+    Returns:
+        Tuple[Set[str], Set[str], Set[str], Set[str]]: The sets of missing required variables, present unexpected variables, missing required attributes and present unexpected attributes.
+        None: No discrepancies found.
+    """
+    missing_required_vars = _required_shnitsel_variables.copy()
+    unexpected_vars = []
+    missing_required_attrs = _required_shnitsel_attributes.copy()
+    unexpected_attrs = []
+
+    for var_name in trajectory.variables:
+        # TODO: FIXME: Should we check if the variables are actually set and not just all the same? Should we filter out coordinates separately?
+        if var_name in missing_required_vars:
+            missing_required_vars.remove(var_name)
+        elif var_name not in _optional_shnitsel_variables:
+            unexpected_vars.append(var_name)
+    # TODO: We should have an even more sophisticated check recursing into the attributes on variables.
+    for attr_name in trajectory.attrs:
+        if attr_name in missing_required_attrs:
+            missing_required_attrs.remove(attr_name)
+        elif attr_name not in _optional_shnitsel_attributes:
+            unexpected_attrs.append(attr_name)
+
+    # All is well
+    if len(missing_required_attrs) == 0 and len(missing_required_vars) == 0 and len(unexpected_vars) == 0 and len(unexpected_attrs) == 0:
+        return None
+
+    if report:
+        message = "Encountered errors while checking validity of trajectory:"
+        if len(missing_required_attrs) > 0:
+            message += f"\n Trajectory was missing required variables: {missing_required_vars}"
+        if len(missing_required_attrs) > 0:
+            message += f"\n Trajectory was missing required attributes: {missing_required_attrs}"
+        if len(unexpected_vars) > 0:
+            message += f"\n Trajectory had unexpected variables set: {unexpected_vars}"
+        if len(unexpected_attrs) > 0:
+            message += f"\n Trajectory had unexpected attributes set: {unexpected_attrs}"
+
+        logging.error(message)
+        raise ValueError(message)
+
+    return (set(missing_required_vars), set(unexpected_vars), set(missing_required_attrs), set(unexpected_attrs))
 
 
 def verify_trajectory_format(
