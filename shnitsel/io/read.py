@@ -23,9 +23,11 @@ import pandas as pd
 import xarray as xr
 import numpy as np
 from typing import (
+    Any,
     Dict,
     Iterable,
     List,
+    Set,
     Tuple,
     TypeAlias,
     Callable,
@@ -559,24 +561,143 @@ def _per_traj(
         )
 
 
-def gather_traj_metadata(datasets: Iterable[Trajectory], time_dim="time") -> np.ndarray:
+def check_matching_dimensions(
+    datasets: Iterable[Trajectory], excluded_dimensions: Set[str] = set()
+) -> bool:
+
+    res_matching = True
+    matching_dims = {}
+    distinct_dims = []
+    is_first = True
+
+    for ds in datasets:
+        for dim in ds.dims:
+            if dim in excluded_dimensions:
+                # Do not bother with excluded dimensions
+                continue
+
+            if is_first:
+                matching_dims[dim] = ds.dims[dim]
+            else:
+                if not dim in matching_dims or matching_dims[dim] != ds.dims[dim]:
+                    res_matching = False
+                    distinct_dims.append(dim)
+        is_first = False
+
+    logging.info(f"Found discrepancies in the following dimensions: {distinct_dims}")
+
+    return res_matching
+
+
+def compare_dicts_or_values(
+    curr_root_a: Any, curr_root_b: Any, base_key: List[str] = []
+) -> Tuple[List[List[str]] | None, List[List[str]] | None]:
+    """Compare two dicts and return the lists of matching and non-matching recursive keys.
+
+    Args:
+        curr_root_a (Any): Root of the first tree
+        curr_root_b (Any): Root of the second tree
+        base_key (List[str]): The current key associated with the root. Starts with [] for the initial call.
+
+    Returns:
+        Tuple[List[List[str]]|None, List[List[str]]|None]: A tuple, where the first list is the list of chains of keys of all matching sub-trees,
+                    the second entry is the same but for identifying distinct sub-trees.
+                    If a matching key points to a sub-tree, the entire sub-tree is identical.
+    """
+    matching_keys = []
+    non_matching_keys = []
+    if curr_root_a == curr_root_b:
+        # This subtree matches
+        return ([base_key], None)
+    else:
+        if isinstance(curr_root_a, dict) and isinstance(curr_root_b, dict):
+            # We need to recurse further
+            keys_a = set(curr_root_a.keys())
+            keys_b = set(curr_root_a.keys())
+            delta_keys = keys_a.symmetric_difference(keys_b)
+            shared_keys = keys_a.intersection(keys_b)
+
+            for key in delta_keys:
+                non_matching_keys.append(base_key + [key])
+
+            for key in shared_keys:
+                new_base = base_key + [key]
+
+                res_matching, res_non_matching = compare_dicts_or_values(
+                    curr_root_a[key], curr_root_b[key], new_base
+                )
+
+                if res_matching is not None:
+                    matching_keys.extend(res_matching)
+                if res_non_matching is not None:
+                    non_matching_keys.extend(res_non_matching)
+
+            return (
+                None if len(matching_keys) == 0 else matching_keys,
+                None if len(non_matching_keys) == 0 else non_matching_keys,
+            )
+        else:
+            # This subtree does not match and we do not need to recurse further
+            return (None, [base_key])
+
+
+def check_matching_var_meta(
+    datasets: List[Trajectory],
+) -> bool:
+    """Function to check if all of the variables have matching metadata.
+
+    We do not want to merge trajectories with different metadata on variables.
+
+    TODO: FIXME: Allow for variables being denoted that we do not care for.
+
+    Args:
+        datasets (List[Trajectory]): The trajectories to compare the variable metadata for.
+
+    Returns:
+        bool: True if the metadata matches on all trajectories, False otherwise
+    """
+    collected_meta = []
+
+    for ds in datasets:
+        ds_meta = {}
+        for var_name in ds.variables:
+            var_attr = ds[var_name].attrs.copy()
+            ds_meta[var_name] = var_attr
+        collected_meta.append(ds_meta)
+
+    is_equal = True
+
+    for i in range(len(datasets) - 1):
+        _matching, distinct_keys = compare_dicts_or_values(
+            collected_meta[i], collected_meta[i + 1]
+        )
+        if distinct_keys is not None and len(distinct_keys) > 0:
+            is_equal = False
+            break
+
+    return is_equal
+
+
+def merge_traj_metadata(datasets: List[Trajectory]) -> Tuple[Dict[str, Any],Dict[str, np.ndarray]]:
     """Function to gather metadate from a set of trajectories.
 
     Used to combine trajectories into one aggregate Dataset.
 
     Args:
         datasets (Iterable[Trajectory]): The sequence of trajctories for which metadata should be collected
-        time_dim (str, optional): The name of the time dimension in the input datasets. Defaults to "time".
 
     Returns:
-        np.ndarray: The resulting meta information
+        Tuple[Dict[str,Any],Dict[str,np.ndarray]]: The resulting meta information shared across all trajectories (first), 
+                and then the distinct meta information (second) in a key -> Array_of_values fashion.
     """
-    # TODO: FIXME: Rewrite such that result is a dict of conflicting settings and another one of parameters in agreement.
-    # Only conflicting settings need to be indexed, others can be applied to full trajectory instead.
-    # TODO: Potentially also collect atom number and other information that needs to match to be combined
-
     num_datasets = len(datasets)
-    traj_meta = {
+    shared_meta = {}
+    distinct_meta = {}
+
+    if num_datasets == 0:
+        return shared_meta, distinct_meta
+
+    traj_meta_distinct_defaults = {
         "trajid": np.full((num_datasets,), -1, dtype="i4"),
         "delta_t": np.full((num_datasets,), np.nan, dtype="f8"),
         "max_ts": np.full((num_datasets,), -1, dtype="i4"),
@@ -584,6 +705,17 @@ def gather_traj_metadata(datasets: Iterable[Trajectory], time_dim="time") -> np.
         "completed": np.full((num_datasets,), False, dtype="?"),
         "nsteps": np.full((num_datasets,), -1, dtype="i4"),
     }
+
+    all_keys = set()
+
+    for ds in datasets:
+        all_keys.add(ds.attrs.keys())
+    
+
+    for key in all_keys:
+        if key in traj_meta_distinct_defaults
+
+
 
     # TODO: FIXME: Check for consistency of more of the units and attributes
     for i, ds in enumerate(datasets):
@@ -595,7 +727,7 @@ def gather_traj_metadata(datasets: Iterable[Trajectory], time_dim="time") -> np.
         traj_meta["completed"][i] = ds.attrs.get("completed", False)
         traj_meta["nsteps"][i] = len(ds.indexes[time_dim])
 
-    return traj_meta
+    return shared_meta, distinct_meta
 
 
 def concat_trajs(datasets: Iterable[Trajectory]) -> Trajectory:
@@ -607,7 +739,9 @@ def concat_trajs(datasets: Iterable[Trajectory]) -> Trajectory:
         datasets (Iterable[Trajectory]): Datasets representing the individual trajectories
 
     Raises:
-        ValueError: Raised if there is conflicting input meta data.
+        ValueError: Raised if there is conflicting input dimensions.
+        ValueError: Raised if there is conflicting input variable meta data.
+        ValueError: Raised if there is conflicting global input attributes that are relevant to the merging process.
         ValueError: Raised if there are no trajectories provided to this function.
 
     Returns:
@@ -619,6 +753,18 @@ def concat_trajs(datasets: Iterable[Trajectory]) -> Trajectory:
 
     if len(datasets) == 0:
         raise ValueError("No trajectories were provided.")
+    
+    if not check_matching_dimensions(datasets, set("time")):
+        message= "Dimensions of the provided data vary."
+        logging.warning(f"{message} Merge result may be inconsistent")
+        raise ValueError(f"{message} Will not merge.")
+    
+    if not check_matching_var_meta(datasets):
+        message= "Variable meta attributes vary between different tajectories. " \
+        "This indicates inconsitencies like distinct units between trajectories. " \
+        "Please ensure consistency between datasets."
+        logging.warning(f"{message} Merge result may be inconsistent")
+        raise ValueError(f"{message} Will not merge.")
 
     if all("time" in ds.coords for ds in datasets):
         # We ensure time is always called time when loading
@@ -631,10 +777,10 @@ def concat_trajs(datasets: Iterable[Trajectory]) -> Trajectory:
         ds.expand_dims(trajid=[ds.attrs["trajid"]]).stack(frame=["trajid", time_dim])
         for ds in datasets
     ]
+    consistent_metadata, distinct_metadata = merge_traj_metadata(datasets, time_dim=time_dim)
 
     # TODO: FIXME: Deal with issues arising from inconsisten meta information. E.g. ensure same number of atoms, consistent units, etc.
     frames = xr.concat(datasets, dim="frame", combine_attrs="drop_conflicts")
-    traj_meta = gather_traj_metadata(datasets, time_dim=time_dim)
     frames = frames.assign_coords(trajid_=traj_meta["trajid"])
     # TODO: FIXME: Consider the naming convention of trajid and trajid_ being somewhat confusing
     frames = frames.assign(
@@ -649,7 +795,7 @@ def concat_trajs(datasets: Iterable[Trajectory]) -> Trajectory:
     if TYPE_CHECKING:
         assert isinstance(frames, Trajectory)
 
-    return Trajectory(frames)
+    return frames
 
 
 def layer_trajs(datasets: Iterable[Trajectory]) -> Trajectory:
@@ -669,7 +815,7 @@ def layer_trajs(datasets: Iterable[Trajectory]) -> Trajectory:
         xr.Dataset: The combined and extended trajectory with a new leading `trajid` dimension
     """
 
-    meta = gather_traj_metadata(datasets)
+    meta_matching, meta_distinct = merge_traj_metadata(datasets)
 
     trajids = meta["trajid"]
 
