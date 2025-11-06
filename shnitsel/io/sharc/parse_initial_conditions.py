@@ -196,9 +196,10 @@ def check_dims(pathlist: Sequence[pathlib.Path]) -> Tuple[int, int, int, int, in
             with open(path / "QM.in") as f:
                 info = parse_QM_in(f)
 
-                natoms.v = int(info["num_atoms"])
                 if "num_atoms" in info:
-                    nstates.v = info["num_atoms"]
+                    natoms.v = int(info["num_atoms"])
+                if "num_states" in info:
+                    nstates.v = info["num_states"]
         except FileNotFoundError:
             pass
         try:
@@ -311,7 +312,7 @@ def create_icond_dataset(
     """
     template = {
         "energy": ["state"],
-        "dip_all": ["state", "state2", "direction"],
+        #"dip_all": ["state", "state2", "direction"],
         "dip_perm": ["state", "direction"],
         "dip_trans": ["statecomb", "direction"],
         "forces": ["state", "atom", "direction"],
@@ -328,7 +329,7 @@ def create_icond_dataset(
 
     template_default_values = {
         "energy": np.nan,
-        "dip_all": np.nan,
+        #"dip_all": np.nan,
         "dip_perm": np.nan,
         "dip_trans": np.nan,
         "forces": np.nan,
@@ -436,7 +437,6 @@ def create_icond_dataset(
     return res_dataset
 
 
-# TODO: FIXME: Make function read a single initial condition set and use the generic aggregation functions to combine them.
 def read_iconds_individual(
     path: PathOptionsType, loading_parameters: LoadingParameters | None = None
 ) -> xr.Dataset:
@@ -450,8 +450,9 @@ def read_iconds_individual(
         xr.Dataset: The Dataset object containing all of the loaded data from the initial condition in default shnitsel units
     """
     # TODO: FIXME: use loading_parameters to configure units and state names
+    path_obj = make_uniform_path(path)
     logging.info("Ensuring consistency of ICONDs dimensions")
-    nstates, natoms, nsinglets, ndoublets, ntriplets = check_dims([path])
+    nstates, natoms, nsinglets, ndoublets, ntriplets = check_dims([path_obj])
     iconds = create_icond_dataset(
         None, nstates, natoms, loading_parameters=loading_parameters
     )
@@ -467,11 +468,11 @@ def read_iconds_individual(
 
     logging.info("Reading ICONDs data into Dataset...")
 
-    with open(path / "QM.out") as f:
+    with open(path_obj / "QM.out") as f:
         parse_QM_out(f, out=iconds, loading_parameters=loading_parameters)
 
     try:
-        with open(path / "QM.log") as f:
+        with open(path_obj / "QM.log") as f:
             parse_QM_log_geom(f, out=iconds)
     except FileNotFoundError:
         # This should be an error. We probably cannot recover from this and action needs to be taken
@@ -486,11 +487,11 @@ def read_iconds_individual(
         )
 
         try:
-            with open(path / "QM.in") as f:
+            with open(path_obj / "QM.in") as f:
                 info = parse_QM_in(f)
                 iconds["atNames"][:] = (atnames := info["atNames"])
                 iconds["atNums"][:] = [get_atom_number_from_symbol(n) for n in atnames]
-                iconds["atXYZ"] = info["atXYZ"]
+                iconds["atXYZ"][:,:] = info["atXYZ"]
         except FileNotFoundError:
             logging.warning(
                 f"No positional information found in {path}/QM.in, the loaded trajectory does not contain positional data 'atXYZ'."
@@ -499,6 +500,10 @@ def read_iconds_individual(
     # TODO: FIXME: Currently no way to determine the version of SHARC that wrote the iconds from QM.in and QM.out. only set from QM.log
     if "input_format_version" not in iconds.attrs:
         iconds.attrs["input_format_version"] = "unknown"
+
+    iconds.attrs["delta_t"] = 0.0
+    iconds.attrs["t_max"] = 0.0
+    iconds.attrs["max_ts"] = 1
 
     return convert_all_units_to_shnitsel_defaults(
         finalize_icond_dataset(iconds, loading_parameters=loading_parameters)
@@ -649,7 +654,7 @@ def parse_QM_in(qm_in: TextIOWrapper) -> Dict[str, Any]:
     if "states" in info:
         info["num_states"] = int(info["states"])
 
-    print(info)
+    #print(info)
     return info
 
 
@@ -812,19 +817,19 @@ def parse_QM_out(
             dim = re.split(" +", next(f).strip())
             n = int(dim[0])
             m = int(dim[1])
-
+            
+            dip_all_tmp = nans(n, m, 3)
             if out is None:
-                res["dip_all"] = nans(n, m, 3)
                 res["dip_perm"] = nans(n, 3)
                 res["dip_trans"] = nans(math.comb(n, 2), 3)
 
-            res["dip_all"][:, :, 0] = get_dipoles_per_xyz(f, n, m)
+            dip_all_tmp[:, :, 0] = get_dipoles_per_xyz(f, n, m)
             next(f)
-            res["dip_all"][:, :, 1] = get_dipoles_per_xyz(f, n, m)
+            dip_all_tmp[:, :, 1] = get_dipoles_per_xyz(f, n, m)
             next(f)
-            res["dip_all"][:, :, 2] = get_dipoles_per_xyz(f, n, m)
+            dip_all_tmp[:, :, 2] = get_dipoles_per_xyz(f, n, m)
 
-            res["dip_perm"][:], res["dip_trans"][:] = dip_sep(np.array(res["dip_all"]))
+            res["dip_perm"][:], res["dip_trans"][:] = dip_sep(np.array(dip_all_tmp))
 
         elif line.startswith("! 3 Gradient Vectors"):
             if not is_dataset_input:
