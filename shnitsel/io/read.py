@@ -727,10 +727,15 @@ def merge_traj_metadata(datasets: List[Trajectory]) -> Tuple[Dict[str, Any], Dic
     }
 
     # Assert the existence of a trajectory id for each trajectory.
-    all_keys = set("trajid")
+    all_keys = set()
+    all_keys.add("trajid")
 
     for ds in datasets:
-        all_keys.add(ds.attrs.keys())
+        for x in ds.attrs.keys():
+            x_str = str(x)
+            if not x_str.startswith("__"):
+                # ignore private attrs
+                all_keys.add(str(x))
 
     all_meta = {}
     for key in all_keys:
