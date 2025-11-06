@@ -3,12 +3,12 @@ import numpy as np
 
 from shnitsel.data.TrajectoryFormat import Trajectory
 import xarray as xr
-import json 
+import json
 
 from shnitsel.io.helpers import PathOptionsType
 
 
-def write_shnitsel_file(dataset: xr.Dataset | Trajectory, savepath: PathOptionsType, complevel:int=9):
+def write_shnitsel_file(dataset: xr.Dataset | Trajectory, savepath: PathOptionsType, complevel: int = 9):
     """Function to write a trajectory in Shnitsel format (xr.) to a ntcdf hdf5 file format.
 
     Strips all internal attributes first to avoid errors during writing.
@@ -50,7 +50,16 @@ def write_shnitsel_file(dataset: xr.Dataset | Trajectory, savepath: PathOptionsT
         if np.issubdtype(cleaned_ds.coords[coord].dtype, np.bool_):
             cleaned_ds = cleaned_ds.assign_coords(
                 {coord: cleaned_ds.coords[coord].astype('i1')})
-            
+
+    # NetCDF does not support MultiIndex
+    # Keep a record of the level names in the attrs
+    midx_names = []
+    for name, index in cleaned_ds.indexes.items():
+        if index.name == name and len(index.names) > 1:
+            midx_names.append(name)
+            midx_levels = list(index.names)
+            cleaned_ds.attrs[f'_MultiIndex_levels_for_{name}'] = midx_levels
+    cleaned_ds.attrs['_MultiIndex_levels_from_attrs'] = 1
 
     for attr in cleaned_ds.attrs:
         # Strip internal attributes
@@ -65,21 +74,13 @@ def write_shnitsel_file(dataset: xr.Dataset | Trajectory, savepath: PathOptionsT
             if str(attr).startswith("__"):
                 del cleaned_ds[data_var].attrs[attr]
             else:
-                cleaned_ds[data_var].attrs[attr] = json.dumps(cleaned_ds.attrs[attr])
+                cleaned_ds[data_var].attrs[attr] = json.dumps(
+                    cleaned_ds.attrs[attr])
 
-        #if np.issubdtype(np.asarray(cleaned_ds.attrs[attr]).dtype, np.bool_):
+        # if np.issubdtype(np.asarray(cleaned_ds.attrs[attr]).dtype, np.bool_):
         #    cleaned_ds.attrs[attr] = int(cleaned_ds.attrs[attr])
 
-    cleaned_ds.attrs["__attrs_json_encoded"]=1
+    cleaned_ds.attrs["__attrs_json_encoded"] = 1
 
-    # NetCDF does not support MultiIndex
-    # Keep a record of the level names in the attrs
-    midx_names = []
-    for name, index in cleaned_ds.indexes.items():
-        if index.name == name and len(index.names) > 1:
-            midx_names.append(name)
-            midx_levels = list(index.names)
-            cleaned_ds.attrs[f'_MultiIndex_levels_for_{name}'] = midx_levels
-    cleaned_ds.attrs['_MultiIndex_levels_from_attrs'] = 1
     return cleaned_ds.reset_index(midx_names).to_netcdf(
         savepath, engine='h5netcdf', encoding=encoding)

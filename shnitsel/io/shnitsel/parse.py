@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import pathlib
@@ -42,7 +43,18 @@ def read_shnitsel_file(
         else:
             raise err
 
-    # TODO: FIXME: Decode json encoded attributes
+    # Decode json encoded attributes if json encoding is recorded
+    if "__attrs_json_encoded" in frames.attrs:
+        del frames.attrs["__attrs_json_encoded"]
+
+        for attr in frames.attrs:
+            frames.attrs[attr] = json.loads(frames.attrs[attr])
+
+        for data_var in frames.variables:
+            for attr in frames[data_var].attrs:
+                frames[data_var].attrs[attr] = json.loads(
+                    frames.attrs[attr])
+
     # Restore MultiIndexes
     indicator = "_MultiIndex_levels_from_attrs"
     if frames.attrs.get(indicator, False):
