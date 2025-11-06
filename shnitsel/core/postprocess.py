@@ -24,6 +24,12 @@ from .geom import (
     dihedral as dihedral,
     normal as normal,
 )
+from .spectra import (
+    assign_fosc,
+    get_fosc as get_fosc,
+    broaden_gauss as broaden_gauss,
+    ds_broaden_gauss as ds_broaden_gauss,
+)
 
 Astates: TypeAlias = xr.DataArray
 AtXYZ: TypeAlias = xr.DataArray
@@ -410,103 +416,6 @@ def keep_norming(
     return da
 
 
-def _get_fosc(energy, dip_trans):
-    return 2 / 3 * energy * dip_trans**2
-
-def get_fosc(energy, dip_trans):
-    """Function to obtain a dataarray containing the oscillator strength as a dataarray.
-
-    Args:
-        energy (DataArray): _description_
-        dip_trans (DataArray): _description_
-
-    Returns:
-        DataArray: The resulting datarray of oscillator strength f_osc
-    """
-    if 'state' in energy.dims:
-        assert 'statecomb' not in energy.dims
-        energy = subtract_combinations(energy, 'state')
-        
-    da = _get_fosc(convert_energy(energy, to='hartree'), dip_trans)
-    da.name = 'fosc'
-    da.attrs['long_name'] = r"$f_{\mathrm{osc}}$"
-    return da
-
-# TODO: deprecate (made redundant by DerivedProperties)
-@needs(data_vars={'energy', 'dip_trans'})
-def assign_fosc(ds: xr.Dataset) -> xr.Dataset:
-    """Function to calculate oscillator strength fosc and create a new dataset with this variable assigned.
-
-    Args:
-        ds (xr.Dataset): Dataset from which to calculate fosc
-
-    Returns:
-        xr.Dataset: Dataset with the member variable fosc set
-    """
-    da = get_fosc(ds['energy'], ds['dip_trans'])
-    return ds.assign(fosc=da)
-
-@needs(data_vars={'energy', 'fosc'})
-def broaden_gauss(
-    E: xr.DataArray,
-    fosc: xr.DataArray,
-    agg_dim: DimName = 'frame',
-    *,
-    width: float = 0.5,
-    nsamples: int = 1000,
-    xmin: float = 0,
-    xmax: float | None = None,
-) -> xr.DataArray:
-    r"""
-    Parameters
-    ----------
-    E
-        values used for the x-axis, presumably $E_i$
-    fosc
-        values used for the y-axis, presumably $f_\mathrm{osc}$
-    agg_dim, optional
-        dimension along which to aggregate the many Gaussian distributions,
-        by default 'frame'
-    width, optional
-        the width (i.e. 2 standard deviations) of the Gaussian distributions
-        used, by default 0.001
-    nsamples, optional
-        number of evenly spaced x-values over which to sample the distribution,
-        by default 1000
-    xmax, optional
-        the maximum x-value, by default 3 standard deviations
-        beyond the pre-broadened maximum
-    """
-
-    stdev = width / 2
-
-    def g(x):
-        nonlocal stdev
-        return 1 / (np.sqrt(2 * np.pi) * stdev) * np.exp(-(x**2) / (2 * stdev**2))
-
-    xname = getattr(E, 'name', 'energy') or 'xdim'
-    yname = getattr(fosc, 'name', 'fosc') or 'ydim'
-
-    if xmax is None:
-        # broadening could visibly overshoot the former maximum by 3 standard deviations
-        xmax = E.max().item() * (1 + 1.5 * width)
-    xs = np.linspace(0, xmax, num=nsamples)
-    Espace = xr.DataArray(xs, dims=[xname], attrs=E.attrs)
-    res: xr.DataArray = (g(Espace - E) * fosc).mean(dim=agg_dim)
-    res.name = yname
-    res.attrs = fosc.attrs
-    for cname, coord in res.coords.items():
-        if cname in fosc.coords:
-            coord.attrs = fosc.coords[cname].attrs
-    return res.assign_coords({xname: Espace})
-
-
-def ds_broaden_gauss(
-    ds: xr.Dataset, width: float = 0.5, nsamples: int = 1000, xmax: float | None = None
-) -> xr.DataArray:
-    return broaden_gauss(
-        ds['energy'], ds['fosc'], width=width, nsamples=nsamples, xmax=None
-    )
 
 
 @needs(dims={'state'})
@@ -526,7 +435,10 @@ def get_inter_state(frames: Frames) -> InterState:
 
     if 'statecomb' in frames:
         #TODO: FIXME: Appropriately remove the 'statecomb' indices and coordinates from the Dataset
-        warning(f"'statecomb' already exists as an index, variable or coordinate in the dataset, hence it will be removed before recomputation")
+        warning(
+            "'statecomb' already exists as an index, variable or coordinate"
+            " in the dataset, hence it will be removed before recomputation"
+        )
 
     iprops = []
     # TODO: FIXME: check if astate is the correct variable to reference here
