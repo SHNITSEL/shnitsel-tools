@@ -391,6 +391,7 @@ def parse_trajout_dat(
 
     res.attrs["input_format"] = "sharc"
     res.attrs["input_type"] = "dynamic"
+    res.attrs["input_format_version"] = settings["SHARC_version"]
 
     res.attrs["num_singlets"] = nsinglets
     res.attrs["num_doublets"] = ndoublets
