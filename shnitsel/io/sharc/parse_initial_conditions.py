@@ -193,6 +193,15 @@ def check_dims(pathlist: Sequence[pathlib.Path]) -> Tuple[int, int, int, int, in
         except FileNotFoundError:
             pass
         try:
+            with open(path / "QM.in") as f:
+                info = parse_QM_in(f)
+
+                natoms.v = int(info["num_atoms"])
+                if "num_atoms" in info:
+                    nstates.v = info["num_atoms"]
+        except FileNotFoundError:
+            pass
+        try:
             with open(path / "QM.log") as f:
                 (
                     nstates.v,
@@ -275,9 +284,11 @@ def finalize_icond_dataset(
             "sharc", loading_parameters
         )
         dataset_res["time"].attrs.update(default_sharc_attributes["time"])
+    else: 
+        dataset_res = dataset
 
     # Set completed flag
-    dataset_res.atts["completed"] = True
+    dataset_res.attrs["completed"] = True
     return dataset_res
 
 
@@ -365,10 +376,6 @@ def create_icond_dataset(
         "state2": states,
         "atom": np.arange(natoms),
         "direction": ["x", "y", "z"],
-        "has_forces": (
-            "icond",
-            x if (x := kwargs.get("has_forces")) is not None else nans(niconds),
-        ),
     }
 
     if indices is not None:
@@ -412,7 +419,9 @@ def create_icond_dataset(
         for varname, dims in template.items()
     }
 
-    res_dataset = xr.Dataset(datavars, coords)
+    res_dataset = xr.Dataset(
+        datavars, coords, kwargs["attrs"] if "attrs" in kwargs else None
+    )
 
     # Try and set some default attributes on the coordinates for the dataset
     for coord_name in res_dataset.coords:
@@ -473,9 +482,23 @@ def read_iconds_individual(
             See https://github.com/SHNITSEL/db-workflow/issues/3"""
         )
         logging.warning(
-            f"No positional information found in {path}, the loaded trajectory does not contain positional data 'atXYZ'."
+            f"No positional information found in {path}/QM.log. Attempting to read from. QM.in."
         )
-        return None
+
+        try:
+            with open(path / "QM.in") as f:
+                info = parse_QM_in(f)
+                iconds["atNames"][:] = (atnames := info["atNames"])
+                iconds["atNums"][:] = [get_atom_number_from_symbol(n) for n in atnames]
+                iconds["atXYZ"] = info["atXYZ"]
+        except FileNotFoundError:
+            logging.warning(
+                f"No positional information found in {path}/QM.in, the loaded trajectory does not contain positional data 'atXYZ'."
+            )
+
+    # TODO: FIXME: Currently no way to determine the version of SHARC that wrote the iconds from QM.in and QM.out. only set from QM.log
+    if "input_format_version" not in iconds.attrs:
+        iconds.attrs["input_format_version"] = "unknown"
 
     return convert_all_units_to_shnitsel_defaults(
         finalize_icond_dataset(iconds, loading_parameters=loading_parameters)
@@ -550,6 +573,86 @@ def read_iconds_multi_directory(
     )
 
 
+def parse_QM_in(qm_in: TextIOWrapper) -> Dict[str, Any]:
+    """Function to read settings of initial conditions from QM.in file.
+
+    Will attempt to read key settings and initial positions that would usually be read form QM.log.
+
+    Args:
+        qm_in (TextIOWrapper): File stream of the found `QM.in` file containing some key settings and positional information.
+
+    Raises:
+        FileNotFoundError: If parts of the file are malformed or missing.
+
+    Returns:
+        Dict[str, Any]: the resulting settings in a key-value pair. Contains `num_atoms`, `num_states`, `atNames` and `atXYZ`.
+    """
+
+    info: Dict[str, Any] = {}
+
+    # Example format:
+    # 12
+    # Initial condition ICOND_00000/
+    # C 0.00000000 0.00000000 0.00000000
+    # C 2.83836864 0.00000000 0.00000000
+    # C 4.30592995 2.06320298 0.00000000
+    # C 3.39262531 4.73886620 0.00037795
+    # H -0.72924531 -1.91996174 -0.00018897
+    # H -0.75872504 0.96111471 -1.65766776
+    # H -0.75872504 0.96073676 1.65785673
+    # H 3.75072841 -1.84437270 0.00000000
+    # H 6.35023567 1.81621578 0.00000000
+    # H 1.34208349 4.84865929 0.00018897
+    # H 4.09352473 5.74968071 -1.65502214
+    # H 4.09333576 5.74911379 1.65596700
+    # unit bohr
+    # states 3
+    # init
+    # savedir ./SAVE/
+
+    # H
+    # DM
+    # NACDR
+    # GRAD
+
+    # Get all lines
+    lines = [l.strip() for l in qm_in.readlines()]
+    if len(lines) < 1:
+        raise FileNotFoundError("QM.in did not contain all necessary information")
+
+    info["num_atoms"] = (num_atoms := int(lines[0]))
+
+    if len(lines) < num_atoms + 2:
+        raise FileNotFoundError("QM.in did not contain all necessary information")
+
+    atXYZ = np.full((num_atoms, 3), np.nan)
+    atNames = np.full((num_atoms), "")
+
+    for i in range(num_atoms):
+        line_parts = [x.strip() for x in lines[i + 2].split()]
+        atNames[i] = line_parts[0]
+        atXYZ[i] = [float(x) for x in line_parts[1:4]]
+
+    info["atXYZ"] = atXYZ
+    info["atNames"] = atNames
+
+    for i in range(num_atoms + 2, len(lines)):
+        if len(lines[i]) > 0:
+            line_parts = [x.strip() for x in lines[i].split()]
+            key = line_parts[0]
+            if len(line_parts) > 1:
+                value = " ".join(line_parts[1:])
+            else:
+                value = True
+            info[key] = value
+
+    if "states" in info:
+        info["num_states"] = int(info["states"])
+
+    print(info)
+    return info
+
+
 def parse_QM_log(log: TextIOWrapper) -> Dict[str, Any]:
     """Function to parse main information from the QM.log file
 
@@ -564,6 +667,11 @@ def parse_QM_log(log: TextIOWrapper) -> Dict[str, Any]:
     """
     info: Dict[str, Any] = {}
     for line in log:
+
+        if line.startswith("SHARC_version") or line.startswith("Version"):
+            version_num = line.split()[1]
+            info["input_format_version"] = version_num
+
         if line.startswith("States:"):
             linecont = re.split(" +|\t", line.strip())
             if "Singlet" in linecont and "Triplet" not in linecont:
@@ -631,7 +739,10 @@ def parse_QM_log_geom(f: TextIOWrapper, out: xr.Dataset):
     """
 
     # NB. Geometry is indeed in bohrs!
-    while not next(f).startswith("Geometry in Bohrs:"):
+    while not (line := next(f).strip()).startswith("Geometry in Bohrs:"):
+        if line.startswith("SHARC_version") or line.startswith("Version"):
+            version_num = line.split()[1]
+            out.attrs["input_format_version"] = version_num
         pass
 
     for i in range(out.sizes["atom"]):
@@ -659,19 +770,34 @@ def parse_QM_out(
     Returns:
         xr.Dataset | None: If a new Dataset was constructed instead of being written to `out`, it will be returned.
     """
-    res: xr.Dataset | dict[str, np.ndarray]
+    res: xr.Dataset | dict[str, Any]
+    is_dataset_input = True
     if out is not None:
         # write data directly into dataset
         res = out
     else:
         # write data as ndarrays into dict, then make dataset after parsing
-        res = {}
+        res = {
+            "attrs": {},
+        }
+        is_dataset_input = False
+    if not is_dataset_input:
+        res["attrs"]["has_forces"] = False
+    else:
+        res.attrs["has_forces"] = False
 
-    res["has_forces"] = np.array([0])
     nstates = ConsistentValue("nstates")
     natoms = ConsistentValue("natoms")
 
     for index, line in enumerate(f):
+        line = line.strip()
+        if line.startswith("SHARC_version") or line.startswith("Version"):
+            version_num = line.split()[1]
+            if not is_dataset_input:
+                res["attrs"]["input_format_version"] = version_num
+            else:
+                res.attrs["input_format_version"] = version_num
+
         if line.startswith("! 1 Hamiltonian Matrix"):
             # get number of states from dimensions of Hamiltonian
             nstates.v = int(next(f).split(" ")[0])
@@ -701,7 +827,10 @@ def parse_QM_out(
             res["dip_perm"][:], res["dip_trans"][:] = dip_sep(np.array(res["dip_all"]))
 
         elif line.startswith("! 3 Gradient Vectors"):
-            res["has_forces"] = np.array([1])
+            if not is_dataset_input:
+                res["attrs"]["has_forces"] = True
+            else:
+                res.attrs["has_forces"] = True
 
             search_res = _re_grads.search(line)
             assert search_res is not None
