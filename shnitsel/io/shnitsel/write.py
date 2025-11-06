@@ -58,13 +58,14 @@ def write_shnitsel_file(dataset: xr.Dataset | Trajectory, savepath: PathOptionsT
             del cleaned_ds.attrs[attr]
         else:
             cleaned_ds.attrs[attr] = json.dumps(cleaned_ds.attrs[attr])
-            
-    for attr in cleaned_ds.attrs:
-        # Strip internal attributes
-        if str(attr).startswith("__"):
-            del cleaned_ds.attrs[attr]
-        else:
-            cleaned_ds.attrs[attr] = json.dumps(cleaned_ds.attrs[attr])
+
+    for data_var in cleaned_ds.variables:
+        for attr in cleaned_ds[data_var].attrs:
+            # Strip internal attributes
+            if str(attr).startswith("__"):
+                del cleaned_ds[data_var].attrs[attr]
+            else:
+                cleaned_ds[data_var].attrs[attr] = json.dumps(cleaned_ds.attrs[attr])
 
         #if np.issubdtype(np.asarray(cleaned_ds.attrs[attr]).dtype, np.bool_):
         #    cleaned_ds.attrs[attr] = int(cleaned_ds.attrs[attr])
