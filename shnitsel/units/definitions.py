@@ -194,6 +194,7 @@ def get_default_input_attributes(
     def override_defaults(unit_dimension, variable_name):
         if (
             loading_parameters is not None
+            and loading_parameters.input_units is not None
             and variable_name in loading_parameters.input_units
         ):
             return loading_parameters.input_units[variable_name]
