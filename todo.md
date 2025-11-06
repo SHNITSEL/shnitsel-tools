@@ -10,7 +10,7 @@ We are currently suffering from missing input files for tests:
 - Harmonize set meta-attributes
 - Rework merging of metadata of trajectories
 - Apply state names and types set by user. Set names heuristically otherwise.
-- Allow input state of SHARC icond files to be read from QM.in and not just QM.log
+- IMPORTANT: Allow input state of SHARC icond files to be read from QM.in and not just QM.log
 - Go over the SHARC input format units. 
 - In general: We need to check the units and whether conversion is happening. 
 - Test whether meta-data is present and consistently named.
@@ -19,4 +19,6 @@ We are currently suffering from missing input files for tests:
 - - Unset variables not assigned by the routine.
 - Check whether NACS are actually available for different formats and what units they have: unit_dimensions.nacs: "1", # TODO: FIXME: NACS in molcas: 1/Bohr, SHARC liest 1/Bohr
 - Read settings from output.dat in SHARC directories instead of output.log
+- Check reader routines: Several data for energy, forces, nacs, e_kin, phases is full of NANs or the same identical value.
+- Make sure readers always set the input version
 
