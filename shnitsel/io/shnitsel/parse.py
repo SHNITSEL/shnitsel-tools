@@ -42,6 +42,7 @@ def read_shnitsel_file(
         else:
             raise err
 
+    # TODO: FIXME: Decode json encoded attributes
     # Restore MultiIndexes
     indicator = "_MultiIndex_levels_from_attrs"
     if frames.attrs.get(indicator, False):
