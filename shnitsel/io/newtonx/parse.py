@@ -39,7 +39,8 @@ def parse_newtonx(
             settings.num_states, settings.num_atoms, loading_parameters
         )
 
-        default_attributes = get_default_input_attributes("newtonx", loading_parameters)
+        default_attributes = get_default_input_attributes(
+            "newtonx", loading_parameters)
         # Add time dimension
 
         isolated_keys = [
@@ -53,7 +54,8 @@ def parse_newtonx(
 
         trajectory = trajectory.set_coords(isolated_keys)
 
-        trajectory = trajectory.expand_dims({"time": settings.num_steps}, axis=0)
+        trajectory = trajectory.expand_dims(
+            {"time": settings.num_steps}, axis=0)
         trajectory.attrs["delta_t"] = settings.delta_t
         # TODO: FIXME: Make sure this is actually a common naming scheme
         trajectory.attrs["t_max"] = settings.t_max
@@ -96,7 +98,8 @@ def parse_newtonx(
             )
 
         # Assign times to trajectory
-        trajectory.assign_coords(time=np.arange(0, actual_steps) * settings.delta_t)
+        trajectory.assign_coords(time=np.arange(
+            0, actual_steps) * settings.delta_t)
 
     # nsteps = single_traj.sizes['ts']
 
@@ -115,6 +118,8 @@ def parse_newtonx(
     trajectory.atXYZ.values = atXYZ
 
     trajectory["time"].attrs.update(default_attributes[str("time")])
+    trajectory.attrs["input_format_version"] = settings.newtonx_version
+
     return convert_all_units_to_shnitsel_defaults(trajectory)
 
 
@@ -125,10 +130,12 @@ class NewtonXSettingsResult(NamedTuple):
     num_atoms: int
     num_states: int
     completed: bool
+    newtonx_version: str
 
 
 def parse_settings_from_nx_log(f) -> NewtonXSettingsResult:
     completed = True
+    newtonx_version = "unknown"
 
     # hack to deal with restarts obscuring real tmax
     real_tmax = float(0)
@@ -147,7 +154,16 @@ def parse_settings_from_nx_log(f) -> NewtonXSettingsResult:
 
     # skip to settings
     for line in f:
-        if line.strip().startswith("Initial parameters:"):
+        line_stripped = line.strip()
+        # Newton-X version 2.2 (build 5, 2018-04-11)
+        if line_stripped.startswith("Newton-X version"):
+            parts = [x.strip() for x in line_stripped.split()]
+            newtonx_version = parts[2]
+        if line_stripped.startswith("version"):
+            if newtonx_version == "unknown":
+                parts = [x.strip() for x in line_stripped.split()]
+                newtonx_version = parts[1].strip(",")
+        if line_stripped.startswith("Initial parameters:"):
             break
 
     settings = {}
@@ -171,7 +187,7 @@ def parse_settings_from_nx_log(f) -> NewtonXSettingsResult:
     assert isinstance(nstates, int)
     assert isinstance(natoms, int)
 
-    return NewtonXSettingsResult(real_tmax, delta_t, nsteps, natoms, nstates, completed)
+    return NewtonXSettingsResult(real_tmax, delta_t, nsteps, natoms, nstates, completed, newtonx_version)
 
 
 def create_initial_dataset(
@@ -252,7 +268,8 @@ def create_initial_dataset(
     }
 
     coords = xr.Coordinates.from_pandas_multiindex(
-        pd.MultiIndex.from_tuples(combinations(states, 2), names=["from", "to"]),
+        pd.MultiIndex.from_tuples(combinations(
+            states, 2), names=["from", "to"]),
         dim="statecomb",
     ).merge(coords)
 
@@ -267,7 +284,8 @@ def create_initial_dataset(
     #    'forces': {'units': 'hartree/bohr', 'unitdim': 'Force'},
     #    'nacs': {'long_name': "nonadiabatic couplings", 'units': 'au'},
     # }
-    default_attributes = get_default_input_attributes("newtonx", loading_parameters)
+    default_attributes = get_default_input_attributes(
+        "newtonx", loading_parameters)
 
     datavars = {
         varname: (
@@ -280,7 +298,8 @@ def create_initial_dataset(
                     fill_value=template_default_values[varname],
                 )
             ),
-            (default_attributes[varname] if varname in default_attributes else {}),
+            (default_attributes[varname]
+             if varname in default_attributes else {}),
         )
         for varname, dims in template.items()
     }
@@ -290,7 +309,8 @@ def create_initial_dataset(
     # Try and set some default attributes on the coordinates for the dataset
     for coord_name in res_dataset.coords:
         if coord_name in default_attributes:
-            res_dataset[coord_name].attrs.update(default_attributes[str(coord_name)])
+            res_dataset[coord_name].attrs.update(
+                default_attributes[str(coord_name)])
 
     res_dataset.attrs["input_format"] = "newtonx"
     res_dataset.attrs["input_type"] = "dynamic"
@@ -377,7 +397,8 @@ def parse_nx_log_data(
                 # First natoms lines have the values for the different atoms in first state combination
                 # Each block of natoms represents successive state combinations
                 for iatom in range(natoms):
-                    tmp_nacs[icomb, iatom] = [float(n) for n in next(f).strip().split()]
+                    tmp_nacs[icomb, iatom] = [
+                        float(n) for n in next(f).strip().split()]
 
         elif stripline.startswith("Energy ="):
             for istate in range(nstates):
