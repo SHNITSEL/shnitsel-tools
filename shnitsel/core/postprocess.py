@@ -17,13 +17,14 @@ from .._contracts import needs
 from . import xrhelpers
 
 # For backward compatibility while refactoring
-from .ml import pca  #
 from .geom import (
     distance as distance,
     angle as angle,
     dihedral as dihedral,
     normal as normal,
 )
+from .populations import classical as calc_pops  # noqa: F401
+from .ml import pca
 from .spectra import (
     assign_fosc,
     get_fosc as get_fosc,
@@ -478,35 +479,7 @@ def get_inter_state(frames: Frames) -> InterState:
     inter_state['statecomb'].attrs['long_name'] = "State combinations"
     return inter_state
 
-@needs(dims={'frame', 'state'}, coords={'time'}, data_vars={'astate'})
-def calc_pops(frames: Frames) -> xr.DataArray:
-    """Fast way to calculate populations
-    Requires states ids to be small integers
-    """
-    data = frames['astate']
-    if -1 in frames['astate']:
-        warning(
-            "`frames['astate']` contains the placeholder value `-1`, "
-            "indicating missing state information.  "
-            "The frames in question will be excluded from the "
-            "population count altogether."
-        )
-        data = data.sel(frame=(data != -1))
-    nstates = frames.sizes['state']
-    # zero_or_one = int(frames.coords['state'].min())
-    zero_or_one = 1  # TODO: For now, assume lowest state is 1
-    assert zero_or_one in {0,1}
-    pops = data.groupby('time').map(
-        lambda group: xr.apply_ufunc(
-            lambda values: np.bincount(values, minlength=nstates + zero_or_one)[
-                zero_or_one:
-            ],
-            group,
-            input_core_dims=[['frame']],
-            output_core_dims=[['state']],
-        )
-    )
-    return (pops / pops.sum('state')).assign_coords(state=frames['state'])
+
 
 
 #####################################################
