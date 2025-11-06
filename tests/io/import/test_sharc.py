@@ -3,8 +3,10 @@ import os
 
 
 from shnitsel.io import read
+from shnitsel.io.helpers import LoadingParameters
 from shnitsel.io.sharc.parse_trajectory import read_traj
-from shnitsel.io.sharc.parse_initial_conditions import dir_of_iconds
+from shnitsel.io.sharc.parse_initial_conditions import read_iconds_individual
+from shnitsel.io import write_shnitsel_file
 from shnitsel.test_support.TrajectoryVerification import verify_trajectory_format
 
 
@@ -22,17 +24,34 @@ class TestSHARC:
         "atNames",
     ]
 
-    def test_read_dirs_of_iconds(self):
-        path = os.path.join("tutorials", "test_data", "sharc", "iconds_butene")
-        iconds = dir_of_iconds(path)
+    def test_read_single_iconds_folder_direct(self):
+        # Parse iconds data with direct method call
+        path = os.path.join(
+            "tutorials", "test_data", "sharc", "iconds_butene", "ICOND_00000"
+        )
+        iconds = read_iconds_individual(path, loading_parameters=LoadingParameters())
 
         assert verify_trajectory_format(
             iconds, self.asserted_properties_in_trajectory
         ), f"Resulting trajectory from initial conditions does not satisfy the Shnitsel standard format"
 
-    def test_sharc_process_and_output_iconds(self):
+    def test_read_multi_iconds_folder_wrapper_detect(self):
+        # parse icond data with wrapper
+        iconds_butene = read("tutorials/test_data/sharc/iconds_butene")
+        assert verify_trajectory_format(
+            iconds_butene, self.asserted_properties_in_trajectory
+        ), f"Resulting trajectory from initial conditions does not satisfy the Shnitsel standard format"
+
+    def test_read_multi_iconds_folder_wrapper_specific(self):
+        # Parse iconds data with wrapper but specified format
+        iconds_butene = read("tutorials/test_data/sharc/iconds_butene", kind="sharc")
+        assert verify_trajectory_format(
+            iconds_butene, self.asserted_properties_in_trajectory
+        ), f"Resulting trajectory from initial conditions does not satisfy the Shnitsel standard format"
+
+    def test_sharc_process_and_output_iconds_directory(self):
         # parse icond data
-        iconds_butene = dir_of_iconds(path="tutorials/test_data/sharc/iconds_butene")
+        iconds_butene = read("tutorials/test_data/sharc/iconds_butene")
         assert verify_trajectory_format(
             iconds_butene, self.asserted_properties_in_trajectory
         ), f"Resulting trajectory from initial conditions does not satisfy the Shnitsel standard format"
@@ -41,7 +60,9 @@ class TestSHARC:
         savepath = os.path.join(
             os.getcwd(), "tutorials", "test_data", "sharc", "iconds_butene.hdf5"
         )
-        iconds_butene.reset_index("statecomb").to_netcdf(savepath, engine="h5netcdf")
+        assert iconds_butene is not None
+        if not isinstance(iconds_butene, list):
+            write_shnitsel_file(iconds_butene, savepath)
 
     def test_read_sharc_trajs_direct(self):
         # parse trajectory data from SHARC output files
