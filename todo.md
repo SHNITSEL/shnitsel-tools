@@ -21,4 +21,6 @@ We are currently suffering from missing input files for tests:
 - Read settings from output.dat in SHARC directories instead of output.log
 - Check reader routines: Several data for energy, forces, nacs, e_kin, phases is full of NANs or the same identical value.
 - Make sure readers always set the input version
+- NACS in SHARC written to output.dat (settings as well?)
+
 
