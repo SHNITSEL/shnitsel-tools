@@ -98,9 +98,8 @@ def has_required_properties(
             res = res and has_required_properties(i_traj)
         return res
     else:
-
-        print(traj.variables.keys())
-        print(traj["atXYZ"].attrs.keys())
+        #print(traj.variables.keys())
+        #print(traj["atXYZ"].attrs.keys())
         assert check_shnitsel_trajectory_data(traj, report=True) is None
 
         check_prop_units = {
