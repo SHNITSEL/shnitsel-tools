@@ -270,8 +270,8 @@ standard_units_of_formats = {
         unit_dimensions.length: length.Bohr,
         unit_dimensions.energy: energy.Hartree,
         unit_dimensions.force: force.Hartree_per_Bohr,
-        unit_dimensions.time: time.au,  # TODO: Confirm default time unit
-        unit_dimensions.nacs: nacs.au,
+        unit_dimensions.time: time.femto_seconds,  # TODO: Confirm default time unit
+        unit_dimensions.nacs: nacs.one_per_Bohr,
         unit_dimensions.dipole: dipole.au,
         # "dipole_trans": dipole.au,
         unit_dimensions.soc: socs.au,
