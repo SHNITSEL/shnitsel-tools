@@ -596,9 +596,9 @@ def check_matching_dimensions(
                 continue
 
             if is_first:
-                matching_dims[dim] = ds.dims[dim]
+                matching_dims[dim] = ds.sizes[dim]
             else:
-                if not dim in matching_dims or matching_dims[dim] != ds.dims[dim]:
+                if not dim in matching_dims or matching_dims[dim] != ds.sizes[dim]:
                     res_matching = False
                     distinct_dims.append(dim)
         is_first = False
