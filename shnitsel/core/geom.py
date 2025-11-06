@@ -6,7 +6,7 @@
 """
 
 from itertools import combinations, product
-from typing import Literal
+from typing import Literal, TypeAlias
 
 import numpy as np
 from rdkit.Chem import Mol
@@ -14,19 +14,113 @@ import xarray as xr
 
 from shnitsel.io.helpers import get_atom_number_from_symbol, get_symbol_from_atom_number
 from .postprocess import (
-    distance as distance,
-    angle as angle,
-    dihedral as dihedral,
-    angle_,
-    dihedral_,
-    full_dihedral_,
-    normal,
     subtract_combinations,
     norm,
     default_mol,
 )
 from .xrhelpers import expand_midx
 from .._contracts import needs
+
+AtXYZ: TypeAlias = xr.DataArray
+
+
+def dnorm(a):
+    return norm(a, dim='direction')
+
+
+def dcross(a, b):
+    return xr.cross(a, b, dim='direction')
+
+
+def ddot(a, b):
+    return xr.dot(a, b, dim='direction')
+
+
+def angle_(a, b):
+    return np.arccos(ddot(a, b) / (dnorm(a) * dnorm(b)))
+
+
+def normal(a, b, c):
+    return dcross(a - b, c - b)
+
+
+def dihedral_(a, b, c, d):
+    abc = normal(a, b, c)
+    bcd = normal(b, c, d)
+    return angle_(abc, bcd)
+
+
+def full_dihedral_(a, b, c, d):
+    abc = normal(a, b, c)
+    bcd = normal(b, c, d)
+    sign = np.sign(ddot(dcross(abc, bcd), (c - b)))
+    return sign * angle_(abc, bcd)
+
+
+@needs(dims={'atom'})
+def dihedral(
+    atXYZ: AtXYZ,
+    i: int,
+    j: int,
+    k: int,
+    l: int,
+    *,
+    deg: bool = False,
+    full: bool = False,
+) -> xr.DataArray:
+    """Calculate all dihedral angles between the atoms specified.
+    The atoms specified needed be bonded.
+
+    Parameters
+    ----------
+    atXYZ
+        A ``DataArray`` of coordinates, with ``atom`` and ``direction`` dimensions
+    i, j, k, l
+        The four atom indices
+    deg
+        Whether to return angles in degrees (True) or radians (False), by default False
+    full
+        Whether to return signed angles between -180° and 180° (True) or unsigned angles between 0 and 180° (False), by default False
+
+    Returns
+    -------
+        A ``DataArray`` containing dihedral angles
+    """
+    a = atXYZ.isel(atom=i)
+    b = atXYZ.isel(atom=j)
+    c = atXYZ.isel(atom=k)
+    d = atXYZ.isel(atom=l)
+    result: xr.DataArray = full_dihedral_(a, b, c, d) if full else dihedral_(a, b, c, d)
+    if deg:
+        result = result * 180 / np.pi
+    result.name = 'dihedral'
+    result.attrs['long_name'] = r"$\varphi_{%d,%d,%d,%d}$" % (i, j, k, l)
+    return result
+
+
+@needs(dims={'atom'})
+def angle(atXYZ: AtXYZ, i: int, j: int, k: int, *, deg: bool = False) -> xr.DataArray:
+    a = atXYZ.isel(atom=i)
+    b = atXYZ.isel(atom=j)
+    c = atXYZ.isel(atom=k)
+    ab = a - b
+    cb = c - b
+    result: xr.DataArray = angle_(ab, cb)
+    if deg:
+        result = result * 180 / np.pi
+    result.name = 'angle'
+    result.attrs['long_name'] = r"$\theta_{%d,%d,%d}$" % (i, j, k)
+    return result
+
+
+@needs(dims={'atom'})
+def distance(atXYZ: AtXYZ, i: int, j: int) -> xr.DataArray:
+    a = atXYZ.isel(atom=i)
+    b = atXYZ.isel(atom=j)
+    result: xr.DataArray = dnorm(a - b)
+    result.name = 'distance'
+    result.attrs['long_name'] = r"$\|\mathbf{r}_{%d,%d}\|$" % (i, j)
+    return result
 
 
 def bond_type_to_symbols(e1, e2):
