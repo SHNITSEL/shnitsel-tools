@@ -61,26 +61,49 @@ def write_shnitsel_file(dataset: xr.Dataset | Trajectory, savepath: PathOptionsT
             cleaned_ds.attrs[f'_MultiIndex_levels_for_{name}'] = midx_levels
     cleaned_ds.attrs['_MultiIndex_levels_from_attrs'] = 1
 
+    def ndarray_to_json_ser(value):
+        return {
+            "__ndarray:": {
+                "entries": value.tolist(),
+                "dtype": value.dtype.descr
+            }
+        }
+
+    remove_attrs = []
+
     for attr in cleaned_ds.attrs:
         # Strip internal attributes
         if str(attr).startswith("__"):
-            del cleaned_ds.attrs[attr]
+            remove_attrs.append(attr)
         else:
-            cleaned_ds.attrs[attr] = json.dumps(cleaned_ds.attrs[attr])
+            value = cleaned_ds.attrs[attr]
+            if isinstance(value, np.ndarray):
+                value = ndarray_to_json_ser(value)
+            cleaned_ds.attrs[attr] = json.dumps(value)
+
+    for attr in remove_attrs:
+        del cleaned_ds.attrs[attr]
 
     for data_var in cleaned_ds.variables:
+        # If we delete while iterating, an error will occur.
+        remove_attrs = []
         for attr in cleaned_ds[data_var].attrs:
             # Strip internal attributes
             if str(attr).startswith("__"):
-                del cleaned_ds[data_var].attrs[attr]
+                remove_attrs.append(attr)
             else:
-                cleaned_ds[data_var].attrs[attr] = json.dumps(
-                    cleaned_ds.attrs[attr])
+                value = cleaned_ds[data_var].attrs[attr]
+                if isinstance(value, np.ndarray):
+                    value = ndarray_to_json_ser(value)
+                cleaned_ds[data_var].attrs[attr] = json.dumps(value)
+        for attr in remove_attrs:
+            del cleaned_ds[data_var].attrs[attr]
 
         # if np.issubdtype(np.asarray(cleaned_ds.attrs[attr]).dtype, np.bool_):
         #    cleaned_ds.attrs[attr] = int(cleaned_ds.attrs[attr])
 
     cleaned_ds.attrs["__attrs_json_encoded"] = 1
+    cleaned_ds.attrs["__shnitsel_format_version"] = "v1.0"
 
     return cleaned_ds.reset_index(midx_names).to_netcdf(
         savepath, engine='h5netcdf', encoding=encoding)
