@@ -1,9 +1,26 @@
-
 import os
 import numpy as np
 
+from shnitsel.data.TrajectoryFormat import Trajectory
+import xarray as xr
+import json 
 
-def write_shnitsel_file(frames, path: os.PathLike, complevel=9):
+from shnitsel.io.helpers import PathOptionsType
+
+
+def write_shnitsel_file(dataset: xr.Dataset | Trajectory, savepath: PathOptionsType, complevel:int=9):
+    """Function to write a trajectory in Shnitsel format (xr.) to a ntcdf hdf5 file format.
+
+    Strips all internal attributes first to avoid errors during writing.
+    When writing directly with to_netcdf, errors might occur due to internally set attributes with problematic types.
+
+    Args:
+        dataset (xr.Dataset | Trajectory): The dataset or trajectory to write (omit if using accessor)
+        savepath (PathOptionsType): The path at which to save the trajectory file
+
+    Returns:
+        Unknown: Returns the result of the final call to xr.Dataset.to_netcdf()
+    """
     """Save a ``Dataset``, presumably (but not necessarily) consisting of frames of trajectories, to a file at ``path``.
 
     Parameters
@@ -19,32 +36,49 @@ def write_shnitsel_file(frames, path: os.PathLike, complevel=9):
     -----
     This function/accessor method wraps :py:meth:`xarray.Dataset.to_netcdf` but not :py:func:`numpy.any`.
     """
-    frames = frames.copy()  # Shallow copy to avoid adding attrs etc. to original
+    cleaned_ds = dataset.copy()  # Shallow copy to avoid adding attrs etc. to original
     encoding = {
-        var: {"compression": "gzip", "compression_opts": complevel} for var in frames
+        var: {"compression": "gzip", "compression_opts": complevel} for var in cleaned_ds
     }
 
     # NetCDF does not support booleans
-    for data_var in frames.data_vars:
-        if np.issubdtype(frames.data_vars[data_var].dtype, np.bool_):
-            frames = frames.assign(
-                {data_var: frames.data_vars[data_var].astype('i1')})
-    for coord in frames.coords:
-        if np.issubdtype(frames.coords[coord].dtype, np.bool_):
-            frames = frames.assign_coords(
-                {coord: frames.coords[coord].astype('i1')})
-    for attr in frames.attrs:
-        if np.issubdtype(np.asarray(frames.attrs[attr]).dtype, np.bool_):
-            frames.attrs[attr] = int(frames.attrs[attr])
+    for data_var in cleaned_ds.data_vars:
+        if np.issubdtype(cleaned_ds.data_vars[data_var].dtype, np.bool_):
+            cleaned_ds = cleaned_ds.assign(
+                {data_var: cleaned_ds.data_vars[data_var].astype('i1')})
+    for coord in cleaned_ds.coords:
+        if np.issubdtype(cleaned_ds.coords[coord].dtype, np.bool_):
+            cleaned_ds = cleaned_ds.assign_coords(
+                {coord: cleaned_ds.coords[coord].astype('i1')})
+            
+
+    for attr in cleaned_ds.attrs:
+        # Strip internal attributes
+        if str(attr).startswith("__"):
+            del cleaned_ds.attrs[attr]
+        else:
+            cleaned_ds.attrs[attr] = json.dumps(cleaned_ds.attrs[attr])
+            
+    for attr in cleaned_ds.attrs:
+        # Strip internal attributes
+        if str(attr).startswith("__"):
+            del cleaned_ds.attrs[attr]
+        else:
+            cleaned_ds.attrs[attr] = json.dumps(cleaned_ds.attrs[attr])
+
+        #if np.issubdtype(np.asarray(cleaned_ds.attrs[attr]).dtype, np.bool_):
+        #    cleaned_ds.attrs[attr] = int(cleaned_ds.attrs[attr])
+
+    cleaned_ds.attrs["__attrs_json_encoded"]=1
 
     # NetCDF does not support MultiIndex
     # Keep a record of the level names in the attrs
     midx_names = []
-    for name, index in frames.indexes.items():
+    for name, index in cleaned_ds.indexes.items():
         if index.name == name and len(index.names) > 1:
             midx_names.append(name)
             midx_levels = list(index.names)
-            frames.attrs[f'_MultiIndex_levels_for_{name}'] = midx_levels
-    frames.attrs['_MultiIndex_levels_from_attrs'] = 1
-    frames.reset_index(midx_names).to_netcdf(
-        path, engine='h5netcdf', encoding=encoding)
+            cleaned_ds.attrs[f'_MultiIndex_levels_for_{name}'] = midx_levels
+    cleaned_ds.attrs['_MultiIndex_levels_from_attrs'] = 1
+    return cleaned_ds.reset_index(midx_names).to_netcdf(
+        savepath, engine='h5netcdf', encoding=encoding)

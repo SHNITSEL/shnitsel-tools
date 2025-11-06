@@ -15,9 +15,8 @@ from shnitsel.core import (
 # import io
 # import units
 
-from .io.read import read
-from .io.write import write
+from .io import read, write_shnitsel_file
 
 # , 'parse', 'open_frames', 'read_trajs', 'read_ase']
 # __all__ = ['io', 'units']
-__all__ = ['read', 'write']
+__all__ = ['read', 'write_shnitsel_file']

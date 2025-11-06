@@ -249,13 +249,13 @@ def read_folder_multi(
         if error_reporting == "raise":
             raise FileNotFoundError(message)
         else:
-            logging.errror(message)
+            logging.error(message)
             return None
 
     relevant_kinds = [kind] if kind is not None else list(READERS.keys())
 
     # The kinds for which we had matches
-    fitting_kinds: List[Tuple[pathlib.Path, FormatInformation]] = []
+    fitting_kinds: List[str] = []
     # Entries for each kind
     matching_entries = {}
 
@@ -309,7 +309,7 @@ def read_folder_multi(
 
         if len(kind_matches) > 0:
             # We need to deal with the NewtonX aliases nx/newtonx
-            if kind_key not in fitting_kinds:
+            if kind_key is not None and  kind_key not in fitting_kinds:
                 fitting_kinds.append(kind_key)
             matching_entries[kind_key] = kind_matches
             logging.debug(
@@ -336,7 +336,7 @@ def read_folder_multi(
             return None
     else:
         fitting_kind = fitting_kinds[0]
-        logging.debug("Opting for input format: {fitting_kind}")
+        logging.debug(f"Opting for input format: {fitting_kind}")
         fitting_paths = matching_entries[fitting_kind]
 
         fitting_reader = READERS[fitting_kind]
@@ -432,7 +432,7 @@ def identify_or_check_input_kind(
     path_obj: pathlib.Path = make_uniform_path(path)
 
     if not path_obj.exists():
-        raise FileNotFoundError("The path `{path}` is not valid.")
+        raise FileNotFoundError(f"The path `{path}` is not valid.")
 
     # We only bother if there has been a hint to the kind of format
     # If none was specified, we take whichever fits
