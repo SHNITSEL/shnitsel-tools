@@ -130,15 +130,15 @@ class SHARCFormatReader(FormatReader):
 
             qm_out_path = path_obj / "QM.out"
             qm_log_path = path_obj / "QM.log"
+            qm_in_path = path_obj / "QM.in"
 
-            for file in [qm_out_path, qm_log_path]:
-                if not file.is_file():
-                    message = f"Input directory `{path}` is missing {file}"
-                    if is_request_specific_to_sharc:
-                        logging.error(message)
-                    else:
-                        logging.debug(message)
-                    raise FileNotFoundError(message)
+            if not qm_out_path.is_file() or (not qm_log_path.is_file() and not qm_in_path.is_file()):
+                message = f"Input directory `{path}` is missing `QM.out` or both `QM.log` and `QM.in`"
+                if is_request_specific_to_sharc:
+                    logging.info(message)
+                else:
+                    logging.debug(message)
+                raise FileNotFoundError(message)
 
             # list_of_initial_condition_paths = list_iconds(path_obj)
             is_static = True
