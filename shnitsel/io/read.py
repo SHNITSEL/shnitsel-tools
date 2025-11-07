@@ -175,7 +175,7 @@ def read(
                 if len(res_list) == 1:
                     return res_list[0]
                 elif len(res_list) == 0:
-                    message = "No trajectories could be loaded from path `{path}`."
+                    message = f"No trajectories could be loaded from path `{path}`."
                     if error_reporting == "log":
                         logging.error(message)
                     else:
