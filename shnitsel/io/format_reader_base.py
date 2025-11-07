@@ -105,10 +105,11 @@ class FormatReader(ABC):
         ...
 
     def read_trajectory(
-            self,
-            path: PathOptionsType | None,
-            format_info: FormatInformation | None = None,
-            loading_parameters: LoadingParameters | None = None,) -> Trajectory | None:
+        self,
+        path: PathOptionsType | None,
+        format_info: FormatInformation | None = None,
+        loading_parameters: LoadingParameters | None = None,
+    ) -> Trajectory | None:
         """Wrapper function to perform some potential initialization and finalization on the read trajectory objects.
 
         Uses the format-specific `self.read_from_path()` method to read the trajectory and then performs some standard post processing on it.
@@ -119,13 +120,14 @@ class FormatReader(ABC):
             Valueerror: If neither `path` nor `format_info` are provided
 
         Returns:
-            Trajectory|None: Returns a wrapped Trajectory/xr.Dataset object with standard units, only assigned variables remaining and all 
-                                variables with appropriate attributes. 
+            Trajectory|None: Returns a wrapped Trajectory/xr.Dataset object with standard units, only assigned variables remaining and all
+                                variables with appropriate attributes.
                                 If no result was obtained by the call to `self.read_from_path()`, it will return `None`.
         """
 
         loading_parameters = self.get_loading_parameters_with_defaults(
-            loading_parameters)
+            loading_parameters
+        )
 
         res = self.read_from_path(path, format_info, loading_parameters)
 
