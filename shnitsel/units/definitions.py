@@ -187,7 +187,7 @@ Previously used settings for SHARC input:
 
 def get_default_input_attributes(
     kind: Literal["sharc", "newtonx", "ase", "pyrai2md"],
-    loading_parameters: LoadingParameters = None,
+    loading_parameters: LoadingParameters | None = None,
 ) -> Dict[str, Dict[str, str]]:
     format_default_units = standard_units_of_formats[kind]
 
@@ -228,7 +228,7 @@ def get_default_input_attributes(
             "units": override_defaults(unit_dimensions.dipole, "dip_perm"),
         },
         "dip_trans": {
-            "long_name": "Transition dipoles",
+            "long_name": "Transitional dipoles",
             "unitdim": unit_dimensions.dipole,
             "units": override_defaults(unit_dimensions.dipole, "dip_trans"),
         },
@@ -241,11 +241,13 @@ def get_default_input_attributes(
         "sdiag": {"long_name": "Active state (diag)"},
         "astate": {"long_name": "Active state in dynamic trajectories (MCH)"},
         "state": {"long_name": "Index of relevant states for indexing"},
+        "state2": {"long_name": "The second state to build state combinations out of"},
+        "from": {"long_name": "An alias for the first state of a state combination"},
+        "to": {"long_name": "An alias for the second state of a state combination"},
         "state_names": {"long_name": "String representations of the states."},
         "state_types": {
-            "long_name": "Index to indicate whether the state is singlet (1), doublet (2), or triplet(3)"
+            "long_name": "Multiplicity to indicate whether the respective state is singlet (1), doublet (2), or triplet(3)"
         },
-        "state2": {"long_name": "The second state to build state combinations out of"},
         "statecomb": {
             "long_name": "Combination of two states used to index inter-state properties"
         },
@@ -254,12 +256,17 @@ def get_default_input_attributes(
         "forces": {
             "long_name": "Per-atom forces",
             "unitdim": unit_dimensions.force,
-            "units": format_default_units[unit_dimensions.force],
+            "units": override_defaults(unit_dimensions.force, "forces"),
         },
         "nacs": {
-            "long_name": "nonadiabatic couplings",
+            "long_name": "Nonadiabatic couplings",
             "unitdim": unit_dimensions.nacs,
-            "units": format_default_units[unit_dimensions.nacs],
+            "units": override_defaults(unit_dimensions.nacs, "nacs"),
+        },
+        "socs": {
+            "long_name": "Spin-orbit couplings",
+            "unitdim": unit_dimensions.socs,
+            "units": override_defaults(unit_dimensions.socs, "socs"),
         },
     }
 
