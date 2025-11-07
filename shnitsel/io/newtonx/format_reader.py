@@ -104,15 +104,15 @@ class NewtonXFormatReader(FormatReader):
 
     def read_from_path(
         self,
-        path: PathOptionsType | None,
-        format_info: FormatInformation | None = None,
+        path: pathlib.Path,
+        format_info: FormatInformation,
         loading_parameters: LoadingParameters | None = None,
     ) -> xr.Dataset:
         """Read a NewtonX-style trajcetory from path at `path`. Implements `FormatReader.read_from_path()`
 
         Args:
-            path (PathOptionsType | None): Path to a NewtonX-format directory. If not provided explicitly, needs to be included in `format_info.path`
-            format_info (FormatInformation | None, optional): Format information on the provided `path` if previously parsed. Will be parsed from `path` if not provided. Defaults to None.
+            path (pathlib.Path): Path to a NewtonX-format directory.
+            format_info (FormatInformation): Format information on the provided `path` that has been previously parsed.
             loading_parameters: (LoadingParameters|None, optional): Loading parameters to e.g. override default state names, units or configure the error reporting behavior
 
         Raises:
@@ -123,47 +123,19 @@ class NewtonXFormatReader(FormatReader):
             Trajectory: The loaded Shnitsel-conforming trajectory
         """
 
-        path_obj: pathlib.Path = make_uniform_path(path)
-
-        if path_obj is not None and format_info is None:
-            format_info = self.check_path_for_format_info(path_obj)
-        elif path_obj is None and format_info is not None:
-            path_obj = format_info.path
-        elif path_obj is None and format_info is None:
-            raise ValueError("Either `path` or `format_info` needs to be provided")
-
-        if path_obj is None:
-            raise ValueError(
-                "Not sufficient `path` information provided. Please set the `path` parameter"
-            )
-
         try:
             loaded_dataset = parse_newtonx(
-                path_obj,
+                path,
                 loading_parameters=self.get_loading_parameters_with_defaults(
                     loading_parameters
                 ),
             )
-        except FileNotFoundError as fnf_e:
-            raise fnf_e
+        except FileNotFoundError:
+            raise
         except ValueError as v_e:
             message = f"Attempt at reading NewtonX trajectory from path `{path}` failed because of original error: {v_e}"
             logging.error(message)
             raise FileNotFoundError(message)
-
-        # If trajid has been extracted from the input path, set it
-        if format_info is not None:
-            # If trajid has been extracted from the input path, set it
-            if format_info.trajid is not None:
-                loaded_dataset.attrs["trajid"] = format_info.trajid
-
-            if (
-                format_info.path is not None
-                and not "trajectory_input_path" in loaded_dataset.attrs
-            ):
-                loaded_dataset.attrs["trajectory_input_path"] = (
-                    format_info.path.as_posix()
-                )
 
         return loaded_dataset
 
