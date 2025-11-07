@@ -291,10 +291,6 @@ def read_iconds_individual(
     # Create dataset
     iconds = create_initial_dataset(0, nstates, natoms, "sharc", loading_parameters)
 
-    # Set information on the singlet, doublet and triplet states, if available
-    iconds["state_types"][:nsinglets] = 1
-    iconds["state_types"][nsinglets : nsinglets + 2 * ndoublets] = 2
-    iconds["state_types"][nsinglets + 2 * ndoublets :] = 3
     mark_variable_assigned(iconds.state_types)
 
     logging.info("Reading ICONDs data into Dataset...")
@@ -441,7 +437,24 @@ def parse_QM_in(qm_in: TextIOWrapper) -> Dict[str, Any]:
             info[key] = value
 
     if "states" in info:
-        info["num_states"] = int(info["states"])
+        state_string = info["states"]
+        state_parts = state_string.split()
+        max_mult = len(state_parts)
+        nsinglets = 0
+        ndoublets = 0
+        ntriplets = 0
+
+        if max_mult >= 1:
+            nsinglets = int(state_parts[0])
+        if max_mult >= 2:
+            ndoublets = int(state_parts[1])
+        if max_mult >= 3:
+            ntriplets = int(state_parts[2])
+
+        info["num_states"] = nsinglets * 1 + ndoublets * 2 + ntriplets * 3
+        info["num_singlets"] = nsinglets
+        info["num_doublets"] = ndoublets
+        info["num_triplets"] = ntriplets
 
     # print(info)
     return info
@@ -543,7 +556,7 @@ def parse_QM_log_geom(f: TextIOWrapper, out: xr.Dataset):
         atom_symbol = geometry_line[0].strip()
         out["atNames"][i] = atom_symbol
         out["atNums"][i] = get_atom_number_from_symbol(atom_symbol)
-        out["atXYZ"][i] = map(float, geometry_line[1:4])
+        out["atXYZ"][i] = list(map(float, geometry_line[1:4]))
 
     mark_variable_assigned(out.atNames)
     mark_variable_assigned(out.atNums)
