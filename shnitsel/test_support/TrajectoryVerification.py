@@ -9,7 +9,7 @@ from shnitsel.units.definitions import unit_dimensions
 # TODO: FIXME: Some attributes are turned into variables on merged trajectories.
 _required_shnitsel_variables = ["energy", "forces", "time"]
 _optional_shnitsel_variables = ["atXYZ", "nacs", "dip_perm", "dip_trans", "socs", "state_names",
-                                "state_types", "states", "astate", "sdiag", "state2", "statecomb", "phases", "atNames", "atNums", "e_kin", "from", "to", "atom", "state", "direction", "trajid"]
+                                "state_types", "astate", "sdiag", "state2", "statecomb", "phases", "atNames", "atNums", "e_kin", "from", "to", "atom", "state", "direction", "trajid"]
 _required_shnitsel_attributes = ["input_format", "input_format_version", "input_type", "completed", "max_ts", "delta_t", "num_singlets", "num_doublets", "num_triplets", "t_max"]
 _optional_shnitsel_attributes = ["has_forces", "trajectory_input_path", "trajid", "__original_dataset", "is_multi_trajectory"]
 
