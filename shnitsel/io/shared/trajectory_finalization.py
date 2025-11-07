@@ -30,20 +30,26 @@ def finalize_loaded_trajectory(dataset: xr.Dataset | None, loading_parameters: L
 def set_state_defaults(dataset: xr.Dataset, loading_parameters: LoadingParameters | None) -> xr.Dataset:
 
     # TODO: FIXME: apply configured names from loading_parameters
-    nsinglets = dataset.attrs["nsinglets"]
-    ndoublets = dataset.attrs["ndoublets"]
-    ntriplets = dataset.attrs["ntriplets"]
+    nsinglets = dataset.attrs["num_singlets"]
+    ndoublets = dataset.attrs["num_doublets"]
+    ntriplets = dataset.attrs["num_triplets"]
 
     if nsinglets >= 0 and ndoublets >= 0 and ntriplets >= 0:
-        dataset.state_types[:nsinglets] = 1
-        dataset.state_names[:nsinglets] = [f"S{i}" for i in range(nsinglets)]
-        dataset.state_types[nsinglets: nsinglets + 2 * ndoublets] = 2
-        dataset.state_names[nsinglets: nsinglets + 2 * ndoublets] = [
-            f"D{i}" for i in range(2 * ndoublets)
-        ]
-        dataset.state_types[nsinglets + 2 * ndoublets:] = 3
-        dataset.state_names[nsinglets + 2 *
-                            ndoublets:] = [f"T{i}" for i in range(3 * ntriplets)]
+        logging.warning("We made a best-effort guess for the names and types/multiplicities of the individual states. "
+                        "Please provide a list of state types or a function ot assign the state types to have the correct values assigned.")
+        if nsinglets > 0:
+            dataset.state_types[:nsinglets] = 1
+            dataset.state_names[:nsinglets] = [
+                f"S{i}" for i in range(nsinglets)]
+        if ndoublets > 0:
+            dataset.state_types[nsinglets: nsinglets + 2 * ndoublets] = 2
+            dataset.state_names[nsinglets: nsinglets + 2 * ndoublets] = [
+                f"D{i}" for i in range(2 * ndoublets)
+            ]
+        if ntriplets > 0:
+            dataset.state_types[nsinglets + 2 * ndoublets:] = 3
+            dataset.state_names[nsinglets + 2 *
+                                ndoublets:] = [f"T{i}" for i in range(3 * ntriplets)]
     else:
         logging.error("Could not determine state multiplicities and names")
 
