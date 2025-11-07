@@ -21,7 +21,7 @@ class TestPyrai2mdFunctionality:
 
     def test_read_pyrai2md_trajs_direct(self):
         # parse trajectory data directly from pyrai2md output
-        traj = parse_pyrai2md("tutorials/test_data/pyrai2md/traj")
+        traj = PyrAI2mdFormatReader().read_trajectory("tutorials/test_data/pyrai2md/traj")
 
         assert verify_trajectory_format(
             traj, self.asserted_properties_in_trajectory

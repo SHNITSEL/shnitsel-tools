@@ -4,6 +4,7 @@ import os
 
 from shnitsel.io import read
 from shnitsel.io.helpers import LoadingParameters
+from shnitsel.io.sharc.format_reader import SHARCFormatReader
 from shnitsel.io.sharc.parse_trajectory import read_traj
 from shnitsel.io.sharc.parse_initial_conditions import read_iconds_individual
 from shnitsel.io import write_shnitsel_file
@@ -29,7 +30,7 @@ class TestSHARC:
         path = os.path.join(
             "tutorials", "test_data", "sharc", "iconds_butene", "ICOND_00000"
         )
-        iconds = read_iconds_individual(path, loading_parameters=LoadingParameters())
+        iconds = SHARCFormatReader().read_trajectory(path, loading_parameters=LoadingParameters())
 
         assert verify_trajectory_format(
             iconds, self.asserted_properties_in_trajectory
@@ -66,7 +67,7 @@ class TestSHARC:
 
     def test_read_sharc_trajs_direct(self):
         # parse trajectory data from SHARC output files
-        traj_frames_butene = read_traj(
+        traj_frames_butene = SHARCFormatReader().read_trajectory(
             "tutorials/test_data/sharc/traj_butene/TRAJ_00002"
         )
         assert verify_trajectory_format(
