@@ -82,7 +82,7 @@ def read_traj(
             settings = parse_output_settings(f)
         # Unit of dtstep is completely unclear.
         # delta_t = float(settings["dtstep"]) *time_
-        t_max = float(settings["tmax"])
+
         nsteps = int(settings["nsteps"]) + 1
         natoms = int(settings["natom"])
 
