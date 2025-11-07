@@ -15,6 +15,8 @@ import xarray as xr
 import numpy as np
 import pandas as pd
 
+from shnitsel.io.shnitsel.write import write_shnitsel_file
+
 from .._contracts import needs
 
 
@@ -203,7 +205,7 @@ def save_split(
     for i, ds in enumerate(dss):
         current_path = path_template.format(i)
         try:
-            save_frames(ds, current_path, complevel=complevel)
+            write_shnitsel_file(ds, current_path, complevel=complevel)
         except Exception as e:
             logging.error(f"Exception while saving to {current_path=}")
             if not ignore_errors:
