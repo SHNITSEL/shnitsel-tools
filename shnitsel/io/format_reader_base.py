@@ -2,10 +2,17 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 import os
 import pathlib
-from typing import Dict, List
+from typing import Callable, Dict, List
 
 from shnitsel.data.TrajectoryFormat import Trajectory
-from shnitsel.io.helpers import LoadingParameters, PathOptionsType, make_uniform_path
+from shnitsel.io.helpers import (
+    LoadingParameters,
+    PathOptionsType,
+    default_state_name_assigner,
+    default_state_type_assigner,
+    make_uniform_path,
+    random_trajid_assigner,
+)
 
 import xarray as xr
 
@@ -14,6 +21,7 @@ from shnitsel.io.shared.trajectory_setup import (
     OptionalTrajectorySettings,
     assign_optional_settings,
 )
+from shnitsel.io.shared.variable_flagging import mark_variable_assigned
 
 
 @dataclass
@@ -162,23 +170,45 @@ class FormatReader(ABC):
         if res is not None:
             # Set some optional settings.
             optional_settings = OptionalTrajectorySettings()
+            optional_settings.trajectory_input_path = path_obj.as_posix()
+            
+            assign_optional_settings(res, optional_settings)
 
             # If trajid has been extracted from the input path, set it
             if format_info is not None:
                 # If trajid has been extracted from the input path, set it
-                if format_info.trajid is not None:
-                    optional_settings.trajid = (
-                        format_info.trajid
-                        if loading_parameters.trajectory_id is None
-                        else loading_parameters.trajectory_id
+                if loading_parameters.trajectory_id is not None:
+                    # the trajectory_id assignment should have been transformed into a callable
+                    traj_id_assigner: Callable[[pathlib.Path], int] = (
+                        loading_parameters.trajectory_id
+                    )  # type: ignore
+                    optional_settings.trajid = traj_id_assigner(
+                        format_info.path if format_info.path is not None else path_obj
                     )
 
-                if format_info.path is not None:
-                    optional_settings.trajectory_input_path = (
-                        format_info.path.as_posix()
-                    )
+                    if (
+                        traj_id_assigner == random_trajid_assigner
+                        and format_info.trajid is not None
+                    ):
+                        optional_settings.trajid = format_info.trajid
+                elif format_info.trajid is not None:
+                    optional_settings.trajid = format_info.trajid
 
-                assign_optional_settings(res, optional_settings)
+                # Assign state types if provided
+                if loading_parameters.state_types is not None:
+                    state_types_assigner: Callable[[xr.Dataset], xr.Dataset] = (
+                        loading_parameters.state_types
+                    )  # type: ignore
+                    res = state_types_assigner(res)
+
+                # Assign state names if provided
+                if loading_parameters.state_names is not None:
+                    state_names_assigner: Callable[[xr.Dataset], xr.Dataset] = (
+                        loading_parameters.state_names
+                    )  # type: ignore
+                    res = state_names_assigner(res)
+
+            assign_optional_settings(res, optional_settings)
 
             return finalize_loaded_trajectory(res, loading_parameters)
         else:
@@ -213,14 +243,75 @@ class FormatReader(ABC):
             LoadingParameters: The default parameters modified by user overrides
         """
 
+        # Transform different options of input settings into a callable that assigns the values.
+        get_state_name_callable: Callable[[xr.Dataset], xr.Dataset] | None = None
+        get_state_types_callable: Callable[[xr.Dataset], xr.Dataset] | None = None
+        get_traj_id_callable: Callable[[pathlib.Path], int] | None = None
+        if base_loading_parameters is not None:
+            state_names_override = base_loading_parameters.state_names
+            if state_names_override is not None:
+                if callable(state_names_override):
+                    get_state_name_callable = state_names_override
+                elif isinstance(state_names_override, list):
+
+                    def tmp_state_assigner(dataset: xr.Dataset) -> xr.Dataset:
+                        dataset = dataset.assign_coords(
+                            {
+                                "state_names": (
+                                    "state",
+                                    state_names_override,
+                                    dataset.state_names.attrs,
+                                )
+                            }
+                        )
+                        mark_variable_assigned(dataset.state_names)
+                        return dataset
+
+                    get_state_name_callable = tmp_state_assigner
+                else:
+                    get_state_name_callable = default_state_name_assigner
+            state_types_override = base_loading_parameters.state_types
+            if state_types_override is not None:
+                if callable(state_types_override):
+                    get_state_types_callable = state_types_override
+                elif isinstance(state_types_override, list):
+
+                    def tmp_state_assigner(dataset: xr.Dataset) -> xr.Dataset:
+                        dataset = dataset.assign_coords(
+                            {
+                                "state_types": (
+                                    "state",
+                                    state_types_override,
+                                    dataset.state_types.attrs,
+                                )
+                            }
+                        )
+                        mark_variable_assigned(dataset.state_types)
+                        return dataset
+
+                    get_state_types_callable = tmp_state_assigner
+                else:
+                    get_state_types_callable = default_state_type_assigner
+            trajid_override = base_loading_parameters.trajectory_id
+            if trajid_override is not None:
+                if callable(trajid_override):
+                    get_traj_id_callable = trajid_override
+                elif isinstance(trajid_override, dict):
+
+                    def tmp_trajid_assigner(path: pathlib.Path) -> int:
+                        path_str = path.absolute().as_posix()
+                        if path_str in trajid_override:
+                            return trajid_override[path_str]
+                        else:
+                            return -1
+
+                    get_traj_id_callable = tmp_trajid_assigner
+                else:
+                    get_traj_id_callable = random_trajid_assigner
+
         return LoadingParameters(
             self.get_units_with_defaults(
                 base_loading_parameters.input_units
-                if base_loading_parameters is not None
-                else None
-            ),
-            (
-                base_loading_parameters.state_names
                 if base_loading_parameters is not None
                 else None
             ),
@@ -229,4 +320,7 @@ class FormatReader(ABC):
                 if base_loading_parameters is not None
                 else "raise"
             ),
+            get_traj_id_callable,
+            get_state_types_callable,
+            get_state_name_callable,
         )

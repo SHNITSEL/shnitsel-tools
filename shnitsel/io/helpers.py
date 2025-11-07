@@ -5,6 +5,12 @@ import pathlib
 from typing import Callable, Dict, List, Literal, Tuple
 import numpy as np
 import xarray as xr
+import random
+
+from shnitsel.io.shared.variable_flagging import (
+    is_variable_assigned,
+    mark_variable_assigned,
+)
 
 KindType = Literal['sharc', 'nx', 'newtonx', 'pyrai2md', 'shnitsel']
 
@@ -289,3 +295,118 @@ def dip_sep(dipoles: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
     logging.debug("permanent dipoles\n" + str(dip_perm))
     logging.debug("transitional dipoles\n" + str(dip_trans))
     return dip_perm, dip_trans
+
+
+def default_state_type_assigner(dataset: xr.Dataset) -> xr.Dataset:
+    """Function to assign default state types to states.
+
+    Args:
+        dataset (xr.Dataset): The dataset to assign the states to
+
+    Returns:
+        xr.Dataset: The dataset after the assignment
+    """
+    # If state types have already been set, do not touch them
+    if is_variable_assigned(dataset.state_types):
+        return dataset
+
+    # Try and extract the state types from the number of different states
+    nsinglets = dataset.attrs["num_singlets"]
+    ndoublets = dataset.attrs["num_doublets"]
+    ntriplets = dataset.attrs["num_triplets"]
+
+    if nsinglets >= 0 and ndoublets >= 0 and ntriplets >= 0:
+        logging.warning(
+            "We made a best-effort guess for thetypes/multiplicities of the individual states. "
+            "Please provide a list of state types or a function ot assign the state types to have the correct values assigned."
+        )
+        if nsinglets > 0:
+            dataset.state_types[:nsinglets] = 1
+        if ndoublets > 0:
+            dataset.state_types[nsinglets : nsinglets + 2 * ndoublets] = 2
+        if ntriplets > 0:
+            dataset.state_types[nsinglets + 2 * ndoublets :] = 3
+        keep_attr = dataset.state_types.attrs
+
+        dataset = dataset.reindex({"state_types": dataset.state_types.values})
+        dataset.state_types.attrs.update(keep_attr)
+
+        mark_variable_assigned(dataset.state_types)
+
+    return dataset
+
+
+def default_state_name_assigner(dataset: xr.Dataset) -> xr.Dataset:
+    """Function to assign default state names to states.
+
+    Args:
+        dataset (xr.Dataset): The dataset to assign the states to
+
+    Returns:
+        xr.Dataset: The dataset after the assignment
+    """
+    # Do not touch previously set names
+    if is_variable_assigned(dataset.state_names):
+        return dataset
+
+    # Try whether the types have been successfully set:
+
+    if is_variable_assigned(dataset.state_types):
+        counters = np.array([0, 0, 0], dtype=int)
+        type_prefix = np.array(["S", "D", "T"])
+        type_values = dataset.state_types.values
+
+        res_names = []
+        for i in range(len(type_values)):
+            type_index = int(round(type_values[i]))
+            assert type_index >= 1 and type_index <= 3
+
+            res_names.append(type_prefix[type_index] + f"{counters[type_index]:d}")
+            counters[type_index] += 1
+
+        dataset = dataset.assign_coords(
+            {"state_names": ("state", res_names, dataset.state_names.attrs)}
+        )
+
+        mark_variable_assigned(dataset.state_names)
+    else:
+        nsinglets = dataset.attrs["num_singlets"]
+        ndoublets = dataset.attrs["num_doublets"]
+        ntriplets = dataset.attrs["num_triplets"]
+
+        if nsinglets >= 0 and ndoublets >= 0 and ntriplets >= 0:
+            logging.warning(
+                "We made a best-effort guess for the names of the individual states. "
+                "Please provide a list of state names or a function ot assign the state names to have the correct values assigned."
+            )
+            new_name_values = dataset.state_names
+            if nsinglets > 0:
+                new_name_values[:nsinglets] = [f"S{i}" for i in range(nsinglets)]
+            if ndoublets > 0:
+                new_name_values[nsinglets : nsinglets + 2 * ndoublets] = [
+                    f"D{i}" for i in range(2 * ndoublets)
+                ]
+            if ntriplets > 0:
+                new_name_values[nsinglets + 2 * ndoublets :] = [
+                    f"T{i}" for i in range(3 * ntriplets)
+                ]
+            dataset = dataset.assign_coords(
+                {"state_names": ("state", new_name_values, dataset.state_names.attrs)}
+            )
+
+            mark_variable_assigned(dataset.state_names)
+
+    return dataset
+
+
+def random_trajid_assigner(path: pathlib.Path) -> int:
+    """Function to generate a random id for a path.
+
+    Args:
+        path (pathlib.Path): Unused: the path we are generating for
+
+    Returns:
+        int: the chosen trajectory id
+    """
+
+    return random.randint(0, 2**31 - 1)
