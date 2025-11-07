@@ -6,7 +6,7 @@ from shnitsel.io.helpers import get_atom_number_from_symbol
 
 
 def parse_xyz(f: TextIOWrapper) -> Tuple[List[str], List[int], np.ndarray]:
-    """ Read the inputs from a text file stream into a tuple of atom names, atom numbers and positions.
+    """Read the inputs from a text file stream into a tuple of atom names, atom numbers and positions.
 
     Args:
         f (TextIOWrapper): The File wrapper providing the contents of a `.xyz` file
@@ -36,18 +36,15 @@ def parse_xyz(f: TextIOWrapper) -> Tuple[List[str], List[int], np.ndarray]:
     atXYZ.append(thisXYZ)
 
     for line in f:
-        assert line.startswith(
-            ' '), f'Expected empty line but got content: {line!r}'
+        assert line.startswith(' '), f'Expected empty line but got content: {line!r}'
         # ts += 1
         line = next(f)
-        assert line.startswith(
-            ' '), f'Expected empty line but got content: {line!r}'
+        assert line.startswith(' '), f'Expected empty line but got content: {line!r}'
 
         thisXYZ = np.full((natoms, 3), np.nan)
         for iatom, atName in enumerate(atNames):
             geometry_line = next(f).strip().split()
-            assert geometry_line[0] == atName, \
-                "Inconsistent atom order"
+            assert geometry_line[0] == atName, "Inconsistent atom order"
             # atXYZ[ts, iatom] = [float(n) for n in geometry_line[1:]]
             thisXYZ[iatom] = [float(n) for n in geometry_line[1:]]
         atXYZ.append(thisXYZ)
@@ -61,7 +58,7 @@ def get_dipoles_per_xyz(file: TextIOWrapper, n: int, m: int) -> np.ndarray:
     Args:
         file (TextIOWrapper): Wrapper providing the contents of an `.xyz` file
         n (int): First index length of the dipole matrix
-        m (int): Second index length of the dipole matrix 
+        m (int): Second index length of the dipole matrix
 
     Returns:
         np.ndarray: The matrix of the dipole contents
