@@ -124,10 +124,13 @@ class FormatReader(ABC):
                                 If no result was obtained by the call to `self.read_from_path()`, it will return `None`.
         """
 
+        loading_parameters = self.get_loading_parameters_with_defaults(
+            loading_parameters)
+
         res = self.read_from_path(path, format_info, loading_parameters)
 
         if res is not None:
-            return finalize_loaded_trajectory(res)
+            return finalize_loaded_trajectory(res, loading_parameters)
         else:
             return res
 
