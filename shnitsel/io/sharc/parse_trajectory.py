@@ -10,10 +10,27 @@ import os
 import re
 import math
 
-from shnitsel.io.helpers import PathOptionsType, get_atom_number_from_symbol, make_uniform_path
-from shnitsel.io.shared.trajectory_setup import OptionalTrajectorySettings, RequiredTrajectorySettings, assign_optional_settings, assign_required_settings, create_initial_dataset
-from shnitsel.io.shared.variable_flagging import is_variable_assigned, mark_variable_assigned
-from shnitsel.units.definitions import distance, get_default_input_attributes, _distance_unit_scales
+from shnitsel.io.helpers import (
+    PathOptionsType,
+    get_atom_number_from_symbol,
+    make_uniform_path,
+)
+from shnitsel.io.shared.trajectory_setup import (
+    OptionalTrajectorySettings,
+    RequiredTrajectorySettings,
+    assign_optional_settings,
+    assign_required_settings,
+    create_initial_dataset,
+)
+from shnitsel.io.shared.variable_flagging import (
+    is_variable_assigned,
+    mark_variable_assigned,
+)
+from shnitsel.units.definitions import (
+    distance,
+    get_default_input_attributes,
+    _distance_unit_scales,
+)
 
 
 from shnitsel.io.helpers import LoadingParameters
@@ -69,8 +86,7 @@ def read_traj(
         energy_offset = float(settings["ezero"])
 
         if "nstates" in settings:
-            state_mult_array = [int(x.strip())
-                                for x in settings["nstates"].split()]
+            state_mult_array = [int(x.strip()) for x in settings["nstates"].split()]
             max_mult = len(state_mult_array)
 
             nsinglets = state_mult_array[0] if max_mult >= 1 else 0
@@ -90,8 +106,7 @@ def read_traj(
         sharc_version = settings["SHARC_version"]
 
         if "nstates" in settings:
-            state_mult_array = [int(x.strip())
-                                for x in settings["nstates"].split()]
+            state_mult_array = [int(x.strip()) for x in settings["nstates"].split()]
             max_mult = len(state_mult_array)
 
             nsinglets = state_mult_array[0] if max_mult >= 1 else 0
@@ -99,8 +114,7 @@ def read_traj(
             ntriplets = state_mult_array[2] if max_mult >= 3 else 0
 
     if os.path.isfile(output_path):
-        settings, variables_listings = parse_output_listings(
-            output_listing_path)
+        settings, variables_listings = parse_output_listings(output_listing_path)
         delta_t = float(settings["delta_t"])
         t_max = float(settings["t_max"])
         nsteps = int(settings["nsteps"]) + 1
@@ -120,8 +134,7 @@ def read_traj(
             energy_offset = settings["ezero"]
 
             if "nstates" in settings:
-                state_mult_array = [int(x.strip())
-                                    for x in settings["nstates"].split()]
+                state_mult_array = [int(x.strip()) for x in settings["nstates"].split()]
                 max_mult = len(state_mult_array)
 
                 nsinglets = state_mult_array[0] if max_mult >= 1 else 0
@@ -130,7 +143,8 @@ def read_traj(
 
     if energy_offset is None:
         raise FileNotFoundError(
-            f"Could not detect ezero offset for SHARC data from path {traj_path}. Make sure, output.dat, input or output.log are present.")
+            f"Could not detect ezero offset for SHARC data from path {traj_path}. Make sure, output.dat, input or output.log are present."
+        )
 
     # TODO: FIXME: Check if the factors are correct or if we should just sum up the states?
     nstates: int = nsinglets + 2 * ndoublets + 3 * ntriplets
@@ -139,20 +153,28 @@ def read_traj(
     if natoms is None:
         if geom_file.is_file():
             with open(geom_file) as f:
-                natoms = int(round(np.sum(
-                    [1 if len(x.strip()) > 0 else 0 for x in f.readlines()])))
+                natoms = int(
+                    round(
+                        np.sum([1 if len(x.strip()) > 0 else 0 for x in f.readlines()])
+                    )
+                )
     if natoms is None:
         if veloc_file.is_file():
             with open(veloc_file) as f:
-                natoms = int(round(np.sum(
-                    [1 if len(x.strip()) > 0 else 0 for x in f.readlines()])))
+                natoms = int(
+                    round(
+                        np.sum([1 if len(x.strip()) > 0 else 0 for x in f.readlines()])
+                    )
+                )
 
     if nsteps is None or natoms is None:
         raise FileNotFoundError(
-            f"Could not find enough information to deduce the number of atoms or steps.")
+            f"Could not find enough information to deduce the number of atoms or steps."
+        )
 
     trajectory = create_initial_dataset(
-        nsteps, nstates, natoms, "sharc", loading_parameters)
+        nsteps, nstates, natoms, "sharc", loading_parameters
+    )
 
     if output_path.is_file():
         # Try and parse full output from output.dat
@@ -178,30 +200,41 @@ def read_traj(
         if not is_variable_assigned(trajectory.time):
             if "time" in variables_listings:
                 trajectory.coords["time"] = (
-                    "time", variables_listings["time"], trajectory.time.attrs)
+                    "time",
+                    variables_listings["time"],
+                    trajectory.time.attrs,
+                )
                 mark_variable_assigned(trajectory["time"])
         if not is_variable_assigned(trajectory.astate):
             if "astate" in variables_listings:
                 trajectory.coords["astate"] = (
-                    "time", variables_listings["astate"], trajectory.astate.attrs)
+                    "time",
+                    variables_listings["astate"],
+                    trajectory.astate.attrs,
+                )
                 mark_variable_assigned(trajectory["astate"])
 
     # TODO: Note that for consistency, we renamed the ts dimension to time to agree with other format
-    if not is_variable_assigned(trajectory.atNames) or not is_variable_assigned(trajectory.atNums) or not is_variable_assigned(trajectory.atXYZ):
+    if (
+        not is_variable_assigned(trajectory.atNames)
+        or not is_variable_assigned(trajectory.atNums)
+        or not is_variable_assigned(trajectory.atXYZ)
+    ):
         with open(os.path.join(traj_path, "output.xyz")) as f:
             atNames, atNums, atXYZ = parse_trajout_xyz(nsteps, f)
 
-            trajectory.coords["atNames"] = (
-                "atom", atNames, trajectory.atNames.attrs)
+            trajectory.coords["atNames"] = ("atom", atNames, trajectory.atNames.attrs)
             mark_variable_assigned(trajectory.atNames)
 
-            trajectory.coords["atNums"] = (
-                "atom", atNums, trajectory.atNums.attrs)
+            trajectory.coords["atNums"] = ("atom", atNums, trajectory.atNums.attrs)
             mark_variable_assigned(trajectory.atNums)
 
             # These are in Angstrom for some weird reason... why not consistent? Who knows.
-            trajectory["atXYZ"][...] = atXYZ * _distance_unit_scales[distance.Angstrom] / \
-                _distance_unit_scales[distance.Bohr]
+            trajectory["atXYZ"][...] = (
+                atXYZ
+                * _distance_unit_scales[distance.Angstrom]
+                / _distance_unit_scales[distance.Bohr]
+            )
             mark_variable_assigned(trajectory.atXYZ)
 
     # Set all settings we require to be present on the trajectory
@@ -215,19 +248,20 @@ def read_traj(
         sharc_version,
         nsinglets,
         ndoublets,
-        ntriplets)
+        ntriplets,
+    )
 
     assign_required_settings(trajectory, required_settings)
 
     optional_settings = OptionalTrajectorySettings(
-        has_forces=is_variable_assigned(trajectory["forces"]))
+        has_forces=is_variable_assigned(trajectory["forces"])
+    )
     assign_optional_settings(trajectory, optional_settings)
 
     return trajectory
 
 
-def parse_output_settings(
-        f: TextIOWrapper) -> Dict[str, Any]:
+def parse_output_settings(f: TextIOWrapper) -> Dict[str, Any]:
     """Function to parse settings from the `output.dat` file as far as they are available.
 
     Read settings and other info from the file.
@@ -275,11 +309,11 @@ def parse_output_listings(path: pathlib.Path) -> Tuple[Dict[str, Any], Dict[str,
     lis_data = np.loadtxt(path, ndmin=2)
 
     steps = lis_data[:, 0]
-    nsteps = int(round(np.max(steps)))+1
+    nsteps = int(round(np.max(steps))) + 1
     settings["nsteps"] = nsteps
 
     times = lis_data[:, 1]
-    settings["delta_t"] = times[1]-times[0]
+    settings["delta_t"] = times[1] - times[0]
     settings["t_max"] = np.max(times)
 
     active_state = np.array([int(round(x)) for x in lis_data[:, 2]])
@@ -405,10 +439,16 @@ def parse_trajout_dat(
                 atNames[i] = next(f).strip()
 
     trajectory_in.coords["atNames"] = (
-        "atom", atNames, trajectory_in.coords["atNames"].attrs)
+        "atom",
+        atNames,
+        trajectory_in.coords["atNames"].attrs,
+    )
     mark_variable_assigned(trajectory_in["atNames"])
     trajectory_in.coords["atNums"] = (
-        "atom", atNums, trajectory_in.coords["atNums"].attrs)
+        "atom",
+        atNums,
+        trajectory_in.coords["atNums"].attrs,
+    )
     mark_variable_assigned(trajectory_in["atNums"])
 
     idx_table_nacs = {
@@ -457,8 +497,9 @@ def parse_trajout_dat(
             energy_assigned = True
             for istate in range(nstates):
                 # Energy needs to be offset by energy_offset_zero
-                trajectory_in.energy[ts, istate] = float(
-                    next(f).strip().split()[istate * 2]) + energy_offset_zero
+                trajectory_in.energy[ts, istate] = (
+                    float(next(f).strip().split()[istate * 2]) + energy_offset_zero
+                )
 
         if line.startswith("! 3 Dipole moments"):
             dipole_assigned = True
@@ -467,7 +508,8 @@ def parse_trajout_dat(
                 linecont = next(f).strip().split()
                 # delete every second element in list (imaginary values, all zero)
                 tmp_dip_all[ts, istate, :, direction] = [
-                    float(i) for i in linecont[::2]]
+                    float(i) for i in linecont[::2]
+                ]
 
         if line.startswith("! 4 Overlap matrix"):
             found_overlap = False
@@ -507,7 +549,8 @@ def parse_trajout_dat(
 
             for atom in range(natoms):
                 trajectory_in.forces[ts, state, atom] = [
-                    float(n) for n in next(f).strip().split()]
+                    float(n) for n in next(f).strip().split()
+                ]
 
         if line.startswith("! 16 NACdr matrix element"):
             linecont = line.strip().split()
@@ -519,15 +562,17 @@ def parse_trajout_dat(
                 sc = idx_table_nacs[(si, sj)]  # statecomb index
                 for atom in range(natoms):
                     trajectory_in.nacs[ts, sc, atom, :] = [
-                        float(n) for n in next(f).strip().split()]
+                        float(n) for n in next(f).strip().split()
+                    ]
             else:  # we can skip the block
                 for _ in range(natoms):
                     next(f)
 
     # post-processing
     # np.diagonal swaps state and direction, so we transpose them back
-    trajectory_in.dip_perm[:] = np.diagonal(
-        tmp_dip_all, axis1=1, axis2=2).transpose(0, 2, 1)
+    trajectory_in.dip_perm[:] = np.diagonal(tmp_dip_all, axis1=1, axis2=2).transpose(
+        0, 2, 1
+    )
     idxs_dip_trans = (slice(None), *np.triu_indices(nstates, k=1), slice(None))
     trajectory_in.dip_trans[:] = tmp_dip_all[idxs_dip_trans]
     mark_variable_assigned(trajectory_in["dip_trans"])
@@ -560,7 +605,7 @@ def parse_trajout_dat(
         )
     completed = max_ts + 1 == nsteps
 
-    return completed, max_ts+1, trajectory_in
+    return completed, max_ts + 1, trajectory_in
 
 
 def parse_trajout_xyz(
@@ -611,7 +656,7 @@ def parse_input_settings(input_lines: List[str]) -> Dict[str, Any]:
     Can be provided the contents of the file as found in the `output.log` file.
 
     Args:
-        input_lines (List[str]): The lines of the input file. 
+        input_lines (List[str]): The lines of the input file.
 
     Returns:
         Dict[str, Any]: A key-value dictionary, where the keys are the first words in each line

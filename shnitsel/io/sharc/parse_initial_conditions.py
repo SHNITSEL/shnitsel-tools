@@ -20,8 +20,17 @@ from shnitsel.io.helpers import (
     ConsistentValue,
     get_atom_number_from_symbol,
 )
-from shnitsel.io.shared.trajectory_setup import OptionalTrajectorySettings, RequiredTrajectorySettings, assign_optional_settings, assign_required_settings, create_initial_dataset
-from shnitsel.io.shared.variable_flagging import is_variable_assigned, mark_variable_assigned
+from shnitsel.io.shared.trajectory_setup import (
+    OptionalTrajectorySettings,
+    RequiredTrajectorySettings,
+    assign_optional_settings,
+    assign_required_settings,
+    create_initial_dataset,
+)
+from shnitsel.io.shared.variable_flagging import (
+    is_variable_assigned,
+    mark_variable_assigned,
+)
 from shnitsel.io.xyz import get_dipoles_per_xyz
 from shnitsel._contracts import needs
 from shnitsel.units.definitions import get_default_input_attributes
@@ -280,13 +289,12 @@ def read_iconds_individual(
     sharc_version = "unkown"
 
     # Create dataset
-    iconds = create_initial_dataset(
-        0, nstates, natoms, "sharc", loading_parameters)
+    iconds = create_initial_dataset(0, nstates, natoms, "sharc", loading_parameters)
 
     # Set information on the singlet, doublet and triplet states, if available
     iconds["state_types"][:nsinglets] = 1
-    iconds["state_types"][nsinglets: nsinglets + 2 * ndoublets] = 2
-    iconds["state_types"][nsinglets + 2 * ndoublets:] = 3
+    iconds["state_types"][nsinglets : nsinglets + 2 * ndoublets] = 2
+    iconds["state_types"][nsinglets + 2 * ndoublets :] = 3
     mark_variable_assigned(iconds.state_types)
 
     logging.info("Reading ICONDs data into Dataset...")
@@ -316,13 +324,13 @@ def read_iconds_individual(
         try:
             # TODO: FIXME: Figure out unit of positions in QM.in
             logging.warning(
-                "The unit of the positions in QM.in is currently still unknown.")
+                "The unit of the positions in QM.in is currently still unknown."
+            )
             with open(path_obj / "QM.in") as f:
                 info = parse_QM_in(f)
                 iconds["atNames"][:] = (atnames := info["atNames"])
                 mark_variable_assigned(iconds.atNames)
-                iconds["atNums"][:] = [
-                    get_atom_number_from_symbol(n) for n in atnames]
+                iconds["atNums"][:] = [get_atom_number_from_symbol(n) for n in atnames]
                 mark_variable_assigned(iconds.atNums)
                 iconds["atXYZ"][:, :] = info["atXYZ"]
                 mark_variable_assigned(iconds.atXYZ)
@@ -346,12 +354,14 @@ def read_iconds_individual(
         sharc_version,
         nsinglets,
         ndoublets,
-        ntriplets)
+        ntriplets,
+    )
 
     assign_required_settings(iconds, required_settings)
 
     optional_settings = OptionalTrajectorySettings(
-        has_forces=is_variable_assigned(iconds["forces"]))
+        has_forces=is_variable_assigned(iconds["forces"])
+    )
     assign_optional_settings(iconds, optional_settings)
 
     return finalize_icond_dataset(iconds, loading_parameters=loading_parameters)
@@ -402,14 +412,12 @@ def parse_QM_in(qm_in: TextIOWrapper) -> Dict[str, Any]:
     # Get all lines
     lines = [l.strip() for l in qm_in.readlines()]
     if len(lines) < 1:
-        raise FileNotFoundError(
-            "QM.in did not contain all necessary information")
+        raise FileNotFoundError("QM.in did not contain all necessary information")
 
     info["num_atoms"] = (num_atoms := int(lines[0]))
 
     if len(lines) < num_atoms + 2:
-        raise FileNotFoundError(
-            "QM.in did not contain all necessary information")
+        raise FileNotFoundError("QM.in did not contain all necessary information")
 
     atXYZ = np.full((num_atoms, 3), np.nan)
     atNames = np.full((num_atoms), "")
@@ -453,7 +461,6 @@ def parse_QM_log(log: TextIOWrapper) -> Dict[str, Any]:
     """
     info: Dict[str, Any] = {}
     for line in log:
-
         if line.startswith("SHARC_version") or line.startswith("Version"):
             version_num = line.split()[1]
             info["input_format_version"] = version_num
@@ -600,11 +607,9 @@ def parse_QM_out(
             next(f)
             dip_all_tmp[:, :, 2] = get_dipoles_per_xyz(f, n, m)
 
-            res["dip_perm"][:], res["dip_trans"][:] = dip_sep(
-                np.array(dip_all_tmp))
+            res["dip_perm"][:], res["dip_trans"][:] = dip_sep(np.array(dip_all_tmp))
 
         elif line.startswith("! 3 Gradient Vectors"):
-
             search_res = _re_grads.search(line)
             assert search_res is not None
             get_dim = search_res.group

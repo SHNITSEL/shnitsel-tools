@@ -51,14 +51,14 @@ def read_shnitsel_file(
     else:
         shnitsel_format_version = "v1.0"
 
-
     if shnitsel_format_version in __SHNITSEL_READERS:
         return __SHNITSEL_READERS[shnitsel_format_version](frames, loading_parameters)
     else:
         logging.error(
             f"Attempting to load a shnitsel file with unknown format {shnitsel_format_version}. \n"
             "This file might have been created with a later version of the `shnitsel-tools` package. \n"
-            "Please update the `shnitsel-tools` package and attempt to read the file again.")
+            "Please update the `shnitsel-tools` package and attempt to read the file again."
+        )
 
 
 def _parse_shnitsel_file_v1_0(
@@ -75,8 +75,10 @@ def _parse_shnitsel_file_v1_0(
     Returns:
         xr.Dataset: The post-processed shnitsel trajectory
     """
-    logging.warning(f"You are opening a Shnitsel file of format v1.0. This format did not contain full unit information for all observables. \n"
-                    f"You should either regenerate the shnitsel file from the input data with a later version of the shnitsel-tools package or attempt to retrieve a later version of the file.")
+    logging.warning(
+        f"You are opening a Shnitsel file of format v1.0. This format did not contain full unit information for all observables. \n"
+        f"You should either regenerate the shnitsel file from the input data with a later version of the shnitsel-tools package or attempt to retrieve a later version of the file."
+    )
 
     # Restore MultiIndexes
     indicator = "_MultiIndex_levels_from_attrs"
@@ -143,7 +145,8 @@ def _parse_shnitsel_file_v1_1(
         for data_var in frames.variables:
             for attr in frames[data_var].attrs:
                 frames[data_var].attrs[attr] = json_deserialize_ndarray(
-                    frames.attrs[attr])
+                    frames.attrs[attr]
+                )
 
     # Restore MultiIndexes
     indicator = "_MultiIndex_levels_from_attrs"
@@ -176,7 +179,9 @@ def _parse_shnitsel_file_v1_1(
     return frames
 
 
-__SHNITSEL_READERS: Dict[str, Callable[[xr.Dataset, LoadingParameters|None], xr.Dataset]] = {
+__SHNITSEL_READERS: Dict[
+    str, Callable[[xr.Dataset, LoadingParameters | None], xr.Dataset]
+] = {
     "v1.0": _parse_shnitsel_file_v1_0,
     "v1.1": _parse_shnitsel_file_v1_1,
 }

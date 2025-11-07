@@ -8,7 +8,9 @@ import json
 from shnitsel.io.helpers import PathOptionsType
 
 
-def write_shnitsel_file(dataset: xr.Dataset | Trajectory, savepath: PathOptionsType, complevel: int = 9):
+def write_shnitsel_file(
+    dataset: xr.Dataset | Trajectory, savepath: PathOptionsType, complevel: int = 9
+):
     """Function to write a trajectory in Shnitsel format (xr.) to a ntcdf hdf5 file format.
 
     Strips all internal attributes first to avoid errors during writing.
@@ -38,18 +40,21 @@ def write_shnitsel_file(dataset: xr.Dataset | Trajectory, savepath: PathOptionsT
     """
     cleaned_ds = dataset.copy()  # Shallow copy to avoid adding attrs etc. to original
     encoding = {
-        var: {"compression": "gzip", "compression_opts": complevel} for var in cleaned_ds
+        var: {"compression": "gzip", "compression_opts": complevel}
+        for var in cleaned_ds
     }
 
     # NetCDF does not support booleans
     for data_var in cleaned_ds.data_vars:
         if np.issubdtype(cleaned_ds.data_vars[data_var].dtype, np.bool_):
             cleaned_ds = cleaned_ds.assign(
-                {data_var: cleaned_ds.data_vars[data_var].astype('i1')})
+                {data_var: cleaned_ds.data_vars[data_var].astype('i1')}
+            )
     for coord in cleaned_ds.coords:
         if np.issubdtype(cleaned_ds.coords[coord].dtype, np.bool_):
             cleaned_ds = cleaned_ds.assign_coords(
-                {coord: cleaned_ds.coords[coord].astype('i1')})
+                {coord: cleaned_ds.coords[coord].astype('i1')}
+            )
 
     # NetCDF does not support MultiIndex
     # Keep a record of the level names in the attrs
@@ -62,12 +67,7 @@ def write_shnitsel_file(dataset: xr.Dataset | Trajectory, savepath: PathOptionsT
     cleaned_ds.attrs['_MultiIndex_levels_from_attrs'] = 1
 
     def ndarray_to_json_ser(value):
-        return {
-            "__ndarray:": {
-                "entries": value.tolist(),
-                "dtype": value.dtype.descr
-            }
-        }
+        return {"__ndarray:": {"entries": value.tolist(), "dtype": value.dtype.descr}}
 
     remove_attrs = []
 
@@ -106,4 +106,5 @@ def write_shnitsel_file(dataset: xr.Dataset | Trajectory, savepath: PathOptionsT
     cleaned_ds.attrs["__shnitsel_format_version"] = "v1.0"
 
     return cleaned_ds.reset_index(midx_names).to_netcdf(
-        savepath, engine='h5netcdf', encoding=encoding)
+        savepath, engine='h5netcdf', encoding=encoding
+    )
