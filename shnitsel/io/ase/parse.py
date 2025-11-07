@@ -6,7 +6,7 @@ import numpy as np
 import xarray as xr
 
 
-def parse_ase(db_path: str, kind: Literal['spainn', 'schnet'] | None) -> xr.Dataset:
+def read_ase(db_path: str, kind: Literal['spainn', 'schnet'] | None) -> xr.Dataset:
     """Reads an ASE DB containing data in the SPaiNN or SchNet format
 
     Parameters
