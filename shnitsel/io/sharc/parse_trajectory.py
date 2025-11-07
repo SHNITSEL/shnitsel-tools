@@ -540,6 +540,7 @@ def parse_trajout_dat(
     if e_kin_assigned:
         # For now, we do not include e_kin or velocities.
         # mark_variable_assigned(trajectory_in["e_kin"])
+        pass
 
     if not (max_ts + 1 <= nsteps):
         raise ValueError(
