@@ -13,10 +13,6 @@ from shnitsel.io.newtonx.format_reader import NewtonXFormatReader
 from shnitsel.io.pyrai2md.format_reader import PyrAI2mdFormatReader
 from shnitsel.io.sharc.format_reader import SHARCFormatReader
 from shnitsel.io.shnitsel.format_reader import ShnitselFormatReader
-from .pyrai2md import parse_pyrai2md
-from .newtonx.parse import parse_newtonx
-from .sharc.parse import parse_sharc
-from .shnitsel.parse import read_shnitsel_file
 from tqdm.contrib.logging import logging_redirect_tqdm
 from tqdm.auto import tqdm
 import pandas as pd
