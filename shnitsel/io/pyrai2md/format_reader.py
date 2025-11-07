@@ -58,7 +58,7 @@ class PyrAI2mdFormatReader(FormatReader):
             FormatInformation: _description_
         """
         path_obj: pathlib.Path = make_uniform_path(path)
-        is_request_specific_to_pyrai2md = (
+        _is_request_specific_to_pyrai2md = (
             hints_or_settings is not None
             and "kind" in hints_or_settings
             and hints_or_settings["kind"] == "pyrai2md"
@@ -73,10 +73,7 @@ class PyrAI2mdFormatReader(FormatReader):
                 f"Path `{path}` does not constitute a PyrAI2md style output directory: Expected to find a single file ending with '.md.energies' "
                 f"but found {n} files: {md_energies_paths}"
             )
-            if is_request_specific_to_pyrai2md:
-                logging.error(message)
-            else:
-                logging.debug(message)
+            logging.debug(message)
             raise FileNotFoundError(message)
 
         energy_file_path = path_obj / md_energies_paths[0]
@@ -90,10 +87,7 @@ class PyrAI2mdFormatReader(FormatReader):
                 "Path `{path}` does not constitute a PyrAI2md style output directory: Expected to find a single file ending with '.log' "
                 f"but found {n} files: {log_paths}"
             )
-            if is_request_specific_to_pyrai2md:
-                logging.error(message)
-            else:
-                logging.debug(message)
+            logging.debug(message)
             raise FileNotFoundError(message)
 
         log_file_path = path_obj / log_paths[0]

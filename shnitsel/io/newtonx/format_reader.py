@@ -68,7 +68,7 @@ class NewtonXFormatReader(FormatReader):
         """
         path_obj: pathlib.Path = make_uniform_path(path)
 
-        is_request_specific_to_NewtonX = (
+        _is_request_specific_to_NewtonX = (
             hints_or_settings is not None
             and "kind" in hints_or_settings
             and (
@@ -82,10 +82,7 @@ class NewtonXFormatReader(FormatReader):
         for file in [nx_log_path, nx_positions_path]:
             if not file.is_file():
                 message = f"Input directory is missing {file}"
-                if is_request_specific_to_NewtonX:
-                    logging.error(message)
-                else:
-                    logging.debug(message)
+                logging.debug(message)
                 raise FileNotFoundError(message)
 
         format_information = NewtonXFormatInformation(

@@ -78,7 +78,7 @@ class SHARCFormatReader(FormatReader):
         """
         path_obj: pathlib.Path = make_uniform_path(path)
 
-        is_request_specific_to_sharc = (
+        _is_request_specific_to_sharc = (
             hints_or_settings is not None
             and "kind" in hints_or_settings
             and hints_or_settings["kind"] == "sharc"
@@ -86,10 +86,7 @@ class SHARCFormatReader(FormatReader):
 
         if not path_obj.exists() or not path_obj.is_dir():
             message = f"Path `{path}` does not constitute a SHARC style output directory: Does not exist or is not a directory."
-            if is_request_specific_to_sharc:
-                logging.error(message)
-            else:
-                logging.debug(message)
+            logging.debug(message)
             raise FileNotFoundError(message)
 
         dontanalyze_file_path = path_obj / "DONT_ANALYZE"
@@ -110,10 +107,8 @@ class SHARCFormatReader(FormatReader):
             for file in [input_file_path, input_dat_path, input_xyz_path]:
                 if not file.is_file():
                     message = f"Input directory `{path}` is missing {file}"
-                    if is_request_specific_to_sharc:
-                        logging.error(message)
-                    else:
-                        logging.debug(message)
+
+                    logging.debug(message)
                     raise FileNotFoundError(message)
             is_dynamic = True
             format_information = SHARCDynamicFormatInformation(
@@ -137,10 +132,7 @@ class SHARCFormatReader(FormatReader):
                 not qm_log_path.is_file() and not qm_in_path.is_file()
             ):
                 message = f"Input directory `{path}` is missing `QM.out` or both `QM.log` and `QM.in`"
-                if is_request_specific_to_sharc:
-                    logging.info(message)
-                else:
-                    logging.debug(message)
+                logging.debug(message)
                 raise FileNotFoundError(message)
 
             # list_of_initial_condition_paths = list_iconds(path_obj)
@@ -162,20 +154,14 @@ class SHARCFormatReader(FormatReader):
                 f"Input directory {path} contains both static initial conditions and dynamic trajectory data of type SHARC."
                 f"Please only point to a directory containing exactly one of the two kinds of data"
             )
-            if is_request_specific_to_sharc:
-                logging.error(message)
-            else:
-                logging.debug(message)
+            logging.debug(message)
             raise ValueError(message)
         if format_information is None:
             message = (
                 f"Input directory {path} contains neither static initial conditions nor dynamic trajectory data of type SHARC."
                 f"Please point to a directory containing exactly one of the two kinds of data"
             )
-            if is_request_specific_to_sharc:
-                logging.error(message)
-            else:
-                logging.debug(message)
+            logging.debug(message)
             raise FileNotFoundError(message)
 
         # Try and extract a trajectory ID from the path name
