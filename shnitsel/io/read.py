@@ -394,7 +394,7 @@ def read_single(
         res_format = identify_or_check_input_kind(path, kind)
         if res_format is not None:
             reader = READERS[res_format.format_name]
-            trajectory = reader.read_from_path(
+            trajectory = reader.read_trajectory(
                 path, res_format, base_loading_parameters
             )
             return trajectory
@@ -545,7 +545,7 @@ def _per_traj(
     """
 
     try:
-        ds = reader.read_from_path(
+        ds = reader.read_trajectory(
             trajdir, format_info, base_loading_parameters)
         if not ds.attrs["completed"]:
             logging.info(f"Trajectory at path {trajdir} did not complete")

@@ -8,6 +8,9 @@ from shnitsel.data.TrajectoryFormat import Trajectory
 from shnitsel.io.helpers import LoadingParameters, PathOptionsType
 
 import re
+import xarray as xr
+
+from shnitsel.io.shared.trajectory_finalization import finalize_loaded_trajectory
 
 
 @dataclass
@@ -79,7 +82,7 @@ class FormatReader(ABC):
         path: PathOptionsType | None,
         format_info: FormatInformation | None = None,
         loading_parameters: LoadingParameters | None = None,
-    ) -> Trajectory:
+    ) -> xr.Dataset | None:
         """Method to read a path of the respective format (e.g. ) into a shnitsel-conform trajectory.
 
         The return value of type `Trajectory` is a wrapper for the raw `xarray.Dataset` read from the `path`.
@@ -100,6 +103,33 @@ class FormatReader(ABC):
             Trajectory: The parsed dataset as wrapper around `xarray.Dataset` to keep track of original data.
         """
         ...
+
+    def read_trajectory(
+            self,
+            path: PathOptionsType | None,
+            format_info: FormatInformation | None = None,
+            loading_parameters: LoadingParameters | None = None,) -> Trajectory | None:
+        """Wrapper function to perform some potential initialization and finalization on the read trajectory objects.
+
+        Uses the format-specific `self.read_from_path()` method to read the trajectory and then performs some standard post processing on it.
+
+        Raises:
+            FileNotFoundError: If required files were not found, i.e. if the path does not actually constitute input data of the denoted format
+            ValueError: If the `format_info` provided by the user conflicts with the requirements of the format
+            Valueerror: If neither `path` nor `format_info` are provided
+
+        Returns:
+            Trajectory|None: Returns a wrapped Trajectory/xr.Dataset object with standard units, only assigned variables remaining and all 
+                                variables with appropriate attributes. 
+                                If no result was obtained by the call to `self.read_from_path()`, it will return `None`.
+        """
+
+        res = self.read_from_path(path, format_info, loading_parameters)
+
+        if res is not None:
+            return finalize_loaded_trajectory(res)
+        else:
+            return res
 
     @abstractmethod
     def get_units_with_defaults(

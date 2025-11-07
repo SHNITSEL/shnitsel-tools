@@ -42,7 +42,7 @@ class TestNewtonX:
 
     def test_nx_FormatReader_R02(self):
         # parse trajectory data from Newton-X output files
-        traj_frames_chd = NewtonXFormatReader().read_from_path(
+        traj_frames_chd = NewtonXFormatReader().read_trajectory(
             "tutorials/test_data/newtonx/test_R02/TRAJ1/"
         )
         assert verify_trajectory_format(
