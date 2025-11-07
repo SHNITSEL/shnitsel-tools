@@ -2,6 +2,8 @@ from io import TextIOWrapper
 import pathlib
 from typing import NamedTuple, Tuple
 import numpy as np
+from shnitsel.io.shared.trajectory_setup import OptionalTrajectorySettings, RequiredTrajectorySettings, assign_optional_settings, assign_required_settings, create_initial_dataset
+from shnitsel.io.shared.variable_flagging import is_variable_assigned, mark_variable_assigned
 from shnitsel.units.definitions import get_default_input_attributes
 import xarray as xr
 from itertools import combinations
@@ -31,93 +33,68 @@ def parse_newtonx(
     """
     path_obj = make_uniform_path(traj_path)
 
-    # TODO: FIXME: use loading_parameters to configure state names
+    # TODO: FIXME: Use other available files to read input if nx.log is not available, e.g. RESULTS/dyn.out, RESULTS/dyn.xyz, RESULTS/en.dat From those we can get most information anyway.
+    # TODO: FIXME: Read basis from JOB_NAD files
     with open(path_obj / "RESULTS" / "nx.log") as f:
         settings = parse_settings_from_nx_log(f)
-        trajectory = create_initial_dataset(
-            settings.num_states, settings.num_atoms, loading_parameters
-        )
-
         default_attributes = get_default_input_attributes(
             "newtonx", loading_parameters)
         # Add time dimension
 
-        isolated_keys = [
-            "atNames",
-            "atNums",
-            "state",
-            "statecomb",
-            "state_names",
-            "state_types",
-        ]
-
-        trajectory = trajectory.set_coords(isolated_keys)
-
-        trajectory = trajectory.expand_dims(
-            {"time": settings.num_steps}, axis=0)
-        trajectory.attrs["delta_t"] = settings.delta_t
-        # TODO: FIXME: Make sure this is actually a common naming scheme
-        trajectory.attrs["t_max"] = settings.t_max
-        trajectory.attrs["max_ts"] = settings.num_steps
-        trajectory.attrs["completed"] = settings.completed
-        # Create "active state" variable
-        trajectory = trajectory.assign(
-            {
-                "astate": xr.DataArray(
-                    np.zeros((settings.num_steps)),
-                    dims=["time"],
-                    name="astate",
-                    attrs=default_attributes["astate"],
-                )
-            }
+        trajectory = create_initial_dataset(
+            settings.num_steps, settings.num_states, settings.num_atoms, "newtonx", loading_parameters
         )
+
         trajectory = trajectory.assign_coords(
             {
-                "time": xr.DataArray(
-                    np.arange(0, settings.num_steps) * settings.delta_t,
-                    dims=["time"],
-                    name="time",
-                    attrs=default_attributes["astate"],
-                ),
+                "time": ("time",
+                         np.arange(0, settings.num_steps) * settings.delta_t,
+                         default_attributes[str("time")]
+                         ),
             }
         )
-
-        # trajectory = trajectory.assign_coords(time=("time", [0.0]))
+        mark_variable_assigned(trajectory["time"])
 
         # Read several datasets into trajectory and get first indicator of actual performed steps
-        actual_steps = parse_nx_log_data(f, trajectory)
+        actual_steps, trajectory = parse_nx_log_data(f, trajectory)
 
         if actual_steps < settings.num_steps:
-            # Filter
+            # Filter only assigned timesteps
             trajectory.attrs["completed"] = False
             trajectory = trajectory.isel(time=slice(0, actual_steps))
         elif actual_steps > settings.num_steps:
             raise ValueError(
-                f"Trajectory data at {path_obj} contained data for {actual_steps} frames instead of initially denoted {settings.num_steps} frames. Cannot allocate space after the fact."
+                f"Trajectory data at {path_obj} contained data for {actual_steps} frames, which is more than the initially denoted {settings.num_steps} frames. Cannot allocate space after the fact."
             )
-
-        # Assign times to trajectory
-        trajectory.assign_coords(time=np.arange(
-            0, actual_steps) * settings.delta_t)
-
-    # nsteps = single_traj.sizes['ts']
 
     with open(os.path.join(traj_path, "RESULTS", "dyn.xyz")) as f:
         atNames, atNums, atXYZ = parse_xyz(f)
 
-    # if (
-    #     not single_traj.attrs["completed"]
-    #     and atXYZ.shape[0] == single_traj.sizes["time"] + 1
-    # ):
-    #     logging.info("Geometry file contains time after error. Truncating.")
-    #     atXYZ = atXYZ[:-1]
-
     trajectory.atNames.values = atNames
+    mark_variable_assigned(trajectory["atNames"])
     trajectory.atNums.values = atNums
+    mark_variable_assigned(trajectory["atNums"])
     trajectory.atXYZ.values = atXYZ
+    mark_variable_assigned(trajectory["atXYZ"])
 
-    trajectory["time"].attrs.update(default_attributes[str("time")])
-    trajectory.attrs["input_format_version"] = settings.newtonx_version
+    # Set all settings we require to be present on the trajectory
+    # TODO: FIXME: Check if we can actually derive the number of singlets, doublets, or triplets from newtonx output.
+    required_settings = RequiredTrajectorySettings(
+        settings.t_max,
+        settings.delta_t,
+        min(settings.num_steps, actual_steps),
+        settings.completed,
+        "newtonx",
+        "dynamic",
+        settings.newtonx_version,
+        -1,
+        -1,
+        -1)
+    assign_required_settings(trajectory, required_settings)
+
+    optional_settings = OptionalTrajectorySettings(
+        has_forces=is_variable_assigned(trajectory["forces"]))
+    assign_optional_settings(trajectory, optional_settings)
 
     return trajectory
 
@@ -189,7 +166,7 @@ def parse_settings_from_nx_log(f) -> NewtonXSettingsResult:
     return NewtonXSettingsResult(real_tmax, delta_t, nsteps, natoms, nstates, completed, newtonx_version)
 
 
-def create_initial_dataset(
+def _create_initial_dataset(
     nstates: int,
     natoms: int,
     loading_parameters: LoadingParameters | None,
@@ -325,7 +302,19 @@ def create_initial_dataset(
 
 def parse_nx_log_data(
     f: TextIOWrapper, dataset: xr.Dataset
-) -> int:  # Tuple[int, xr.Dataset]:
+) -> Tuple[int, xr.Dataset]:  # Tuple[int, xr.Dataset]:
+    """Function to parse the nx.log data into a dataset from the input stream f.
+
+    Will return the total number of actual timesteps read and the resulting dataset.
+    Usual read data includes: forces, active state ("astate")
+
+    Args:
+        f (TextIOWrapper): Input filestream of a nx.log file
+        dataset (xr.Dataset): The dataset to parse the data into
+
+    Returns:
+        Tuple[int, xr.Dataset]: The total number of actual timesteps read and the resulting dataset after applying modifications.
+    """
     # f should be after the setting
 
     natoms = dataset.sizes["atom"]
@@ -369,19 +358,22 @@ def parse_nx_log_data(
         # THIS MIGHT BE SOLVED WITH ABOVE TMP STORAGE AND ONLY WRITING UPON READING THE FINISHING LINE
         if stripline.startswith("FINISHING"):
             # Set active state for _current_ time step
-            tmp_astate[ts] = int(stripline.split()[8])
+            t_astate = int(stripline.split()[8])
 
             # Set step number and time for _the following_ time step
-            tmp_times[ts] = float(stripline.split()[4])
-            # TODO: Why can't we take the time step denoted in the log?
-            ts = int(round(tmp_times[ts] / delta_t))
-            # logging.debug(f"{ts}=round({time}/{delta_t})")
+            t_time = float(stripline.split()[4])
 
-            actual_max_ts = max(actual_max_ts, ts)
+            # Figure out current time step
+            ts = int(round(t_time / delta_t))
+            # Assign all values in this time step
+            tmp_astate[ts] = t_astate
+            tmp_times[ts] = tmp_times
             tmp_full_forces[ts] = tmp_forces
             tmp_full_energy[ts] = tmp_energy
             tmp_full_nacs[ts] = tmp_nacs
-            logging.debug(f"finished ts {ts - 1}")
+
+            actual_max_ts = max(actual_max_ts, ts)
+            logging.debug(f"finished ts {ts}")
 
         elif stripline.startswith("Gradient vectors"):
             for iatom in range(natoms):
@@ -403,13 +395,25 @@ def parse_nx_log_data(
             for istate in range(nstates):
                 tmp_energy[istate] = float(next(f).strip())
 
-    dataset.assign_coords(astate=tmp_astate)
+    dataset = dataset.assign_coords(
+        {
+            "astate": ("time",
+                       tmp_astate,
+                       dataset["astate"].attrs
+                       ),
+        }
+    )
+    mark_variable_assigned(dataset["astate"])
+
     dataset.forces.values = tmp_full_forces
+    mark_variable_assigned(dataset["forces"])
     dataset.energy.values = tmp_full_energy
+    mark_variable_assigned(dataset["energy"])
     dataset.nacs.values = tmp_full_nacs
+    mark_variable_assigned(dataset["nacs"])
     # dataset = dataset.assign_coords(time=tmp_times)
 
-    return actual_max_ts + 1  # , dataset
+    return actual_max_ts + 1, dataset  # , dataset
 
     # TODO: Are these units even correct?
     # return #xr.Dataset(
