@@ -3,7 +3,7 @@ import shnitsel as sh
 from shnitsel.io.pyrai2md import parse_pyrai2md
 from shnitsel.io import read
 from shnitsel.io.pyrai2md.format_reader import PyrAI2mdFormatReader
-from shnitsel.test_support.TrajectoryVerification import verify_trajectory_format
+from shnitsel.test_support.trajectory_verification import verify_trajectory_format
 
 
 class TestPyrai2mdFunctionality:
@@ -21,7 +21,9 @@ class TestPyrai2mdFunctionality:
 
     def test_read_pyrai2md_trajs_direct(self):
         # parse trajectory data directly from pyrai2md output
-        traj = PyrAI2mdFormatReader().read_trajectory("tutorials/test_data/pyrai2md/traj")
+        traj = PyrAI2mdFormatReader().read_trajectory(
+            "tutorials/test_data/pyrai2md/traj"
+        )
 
         assert verify_trajectory_format(
             traj, self.asserted_properties_in_trajectory
