@@ -114,15 +114,16 @@ _length_unit_scales = _distance_unit_scales
 
 
 class dipole:
+    CoulombMeter = "Cm"
     Debye = "debye"
     au = "au"
 
 
 _dipole_unit_scales = {
-    "1": 1.0,
+    dipole.CoulombMeter: si.C*si.m,
     dipole.Debye: si.Debye,
     # TODO: FIXME: set actual atomic dipole unit.
-    dipole.au: np.nan,
+    dipole.au: si._e*si.Bohr,  # TODO: Check: 1D = 0.393456a.u.
 }
 
 
@@ -274,11 +275,13 @@ def get_default_input_attributes(
 
 
 standard_units_of_formats = {
-    "sharc": {
+    "sharc": {  # These units are wild and only apply to certain files...
         unit_dimensions.length: length.Bohr,
-        unit_dimensions.energy: energy.Hartree,
-        unit_dimensions.force: force.Hartree_per_Bohr,
-        unit_dimensions.time: time.femto_seconds,  # TODO: Confirm default time unit
+        # Units are in eV relative to the ezero setting.
+        unit_dimensions.energy: energy.eV,
+        # TODO: FIXME: The SHARC documentation does not state the unit, the output.dat file does not state the unit, but this seems most likely. output.lis lists eV/Ang, which would not match the other data in output.log at all.
+        unit_dimensions.force: force.eV_per_Bohr,
+        unit_dimensions.time: time.femto_seconds,
         unit_dimensions.nacs: nacs.one_per_Bohr,
         unit_dimensions.dipole: dipole.au,
         # "dipole_trans": dipole.au,
@@ -295,7 +298,7 @@ standard_units_of_formats = {
         # "dipole_trans": dipole.au,
         unit_dimensions.socs: socs.au,
     },
-    "newtonx": {  # Generally uses atomic units
+    "newtonx": {  # Generally uses atomic units?
         unit_dimensions.length: length.Angstrom,  # TODO: FIXME: Until 1.3 it was AU
         unit_dimensions.energy: energy.eV,  # Hartree or eV, it depends || energy.Hartree,
         unit_dimensions.force: force.Hartree_per_Bohr,
