@@ -1,3 +1,4 @@
+import logging
 import os
 import numpy as np
 
@@ -74,6 +75,7 @@ def write_shnitsel_file(
     for attr in cleaned_ds.attrs:
         # Strip internal attributes
         if str(attr).startswith("__"):
+            # logging.debug(f"Mark for removing {attr}")
             remove_attrs.append(attr)
         else:
             value = cleaned_ds.attrs[attr]
@@ -83,6 +85,7 @@ def write_shnitsel_file(
 
     for attr in remove_attrs:
         del cleaned_ds.attrs[attr]
+        logging.debug(f"Stripping attribute {attr}")
 
     for data_var in cleaned_ds.variables:
         # If we delete while iterating, an error will occur.
@@ -90,6 +93,7 @@ def write_shnitsel_file(
         for attr in cleaned_ds[data_var].attrs:
             # Strip internal attributes
             if str(attr).startswith("__"):
+                # logging.debug(f"Mark for removing {data_var}.{attr}")
                 remove_attrs.append(attr)
             else:
                 value = cleaned_ds[data_var].attrs[attr]
@@ -97,6 +101,7 @@ def write_shnitsel_file(
                     value = ndarray_to_json_ser(value)
                 cleaned_ds[data_var].attrs[attr] = json.dumps(value)
         for attr in remove_attrs:
+            logging.debug(f"Stripping attribute {data_var}.{attr}")
             del cleaned_ds[data_var].attrs[attr]
 
         # if np.issubdtype(np.asarray(cleaned_ds.attrs[attr]).dtype, np.bool_):
