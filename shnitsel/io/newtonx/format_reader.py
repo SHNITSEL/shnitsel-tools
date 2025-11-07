@@ -8,10 +8,11 @@ from typing import Dict, List, Tuple
 
 from shnitsel.data.TrajectoryFormat import Trajectory
 from shnitsel.io.helpers import LoadingParameters, PathOptionsType, make_uniform_path
-from ..FormatReader import FormatInformation, FormatReader
+from ..format_reader_base import FormatInformation, FormatReader
 from .parse import parse_newtonx
 
 import xarray as xr
+
 
 @dataclass
 class NewtonXFormatInformation(FormatInformation):
@@ -25,7 +26,7 @@ _newtonx_default_pattern_glob = r"TRAJ*"
 
 
 class NewtonXFormatReader(FormatReader):
-    """Class for providing the SHARC format reading functionality in the standardized `FormatReader` interface"""
+    """Class for providing the NewtonX format reading functionality in the standardized `FormatReader` interface"""
 
     def find_candidates_in_directory(
         self, path: PathOptionsType
@@ -156,9 +157,14 @@ class NewtonXFormatReader(FormatReader):
             if format_info.trajid is not None:
                 loaded_dataset.attrs["trajid"] = format_info.trajid
 
-            if format_info.path is not None and not "trajectory_input_path" in loaded_dataset.attrs:
-                loaded_dataset.attrs["trajectory_input_path"] = format_info.path.as_posix()
-                
+            if (
+                format_info.path is not None
+                and not "trajectory_input_path" in loaded_dataset.attrs
+            ):
+                loaded_dataset.attrs["trajectory_input_path"] = (
+                    format_info.path.as_posix()
+                )
+
         return loaded_dataset
 
     def get_units_with_defaults(

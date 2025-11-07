@@ -7,7 +7,7 @@ from typing import Dict, List, Tuple
 
 from shnitsel.data.TrajectoryFormat import Trajectory
 from shnitsel.io.helpers import LoadingParameters, PathOptionsType, make_uniform_path
-from ..FormatReader import FormatInformation, FormatReader
+from ..format_reader_base import FormatInformation, FormatReader
 from .parse import parse_pyrai2md
 
 import xarray as xr
@@ -21,7 +21,7 @@ class PyrAI2mdFormatInformation(FormatInformation):
 
 
 class PyrAI2mdFormatReader(FormatReader):
-    """Class for providing the SHARC format reading functionality in the standardized `FormatReader` interface"""
+    """Class for providing the PyrAI2md format reading functionality in the standardized `FormatReader` interface"""
 
     def find_candidates_in_directory(
         self, path: PathOptionsType
@@ -130,8 +130,7 @@ class PyrAI2mdFormatReader(FormatReader):
         elif path_obj is None and format_info is not None:
             path_obj = format_info.path
         elif path_obj is None and format_info is None:
-            raise ValueError(
-                "Either `path` or `format_info` needs to be provided")
+            raise ValueError("Either `path` or `format_info` needs to be provided")
 
         if path_obj is None:
             raise ValueError(
@@ -157,8 +156,12 @@ class PyrAI2mdFormatReader(FormatReader):
             if format_info.trajid is not None:
                 loaded_dataset.attrs["trajid"] = format_info.trajid
 
-            if format_info.path is not None and not "trajectory_input_path" in loaded_dataset.attrs:
-                loaded_dataset.attrs["trajectory_input_path"] = format_info.path.as_posix(
+            if (
+                format_info.path is not None
+                and not "trajectory_input_path" in loaded_dataset.attrs
+            ):
+                loaded_dataset.attrs["trajectory_input_path"] = (
+                    format_info.path.as_posix()
                 )
 
         return loaded_dataset
