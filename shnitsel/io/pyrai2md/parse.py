@@ -19,7 +19,6 @@ from shnitsel.io.helpers import (
     get_atom_number_from_symbol,
     make_uniform_path,
 )
-from shnitsel.units.conversion import convert_all_units_to_shnitsel_defaults
 from shnitsel.units.definitions import get_default_input_attributes
 
 
@@ -102,7 +101,7 @@ def parse_pyrai2md(
     # One test trajectory did not finish its full number of steps as denoted in the log, so we need to check if the trajectory has finished
     # before sizing the output.
 
-    return convert_all_units_to_shnitsel_defaults(trajectory)
+    return trajectory
 
 
 def create_initial_dataset(

@@ -2,7 +2,6 @@ from io import TextIOWrapper
 import pathlib
 from typing import NamedTuple, Tuple
 import numpy as np
-from shnitsel.units.conversion import convert_all_units_to_shnitsel_defaults
 from shnitsel.units.definitions import get_default_input_attributes
 import xarray as xr
 from itertools import combinations
@@ -120,7 +119,7 @@ def parse_newtonx(
     trajectory["time"].attrs.update(default_attributes[str("time")])
     trajectory.attrs["input_format_version"] = settings.newtonx_version
 
-    return convert_all_units_to_shnitsel_defaults(trajectory)
+    return trajectory
 
 
 class NewtonXSettingsResult(NamedTuple):

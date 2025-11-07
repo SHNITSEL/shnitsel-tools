@@ -11,7 +11,6 @@ import math
 
 from shnitsel.io.helpers import PathOptionsType, get_atom_number_from_symbol
 from shnitsel.units.definitions import get_default_input_attributes
-from shnitsel.units.conversion import convert_all_units_to_shnitsel_defaults
 
 
 from shnitsel.io.helpers import LoadingParameters
@@ -73,7 +72,7 @@ def read_traj(
     single_traj.attrs["input_format"] = "sharc"
     single_traj.attrs["input_type"] = "dynamic"
 
-    return convert_all_units_to_shnitsel_defaults(single_traj)
+    return single_traj
 
 
 def parse_trajout_dat(

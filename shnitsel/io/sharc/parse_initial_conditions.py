@@ -23,7 +23,6 @@ from shnitsel.io.helpers import (
 from shnitsel.io.xyz import get_dipoles_per_xyz
 from shnitsel._contracts import needs
 from shnitsel.units.definitions import get_default_input_attributes
-from shnitsel.units.conversion import convert_all_units_to_shnitsel_defaults
 
 _re_grads = re.compile("[(](?P<nstates>[0-9]+)x(?P<natoms>[0-9]+)x3")
 _re_nacs = re.compile("[(](?P<nstates>[0-9]+)x[0-9]+x(?P<natoms>[0-9]+)x3")
@@ -285,7 +284,7 @@ def finalize_icond_dataset(
             "sharc", loading_parameters
         )
         dataset_res["time"].attrs.update(default_sharc_attributes["time"])
-    else: 
+    else:
         dataset_res = dataset
 
     # Set completed flag
@@ -312,7 +311,7 @@ def create_icond_dataset(
     """
     template = {
         "energy": ["state"],
-        #"dip_all": ["state", "state2", "direction"],
+        # "dip_all": ["state", "state2", "direction"],
         "dip_perm": ["state", "direction"],
         "dip_trans": ["statecomb", "direction"],
         "forces": ["state", "atom", "direction"],
@@ -329,7 +328,7 @@ def create_icond_dataset(
 
     template_default_values = {
         "energy": np.nan,
-        #"dip_all": np.nan,
+        # "dip_all": np.nan,
         "dip_perm": np.nan,
         "dip_trans": np.nan,
         "forces": np.nan,
@@ -383,7 +382,8 @@ def create_icond_dataset(
         coords["icond"] = indices
 
     coords = xr.Coordinates.from_pandas_multiindex(
-        pd.MultiIndex.from_tuples(combinations(states, 2), names=["from", "to"]),
+        pd.MultiIndex.from_tuples(combinations(
+            states, 2), names=["from", "to"]),
         dim="statecomb",
     ).merge(coords)
 
@@ -398,7 +398,8 @@ def create_icond_dataset(
     #    'forces': {'units': 'hartree/bohr', 'unitdim': 'Force'},
     #    'nacs': {'long_name': "nonadiabatic couplings", 'units': 'au'},
     # }
-    default_sharc_attributes = get_default_input_attributes("sharc", loading_parameters)
+    default_sharc_attributes = get_default_input_attributes(
+        "sharc", loading_parameters)
 
     datavars = {
         varname: (
@@ -459,8 +460,8 @@ def read_iconds_individual(
 
     # Set information on the singlet, doublet and triplet states, if available
     iconds["state_types"][:nsinglets] = 1
-    iconds["state_types"][nsinglets : nsinglets + 2 * ndoublets] = 2
-    iconds["state_types"][nsinglets + 2 * ndoublets :] = 3
+    iconds["state_types"][nsinglets: nsinglets + 2 * ndoublets] = 2
+    iconds["state_types"][nsinglets + 2 * ndoublets:] = 3
 
     iconds.attrs["num_singlets"] = nsinglets
     iconds.attrs["num_doublets"] = ndoublets
@@ -490,8 +491,9 @@ def read_iconds_individual(
             with open(path_obj / "QM.in") as f:
                 info = parse_QM_in(f)
                 iconds["atNames"][:] = (atnames := info["atNames"])
-                iconds["atNums"][:] = [get_atom_number_from_symbol(n) for n in atnames]
-                iconds["atXYZ"][:,:] = info["atXYZ"]
+                iconds["atNums"][:] = [
+                    get_atom_number_from_symbol(n) for n in atnames]
+                iconds["atXYZ"][:, :] = info["atXYZ"]
         except FileNotFoundError:
             logging.warning(
                 f"No positional information found in {path}/QM.in, the loaded trajectory does not contain positional data 'atXYZ'."
@@ -505,9 +507,7 @@ def read_iconds_individual(
     iconds.attrs["t_max"] = 0.0
     iconds.attrs["max_ts"] = 1
 
-    return convert_all_units_to_shnitsel_defaults(
-        finalize_icond_dataset(iconds, loading_parameters=loading_parameters)
-    )
+    return finalize_icond_dataset(iconds, loading_parameters=loading_parameters)
 
 
 def read_iconds_multi_directory(
@@ -539,8 +539,8 @@ def read_iconds_multi_directory(
 
     # Set information on the singlet, doublet and triplet states, if available
     iconds["state_types"][:nsinglets] = 1
-    iconds["state_types"][nsinglets : nsinglets + 2 * ndoublets] = 2
-    iconds["state_types"][nsinglets + 2 * ndoublets :] = 3
+    iconds["state_types"][nsinglets: nsinglets + 2 * ndoublets] = 2
+    iconds["state_types"][nsinglets + 2 * ndoublets:] = 3
 
     iconds.attrs["num_singlets"] = nsinglets
     iconds.attrs["num_doublets"] = ndoublets
@@ -573,9 +573,7 @@ def read_iconds_multi_directory(
             )
             return None
 
-    return convert_all_units_to_shnitsel_defaults(
-        finalize_icond_dataset(iconds, loading_parameters=loading_parameters)
-    )
+    return finalize_icond_dataset(iconds, loading_parameters=loading_parameters)
 
 
 def parse_QM_in(qm_in: TextIOWrapper) -> Dict[str, Any]:
@@ -623,12 +621,14 @@ def parse_QM_in(qm_in: TextIOWrapper) -> Dict[str, Any]:
     # Get all lines
     lines = [l.strip() for l in qm_in.readlines()]
     if len(lines) < 1:
-        raise FileNotFoundError("QM.in did not contain all necessary information")
+        raise FileNotFoundError(
+            "QM.in did not contain all necessary information")
 
     info["num_atoms"] = (num_atoms := int(lines[0]))
 
     if len(lines) < num_atoms + 2:
-        raise FileNotFoundError("QM.in did not contain all necessary information")
+        raise FileNotFoundError(
+            "QM.in did not contain all necessary information")
 
     atXYZ = np.full((num_atoms, 3), np.nan)
     atNames = np.full((num_atoms), "")
@@ -654,7 +654,7 @@ def parse_QM_in(qm_in: TextIOWrapper) -> Dict[str, Any]:
     if "states" in info:
         info["num_states"] = int(info["states"])
 
-    #print(info)
+    # print(info)
     return info
 
 
@@ -817,7 +817,7 @@ def parse_QM_out(
             dim = re.split(" +", next(f).strip())
             n = int(dim[0])
             m = int(dim[1])
-            
+
             dip_all_tmp = nans(n, m, 3)
             if out is None:
                 res["dip_perm"] = nans(n, 3)
@@ -829,7 +829,8 @@ def parse_QM_out(
             next(f)
             dip_all_tmp[:, :, 2] = get_dipoles_per_xyz(f, n, m)
 
-            res["dip_perm"][:], res["dip_trans"][:] = dip_sep(np.array(dip_all_tmp))
+            res["dip_perm"][:], res["dip_trans"][:] = dip_sep(
+                np.array(dip_all_tmp))
 
         elif line.startswith("! 3 Gradient Vectors"):
             if not is_dataset_input:
