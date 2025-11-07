@@ -1,7 +1,4 @@
-from shnitsel import (
-    core as core,
-    plot as plot,
-)
+from shnitsel import core as core, plot as plot, io as io, units as units
 from shnitsel.core import (
     postprocess as postprocess,
     xrhelpers as xrhelpers,
@@ -19,4 +16,4 @@ from .io import read, write_shnitsel_file
 
 # , 'parse', 'open_frames', 'read_trajs', 'read_ase']
 # __all__ = ['io', 'units']
-__all__ = ['read', 'write_shnitsel_file']
+__all__ = ['io', 'core', 'plot', 'units', 'read', 'write_shnitsel_file']
