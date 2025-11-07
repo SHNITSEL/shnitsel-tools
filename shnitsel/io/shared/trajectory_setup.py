@@ -30,7 +30,7 @@ class RequiredTrajectorySettings:
 
 @dataclass
 class OptionalTrajectorySettings:
-    has_forces: bool | None = None
+    has_forces: bool | Literal['all', 'active_only'] | None = None
     trajid: int | None = None
     is_multi_trajectory: bool | None = None
     trajectory_input_path: str | None = None

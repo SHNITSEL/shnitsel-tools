@@ -92,8 +92,9 @@ def parse_newtonx(
         -1)
     assign_required_settings(trajectory, required_settings)
 
+    # TODO: FIXME: Check if newtonx always prints only the active state forces or sometimes may include other forces.
     optional_settings = OptionalTrajectorySettings(
-        has_forces=is_variable_assigned(trajectory["forces"]))
+        has_forces="active_only" if is_variable_assigned(trajectory["forces"]) else None)
     assign_optional_settings(trajectory, optional_settings)
 
     return trajectory
@@ -334,7 +335,7 @@ def parse_nx_log_data(
     tmp_forces = np.zeros((natoms, 3))
     tmp_energy = np.zeros((nstates,))
     tmp_nacs = np.zeros((nstatecomb, natoms, 3))
-    tmp_full_forces = np.zeros((ntimesteps, natoms, 3))
+    tmp_full_forces = np.zeros((ntimesteps, nstates, natoms, 3))
     tmp_full_energy = np.zeros(
         (
             ntimesteps,
@@ -368,7 +369,8 @@ def parse_nx_log_data(
             # Assign all values in this time step
             tmp_astate[ts] = t_astate
             tmp_times[ts] = t_time
-            tmp_full_forces[ts] = tmp_forces
+            # Assign this to only the active state
+            tmp_full_forces[ts][t_astate] = tmp_forces
             tmp_full_energy[ts] = tmp_energy
             tmp_full_nacs[ts] = tmp_nacs
 
