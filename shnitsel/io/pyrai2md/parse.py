@@ -57,7 +57,7 @@ def parse_pyrai2md(
 
     with open(log_paths[0]) as f:
         settings = read_pyrai2md_settings_from_log(f)
-        pprint(settings)
+        # pprint(settings)
 
     state_ids = np.array(settings["global"]["State order"])
     state_types = np.array(settings["global"]["Multiplicity"])
@@ -91,7 +91,7 @@ def parse_pyrai2md(
     # Cut to actual size
     trajectory = trajectory.isel(time=slice(0, real_max_ts))
 
-    trajectory.assign_coords(
+    trajectory = trajectory.assign_coords(
         {"time": ("time", times, default_attributes["time"]),
          "state_types": ("state", state_types, default_attributes["state_types"])})
     mark_variable_assigned(trajectory["time"])
