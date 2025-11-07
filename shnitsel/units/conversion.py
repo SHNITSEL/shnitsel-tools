@@ -128,7 +128,7 @@ _CONVERTERS: Dict[str, Callable[[xr.DataArray, str], xr.DataArray]] = {
     definitions.unit_dimensions.length: convert_length,
     definitions.unit_dimensions.time: convert_time,
     definitions.unit_dimensions.nacs: convert_nacs,
-    definitions.unit_dimensions.soc: convert_socs,
+    definitions.unit_dimensions.socs: convert_socs,
 }
 
 
