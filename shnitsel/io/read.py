@@ -47,10 +47,53 @@ def read(
     concat_method: Literal["layers", "list", "frames"] = "layers",
     parallel: bool = True,
     error_reporting: Literal["log", "raise"] = "log",
-    state_names: List[str] | Callable | None = None,
     input_units: Dict[str, str] | None = None,
+    input_state_types: List[int] | Callable[[xr.Dataset], xr.Dataset] | None = None,
+    input_state_names: List[str] | Callable[[xr.Dataset], xr.Dataset] | None = None,
+    input_trajectory_id_maps: Dict[str, int]
+    | Callable[[pathlib.Path], int]
+    | None = None,
 ) -> xr.Dataset | Trajectory | List[Trajectory] | None:
-    """Read all trajectories from a folder of trajectory folders
+    """Read all trajectories from a folder of trajectory folder.
+
+    The function will attempt to automatically detect the type of the trajectory if `kind` is not set.
+    If `path` is a directory containing multiple trajectory sub-directories or files with `multiple=True`, this function will attempt to load all those subdirectories in parallel.
+    To limit the number of considered trajectories, you can provide `sub_pattern` as a glob pattern to filter directory entries to be considered
+    It will extract as much information from the trajectory as possible and return it in a standard shnitsel format.
+
+    If multiple trajectories are loaded, they need to be combined into one return object. The method for this can be configured via `concat_method`.
+    By default, `concat_method='layers'`, a new dimension `trajid` will be introduced and different trajectories can be identified by their index along this dimension.
+        Please note, that additional entries along the `time` dimension in any variable will be padded by default values.
+        You can either check the `max_ts` attribute for the maximum time index in the respective directory or check whether there are `np.nan` values in any of the observables.
+        We recommend using the energy variable.
+    `concat_method='frames'` introduces a new dimension `frame` where each tick is a combination of `trajid` and `time` in the respective trajectory. Therefore, only valid frames will be present and no padding performed.
+    `concat_method='list'` simply returns the list of successfully loaded trajectories without merging them.
+    For concatenation except `'list'`, the same number of atoms and states must be present in all individual trajectories.
+
+    Error reporting can be configure between logging or raising exceptions via `error_reporting`.
+
+    If `parallel=True`, multiple processes will be used to load multiple different trajectories in parallel.
+
+    As some formats do not contain sufficient information to extract the input units of all variables, you can provide units (see `shnitsel.units.definitions.py` for unit names) of individual variables via `input_units`.
+    `input_units` should be a dict mapping default variable names to the respective unit.
+    The individual variable names should adhere to the shnitsel-format standard, e.g. atXYZ, force, energy, dip_perm. Unknown names or names not present in the loaded data will be ignored without warning.
+    If no overrides are provided, the read function will use internal defaults for all variables.
+
+    Similarly, as many output formats do not provide state multiplicity or state name information, we allow for the provision of state types (via `input_state_types`)
+    and of state names (via `input_state_names`).
+    Both can either be provided as a list of values for the states in the input in ascending index order or as a function that assigns the correct values to the coordinates `state_types` or `state_names` in the trajectory respectively.
+    Types are either `1`, `2`, or `3`, whereas names are commonly of the format "S0", "D0", "T0".
+    Do not modify any other variables within the respective function.
+    If you modify any variable, use the `mark_variable_assigned(variable)` function, i.e. `mark_variable_assigned(dataset.state_types)` or `mark_variable_assigned(dataset.state_names)` respectively, to notify shnitsel of the respective update.
+    If the notification is not applied, the coordinate may be dropped due to a supposed lack of assigned values.
+
+    If multiple trajectories are merged, it is importand to be able to distinguish which one may be referring.
+    By setting `input_trajectory_id_maps`, you can provide a mapping between input paths and the id you would like to assign to the trajectory read from that individual path as a dict.
+    The key should be the absolute path as a posix-conforming string.
+    The value should be the desired id. Note that ids should be pairwise distinct.
+    Alternatively, `input_trajectory_id_maps` can be a function that is provided the `pathlib.Path` object of the trajectory input path and should return an associated id.
+    By default, ids are exctracted from integers in the directory names of directory-based inputs.
+    If no integer is found or the format does not support the directory-style input, a random id will be assigned by default.
 
     Parameters
     ----------
@@ -87,12 +130,23 @@ def read(
         Choose whether to `log` or to `raise` errors as they occur during the import process.
         Currently, the implementation does not support `error_reporting='raise'` while `parallel=True`.
     state_names (List[str] | Callable | None, optional):
-        Either a list of names to assign to states in the loaded file or a function that assigns a state name to each state id.
-        If not provided or set to None, default naming will be applied, naming singlet states S0, S1,.., doublet states D0,... and triplet states T0, etc in ascending order.
-    input_units: (Dict[str, str] | None, optional):
+    input_units (Dict[str, str] | None, optional):
         An optional dictionary to set the units in the loaded trajectory.
         Only necessary if the units differ from that tool's default convention or if there is no default convention for the tool.
         Please refer to the names of the different unit kinds and possible values for different units in `shnitsel.units.definitions`.
+    input_state_types (List[int] | Callable[[xr.Dataset], xr.Dataset], optional):
+        Either a list of state types/multiplicities to assign to states in the loaded trajectories or a function that assigns a state multiplicity to each state.
+        The function may use all of the information in the trajectory if required and should return the updated Dataset.
+        If not provided or set to None, default types/multipliciteis will be applied based on extracted numbers of singlets, doublets and triplets. The first num_singlet types will be set to `1`, then 2*num_doublet types will be set to `2` and then 3*num_triplets types will be set to 3.
+        Will be invoked/applied before the `input_state_names` setting.
+    input_state_names (List[str] | Callable[[xr.Dataset], xr.Dataset], optional):
+        Either a list of names to assign to states in the loaded file or a function that assigns a state name to each state.
+        The function may use all of the information in the trajectory, i.e. the state_types array, and should return the updated Dataset.
+        If not provided or set to None, default naming will be applied, naming singlet states S0, S1,.., doublet states D0,... and triplet states T0, etc in ascending order.
+        Will be invoked/applied after the `input_state_types` setting.
+    input_trajectory_id_maps (Dict[str, int]| Callable[[pathlib.Path], int], optional):
+        A dict mapping absolut posix paths to ids to be applied or a function to convert a path into an integer id to assign to the trajectory.
+        If not provided, will be chosen either based on the last integer matched from the path or at random up to `2**31-1`.
 
     Returns
     -------
@@ -128,8 +182,10 @@ def read(
 
     loading_parameters = LoadingParameters(
         input_units=input_units,
-        state_names=state_names,
         error_reporting=error_reporting,
+        trajectory_id=input_trajectory_id_maps,
+        state_types=input_state_types,
+        state_names=input_state_names,
     )
 
     # First check if the target path can directly be read as a Trajectory
