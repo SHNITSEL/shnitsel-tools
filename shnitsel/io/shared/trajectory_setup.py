@@ -162,7 +162,7 @@ def create_initial_dataset(
     if num_time_steps == 0:
         template_purge_dim(template, "time")
         del dim_lengths["time"]
-        del coords["time"]
+        # del coords["time"]
 
     if num_states == 0:
         # On the other hand, we don't worry about not knowing nstates,
