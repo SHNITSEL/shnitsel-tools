@@ -14,7 +14,7 @@ class unit_dimensions:
     dipole = "dipole"
     nacs = "nacs"
     time = "time"
-    soc = "soc"
+    socs = "socs"
 
 
 class time:
@@ -163,10 +163,10 @@ standard_shnitsel_units = {
     unit_dimensions.force: force.Hartree_per_Bohr,
     # TODO: FIXME: Check which default time unit is used in shnitsel
     unit_dimensions.time: time.femto_seconds,
-    unit_dimensions.nacs: "1", # TODO: FIXME: NACS in molcas: 1/Bohr, SHARC liest 1/Bohr
+    unit_dimensions.nacs: "1",  # TODO: FIXME: NACS in molcas: 1/Bohr, SHARC liest 1/Bohr
     unit_dimensions.dipole: dipole.Debye,
     # "dipole_trans": "1",
-    unit_dimensions.soc: socs.au,
+    unit_dimensions.socs: socs.au,
 }
 
 """
@@ -282,7 +282,7 @@ standard_units_of_formats = {
         unit_dimensions.nacs: nacs.one_per_Bohr,
         unit_dimensions.dipole: dipole.au,
         # "dipole_trans": dipole.au,
-        unit_dimensions.soc: socs.au,
+        unit_dimensions.socs: socs.au,
     },
     "ase": {
         unit_dimensions.length: length.Bohr,
@@ -293,7 +293,7 @@ standard_units_of_formats = {
         unit_dimensions.nacs: nacs.au,
         unit_dimensions.dipole: dipole.au,
         # "dipole_trans": dipole.au,
-        unit_dimensions.soc: socs.au,
+        unit_dimensions.socs: socs.au,
     },
     "newtonx": {  # Generally uses atomic units
         unit_dimensions.length: length.Angstrom,  # TODO: FIXME: Until 1.3 it was AU
@@ -303,7 +303,7 @@ standard_units_of_formats = {
         unit_dimensions.nacs: nacs.au,
         unit_dimensions.dipole: dipole.Debye,
         # "dipole_trans": dipole.au,
-        unit_dimensions.soc: socs.au,
+        unit_dimensions.socs: socs.au,
     },
     "shnitsel": standard_shnitsel_units,
     "xyz": {
@@ -319,6 +319,6 @@ standard_units_of_formats = {
         unit_dimensions.nacs: nacs.au,
         unit_dimensions.dipole: dipole.au,
         # "dipole_trans": dipole.au,
-        unit_dimensions.soc: socs.au,
+        unit_dimensions.socs: socs.au,
     },
 }
