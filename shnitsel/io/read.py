@@ -687,6 +687,10 @@ def compare_dicts_of_values(
             for key in shared_keys:
                 new_base = base_key + [key]
 
+                if key not in curr_root_a or key not in curr_root_b:
+                    non_matching_keys.append(new_base)
+                    continue
+
                 res_matching, res_non_matching = compare_dicts_of_values(
                     curr_root_a[key], curr_root_b[key], new_base
                 )
@@ -722,8 +726,16 @@ def check_matching_var_meta(
     """
     collected_meta = []
 
+    shared_vars = None
+
     for ds in datasets:
         ds_meta = {}
+        this_vars = set(ds.variables.keys())
+        if shared_vars is None:
+            shared_vars = this_vars
+        else:
+            shared_vars = this_vars.intersection(shared_vars)
+
         for var_name in ds.variables:
             var_attr = ds[var_name].attrs.copy()
             ds_meta[var_name] = var_attr
@@ -732,9 +744,10 @@ def check_matching_var_meta(
     is_equal = True
 
     for i in range(len(datasets) - 1):
-        _matching, distinct_keys = compare_dicts_of_values(
-            collected_meta[i], collected_meta[i + 1]
-        )
+        for var in shared_vars:
+            _matching, distinct_keys = compare_dicts_of_values(
+                collected_meta[i][var], collected_meta[i + 1][var]
+            )
         if distinct_keys is not None and len(distinct_keys) > 0:
             is_equal = False
             break
@@ -862,7 +875,7 @@ def concat_trajs(datasets: Iterable[Trajectory]) -> Trajectory:
     if not check_matching_var_meta(datasets):
         message = (
             "Variable meta attributes vary between different tajectories. "
-            "This indicates inconsitencies like distinct units between trajectories. "
+            "This indicates inconsistencies like distinct units between trajectories. "
             "Please ensure consistency between datasets before merging."
         )
         logging.warning(f"{message} Merge result may be inconsistent.")
