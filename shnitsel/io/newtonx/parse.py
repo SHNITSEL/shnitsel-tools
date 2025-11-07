@@ -1,6 +1,6 @@
 from io import TextIOWrapper
 import pathlib
-from typing import NamedTuple, Tuple
+from typing import Any, Dict, NamedTuple, Tuple
 import numpy as np
 from shnitsel.io.shared.trajectory_setup import OptionalTrajectorySettings, RequiredTrajectorySettings, assign_optional_settings, assign_required_settings, create_initial_dataset
 from shnitsel.io.shared.variable_flagging import is_variable_assigned, mark_variable_assigned
@@ -56,7 +56,7 @@ def parse_newtonx(
         mark_variable_assigned(trajectory["time"])
 
         # Read several datasets into trajectory and get first indicator of actual performed steps
-        actual_steps, trajectory = parse_nx_log_data(f, trajectory)
+        actual_steps, trajectory = parse_nx_log_data(f, trajectory, settings)
 
         if actual_steps < settings.num_steps:
             # Filter only assigned timesteps
@@ -301,7 +301,7 @@ def _create_initial_dataset(
 
 
 def parse_nx_log_data(
-    f: TextIOWrapper, dataset: xr.Dataset
+    f: TextIOWrapper, dataset: xr.Dataset, settings: NewtonXSettingsResult
 ) -> Tuple[int, xr.Dataset]:  # Tuple[int, xr.Dataset]:
     """Function to parse the nx.log data into a dataset from the input stream f.
 
@@ -324,7 +324,7 @@ def parse_nx_log_data(
 
     actual_max_ts: int = -1
 
-    delta_t = dataset.attrs["delta_t"]
+    delta_t = settings.delta_t
 
     ts: int = 0
     time: float = 0
