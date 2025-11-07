@@ -85,7 +85,8 @@ def create_initial_dataset(
     # This is the list of observables/variables we currently support.
     template = {
         "energy": ["time", "state"],
-        "e_kin": ["time", "state"],
+        "e_kin": ["time"],
+        "velocities": ["time", "atom", "direction"],
         "forces": ["time", "state", "atom", "direction"],
         "atXYZ": ["time", "atom", "direction"],
         "nacs": ["time", "statecomb", "atom", "direction"],
@@ -106,6 +107,7 @@ def create_initial_dataset(
     template_default_values = {
         "energy": np.nan,
         "e_kin": np.nan,
+        "velocities": np.nan,
         "forces": np.nan,
         "atXYZ": np.nan,
         "nacs": np.nan,
