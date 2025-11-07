@@ -11,7 +11,7 @@ from matplotlib.figure import Figure
 from matplotlib.axes import Axes
 from matplotlib.axis import Axis
 
-from shnitsel.io import read_shnitsel_file
+from shnitsel.io import read
 try:
     from typing import Self
 except ImportError:
@@ -54,7 +54,7 @@ class Datasheet:
         elif frames is not None:
             pass
         elif path is not None:
-            frames = read_shnitsel_file(path)
+            frames = read(path, kind="shnitsel") # type: ignore
         else:
             raise TypeError("Neither path nor frames given.")
 
