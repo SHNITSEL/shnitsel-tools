@@ -411,7 +411,9 @@ def parse_nx_log_data(
     mark_variable_assigned(dataset["energy"])
     dataset.nacs.values = tmp_full_nacs
     mark_variable_assigned(dataset["nacs"])
-    # dataset = dataset.assign_coords(time=tmp_times)
+    dataset = dataset.assign_coords(
+        {"time": ("time", tmp_times, dataset.time.attrs)})
+    mark_variable_assigned(dataset["time"])
 
     return actual_max_ts + 1, dataset  # , dataset
 
