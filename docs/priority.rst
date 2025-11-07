@@ -4,22 +4,25 @@ Frequently-used functions
 =========================
 
 
-.. autosummary::
-    :toctree: _generated
-    
-    parse.sharc_icond.dirs_of_iconds
+.. .. autosummary::
+..    :toctree: _generated
+..    
+..    io.sharc.
 
 .. autosummary::
     :toctree: _generated
     
-    parse.read_trajs
+    io.read
 
 .. autosummary::
     :toctree: _generated
     
-    open_frames
+    io.write_shnitsel_file
 
-.. .. automethod:: shnitsel.xarray.DAShnitselAccessor.get_bond_lengths
+.. autosummary::
+    :toctree: _generated
+    
+    io.write_ase
 
 .. We'll have to refactor the accessor methods to document them properly.
 
@@ -31,7 +34,6 @@ Frequently-used functions
     core.filtre.get_bond_lengths
     core.xrhelpers.msel
     core.xrhelpers.sel_trajs
-    core.xrhelpers.save_frames
     core.postprocess.dihedral
     core.postprocess.get_inter_state
     core.plot.spectra3d.spectra_all_times
@@ -49,13 +51,11 @@ Frequently-used functions
 .. autosummary::
     :toctree: _generated
 
-    core.xrhelpers.save_frames
-    open_frames
-    read_ase
-    core.ase.write_ase
-    datasheet
+    io.read
+    io.write_shnitsel_file
+    core.datasheet
     core.postprocess.relativize
-    filtre
+    core.filtre
     core.filtre.energy_filtranda
     core.filtre.get_cutoffs
     core.filtre.truncate
@@ -66,7 +66,7 @@ Frequently-used functions
     core.postprocess.assign_fosc
     core.postprocess.get_inter_state
     plot.spectra_all_times
-    broaden_gauss
+    core.postprocess.broaden_gauss
     plot.Datasheet.plot_separated_spectra_and_hists
     plot.ski_plots
     core.postprocess.calc_pops
@@ -81,10 +81,10 @@ Frequently-used functions
     core.xrhelpers.mgroupby
     core.postprocess.dihedral
 
-.. .. automethod:: shnitsel.read_ase_db
+.. .. automethod:: shnitsel.io.ase.read_ase
 .. ↑ NAME WRONG!
 
-.. .. automethod:: shnitsel.core.ase.write_ase_db
+.. .. automethod:: shnitsel.io.ase.write_ase
 .. ↑ NAME WRONG!
 
 .. .. autofunction:: shnitsel.broaden_gauss
