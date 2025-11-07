@@ -6,7 +6,7 @@ from typing import Dict, List, Tuple
 
 from shnitsel.data.TrajectoryFormat import Trajectory
 from shnitsel.io.helpers import LoadingParameters, PathOptionsType, make_uniform_path
-from ..FormatReader import FormatInformation, FormatReader
+from ..format_reader_base import FormatInformation, FormatReader
 from .parse import read_shnitsel_file
 from shnitsel.units.definitions import standard_shnitsel_units
 
@@ -131,10 +131,15 @@ class ShnitselFormatReader(FormatReader):
             message = f"Attempt at reading shnitsel file from path `{path}` failed because of original error: {v_e}"
             logging.error(message)
             raise FileNotFoundError(message)
-        
+
         if format_info is not None:
-            if format_info.path is not None and not "trajectory_input_path" in loaded_dataset.attrs:
-                loaded_dataset.attrs["trajectory_input_path"] = format_info.path.as_posix()
+            if (
+                format_info.path is not None
+                and not "trajectory_input_path" in loaded_dataset.attrs
+            ):
+                loaded_dataset.attrs["trajectory_input_path"] = (
+                    format_info.path.as_posix()
+                )
 
         return loaded_dataset
 

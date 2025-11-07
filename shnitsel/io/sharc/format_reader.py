@@ -6,7 +6,7 @@ from typing import Dict, List, Tuple
 
 from shnitsel.data.TrajectoryFormat import Trajectory
 from shnitsel.io.helpers import LoadingParameters, PathOptionsType, make_uniform_path
-from ..FormatReader import FormatInformation, FormatReader
+from ..format_reader_base import FormatInformation, FormatReader
 from .parse_trajectory import read_traj
 from .parse_initial_conditions import list_iconds, read_iconds_individual
 
@@ -28,8 +28,7 @@ class SHARCMultiInitialFormatInformation(FormatInformation):
     list_of_iconds: List | None = None
 
 
-_sharc_default_pattern_regex = re.compile(
-    r"(?P<dynstat>TRAJ|ICOND)_(?P<trajid>\d+)")
+_sharc_default_pattern_regex = re.compile(r"(?P<dynstat>TRAJ|ICOND)_(?P<trajid>\d+)")
 _sharc_default_pattern_glob_traj = "TRAJ_*"
 _sharc_default_pattern_glob_icond = "ICOND_*"
 
@@ -48,8 +47,7 @@ class SHARCFormatReader(FormatReader):
         """
         path_obj = make_uniform_path(path)
 
-        tmp_entries_traj = [e for e in path_obj.glob(
-            _sharc_default_pattern_glob_traj)]
+        tmp_entries_traj = [e for e in path_obj.glob(_sharc_default_pattern_glob_traj)]
         tmp_entries_icond = [
             e for e in path_obj.glob(_sharc_default_pattern_glob_icond)
         ]
@@ -131,12 +129,13 @@ class SHARCFormatReader(FormatReader):
 
         is_static = False
         try:
-
             qm_out_path = path_obj / "QM.out"
             qm_log_path = path_obj / "QM.log"
             qm_in_path = path_obj / "QM.in"
 
-            if not qm_out_path.is_file() or (not qm_log_path.is_file() and not qm_in_path.is_file()):
+            if not qm_out_path.is_file() or (
+                not qm_log_path.is_file() and not qm_in_path.is_file()
+            ):
                 message = f"Input directory `{path}` is missing `QM.out` or both `QM.log` and `QM.in`"
                 if is_request_specific_to_sharc:
                     logging.info(message)
@@ -147,7 +146,10 @@ class SHARCFormatReader(FormatReader):
             # list_of_initial_condition_paths = list_iconds(path_obj)
             is_static = True
             format_information = SHARCInitialFormatInformation(
-                "sharc", "unkown", None, path_obj  # , list_of_initial_condition_paths
+                "sharc",
+                "unkown",
+                None,
+                path_obj,  # , list_of_initial_condition_paths
             )
             logging.debug(
                 f"Input directory `{path}` fulfils data requirements of SHARC Initial Conditions"
@@ -215,16 +217,14 @@ class SHARCFormatReader(FormatReader):
         elif path_obj is None and format_info is not None:
             path_obj = format_info.path
         elif path_obj is None and format_info is None:
-            raise ValueError(
-                "Either `path` or `format_info` needs to be provided")
+            raise ValueError("Either `path` or `format_info` needs to be provided")
 
         if isinstance(format_info, SHARCDynamicFormatInformation):
             is_dynamic = True
         elif isinstance(format_info, SHARCInitialFormatInformation):
             is_dynamic = False
         else:
-            raise ValueError(
-                "The provided `format_info` object is not SHARC-specific.")
+            raise ValueError("The provided `format_info` object is not SHARC-specific.")
 
         if path_obj is None:
             raise ValueError(
@@ -259,7 +259,8 @@ class SHARCFormatReader(FormatReader):
                 loaded_dataset.attrs["trajid"] = format_info.trajid
 
             if format_info.path is not None:
-                loaded_dataset.attrs["trajectory_input_path"] = format_info.path.as_posix(
+                loaded_dataset.attrs["trajectory_input_path"] = (
+                    format_info.path.as_posix()
                 )
 
         return loaded_dataset
