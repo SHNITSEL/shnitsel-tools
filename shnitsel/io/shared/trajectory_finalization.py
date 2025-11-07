@@ -18,7 +18,8 @@ def finalize_loaded_trajectory(dataset: xr.Dataset | None, loading_parameters: L
             else:
                 unset_vars.append(var)
 
-        dataset.drop_vars(unset_vars)
+        logging.debug(f"Dropping unset variables: {unset_vars}")
+        dataset = dataset.drop_vars(unset_vars)
 
         dataset = set_state_defaults(dataset, loading_parameters)
 
