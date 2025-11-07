@@ -17,13 +17,11 @@ def main():
 
     argument_parser.add_argument(
         "input_path",
-        required=True,
         help="The path to the input directory to read. Can point to an individual trajectory or a parent directory of multiple trajectories.",
     )
 
     argument_parser.add_argument(
-        "target_path",
-        required=False,
+        "-o", "--output_path",
         default=None,
         type=str,
         help="The path to put the converted shnitsel file to. if not provided will be the base name of the directory input_path is pointing to extended with `.nc` suffix. Should end on `.nc` or will be extended with `.nc`",
@@ -43,7 +41,7 @@ def main():
     input_path = pathlib.Path(args.input_path)
     input_kind = args.kind
 
-    output_path = args.target_path
+    output_path = args.output_path
 
     if output_path is None:
         output_path = input_path / (input_path.name + ".nc")
