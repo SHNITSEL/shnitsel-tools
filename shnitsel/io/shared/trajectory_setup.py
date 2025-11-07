@@ -152,7 +152,7 @@ def create_initial_dataset(
         for k, v in template_dict.items():
             if dim in v:
                 if len(v) == 1:
-                    obsolete_keys.append(v)
+                    obsolete_keys.append(k)
                 else:
                     template_dict[k].remove(dim)
 
