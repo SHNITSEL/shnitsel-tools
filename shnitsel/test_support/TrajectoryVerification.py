@@ -52,7 +52,7 @@ def check_shnitsel_trajectory_data(trajectory: Trajectory | xr.Dataset, report: 
 
     if report:
         message = "Encountered errors while checking validity of trajectory:"
-        if len(missing_required_attrs) > 0:
+        if len(missing_required_vars) > 0:
             message += f"\n Trajectory was missing required variables: {missing_required_vars}"
         if len(missing_required_attrs) > 0:
             message += f"\n Trajectory was missing required attributes: {missing_required_attrs}"
