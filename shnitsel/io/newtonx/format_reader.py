@@ -11,6 +11,7 @@ from shnitsel.io.helpers import LoadingParameters, PathOptionsType, make_uniform
 from ..FormatReader import FormatInformation, FormatReader
 from .parse import parse_newtonx
 
+import xarray as xr
 
 @dataclass
 class NewtonXFormatInformation(FormatInformation):
@@ -105,7 +106,7 @@ class NewtonXFormatReader(FormatReader):
         path: PathOptionsType | None,
         format_info: FormatInformation | None = None,
         loading_parameters: LoadingParameters | None = None,
-    ) -> Trajectory:
+    ) -> xr.Dataset:
         """Read a NewtonX-style trajcetory from path at `path`. Implements `FormatReader.read_from_path()`
 
         Args:
@@ -158,7 +159,7 @@ class NewtonXFormatReader(FormatReader):
             if format_info.path is not None and not "trajectory_input_path" in loaded_dataset.attrs:
                 loaded_dataset.attrs["trajectory_input_path"] = format_info.path.as_posix()
                 
-        return Trajectory(loaded_dataset)
+        return loaded_dataset
 
     def get_units_with_defaults(
         self, unit_overrides: Dict[str, str] | None = None

@@ -57,7 +57,8 @@ def assign_optional_settings(dataset: xr.Dataset, settings: OptionalTrajectorySe
         dataset (xr.Dataset): The dataset to write the optional settings into
         settings (OptionalTrajectorySettings): The dataclass object that has all optional setting keys with optional values. Only assigned settings (not None) will be inserted.
     """
-    for k, v in asdict(settings):
+    kv_dict = asdict(settings)
+    for k, v in kv_dict.items():
         if v is not None:
             dataset.attrs[k] = v
 
@@ -118,7 +119,7 @@ def create_initial_dataset(
         "state_names": "",
         "state_types": 0,
         "astate": -1,
-        "sstate": -1,
+        "sdiag": -1,
         "phases": np.nan,
         "atNames": "",
         "atNums": -1,

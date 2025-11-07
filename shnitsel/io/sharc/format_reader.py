@@ -10,6 +10,8 @@ from ..FormatReader import FormatInformation, FormatReader
 from .parse_trajectory import read_traj
 from .parse_initial_conditions import list_iconds, dir_of_iconds, read_iconds_individual
 
+import xarray as xr
+
 
 @dataclass
 class SHARCDynamicFormatInformation(FormatInformation):
@@ -26,7 +28,8 @@ class SHARCMultiInitialFormatInformation(FormatInformation):
     list_of_iconds: List | None = None
 
 
-_sharc_default_pattern_regex = re.compile(r"(?P<dynstat>TRAJ|ICOND)_(?P<trajid>\d+)")
+_sharc_default_pattern_regex = re.compile(
+    r"(?P<dynstat>TRAJ|ICOND)_(?P<trajid>\d+)")
 _sharc_default_pattern_glob_traj = "TRAJ_*"
 _sharc_default_pattern_glob_icond = "ICOND_*"
 
@@ -45,7 +48,8 @@ class SHARCFormatReader(FormatReader):
         """
         path_obj = make_uniform_path(path)
 
-        tmp_entries_traj = [e for e in path_obj.glob(_sharc_default_pattern_glob_traj)]
+        tmp_entries_traj = [e for e in path_obj.glob(
+            _sharc_default_pattern_glob_traj)]
         tmp_entries_icond = [
             e for e in path_obj.glob(_sharc_default_pattern_glob_icond)
         ]
@@ -186,7 +190,7 @@ class SHARCFormatReader(FormatReader):
         path: PathOptionsType | None,
         format_info: FormatInformation | None = None,
         loading_parameters: LoadingParameters | None = None,
-    ) -> Trajectory:
+    ) -> xr.Dataset:
         """Read a SHARC-style trajcetory from path at `path`. Implements `FormatReader.read_from_path()`
 
         Args:
@@ -211,14 +215,16 @@ class SHARCFormatReader(FormatReader):
         elif path_obj is None and format_info is not None:
             path_obj = format_info.path
         elif path_obj is None and format_info is None:
-            raise ValueError("Either `path` or `format_info` needs to be provided")
+            raise ValueError(
+                "Either `path` or `format_info` needs to be provided")
 
         if isinstance(format_info, SHARCDynamicFormatInformation):
             is_dynamic = True
         elif isinstance(format_info, SHARCInitialFormatInformation):
             is_dynamic = False
         else:
-            raise ValueError("The provided `format_info` object is not SHARC-specific.")
+            raise ValueError(
+                "The provided `format_info` object is not SHARC-specific.")
 
         if path_obj is None:
             raise ValueError(
@@ -251,11 +257,12 @@ class SHARCFormatReader(FormatReader):
         if format_info is not None:
             if format_info.trajid is not None:
                 loaded_dataset.attrs["trajid"] = format_info.trajid
-            
-            if format_info.path is not None:
-                loaded_dataset.attrs["trajectory_input_path"] = format_info.path.as_posix()
 
-        return Trajectory(loaded_dataset)
+            if format_info.path is not None:
+                loaded_dataset.attrs["trajectory_input_path"] = format_info.path.as_posix(
+                )
+
+        return loaded_dataset
 
     def get_units_with_defaults(
         self, unit_overrides: Dict[str, str] | None = None
