@@ -33,7 +33,14 @@ def main():
         required=False,
         type=str,
         default=None,
-        help="Optionally an indication of the kind of trajectory you want to read, `shnitsel`, `sharc`, `newtonx`, `pyrai2md`. Wil be guessed based on directory contents if not provided.",
+        help="Optionally an indication of the kind of trajectory you want to read, `shnitsel`, `sharc`, `newtonx`, `pyrai2md`. Will be guessed based on directory contents if not provided.",
+    )
+    argument_parser.add_argument(
+        "--loglevel",
+        "-log",
+        type=str,
+        default="warn",
+        help="The log level, `error`, `warn`, `info`, `debug`. ",
     )
 
     args = argument_parser.parse_args()
@@ -42,6 +49,11 @@ def main():
     input_kind = args.kind
 
     output_path = args.output_path
+    loglevel = args.loglevel
+
+    logging.basicConfig()
+
+    logging.getLogger().setLevel( logging._nameToLevel[loglevel.upper()])    
 
     if output_path is None:
         output_path = input_path / (input_path.name + ".nc")
@@ -61,6 +73,8 @@ def main():
         sys.exit(1)
 
     trajectory = shnitsel.io.read(input_path, kind=input_kind)
+
+    from pprint import pprint
     if trajectory is None:
         logging.error("Trajectory failed to load.")
         sys.exit(1)
@@ -70,6 +84,7 @@ def main():
         )
         sys.exit(1)
     else:
+        pprint(trajectory)
         shnitsel.io.write_shnitsel_file(trajectory, output_path)
         sys.exit(0)
 
