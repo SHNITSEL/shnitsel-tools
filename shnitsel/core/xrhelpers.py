@@ -1,10 +1,8 @@
 from __future__ import annotations
 
 import itertools
-import os
 import logging
 import math
-import typing
 from typing import Callable, Sequence
 
 import numpy.typing as npt
