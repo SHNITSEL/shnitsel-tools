@@ -12,8 +12,17 @@ import pandas as pd
 import numpy as np
 from pyparsing import nestedExpr
 from pprint import pprint
-from shnitsel.io.shared.trajectory_setup import OptionalTrajectorySettings, RequiredTrajectorySettings, assign_optional_settings, assign_required_settings, create_initial_dataset
-from shnitsel.io.shared.variable_flagging import is_variable_assigned, mark_variable_assigned
+from shnitsel.io.shared.trajectory_setup import (
+    OptionalTrajectorySettings,
+    RequiredTrajectorySettings,
+    assign_optional_settings,
+    assign_required_settings,
+    create_initial_dataset,
+)
+from shnitsel.io.shared.variable_flagging import (
+    is_variable_assigned,
+    mark_variable_assigned,
+)
 from shnitsel.units.definitions import get_default_input_attributes
 
 from shnitsel.io.helpers import (
@@ -71,19 +80,18 @@ def parse_pyrai2md(
     natoms = settings["global"]["Active atoms"]
     delta_t = settings["md"]["Dt (au)"]
 
-    default_attributes = get_default_input_attributes(
-        "pyrai2md", loading_parameters)
+    default_attributes = get_default_input_attributes("pyrai2md", loading_parameters)
 
     trajectory = create_initial_dataset(
-        nsteps, nstates, natoms, "pyrai2md", loading_parameters)
+        nsteps, nstates, natoms, "pyrai2md", loading_parameters
+    )
 
     # TODO: FIXME: apply state names
 
     with xr.set_options(keep_attrs=True):
         with open(os.path.join(log_paths[0])) as f:
             trajectory, max_ts2 = parse_observables_from_log(f, trajectory)
-        trajectory, max_ts1, times = parse_md_energies(
-            md_energies_paths[0], trajectory)
+        trajectory, max_ts1, times = parse_md_energies(md_energies_paths[0], trajectory)
 
     completed = (max_ts1 == nsteps) and (max_ts2 == nsteps)
     real_max_ts = min(max_ts1, max_ts2)
@@ -92,14 +100,17 @@ def parse_pyrai2md(
     trajectory = trajectory.isel(time=slice(0, real_max_ts))
 
     trajectory = trajectory.assign_coords(
-        {"time": ("time", times, default_attributes["time"]),
-         "state_types": ("state", state_types, default_attributes["state_types"])})
+        {
+            "time": ("time", times, default_attributes["time"]),
+            "state_types": ("state", state_types, default_attributes["state_types"]),
+        }
+    )
     mark_variable_assigned(trajectory["time"])
     mark_variable_assigned(trajectory["state_types"])
 
     # Set all settings we require to be present on the trajectory
     required_settings = RequiredTrajectorySettings(
-        nsteps*delta_t,
+        nsteps * delta_t,
         delta_t,
         real_max_ts,
         completed,
@@ -108,11 +119,13 @@ def parse_pyrai2md(
         settings["version"],
         nsinglets,
         ndoublets,
-        ntriplets)
+        ntriplets,
+    )
     assign_required_settings(trajectory, required_settings)
 
     optional_settings = OptionalTrajectorySettings(
-        has_forces=is_variable_assigned(trajectory["forces"]))
+        has_forces=is_variable_assigned(trajectory["forces"])
+    )
     assign_optional_settings(trajectory, optional_settings)
 
     return trajectory
@@ -180,7 +193,7 @@ def read_pyrai2md_settings_from_log(f: TextIOWrapper) -> Dict[str, Any]:
         elif value_string.startswith("'"):
             # We have a delimited string
             res_string = value_string[
-                value_string.find("'") + 1: value_string.rfind("'")
+                value_string.find("'") + 1 : value_string.rfind("'")
             ]
             return str(res_string)
         elif value_string.find("[") == -1:
@@ -190,10 +203,9 @@ def read_pyrai2md_settings_from_log(f: TextIOWrapper) -> Dict[str, Any]:
             # We have an array to decode:
             try:
                 relevant_part = value_string[
-                    value_string.find("["): value_string.rfind("]") + 1
+                    value_string.find("[") : value_string.rfind("]") + 1
                 ]
-                decoded_array = nestedExpr(
-                    "[", "]").parseString(relevant_part).asList()
+                decoded_array = nestedExpr("[", "]").parseString(relevant_part).asList()
 
                 # Cut off surrounding array
                 if len(decoded_array) > 0:
@@ -236,7 +248,7 @@ def read_pyrai2md_settings_from_log(f: TextIOWrapper) -> Dict[str, Any]:
 
         if curr_stripped.startswith("version:"):
             # Read version string
-            version_string = curr_stripped[len("version:"):].strip()
+            version_string = curr_stripped[len("version:") :].strip()
             settings["version"] = version_string
         elif curr_stripped.startswith("&"):
             # Beginning of a section Header
@@ -259,7 +271,6 @@ def read_pyrai2md_settings_from_log(f: TextIOWrapper) -> Dict[str, Any]:
         else:
             # We are in a section block
             if len(curr_stripped) > 0:
-
                 kv_split = _double_whitespace_pattern.split(curr_stripped)
                 if len(kv_split) < 2:
                     kv_split = _colon_whitespace_pattern.split(curr_stripped)
@@ -279,8 +290,7 @@ def read_pyrai2md_settings_from_log(f: TextIOWrapper) -> Dict[str, Any]:
 
                     value = "  ".join(parts[1:])
                     if current_section_settings is not None:
-                        current_section_settings[key] = decode_setting_string(
-                            value)
+                        current_section_settings[key] = decode_setting_string(value)
                     elif has_had_section:
                         # Global settings have different arrays...
                         if len(parts) > 2:
@@ -288,8 +298,7 @@ def read_pyrai2md_settings_from_log(f: TextIOWrapper) -> Dict[str, Any]:
                                 decode_setting_string(x) for x in parts[1:]
                             ]
                         else:
-                            settings["global"][key] = decode_setting_string(
-                                parts[1])
+                            settings["global"][key] = decode_setting_string(parts[1])
 
     logging.info(f"Parsed pyrai2md settings: {settings}")
     return settings
@@ -511,7 +520,11 @@ def parse_observables_from_log(
     trajectory_in = trajectory_in.assign_coords(
         {
             "atNames": ("atom", atNames, trajectory_in.atNames.attrs),
-            "atNums":  ("atom", [get_atom_number_from_symbol(x) for x in atNames], trajectory_in.atNums.attrs)
+            "atNums": (
+                "atom",
+                [get_atom_number_from_symbol(x) for x in atNames],
+                trajectory_in.atNums.attrs,
+            ),
         }
     )
     mark_variable_assigned(trajectory_in["atNames"])

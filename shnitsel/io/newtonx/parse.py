@@ -2,8 +2,17 @@ from io import TextIOWrapper
 import pathlib
 from typing import Any, Dict, NamedTuple, Tuple
 import numpy as np
-from shnitsel.io.shared.trajectory_setup import OptionalTrajectorySettings, RequiredTrajectorySettings, assign_optional_settings, assign_required_settings, create_initial_dataset
-from shnitsel.io.shared.variable_flagging import is_variable_assigned, mark_variable_assigned
+from shnitsel.io.shared.trajectory_setup import (
+    OptionalTrajectorySettings,
+    RequiredTrajectorySettings,
+    assign_optional_settings,
+    assign_required_settings,
+    create_initial_dataset,
+)
+from shnitsel.io.shared.variable_flagging import (
+    is_variable_assigned,
+    mark_variable_assigned,
+)
 from shnitsel.units.definitions import get_default_input_attributes
 import xarray as xr
 from itertools import combinations
@@ -37,20 +46,24 @@ def parse_newtonx(
     # TODO: FIXME: Read basis from JOB_NAD files
     with open(path_obj / "RESULTS" / "nx.log") as f:
         settings = parse_settings_from_nx_log(f)
-        default_attributes = get_default_input_attributes(
-            "newtonx", loading_parameters)
+        default_attributes = get_default_input_attributes("newtonx", loading_parameters)
         # Add time dimension
 
         trajectory = create_initial_dataset(
-            settings.num_steps, settings.num_states, settings.num_atoms, "newtonx", loading_parameters
+            settings.num_steps,
+            settings.num_states,
+            settings.num_atoms,
+            "newtonx",
+            loading_parameters,
         )
 
         trajectory = trajectory.assign_coords(
             {
-                "time": ("time",
-                         np.arange(0, settings.num_steps) * settings.delta_t,
-                         default_attributes[str("time")]
-                         ),
+                "time": (
+                    "time",
+                    np.arange(0, settings.num_steps) * settings.delta_t,
+                    default_attributes[str("time")],
+                ),
             }
         )
         mark_variable_assigned(trajectory["time"])
@@ -89,12 +102,14 @@ def parse_newtonx(
         settings.newtonx_version,
         -1,
         -1,
-        -1)
+        -1,
+    )
     assign_required_settings(trajectory, required_settings)
 
     # TODO: FIXME: Check if newtonx always prints only the active state forces or sometimes may include other forces.
     optional_settings = OptionalTrajectorySettings(
-        has_forces="active_only" if is_variable_assigned(trajectory["forces"]) else None)
+        has_forces="active_only" if is_variable_assigned(trajectory["forces"]) else None
+    )
     assign_optional_settings(trajectory, optional_settings)
 
     return trajectory
@@ -258,8 +273,7 @@ def parse_nx_log_data(
                 # First natoms lines have the values for the different atoms in first state combination
                 # Each block of natoms represents successive state combinations
                 for iatom in range(natoms):
-                    tmp_nacs[icomb, iatom] = [
-                        float(n) for n in next(f).strip().split()]
+                    tmp_nacs[icomb, iatom] = [float(n) for n in next(f).strip().split()]
 
         elif stripline.startswith("Energy ="):
             for istate in range(nstates):
@@ -267,10 +281,7 @@ def parse_nx_log_data(
 
     dataset = dataset.assign_coords(
         {
-            "astate": ("time",
-                       tmp_astate,
-                       dataset["astate"].attrs
-                       ),
+            "astate": ("time", tmp_astate, dataset["astate"].attrs),
         }
     )
     mark_variable_assigned(dataset["astate"])
@@ -281,8 +292,7 @@ def parse_nx_log_data(
     mark_variable_assigned(dataset["energy"])
     dataset.nacs.values = tmp_full_nacs
     mark_variable_assigned(dataset["nacs"])
-    dataset = dataset.assign_coords(
-        {"time": ("time", tmp_times, dataset.time.attrs)})
+    dataset = dataset.assign_coords({"time": ("time", tmp_times, dataset.time.attrs)})
     mark_variable_assigned(dataset["time"])
 
     return actual_max_ts + 1, dataset  # , dataset
