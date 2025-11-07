@@ -12,6 +12,9 @@ import pandas as pd
 import numpy as np
 from pyparsing import nestedExpr
 from pprint import pprint
+from shnitsel.io.shared.trajectory_setup import OptionalTrajectorySettings, RequiredTrajectorySettings, assign_optional_settings, assign_required_settings, create_initial_dataset
+from shnitsel.io.shared.variable_flagging import is_variable_assigned, mark_variable_assigned
+from shnitsel.units.definitions import get_default_input_attributes
 
 from shnitsel.io.helpers import (
     LoadingParameters,
@@ -34,11 +37,11 @@ def parse_pyrai2md(
     Returns:
         xr.Dataset: The Dataset object containing all of the loaded data in default shnitsel units
     """
-    # TODO: FIXME: 
+    # TODO: FIXME:
     logging.warning("No NACS available for PyrAI2md")
 
     path_obj: pathlib.Path = make_uniform_path(traj_path)
-    # TODO: FIXME: use loading_parameters to configure units and state names
+    # TODO: FIXME: Check if there are other files of pyrai2md trajectories to read information from.
     md_energies_paths = list(path_obj.glob("*.md.energies"))
     if (n := len(md_energies_paths)) != 1:
         raise FileNotFoundError(
@@ -68,43 +71,54 @@ def parse_pyrai2md(
     natoms = settings["global"]["Active atoms"]
     delta_t = settings["md"]["Dt (au)"]
 
-    default_attributes = get_default_input_attributes("pyrai2md", loading_parameters)
+    default_attributes = get_default_input_attributes(
+        "pyrai2md", loading_parameters)
 
-    trajectory = create_initial_dataset(nsteps, nstates, natoms, loading_parameters)
-
-    trajectory.attrs["delta_t"] = delta_t
-    # TODO: FIXME: Make sure this is actually a common naming scheme
-    trajectory.attrs["t_max"] = np.nan
-    trajectory.attrs["max_ts"] = nsteps
-    trajectory.attrs["completed"] = True
-    trajectory.attrs["input_format_version"] = settings["version"]
-
-    trajectory.attrs["num_singlets"] = nsinglets
-    trajectory.attrs["num_doublets"] = ndoublets
-    trajectory.attrs["num_triplets"] = ntriplets
+    trajectory = create_initial_dataset(
+        nsteps, nstates, natoms, "pyrai2md", loading_parameters)
 
     # TODO: FIXME: apply state names
 
     with xr.set_options(keep_attrs=True):
         with open(os.path.join(log_paths[0])) as f:
             trajectory, max_ts2 = parse_observables_from_log(f, trajectory)
-        trajectory, max_ts1, times = parse_md_energies(md_energies_paths[0], trajectory)
+        trajectory, max_ts1, times = parse_md_energies(
+            md_energies_paths[0], trajectory)
 
+    completed = (max_ts1 == nsteps) and (max_ts2 == nsteps)
     real_max_ts = min(max_ts1, max_ts2)
 
     # Cut to actual size
     trajectory = trajectory.isel(time=slice(0, real_max_ts))
-    trajectory.assign_coords(time=times)
-    trajectory.coords["time"].attrs.update(default_attributes["time"])
 
-    # TODO: FIXME: conflicting dimension sizes "time". We need to deal with trajectory not finishing its full run.
-    # One test trajectory did not finish its full number of steps as denoted in the log, so we need to check if the trajectory has finished
-    # before sizing the output.
+    trajectory.assign_coords(
+        {"time": ("time", times, default_attributes["time"]),
+         "state_types": ("state", state_types, default_attributes["state_types"])})
+    mark_variable_assigned(trajectory["time"])
+    mark_variable_assigned(trajectory["state_types"])
+
+    # Set all settings we require to be present on the trajectory
+    required_settings = RequiredTrajectorySettings(
+        nsteps*delta_t,
+        delta_t,
+        real_max_ts,
+        completed,
+        "pyrai2md",
+        "dynamic",
+        settings["version"],
+        nsinglets,
+        ndoublets,
+        ntriplets)
+    assign_required_settings(trajectory, required_settings)
+
+    optional_settings = OptionalTrajectorySettings(
+        has_forces=is_variable_assigned(trajectory["forces"]))
+    assign_optional_settings(trajectory, optional_settings)
 
     return trajectory
 
 
-def create_initial_dataset(
+def _create_initial_dataset(
     nsteps: int,
     nstates: int,
     natoms: int,
@@ -186,7 +200,8 @@ def create_initial_dataset(
     }
 
     coords = xr.Coordinates.from_pandas_multiindex(
-        pd.MultiIndex.from_tuples(combinations(states, 2), names=["from", "to"]),
+        pd.MultiIndex.from_tuples(combinations(
+            states, 2), names=["from", "to"]),
         dim="statecomb",
     ).merge(coords)
 
@@ -265,6 +280,7 @@ def parse_md_energies(
     num_ts = df.shape[0]
 
     trajectory_in["energy"].values[:num_ts] = energy
+    mark_variable_assigned(trajectory_in["energy"])
     return trajectory_in, num_ts, times
     return (
         xr.Dataset.from_dataframe(energy)
@@ -301,7 +317,7 @@ def read_pyrai2md_settings_from_log(f: TextIOWrapper) -> Dict[str, Any]:
         elif value_string.startswith("'"):
             # We have a delimited string
             res_string = value_string[
-                value_string.find("'") + 1 : value_string.rfind("'")
+                value_string.find("'") + 1: value_string.rfind("'")
             ]
             return str(res_string)
         elif value_string.find("[") == -1:
@@ -311,9 +327,10 @@ def read_pyrai2md_settings_from_log(f: TextIOWrapper) -> Dict[str, Any]:
             # We have an array to decode:
             try:
                 relevant_part = value_string[
-                    value_string.find("[") : value_string.rfind("]") + 1
+                    value_string.find("["): value_string.rfind("]") + 1
                 ]
-                decoded_array = nestedExpr("[", "]").parseString(relevant_part).asList()
+                decoded_array = nestedExpr(
+                    "[", "]").parseString(relevant_part).asList()
 
                 # Cut off surrounding array
                 if len(decoded_array) > 0:
@@ -356,7 +373,7 @@ def read_pyrai2md_settings_from_log(f: TextIOWrapper) -> Dict[str, Any]:
 
         if curr_stripped.startswith("version:"):
             # Read version string
-            version_string = curr_stripped[len("version:") :].strip()
+            version_string = curr_stripped[len("version:"):].strip()
             settings["version"] = version_string
         elif curr_stripped.startswith("&"):
             # Beginning of a section Header
@@ -399,7 +416,8 @@ def read_pyrai2md_settings_from_log(f: TextIOWrapper) -> Dict[str, Any]:
 
                     value = "  ".join(parts[1:])
                     if current_section_settings is not None:
-                        current_section_settings[key] = decode_setting_string(value)
+                        current_section_settings[key] = decode_setting_string(
+                            value)
                     elif has_had_section:
                         # Global settings have different arrays...
                         if len(parts) > 2:
@@ -407,7 +425,8 @@ def read_pyrai2md_settings_from_log(f: TextIOWrapper) -> Dict[str, Any]:
                                 decode_setting_string(x) for x in parts[1:]
                             ]
                         else:
-                            settings["global"][key] = decode_setting_string(parts[1])
+                            settings["global"][key] = decode_setting_string(
+                                parts[1])
 
     logging.info(f"Parsed pyrai2md settings: {settings}")
     return settings
@@ -478,9 +497,11 @@ def parse_observables_from_log(
     atXYZ = np.full((expected_nsteps, natoms, 3), np.nan)
     atNames = np.full((natoms), "", dtype=str)
     got_atNames = False
+    # TODO: Use velocities?
     veloc = np.full((expected_nsteps, natoms, 3), np.nan)
     dcmat = np.full((expected_nsteps, nstates, nstates), np.nan)
 
+    # TODO: FIXME: Read variable units from the file and compare to expected values or override.
     ts_idx = -1
     end_msg_count = 0
     for line in f:
@@ -613,22 +634,27 @@ def parse_observables_from_log(
 
     real_max_ts = explicit_ts.max()
     trajectory_in["astate"].values = astate
+    mark_variable_assigned(trajectory_in["astate"])
 
     trajectory_in["forces"].values = forces
+    mark_variable_assigned(trajectory_in["forces"])
     trajectory_in["atXYZ"].values = atXYZ
+    mark_variable_assigned(trajectory_in["atXYZ"])
     trajectory_in.attrs["completed"] = (
         end_msg_count == 1 or real_max_ts >= expected_nsteps
     )
 
     # TODO: FIXME: Do we need Phases to be included?
-
+    trajectory_in = trajectory_in.assign_coords(
+        {
+            "atNames": ("atom", atNames, trajectory_in.atNames.attrs),
+            "atNums":  ("atom", [get_atom_number_from_symbol(x) for x in atNames], trajectory_in.atNums.attrs)
+        }
+    )
+    mark_variable_assigned(trajectory_in["atNames"])
+    mark_variable_assigned(trajectory_in["atNums"])
     return (
-        trajectory_in.assign_coords(
-            {
-                "atNames": atNames,
-                "atNums": [get_atom_number_from_symbol(x) for x in atNames],
-            }
-        ),
+        trajectory_in,
         real_max_ts,
     )
 
