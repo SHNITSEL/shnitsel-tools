@@ -8,7 +8,7 @@ from shnitsel.data.TrajectoryFormat import Trajectory
 from shnitsel.io.helpers import LoadingParameters, PathOptionsType, make_uniform_path
 from ..FormatReader import FormatInformation, FormatReader
 from .parse_trajectory import read_traj
-from .parse_initial_conditions import list_iconds, dir_of_iconds, read_iconds_individual
+from .parse_initial_conditions import list_iconds, read_iconds_individual
 
 import xarray as xr
 
