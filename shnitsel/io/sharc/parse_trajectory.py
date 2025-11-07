@@ -167,7 +167,7 @@ def read_traj(
         if not completed:
             # Filter by index not by ts
             # res = res.sel(ts=res.ts <= res.attrs["max_ts"])
-            trajectory = trajectory.isel(time=slice(0, max_ts_dat + 1))
+            trajectory = trajectory.isel(time=slice(0, max_ts_dat))
 
         nsteps = min(trajectory.sizes["time"], max_ts_dat)
 
