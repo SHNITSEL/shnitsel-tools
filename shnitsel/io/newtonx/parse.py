@@ -367,7 +367,7 @@ def parse_nx_log_data(
             ts = int(round(t_time / delta_t))
             # Assign all values in this time step
             tmp_astate[ts] = t_astate
-            tmp_times[ts] = tmp_times
+            tmp_times[ts] = t_time
             tmp_full_forces[ts] = tmp_forces
             tmp_full_energy[ts] = tmp_energy
             tmp_full_nacs[ts] = tmp_nacs
