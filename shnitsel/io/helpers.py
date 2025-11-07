@@ -4,6 +4,7 @@ import os
 import pathlib
 from typing import Callable, Dict, List, Literal, Tuple
 import numpy as np
+import xarray as xr
 
 KindType = Literal['sharc', 'nx', 'newtonx', 'pyrai2md', 'shnitsel']
 
@@ -14,10 +15,17 @@ PathOptionsType = str | os.PathLike | pathlib.Path
 class LoadingParameters:
     # A dict containing the information, which input observable has which unit. If not provided, the loader will guess the units either based on the default values of that simulator or the data in `path`
     input_units: Dict[str, str] | None = None
-    # List of the names of states or a function to label them or None and let the trajectory loader make an educated guess
-    state_names: List[str] | Callable | None = None
     # Flag to set how errors during loading are reported
     error_reporting: Literal['log', 'raise'] = 'log'
+
+    # Optionally provide a dict of trajectory ids, mapping the (absolut) posix-paths of trajectories to ids or a function to map the path to an integer id
+    trajectory_id: Dict[str, int] | Callable[[pathlib.Path], int] | None = None
+
+    # Optionally provide a list of state types/multiplicities or a function to assign them to a dataset
+    state_types: List[int] | Callable[[xr.Dataset], xr.Dataset] | None = None
+
+    # List of the names of states or a function to label them or None and let the trajectory loader make an educated guess
+    state_names: List[int] | Callable[[xr.Dataset], xr.Dataset] | None = None
 
 
 def make_uniform_path(
