@@ -175,6 +175,17 @@ def read_traj(
         if nsteps > len(variables_listings["time"]):
             completed = False
 
+        if not is_variable_assigned(trajectory.time):
+            if "time" in variables_listings:
+                trajectory.coords["time"] = (
+                    "time", variables_listings["time"], trajectory.time.attrs)
+                mark_variable_assigned(trajectory["time"])
+        if not is_variable_assigned(trajectory.astate):
+            if "astate" in variables_listings:
+                trajectory.coords["astate"] = (
+                    "time", variables_listings["astate"], trajectory.astate.attrs)
+                mark_variable_assigned(trajectory["astate"])
+
     # TODO: Note that for consistency, we renamed the ts dimension to time to agree with other format
     if not is_variable_assigned(trajectory.atNames) or not is_variable_assigned(trajectory.atNums) or not is_variable_assigned(trajectory.atXYZ):
         with open(os.path.join(traj_path, "output.xyz")) as f:
