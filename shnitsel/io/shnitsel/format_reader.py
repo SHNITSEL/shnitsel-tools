@@ -10,6 +10,8 @@ from ..FormatReader import FormatInformation, FormatReader
 from .parse import read_shnitsel_file
 from shnitsel.units.definitions import standard_shnitsel_units
 
+import xarray as xr
+
 
 @dataclass
 class ShnitselFormatInformation(FormatInformation):
@@ -87,7 +89,7 @@ class ShnitselFormatReader(FormatReader):
         path: PathOptionsType | None,
         format_info: FormatInformation | None = None,
         loading_parameters: LoadingParameters | None = None,
-    ) -> Trajectory:
+    ) -> xr.Dataset:
         """Read a shnitsel-style file from `path`. Implements `FormatReader.read_from_path()`
 
         Args:
@@ -134,7 +136,7 @@ class ShnitselFormatReader(FormatReader):
             if format_info.path is not None and not "trajectory_input_path" in loaded_dataset.attrs:
                 loaded_dataset.attrs["trajectory_input_path"] = format_info.path.as_posix()
 
-        return Trajectory(loaded_dataset)
+        return loaded_dataset
 
     def get_units_with_defaults(
         self, unit_overrides: Dict[str, str] | None = None
