@@ -171,7 +171,7 @@ class FormatReader(ABC):
             # Set some optional settings.
             optional_settings = OptionalTrajectorySettings()
             optional_settings.trajectory_input_path = path_obj.as_posix()
-            
+
             assign_optional_settings(res, optional_settings)
 
             # If trajid has been extracted from the input path, set it
@@ -196,17 +196,21 @@ class FormatReader(ABC):
 
                 # Assign state types if provided
                 if loading_parameters.state_types is not None:
+                    keep_type_attrs =res.state_types.attrs
                     state_types_assigner: Callable[[xr.Dataset], xr.Dataset] = (
                         loading_parameters.state_types
                     )  # type: ignore
                     res = state_types_assigner(res)
+                    res.state_types.attrs.update(keep_type_attrs)
 
                 # Assign state names if provided
                 if loading_parameters.state_names is not None:
+                    keep_name_attrs =res.state_names.attrs
                     state_names_assigner: Callable[[xr.Dataset], xr.Dataset] = (
                         loading_parameters.state_names
                     )  # type: ignore
                     res = state_names_assigner(res)
+                    res.state_names.attrs.update(keep_name_attrs)
 
             assign_optional_settings(res, optional_settings)
 
