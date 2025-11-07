@@ -250,6 +250,7 @@ def finalize_icond_dataset(
             "sharc", loading_parameters
         )
         dataset_res["time"].attrs.update(default_sharc_attributes["time"])
+        mark_variable_assigned(dataset_res["time"])
     else:
         dataset_res = dataset
 
