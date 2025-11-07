@@ -11,3 +11,12 @@ def mark_variable_assigned(var: xr.DataArray) -> None:
         var (xr.DataArray): The variable to set the flag on to mark it as assigned to.
     """
     var.attrs["__assigned"] = True
+
+
+def is_variable_assigned(var: xr.DataArray) -> bool:
+    """Function to check a flag on a variable in a dataset whether it has been assigned with actual values.
+
+    Args:
+        var (xr.DataArray): The variable to check for a set "__assigned" flag.
+    """
+    return "__assigned" in var.attrs
