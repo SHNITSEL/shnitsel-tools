@@ -1,8 +1,6 @@
 from __future__ import annotations
 
 import itertools
-import logging
-import math
 from typing import Callable, Sequence
 
 import numpy.typing as npt
@@ -14,40 +12,6 @@ import numpy as np
 import pandas as pd
 
 from .._contracts import needs
-
-
-def replace_total(
-    da: xr.DataArray, to_replace: np.ndarray | list, value: np.ndarray | list
-):
-    """Replaces each occurence of `to_replace` in `da` with the corresponding element of `value`.
-    Replacement must be total, i.e. every element of `da` must be in `to_replace`.
-    This permits a change of dtype between `to_replace` and `value`.
-    This function is based on the snippets at https://github.com/pydata/xarray/issues/6377
-
-    Parameters
-    ----------
-    da
-        An xr.DataArray
-    to_replace
-        Values to replace
-    value
-        Values with which to replace them
-
-    Returns
-    -------
-        An xr.DataArray with dtype matching `value`.
-    """
-    to_replace = np.array(to_replace)
-    value = np.array(value)
-    flat = da.values.ravel()
-
-    sorter = np.argsort(to_replace)
-    insertion = np.searchsorted(to_replace, flat, sorter=sorter)
-    indices = np.take(sorter, insertion, mode='clip')
-    replaceable = to_replace[indices] == flat
-
-    out = value[indices[replaceable]]
-    return da.copy(data=out.reshape(da.shape))
 
 
 def midx_combs(values: pd.core.indexes.base.Index|list, name: str|None =None):
@@ -179,34 +143,6 @@ def assign_levels(
     obj = obj.reset_index(*midxs)
     obj = obj.assign_coords(levels)
     return obj.set_xindex(to_restore)
-
-
-
-def split_for_saving(frames, bytes_per_chunk=50e6):
-    trajids = frames.get('trajid_', np.unique(frames['trajid']))
-    ntrajs = len(trajids)
-    nchunks = math.trunc(frames.nbytes / 50e6)
-    logging.debug(f"{nchunks=}")
-    indices = np.trunc(np.linspace(0, ntrajs, nchunks + 1)).astype(np.integer)
-    logging.debug(f"{indices=}")
-    trajidsets = [trajids[a:z].values for a, z in zip(indices[:-1], indices[1:])]
-    logging.debug(f"{trajidsets=}")
-    return [sel_trajs(frames, trajids[a:z]) for a, z in zip(indices[:-1], indices[1:])]
-
-
-def save_split(
-    frames, path_template, bytes_per_chunk=50e6, complevel=9, ignore_errors=False
-):
-    dss = split_for_saving(frames, bytes_per_chunk=bytes_per_chunk)
-    for i, ds in enumerate(dss):
-        current_path = path_template.format(i)
-        try:
-            save_frames(ds, current_path, complevel=complevel)
-        except Exception as e:
-            logging.error(f"Exception while saving to {current_path=}")
-            if not ignore_errors:
-                raise e
-
 
 #######################################
 # Functions to extend xarray selection:

@@ -1,9 +1,12 @@
+import logging
+import math
 from typing import TypeAlias, Literal
 
 import numpy as np
 import xarray as xr
 
 from .postprocess import subtract_combinations, norm, sudi
+from .midx import sel_trajs
 from .ml import pca
 from .._contracts import needs
 
@@ -251,3 +254,29 @@ def validate(frames: Frames) -> np.ndarray:
     else:
         res = np.array([])
     return res
+
+
+def split_for_saving(frames, bytes_per_chunk=50e6):
+    trajids = frames.get('trajid_', np.unique(frames['trajid']))
+    ntrajs = len(trajids)
+    nchunks = math.trunc(frames.nbytes / 50e6)
+    logging.debug(f"{nchunks=}")
+    indices = np.trunc(np.linspace(0, ntrajs, nchunks + 1)).astype(np.integer)
+    logging.debug(f"{indices=}")
+    trajidsets = [trajids[a:z].values for a, z in zip(indices[:-1], indices[1:])]
+    logging.debug(f"{trajidsets=}")
+    return [sel_trajs(frames, trajids[a:z]) for a, z in zip(indices[:-1], indices[1:])]
+
+
+def save_split(
+    frames, path_template, bytes_per_chunk=50e6, complevel=9, ignore_errors=False
+):
+    dss = split_for_saving(frames, bytes_per_chunk=bytes_per_chunk)
+    for i, ds in enumerate(dss):
+        current_path = path_template.format(i)
+        try:
+            save_frames(ds, current_path, complevel=complevel)
+        except Exception as e:
+            logging.error(f"Exception while saving to {current_path=}")
+            if not ignore_errors:
+                raise e
