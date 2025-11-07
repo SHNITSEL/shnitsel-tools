@@ -3,6 +3,7 @@ import xarray as xr
 
 from shnitsel.data.TrajectoryFormat import Trajectory, wrap_trajectory
 from shnitsel.io.helpers import LoadingParameters
+from shnitsel.io.shared.variable_flagging import is_variable_assigned,mark_variable_assigned
 from shnitsel.units.conversion import convert_all_units_to_shnitsel_defaults
 
 
@@ -10,9 +11,11 @@ def finalize_loaded_trajectory(dataset: xr.Dataset | None, loading_parameters: L
     if dataset is not None:
         # TODO: FIXME: use loading_parameters to configure state names
         # TODO: FIXME: use loading_parameters to configure state names
+        dataset = set_state_defaults(dataset, loading_parameters)
+
         unset_vars = []
         for var in dataset.variables:
-            if "__assigned" in dataset[var].attrs:
+            if is_variable_assigned(dataset[var]):
                 # Remove tags
                 del dataset[var].attrs["__assigned"]
             else:
@@ -20,8 +23,6 @@ def finalize_loaded_trajectory(dataset: xr.Dataset | None, loading_parameters: L
 
         logging.debug(f"Dropping unset variables: {unset_vars}")
         dataset = dataset.drop_vars(unset_vars)
-
-        dataset = set_state_defaults(dataset, loading_parameters)
 
         return wrap_trajectory(convert_all_units_to_shnitsel_defaults(dataset))
 
@@ -54,4 +55,6 @@ def set_state_defaults(dataset: xr.Dataset, loading_parameters: LoadingParameter
     else:
         logging.error("Could not determine state multiplicities and names")
 
+    mark_variable_assigned(dataset.state_types)
+    mark_variable_assigned(dataset.state_names)
     return dataset
