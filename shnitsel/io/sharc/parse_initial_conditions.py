@@ -20,6 +20,8 @@ from shnitsel.io.helpers import (
     ConsistentValue,
     get_atom_number_from_symbol,
 )
+from shnitsel.io.shared.trajectory_setup import OptionalTrajectorySettings, RequiredTrajectorySettings, assign_optional_settings, assign_required_settings, create_initial_dataset
+from shnitsel.io.shared.variable_flagging import is_variable_assigned, mark_variable_assigned
 from shnitsel.io.xyz import get_dipoles_per_xyz
 from shnitsel._contracts import needs
 from shnitsel.units.definitions import get_default_input_attributes
@@ -162,7 +164,7 @@ def dims_from_QM_log(log: TextIOWrapper) -> Tuple[int, int, int, int, int]:
     return num_states, num_atoms, num_singlets, num_doublets, num_triplets
 
 
-def check_dims(pathlist: Sequence[pathlib.Path]) -> Tuple[int, int, int, int, int]:
+def check_dims(pathlist: List[pathlib.Path]) -> Tuple[int, int, int, int, int]:
     """Function to obtain the number of atoms and states across all input paths.
 
     Will only return the tuple of (number_states, number_atoms) if these numbers are consistent across all paths.
@@ -225,33 +227,6 @@ def check_dims(pathlist: Sequence[pathlib.Path]) -> Tuple[int, int, int, int, in
     return nstates.v, natoms.v, num_singlets, num_doublets, num_triplets
 
 
-def dir_of_iconds(
-    path: PathOptionsType,
-    *,
-    levels: int = 1,
-    id_subset: Set[int] | None = None,
-    loading_parameters: LoadingParameters | None = None,
-) -> xr.Dataset:
-    """Function to retrieve all initial conditions from subdirectories of the provided `path`.
-
-
-    Args:
-        path (str | os.PathLike, optional): The path to a directory containing the directories with initial conditions. Defaults to './iconds/'.
-        levels (int, optional): Currently unused. Intended to denote how many levels down initial conditions will be looked for. Defaults to 1.
-        id_subset (Set[int]  |  None, optional): An optional set of ids to restrict the anaylsis to. No initial conditions with an id outside of this set will be loaded. Defaults to None.
-
-    Returns:
-        xr.Dataset: The resulting dataset containing all of the initial conditions as separate trajectories
-    """
-    initial_condition_paths: List[IcondPath] = list_iconds(path)
-    if id_subset is not None:
-        initial_condition_paths = [
-            icond for icond in initial_condition_paths if icond.idx in id_subset
-        ]
-
-    return read_iconds_multi_directory(initial_condition_paths, loading_parameters)
-
-
 def finalize_icond_dataset(
     dataset: xr.Dataset, loading_parameters: LoadingParameters
 ) -> xr.Dataset:
@@ -266,18 +241,9 @@ def finalize_icond_dataset(
     Returns:
         xr.Dataset: The modified dataset
     """
-    isolated_keys = [
-        "atNames",
-        "atNums",
-        "state",
-        "statecomb",
-        "state_names",
-        "state_types",
-    ]
 
     if "time" not in dataset.coords:
-        dataset_res = dataset.set_coords(isolated_keys)
-        dataset_res = dataset_res.expand_dims("time")
+        dataset_res = dataset.expand_dims("time")
         dataset_res = dataset_res.assign_coords(time=("time", [0.0]))
 
         default_sharc_attributes = get_default_input_attributes(
@@ -292,152 +258,6 @@ def finalize_icond_dataset(
     return dataset_res
 
 
-def create_icond_dataset(
-    indices: List[int] | None,
-    nstates: int,
-    natoms: int,
-    loading_parameters: LoadingParameters | None,
-    **kwargs,
-) -> xr.Dataset:
-    """Function to initialize an `xr.Dataset` with appropriate variables and coordinates to acommodate loaded data.
-
-    Args:
-        indices (List[int]): List of indices for the different initial conditions
-        nstates (int): Number of states within the datasets
-        natoms (int): The number of atoms within the datasets
-
-    Returns:
-        xr.Dataset: An xarray Dataset with appropriately sized DataArrays and coordinates also including default attributes for all variables.
-    """
-    template = {
-        "energy": ["state"],
-        # "dip_all": ["state", "state2", "direction"],
-        "dip_perm": ["state", "direction"],
-        "dip_trans": ["statecomb", "direction"],
-        "forces": ["state", "atom", "direction"],
-        # 'has_forces': ['placeholder'],
-        # 'has_forces': [],
-        "phases": ["state"],
-        "nacs": ["statecomb", "atom", "direction"],
-        "atXYZ": ["atom", "direction"],
-        "atNames": ["atom"],
-        "atNums": ["atom"],
-        "state_names": ["state"],
-        "state_types": ["state"],
-    }
-
-    template_default_values = {
-        "energy": np.nan,
-        # "dip_all": np.nan,
-        "dip_perm": np.nan,
-        "dip_trans": np.nan,
-        "forces": np.nan,
-        "phases": np.nan,
-        "nacs": np.nan,
-        "atXYZ": np.nan,
-        "atNames": "",
-        "atNums": -1,
-        "state_names": "",
-        "state_types": 0,
-    }
-
-    if natoms == 0:
-        # This probably means that check_dims() couldn't find natoms,
-        # so we don't expect properties with an atom dimension.
-        del template["forces"]
-        del template["nacs"]
-        del template["atXYZ"]
-        del template["atNames"]
-        del template["atNums"]
-
-    if nstates == 0:
-        # On the other hand, we don't worry about not knowing nstates,
-        # because energy is always written.
-        pass
-
-    if indices is not None and len(indices) > 0:
-        niconds = len(indices)
-        for varname, dims in template.items():
-            dims.insert(0, "icond")
-    else:
-        niconds = 0
-
-    dim_lengths = {
-        "icond": niconds,
-        "state": nstates,
-        "state2": nstates,
-        "atom": natoms,
-        "direction": 3,
-        "statecomb": math.comb(nstates, 2),
-    }
-
-    coords: dict | xr.Dataset = {
-        "state": (states := np.arange(1, nstates + 1)),
-        "state2": states,
-        "atom": np.arange(natoms),
-        "direction": ["x", "y", "z"],
-    }
-
-    if indices is not None:
-        coords["icond"] = indices
-
-    coords = xr.Coordinates.from_pandas_multiindex(
-        pd.MultiIndex.from_tuples(combinations(
-            states, 2), names=["from", "to"]),
-        dim="statecomb",
-    ).merge(coords)
-
-    # attrs = {
-    #    'atXYZ': {'long_name': "positions", 'units': 'Bohr', 'unitdim': 'Length'},
-    #    'energy': {'units': 'hartree', 'unitdim': 'Energy'},
-    #    'e_kin': {'units': 'hartree', 'unitdim': 'Energy'},
-    #    'dip_perm': {'long_name': "permanent dipoles", 'units': 'au'},
-    #    'dip_trans': {'long_name': "transition dipoles", 'units': 'au'},
-    #    'sdiag': {'long_name': 'active state (diag)'},
-    #    'astate': {'long_name': 'active state (MCH)'},
-    #    'forces': {'units': 'hartree/bohr', 'unitdim': 'Force'},
-    #    'nacs': {'long_name': "nonadiabatic couplings", 'units': 'au'},
-    # }
-    default_sharc_attributes = get_default_input_attributes(
-        "sharc", loading_parameters)
-
-    datavars = {
-        varname: (
-            dims,
-            (
-                x
-                if (x := kwargs.get(varname)) is not None
-                else np.full(
-                    [dim_lengths[d] for d in dims],
-                    fill_value=template_default_values[varname],
-                )
-            ),
-            (
-                default_sharc_attributes[varname]
-                if varname in default_sharc_attributes
-                else {}
-            ),
-        )
-        for varname, dims in template.items()
-    }
-
-    res_dataset = xr.Dataset(
-        datavars, coords, kwargs["attrs"] if "attrs" in kwargs else None
-    )
-
-    # Try and set some default attributes on the coordinates for the dataset
-    for coord_name in res_dataset.coords:
-        if coord_name in default_sharc_attributes:
-            res_dataset[coord_name].attrs.update(
-                default_sharc_attributes[str(coord_name)]
-            )
-
-    res_dataset.attrs["input_format"] = "sharc"
-    res_dataset.attrs["input_type"] = "static"
-
-    return res_dataset
-
-
 def read_iconds_individual(
     path: PathOptionsType, loading_parameters: LoadingParameters | None = None
 ) -> xr.Dataset:
@@ -450,27 +270,32 @@ def read_iconds_individual(
     Returns:
         xr.Dataset: The Dataset object containing all of the loaded data from the initial condition in default shnitsel units
     """
-    # TODO: FIXME: use loading_parameters to configure units and state names
     path_obj = make_uniform_path(path)
     logging.info("Ensuring consistency of ICONDs dimensions")
     nstates, natoms, nsinglets, ndoublets, ntriplets = check_dims([path_obj])
-    iconds = create_icond_dataset(
-        None, nstates, natoms, loading_parameters=loading_parameters
-    )
+
+    # TODO: FIXME: Figure out how to find the SHARC version in iconds
+    # TODO: FIXME: Currently no way to determine the version of SHARC that wrote the iconds from QM.in and QM.out. only set from QM.log
+    sharc_version = "unkown"
+
+    # Create dataset
+    iconds = create_initial_dataset(
+        0, nstates, natoms, "sharc", loading_parameters)
 
     # Set information on the singlet, doublet and triplet states, if available
     iconds["state_types"][:nsinglets] = 1
     iconds["state_types"][nsinglets: nsinglets + 2 * ndoublets] = 2
     iconds["state_types"][nsinglets + 2 * ndoublets:] = 3
-
-    iconds.attrs["num_singlets"] = nsinglets
-    iconds.attrs["num_doublets"] = ndoublets
-    iconds.attrs["num_triplets"] = ntriplets
+    mark_variable_assigned(iconds.state_types)
 
     logging.info("Reading ICONDs data into Dataset...")
 
     with open(path_obj / "QM.out") as f:
         parse_QM_out(f, out=iconds, loading_parameters=loading_parameters)
+
+        # if we have found the version, use it.
+        if "input_format_version" in iconds:
+            sharc_version = iconds.attrs["input_format_version"]
 
     try:
         with open(path_obj / "QM.log") as f:
@@ -488,90 +313,45 @@ def read_iconds_individual(
         )
 
         try:
+            # TODO: FIXME: Figure out unit of positions in QM.in
+            logging.warning(
+                "The unit of the positions in QM.in is currently still unknown.")
             with open(path_obj / "QM.in") as f:
                 info = parse_QM_in(f)
                 iconds["atNames"][:] = (atnames := info["atNames"])
+                mark_variable_assigned(iconds.atNames)
                 iconds["atNums"][:] = [
                     get_atom_number_from_symbol(n) for n in atnames]
+                mark_variable_assigned(iconds.atNums)
                 iconds["atXYZ"][:, :] = info["atXYZ"]
+                mark_variable_assigned(iconds.atXYZ)
         except FileNotFoundError:
             logging.warning(
                 f"No positional information found in {path}/QM.in, the loaded trajectory does not contain positional data 'atXYZ'."
             )
 
-    # TODO: FIXME: Currently no way to determine the version of SHARC that wrote the iconds from QM.in and QM.out. only set from QM.log
-    if "input_format_version" not in iconds.attrs:
-        iconds.attrs["input_format_version"] = "unknown"
-
     iconds.attrs["delta_t"] = 0.0
     iconds.attrs["t_max"] = 0.0
     iconds.attrs["max_ts"] = 1
 
-    return finalize_icond_dataset(iconds, loading_parameters=loading_parameters)
+    # Set all settings we require to be present on the trajectory
+    required_settings = RequiredTrajectorySettings(
+        0.0,
+        0.0,
+        1,
+        True,
+        "sharc",
+        "static",
+        sharc_version,
+        nsinglets,
+        ndoublets,
+        ntriplets)
 
+    assign_required_settings(iconds, required_settings)
 
-def read_iconds_multi_directory(
-    pathlist: List[IcondPath],
-    indices: List[int] | None = None,
-    loading_parameters: LoadingParameters | None = None,
-) -> xr.Dataset:
-    """Function to read initial condition directories into a Dataset with standard shnitsel annotations and units
-
-    Args:
-        pathlist (List[IcondPath]): Lists of Initial condition paths from which we can parse the results into the dataset
-        indices (List[int] | None, optional): Optional. The list of indices of initial conditions we want to limit the parsing to. Defaults to None.
-        loading_parameters (LoadingParameters | None, optional): Parameter settings for e.g. standard units or state names.
-
-    Returns:
-        xr.Dataset: The Dataset object containing all of the loaded data in default shnitsel units
-    """
-    # TODO: FIXME: use loading_parameters to configure units and state names
-    logging.info("Ensuring consistency of ICONDs dimensions")
-    nstates, natoms, nsinglets, ndoublets, ntriplets = check_dims(
-        [path for _, path in pathlist]
-    )
-    logging.info("Allocating Dataset for ICONDs")
-    if indices is None:
-        indices = [p.idx for p in pathlist]
-    iconds = create_icond_dataset(
-        indices, nstates, natoms, loading_parameters=loading_parameters
-    )
-
-    # Set information on the singlet, doublet and triplet states, if available
-    iconds["state_types"][:nsinglets] = 1
-    iconds["state_types"][nsinglets: nsinglets + 2 * ndoublets] = 2
-    iconds["state_types"][nsinglets + 2 * ndoublets:] = 3
-
-    iconds.attrs["num_singlets"] = nsinglets
-    iconds.attrs["num_doublets"] = ndoublets
-    iconds.attrs["num_triplets"] = ntriplets
-
-    logging.info("Reading ICONDs data into Dataset...")
-
-    for icond_index, path in tqdm(pathlist):
-        with open(path / "QM.out") as f:
-            parse_QM_out(
-                f,
-                out=iconds.sel(icond=icond_index),
-                loading_parameters=loading_parameters,
-            )
-
-    for icond_index, path in tqdm(pathlist):
-        try:
-            with open(path / "QM.log") as f:
-                parse_QM_log_geom(f, out=iconds.sel(icond=icond_index))
-        except FileNotFoundError:
-            # This should be an error. We probably cannot recover from this and action needs to be taken
-            logging.error(
-                f"""no QM.log file found in {path}.
-                This is currently used to determine geometry.
-                Eventually, user-inputs will be accepted as an alternative.
-                See https://github.com/SHNITSEL/db-workflow/issues/3"""
-            )
-            logging.warning(
-                f"No positional information found in {path}, the loaded trajectory does not contain full positional data 'atXYZ'."
-            )
-            return None
+    optional_settings = OptionalTrajectorySettings(
+        has_forces=is_variable_assigned(iconds["forces"]))
+    assign_optional_settings(iconds, optional_settings)
 
     return finalize_icond_dataset(iconds, loading_parameters=loading_parameters)
 
@@ -757,10 +537,14 @@ def parse_QM_log_geom(f: TextIOWrapper, out: xr.Dataset):
         out["atNums"][i] = get_atom_number_from_symbol(atom_symbol)
         out["atXYZ"][i] = map(float, geometry_line[1:4])
 
+    mark_variable_assigned(out.atNames)
+    mark_variable_assigned(out.atNums)
+    mark_variable_assigned(out.atXYZ)
+
 
 def parse_QM_out(
     f: TextIOWrapper,
-    out: xr.Dataset | None = None,
+    out: xr.Dataset,
     loading_parameters: LoadingParameters | None = None,
 ) -> xr.Dataset | None:
     """Function to read all information about forces, energies, dipoles, nacs, etc. from initial condition QM.out files.
@@ -769,45 +553,33 @@ def parse_QM_out(
 
     Args:
         f (TextIOWrapper): File input of the QM.out file to parse the data from
-        out (xr.Dataset  |  None, optional): Optional target Dataset to write the loaded data into. Defaults to None.
+        out (xr.Dataset ): Target Dataset to write the loaded data into. Defaults to None.
         loading_parameters (LoadingParameters,optional): Optional loading parameters to override variable mappings and units.
 
     Returns:
         xr.Dataset | None: If a new Dataset was constructed instead of being written to `out`, it will be returned.
     """
-    res: xr.Dataset | dict[str, Any]
-    is_dataset_input = True
-    if out is not None:
-        # write data directly into dataset
-        res = out
-    else:
-        # write data as ndarrays into dict, then make dataset after parsing
-        res = {
-            "attrs": {},
-        }
-        is_dataset_input = False
-    if not is_dataset_input:
-        res["attrs"]["has_forces"] = False
-    else:
-        res.attrs["has_forces"] = False
+    res: xr.Dataset = out
 
     nstates = ConsistentValue("nstates")
     natoms = ConsistentValue("natoms")
+
+    energy_assigned = False
+    force_assigned = False
+    dipole_assigned = False
+    nacs_assigned = False
+    phases_assigned = False
 
     for index, line in enumerate(f):
         line = line.strip()
         if line.startswith("SHARC_version") or line.startswith("Version"):
             version_num = line.split()[1]
-            if not is_dataset_input:
-                res["attrs"]["input_format_version"] = version_num
-            else:
-                res.attrs["input_format_version"] = version_num
+            res.attrs["input_format_version"] = version_num
 
         if line.startswith("! 1 Hamiltonian Matrix"):
             # get number of states from dimensions of Hamiltonian
             nstates.v = int(next(f).split(" ")[0])
-            if out is None:
-                res["energy"] = nans(nstates.v)
+            energy_assigned = True
 
             for istate in range(nstates.v):
                 energyline = re.split(" +", next(f).strip())
@@ -818,10 +590,8 @@ def parse_QM_out(
             n = int(dim[0])
             m = int(dim[1])
 
+            dipole_assigned = True
             dip_all_tmp = nans(n, m, 3)
-            if out is None:
-                res["dip_perm"] = nans(n, 3)
-                res["dip_trans"] = nans(math.comb(n, 2), 3)
 
             dip_all_tmp[:, :, 0] = get_dipoles_per_xyz(f, n, m)
             next(f)
@@ -833,10 +603,6 @@ def parse_QM_out(
                 np.array(dip_all_tmp))
 
         elif line.startswith("! 3 Gradient Vectors"):
-            if not is_dataset_input:
-                res["attrs"]["has_forces"] = True
-            else:
-                res.attrs["has_forces"] = True
 
             search_res = _re_grads.search(line)
             assert search_res is not None
@@ -844,8 +610,7 @@ def parse_QM_out(
             nstates.v = int(get_dim("nstates"))
             natoms.v = int(get_dim("natoms"))
 
-            if out is None:
-                res["forces"] = nans(nstates.v, natoms.v, 3)
+            force_assigned = True
 
             for istate in range(nstates.v):
                 next(f)
@@ -861,8 +626,7 @@ def parse_QM_out(
             nstates.v = int(get_dim("nstates"))
             natoms.v = int(get_dim("natoms"))
 
-            if out is None:
-                res["nacs"] = nans(math.comb(nstates.v, 2), natoms.v, 3)
+            nacs_assigned = True
 
             nacs_all = nans(nstates.v, nstates.v, natoms.v, 3)
 
@@ -906,47 +670,27 @@ def parse_QM_out(
 
             if found_overlap:
                 res["phases"][:] = phasevector
+                phases_assigned = True
                 pass
 
         elif line.startswith("! 8 Runtime"):
             next(f)
 
-    if out is None:
-        if not res["has_forces"]:
-            res["forces"] = nans(natoms.v, 3)
+    if energy_assigned:
+        mark_variable_assigned(res.energy)
+    if force_assigned:
+        mark_variable_assigned(res.forces)
+    if nacs_assigned:
+        mark_variable_assigned(res.nacs)
+    if dipole_assigned:
+        mark_variable_assigned(res.dip_perm)
+        mark_variable_assigned(res.dip_trans)
+    if phases_assigned:
+        mark_variable_assigned(res.phases)
 
-        assert isinstance(res, dict)
-        return create_icond_dataset(
-            indices=None,
-            nstates=nstates.v,
-            natoms=natoms.v,
-            loading_parameters=loading_parameters,
-            **res,
-        )
-
-        # xr.Dataset(
-        #     {
-        #         'energy': (['state'], energy),
-        #         'dip_all': (['state', 'state2', 'direction'], dip_all),
-        #         'dip_perm': (['state', 'direction'], dip_perm),
-        #         'dip_trans': (['statecomb', 'direction'], dip_trans),
-        #         'forces': (['atom', 'direction'], forces),
-        #         'has_forces': ([], has_forces),
-        #         'phases': (['state'], phases),
-        #         'nacs': (['statecomb', 'atom', 'direction'], nacs)
-        #     },
-        #     coords={
-        #         'state': np.arange(1, nstates.v+1),
-        #         'state2': np.arange(1, nstates.v+1),
-        #         'atom': np.arange(natoms.v),
-        #         'statecomb': np.arange(math.comb(nstates.v, 2)),
-        #         'direction': ['x', 'y', 'z']
-        #     }
-        # )
-    else:
-        # all the data has already been written to `out`
-        # no need to return anything
-        return None
+    # all the data has already been written to `out`
+    # no need to return anything
+    return None
 
 
 @needs(dims={"icond"}, coords={"icond"}, not_dims={"time"})
