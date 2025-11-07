@@ -5,10 +5,7 @@ from logging import warning
 from typing import Collection, Hashable, TypeAlias
 
 import numpy as np
-import numpy.typing as npt
 import xarray as xr
-
-import scipy.stats as st
 
 from .._contracts import needs
 from . import xrhelpers
@@ -38,6 +35,13 @@ from .spectra import (
     broaden_gauss as broaden_gauss,
     ds_broaden_gauss as ds_broaden_gauss,
 )
+from .stats import (
+    calc_ci as calc_ci,
+    ci_agg_last_dim as ci_agg_last_dim,
+    xr_calc_ci as xr_calc_ci,
+    time_grouped_ci as time_grouped_ci,
+)
+
 # Question marks for those that don't actually accept a mol object
 from ..rd import (
     set_atom_props as set_atom_props,
@@ -250,43 +254,6 @@ def get_inter_state(frames: Frames) -> InterState:
 
     inter_state['statecomb'].attrs['long_name'] = "State combinations"
     return inter_state
-
-
-#####################################################
-# For calculating confidence intervals, the following
-# functions offer varying levels of abstraction
-# TODO make naming consistent
-
-def calc_ci(a: npt.NDArray, confidence: float = 0.95) -> npt.NDArray:
-    if np.array(a).ndim != 1:
-        raise ValueError("This function accepts 1D input only")
-    return np.stack(st.t.interval(confidence, len(a)-1, loc=np.mean(a), scale=st.sem(a)))
-
-def ci_agg_last_dim(a, confidence=0.95):
-    outer_shape = tuple(a.shape[:-1])
-    res = np.full(outer_shape + (3,), np.nan)
-    for idxs in np.ndindex(outer_shape):
-        res[idxs, :2] = calc_ci(a[idxs], confidence=confidence)
-        res[idxs, 2] = np.mean(a[idxs])
-    return res
-
-def xr_calc_ci(a: xr.DataArray, dim: DimName, confidence: float = 0.95) -> xr.Dataset:
-    res_da: xr.DataArray = xr.apply_ufunc(
-        ci_agg_last_dim,
-        a,
-        kwargs={'confidence': confidence},
-        output_core_dims=[['bound']],
-        input_core_dims=[[dim]],
-    )
-    return res_da.assign_coords(  #
-        dict(bound=['lower', 'upper', 'mean'])
-    ).to_dataset('bound')
-
-@needs(groupable={'time'}, dims={'frame'})
-def time_grouped_ci(x: xr.DataArray, confidence: float = 0.9) -> xr.Dataset:
-    return (
-      x.groupby('time')
-      .map(lambda x: xr_calc_ci(x, dim='frame', confidence=confidence)))
 
 @needs(dims={'atom', 'direction'}, coords_or_vars={'atNames'}, not_dims={'frame'})
 def to_xyz(da: AtXYZ, comment='#') -> str:
