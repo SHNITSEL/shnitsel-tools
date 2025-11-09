@@ -13,6 +13,7 @@ def FauxBulkDataDB():
 
     bulk_db_path = pathlib.Path("tutorials/test_data/ase/bulk.db")
     if not bulk_db_path.exists() or not bulk_db_path.is_file():
+
         def build_bulk():
             from ase.build import bulk
             from ase.calculators.emt import EMT
@@ -30,6 +31,7 @@ def FauxBulkDataDB():
                 atoms.cell *= (v / atoms.get_volume()) ** (1 / 3)
                 atoms.get_potential_energy()
                 db.write(atoms, bm=B)
+
         build_bulk()
         print("Created bulk at: ", bulk_db_path.resolve().as_posix())
 
@@ -68,8 +70,7 @@ class TestASEFunctionality:
         with pytest.raises(ValueError) as excinfo:
             # Should fail because of invalid kind of DB
             frames1 = read_ase(FauxBulkDataDB, kind="harlow")
-        assert "'kind' should be one of 'schnet' or 'spainn'" in str(
-            excinfo.value)
+        assert "'kind' should be one of 'schnet' or 'spainn'" in str(excinfo.value)
 
     def test_missing_file(self):
         with pytest.raises(FileNotFoundError) as excinfo:
