@@ -4,7 +4,7 @@ import os
 import pathlib
 from typing import Callable, Dict, List
 
-from shnitsel.data.TrajectoryFormat import Trajectory
+from shnitsel.data.trajectory_format import Trajectory
 from shnitsel.io.helpers import (
     LoadingParameters,
     PathOptionsType,
@@ -196,7 +196,7 @@ class FormatReader(ABC):
 
                 # Assign state types if provided
                 if loading_parameters.state_types is not None:
-                    keep_type_attrs =res.state_types.attrs
+                    keep_type_attrs = res.state_types.attrs
                     state_types_assigner: Callable[[xr.Dataset], xr.Dataset] = (
                         loading_parameters.state_types
                     )  # type: ignore
@@ -205,7 +205,7 @@ class FormatReader(ABC):
 
                 # Assign state names if provided
                 if loading_parameters.state_names is not None:
-                    keep_name_attrs =res.state_names.attrs
+                    keep_name_attrs = res.state_names.attrs
                     state_names_assigner: Callable[[xr.Dataset], xr.Dataset] = (
                         loading_parameters.state_names
                     )  # type: ignore

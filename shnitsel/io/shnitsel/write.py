@@ -2,7 +2,7 @@ import logging
 import os
 import numpy as np
 
-from shnitsel.data.TrajectoryFormat import Trajectory
+from shnitsel.data.trajectory_format import Trajectory
 import xarray as xr
 import json
 

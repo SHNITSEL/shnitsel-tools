@@ -1,6 +1,6 @@
 import glob
 
-from shnitsel.data.TrajectoryFormat import Trajectory
+from shnitsel.data.trajectory_format import Trajectory
 from shnitsel.io.format_reader_base import FormatInformation, FormatReader
 from shnitsel.io.helpers import (
     KindType,

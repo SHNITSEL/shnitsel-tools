@@ -4,7 +4,6 @@ import pathlib
 import re
 from typing import Dict, List, Tuple
 
-from shnitsel.data.TrajectoryFormat import Trajectory
 from shnitsel.io.helpers import LoadingParameters, PathOptionsType, make_uniform_path
 from ..format_reader_base import FormatInformation, FormatReader
 from .parse import read_shnitsel_file

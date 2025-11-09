@@ -1,4 +1,4 @@
-from shnitsel.data.Proxy import Proxy
+from shnitsel.data.proxy_class import Proxy
 import xarray as xr
 
 
