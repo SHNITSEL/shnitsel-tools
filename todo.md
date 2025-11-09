@@ -11,5 +11,5 @@ We are currently suffering from missing input files for tests:
 - TODO: FIXME: Optional: Move trajectory parameters to variables instead of attributes? Makes more sense in an xarray context. Also better for adding another trajectory to an existing bundle
 - TODO: Mask array to only consider relevant data. Would allow us to limit atom, timestep, etc. Should probably be generated at loading time and not really stored.
 - TODO: Make it possible to merge a trajectory into an already multi-trajectory. May be necessary for some users or for us extending datasets in the future.
-- 
+- TODO: FIXME: We should use DataTree for merging multiple datasets into one. We may even want to store the datasets as distinct files? At least this allows to circumvent issues with distinct types and meta-attributes.
 
