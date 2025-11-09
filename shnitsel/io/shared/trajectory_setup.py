@@ -10,6 +10,7 @@ import xarray as xr
 import numpy as np
 
 from shnitsel.io.helpers import LoadingParameters
+from shnitsel.io.shared.variable_flagging import mark_variable_assigned
 from shnitsel.units.definitions import get_default_input_attributes
 
 
@@ -222,6 +223,12 @@ def create_initial_dataset(
         "state_names",
         "state_types",
     ]
+
+    # Prevent dimension labels from being lost.
+    mark_variable_assigned(res_dataset.state)
+    mark_variable_assigned(res_dataset.atom)
+    mark_variable_assigned(res_dataset.direction)
+    mark_variable_assigned(res_dataset.satecomb)
 
     res_dataset = res_dataset.set_coords(isolated_keys)
 
