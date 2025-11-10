@@ -7,8 +7,7 @@ import numpy as np
 import xarray as xr
 import sys
 
-from shnitsel.data.trajectory_tree_format import (
-    ShnitselDB,
+from shnitsel.data.shnitsel_db_format import (
     build_shnitsel_db,
 )
 from shnitsel.io.helpers import LoadingParameters, PathOptionsType

@@ -8,7 +8,7 @@ from shnitsel.data.trajectory_format import Trajectory
 import xarray as xr
 import json
 
-from shnitsel.data.trajectory_tree_format import ShnitselDB
+from shnitsel.data.shnitsel_db_format import ShnitselDB
 from shnitsel.io.helpers import PathOptionsType, make_uniform_path
 
 
