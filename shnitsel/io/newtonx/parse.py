@@ -242,7 +242,7 @@ def parse_nx_log_data(
         # THIS MIGHT BE SOLVED WITH ABOVE TMP STORAGE AND ONLY WRITING UPON READING THE FINISHING LINE
         if stripline.startswith("FINISHING"):
             # Set active state for _current_ time step
-            t_astate = int(stripline.split()[8])
+            t_astate = int(stripline.split()[8])-1
 
             # Set step number and time for _the following_ time step
             t_time = float(stripline.split()[4])
