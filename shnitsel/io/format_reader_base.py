@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 import os
 import pathlib
+import re
 from typing import Callable, Dict, List
 
 from shnitsel.data.trajectory_format import Trajectory
@@ -32,6 +33,9 @@ class FormatInformation:
     version: str = "none"
     trajid: int | None = None
     path: pathlib.Path | None = None
+
+
+_default_trajid_pattern_regex = re.compile(r"(?P<trajid>\d+)")
 
 
 class FormatReader(ABC):
@@ -85,6 +89,11 @@ class FormatReader(ABC):
                 Can be used to differentiate different versions of the same format.
                 Should be passed to the `read_from_path()` method of the same class.
         """
+        path_obj: pathlib.Path = make_uniform_path(path)  # type: ignore
+        matched_data = _default_trajid_pattern_regex.match(path_obj.name)
+        if matched_data:
+            trajid = matched_data.group("trajid")
+            return FormatInformation(trajid=int(trajid))
         return FormatInformation()
 
     @abstractmethod
