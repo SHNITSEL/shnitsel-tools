@@ -9,6 +9,36 @@ import json
 from shnitsel.io.helpers import PathOptionsType
 
 
+class NumpyDataEncoder(json.JSONEncoder):
+    """Custom encoder for numpy data types"""
+
+    def default(self, o):
+        if isinstance(o, np.integer):  # (np.int_, np.intc, np.intp, np.int8,
+            # np.int16, np.int32, np.int64, np.uint8,
+            # np.uint16, np.uint32, np.uint64)):
+
+            return int(o)
+
+        elif isinstance(
+            o, np.floating
+        ):  # (np.float_, np.float16, np.float32, np.float64)):
+            return float(o)
+
+        elif isinstance(o, (np.complexfloating, np.complex128)):
+            return {'real': o.real, 'imag': o.imag}
+
+        elif isinstance(o, (np.ndarray,)):
+            return o.tolist()
+
+        elif isinstance(o, (np.bool_)):
+            return bool(o)
+
+        elif isinstance(o, (np.void)):
+            return None
+
+        return json.JSONEncoder.default(self, o)
+
+
 def write_shnitsel_file(
     dataset: xr.Dataset | Trajectory, savepath: PathOptionsType, complevel: int = 9
 ):
@@ -81,7 +111,7 @@ def write_shnitsel_file(
             value = cleaned_ds.attrs[attr]
             if isinstance(value, np.ndarray):
                 value = ndarray_to_json_ser(value)
-            cleaned_ds.attrs[attr] = json.dumps(value)
+            cleaned_ds.attrs[attr] = json.dumps(value, cls=NumpyDataEncoder)
 
     for attr in remove_attrs:
         del cleaned_ds.attrs[attr]
@@ -99,7 +129,9 @@ def write_shnitsel_file(
                 value = cleaned_ds[data_var].attrs[attr]
                 if isinstance(value, np.ndarray):
                     value = ndarray_to_json_ser(value)
-                cleaned_ds[data_var].attrs[attr] = json.dumps(value)
+                cleaned_ds[data_var].attrs[attr] = json.dumps(
+                    value, cls=NumpyDataEncoder
+                )
         for attr in remove_attrs:
             logging.debug(f"Stripping attribute {data_var}.{attr}")
             del cleaned_ds[data_var].attrs[attr]
