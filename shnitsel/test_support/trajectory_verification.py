@@ -1,7 +1,7 @@
 import logging
 from typing import Any, List, Set, Tuple
 
-from shnitsel.data.TrajectoryFormat import Trajectory
+from shnitsel.data.trajectory_format import Trajectory
 import xarray as xr
 from shnitsel.units import standard_shnitsel_units
 from shnitsel.units.definitions import unit_dimensions

@@ -1,7 +1,7 @@
 import logging
 import xarray as xr
 
-from shnitsel.data.TrajectoryFormat import Trajectory, wrap_trajectory
+from shnitsel.data.trajectory_format import Trajectory, wrap_trajectory
 from shnitsel.io.helpers import LoadingParameters
 from shnitsel.io.shared.variable_flagging import is_variable_assigned,mark_variable_assigned
 from shnitsel.units.conversion import convert_all_units_to_shnitsel_defaults

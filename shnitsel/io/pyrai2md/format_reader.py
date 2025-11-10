@@ -5,7 +5,7 @@ import pathlib
 import re
 from typing import Dict, List, Tuple
 
-from shnitsel.data.TrajectoryFormat import Trajectory
+from shnitsel.data.trajectory_format import Trajectory
 from shnitsel.io.helpers import LoadingParameters, PathOptionsType, make_uniform_path
 from ..format_reader_base import FormatInformation, FormatReader
 from .parse import parse_pyrai2md
