@@ -1,12 +1,15 @@
 import logging
 import os
+import pathlib
+from typing import Any, Dict, Hashable
 import numpy as np
 
 from shnitsel.data.trajectory_format import Trajectory
 import xarray as xr
 import json
 
-from shnitsel.io.helpers import PathOptionsType
+from shnitsel.data.trajectory_tree_format import ShnitselDB
+from shnitsel.io.helpers import PathOptionsType, make_uniform_path
 
 
 class NumpyDataEncoder(json.JSONEncoder):
@@ -39,41 +42,18 @@ class NumpyDataEncoder(json.JSONEncoder):
         return json.JSONEncoder.default(self, o)
 
 
-def write_shnitsel_file(
-    dataset: xr.Dataset | Trajectory, savepath: PathOptionsType, complevel: int = 9
-):
-    """Function to write a trajectory in Shnitsel format (xr.) to a ntcdf hdf5 file format.
+def _prepare_dataset(dataset: xr.Dataset) -> xr.Dataset:
+    """Function to prepare a dataset for encoding by re-encoding most of its attributes to account for types not supported by NetCDF.
 
-    Strips all internal attributes first to avoid errors during writing.
-    When writing directly with to_netcdf, errors might occur due to internally set attributes with problematic types.
+    Also removed internal settings and re-encodes multi-indices
 
     Args:
-        dataset (xr.Dataset | Trajectory): The dataset or trajectory to write (omit if using accessor)
-        savepath (PathOptionsType): The path at which to save the trajectory file
+        dataset (xr.Dataset): Dataset to process
 
     Returns:
-        Unknown: Returns the result of the final call to xr.Dataset.to_netcdf()
-    """
-    """Save a ``Dataset``, presumably (but not necessarily) consisting of frames of trajectories, to a file at ``path``.
-
-    Parameters
-    ----------
-    frames (omit if using accessor)
-        The ``Dataset`` to save
-    path
-        The path at which to save it
-    complevel, optional
-        The level of ``gzip`` compression which will be applied to all variables in the ``Dataset``, by default 9
-
-    Notes
-    -----
-    This function/accessor method wraps :py:meth:`xarray.Dataset.to_netcdf` but not :py:func:`numpy.any`.
+        xr.Dataset: A copy of the Dataset with internal attributes removed, attributes appropriately encoded and multi-indices re-encoded.
     """
     cleaned_ds = dataset.copy()  # Shallow copy to avoid adding attrs etc. to original
-    encoding = {
-        var: {"compression": "gzip", "compression_opts": complevel}
-        for var in cleaned_ds
-    }
 
     # NetCDF does not support booleans
     for data_var in cleaned_ds.data_vars:
@@ -140,8 +120,71 @@ def write_shnitsel_file(
         #    cleaned_ds.attrs[attr] = int(cleaned_ds.attrs[attr])
 
     cleaned_ds.attrs["__attrs_json_encoded"] = 1
-    cleaned_ds.attrs["__shnitsel_format_version"] = "v1.0"
+    return cleaned_ds.reset_index(midx_names)
 
-    return cleaned_ds.reset_index(midx_names).to_netcdf(
-        savepath, engine='h5netcdf', encoding=encoding
-    )
+
+def _dataset_to_encoding(dataset: xr.Dataset, complevel: int) -> Dict[Hashable, Any]:
+    """Generate encoding information for NetCDF4 encoding from a dataset
+
+    Args:
+        dataset (xr.Dataset): Dataset to generate encoding information for
+        complevel (int): The compression level to apply to arrays
+
+    Returns:
+        Dict[Hashable, Any]: Resulting encoding settings
+    """
+    encoding = {
+        var: {"compression": "gzip", "compression_opts": complevel} for var in dataset
+    }
+    return encoding
+
+
+def write_shnitsel_file(
+    dataset: xr.Dataset | Trajectory | ShnitselDB,
+    savepath: PathOptionsType,
+    complevel: int = 9,
+):
+    """Function to write a trajectory in Shnitsel format (xr.) to a ntcdf hdf5 file format.
+
+    Strips all internal attributes first to avoid errors during writing.
+    When writing directly with to_netcdf, errors might occur due to internally set attributes with problematic types.
+
+    Args:
+        dataset (xr.Dataset | Trajectory | ShnitselDB): The dataset or trajectory to write (omit if using accessor).
+        savepath (PathOptionsType): The path at which to save the trajectory file.
+        complevel (int, optional): The compression level to apply during saving.
+
+    Returns:
+        Unknown: Returns the result of the final call to xr.Dataset.to_netcdf() or xr.DataTree.to_netcdf()
+    """
+    """Save a ``Dataset`` or DataTree/ShnitselDB, presumably (but not necessarily) consisting of frames of trajectories, to a file at ``path``.
+
+    Notes
+    -----
+    This function/accessor method wraps :py:meth:`xarray.Dataset.to_netcdf` :py:meth:`xarray.DataTree.to_netcdf` but not :py:func:`numpy.any`.
+    """
+
+    savepath_obj: pathlib.Path = make_uniform_path(savepath)  # type: ignore
+
+    # Make sure the extension is appropriately set.
+    if not savepath_obj.name.endswith(".nc"):
+        savepath_obj = savepath_obj.parent / (savepath_obj.name + ".nc")
+
+    if isinstance(dataset, xr.DataTree) or isinstance(dataset, ShnitselDB):
+        cleaned_tree = dataset.map_over_datasets(_prepare_dataset)
+
+        encoding = {}
+        for leaf in cleaned_tree.leaves:
+            if leaf.dataset is not None:
+                encoding[leaf.path] = _dataset_to_encoding(leaf.dataset, complevel)
+
+        cleaned_tree.attrs["__shnitsel_format_version"] = "v1.1"
+
+        return cleaned_tree.to_netcdf(savepath, engine='h5netcdf', encoding=encoding)
+    elif isinstance(dataset, xr.Dataset):
+        cleaned_ds = _prepare_dataset(dataset)
+        encoding = _dataset_to_encoding(cleaned_ds, complevel)
+
+        cleaned_ds.attrs["__shnitsel_format_version"] = "v1.1"
+
+        return cleaned_ds.to_netcdf(savepath, engine='h5netcdf', encoding=encoding)
