@@ -1,8 +1,12 @@
+from typing import TypeAlias
 from shnitsel.data.proxy_class import Proxy
 import xarray as xr
 
 
-class Trajectory(Proxy):
+Trajectory: TypeAlias = xr.Dataset
+
+
+class _Trajectory(Proxy):
     """Class to wrap trajectory information in a shnitsel-conform format.
 
     Used to keep track of original data while the trajectory data is modified
@@ -31,7 +35,7 @@ def wrap_trajectory(ds: xr.Dataset | Trajectory) -> Trajectory:
     Returns:
         Trajectory: The dataset wrapped in a Trajectory object or the original Trajectory instance.
     """
-    if isinstance(ds, Trajectory):
-        return ds
-    else:
-        return Trajectory(ds)
+
+    if "__original_dataset" not in ds:
+        ds["__original_dataset"] = ds.copy(deep=True)
+    return ds
