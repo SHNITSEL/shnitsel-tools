@@ -1,5 +1,3 @@
-import glob
-
 from shnitsel.data.trajectory_format import Trajectory
 from shnitsel.data.shnitsel_db_format import ShnitselDB, build_shnitsel_db
 from shnitsel.io.format_reader_base import FormatInformation, FormatReader
@@ -54,7 +52,7 @@ def read(
     input_trajectory_id_maps: Dict[str, int]
     | Callable[[pathlib.Path], int]
     | None = None,
-) -> xr.Dataset | Trajectory | List[Trajectory] | None:
+) -> Trajectory | List[Trajectory] | ShnitselDB | None:
     """Read all trajectories from a folder of trajectory folder.
 
     The function will attempt to automatically detect the type of the trajectory if `kind` is not set.
@@ -564,7 +562,7 @@ Trajid: TypeAlias = int
 @dataclass
 class Trajres:
     path: pathlib.Path
-    misc_error: Exception | Iterable[Exception] | None
+    misc_error: Tuple[Exception, Any] | Iterable[Tuple[Exception, Any]] | None
     data: Trajectory | None
 
 
@@ -599,6 +597,13 @@ def _per_traj(
 
     try:
         ds = reader.read_trajectory(trajdir, format_info, base_loading_parameters)
+        if ds is None:
+            return Trajres(
+                path=trajdir,
+                misc_error=None,
+                data=None,
+            )
+
         if not ds.attrs["completed"]:
             logging.info(f"Trajectory at path {trajdir} did not complete")
 
@@ -614,7 +619,7 @@ def _per_traj(
 
         return Trajres(
             path=trajdir,
-            misc_error=[err],
+            misc_error=[(err, traceback.format_exc())],
             data=None,
         )
 
@@ -657,7 +662,10 @@ def check_matching_dimensions(
             if is_first:
                 matching_dims[str(dim)] = ds.sizes[dim]
             else:
-                if  str(dim) not in matching_dims or matching_dims[str(dim)] != ds.sizes[dim]:
+                if (
+                    str(dim) not in matching_dims
+                    or matching_dims[str(dim)] != ds.sizes[dim]
+                ):
                     res_matching = False
                     distinct_dims.append(str(dim))
         is_first = False
