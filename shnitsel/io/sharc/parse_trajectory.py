@@ -64,16 +64,16 @@ def read_traj(
     veloc_file = path_obj / "veloc"
 
     sharc_version = "unknown"
-    nsinglets = None
-    ndoublets = None
-    ntriplets = None
+    nsinglets: int | None = None
+    ndoublets: int | None = None
+    ntriplets: int | None = None
 
-    delta_t = None
-    t_max = None
-    nsteps = None
-    natoms = None
-    nstates = None
-    energy_offset = None
+    delta_t: float | None = None
+    t_max: float | None = None
+    nsteps: int | None = None
+    natoms: int | None = None
+    nstates: int | None = None
+    energy_offset: float | None = None
     variables_listings = None
     completed = True
 
@@ -147,7 +147,7 @@ def read_traj(
         )
 
     # TODO: FIXME: Check if the factors are correct or if we should just sum up the states?
-    nstates: int = nsinglets + 2 * ndoublets + 3 * ntriplets
+    nstates = nsinglets + 2 * ndoublets + 3 * ntriplets
 
     # Try other sources for the number of atoms
     if natoms is None:
@@ -373,7 +373,7 @@ def parse_output_log(f: TextIOWrapper) -> Dict[str, Any]:
 def parse_trajout_dat(
     f: TextIOWrapper,
     trajectory_in: xr.Dataset,
-    loading_parameters: LoadingParameters = None,
+    loading_parameters: LoadingParameters | None = None,
 ) -> Tuple[bool, int, xr.Dataset]:
     """Function to parse the contents of an 'output.dat' in a sharc trajectory output directory into a Dataset.
 
