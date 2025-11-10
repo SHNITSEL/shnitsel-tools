@@ -1,6 +1,7 @@
 import glob
 
 from shnitsel.data.trajectory_format import Trajectory
+from shnitsel.data.shnitsel_db_format import ShnitselDB, build_shnitsel_db
 from shnitsel.io.format_reader_base import FormatInformation, FormatReader
 from shnitsel.io.helpers import (
     KindType,
@@ -44,7 +45,7 @@ def read(
     kind: KindType | None = None,
     sub_pattern: str | None = None,
     multiple: bool = True,
-    concat_method: Literal["layers", "list", "frames"] = "layers",
+    concat_method: Literal["layers", "list", "frames", "db"] = "layers",
     parallel: bool = True,
     error_reporting: Literal["log", "raise"] = "log",
     input_units: Dict[str, str] | None = None,
@@ -68,6 +69,7 @@ def read(
         We recommend using the energy variable.
     `concat_method='frames'` introduces a new dimension `frame` where each tick is a combination of `trajid` and `time` in the respective trajectory. Therefore, only valid frames will be present and no padding performed.
     `concat_method='list'` simply returns the list of successfully loaded trajectories without merging them.
+    `concat_method='db'` returns a Tree-structured ShnitselDB object containing all of the trajectories. Only works if all trajectories contain the same compound/molecule.
     For concatenation except `'list'`, the same number of atoms and states must be present in all individual trajectories.
 
     Error reporting can be configure between logging or raising exceptions via `error_reporting`.
@@ -168,7 +170,12 @@ def read(
     if not isinstance(path, pathlib.Path):
         path = pathlib.Path(path)
 
-    cats = {"frames": concat_trajs, "layers": layer_trajs, "list": lambda x: x}
+    cats = {
+        "frames": concat_trajs,
+        "layers": layer_trajs,
+        "db": db_from_trajs,
+        "list": lambda x: x,
+    }
     if concat_method not in cats:
         raise ValueError(f"`concat_method` must be one of {cats.keys()!r}")
 
@@ -613,7 +620,9 @@ def _per_traj(
 
 
 def check_matching_dimensions(
-    datasets: Iterable[Trajectory], excluded_dimensions: Set[str] = set()
+    datasets: Iterable[Trajectory],
+    excluded_dimensions: Set[str] = set(),
+    limited_dimensions: Set[str] | None = None,
 ) -> bool:
     """Function to check whether all dimensions are equally sized.
 
@@ -622,9 +631,10 @@ def check_matching_dimensions(
     Args:
         datasets (Iterable[Trajectory]): The series of datasets to be checked for equal dimensions
         excluded_dimensions (Set[str], optional): The set of dimension names to be excluded from the comparison. Defaults to set().
+        limited_dimensions (Set[str], optional): Optionally set a list of dimensions to which the analysis should be limited.
 
     Returns:
-        bool: True if all non-excluded dimensions match in size. False otherwise.
+        bool: True if all non-excluded (possibly limited) dimensions match in size.  False otherwise.
     """
 
     # TODO: FIXME: Should we check that the values are also the same?
@@ -636,16 +646,20 @@ def check_matching_dimensions(
 
     for ds in datasets:
         for dim in ds.dims:
-            if dim in excluded_dimensions:
+            if str(dim) in excluded_dimensions:
                 # Do not bother with excluded dimensions
                 continue
 
+            if limited_dimensions is not None and str(dim) not in limited_dimensions:
+                # Skip if we are not in the set list of limited_dimensions
+                continue
+
             if is_first:
-                matching_dims[dim] = ds.sizes[dim]
+                matching_dims[str(dim)] = ds.sizes[dim]
             else:
-                if not dim in matching_dims or matching_dims[dim] != ds.sizes[dim]:
+                if  str(dim) not in matching_dims or matching_dims[str(dim)] != ds.sizes[dim]:
                     res_matching = False
-                    distinct_dims.append(dim)
+                    distinct_dims.append(str(dim))
         is_first = False
 
     logging.info(f"Found discrepancies in the following dimensions: {distinct_dims}")
@@ -916,6 +930,30 @@ def concat_trajs(datasets: Iterable[Trajectory]) -> Trajectory:
     frames.attrs["is_multi_trajectory"] = True
 
     return frames
+
+
+def db_from_trajs(datasets: Iterable[Trajectory] | Trajectory) -> ShnitselDB:
+    """Function to merge multiple trajectories of the same molecule into a single ShnitselDB instance.
+
+    Args:
+        datasets (Iterable[Trajectory]): The individual loaded trajectories.
+
+    Returns:
+        ShnitselDB: The resulting ShnitselDB structure with a ShnitselDBRoot, CompoundGroup and TrajectoryData layers.
+    """
+    if not isinstance(datasets, Trajectory):
+        # Collect trajectories, check if trajectories match and build databases
+        datasets_list = list(datasets)
+        if not check_matching_dimensions(datasets_list, limited_dimensions=set("atom")):
+            raise ValueError(
+                "Could not merge datasets into one ShnitselDB, because compound `unknown` would contain distinct compounds. "
+                "Please only load one type of compound at a time."
+            )
+
+        return build_shnitsel_db(datasets_list)
+    else:
+        # We only need to wrap a single trajectory
+        return build_shnitsel_db(datasets)
 
 
 def layer_trajs(datasets: Iterable[Trajectory]) -> Trajectory:
