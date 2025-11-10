@@ -1,5 +1,7 @@
 import os
 
+from shnitsel.data.shnitsel_db_format import ShnitselDB
+from shnitsel.io.shnitsel.write import write_shnitsel_file
 from shnitsel.test_support.trajectory_verification import verify_trajectory_format
 import xarray as xr
 
@@ -73,3 +75,19 @@ class TestNewtonX:
         assert verify_trajectory_format(
             traj_frames_chd, self.asserted_properties_in_trajectory
         ), f"Resulting trajectory from NewtonX trajectory does not satisfy the Shnitsel standard format"
+
+    def test_nx_detected_R02_db_tree(self):
+        # parse trajectory data from Newton-X output files
+        traj_frames_chd = read(
+            "tutorials/test_data/newtonx/test_R02/", kind=None, concat_method="db"
+        )
+        assert isinstance(
+            traj_frames_chd, ShnitselDB
+        ), "Failed to build ShnitselDB structure from trajectories"
+
+        print(traj_frames_chd)
+        write_shnitsel_file(traj_frames_chd, "tutorials/test_data/newtonx/test_R02.nc/")
+        loaded_db = read("tutorials/test_data/newtonx/test_R02.nc/")
+        assert isinstance(
+            loaded_db, ShnitselDB
+        ), "Failed to read ShnitselDB structure from stored file"
