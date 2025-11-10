@@ -2,20 +2,25 @@ import json
 import logging
 import os
 import pathlib
-from typing import Any, Callable, Dict
+from typing import Any, Callable, Dict, TypeVar
 import numpy as np
 import xarray as xr
+import sys
 
+from shnitsel.data.trajectory_tree_format import (
+    ShnitselDB,
+    build_shnitsel_db,
+)
 from shnitsel.io.helpers import LoadingParameters, PathOptionsType
 
-# TODO: We probably need a fallback version for old and new shnitsel file formats
-
 # def open_frames(path):
+
+T = TypeVar('T')
 
 
 def read_shnitsel_file(
     path: PathOptionsType, loading_parameters: LoadingParameters | None = None
-) -> xr.Dataset:
+) -> xr.Dataset | xr.DataTree:
     """Opens a NetCDF4 file saved by shnitsel-tools, specially interpreting certain attributes.
 
     Parameters
@@ -27,6 +32,7 @@ def read_shnitsel_file(
     Returns
     -------
         An :py:class:`xarray.Dataset` with any MultiIndex restored.
+        A :py:class:`ShnitselDB` with any MultiIndex restored and attributes decoded.
 
     Raises
     ------
@@ -39,11 +45,18 @@ def read_shnitsel_file(
     # The error raised for a missing file can be misleading
     try:
         frames = xr.open_dataset(path)
-    except ValueError as err:
+    except ValueError as ds_err:
+        dataset_info = sys.exc_info()
         if not os.path.exists(path):
             raise FileNotFoundError(path)
         else:
-            raise err
+            try:
+                frames = xr.open_datatree(path)
+            except ValueError as dt_err:
+                datatree_info = sys.exc_info()
+                message = f"Failed to load file as either Dataset or DataTree: {ds_err} \n{dataset_info}\n {dt_err}\n {datatree_info}"
+                logging.error(message)
+                raise ValueError(message)
 
     if "__shnitsel_format_version" in frames.attrs:
         shnitsel_format_version = frames.attrs["__shnitsel_format_version"]
@@ -62,8 +75,8 @@ def read_shnitsel_file(
 
 
 def _parse_shnitsel_file_v1_0(
-    frames: xr.Dataset, loading_parameters: LoadingParameters | None = None
-) -> xr.Dataset:
+    frames: T, loading_parameters: LoadingParameters | None = None
+) -> T:
     """Internal function to do a best-effort attempt to load the original shnitsel file format.
 
     Will print a warning that you should be using shnitsel v1.1 files to have full type information.
@@ -75,6 +88,11 @@ def _parse_shnitsel_file_v1_0(
     Returns:
         xr.Dataset: The post-processed shnitsel trajectory
     """
+    if not isinstance(frames, xr.Dataset):
+        raise ValueError(
+            "A version 1.0 shnitsel file can only contain xr.Dataset entries."
+        )
+
     logging.warning(
         f"You are opening a Shnitsel file of format v1.0. This format did not contain full unit information for all observables. \n"
         f"You should either regenerate the shnitsel file from the input data with a later version of the shnitsel-tools package or attempt to retrieve a later version of the file."
@@ -99,7 +117,7 @@ def _parse_shnitsel_file_v1_0(
             logging.info(
                 "Renaming 'ts' dimension to 'time' to make trajectory conform to standard shnitsel format."
             )
-            frames.rename({"ts": "time"})
+            frames = frames.rename({"ts": "time"})
             tcoord = "time"
 
         if tcoord is not None:
@@ -111,21 +129,17 @@ def _parse_shnitsel_file_v1_0(
     return frames
 
 
-def _parse_shnitsel_file_v1_1(
-    frames: xr.Dataset, loading_parameters: LoadingParameters | None = None
-) -> xr.Dataset:
-    """Internal function to parse the revised shnitsel format v1.1 with better attribute encoding and more extensive unit declarations.
+def _decode_shnitsel_v1_1_dataset(dataset: xr.Dataset) -> xr.Dataset:
+    """Function to decode encoded attributes and MultiIndices of a dataset
 
     Args:
-        frames (xr.Dataset): The loaded Dataset from the netcdf file that needs to be post-processed.
-        loading_parameters (LoadingParameters | None, optional): Optional loading parameters for setting units. Defaults to None.
+        dataset (xr.Dataset): The dataset to process
 
-    Returns:
-        xr.Dataset: The post-processed shnitsel trajectory
+    Returns
+        xr.Dataset: Copy of the dataset with attributes and MultiIndex instances decoded
     """
-    # Decode json encoded attributes if json encoding is recorded
-    if "__attrs_json_encoded" in frames.attrs:
-        del frames.attrs["__attrs_json_encoded"]
+    if "__attrs_json_encoded" in dataset.attrs:
+        del dataset.attrs["__attrs_json_encoded"]
 
         def json_deserialize_ndarray(value: str) -> Any:
             value_d = json.loads(value)
@@ -139,48 +153,81 @@ def _parse_shnitsel_file_v1_1(
                     value_d = np.array(entries, dtype=dtype_descr)
             return value_d
 
-        for attr in frames.attrs:
-            frames.attrs[attr] = json_deserialize_ndarray(frames.attrs[attr])
+        for attr in dataset.attrs:
+            dataset.attrs[attr] = json_deserialize_ndarray(dataset.attrs[attr])
 
-        for data_var in frames.variables:
-            for attr in frames[data_var].attrs:
-                frames[data_var].attrs[attr] = json_deserialize_ndarray(
-                    frames.attrs[attr]
+        for data_var in dataset.variables:
+            for attr in dataset[data_var].attrs:
+                dataset[data_var].attrs[attr] = json_deserialize_ndarray(
+                    dataset.attrs[attr]
                 )
 
     # Restore MultiIndexes
     indicator = "_MultiIndex_levels_from_attrs"
-    if frames.attrs.get(indicator, False):
+    if dataset.attrs.get(indicator, False):
         # New way: get level names from attrs
-        del frames.attrs[indicator]
-        for k, v in frames.attrs.items():
+        del dataset.attrs[indicator]
+        for k, v in dataset.attrs.items():
             if k.startswith("_MultiIndex_levels_for_"):
-                frames = frames.set_xindex(v)
-                del frames.attrs[k]
+                dataset = dataset.set_xindex(v)
+                del dataset.attrs[k]
     else:
         # TODO: FIXME: rename time trajectory to same name everywhere
         # Old way: hardcoded level names
         tcoord = None
-        if "time" in frames.coords:
+        if "time" in dataset.coords:
             tcoord = "time"
-        elif "ts" in frames.coords:
+        elif "ts" in dataset.coords:
             logging.info(
                 "Renaming 'ts' dimension to 'time' to make trajectory conform to standard shnitsel format."
             )
-            frames.rename({"ts": "time"})
+            dataset = dataset.rename({"ts": "time"})
             tcoord = "time"
 
         if tcoord is not None:
-            frames = frames.set_xindex(["trajid", tcoord])
+            dataset = dataset.set_xindex(["trajid", tcoord])
 
-        if "from" in frames.coords and "to" in frames.coords:
-            frames = frames.set_xindex(["from", "to"])
+        if "from" in dataset.coords and "to" in dataset.coords:
+            dataset = dataset.set_xindex(["from", "to"])
 
-    return frames
+    return dataset
+
+
+def _parse_shnitsel_file_v1_1(
+    frames: T, loading_parameters: LoadingParameters | None = None
+) -> T:
+    """Internal function to parse the revised shnitsel format v1.1 with better attribute encoding and more extensive unit declarations.
+
+    Args:
+        frames (xr.Dataset|xr.DataTree): The loaded Dataset from the netcdf file that needs to be post-processed.
+        loading_parameters (LoadingParameters | None, optional): Optional loading parameters for setting units. Defaults to None.
+
+    Returns:
+        xr.Dataset: The post-processed shnitsel trajectory
+    """
+    if not isinstance(frames, xr.Dataset) and not isinstance(frames, xr.DataTree):
+        raise ValueError(
+            "A version 1.1 shnitsel file can only contain xr.Dataset or xr.DataTree entries."
+        )
+    if isinstance(frames, xr.Dataset):
+        # Decode json encoded attributes if json encoding is recorded
+        return _decode_shnitsel_v1_1_dataset(frames)
+    elif isinstance(frames, xr.DataTree):
+        import pprint
+
+        # Decode json encoded attributes if json encoding is recorded
+        decoded_frames = frames.map_over_datasets(_decode_shnitsel_v1_1_dataset)
+
+        pprint.pprint(decoded_frames)
+
+        return build_shnitsel_db(frames)
 
 
 __SHNITSEL_READERS: Dict[
-    str, Callable[[xr.Dataset, LoadingParameters | None], xr.Dataset]
+    str,
+    Callable[
+        [xr.Dataset | xr.DataTree, LoadingParameters | None], xr.Dataset | xr.DataTree
+    ],
 ] = {
     "v1.0": _parse_shnitsel_file_v1_0,
     "v1.1": _parse_shnitsel_file_v1_1,
