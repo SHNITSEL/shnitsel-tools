@@ -64,7 +64,7 @@ def main():
 
     if output_path.exists():
         logging.error(
-            "Conversion would override {output_path}. For safety reasons, we will not proceed."
+            f"Conversion would override {output_path}. For safety reasons, we will not proceed."
         )
         sys.exit(1)
 
