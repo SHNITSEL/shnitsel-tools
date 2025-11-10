@@ -67,11 +67,13 @@ def read_shnitsel_file(
     if shnitsel_format_version in __SHNITSEL_READERS:
         return __SHNITSEL_READERS[shnitsel_format_version](frames, loading_parameters)
     else:
-        logging.error(
+        message = (
             f"Attempting to load a shnitsel file with unknown format {shnitsel_format_version}. \n"
             "This file might have been created with a later version of the `shnitsel-tools` package. \n"
             "Please update the `shnitsel-tools` package and attempt to read the file again."
         )
+        logging.error(message)
+        raise ValueError(message)
 
 
 def _parse_shnitsel_file_v1_0(
