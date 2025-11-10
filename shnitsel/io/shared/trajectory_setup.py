@@ -228,7 +228,7 @@ def create_initial_dataset(
     mark_variable_assigned(res_dataset.state)
     mark_variable_assigned(res_dataset.atom)
     mark_variable_assigned(res_dataset.direction)
-    mark_variable_assigned(res_dataset.satecomb)
+    mark_variable_assigned(res_dataset.statecomb)
 
     res_dataset = res_dataset.set_coords(isolated_keys)
 
