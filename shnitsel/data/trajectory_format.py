@@ -36,6 +36,6 @@ def wrap_trajectory(ds: xr.Dataset | Trajectory) -> Trajectory:
         Trajectory: The dataset wrapped in a Trajectory object or the original Trajectory instance.
     """
 
-    if "__original_dataset" not in ds:
-        ds["__original_dataset"] = ds.copy(deep=True)
+    if "__original_dataset" not in ds.attrs:
+        ds.attrs["__original_dataset"] = ds.copy(deep=True)
     return ds
