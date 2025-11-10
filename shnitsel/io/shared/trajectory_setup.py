@@ -1,4 +1,3 @@
-
 from dataclasses import asdict, dataclass
 from itertools import combinations
 import math
@@ -36,8 +35,13 @@ class OptionalTrajectorySettings:
     is_multi_trajectory: bool | None = None
     trajectory_input_path: str | None = None
 
+    theory_basis_set: str | None = None
+    est_level: str | None = None
 
-def assign_required_settings(dataset: xr.Dataset, settings: RequiredTrajectorySettings) -> None:
+
+def assign_required_settings(
+    dataset: xr.Dataset, settings: RequiredTrajectorySettings
+) -> None:
     """Function to assign all required settings to the dataset.
 
     Just a handy tool so all values are assigned because all fields in `settings` should be assigned upon its creation
@@ -49,7 +53,9 @@ def assign_required_settings(dataset: xr.Dataset, settings: RequiredTrajectorySe
     dataset.attrs.update(asdict(settings))
 
 
-def assign_optional_settings(dataset: xr.Dataset, settings: OptionalTrajectorySettings) -> None:
+def assign_optional_settings(
+    dataset: xr.Dataset, settings: OptionalTrajectorySettings
+) -> None:
     """Function to assign all assigned optional settings to a dataset.
 
     Just a handy tool so we can be sure the settings are assigned with the correct keys.
@@ -74,11 +80,11 @@ def create_initial_dataset(
 ) -> xr.Dataset:
     """Function to initialize an `xr.Dataset` with appropriate variables and coordinates to acommodate loaded data.
 
-    All arguments are used to accurately size the dimensions of the dataset or assign 
+    All arguments are used to accurately size the dimensions of the dataset or assign
 
     Args:
         num_time_steps (int): The number of expected time steps in this trajectory. Set to 0 to not create a "time" dimension.
-        num_states (int): The number of states within the datasets. 
+        num_states (int): The number of states within the datasets.
         num_atoms (int): The number of atoms within the datasets. Set to 0 to remove all observables tied to an "atom" index.
 
     Returns:
@@ -176,13 +182,13 @@ def create_initial_dataset(
         del coords["atom"]
 
     coords = xr.Coordinates.from_pandas_multiindex(
-        pd.MultiIndex.from_tuples(combinations(
-            states, 2), names=["from", "to"]),
+        pd.MultiIndex.from_tuples(combinations(states, 2), names=["from", "to"]),
         dim="statecomb",
     ).merge(coords)
 
     default_format_attributes = get_default_input_attributes(
-        format_name, loading_parameters)
+        format_name, loading_parameters
+    )
 
     datavars = {
         varname: (
