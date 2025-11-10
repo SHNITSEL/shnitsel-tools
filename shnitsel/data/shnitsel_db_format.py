@@ -13,22 +13,14 @@ from typing import (
 import numpy as np
 import xarray as xr
 
+from .shnitsel_db import (
+    CompoundGroup,
+    TrajectoryData,
+    TrajectoryGroup,
+    CompoundInfo,
+    _datatree_level_attribute_key,
+)
 from shnitsel.data.trajectory_format import Trajectory
-
-
-@dataclass
-class GroupInfo:
-    """Class to hold auxiliaryt info of a group of Trajectories in ShnitselDB"""
-
-    grouped_settings: Dict[str, Any]
-
-
-@dataclass
-class CompoundInfo:
-    """Class to hold identifying and auxiliary info of a compound type in ShnitselDB"""
-
-    compound_name: str = "unknown"
-    smile_repr: str | None = None
 
 
 @dataclass
@@ -38,168 +30,6 @@ class MetaInformation:
     input_format_version: str | None = None
     theory_basis_set: str | None = None
     est_level: str | None = None
-
-
-_datatree_level_attribute_key = "DataTree_Level"
-
-
-class TrajectoryData(xr.DataTree):
-    """DataTree node to keep track of a single trajectory entry"""
-
-    def __init__(
-        self,
-        dataset: xr.Dataset | Trajectory | None = None,
-        name: str | None = None,
-    ):
-        super().__init__(dataset=dataset, children=None, name=name)
-
-        self.attrs[_datatree_level_attribute_key] = "TrajectoryData"
-
-    def collect_trajectories(self) -> List[Self]:
-        """Function to retrieve all trajectories in this subtree
-
-        Returns:
-            List[TrajectoryData]: List of all nodes with TrajectoryData type
-        """
-        return [convert_shnitsel_tree(self.copy())]
-
-
-class TrajectoryGroup(xr.DataTree):
-    """DataTree node to keep track of a group of trajectories where properties defining the group can be set"""
-
-    def __init__(
-        self,
-        group_info: GroupInfo,
-        children: Mapping[str, TrajectoryData | Self] | None = None,
-        name: str | None = None,
-    ):
-        super().__init__(None, children, name)
-
-        self.attrs[_datatree_level_attribute_key] = "TrajectoryGroup"
-        self.attrs["group_info"] = group_info
-
-    def collect_trajectories(self) -> List[TrajectoryData]:
-        """Function to retrieve all trajectories in this subtree
-
-        Returns:
-            List[TrajectoryData]: List of all nodes with TrajectoryData type
-        """
-        res = []
-
-        for x in self.children.values():
-            res += x.collect_trajectories()
-
-        return res
-
-
-class CompoundGroup(xr.DataTree):
-    """DataTree node to keep track of all data associated with a common compound within the datatree"""
-
-    def __init__(
-        self,
-        compound_info: CompoundInfo,
-        children: Mapping[
-            str,
-            TrajectoryGroup | TrajectoryData,
-        ]
-        | None = None,
-    ):
-        super().__init__(None, children, compound_info.compound_name)
-        self.attrs[_datatree_level_attribute_key] = "CompoundGroup"
-        self.attrs["compound_info"] = compound_info
-
-    def collect_trajectories(self):
-        """Function to retrieve all trajectories in this subtree
-
-        Returns:
-            List[TrajectoryData]: List of all nodes with TrajectoryData type
-        """
-        res = []
-
-        for x in self.children.values():
-            res += x.collect_trajectories()
-
-        return res
-
-    def merge_with(self, other: Self) -> Self:
-        """Function to merge to compound groups into one.
-
-        Called when merging two database states. Will fail if compound_info differs between compounds to avoid loss of information.
-
-        Args:
-            other (CompoundGroup): The other CompoundGroup to be merged
-
-        Raises:
-            ValueError: Raised if the compound_info differs.
-
-        Returns:
-            CompoundGroup: A CompoundGroup object holding the entire merged subtree
-        """
-        own_info = self.attrs["compound_info"]
-        other_info = other.attrs["compound_info"]
-        if other_info != own_info:
-            message = f"Cannot merge compounds with conflicting compound information: {other_info} vs. {own_info}"
-            logging.error(message)
-            raise ValueError(message)
-
-        return CompoundGroup(
-            own_info, {i: v for i, v in enumerate(self.collect_trajectories())}
-        )  # type: ignore
-
-    def filter_trajectories(
-        self,
-        filter_func: Callable[[xr.Dataset], bool] | None = None,
-        est_level: str | List[str] | None = None,
-        basis_set: str | List[str] | None = None,
-        **kwargs,
-    ) -> Self | None:
-        """Function to filter trajectories based on their attributes.
-
-        Args:
-            filter_func (Callable[[xr.Dataset], bool] | None, optional): A function to evaluate whether a trajectory should be retained. Should return True if the trajectory should stay in the filtered set. Defaults to None.
-            est_level (str | List[str] | None, optional): Option to filter for a certain level of electronic structure theory/calculation method. Can be a single key value or a set of values to retain. Defaults to None.
-            basis_set (str | List[str] | None, optional): Option to filter for a certain basis set. Can be a single key value or a set of values to retain. Defaults to None.
-            **kwargs: Key-value pairs, where the key denotes an attribute
-
-        Returns:
-            Compoundgroup|None: Either returns the CompoundGroup with the remaining set of trajectories or None if the group would be empty.
-        """
-
-        if filter_func is None:
-            filter_func = lambda x: True
-
-        if isinstance(est_level, str):
-            est_level = list(est_level)
-
-        if isinstance(basis_set, str):
-            basis_set = list(basis_set)
-
-        filter_vals = {
-            k: list(v) if isinstance(v, str) else v for k, v in kwargs.items()
-        }
-        filter_vals["est_level"] = est_level
-        filter_vals["basis_set"] = basis_set
-
-        def composed_filter(data: xr.Dataset) -> bool:
-            if not filter_func(data):
-                return False
-
-            for k, v in filter_vals.items():
-                if k not in data.attrs or data.attrs[k] not in v:
-                    return False
-
-            return True
-
-        filtered_traj = [
-            t
-            for t in self.collect_trajectories()
-            if t.dataset is not None and composed_filter(t.dataset)
-        ]
-
-        if len(filtered_traj) > 0:
-            return CompoundGroup(self.attrs["compound_info"], filtered_traj)
-        else:
-            return None
 
 
 class ShnitselDBRoot(xr.DataTree):
@@ -245,7 +75,7 @@ class ShnitselDBRoot(xr.DataTree):
                     traj_counter += 1
                     new_trajectories[key] = convert_shnitsel_tree(t.copy())
 
-            return ShnitselDBRoot(
+            return type(self)(
                 {
                     compound_info.compound_name: CompoundGroup(
                         compound_info, new_trajectories
@@ -272,9 +102,10 @@ class ShnitselDBRoot(xr.DataTree):
                     unknown_trajectories[key] = convert_shnitsel_tree(t.copy())
                 res_group.update(unknown_trajectories)
 
-            return ShnitselDBRoot(
-                {**self.children, compound_info.compound_name: res_group}
-            )
+            new_children: dict[str, CompoundGroup] = {**self.children}  # type: ignore
+            new_children[compound_info.compound_name] = res_group  # type: ignore
+
+            return type(self)(new_children)
 
     def apply_trajectory_setup_properties(self, properties: MetaInformation) -> None:
         if len(self.children.keys()) > 1:
@@ -312,11 +143,11 @@ class ShnitselDBRoot(xr.DataTree):
             if k in shared_keys:
                 total_compounds[k] = self.children[k].merge_with(other.children[k])
             elif k in self.children:
-                total_compounds[k] = convert_shnitsel_tree(self.children[k].copy())
+                total_compounds[k] = self.children[k].copy()
             else:
-                total_compounds[k] = convert_shnitsel_tree(other.children[k].copy())
+                total_compounds[k] = other.children[k].copy()
 
-        return ShnitselDBRoot(total_compounds)
+        return type(self)(total_compounds)
 
     def filter_compounds(
         self, compounds: str | List[str] | Callable[[CompoundInfo], bool]
@@ -347,9 +178,9 @@ class ShnitselDBRoot(xr.DataTree):
 
         for k, v in self.children.items():
             if filter_func(v.attrs["compound_info"]):
-                new_compounds[k] = convert_shnitsel_tree(v.copy())
+                new_compounds[k] = v.copy()
 
-        return ShnitselDBRoot(new_compounds)
+        return type(self)(new_compounds)
 
     def filter_trajectories(
         self,
@@ -372,10 +203,11 @@ class ShnitselDBRoot(xr.DataTree):
         new_compounds = {}
 
         for k, v in self.children.items():
-            if filter_func(v.attrs["compound_info"]):
-                new_compounds[k] = convert_shnitsel_tree(v.copy())
+            tmp_res = v.filter_trajectories(filter_func, est_level, basis_set, **kwargs)
+            if tmp_res is not None:
+                new_compounds[k] = tmp_res
 
-        return ShnitselDBRoot(new_compounds)
+        return type(self)(new_compounds)
 
 
 def build_shnitsel_db(
@@ -450,6 +282,12 @@ def build_shnitsel_db(
                     raise ValueError(f"Found unsupported type: {type(d_conv)}")
             elif isinstance(d, Trajectory):
                 # Map trajectory instance:
+                if shared_level_id is None:
+                    shared_level_id = "TrajectoryData|TrajectoryGroup"
+                elif shared_level_id != "TrajectoryData|TrajectoryGroup":
+                    raise ValueError(
+                        f"Cannot build Shnitsel DB structure from types {shared_level_id} and `TrajectoryData|TrajectoryGroup` on the same level of hierarchy."
+                    )
                 key = f"{i}"
                 d_conv = TrajectoryData(d, key)
             else:
@@ -460,8 +298,13 @@ def build_shnitsel_db(
             if shared_level_id == "TrajectoryData|TrajectoryGroup":
                 tmp_compound = CompoundGroup(CompoundInfo(), children=res_set)
                 return build_shnitsel_db(tmp_compound)
-            else:
+            elif shared_level_id == CompoundGroup:
                 return ShnitselDBRoot(res_set)
+            else:
+                raise ValueError(
+                    "Could not find an appropriate level of the ShnitselDB hierarchy to build a full database."
+                )
+
     elif isinstance(data, xr.DataTree):
         # We have a datatree instance, check for the DataTree_Level attribute to convert to right type.
 
@@ -475,9 +318,8 @@ def build_shnitsel_db(
         elif isinstance(tmp_res, TrajectoryData) or isinstance(
             tmp_res, TrajectoryGroup
         ):
-            tmp_compound_name = "unknown"
             tmp_compound = CompoundGroup(
-                CompoundInfo(tmp_compound_name, None),
+                CompoundInfo(),
                 {tmp_res.name if tmp_res.name is not None else "0": tmp_res},
             )
             return build_shnitsel_db(tmp_compound)
@@ -511,7 +353,7 @@ def convert_shnitsel_tree(
         return data
 
     if _datatree_level_attribute_key not in data.attrs:
-        raise ValueError(f"DataTree is not of valid ShnitselDB format.")
+        raise ValueError("DataTree is not of valid ShnitselDB format.")
 
     if (
         restrict_levels is not None
@@ -526,29 +368,29 @@ def convert_shnitsel_tree(
             children_c: Mapping[str, CompoundGroup] = {
                 k: convert_shnitsel_tree(v, restrict_levels=["CompoundGroup"])
                 for k, v in data.children.items()
-            }
+            }  # type: ignore
             res = ShnitselDBRoot(children_c)
         case "CompoundGroup":
-            if not "compound_info" in data.attrs:
-                raise ValueError(f"Compound group level node has no compound_info set.")
+            if "compound_info" not in data.attrs:
+                raise ValueError("Compound group level node has no compound_info set.")
 
             children_t: Mapping[str, TrajectoryGroup | TrajectoryData] = {
                 k: convert_shnitsel_tree(
                     v, restrict_levels=["TrajectoryGroup", "TrajectoryData"]
                 )
                 for k, v in data.children.items()
-            }
+            }  # type: ignore
             res = CompoundGroup(data.attrs["compound_info"], children_t)
         case "TrajectoryGroup":
-            if not "group_info" in data.attrs:
-                raise ValueError(f"TrajectoryGroup level node has no group_info set.")
+            if "group_info" not in data.attrs:
+                raise ValueError("TrajectoryGroup level node has no group_info set.")
 
             children_tg: Mapping[str, TrajectoryGroup | TrajectoryData] = {
                 k: convert_shnitsel_tree(
                     v, restrict_levels=["TrajectoryGroup", "TrajectoryData"]
                 )
                 for k, v in data.children.items()
-            }
+            }  # type: ignore
             res = TrajectoryGroup(data.attrs["group_info"], children_tg, name=data.name)
         case "TrajectoryData":
             dataset = data.dataset
