@@ -5,7 +5,11 @@ import sys
 
 import shnitsel
 from shnitsel.data.shnitsel_db.db_compound_group import CompoundInfo
-from shnitsel.data.shnitsel_db_format import ShnitselDB, build_shnitsel_db
+from shnitsel.data.shnitsel_db_format import (
+    MetaInformation,
+    ShnitselDB,
+    build_shnitsel_db,
+)
 
 
 def main():
@@ -62,6 +66,24 @@ def main():
     )
 
     argument_parser.add_argument(
+        "--est_level",
+        "-est",
+        required=True,
+        type=str,
+        default=None,
+        help="Level of applied Electronic Structure Theory.",
+    )
+
+    argument_parser.add_argument(
+        "--basis_set",
+        "-basis",
+        required=True,
+        type=str,
+        default=None,
+        help="The basis set used for for calculations.",
+    )
+
+    argument_parser.add_argument(
         "--loglevel",
         "-log",
         type=str,
@@ -76,6 +98,9 @@ def main():
     input_path_pattern = args.pattern
     input_group = args.group_name
     input_compound = args.compound_name
+
+    input_est_level = args.est_level
+    input_basis_set = args.basis_set
 
     output_path = args.output_path
     loglevel = args.loglevel
@@ -127,12 +152,17 @@ def main():
         if input_group:
             trajectory = trajectory.add_trajectory_group(input_group)
 
+        meta_info = MetaInformation(
+            est_level=input_est_level, theory_basis_set=input_basis_set
+        )
+        trajectory.apply_trajectory_setup_properties(meta_info)
+
         num_compounds = len(trajectory.children)
         list_compounds = [str(k) for k in trajectory.children.keys()]
         print(f"Number of compounds in trajectory: {num_compounds}")
         print(f"Present compounds: {list_compounds}")
 
-        print(f"Resulting trajectory:")
+        print("Resulting trajectory:")
         pprint(trajectory)
         shnitsel.io.write_shnitsel_file(trajectory, output_path)
         sys.exit(0)
