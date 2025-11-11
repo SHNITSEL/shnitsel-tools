@@ -16,7 +16,7 @@ class GroupInfo:
     """Class to hold auxiliaryt info of a group of Trajectories in ShnitselDB"""
 
     group_name: str
-    grouped_settings: Dict[str, Any] | None = None
+    group_attributes: Dict[str, Any] | None = None
 
 
 class TrajectoryGroup(xr.DataTree):
@@ -31,7 +31,7 @@ class TrajectoryGroup(xr.DataTree):
 
         self.attrs[_datatree_level_attribute_key] = "TrajectoryGroup"
         if group_info is not None:
-            self.attrs["group_info"] = group_info.grouped_settings
+            self.attrs["group_info"] = group_info.group_attributes
 
     def get_group_info(self) -> GroupInfo:
         """Reconstruct the Group info object
@@ -41,10 +41,10 @@ class TrajectoryGroup(xr.DataTree):
         """
         if "group_info" in self.attrs:
             return GroupInfo(
-                group_name=self.name, grouped_settings=self.attrs["group_info"]
+                group_name=self.name, group_attributes=self.attrs["group_info"]
             )
         else:
-            return GroupInfo(group_name=self.name, grouped_settings={})
+            return GroupInfo(group_name=self.name, group_attributes={})
 
     def collect_trajectories(self) -> List[TrajectoryData]:
         """Function to retrieve all trajectories in this subtree
