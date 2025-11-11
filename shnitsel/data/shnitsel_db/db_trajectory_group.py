@@ -1,8 +1,9 @@
 from dataclasses import dataclass
+import logging
 from typing import Any, Callable, Dict, List, Mapping, Self, TypeVar
 
+from .helpers import traj_list_to_child_mapping
 from shnitsel.data.trajectory_format import Trajectory
-
 from .db_trajectory_data import TrajectoryData
 import xarray as xr
 
@@ -24,10 +25,12 @@ class TrajectoryGroup(xr.DataTree):
 
     def __init__(
         self,
-        group_info: GroupInfo | None,
+        group_info: GroupInfo | None = None,
         children: Mapping[str, TrajectoryData | Self] | None = None,
     ):
-        super().__init__(None, children, group_info.group_name)
+        super().__init__(
+            None, children, group_info.group_name if group_info is not None else None
+        )
 
         self.attrs[_datatree_level_attribute_key] = "TrajectoryGroup"
         if group_info is not None:
@@ -90,3 +93,48 @@ class TrajectoryGroup(xr.DataTree):
                     for k, v in self.children.items()
                 },
             )  # type: ignore
+
+    def merge_with(self, other: Self) -> Self:
+        """Function to merge two TrajectoryGroups into one.
+
+        Called when merging two database states. Will fail if group_info differs between compounds to avoid loss of information.
+
+        Args:
+            other (CompoundGroup): The other CompoundGroup to be merged
+
+        Raises:
+            ValueError: Raised if the compound_info differs.
+
+        Returns:
+            CompoundGroup: A CompoundGroup object holding the entire merged subtree
+        """
+        own_info = self.get_group_info()
+        other_info = other.get_group_info()
+        if other_info != own_info:
+            message = f"Cannot merge groups with conflicting group information: {other_info} vs. {own_info}"
+            logging.error(message)
+            raise ValueError(message)
+
+        res_children = []
+
+        for k, v in self.children.items():
+            key_str = str(k)
+            if key_str in other.children:
+                other_v = other.children[key_str]
+                if isinstance(v, TrajectoryGroup) and isinstance(
+                    other_v, TrajectoryGroup
+                ):
+                    res_children.append(v.merge_with(other_v))
+                else:
+                    res_children.append(other_v.copy())
+            else:
+                res_children.append(v.copy())
+
+        for k, v in self.children.items():
+            key_str = str(k)
+            if key_str in self.children:
+                continue
+            else:
+                res_children.append(v.copy())
+
+        return type(self)(own_info, traj_list_to_child_mapping(res_children))  # type: ignore

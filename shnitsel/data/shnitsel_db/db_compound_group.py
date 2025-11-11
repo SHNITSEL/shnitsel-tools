@@ -2,7 +2,7 @@ from dataclasses import dataclass
 import logging
 from typing import Callable, List, Mapping, Self, TypeVar
 
-from shnitsel.data.shnitsel_db.helpers import traj_list_to_child_mapping
+from .helpers import traj_list_to_child_mapping
 from shnitsel.data.trajectory_format import Trajectory
 
 from .db_trajectory_group import GroupInfo, TrajectoryGroup
@@ -20,7 +20,6 @@ class CompoundInfo:
     """Class to hold identifying and auxiliary info of a compound type in ShnitselDB"""
 
     compound_name: str = "unknown"
-    smile_repr: str | None = None
 
 
 class CompoundGroup(xr.DataTree):
@@ -70,7 +69,7 @@ class CompoundGroup(xr.DataTree):
         return res
 
     def merge_with(self, other: Self) -> Self:
-        """Function to merge to compound groups into one.
+        """Function to merge two compound groups into one.
 
         Called when merging two database states. Will fail if compound_info differs between compounds to avoid loss of information.
 
@@ -83,16 +82,38 @@ class CompoundGroup(xr.DataTree):
         Returns:
             CompoundGroup: A CompoundGroup object holding the entire merged subtree
         """
-        own_info = self.attrs["compound_info"]
-        other_info = other.attrs["compound_info"]
+        own_info = self.get_compound_info()
+        other_info = other.get_compound_info()
         if other_info != own_info:
             message = f"Cannot merge compounds with conflicting compound information: {other_info} vs. {own_info}"
             logging.error(message)
             raise ValueError(message)
 
-        return CompoundGroup(
-            own_info, {f"{i}": v for i, v in enumerate(self.collect_trajectories())}
-        )  # type: ignore
+        res_children = []
+
+        for k, v in self.children.items():
+            key_str = str(k)
+            if key_str in other.children:
+                other_v = other.children[key_str]
+                if isinstance(v, TrajectoryGroup) and isinstance(
+                    other_v, TrajectoryGroup
+                ):
+                    res_children.append(v.merge_with(other_v))
+                else:
+                    res_children.append(other_v.copy())
+            else:
+                res_children.append(v.copy())
+
+        for k, v in other.children.items():
+            key_str = str(k)
+            if key_str in self.children:
+                continue
+            else:
+                res_children.append(v.copy())
+
+        res_children = traj_list_to_child_mapping(res_children)
+
+        return type(self)(own_info, res_children)  # type: ignore
 
     def filter_trajectories(
         self,
@@ -215,16 +236,17 @@ class CompoundGroup(xr.DataTree):
 
         group_children = dict(traj_list_to_child_mapping(grouped_traj))
         res_children = dict(traj_list_to_child_mapping(ungrouped_traj))
-        new_group = TrajectoryGroup(
-            GroupInfo(group_name, kwargs), group_children, group_name
-        )
+        new_group = TrajectoryGroup(GroupInfo(group_name, kwargs), group_children)
         res_children[group_name] = new_group
 
         res = type(self)(self.get_compound_info(), res_children)
         return res
 
     def map_over_trajectories(
-        self, map_func: Callable[[Trajectory], T], result_as_dict=False, result_var_name:str='result'
+        self,
+        map_func: Callable[[Trajectory], T],
+        result_as_dict=False,
+        result_var_name: str = 'result',
     ) -> Self | dict:
         """Method to apply a function to all trajectories in this subtree.
 
