@@ -4,7 +4,7 @@ import tempfile
 
 import numpy as np
 
-from shnitsel.core.postprocess import to_xyz, traj_to_xyz
+from shnitsel.bridges import traj_to_xyz
 
 _tcl_script_path = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), 'script.tcl'
