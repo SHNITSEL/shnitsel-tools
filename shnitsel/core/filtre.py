@@ -1,6 +1,7 @@
 import numpy as np
 import xarray as xr
 
+from shnitsel.core.midx import mdiff
 from .._contracts import needs
 
 # link functions that have moved:
@@ -15,10 +16,10 @@ def energy_filtranda(frames: xr.Dataset) -> xr.Dataset:
     res['etot_drift'] = (
         res['e_tot'].groupby('trajid').map(lambda traj: abs(traj - traj.isel(frame=0)))
     )
-    res['ekin_step'] = res['e_kin'].sh.sudi()
-    res['epot_step'] = res['e_pot'].sh.sudi()
-    res['etot_step'] = res['e_tot'].sh.sudi()
-    res['is_hop'] = frames['astate'].sh.sudi() != 0
+    res['ekin_step'] = mdiff(res['e_kin'])
+    res['epot_step'] = mdiff(res['e_pot'])
+    res['etot_step'] = mdiff(res['e_tot'])
+    res['is_hop'] = mdiff(frames['astate']) != 0
 
     return res
 
