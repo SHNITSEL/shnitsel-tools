@@ -2,6 +2,12 @@ import inspect
 import logging
 from typing import Callable, Dict, List
 
+import shnitsel.bridges
+import shnitsel.core.convenience
+import shnitsel.core.midx
+import shnitsel.core.numeric
+import shnitsel.core.stats
+
 
 def generate_class_code(classes: Dict[str, List[Callable]]) -> str:
     """
@@ -208,15 +214,15 @@ def main():
         st.postprocess.norm,
         st.postprocess.subtract_combinations,
         st.postprocess.pairwise_dists_pca,
-        st.postprocess.sudi,
+        shnitsel.core.midx.mdiff,
         st.postprocess.hop_indices,
         st.postprocess.relativize,
         st.postprocess.ts_to_time,
-        st.postprocess.keep_norming,
+        shnitsel.core.numeric.keep_norming,
         st.postprocess.calc_ci,
         st.postprocess.time_grouped_ci,
-        st.postprocess.to_xyz,
-        st.postprocess.traj_to_xyz,
+        shnitsel.bridges.to_xyz,
+        shnitsel.bridges.traj_to_xyz,
         st.postprocess.dihedral,
         st.postprocess.angle,
         st.postprocess.distance,
@@ -268,14 +274,14 @@ def main():
 
     ds_funcs = [
         # postprocess
-        st.postprocess.pca_and_hops,
+        shnitsel.core.convenience.pca_and_hops,
         st.postprocess.validate,
         st.postprocess.ts_to_time,
         st.postprocess.setup_frames,
         st.postprocess.assign_fosc,
         st.postprocess.ds_broaden_gauss,
-        st.postprocess.get_per_state,
-        st.postprocess.get_inter_state,
+        shnitsel.core.stats.get_per_state,
+        shnitsel.core.stats.get_inter_state,
         st.postprocess.calc_pops,
         st.postprocess.find_hops,
         st.postprocess.default_mol,
