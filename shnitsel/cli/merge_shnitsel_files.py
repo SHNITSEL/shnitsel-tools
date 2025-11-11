@@ -4,8 +4,8 @@ import pathlib
 import sys
 
 import shnitsel
-from shnitsel.data.shnitsel_db.db_compound_group import CompoundInfo
 from shnitsel.data.shnitsel_db_format import ShnitselDB, build_shnitsel_db
+from pprint import pprint
 
 
 def main():
@@ -67,6 +67,7 @@ def main():
     merged_trajectory = None
 
     for input_path in input_paths:
+        input_path = pathlib.Path(input_path)
         if not input_path.exists():
             logging.error(f"Input path {input_path} does not exist")
             sys.exit(1)
@@ -82,6 +83,7 @@ def main():
             )
             sys.exit(1)
         else:
+            pprint(trajectory)
             if not isinstance(trajectory, ShnitselDB):
                 trajectory = build_shnitsel_db(trajectory)
             if merged_trajectory is None:
@@ -100,7 +102,6 @@ def main():
     print(f"Present compounds: {list_compounds}")
     print(f"Number of Trajectories: {num_trajectories}")
 
-    from pprint import pprint
 
     print("Resulting trajectory:")
     pprint(merged_trajectory)
