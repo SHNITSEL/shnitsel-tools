@@ -31,9 +31,8 @@ _time_unit_scales = {
     time.femto_seconds: si.fs,
     time.nano_seconds: si.fs * 1e6,
     time.seconds: si.second,
-    "seconds": si.second * 1e-12,
-    # TODO: FIXME: set actual atomic time unit possibly:  si._aut
-    time.au: si._aut,
+    "seconds": si.second,
+    time.au: si.AUT,
     # ASE uses this time unit: Ang/sqrt(u/eV) which might differ slightly from 10fs
     time.ase_time_units: si.Angstrom / np.sqrt(si._amu / si.eV),
 }
