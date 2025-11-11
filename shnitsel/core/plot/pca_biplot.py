@@ -2,38 +2,17 @@ from dataclasses import dataclass
 import numpy as np
 import xarray as xr
 import matplotlib as mpl
-import matplotlib.pyplot as plt
 
 from matplotlib.axes import Axes
-from matplotlib.figure import Figure, SubFigure
 
 from scipy import stats
 
-import rdkit  # type: ignore
-import PIL
-import io
+from shnitsel.core.numeric import norm, subtract_combinations
+from shnitsel.core.ml import pca
 
-from .. import postprocess as P
+from .common import figax, extrude, mpl_imshow_png
+from ...vis.rdkit import highlight_pairs
 
-
-def figax(
-    fig: Figure | SubFigure | None = None,
-    ax: Axes | None = None,
-) -> tuple[Figure | SubFigure, Axes]:
-    """
-    Create figure and axes-object if an axes-object is not supplied.
-    """
-    if fig is None and ax is None:
-        fig, ax = plt.subplots(1, 1)
-    elif fig is None:
-        assert ax is not None
-        fig = ax.figure
-    elif ax is None:
-        ax = fig.subplots(1, 1)
-
-    assert isinstance(fig, Figure) or isinstance(fig, SubFigure)
-    assert isinstance(ax, Axes)
-    return fig, ax
 
 def plot_noodleplot(
     noodle,
@@ -112,9 +91,9 @@ def plot_noodleplot_lines(noodle, #hops,
     return ax
 
 def get_loadings(frames):
-    atXYZ = P.subtract_combinations(frames['atXYZ'], 'atom', labels=True)
-    atXYZ = P.norm(atXYZ)
-    _, pca_obj = P.pca(atXYZ, 'atomcomb', return_pca_object=True)
+    atXYZ = subtract_combinations(frames['atXYZ'], 'atom', labels=True)
+    atXYZ = norm(atXYZ)
+    _, pca_obj = pca(atXYZ, 'atomcomb', return_pca_object=True)
     return xr.DataArray(
       data=pca_obj.components_,
       dims=['PC', 'atomcomb'],
@@ -132,13 +111,6 @@ def plot_loadings(ax, loadings):
         a1, a2 = int(pcs['from']), int(pcs['to'])
         ax.text(pc1, pc2, f"{a1},{a2}")
 
-def show_atom_numbers(atXYZ, charge=None, covFactor=1.5, to2D=True):
-    mol = P.to_mol(atXYZ, charge=charge, covFactor=covFactor, to2D=to2D)
-
-    for i, atom in enumerate(mol.GetAtoms()):
-        atom.SetProp("atomLabel", str(atom.GetIdx()))
-
-    return mol
 
 def cluster_general(decider, n):
     clustered = np.full((n,), False)
@@ -184,36 +156,6 @@ def plot_clusters(loadings, clusters, ax=None, labels=None):
         ax.arrow(0, 0, x, y)
         ax.text(x, y, s)
 
-def highlight_pairs(mol, pairs):
-    d = rdkit.Chem.Draw.rdMolDraw2D.MolDraw2DCairo(320, 240)
-    # colors = iter(mpl.colormaps['tab10'](range(10)))
-    colors = iter(mpl.colormaps['rainbow'](np.linspace(0, 1, len(pairs))))
-
-    acolors: dict[int, list[tuple[float, float, float]]] = {}
-    bonds = {}
-    for a1, a2 in pairs:
-        if (bond := mol.GetBondBetweenAtoms(a1, a2)) is not None:
-            bonds[bond.GetIdx()] = [(1, 0.5, 0.5)]
-        else:
-            c = tuple(next(colors))
-            for a in [a1, a2]:
-                if a not in acolors:
-                    acolors[a] = []
-                acolors[a].append(c)
-            
-    # d.drawOptions().fillHighlights = False
-    d.drawOptions().setBackgroundColour((0.8, 0.8, 0.8, 0.5))
-    d.drawOptions().padding = 0
-
-    d.DrawMoleculeWithHighlights(
-        mol,
-        '',
-        acolors,
-        bonds,
-        {}, {}, -1
-    )
-    d.FinishDrawing()
-    return d.GetDrawingText()
 
 def get_clusters_coords(loadings, atomcomb_clusters):
     return np.array([
@@ -260,36 +202,6 @@ def filter_cluster_coords(coords, n):
     splay = [abs(avg-angle) for angle in angles]
     return res.union(np.argsort(splay)[-2:])
 
-def extrude(x, y, xmin, xmax, ymin, ymax):
-    # for extrusion, flip negative rays into quadrant 1
-    if x < 0:
-        xlim = -xmin # positive
-        xsgn = -1
-    else:
-        xlim = xmax
-        xsgn = 1
-    if y < 0:
-        ylim = -ymin # positive
-        ysgn = -1
-    else:
-        ylim = ymax
-        ysgn = 1
-    # now extrude
-    x2 = abs(ylim*x/y)  # try extruding till we reach the top
-    if x2 <= xlim: # have we dropped off the right?
-        y2 = ylim  # if not, go with this
-    else:          # but if we would have dropped off the right
-        x2 = xlim  # just go as far right as possible instead   
-        y2 = abs(xlim*y/x)
-    return x2*xsgn, y2*ysgn
-
-def mpl_imshow_png(ax, png, **imshow_kws):
-    buffer = io.BytesIO()
-    buffer.write(png)
-    buffer.seek(0)
-    img_array = np.array(PIL.Image.open(buffer))
-    ax.axis('off')
-    return ax.imshow(img_array, rasterized=True, **imshow_kws)
 
 def plot_clusters2(ax, loadings, clusters, mol, min_angle=10, inset_scale=1, show_at_most=None):
     points = get_clusters_coords(loadings, clusters)
