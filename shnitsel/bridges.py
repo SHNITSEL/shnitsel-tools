@@ -1,14 +1,15 @@
 """This submodule contains functions used to interface with other packages and programs, especially RDKit."""
 
-from typing import Literal
+from typing import Literal, TypeAlias
 
 import numpy as np
 import xarray as xr
 from rdkit import Chem as rc
 
 from shnitsel._contracts import needs
-from shnitsel.core.postprocess import AtXYZ
 from shnitsel.rd import set_atom_props, mol_to_numbered_smiles
+
+AtXYZ: TypeAlias = xr.DataArray
 
 
 @needs(dims={'atom', 'direction'}, coords_or_vars={'atNames'}, not_dims={'frame'})
