@@ -1,14 +1,13 @@
 from dataclasses import dataclass
 import logging
 from typing import (
-    Any,
     Callable,
-    Dict,
     List,
     Literal,
     Mapping,
     Self,
     TypeAlias,
+    TypeVar,
 )
 import numpy as np
 import xarray as xr
@@ -22,6 +21,7 @@ from .shnitsel_db import (
 )
 from shnitsel.data.trajectory_format import Trajectory
 
+T = TypeVar("T")
 
 @dataclass
 class MetaInformation:
@@ -38,6 +38,45 @@ class ShnitselDBRoot(xr.DataTree):
     def __init__(self, compounds: Mapping[str, CompoundGroup] | None = None):
         super().__init__(dataset=None, children=compounds, name="ROOT")
         self.attrs[_datatree_level_attribute_key] = "ShnitselDBRoot"
+
+    def add_trajectory_group(
+        self,
+        group_name: str,
+        filter_func_compound: Callable[[CompoundInfo], bool] | None = None,
+        filter_func_trajectories: Callable[[Trajectory|TrajectoryGroup], bool] | None = None,
+        flatten_compound_trajectories=False,
+        **kwargs,
+    ) -> Self:
+        """Function to group ungrouped trajectories into a new group based on filter conditions. 
+
+        `filter_func_compound` can be used to only generate the group for certain compounds. 
+        This parameter should be a function that only returns True if the group should be created underneath this comound.
+        `filter_func_trajectories` can be used to select only specific trajectories and groups underneath a compound to be part of this group. 
+        `flatten_compound_trajectories` can be set to `True` if existing groups within a compound are supposed to be dissolved (i.e. all trajectories gathered and put directly as children of the Compound)
+
+        Args:
+            group_name (str): The name of the group to be created.
+            filter_func_compound (Callable[[CompoundInfo], bool] | None, optional): Filter function that should return True if the group should be created for this compound. Defaults to None.
+            filter_func_trajectories (Callable[[Trajectory|TrajectoryGroup], bool] | None, optional): Filter function to determine whether a group or trajectory should be included in the new group. Defaults to None.
+            flatten_compound_trajectories (bool, optional): Flag to determine whether all trajectories under selected compounds should be ungrouped before selecting for the new group. Defaults to False.
+            **kwargs: Key-value pairs for the group that should be set in the group's key-value dict.
+
+        Returns:
+            ShnitselDB: A resulting ShnitselDB structure with the grouping applied.
+        """
+        new_children = {}
+
+        for child_key, child in self.children.items():
+            if filter_func_compound is None or filter_func_compound(
+                child.get_compound_info()
+            ):
+                new_children[child_key] = child.add_trajectory_group(
+                    group_name,
+                    filter_func_trajectories,
+                    flatten_compound_trajectories,
+                    **kwargs,
+                )
+        return type(self)(new_children)
 
     def set_compound_info(
         self, compound_info: CompoundInfo, apply_to_all=False
@@ -209,6 +248,22 @@ class ShnitselDBRoot(xr.DataTree):
 
         return type(self)(new_compounds)
 
+    def map_over_trajectories(self, map_func:Callable[[Trajectory], T], result_as_dict=False, result_var_name:str='result') -> Self|dict:
+        """Method to apply a function to all trajectories
+
+        Args:
+            map_func (Callable[[Trajectory], T]): Function to be applied to each individual trajectory in this database structure.
+            result_as_dict (bool, optional): Whether to return the result as a dict or as a ShnitselDB structure. Defaults to False which yields a ShnitselDB.
+            result_var_name (str,optional): The name of the result variable to be assigned in either the result dataset or in the result dict.
+
+        Returns:
+            ShnitselDB|dict: The result, either again as a ShnitselDB structure or as a layered dict structure.
+        """
+        if result_as_dict:
+            return {k: v.map_over_trajectories(map_func, result_as_dict) for k,v in self.children.items()}
+        else:
+            return type(self)({k: v.map_over_trajectories(map_func, result_as_dict) for k,v in self.children.items()}) # type: ignore
+        
 
 def build_shnitsel_db(
     data: Trajectory | xr.DataTree | List,

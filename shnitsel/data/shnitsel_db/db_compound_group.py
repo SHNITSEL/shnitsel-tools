@@ -1,13 +1,18 @@
 from dataclasses import dataclass
 import logging
-from typing import Callable, List, Mapping, Self
+from typing import Callable, List, Mapping, Self, TypeVar
 
-from .db_trajectory_group import TrajectoryGroup
+from shnitsel.data.shnitsel_db.helpers import traj_list_to_child_mapping
+from shnitsel.data.trajectory_format import Trajectory
+
+from .db_trajectory_group import GroupInfo, TrajectoryGroup
 
 from .db_trajectory_data import TrajectoryData
 import xarray as xr
 
 from .datatree_level import _datatree_level_attribute_key
+
+T = TypeVar("T")
 
 
 @dataclass
@@ -51,7 +56,7 @@ class CompoundGroup(xr.DataTree):
         else:
             return CompoundInfo()
 
-    def collect_trajectories(self):
+    def collect_trajectories(self) -> List[TrajectoryData]:
         """Function to retrieve all trajectories in this subtree
 
         Returns:
@@ -146,3 +151,103 @@ class CompoundGroup(xr.DataTree):
             )
         else:
             return None
+
+    def add_trajectory_group(
+        self,
+        group_name: str,
+        filter_func_trajectories: Callable[[Trajectory | GroupInfo], bool]
+        | None = None,
+        flatten_trajectories=False,
+        **kwargs,
+    ) -> Self:
+        """Function to add trajectories within this compound subtree to a `TrajectoryGroup` of trajectories.
+
+        The `group_name` will be set as the name of the group in the tree.
+        If `flatten_trajectories=True` all existing groups will be dissolved before filtering and the children will be turned into an ungrouped list of trajectories.
+        The `filter_func_trajectories` will either be applied to only the current groups and trajectories immediately beneath this compound or to the flattened list of all child directories.
+
+        Args:
+            group_name (str): The name to be set for the TrajectoryGroup object
+            filter_func_Trajectories (Callable[[Trajectory|GroupInfo], bool] | None, optional): A function to return true for Groups and individual trajectories that should be added to the new group. Defaults to None.
+            flatten_trajectories (bool, optional): A flag whether all descendant groups should be dissolved and flattened into a list of trajectories first before applying a group. Defaults to False.
+
+        Returns:
+            CompoundGroup: The restructured Compound with a new added group if at least one trajectory has satisfied the filter condition.
+        """
+        if flatten_trajectories:
+            all_traj = self.collect_trajectories()
+
+            grouped_traj = []
+            ungrouped_traj = []
+
+            if filter_func_trajectories is None:
+                # Group all
+                grouped_traj = all_traj
+            else:
+                for x in all_traj:
+                    if (
+                        isinstance(x, TrajectoryData)
+                        and filter_func_trajectories(x.dataset)
+                        or isinstance(x, TrajectoryGroup)
+                        and filter_func_trajectories(x.get_group_info())
+                    ):
+                        grouped_traj.append(x)
+                    else:
+                        ungrouped_traj.append(x)
+        else:
+            grouped_traj: List[TrajectoryGroup | TrajectoryData] = []
+            ungrouped_traj: List[TrajectoryGroup | TrajectoryData] = []
+
+            if filter_func_trajectories is None:
+                # Group all
+                grouped_traj = [x.copy() for x in self.children.values()]  # type: ignore
+            else:
+                for x in self.children.values():
+                    if (
+                        isinstance(x, TrajectoryData)
+                        and filter_func_trajectories(x.dataset)
+                        or isinstance(x, TrajectoryGroup)
+                        and filter_func_trajectories(x.get_group_info())
+                    ):
+                        grouped_traj.append(x.copy())
+                    else:
+                        ungrouped_traj.append(x.copy())
+
+        group_children = dict(traj_list_to_child_mapping(grouped_traj))
+        res_children = dict(traj_list_to_child_mapping(ungrouped_traj))
+        new_group = TrajectoryGroup(
+            GroupInfo(group_name, kwargs), group_children, group_name
+        )
+        res_children[group_name] = new_group
+
+        res = type(self)(self.get_compound_info(), res_children)
+        return res
+
+    def map_over_trajectories(
+        self, map_func: Callable[[Trajectory], T], result_as_dict=False, result_var_name:str='result'
+    ) -> Self | dict:
+        """Method to apply a function to all trajectories in this subtree.
+
+        Args:
+            map_func (Callable[[Trajectory], T]): Function to be applied to each individual trajectory in this database structure.
+            result_as_dict (bool, optional): Whether to return the result as a dict or as a CompoundGroup structure. Defaults to False which yields a CompoundGroup.
+            result_var_name (str,optional): The name of the result variable to be assigned in either the result dataset or in the result dict.
+
+        Returns:
+            CompoundGroup|dict: The result, either again as a CompoundGroup structure or as a layered dict structure.
+        """
+        if result_as_dict:
+            res_dict = {
+                k: v.map_over_trajectories(map_func, result_as_dict)
+                for k, v in self.children.items()
+            }
+            # res_dict["_group_info"] = self.get_group_info()
+            return res_dict
+        else:
+            return type(self)(
+                self.get_compound_info(),
+                {
+                    k: v.map_over_trajectories(map_func, result_as_dict)
+                    for k, v in self.children.items()
+                },
+            )  # type: ignore
