@@ -57,7 +57,9 @@ class PyrAI2mdFormatReader(FormatReader):
         Returns:
             FormatInformation: _description_
         """
-        path_obj: pathlib.Path = make_uniform_path(path)
+        path_obj: pathlib.Path = make_uniform_path(path) # type: ignore
+        base_format_info = super().check_path_for_format_info(path_obj, hints_or_settings)
+
         _is_request_specific_to_pyrai2md = (
             hints_or_settings is not None
             and "kind" in hints_or_settings
@@ -93,7 +95,7 @@ class PyrAI2mdFormatReader(FormatReader):
         log_file_path = path_obj / log_paths[0]
 
         return PyrAI2mdFormatInformation(
-            "pyrai2md", "unkown", None, path_obj, energy_file_path, log_file_path
+            "pyrai2md", "unkown", base_format_info.trajid, path_obj, energy_file_path, log_file_path
         )
 
     def read_from_path(

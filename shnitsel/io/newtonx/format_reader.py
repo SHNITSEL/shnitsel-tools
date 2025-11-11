@@ -68,6 +68,8 @@ class NewtonXFormatReader(FormatReader):
         """
         path_obj: pathlib.Path = make_uniform_path(path)
 
+        base_format_info = super().check_path_for_format_info(path_obj, hints_or_settings)
+
         _is_request_specific_to_NewtonX = (
             hints_or_settings is not None
             and "kind" in hints_or_settings
@@ -96,6 +98,8 @@ class NewtonXFormatReader(FormatReader):
             path_based_trajid = match_attempt.group("trajid")
             format_information.trajid = int(path_based_trajid)
             logging.info(f"Assigning id {path_based_trajid} to trajectory")
+        else:
+            format_information.trajid = base_format_info.trajid
 
         return format_information
 

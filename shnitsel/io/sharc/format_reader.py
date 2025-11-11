@@ -47,6 +47,8 @@ class SHARCFormatReader(FormatReader):
         """
         path_obj = make_uniform_path(path)
 
+        base_format_info = super().check_path_for_format_info(path_obj)
+
         tmp_entries_traj = [e for e in path_obj.glob(_sharc_default_pattern_glob_traj)]
         tmp_entries_icond = [
             e for e in path_obj.glob(_sharc_default_pattern_glob_icond)
@@ -77,6 +79,10 @@ class SHARCFormatReader(FormatReader):
             FormatInformation: _description_
         """
         path_obj: pathlib.Path = make_uniform_path(path)
+
+        base_format_info = super().check_path_for_format_info(
+            path_obj, hints_or_settings
+        )
 
         _is_request_specific_to_sharc = (
             hints_or_settings is not None
@@ -170,6 +176,8 @@ class SHARCFormatReader(FormatReader):
         if match_attempt:
             path_based_trajid = match_attempt.group("trajid")
             format_information.trajid = int(path_based_trajid)
+        else:
+            format_information.trajid = base_format_info.trajid
 
         return format_information
 
