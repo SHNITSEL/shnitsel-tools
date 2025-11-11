@@ -161,6 +161,9 @@ def main():
         list_compounds = [str(k) for k in trajectory.children.keys()]
         print(f"Number of compounds in trajectory: {num_compounds}")
         print(f"Present compounds: {list_compounds}")
+        num_trajectories = len(trajectory.leaves)
+        print(f"Number of Trajectories: {num_trajectories}")
+
 
         print("Resulting trajectory:")
         pprint(trajectory)
