@@ -16,7 +16,7 @@ class GroupInfo:
     """Class to hold auxiliaryt info of a group of Trajectories in ShnitselDB"""
 
     group_name: str
-    grouped_settings: Dict[str, Any] = {}
+    grouped_settings: Dict[str, Any] | None = None
 
 
 class TrajectoryGroup(xr.DataTree):
@@ -60,7 +60,10 @@ class TrajectoryGroup(xr.DataTree):
         return res
 
     def map_over_trajectories(
-        self, map_func: Callable[[Trajectory], T], result_as_dict=False, result_var_name:str='result'
+        self,
+        map_func: Callable[[Trajectory], T],
+        result_as_dict=False,
+        result_var_name: str = 'result',
     ) -> Self | dict:
         """Method to apply a function to all trajectories in this subtree.
 
