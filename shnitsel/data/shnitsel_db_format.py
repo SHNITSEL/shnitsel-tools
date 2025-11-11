@@ -96,7 +96,7 @@ class ShnitselDBRoot(xr.DataTree):
                 Returns:
                     ShnitselDBRoot: The updated database
         """
-
+        # TODO: FIXME: Deal with clashes when flattening
         if apply_to_all:
             if len(self.children.keys()) > 1:
                 logging.warning(
@@ -112,7 +112,7 @@ class ShnitselDBRoot(xr.DataTree):
                     # Iterate over trajectories
                     key = f"{traj_counter}"
                     traj_counter += 1
-                    new_trajectories[key] = convert_shnitsel_tree(t.copy())
+                    new_trajectories[key] = t.copy()
 
             return type(self)(
                 {
@@ -128,20 +128,13 @@ class ShnitselDBRoot(xr.DataTree):
                 res_group = self.children[compound_info.compound_name].copy()
 
             if "unknown" in self.children:
-                unknown_trajectories = {}
-                traj_counter = (
-                    max(0, np.max([int(x) for x in res_group.children.keys()])) + 1
-                )
-
-                # iterate over compounds
-                for _, t in self.children["unknown"].children.items():
-                    # Iterate over trajectories
-                    key = f"{traj_counter}"
-                    traj_counter += 1
-                    unknown_trajectories[key] = convert_shnitsel_tree(t.copy())
+                unknown_trajectories = {k: v.copy() for k,v in self.children["unknown"].children.items()}
+                #traj_counter = (
+                #    max(0, np.max([int(x) for x in res_group.children.keys()])) + 1
+                #)
                 res_group.update(unknown_trajectories)
 
-            new_children: dict[str, CompoundGroup] = {**self.children}  # type: ignore
+            new_children: dict[str, CompoundGroup] = {k: v.copy() for k,v in self.children.items()}  # type: ignore
             new_children[compound_info.compound_name] = res_group  # type: ignore
 
             return type(self)(new_children)
