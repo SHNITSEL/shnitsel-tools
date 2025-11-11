@@ -5,10 +5,13 @@ from typing import TypeAlias, Literal
 import numpy as np
 import xarray as xr
 
-from .postprocess import subtract_combinations, norm, sudi
-from .midx import sel_trajs
+from .numeric import norm, subtract_combinations
+from .midx import sel_trajs, mdiff
 from .ml import pca
+
 from .._contracts import needs
+from ..units import convert_energy
+from ..io import write_shnitsel_file
 
 AtXYZ: TypeAlias = xr.DataArray
 Frames: TypeAlias = xr.Dataset
@@ -39,48 +42,13 @@ def pairwise_dists_pca(atXYZ: AtXYZ, **kwargs) -> xr.DataArray:
     return res
 
 
-@needs(coords_or_vars={'atXYZ', 'astate'})
-def pca_and_hops(frames: xr.Dataset) -> tuple[xr.DataArray, xr.DataArray]:
-    """Get PCA points and info on which of them represent hops
 
-    Parameters
-    ----------
-    frames
-        A Dataset containing 'atXYZ' and 'astate' variables
-
-    Returns
-    -------
-    pca_res
-        The PCA-reduced pairwise interatomic distances
-    hops_pca_coords
-        `pca_res` filtered by hops, to facilitate marking hops when plotting
-
-    """
-    pca_res = pairwise_dists_pca(frames['atXYZ'])
-    mask = sudi(frames['astate']) != 0
-    hops_pca_coords = pca_res[mask]
-    return pca_res, hops_pca_coords
 
 
 def relativize(da: xr.DataArray, **sel) -> xr.DataArray:
     res = da - da.sel(**sel).min()
     res.attrs = da.attrs
     return res
-
-
-def hop_indices(astates: xr.DataArray) -> xr.DataArray:
-    """Find in which frames the active state changes
-
-    Parameters
-    ----------
-    astates
-        A DataArray of state indicators
-
-    Returns
-    -------
-        A boolean DataArray indicating whether a hop took place
-    """
-    return sudi(astates) != 0
 
 
 @needs(coords={'ts'})
@@ -275,8 +243,31 @@ def save_split(
     for i, ds in enumerate(dss):
         current_path = path_template.format(i)
         try:
-            save_frames(ds, current_path, complevel=complevel)
+            write_shnitsel_file(ds, current_path, complevel=complevel)
         except Exception as e:
             logging.error(f"Exception while saving to {current_path=}")
             if not ignore_errors:
                 raise e
+
+
+@needs(coords_or_vars={'atXYZ', 'astate'})
+def pca_and_hops(frames: xr.Dataset) -> tuple[xr.DataArray, xr.DataArray]:
+    """Get PCA points and info on which of them represent hops
+
+    Parameters
+    ----------
+    frames
+        A Dataset containing 'atXYZ' and 'astate' variables
+
+    Returns
+    -------
+    pca_res
+        The PCA-reduced pairwise interatomic distances
+    hops_pca_coords
+        `pca_res` filtered by hops, to facilitate marking hops when plotting
+
+    """
+    pca_res = pairwise_dists_pca(frames['atXYZ'])
+    mask = mdiff(frames['astate']) != 0
+    hops_pca_coords = pca_res[mask]
+    return pca_res, hops_pca_coords
