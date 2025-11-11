@@ -28,7 +28,6 @@ def finalize_loaded_trajectory(
     if dataset is not None:
         if isinstance(dataset, xr.Dataset):
             # TODO: FIXME: use loading_parameters to configure state names
-            # TODO: FIXME: use loading_parameters to configure state names
             dataset = set_state_defaults(dataset, loading_parameters)
 
             unset_vars = []
