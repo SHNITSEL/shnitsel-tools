@@ -79,6 +79,8 @@ class Converter:
                 f"Can't convert {self.quantity_name} to {to!r}, only to: {self.targets}"
             )
 
+        # print("Before:", from_, " ->", to, "(", dividend, "/", divisor, ")" ":")
+        # print(da)
         with xr.set_options(keep_attrs=True):
             res: xr.DataArray = da * dividend / divisor
 
@@ -86,6 +88,9 @@ class Converter:
         if 'original_units' not in res.attrs:
             # Set an indicator for the original units of this array
             res.attrs.update({'original_units': from_})
+
+        # print("After:", from_, " ->", to, "(", dividend, "/", divisor, ")" ":")
+        # print(res)
 
         return res
 
@@ -184,7 +189,12 @@ def convert_all_units_to_shnitsel_defaults(data: xr.Dataset) -> xr.Dataset:
         )
 
     logging.debug("Converting: " + str(list(new_vars.keys())))
-    return data.assign(new_vars)
+    # TODO: FIXME: Somehow this assignment results in all NAN entries
+    print(repr(data))
+    tmp = data.assign(new_vars)
+    print(repr(new_vars))
+    print(repr(tmp))
+    return tmp
 
 
 _CONVERTERS: Dict[str, Callable[[xr.DataArray, str], xr.DataArray]] = {
