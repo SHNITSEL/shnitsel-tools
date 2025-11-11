@@ -72,6 +72,7 @@ def parse_pyrai2md(
     state_types = np.array(settings["global"]["Multiplicity"])
 
     nstates = len(state_ids)
+    # TODO: FIXME: This sounds somewhat wrong in relation to how we set the state names. There are not enough states for ntriplets*3 T states!
     nsinglets = np.sum(state_types == 1)
     ndoublets = np.sum(state_types == 2)
     ntriplets = np.sum(state_types == 3)
@@ -107,6 +108,10 @@ def parse_pyrai2md(
     )
     mark_variable_assigned(trajectory["time"])
     mark_variable_assigned(trajectory["state_types"])
+    # print(repr(trajectory))
+    # print(repr(trajectory.energy))
+    # print(repr(trajectory.forces))
+    # print(repr(trajectory.atXYZ))
 
     # Set all settings we require to be present on the trajectory
     required_settings = RequiredTrajectorySettings(
@@ -152,6 +157,8 @@ def parse_md_energies(
     energy = df.loc[:, 4:].values
     # nstates = len(energy.columns)
     times = df.index.values  # df.loc[:, 0].values
+    # print("E:", energy)
+    # print("t:", times)
 
     num_ts = df.shape[0]
 
@@ -505,11 +512,14 @@ def parse_observables_from_log(
         )
 
     real_max_ts = explicit_ts.max()
+    print("astate:", astate)
     trajectory_in["astate"].values = astate
     mark_variable_assigned(trajectory_in["astate"])
 
+    print("forces:", forces)
     trajectory_in["forces"].values = forces
     mark_variable_assigned(trajectory_in["forces"])
+    print("atXYZ:", atXYZ)
     trajectory_in["atXYZ"].values = atXYZ
     mark_variable_assigned(trajectory_in["atXYZ"])
     trajectory_in.attrs["completed"] = (
