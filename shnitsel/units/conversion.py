@@ -79,8 +79,6 @@ class Converter:
                 f"Can't convert {self.quantity_name} to {to!r}, only to: {self.targets}"
             )
 
-        print(from_, "->", to, ": /", divisor, "*", dividend)
-
         with xr.set_options(keep_attrs=True):
             res: xr.DataArray = da * dividend / divisor
 
