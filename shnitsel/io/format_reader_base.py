@@ -266,7 +266,6 @@ class FormatReader(ABC):
                 if callable(state_names_override):
                     get_state_name_callable = state_names_override
                 elif isinstance(state_names_override, list):
-
                     def tmp_state_assigner(dataset: xr.Dataset) -> xr.Dataset:
                         dataset = dataset.assign_coords(
                             {
