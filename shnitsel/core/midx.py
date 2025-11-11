@@ -408,3 +408,31 @@ def stack_trajs(unstacked: xr.Dataset | xr.DataArray) -> xr.Dataset | xr.DataArr
         .assign(per_traj_vars)
         .assign(per_time_vars)
     )
+
+
+@needs(dims={'frame'})
+def mdiff(da: xr.DataArray) -> xr.DataArray:
+    """Take successive differences along the 'frame' dimension
+
+    Parameters
+    ----------
+    da
+        An ``xarray.DataArray`` with a 'frame' dimension corresponding
+        to a ``pandas.MultiIndex`` of which the innermost level is 'time'.
+
+    Returns
+    -------
+        An ``xarray.DataArray`` with the same shape, dimension names etc.,
+        but with the data of the (i)th frame replaced by the difference between
+        the original (i+1)th and (i)th frames, with zeros filling in for both the
+        initial frame and any frame for which time = 0, to avoid taking differences
+        between the last and first frames of successive trajectories.
+    """
+    res = xr.apply_ufunc(
+        lambda arr: np.diff(arr, prepend=np.array(arr[..., [0]], ndmin=arr.ndim)),
+        da,
+        input_core_dims=[['frame']],
+        output_core_dims=[['frame']],
+    )
+    res[{'frame': res['time'] == 0}] = 0
+    return res
