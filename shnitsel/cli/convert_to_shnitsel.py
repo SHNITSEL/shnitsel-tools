@@ -4,6 +4,8 @@ import pathlib
 import sys
 
 import shnitsel
+from shnitsel.data.shnitsel_db.db_compound_group import CompoundInfo
+from shnitsel.data.shnitsel_db_format import ShnitselDB, build_shnitsel_db
 
 
 def main():
@@ -21,10 +23,33 @@ def main():
     )
 
     argument_parser.add_argument(
-        "-o", "--output_path",
+        "-p",
+        "--pattern",
+        help="A glob pattern to use to identify subdirectories from which trajectories should be read. E.g. `TRAJ_*`.",
+    )
+
+    argument_parser.add_argument(
+        "-o",
+        "--output_path",
         default=None,
         type=str,
         help="The path to put the converted shnitsel file to. if not provided will be the base name of the directory input_path is pointing to extended with `.nc` suffix. Should end on `.nc` or will be extended with `.nc`",
+    )
+
+    argument_parser.add_argument(
+        "-c",
+        "--compound_name",
+        default=None,
+        type=str,
+        help="The name of the compound group to add the read trajectories to. E.g. `R02` or `I01`.",
+    )
+
+    argument_parser.add_argument(
+        "-g",
+        "--group_name",
+        default=None,
+        type=str,
+        help="If set, all read trajectories will be added to a group of this name. This allows for differentiation between different trajectories within the same compound.",
     )
 
     argument_parser.add_argument(
@@ -33,8 +58,9 @@ def main():
         required=False,
         type=str,
         default=None,
-        help="Optionally an indication of the kind of trajectory you want to read, `shnitsel`, `sharc`, `newtonx`, `pyrai2md`. Will be guessed based on directory contents if not provided.",
+        help="Optionally an indication of the kind of trajectory you want to read, `shnitsel`, `sharc`, `newtonx`, `pyrai2md`. Will be guessed based on directory contents if not provided. If not set, the conversion may fail if ambiguous trajectory formats are found within the folder.",
     )
+
     argument_parser.add_argument(
         "--loglevel",
         "-log",
@@ -47,13 +73,16 @@ def main():
 
     input_path = pathlib.Path(args.input_path)
     input_kind = args.kind
+    input_path_pattern = args.pattern
+    input_group = args.group_name
+    input_compound = args.compound_name
 
     output_path = args.output_path
     loglevel = args.loglevel
 
     logging.basicConfig()
 
-    logging.getLogger().setLevel( logging._nameToLevel[loglevel.upper()])    
+    logging.getLogger().setLevel(logging._nameToLevel[loglevel.upper()])
 
     if output_path is None:
         output_path = input_path / (input_path.name + ".nc")
@@ -72,9 +101,12 @@ def main():
         logging.error(f"Input path {input_path} does not exist")
         sys.exit(1)
 
-    trajectory = shnitsel.io.read(input_path, kind=input_kind)
+    trajectory = shnitsel.io.read(
+        input_path, sub_pattern=input_path_pattern, concat_method="db", kind=input_kind
+    )
 
     from pprint import pprint
+
     if trajectory is None:
         logging.error("Trajectory failed to load.")
         sys.exit(1)
@@ -84,6 +116,23 @@ def main():
         )
         sys.exit(1)
     else:
+        if not isinstance(trajectory, ShnitselDB):
+            trajectory = build_shnitsel_db(trajectory)
+
+        compound_info = CompoundInfo()
+        if input_compound:
+            compound_info.compound_name = input_compound
+            trajectory = trajectory.set_compound_info(compound_info=compound_info)
+
+        if input_group:
+            trajectory = trajectory.add_trajectory_group(input_group)
+
+        num_compounds = len(trajectory.children)
+        list_compounds = [str(k) for k in trajectory.children.keys()]
+        print(f"Number of compounds in trajectory: {num_compounds}")
+        print(f"Present compounds: {list_compounds}")
+
+        print(f"Resulting trajectory:")
         pprint(trajectory)
         shnitsel.io.write_shnitsel_file(trajectory, output_path)
         sys.exit(0)
