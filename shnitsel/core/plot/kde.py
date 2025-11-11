@@ -4,9 +4,11 @@ import numpy as np
 from scipy import stats
 import matplotlib.pyplot as plt
 
-from shnitsel.core import postprocess as P
+from shnitsel.core.convenience import pca_and_hops
+from shnitsel.core.geom import distance, angle, dihedral
 from shnitsel.core.plot import pca_biplot as pb
-from shnitsel.core.plot.pca_biplot import figax
+from shnitsel.core.plot.common import figax
+from shnitsel.vis.rdkit import show_atom_numbers
 
 
 def fit_kdes(noodle, geo_prop, geo_filter):
@@ -122,20 +124,20 @@ def biplot_kde(
     match at1, at2, at3, at4:
         case at1, at2, None, None:
             # compute distance between atoms at1 and at2
-            geo_prop = P.distance(frames['atXYZ'], at1, at2)
+            geo_prop = distance(frames['atXYZ'], at1, at2)
             if not geo_filter:
                 geo_filter = [(0, 3), (5, 100)]
         case at1, at2, at3, None:
             # compute angle between vectors at1 - at2 and at2 - at3
             assert at3 is not None  # to satisfy the typechecker
-            geo_prop = P.angle(frames['atXYZ'], at1, at2, at3, deg=True)
+            geo_prop = angle(frames['atXYZ'], at1, at2, at3, deg=True)
             if not geo_filter:
                 geo_filter = [(0, 80), (110, 180)]
         case at1, at2, at3, at4:
             # compute dihedral defined as angle between normals to planes (at1, at2, at3) and (at2, at3, at4)
             assert at3 is not None
             assert at4 is not None
-            geo_prop = P.dihedral(frames['atXYZ'], at1, at2, at3, at4, deg=True)
+            geo_prop = dihedral(frames['atXYZ'], at1, at2, at3, at4, deg=True)
             if not geo_filter:
                 geo_filter = [(0, 80), (110, 180)]
 
@@ -151,11 +153,11 @@ def biplot_kde(
     structaxs = structsf.subplot_mosaic('ab\ncd')
 
     # prepare data
-    noodle, hops = P.pca_and_hops(frames)
+    noodle, hops = pca_and_hops(frames)
     kde_data = fit_and_eval_kdes(noodle, geo_prop, geo_filter, fineness=100)
     d = pb.pick_clusters(frames, nbins=4)
     loadings, clusters, picks = d['loadings'], d['clusters'], d['picks']
-    mol = pb.show_atom_numbers(frames['atXYZ'].isel(frame=0))
+    mol = show_atom_numbers(frames['atXYZ'].isel(frame=0))
 
     if scatter_color == 'time':
         noodleplot_c = None
