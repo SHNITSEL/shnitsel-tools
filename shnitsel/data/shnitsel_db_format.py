@@ -147,14 +147,25 @@ class ShnitselDBRoot(xr.DataTree):
             return type(self)(new_children)
 
     def apply_trajectory_setup_properties(self, properties: MetaInformation) -> None:
+        """Method to apply attributes on all trajectories in this tree
+
+        Args:
+            properties (MetaInformation): The attributes to set with their respective values.
+        """
         if len(self.children.keys()) > 1:
             logging.error(
                 "Cannot set trajectory setup properties if more than one compound is registered in database. Please set properties on each compound individually"
             )
             return
+        
+        props = {}
+
+        for k,v in properties.__dict__.items():
+            if v is not None:
+                props[k] = v
 
         for leaf in self.leaves:
-            leaf.dataset.attrs.update(properties.__dataclass_fields__)
+            leaf.dataset.attrs.update(props)
 
     def merge_with(self, other: Self) -> Self:
         """Function to merge two ShnitselDBRoots into one
