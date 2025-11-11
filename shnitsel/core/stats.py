@@ -1,3 +1,4 @@
+from logging import warning
 from typing import Hashable, TypeAlias
 
 import numpy as np
@@ -5,10 +6,15 @@ import numpy.typing as npt
 import scipy.stats as st
 import xarray as xr
 
-from .._contacts import needs
+from . import xrhelpers, assign_fosc
+from .numeric import keep_norming, subtract_combinations as subtract_combinations
+
+from .._contracts import needs
 
 DimName: TypeAlias = Hashable
-
+Frames: TypeAlias = xr.Dataset
+InterState: TypeAlias = xr.Dataset
+PerState: TypeAlias = xr.Dataset
 
 #####################################################
 # For calculating confidence intervals, the following
@@ -51,3 +57,61 @@ def time_grouped_ci(x: xr.DataArray, confidence: float = 0.9) -> xr.Dataset:
     return x.groupby('time').map(
         lambda x: xr_calc_ci(x, dim='frame', confidence=confidence)
     )
+
+
+@needs(dims={'state'})
+def get_per_state(frames: Frames) -> PerState:
+    props_per = {'energy', 'forces', 'dip_perm'}.intersection(frames.keys())
+    per_state = frames[props_per].map(keep_norming, keep_attrs=False)
+    per_state['forces'] = per_state['forces'].where(per_state['forces'] != 0)
+
+    per_state['energy'].attrs['long_name'] = r'$E$'
+    per_state['forces'].attrs['long_name'] = r'$\mathbf{F}$'
+    if 'dip_perm' in per_state:
+        per_state['dip_perm'].attrs['long_name'] = r'$\mathbf{\mu}_i$'
+    return per_state
+
+
+def get_inter_state(frames: Frames) -> InterState:
+    prop: Hashable
+
+    if 'statecomb' in frames:
+        # TODO: FIXME: Appropriately remove the 'statecomb' indices and coordinates from the Dataset
+        warning(
+            "'statecomb' already exists as an index, variable or coordinate"
+            " in the dataset, hence it will be removed before recomputation"
+        )
+
+    iprops = []
+    # TODO: FIXME: check if astate is the correct variable to reference here
+    for prop in ['energy', 'nacs', 'astate', 'dip_trans']:
+        if prop in frames:
+            iprops.append(prop)
+        else:
+            warning(f"Dataset does not contain variable '{prop}'")
+
+    inter_state = frames[iprops]
+    for prop in inter_state:
+        if 'state' in inter_state[prop].dims:
+            inter_state[prop] = subtract_combinations(
+                inter_state[prop], dim='state', labels=True
+            )
+    inter_state = inter_state.map(keep_norming)
+
+    def state_renamer(lo, hi):
+        if isinstance(lo, int):
+            lower_str = f"S_{lo-1}"
+        else:
+            lower_str = lo
+        if isinstance(hi, int):
+            higher_str = f"S_{hi-1}"
+        else:
+            higher_str = hi
+        f'${higher_str} - {lower_str}$'
+
+    inter_state = xrhelpers.flatten_midx(inter_state, 'statecomb', state_renamer)
+    if {'energy', 'dip_trans'}.issubset(iprops):
+        inter_state = assign_fosc(inter_state)
+
+    inter_state['statecomb'].attrs['long_name'] = "State combinations"
+    return inter_state
