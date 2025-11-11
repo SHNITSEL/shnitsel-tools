@@ -42,6 +42,27 @@ class NumpyDataEncoder(json.JSONEncoder):
         return json.JSONEncoder.default(self, o)
 
 
+def ndarray_to_json_ser(value):
+    return {"__ndarray:": {"entries": value.tolist(), "dtype": value.dtype.descr}}
+
+
+def _prepare_datatree(node: xr.DataTree) -> xr.DataTree:
+    cleaned_node = node.copy()
+
+    if cleaned_node.dataset is not None:
+        cleaned_node.dataset = _prepare_dataset(cleaned_node.dataset)
+
+    cleaned_node = cleaned_node.assign(
+        {k: _prepare_datatree(v) for k, v in cleaned_node.children.items()}
+    )
+
+    if "__attrs_json_encoded" not in cleaned_node.attrs:
+        encode_attrs(cleaned_node)
+
+    cleaned_node.attrs["__attrs_json_encoded"] = 1
+    return cleaned_node
+
+
 def _prepare_dataset(dataset: xr.Dataset) -> xr.Dataset:
     """Function to prepare a dataset for encoding by re-encoding most of its attributes to account for types not supported by NetCDF.
 
@@ -123,6 +144,25 @@ def _prepare_dataset(dataset: xr.Dataset) -> xr.Dataset:
     return cleaned_ds.reset_index(midx_names)
 
 
+def encode_attrs(obj):
+    remove_attrs = []
+
+    for attr in obj.attrs:
+        # Strip internal attributes
+        if str(attr).startswith("__"):
+            # logging.debug(f"Mark for removing {attr}")
+            remove_attrs.append(attr)
+        else:
+            value = obj.attrs[attr]
+            if isinstance(value, np.ndarray):
+                value = ndarray_to_json_ser(value)
+            obj.attrs[attr] = json.dumps(value, cls=NumpyDataEncoder)
+
+    for attr in remove_attrs:
+        del obj.attrs[attr]
+        logging.debug(f"Stripping attribute {attr}")
+
+
 def _dataset_to_encoding(dataset: xr.Dataset, complevel: int) -> Dict[Hashable, Any]:
     """Generate encoding information for NetCDF4 encoding from a dataset
 
@@ -170,21 +210,23 @@ def write_shnitsel_file(
     if not savepath_obj.name.endswith(".nc"):
         savepath_obj = savepath_obj.parent / (savepath_obj.name + ".nc")
 
-    if isinstance(dataset, xr.DataTree) or isinstance(dataset, ShnitselDB):
-        cleaned_tree = dataset.map_over_datasets(_prepare_dataset)
+    if isinstance(dataset, ShnitselDB):
+        cleaned_tree = _prepare_datatree(dataset)
 
         encoding = {}
         for leaf in cleaned_tree.leaves:
             if leaf.dataset is not None:
                 encoding[leaf.path] = _dataset_to_encoding(leaf.dataset, complevel)
 
-        cleaned_tree.attrs["__shnitsel_format_version"] = "v1.1"
+        cleaned_tree.attrs["__shnitsel_format_version"] = "v1.2"
+        # import pprint
 
+        # pprint.pprint(cleaned_tree)
         return cleaned_tree.to_netcdf(savepath, engine='h5netcdf', encoding=encoding)
     elif isinstance(dataset, xr.Dataset):
         cleaned_ds = _prepare_dataset(dataset)
         encoding = _dataset_to_encoding(cleaned_ds, complevel)
 
-        cleaned_ds.attrs["__shnitsel_format_version"] = "v1.1"
+        cleaned_ds.attrs["__shnitsel_format_version"] = "v1.2"
 
         return cleaned_ds.to_netcdf(savepath, engine='h5netcdf', encoding=encoding)

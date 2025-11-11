@@ -1,7 +1,6 @@
 import json
 import logging
 import os
-import pathlib
 from typing import Any, Callable, Dict, TypeVar
 import numpy as np
 import xarray as xr
@@ -43,14 +42,14 @@ def read_shnitsel_file(
     # TODO: FIXME: use loading_parameters to configure units and state names
     # The error raised for a missing file can be misleading
     try:
-        frames = xr.open_dataset(path)
+        frames = xr.open_datatree(path)
     except ValueError as ds_err:
         dataset_info = sys.exc_info()
         if not os.path.exists(path):
             raise FileNotFoundError(path)
         else:
             try:
-                frames = xr.open_datatree(path)
+                frames = xr.open_dataset(path)
             except ValueError as dt_err:
                 datatree_info = sys.exc_info()
                 message = f"Failed to load file as either Dataset or DataTree: {ds_err} \n{dataset_info}\n {dt_err}\n {datatree_info}"
@@ -160,7 +159,7 @@ def _decode_shnitsel_v1_1_dataset(dataset: xr.Dataset) -> xr.Dataset:
         for data_var in dataset.variables:
             for attr in dataset[data_var].attrs:
                 dataset[data_var].attrs[attr] = json_deserialize_ndarray(
-                    dataset.attrs[attr]
+                    dataset[data_var].attrs[attr]
                 )
 
     # Restore MultiIndexes
@@ -194,6 +193,40 @@ def _decode_shnitsel_v1_1_dataset(dataset: xr.Dataset) -> xr.Dataset:
     return dataset
 
 
+def decode_attrs(obj):
+    if "__attrs_json_encoded" in obj.attrs:
+        del obj.attrs["__attrs_json_encoded"]
+
+        def json_deserialize_ndarray(value: str) -> Any:
+            value_d = json.loads(value)
+            if isinstance(value_d, dict):
+                if "__ndarray" in value_d:
+                    config = value_d["__ndarray"]
+
+                    entries = config["entries"]
+                    dtype_descr = np.dtype([tuple(i) for i in config["dtype"]])
+
+                    value_d = np.array(entries, dtype=dtype_descr)
+            return value_d
+
+        for attr in obj.attrs:
+            obj.attrs[attr] = json_deserialize_ndarray(obj.attrs[attr])
+
+    return obj
+
+
+def _decode_shnitsel_v1_2_datatree(datatree: xr.DataTree) -> xr.DataTree:
+    res = datatree.copy()
+    if res.dataset is not None:
+        res.dataset = _decode_shnitsel_v1_1_dataset(res.dataset)
+
+    res = decode_attrs(res)
+
+    return res.assign(
+        {k: _decode_shnitsel_v1_2_datatree(v) for k, v in res.children.items()}
+    )
+
+
 def _parse_shnitsel_file_v1_1(
     frames: T, loading_parameters: LoadingParameters | None = None
 ) -> T:
@@ -210,18 +243,47 @@ def _parse_shnitsel_file_v1_1(
         raise ValueError(
             "A version 1.1 shnitsel file can only contain xr.Dataset or xr.DataTree entries."
         )
+    if isinstance(frames, xr.DataTree):
+        import pprint
+
+        shnitsel_db = build_shnitsel_db(frames)
+        pprint.pprint(shnitsel_db)
+
+        # Decode json encoded attributes if json encoding is recorded
+        return shnitsel_db.map_over_trajectories(_decode_shnitsel_v1_1_dataset)  # type: ignore
     if isinstance(frames, xr.Dataset):
         # Decode json encoded attributes if json encoding is recorded
         return _decode_shnitsel_v1_1_dataset(frames)
-    elif isinstance(frames, xr.DataTree):
-        import pprint
 
+
+def _parse_shnitsel_file_v1_2(
+    frames: T, loading_parameters: LoadingParameters | None = None
+) -> T:
+    """Internal function to parse the revised shnitsel format v1.2 with better attribute encoding and more extensive unit declarations using the DataTree format.
+
+    Args:
+        frames (xr.DataTree): The loaded Dataset from the netcdf file that needs to be post-processed.
+        loading_parameters (LoadingParameters | None, optional): Optional loading parameters for setting units. Defaults to None.
+
+    Returns:
+        xr.DataTree: The post-processed shnitsel trajectory
+    """
+    if not isinstance(frames, xr.Dataset) and not isinstance(frames, xr.DataTree):
+        raise ValueError(
+            "A version 1.2 shnitsel file can only contain xr.Dataset or xr.DataTree entries."
+        )
+    if isinstance(frames, xr.DataTree):
+        # import pprint
+
+        # pprint.pprint(frames)
+        shnitsel_db = _decode_shnitsel_v1_2_datatree(frames)
+        # pprint.pprint(shnitsel_db)
+        shnitsel_db = build_shnitsel_db(shnitsel_db)
+        # pprint.pprint(shnitsel_db)
+        return shnitsel_db
+    if isinstance(frames, xr.Dataset):
         # Decode json encoded attributes if json encoding is recorded
-        decoded_frames = frames.map_over_datasets(_decode_shnitsel_v1_1_dataset)
-
-        pprint.pprint(decoded_frames)
-
-        return build_shnitsel_db(frames)
+        return _decode_shnitsel_v1_1_dataset(frames)
 
 
 __SHNITSEL_READERS: Dict[
@@ -232,4 +294,5 @@ __SHNITSEL_READERS: Dict[
 ] = {
     "v1.0": _parse_shnitsel_file_v1_0,
     "v1.1": _parse_shnitsel_file_v1_1,
+    "v1.2": _parse_shnitsel_file_v1_2,
 }
