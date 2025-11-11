@@ -54,6 +54,11 @@ def set_state_defaults(
     dataset: xr.Dataset, loading_parameters: LoadingParameters | None
 ) -> xr.Dataset:
     # TODO: FIXME: apply configured names from loading_parameters
+    if "num_singlets" not in dataset.attrs or "num_doublets" not in dataset.attrs or "num_triplets" not in dataset.attrs:
+        print("Invalid format of dataset:")
+        print(repr(dataset))
+        raise(ValueError("Invalid Dataset input"))
+    
     nsinglets = dataset.attrs["num_singlets"]
     ndoublets = dataset.attrs["num_doublets"]
     ntriplets = dataset.attrs["num_triplets"]
