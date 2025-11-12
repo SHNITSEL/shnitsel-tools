@@ -10,7 +10,6 @@ We are currently suffering from missing input files for tests:
 - NACS in SHARC written to output.dat (settings as well?)
 - TODO: Mask array to only consider relevant data. Would allow us to limit atom, timestep, etc. Should probably be generated at loading time and not really stored.
 - TODO: Make it possible to merge a trajectory into an already multi-trajectory. May be necessary for some users or for us extending datasets in the future.
-- TODO: State name assignment is broken. Only state prefix, no state number. Multiple places where states are assigned, should only happen once.
-- TODO: FIXME: NewtonX has no state type info, breaking the state names in conversion file. NewtonX has float activestate
+
 
 
