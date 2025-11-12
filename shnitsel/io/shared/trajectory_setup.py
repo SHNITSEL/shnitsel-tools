@@ -38,6 +38,9 @@ class OptionalTrajectorySettings:
     theory_basis_set: str | None = None
     est_level: str | None = None
 
+    # To keep track of input settings we do not explicitly use anywhere else.
+    misc_input_settings: Dict|None =None
+
 
 def assign_required_settings(
     dataset: xr.Dataset, settings: RequiredTrajectorySettings

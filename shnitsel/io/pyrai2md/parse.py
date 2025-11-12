@@ -129,7 +129,8 @@ def parse_pyrai2md(
     assign_required_settings(trajectory, required_settings)
 
     optional_settings = OptionalTrajectorySettings(
-        has_forces=is_variable_assigned(trajectory["forces"])
+        has_forces=is_variable_assigned(trajectory["forces"]),
+        misc_input_settings=settings
     )
     assign_optional_settings(trajectory, optional_settings)
 

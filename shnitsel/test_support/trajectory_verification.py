@@ -8,15 +8,57 @@ from shnitsel.units.definitions import unit_dimensions
 
 # TODO: FIXME: Some attributes are turned into variables on merged trajectories.
 _required_shnitsel_variables = ["energy", "forces", "time"]
-_optional_shnitsel_variables = ["atXYZ", "nacs", "dip_perm", "dip_trans", "socs", "state_names",
-                                "state_types", "astate", "sdiag", "state2", "statecomb", "phases", "atNames", "atNums", "e_kin", "from", "to", "atom", "state", "direction", "trajid"]
-_required_shnitsel_attributes = ["input_format", "input_format_version", "input_type",
-                                 "completed", "max_ts", "delta_t", "num_singlets", "num_doublets", "num_triplets", "t_max"]
+_optional_shnitsel_variables = [
+    "atXYZ",
+    "nacs",
+    "dip_perm",
+    "dip_trans",
+    "socs",
+    "state_names",
+    "state_types",
+    "astate",
+    "sdiag",
+    "state2",
+    "statecomb",
+    "phases",
+    "atNames",
+    "atNums",
+    "e_kin",
+    "velocities",
+    "from",
+    "to",
+    "atom",
+    "state",
+    "direction",
+    "trajid",
+]
+_required_shnitsel_attributes = [
+    "input_format",
+    "input_format_version",
+    "input_type",
+    "completed",
+    "max_ts",
+    "delta_t",
+    "num_singlets",
+    "num_doublets",
+    "num_triplets",
+    "t_max",
+    "theory_basis_set",
+    "est_level",
+]
 _optional_shnitsel_attributes = [
-    "has_forces", "trajectory_input_path", "trajid", "__original_dataset", "is_multi_trajectory"]
+    "has_forces",
+    "trajectory_input_path",
+    "trajid",
+    "__original_dataset",
+    "is_multi_trajectory",
+    "misc_input_settings",
+]
 
 
-def check_shnitsel_trajectory_data(trajectory: Trajectory | xr.Dataset, report: bool = False) -> Tuple[Set[str], Set[str], Set[str], Set[str]] | None:
+def check_shnitsel_trajectory_data(
+    trajectory: Trajectory | xr.Dataset, report: bool = False
+) -> Tuple[Set[str], Set[str], Set[str], Set[str]] | None:
     """Function to check whether all required and only denoted optional variables and meta information is available on a shnitsel-loaded trajectory.
 
     Args:
@@ -49,24 +91,38 @@ def check_shnitsel_trajectory_data(trajectory: Trajectory | xr.Dataset, report: 
             unexpected_attrs.append(attr_name)
 
     # All is well
-    if len(missing_required_attrs) == 0 and len(missing_required_vars) == 0 and len(unexpected_vars) == 0 and len(unexpected_attrs) == 0:
+    if (
+        len(missing_required_attrs) == 0
+        and len(missing_required_vars) == 0
+        and len(unexpected_vars) == 0
+        and len(unexpected_attrs) == 0
+    ):
         return None
 
     if report:
         message = "Encountered errors while checking validity of trajectory:"
         if len(missing_required_vars) > 0:
-            message += f"\n Trajectory was missing required variables: {missing_required_vars}"
+            message += (
+                f"\n Trajectory was missing required variables: {missing_required_vars}"
+            )
         if len(missing_required_attrs) > 0:
             message += f"\n Trajectory was missing required attributes: {missing_required_attrs}"
         if len(unexpected_vars) > 0:
             message += f"\n Trajectory had unexpected variables set: {unexpected_vars}"
         if len(unexpected_attrs) > 0:
-            message += f"\n Trajectory had unexpected attributes set: {unexpected_attrs}"
+            message += (
+                f"\n Trajectory had unexpected attributes set: {unexpected_attrs}"
+            )
 
         logging.error(message)
         raise ValueError(message)
 
-    return (set(missing_required_vars), set(unexpected_vars), set(missing_required_attrs), set(unexpected_attrs))
+    return (
+        set(missing_required_vars),
+        set(unexpected_vars),
+        set(missing_required_attrs),
+        set(unexpected_attrs),
+    )
 
 
 def verify_trajectory_format(
