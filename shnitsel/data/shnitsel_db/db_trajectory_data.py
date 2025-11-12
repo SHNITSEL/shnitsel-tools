@@ -29,7 +29,10 @@ class TrajectoryData(xr.DataTree):
         return [self.copy()]
 
     def map_over_trajectories(
-        self, map_func: Callable[[Trajectory], T], result_as_dict=False, result_var_name:str='result'
+        self,
+        map_func: Callable[[Trajectory], T],
+        result_as_dict=False,
+        result_var_name: str = 'result',
     ) -> Self | dict:
         """Method to apply a function to all trajectories in this subtree.
 
@@ -56,4 +59,4 @@ class TrajectoryData(xr.DataTree):
             return type(self)(
                 res,
                 None,
-            ) # type: ignore
+            )  # type: ignore
