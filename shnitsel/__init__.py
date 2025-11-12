@@ -1,6 +1,5 @@
 from shnitsel import core as core, plot as plot, io as io, units as units
 from shnitsel.core import (
-    postprocess as postprocess,
     xrhelpers as xrhelpers,
     filtre as filtre,
 )
