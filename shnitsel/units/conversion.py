@@ -169,11 +169,32 @@ def convert_all_units_to_shnitsel_defaults(data: xr.Dataset) -> xr.Dataset:
     time_unit = data["time"].attrs["units"]
 
     with xr.set_options(keep_attrs=True):
-        for var_name in data.variables:
+        for var_name in data.data_vars:
             if 'unitdim' in data[var_name].attrs:
                 new_vars[var_name] = convert_datarray_with_unitdim_to_shnitsel_defaults(
                     data[var_name]
                 )
+
+    logging.debug("Converting Data: " + str(list(new_vars.keys())))
+    # NOTE: For some reason, sometimes, assigning multiple variables at once resulted in all of them being filled with NaN values. 
+    # NOTE: It may be an issue of setting the coordinate "time" before setting the variables. Split setting variables and coordinates
+    print("Before conv:\n",repr(data.energy.values))
+    tmp = data.assign(new_vars)
+    
+    new_coords = {}
+
+    with xr.set_options(keep_attrs=True):
+        for coord_name in data.coords:
+            if 'unitdim' in data[coord_name].attrs:
+                new_coords[coord_name] = convert_datarray_with_unitdim_to_shnitsel_defaults(
+                    data[coord_name]
+                )
+
+    logging.debug("Converting Coords: " + str(list(new_coords.keys())))
+    # NOTE: Alignment screws us over if we convert the time before assigning the other variables.
+    tmp = tmp.assign_coords(new_coords)
+
+    print("After conv:\n",repr(tmp.energy.values))  
 
     if "delta_t" in data.attrs:
         data.attrs["delta_t"] = convert_time.convert_value(
@@ -187,13 +208,6 @@ def convert_all_units_to_shnitsel_defaults(data: xr.Dataset) -> xr.Dataset:
             convert_from=time_unit,
             to=new_vars["time"].attrs["units"],
         )
-
-    logging.debug("Converting: " + str(list(new_vars.keys())))
-    # TODO: FIXME: Somehow this assignment results in all NAN entries
-    print(repr(data))
-    tmp = data.assign(new_vars)
-    print(repr(new_vars))
-    print(repr(tmp))
     return tmp
 
 
