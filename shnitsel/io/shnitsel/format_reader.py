@@ -100,10 +100,7 @@ class ShnitselFormatReader(FormatReader):
         """
         try:
             loaded_dataset = read_shnitsel_file(
-                path,
-                loading_parameters=self.get_loading_parameters_with_defaults(
-                    loading_parameters
-                ),
+                path, loading_parameters=loading_parameters
             )
         except FileNotFoundError as fnf_e:
             raise fnf_e
@@ -112,7 +109,7 @@ class ShnitselFormatReader(FormatReader):
             logging.error(message)
             raise FileNotFoundError(message)
 
-        return loaded_dataset # type: ignore # We know that the result of read_shnitsel_file is meant to be a ShnitselDB or single Trajectory
+        return loaded_dataset  # type: ignore # We know that the result of read_shnitsel_file is meant to be a ShnitselDB or single Trajectory
 
     def get_units_with_defaults(
         self, unit_overrides: Dict[str, str] | None = None

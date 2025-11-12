@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+import logging
 import pathlib
 import re
 from typing import Callable, Dict, List
@@ -102,7 +103,7 @@ class FormatReader(ABC):
         path: pathlib.Path,
         format_info: FormatInformation,
         loading_parameters: LoadingParameters | None = None,
-    ) -> xr.Dataset | ShnitselDB| None:
+    ) -> xr.Dataset | ShnitselDB | None:
         """Method to read a path of the respective format (e.g. ) into a shnitsel-conform trajectory.
 
         The return value of type `Trajectory` is a wrapper for the raw `xarray.Dataset` read from the `path`.
@@ -155,7 +156,7 @@ class FormatReader(ABC):
             loading_parameters
         )
 
-        path_obj: pathlib.Path = make_uniform_path(path)
+        path_obj: pathlib.Path = make_uniform_path(path)  # type: ignore
 
         if path_obj is None:
             raise ValueError(
@@ -177,6 +178,11 @@ class FormatReader(ABC):
         res = self.read_from_path(path_obj, format_info, loading_parameters)
 
         if res is not None:
+            # NOTE: Do not post-process the tree like a single trajectory
+            if isinstance(res, xr.DataTree):
+                logging.debug("Skipping trajectory finalization for ShnitselDB object")
+                return res
+
             # Set some optional settings.
             optional_settings = OptionalTrajectorySettings()
             optional_settings.trajectory_input_path = path_obj.as_posix()
@@ -257,9 +263,13 @@ class FormatReader(ABC):
         """
 
         # Transform different options of input settings into a callable that assigns the values.
-        get_state_name_callable: Callable[[xr.Dataset], xr.Dataset] | None = None
-        get_state_types_callable: Callable[[xr.Dataset], xr.Dataset] | None = None
-        get_traj_id_callable: Callable[[pathlib.Path], int] | None = None
+        get_state_name_callable: Callable[[xr.Dataset], xr.Dataset] = (
+            default_state_name_assigner
+        )
+        get_state_types_callable: Callable[[xr.Dataset], xr.Dataset] = (
+            default_state_type_assigner
+        )
+        get_traj_id_callable: Callable[[pathlib.Path], int] = random_trajid_assigner
         if base_loading_parameters is not None:
             state_names_override = base_loading_parameters.state_names
             if state_names_override is not None:
@@ -281,8 +291,8 @@ class FormatReader(ABC):
                         return dataset
 
                     get_state_name_callable = tmp_state_assigner
-                else:
-                    get_state_name_callable = default_state_name_assigner
+                # else:
+                #     get_state_name_callable = default_state_name_assigner
             state_types_override = base_loading_parameters.state_types
             if state_types_override is not None:
                 if callable(state_types_override):
@@ -303,8 +313,8 @@ class FormatReader(ABC):
                         return dataset
 
                     get_state_types_callable = tmp_state_assigner
-                else:
-                    get_state_types_callable = default_state_type_assigner
+                # else:
+                #     get_state_types_callable = default_state_type_assigner
             trajid_override = base_loading_parameters.trajectory_id
             if trajid_override is not None:
                 if callable(trajid_override):
@@ -319,8 +329,10 @@ class FormatReader(ABC):
                             return -1
 
                     get_traj_id_callable = tmp_trajid_assigner
-                else:
-                    get_traj_id_callable = random_trajid_assigner
+                # else:
+                #     get_traj_id_callable = random_trajid_assigner
+        else:
+            logging.debug("No loading parameters provided to FormatReader!")
 
         return LoadingParameters(
             self.get_units_with_defaults(

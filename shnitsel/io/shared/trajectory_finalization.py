@@ -54,14 +54,26 @@ def set_state_defaults(
     dataset: xr.Dataset, loading_parameters: LoadingParameters | None
 ) -> xr.Dataset:
     # TODO: FIXME: apply configured names from loading_parameters
+
+    if is_variable_assigned(dataset.state_types) and is_variable_assigned(
+        dataset.state_names
+    ):
+        logging.debug(
+            "Types and names of state already set for dataset in finalization."
+        )
+
+        logging.debug(f"Types: {dataset.state_types}")
+        logging.debug(f"Names: {dataset.state_names}")
+        return dataset
+
+    logging.debug("Assigning default state names and/or types.")
+
     if (
         "num_singlets" not in dataset.attrs
         or "num_doublets" not in dataset.attrs
         or "num_triplets" not in dataset.attrs
     ):
-        print("Invalid format of dataset:")
-        print(repr(dataset))
-        raise (ValueError("Invalid Dataset input"))
+        logging.debug(f"Invalid format of dataset. No spin states set: {repr(dataset)}")
 
     nsinglets = dataset.attrs["num_singlets"]
     ndoublets = dataset.attrs["num_doublets"]
@@ -74,20 +86,20 @@ def set_state_defaults(
         )
         if nsinglets > 0:
             dataset.state_types[:nsinglets] = 1
-            dataset.state_names[:nsinglets] = [f"S{i}" for i in range(nsinglets)]
+            dataset.state_names[:nsinglets] = ["S" + str(i) for i in range(nsinglets)]
         if ndoublets > 0:
-            dataset.state_types[nsinglets : nsinglets + 2 * ndoublets] = 2
-            dataset.state_names[nsinglets : nsinglets + 2 * ndoublets] = [
-                f"D{i}" for i in range(2 * ndoublets)
+            dataset.state_types[nsinglets : nsinglets + ndoublets] = 2
+            dataset.state_names[nsinglets : nsinglets + ndoublets] = [
+                "D" + str(i) for i in range(ndoublets)
             ]
         if ntriplets > 0:
-            dataset.state_types[nsinglets + 2 * ndoublets :] = 3
-            dataset.state_names[nsinglets + 2 * ndoublets :] = [
-                f"T{i}" for i in range(3 * ntriplets)
+            dataset.state_types[nsinglets + ndoublets :] = 3
+            dataset.state_names[nsinglets + ndoublets :] = [
+                "T" + str(i) for i in range(3 * ntriplets)
             ]
     else:
         logging.error(
-            f"Could not determine state multiplicities and names (S/D/T): {nsinglets}/{ndoublets}/{ntriplets})"
+            f"Could not determine state multiplicities and names (S/D/T): ({nsinglets}/{ndoublets}/{ntriplets})"
         )
 
     mark_variable_assigned(dataset.state_types)

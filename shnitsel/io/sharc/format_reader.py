@@ -216,16 +216,12 @@ class SHARCFormatReader(FormatReader):
             if is_dynamic:
                 loaded_dataset = read_traj(
                     path,
-                    loading_parameters=self.get_loading_parameters_with_defaults(
-                        loading_parameters
-                    ),
+                    loading_parameters=loading_parameters,
                 )
             else:
                 loaded_dataset = read_iconds_individual(
                     path,
-                    loading_parameters=self.get_loading_parameters_with_defaults(
-                        loading_parameters
-                    ),
+                    loading_parameters=loading_parameters,
                 )
         except FileNotFoundError as fnf_e:
             raise fnf_e

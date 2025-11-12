@@ -361,13 +361,17 @@ def default_state_name_assigner(dataset: xr.Dataset) -> xr.Dataset:
         for i in range(len(type_values)):
             type_index = int(round(type_values[i]))
             assert type_index >= 1 and type_index <= 3
-            print(i, type_index, type_prefix[type_index - 1], counters[type_index - 1])
+            logging.debug(
+                f"{i}, {type_index}, {type_prefix[type_index - 1]}, {counters[type_index - 1]}"
+            )
             res_names.append(
                 type_prefix[type_index - 1] + f"{counters[type_index-1]:d}"
             )
             counters[type_index - 1] += 1
 
-        logging.info("State names assigned based on types:", type_values, res_names)
+        logging.info(
+            "State names assigned based on types:", type_values, "->", res_names
+        )
         dataset = dataset.assign_coords(
             {"state_names": ("state", res_names, dataset.state_names.attrs)}
         )

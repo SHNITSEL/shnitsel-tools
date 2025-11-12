@@ -130,9 +130,7 @@ class NewtonXFormatReader(FormatReader):
         try:
             loaded_dataset = parse_newtonx(
                 path,
-                loading_parameters=self.get_loading_parameters_with_defaults(
-                    loading_parameters
-                ),
+                loading_parameters=loading_parameters
             )
         except FileNotFoundError:
             raise

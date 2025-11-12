@@ -128,12 +128,7 @@ class PyrAI2mdFormatReader(FormatReader):
         """
 
         try:
-            loaded_dataset = parse_pyrai2md(
-                path,
-                loading_parameters=self.get_loading_parameters_with_defaults(
-                    loading_parameters
-                ),
-            )
+            loaded_dataset = parse_pyrai2md(path, loading_parameters=loading_parameters)
         except FileNotFoundError as fnf_e:
             raise fnf_e
         except ValueError as v_e:

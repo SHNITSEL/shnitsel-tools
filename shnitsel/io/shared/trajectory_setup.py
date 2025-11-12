@@ -42,7 +42,7 @@ class OptionalTrajectorySettings:
 
 
 def assign_required_settings(
-    dataset: xr.Dataset, settings: RequiredTrajectorySettings
+    dataset: xr.Dataset| xr.DataTree, settings: RequiredTrajectorySettings
 ) -> None:
     """Function to assign all required settings to the dataset.
 
@@ -56,7 +56,7 @@ def assign_required_settings(
 
 
 def assign_optional_settings(
-    dataset: xr.Dataset, settings: OptionalTrajectorySettings
+    dataset: xr.Dataset | xr.DataTree, settings: OptionalTrajectorySettings
 ) -> None:
     """Function to assign all assigned optional settings to a dataset.
 
