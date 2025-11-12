@@ -72,6 +72,8 @@ def generate_class_code(classes: Dict[str, List[Callable]]) -> str:
         'collections',
         'numpy',
         'numpy.typing as npt',
+        'os',
+        'pathlib',
         'typing',
         'sklearn',
         'rdkit',
