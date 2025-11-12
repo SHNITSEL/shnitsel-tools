@@ -1,5 +1,6 @@
 from dataclasses import asdict, dataclass
 from itertools import combinations
+import logging
 import math
 from typing import Dict, List, Literal
 
@@ -193,6 +194,7 @@ def create_initial_dataset(
     default_format_attributes = get_default_input_attributes(
         format_name, loading_parameters
     )
+    logging.debug(default_format_attributes)
 
     datavars = {
         varname: (
