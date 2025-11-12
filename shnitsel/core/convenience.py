@@ -5,7 +5,7 @@ from typing import TypeAlias, Literal
 import numpy as np
 import xarray as xr
 
-from .numeric import norm, subtract_combinations
+from .generic import norm, subtract_combinations
 from .midx import sel_trajs, mdiff
 from .ml import pca
 

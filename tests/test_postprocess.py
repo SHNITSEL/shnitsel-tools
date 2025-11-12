@@ -7,7 +7,7 @@ import xarray.testing.strategies as xrst
 import numpy as np
 import xarray as xr
 
-from shnitsel.core.numeric import norm, subtract_combinations
+from shnitsel.core.generic import norm, subtract_combinations
 from shnitsel.core.ml import pca
 from shnitsel.core.convenience import ts_to_time
 from shnitsel.io.sharc import read_traj

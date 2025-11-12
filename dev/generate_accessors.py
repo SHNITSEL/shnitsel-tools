@@ -204,7 +204,7 @@ def main():
             geom,
             midx,
             ml,
-            numeric,
+            generic,
             vmd,
             spectra,
             stats,
@@ -216,9 +216,9 @@ def main():
 
     da_funcs = [
         # postprocess
-        numeric.norm,
-        numeric.subtract_combinations,
-        numeric.keep_norming,
+        generic.norm,
+        generic.subtract_combinations,
+        generic.keep_norming,
         stats.calc_ci,
         stats.time_grouped_ci,
         bridges.to_xyz,

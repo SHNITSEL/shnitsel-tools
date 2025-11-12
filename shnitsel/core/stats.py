@@ -7,7 +7,7 @@ import scipy.stats as st
 import xarray as xr
 
 from .midx import flatten_midx
-from .numeric import keep_norming, subtract_combinations as subtract_combinations
+from .generic import keep_norming, subtract_combinations as subtract_combinations
 from .spectra import assign_fosc
 
 from .._contracts import needs

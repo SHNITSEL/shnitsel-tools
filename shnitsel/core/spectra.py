@@ -4,7 +4,7 @@ from typing import Hashable, TypeAlias
 import numpy as np
 import xarray as xr
 
-from .numeric import subtract_combinations
+from .generic import subtract_combinations
 from .._contracts import needs
 from ..units import convert_energy
 

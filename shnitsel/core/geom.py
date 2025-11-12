@@ -17,7 +17,7 @@ from shnitsel.io.helpers import (
     # get_symbol_from_atom_number # TODO FIXME: replace the __atnum2symbol__ import with this
 )
 from shnitsel.io.helpers import __atnum2symbol__ # TODO
-from .numeric import subtract_combinations, norm
+from .generic import subtract_combinations, norm
 from ..bridges import default_mol
 from .xrhelpers import expand_midx
 from .._contracts import needs

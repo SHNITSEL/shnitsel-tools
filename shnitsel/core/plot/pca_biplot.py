@@ -7,7 +7,7 @@ from matplotlib.axes import Axes
 
 from scipy import stats
 
-from shnitsel.core.numeric import norm, subtract_combinations
+from shnitsel.core.generic import norm, subtract_combinations
 from shnitsel.core.ml import pca
 
 from .common import figax, extrude, mpl_imshow_png

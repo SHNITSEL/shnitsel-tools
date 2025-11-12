@@ -10,7 +10,7 @@ from shnitsel.bridges import (
 )
 from shnitsel.core.midx import sel_trajids, mdiff
 from shnitsel.core.convenience import pairwise_dists_pca
-from shnitsel.core.numeric import norm
+from shnitsel.core.generic import norm
 from shnitsel.rd import (
     mol_to_numbered_smiles as mol_to_numbered_smiles,
     highlight_pairs,
