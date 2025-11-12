@@ -4,8 +4,9 @@ from typing import Hashable, TypeAlias
 import numpy as np
 import xarray as xr
 
-from . import postprocess as P
+from .numeric import subtract_combinations
 from .._contracts import needs
+from ..units import convert_energy
 
 DimName: TypeAlias = Hashable
 
@@ -26,9 +27,9 @@ def get_fosc(energy, dip_trans):
     """
     if 'state' in energy.dims:
         assert 'statecomb' not in energy.dims
-        energy = P.subtract_combinations(energy, 'state')
+        energy = subtract_combinations(energy, 'state')
 
-    da = _get_fosc(P.convert_energy(energy, to='hartree'), dip_trans)
+    da = _get_fosc(convert_energy(energy, to='hartree'), dip_trans)
     da.name = 'fosc'
     da.attrs['long_name'] = r"$f_{\mathrm{osc}}$"
     return da
@@ -119,7 +120,7 @@ def get_spectrum(data, t, sc, cutoff=0.01):
         diffs = np.abs(times - t)
         t = times[np.argmin(diffs)]
     data = data.sel(time=t, statecomb=sc)
-    res = P.broaden_gauss(data.energy, data.fosc, agg_dim='trajid')
+    res = broaden_gauss(data.energy, data.fosc, agg_dim='trajid')
 
     max_ = res.max().item()
     non_negligible = res.where(res > cutoff * max_, drop=True).energy
