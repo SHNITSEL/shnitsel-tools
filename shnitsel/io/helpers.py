@@ -316,10 +316,7 @@ def default_state_type_assigner(dataset: xr.Dataset) -> xr.Dataset:
     ntriplets = dataset.attrs["num_triplets"]
 
     if nsinglets >= 0 and ndoublets >= 0 and ntriplets >= 0:
-
-        logging.info(
-            "{}"
-        )
+        logging.debug(f"S/D/T = {nsinglets}/{ndoublets}/{ntriplets}")
         logging.warning(
             "We made a best-effort guess for the types/multiplicities of the individual states. "
             "Please provide a list of state types or a function to assign the state types to have the correct values assigned."
@@ -330,14 +327,12 @@ def default_state_type_assigner(dataset: xr.Dataset) -> xr.Dataset:
             dataset.state_types[nsinglets : nsinglets + ndoublets] = 2
         if ntriplets > 0:
             dataset.state_types[nsinglets + ndoublets :] = 3
-        logging.debug(f"test1: {repr(dataset)}")
         keep_attr = dataset.state_types.attrs
 
         dataset = dataset.reindex({"state_types": dataset.state_types.values})
         dataset.state_types.attrs.update(keep_attr)
 
         mark_variable_assigned(dataset.state_types)
-        logging.debug(f"Default type set: {repr(dataset)}")
     return dataset
 
 
@@ -398,11 +393,11 @@ def default_state_name_assigner(dataset: xr.Dataset) -> xr.Dataset:
                 new_name_values[:nsinglets] = [f"S{i}" for i in range(nsinglets)]
             if ndoublets > 0:
                 new_name_values[nsinglets : nsinglets + ndoublets] = [
-                    f"D{i}" for i in range( ndoublets)
+                    f"D{i}" for i in range(ndoublets)
                 ]
             if ntriplets > 0:
-                new_name_values[nsinglets +  ndoublets :] = [
-                    f"T{i}" for i in range( ntriplets)
+                new_name_values[nsinglets + ndoublets :] = [
+                    f"T{i}" for i in range(ntriplets)
                 ]
             dataset = dataset.assign_coords(
                 {"state_names": ("state", new_name_values, dataset.state_names.attrs)}
