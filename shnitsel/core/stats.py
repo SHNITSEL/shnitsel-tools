@@ -6,8 +6,9 @@ import numpy.typing as npt
 import scipy.stats as st
 import xarray as xr
 
-from . import xrhelpers, assign_fosc
+from .midx import flatten_midx
 from .numeric import keep_norming, subtract_combinations as subtract_combinations
+from .spectra import assign_fosc
 
 from .._contracts import needs
 
@@ -109,7 +110,7 @@ def get_inter_state(frames: Frames) -> InterState:
             higher_str = hi
         f'${higher_str} - {lower_str}$'
 
-    inter_state = xrhelpers.flatten_midx(inter_state, 'statecomb', state_renamer)
+    inter_state = flatten_midx(inter_state, 'statecomb', state_renamer)
     if {'energy', 'dip_trans'}.issubset(iprops):
         inter_state = assign_fosc(inter_state)
 
