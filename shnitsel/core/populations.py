@@ -38,3 +38,5 @@ def classical(frames: Frames) -> xr.DataArray:
         )
     )
     return (pops / pops.sum('state')).assign_coords(state=frames['state'])
+
+calc_pops = classical
