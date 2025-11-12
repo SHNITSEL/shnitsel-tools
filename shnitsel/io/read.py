@@ -519,18 +519,18 @@ def identify_or_check_input_kind(
             return resulting_format_info[new_specified_kind]
         else:
             # The format does not fit, but another might
-            message = f"The path `{path}` does not represent a directory of format `{kind_hint}`."
+            message = f"The path `{path}` does not represent a directory of requested format `{kind_hint}`."
             possible_formats = list(resulting_format_info.keys())
             if len(possible_formats) > 0:
                 joined_formats = ", ".join(possible_formats)
                 message += f"\n It, however, would qualify as one of the following formats: {joined_formats}"
             else:
-                message += f"\n It also didn't satisfy the conditions of any of the other known formats."
+                message += "\n It also didn't satisfy the conditions of any of the other known formats."
 
-            logging.error(message)
-            raise ValueError(
-                f"The path `{path}` is not of the denoted format {kind_hint}."
-            )
+            logging.warning(message)
+            # raise ValueError(
+            #     f"The path `{path}` is not of the denoted format {kind_hint}."
+            # )
     else:
         # If there is a unique format match, use that:
         possible_formats = list(resulting_format_info.keys())
@@ -542,15 +542,15 @@ def identify_or_check_input_kind(
             return resulting_format_info[res_format]
         elif len(possible_formats) > 1:
             joined_formats = ", ".join(possible_formats)
-            logging.error(
-                f" The path `{path}` satisfies the conditions of multiple of the known formats.: {joined_formats}. Please only provide paths containing the output data of one format."
+            logging.warning(
+                f" The path `{path}` satisfies the conditions of multiple of the known formats.: {joined_formats}. \n Please only provide paths containing the output data of one format or specify the desired output format."
             )
-            raise ValueError(
-                f"The path `{path}` is not of the denoted format {kind_hint}."
-            )
+            # raise ValueError(
+            #     f"The path `{path}` is not of the denoted format {kind_hint}."
+            # )
         else:
-            logging.error(
-                f"The path `{path}` didn't satisfy the conditions of any of the known formats. Available options are: {list(READERS.keys())}"
+            logging.warning(
+                f"The path `{path}` didn't satisfy the conditions of any of the known formats. Available options are: {list(READERS.keys())} but none matched the specific path."
             )
 
     return None
