@@ -316,6 +316,10 @@ def default_state_type_assigner(dataset: xr.Dataset) -> xr.Dataset:
     ntriplets = dataset.attrs["num_triplets"]
 
     if nsinglets >= 0 and ndoublets >= 0 and ntriplets >= 0:
+
+        logging.info(
+            "{}"
+        )
         logging.warning(
             "We made a best-effort guess for the types/multiplicities of the individual states. "
             "Please provide a list of state types or a function to assign the state types to have the correct values assigned."
@@ -371,7 +375,7 @@ def default_state_name_assigner(dataset: xr.Dataset) -> xr.Dataset:
             counters[type_index - 1] += 1
 
         logging.info(
-            "State names assigned based on types:", type_values, "->", res_names
+            "State names assigned based on types: {type_values} -> {res_names}"
         )
         dataset = dataset.assign_coords(
             {"state_names": ("state", res_names, dataset.state_names.attrs)}
