@@ -64,6 +64,7 @@ dev = [
 ]
 [project.scripts]
 convert_to_shnitsel_file = "shnitsel.cli.convert_to_shnitsel:main"
+merge_shnitsel_files = "shnitsel.cli.merge_shnitsel_files:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
