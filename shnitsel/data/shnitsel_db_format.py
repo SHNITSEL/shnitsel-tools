@@ -278,13 +278,15 @@ class ShnitselDBRoot(xr.DataTree):
         """
         if result_as_dict:
             return {
-                k: v.map_over_trajectories(map_func, result_as_dict)
+                k: v.map_over_trajectories(map_func, result_as_dict, result_var_name)
                 for k, v in self.children.items()
             }
         else:
             return type(self)(
                 {
-                    k: v.map_over_trajectories(map_func, result_as_dict)
+                    k: v.map_over_trajectories(
+                        map_func, result_as_dict, result_var_name
+                    )
                     for k, v in self.children.items()
                 }
             )  # type: ignore

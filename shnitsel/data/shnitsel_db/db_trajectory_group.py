@@ -83,7 +83,7 @@ class TrajectoryGroup(xr.DataTree):
         """
         if result_as_dict:
             res_dict = {
-                k: v.map_over_trajectories(map_func, result_as_dict)
+                k: v.map_over_trajectories(map_func, result_as_dict, result_var_name)
                 for k, v in self.children.items()
             }
             # res_dict["_group_info"] = self.get_group_info()
@@ -92,7 +92,9 @@ class TrajectoryGroup(xr.DataTree):
             return type(self)(
                 self.get_group_info(),
                 {
-                    k: v.map_over_trajectories(map_func, result_as_dict)
+                    k: v.map_over_trajectories(
+                        map_func, result_as_dict, result_var_name
+                    )
                     for k, v in self.children.items()
                 },
             )  # type: ignore
