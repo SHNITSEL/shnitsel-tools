@@ -146,7 +146,7 @@ def read_traj(
         )
 
     # TODO: FIXME: Check if the factors are correct or if we should just sum up the states?
-    nstates = nsinglets + 2 * ndoublets + 3 * ntriplets
+    nstates = nsinglets + ndoublets + ntriplets
 
     # Try other sources for the number of atoms
     if natoms is None:
@@ -175,6 +175,9 @@ def read_traj(
         nsteps, nstates, natoms, "sharc", loading_parameters
     )
 
+    keep_time_attrs = trajectory.time.attrs
+    logging.debug(f"Initial time attrs: {keep_time_attrs}")
+
     if output_path.is_file():
         # Try and parse full output from output.dat
         with open(os.path.join(traj_path, "output.dat")) as f:
@@ -198,6 +201,7 @@ def read_traj(
 
         if not is_variable_assigned(trajectory.time):
             if "time" in variables_listings:
+                logging.debug(f"Time attributes: {trajectory.time.attrs}")
                 trajectory.coords["time"] = (
                     "time",
                     variables_listings["time"],
