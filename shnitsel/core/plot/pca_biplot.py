@@ -11,7 +11,7 @@ from shnitsel.core.numeric import norm, subtract_combinations
 from shnitsel.core.ml import pca
 
 from .common import figax, extrude, mpl_imshow_png
-from ...vis.rdkit import highlight_pairs
+from ...rd import highlight_pairs
 
 
 def plot_noodleplot(

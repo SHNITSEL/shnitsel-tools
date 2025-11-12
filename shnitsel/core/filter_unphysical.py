@@ -11,8 +11,10 @@ from shnitsel.bridges import (
 from shnitsel.core.midx import sel_trajids, mdiff
 from shnitsel.core.convenience import pairwise_dists_pca
 from shnitsel.core.numeric import norm
-from shnitsel.vis.rdkit import highlight_pairs
-from shnitsel.rd import mol_to_numbered_smiles as mol_to_numbered_smiles
+from shnitsel.rd import (
+    mol_to_numbered_smiles as mol_to_numbered_smiles,
+    highlight_pairs,
+)
 
 
 def find_bonds_by_element(mol, elem1: int, elem2: int):

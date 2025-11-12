@@ -3,7 +3,8 @@ but *not* necessarily functions that *return* a Mol object."""
 
 import rdkit.Chem as rc
 import rdkit.Chem.rdDetermineBonds  # noqa: F401
-
+import matplotlib as mpl
+import numpy as np
 
 #################################################
 # Functions for converting RDKit objects to
@@ -34,3 +35,27 @@ def mol_to_numbered_smiles(mol: rc.Mol) -> str:
     return rc.MolToSmiles(mol)
 
 
+def highlight_pairs(mol, pairs):
+    d = rdkit.Chem.Draw.rdMolDraw2D.MolDraw2DCairo(320, 240)
+    # colors = iter(mpl.colormaps['tab10'](range(10)))
+    colors = iter(mpl.colormaps['rainbow'](np.linspace(0, 1, len(pairs))))
+
+    acolors: dict[int, list[tuple[float, float, float]]] = {}
+    bonds = {}
+    for a1, a2 in pairs:
+        if (bond := mol.GetBondBetweenAtoms(a1, a2)) is not None:
+            bonds[bond.GetIdx()] = [(1, 0.5, 0.5)]
+        else:
+            c = tuple(next(colors))
+            for a in [a1, a2]:
+                if a not in acolors:
+                    acolors[a] = []
+                acolors[a].append(c)
+
+    # d.drawOptions().fillHighlights = False
+    d.drawOptions().setBackgroundColour((0.8, 0.8, 0.8, 0.5))
+    d.drawOptions().padding = 0
+
+    d.DrawMoleculeWithHighlights(mol, '', acolors, bonds, {}, {}, -1)
+    d.FinishDrawing()
+    return d.GetDrawingText()

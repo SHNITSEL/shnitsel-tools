@@ -8,7 +8,7 @@ from shnitsel.core.convenience import pca_and_hops
 from shnitsel.core.geom import distance, angle, dihedral
 from shnitsel.core.plot import pca_biplot as pb
 from shnitsel.core.plot.common import figax
-from shnitsel.vis.rdkit import show_atom_numbers
+from shnitsel.bridges import to_mol
 
 
 def fit_kdes(noodle, geo_prop, geo_filter):
@@ -157,7 +157,7 @@ def biplot_kde(
     kde_data = fit_and_eval_kdes(noodle, geo_prop, geo_filter, fineness=100)
     d = pb.pick_clusters(frames, nbins=4)
     loadings, clusters, picks = d['loadings'], d['clusters'], d['picks']
-    mol = show_atom_numbers(frames['atXYZ'].isel(frame=0))
+    mol = to_mol(frames['atXYZ'].isel(frame=0), atomLabel=True)
 
     if scatter_color == 'time':
         noodleplot_c = None
