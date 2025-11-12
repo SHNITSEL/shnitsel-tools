@@ -145,7 +145,7 @@ def read_traj(
             f"Could not detect ezero offset for SHARC data from path {traj_path}. Make sure, output.dat, input or output.log are present."
         )
 
-    # TODO: FIXME: Check if the factors are correct or if we should just sum up the states?
+    # TODO: FIXME: Check if the factors 1/2/3 are correct or if we should just sum up the states?
     nstates = nsinglets + ndoublets + ntriplets
 
     # Try other sources for the number of atoms
@@ -177,6 +177,7 @@ def read_traj(
 
     keep_time_attrs = trajectory.time.attrs
     logging.debug(f"Initial time attrs: {keep_time_attrs}")
+    logging.debug(f"Initial energy attrs: {trajectory.energy.attrs}")
 
     if output_path.is_file():
         # Try and parse full output from output.dat
