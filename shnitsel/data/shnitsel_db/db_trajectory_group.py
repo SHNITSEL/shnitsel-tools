@@ -2,6 +2,8 @@ from dataclasses import dataclass
 import logging
 from typing import Any, Callable, Dict, List, Mapping, Self, TypeVar
 
+from shnitsel.data.helpers import dataclass_from_dict
+
 from .helpers import traj_list_to_child_mapping
 from shnitsel.data.trajectory_format import Trajectory
 from .db_trajectory_data import TrajectoryData
@@ -34,20 +36,21 @@ class TrajectoryGroup(xr.DataTree):
 
         self.attrs[_datatree_level_attribute_key] = "TrajectoryGroup"
         if group_info is not None:
-            self.attrs["group_info"] = group_info.group_attributes
+            self.attrs["group_info"] = group_info.__dict__
 
     def get_group_info(self) -> GroupInfo:
-        """Reconstruct the Group info object
+        """Reconstruct the Group info object from settings stored in this node's attributes
 
         Returns:
             GroupInfo: The group information
         """
         if "group_info" in self.attrs:
-            return GroupInfo(
-                group_name=self.name, group_attributes=self.attrs["group_info"]
-            )
+            return dataclass_from_dict(GroupInfo, self.attrs["group_info"])
         else:
-            return GroupInfo(group_name=self.name, group_attributes={})
+            return GroupInfo(
+                group_name=self.name if self.name is not None else "unknown",
+                group_attributes={},
+            )
 
     def collect_trajectories(self) -> List[TrajectoryData]:
         """Function to retrieve all trajectories in this subtree
