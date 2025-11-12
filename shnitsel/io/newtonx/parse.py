@@ -1,6 +1,6 @@
 from io import TextIOWrapper
 import pathlib
-from typing import Any, Dict, NamedTuple, Tuple
+from typing import Dict, NamedTuple, Tuple
 import numpy as np
 from shnitsel.io.shared.trajectory_setup import (
     OptionalTrajectorySettings,
@@ -13,10 +13,7 @@ from shnitsel.io.shared.variable_flagging import (
     is_variable_assigned,
     mark_variable_assigned,
 )
-from shnitsel.units.defaults import get_default_input_attributes
 import xarray as xr
-from itertools import combinations
-import pandas as pd
 import logging
 import os
 import re
@@ -40,6 +37,8 @@ def parse_newtonx(
     Returns:
         xr.Dataset: The Dataset object containing all of the loaded data in default shnitsel units
     """
+    from shnitsel.units.defaults import get_default_input_attributes
+
     path_obj: pathlib.Path = make_uniform_path(traj_path)  # type: ignore
 
     misc_settings = parse_nx_misc_input_settings(path_obj)

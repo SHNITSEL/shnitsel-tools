@@ -10,7 +10,6 @@ import numpy as np
 
 from shnitsel.io.helpers import LoadingParameters
 from shnitsel.io.shared.variable_flagging import mark_variable_assigned
-from shnitsel.units.defaults import get_default_input_attributes
 
 
 @dataclass
@@ -39,7 +38,7 @@ class OptionalTrajectorySettings:
     est_level: str | None = None
 
     # To keep track of input settings we do not explicitly use anywhere else.
-    misc_input_settings: Dict|None =None
+    misc_input_settings: Dict | None = None
 
 
 def assign_required_settings(
@@ -93,6 +92,8 @@ def create_initial_dataset(
     Returns:
         xr.Dataset: An xarray Dataset with appropriately sized DataArrays and coordinates also including default attributes for all variables.
     """
+    from shnitsel.units.defaults import get_default_input_attributes
+
     # This is the list of observables/variables we currently support.
     template = {
         "energy": ["time", "state"],

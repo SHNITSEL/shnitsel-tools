@@ -2,20 +2,16 @@ import pathlib
 from shnitsel.io.helpers import LoadingParameters, make_uniform_path
 from io import TextIOWrapper
 import numpy as np
-import pandas as pd
 import xarray as xr
 import logging
 import os
 import re
-import math
-from itertools import product, combinations
-from glob import glob
-from typing import Dict, List, NamedTuple, Any, Sequence, Set, Tuple
+from itertools import product
+from typing import Dict, List, NamedTuple, Any, Tuple
 from tqdm.auto import tqdm
 from shnitsel.io.helpers import (
     PathOptionsType,
     dip_sep,
-    __atnum2symbol__,
     get_triangular,
     ConsistentValue,
     get_atom_number_from_symbol,
@@ -33,7 +29,6 @@ from shnitsel.io.shared.variable_flagging import (
 )
 from shnitsel.io.xyz import get_dipoles_per_xyz
 from shnitsel._contracts import needs
-from shnitsel.units.definitions import get_default_input_attributes
 
 _re_grads = re.compile("[(](?P<nstates>[0-9]+)x(?P<natoms>[0-9]+)x3")
 _re_nacs = re.compile("[(](?P<nstates>[0-9]+)x[0-9]+x(?P<natoms>[0-9]+)x3")
@@ -250,6 +245,7 @@ def finalize_icond_dataset(
     Returns:
         xr.Dataset: The modified dataset
     """
+    from shnitsel.units.defaults import get_default_input_attributes
 
     if "time" not in dataset.coords:
         dataset_res = dataset.expand_dims("time")

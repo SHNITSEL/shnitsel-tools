@@ -28,7 +28,6 @@ from shnitsel.io.shared.variable_flagging import (
 )
 from shnitsel.units.definitions import (
     distance,
-    get_default_input_attributes,
     _distance_unit_scales,
 )
 
