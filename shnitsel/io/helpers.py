@@ -350,7 +350,6 @@ def default_state_name_assigner(dataset: xr.Dataset) -> xr.Dataset:
         logging.info("State names already assigned")
         return dataset
 
-    # Try whether the types have been successfully set:
 
     if is_variable_assigned(dataset.state_types):
         counters = np.array([0, 0, 0], dtype=int)
@@ -360,7 +359,9 @@ def default_state_name_assigner(dataset: xr.Dataset) -> xr.Dataset:
         res_names = []
         for i in range(len(type_values)):
             type_index = int(round(type_values[i]))
-            assert type_index >= 1 and type_index <= 3
+            assert (
+                type_index >= 1 and type_index <= 3
+            ), f"Found invalid state multiplicity: {type_index} (must be 1,2 or 3)"
             logging.debug(
                 f"{i}, {type_index}, {type_prefix[type_index - 1]}, {counters[type_index - 1]}"
             )
