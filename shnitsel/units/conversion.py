@@ -178,7 +178,6 @@ def convert_all_units_to_shnitsel_defaults(data: xr.Dataset) -> xr.Dataset:
     logging.debug("Converting Data: " + str(list(new_vars.keys())))
     # NOTE: For some reason, sometimes, assigning multiple variables at once resulted in all of them being filled with NaN values. 
     # NOTE: It may be an issue of setting the coordinate "time" before setting the variables. Split setting variables and coordinates
-    print("Before conv:\n",repr(data.energy.values))
     tmp = data.assign(new_vars)
     
     new_coords = {}
@@ -193,8 +192,6 @@ def convert_all_units_to_shnitsel_defaults(data: xr.Dataset) -> xr.Dataset:
     logging.debug("Converting Coords: " + str(list(new_coords.keys())))
     # NOTE: Alignment screws us over if we convert the time before assigning the other variables.
     tmp = tmp.assign_coords(new_coords)
-
-    print("After conv:\n",repr(tmp.energy.values))  
 
     if "delta_t" in tmp.attrs:
         tmp.attrs["delta_t"] = convert_time.convert_value(
