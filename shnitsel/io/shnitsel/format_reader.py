@@ -4,6 +4,8 @@ import pathlib
 import re
 from typing import Dict, List, Tuple
 
+from shnitsel.data.shnitsel_db_format import ShnitselDB
+from shnitsel.data.trajectory_format import Trajectory
 from shnitsel.io.helpers import LoadingParameters, PathOptionsType, make_uniform_path
 from ..format_reader_base import FormatInformation, FormatReader
 from .parse import read_shnitsel_file
@@ -81,7 +83,7 @@ class ShnitselFormatReader(FormatReader):
         path: pathlib.Path,
         format_info: FormatInformation,
         loading_parameters: LoadingParameters | None = None,
-    ) -> xr.Dataset:
+    ) -> Trajectory | ShnitselDB:
         """Read a shnitsel-style file from `path`. Implements `FormatReader.read_from_path()`
 
         Args:
@@ -110,7 +112,7 @@ class ShnitselFormatReader(FormatReader):
             logging.error(message)
             raise FileNotFoundError(message)
 
-        return loaded_dataset
+        return loaded_dataset # type: ignore # We know that the result of read_shnitsel_file is meant to be a ShnitselDB or single Trajectory
 
     def get_units_with_defaults(
         self, unit_overrides: Dict[str, str] | None = None

@@ -6,6 +6,7 @@ import pathlib
 import re
 from typing import Dict, List, Tuple
 
+from shnitsel.data.shnitsel_db_format import ShnitselDB
 from shnitsel.data.trajectory_format import Trajectory
 from shnitsel.io.helpers import LoadingParameters, PathOptionsType, make_uniform_path
 from ..format_reader_base import FormatInformation, FormatReader
@@ -68,7 +69,9 @@ class NewtonXFormatReader(FormatReader):
         """
         path_obj: pathlib.Path = make_uniform_path(path)
 
-        base_format_info = super().check_path_for_format_info(path_obj, hints_or_settings)
+        base_format_info = super().check_path_for_format_info(
+            path_obj, hints_or_settings
+        )
 
         _is_request_specific_to_NewtonX = (
             hints_or_settings is not None
@@ -108,7 +111,7 @@ class NewtonXFormatReader(FormatReader):
         path: pathlib.Path,
         format_info: FormatInformation,
         loading_parameters: LoadingParameters | None = None,
-    ) -> xr.Dataset:
+    ) -> xr.Dataset | ShnitselDB:
         """Read a NewtonX-style trajcetory from path at `path`. Implements `FormatReader.read_from_path()`
 
         Args:

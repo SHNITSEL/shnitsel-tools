@@ -1,10 +1,10 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-import os
 import pathlib
 import re
 from typing import Callable, Dict, List
 
+from shnitsel.data.shnitsel_db_format import ShnitselDB
 from shnitsel.data.trajectory_format import Trajectory
 from shnitsel.io.helpers import (
     LoadingParameters,
@@ -102,7 +102,7 @@ class FormatReader(ABC):
         path: pathlib.Path,
         format_info: FormatInformation,
         loading_parameters: LoadingParameters | None = None,
-    ) -> xr.Dataset | None:
+    ) -> xr.Dataset | ShnitselDB| None:
         """Method to read a path of the respective format (e.g. ) into a shnitsel-conform trajectory.
 
         The return value of type `Trajectory` is a wrapper for the raw `xarray.Dataset` read from the `path`.
@@ -129,7 +129,7 @@ class FormatReader(ABC):
         path: PathOptionsType | None,
         format_info: FormatInformation | None = None,
         loading_parameters: LoadingParameters | None = None,
-    ) -> Trajectory | None:
+    ) -> Trajectory | ShnitselDB | None:
         """Wrapper function to perform some potential initialization and finalization on the read trajectory objects.
 
         Uses the format-specific `self.read_from_path()` method to read the trajectory and then performs some standard post processing on it.
@@ -266,6 +266,7 @@ class FormatReader(ABC):
                 if callable(state_names_override):
                     get_state_name_callable = state_names_override
                 elif isinstance(state_names_override, list):
+
                     def tmp_state_assigner(dataset: xr.Dataset) -> xr.Dataset:
                         dataset = dataset.assign_coords(
                             {
