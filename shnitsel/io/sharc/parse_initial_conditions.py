@@ -205,6 +205,12 @@ def check_dims(pathlist: List[pathlib.Path]) -> Tuple[int, int, int, int, int]:
                     natoms.v = int(info["num_atoms"])
                 if "num_states" in info:
                     nstates.v = info["num_states"]
+                if "num_singlets" in info:
+                    nstates_singlet.v = info["num_singlets"]
+                if "num_doublets" in info:
+                    nstates_doublet.v = info["num_doublets"]
+                if "num_triplets" in info:
+                    nstates_triplet.v = info["num_triplets"]
         except FileNotFoundError:
             pass
         try:
@@ -275,9 +281,19 @@ def read_iconds_individual(
     Returns:
         xr.Dataset: The Dataset object containing all of the loaded data from the initial condition in default shnitsel units
     """
-    path_obj = make_uniform_path(path)
+    path_obj: pathlib.Path = make_uniform_path(path)  # type: ignore
+    # Read settings and initial setup from QM.in
+    qm_in_path = path_obj / "QM.in"
+    info = {}
+    if qm_in_path.is_file():
+        with open(qm_in_path) as f:
+            info = parse_QM_in(f)
+
     logging.info("Ensuring consistency of ICONDs dimensions")
     nstates, natoms, nsinglets, ndoublets, ntriplets = check_dims([path_obj])
+    logging.debug(
+        f"Found {nstates} States, among which: S/D/T = {nsinglets}/{ndoublets}/{ntriplets}"
+    )
 
     # TODO: FIXME: Figure out how to find the SHARC version in iconds
     # TODO: FIXME: Currently no way to determine the version of SHARC that wrote the iconds from QM.in and QM.out. only set from QM.log
@@ -287,8 +303,6 @@ def read_iconds_individual(
     iconds, default_format_attributes = create_initial_dataset(
         0, nstates, natoms, "sharc", loading_parameters
     )
-
-    mark_variable_assigned(iconds.state_types)
 
     logging.info("Reading ICONDs data into Dataset...")
 
@@ -317,12 +331,12 @@ def read_iconds_individual(
             logging.warning(
                 "The unit of the positions in QM.in is currently still unknown."
             )
-            with open(path_obj / "QM.in") as f:
-                info = parse_QM_in(f)
+            if "atNames" in info:
                 iconds["atNames"][:] = (atnames := info["atNames"])
                 mark_variable_assigned(iconds.atNames)
                 iconds["atNums"][:] = [get_atom_number_from_symbol(n) for n in atnames]
                 mark_variable_assigned(iconds.atNums)
+            if "atXYZ" in info:
                 iconds["atXYZ"][:, :] = info["atXYZ"]
                 mark_variable_assigned(iconds.atXYZ)
         except FileNotFoundError:
@@ -351,7 +365,8 @@ def read_iconds_individual(
     assign_required_settings(iconds, required_settings)
 
     optional_settings = OptionalTrajectorySettings(
-        has_forces=is_variable_assigned(iconds["forces"])
+        has_forces=is_variable_assigned(iconds["forces"]),
+        misc_input_settings={"QM.in": info} if len(info) > 0 else None,
     )
     assign_optional_settings(iconds, optional_settings)
 
@@ -404,8 +419,8 @@ def parse_QM_in(qm_in: TextIOWrapper) -> Dict[str, Any]:
     # NACDR
     # GRAD
 
-    # Get all lines
-    lines = [l.strip() for l in qm_in.readlines()]
+    # Get all non-empty lines
+    lines = [l.strip() for l in qm_in.readlines() if len(l.strip()) > 0]
     if len(lines) < 1:
         raise FileNotFoundError("QM.in did not contain all necessary information")
 
@@ -438,6 +453,7 @@ def parse_QM_in(qm_in: TextIOWrapper) -> Dict[str, Any]:
     if "states" in info:
         state_string = info["states"]
         state_parts = state_string.split()
+        info["states"] = state_parts
         max_mult = len(state_parts)
         nsinglets = 0
         ndoublets = 0
@@ -450,10 +466,14 @@ def parse_QM_in(qm_in: TextIOWrapper) -> Dict[str, Any]:
         if max_mult >= 3:
             ntriplets = int(state_parts[2])
 
+        # Need to be multiplied, but some may be unused? See sharc state order in documentation
         info["num_states"] = nsinglets * 1 + ndoublets * 2 + ntriplets * 3
         info["num_singlets"] = nsinglets
         info["num_doublets"] = ndoublets
         info["num_triplets"] = ntriplets
+        info["max_multiplicity"] = max_mult
+        if max_mult > 3:
+            info["nums_higher_multiplicities"] = [int(x) for x in state_parts[3:]]
 
     # print(info)
     return info

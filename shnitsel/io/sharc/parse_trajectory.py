@@ -76,6 +76,8 @@ def read_traj(
     variables_listings = None
     completed = True
 
+    misc_settings = {}
+
     if input_path.is_file():
         with open(input_path) as f:
             settings = parse_input_settings(f.readlines())
@@ -86,11 +88,13 @@ def read_traj(
 
         if "nstates" in settings:
             state_mult_array = [int(x.strip()) for x in settings["nstates"].split()]
+            settings["nstates"] = state_mult_array
             max_mult = len(state_mult_array)
 
             nsinglets = state_mult_array[0] if max_mult >= 1 else 0
             ndoublets = state_mult_array[1] if max_mult >= 2 else 0
             ntriplets = state_mult_array[2] if max_mult >= 3 else 0
+        misc_settings["input"] = settings
 
     if output_path.is_file():
         with open(output_path) as f:
@@ -111,12 +115,14 @@ def read_traj(
             nsinglets = state_mult_array[0] if max_mult >= 1 else 0
             ndoublets = state_mult_array[1] if max_mult >= 2 else 0
             ntriplets = state_mult_array[2] if max_mult >= 3 else 0
+        misc_settings["output.dat"] = settings
 
-    if os.path.isfile(output_path):
+    if output_listing_path.is_file():
         settings, variables_listings = parse_output_listings(output_listing_path)
         delta_t = float(settings["delta_t"])
         t_max = float(settings["t_max"])
         nsteps = int(settings["nsteps"]) + 1
+        misc_settings["output.lis"] = settings
 
     if output_log_path.is_file():
         with open(output_log_path) as f:
@@ -139,6 +145,7 @@ def read_traj(
                 nsinglets = state_mult_array[0] if max_mult >= 1 else 0
                 ndoublets = state_mult_array[1] if max_mult >= 2 else 0
                 ntriplets = state_mult_array[2] if max_mult >= 3 else 0
+        misc_settings["output.log"] = settings
 
     if energy_offset is None:
         raise FileNotFoundError(
@@ -146,7 +153,9 @@ def read_traj(
         )
 
     # TODO: FIXME: Check if the factors 1/2/3 are correct or if we should just sum up the states?
-    nstates = nsinglets + ndoublets + ntriplets
+    # In principle, there are 2 states per doublet and three per triplet. However, not all will be used.
+    # See SHARC documentation for state order
+    nstates = nsinglets + ndoublets * 2 + ntriplets * 3
 
     # Try other sources for the number of atoms
     if natoms is None:
@@ -254,7 +263,8 @@ def read_traj(
     assign_required_settings(trajectory, required_settings)
 
     optional_settings = OptionalTrajectorySettings(
-        has_forces=is_variable_assigned(trajectory["forces"])
+        has_forces=is_variable_assigned(trajectory["forces"]),
+        misc_input_settings=misc_settings if len(misc_settings) > 0 else None,
     )
     assign_optional_settings(trajectory, optional_settings)
 
