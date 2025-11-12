@@ -86,13 +86,7 @@ def set_state_defaults(
             ]
     else:
         logging.error(
-            "Could not determine state multiplicities and names (S/D/T:",
-            nsinglets,
-            "/",
-            ndoublets,
-            "/",
-            ntriplets,
-            ")",
+            f"Could not determine state multiplicities and names (S/D/T): {nsinglets}/{ndoublets}/{ntriplets})"
         )
 
     mark_variable_assigned(dataset.state_types)
