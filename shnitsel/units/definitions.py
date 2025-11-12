@@ -1,8 +1,5 @@
-from typing import Callable, Dict, Literal
 import ase.units as si
 import numpy as np
-from shnitsel.io.helpers import LoadingParameters
-import xarray as xr
 
 # TODO: FIXME: Check all atomic units for correctness
 
@@ -183,94 +180,6 @@ Previously used settings for SHARC input:
         'nacs': {'long_name': "nonadiabatic couplings", 'units': 'au'},
     }
 """
-
-
-def get_default_input_attributes(
-    kind: Literal["sharc", "newtonx", "ase", "pyrai2md"],
-    loading_parameters: LoadingParameters | None = None,
-) -> Dict[str, Dict[str, str]]:
-    format_default_units = standard_units_of_formats[kind]
-
-    def override_defaults(unit_dimension, variable_name):
-        if (
-            loading_parameters is not None
-            and loading_parameters.input_units is not None
-            and variable_name in loading_parameters.input_units
-        ):
-            return loading_parameters.input_units[variable_name]
-        else:
-            return format_default_units[unit_dimension]
-
-    res = {
-        "atXYZ": {
-            "long_name": "Positions",
-            "unitdim": unit_dimensions.length,
-            "units": override_defaults(unit_dimensions.length, "atXYZ"),
-        },
-        "energy": {
-            "long_name": "Absolute energy",
-            "unitdim": unit_dimensions.energy,
-            "units": override_defaults(unit_dimensions.energy, "energy"),
-        },
-        "e_kin": {
-            "long_name": "Kinetic_energy",
-            "unitdim": unit_dimensions.energy,
-            "units": override_defaults(unit_dimensions.energy, "e_kin"),
-        },
-        "dip_all": {
-            "long_name": "Complete dipoles",
-            "unitdim": unit_dimensions.dipole,
-            "units": override_defaults(unit_dimensions.dipole, "dip_all"),
-        },
-        "dip_perm": {
-            "long_name": "Permanent dipoles",
-            "unitdim": unit_dimensions.dipole,
-            "units": override_defaults(unit_dimensions.dipole, "dip_perm"),
-        },
-        "dip_trans": {
-            "long_name": "Transitional dipoles",
-            "unitdim": unit_dimensions.dipole,
-            "units": override_defaults(unit_dimensions.dipole, "dip_trans"),
-        },
-        "time": {
-            "long_name": "Time in trajectory or timestep",
-            "unitdim": unit_dimensions.time,
-            "units": override_defaults(unit_dimensions.time, "time"),
-        },
-        "phases": {"long_name": "Phase vector"},
-        "sdiag": {"long_name": "Active state (diag)"},
-        "astate": {"long_name": "Active state in dynamic trajectories (MCH)"},
-        "state": {"long_name": "Index of relevant states for indexing"},
-        "state2": {"long_name": "The second state to build state combinations out of"},
-        "from": {"long_name": "An alias for the first state of a state combination"},
-        "to": {"long_name": "An alias for the second state of a state combination"},
-        "state_names": {"long_name": "String representations of the states."},
-        "state_types": {
-            "long_name": "Multiplicity to indicate whether the respective state is singlet (1), doublet (2), or triplet(3)"
-        },
-        "statecomb": {
-            "long_name": "Combination of two states used to index inter-state properties"
-        },
-        "atNames": {"long_name": "Names of atomic elements (short form)"},
-        "atNums": {"long_name": "Periodic number of atomic elements"},
-        "forces": {
-            "long_name": "Per-atom forces",
-            "unitdim": unit_dimensions.force,
-            "units": override_defaults(unit_dimensions.force, "forces"),
-        },
-        "nacs": {
-            "long_name": "Nonadiabatic couplings",
-            "unitdim": unit_dimensions.nacs,
-            "units": override_defaults(unit_dimensions.nacs, "nacs"),
-        },
-        "socs": {
-            "long_name": "Spin-orbit couplings",
-            "unitdim": unit_dimensions.socs,
-            "units": override_defaults(unit_dimensions.socs, "socs"),
-        },
-    }
-
-    return res
 
 
 standard_units_of_formats = {

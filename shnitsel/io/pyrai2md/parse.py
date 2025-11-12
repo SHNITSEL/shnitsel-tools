@@ -23,7 +23,7 @@ from shnitsel.io.shared.variable_flagging import (
     is_variable_assigned,
     mark_variable_assigned,
 )
-from shnitsel.units.definitions import get_default_input_attributes
+from shnitsel.units.defaults import get_default_input_attributes
 
 from shnitsel.io.helpers import (
     LoadingParameters,
@@ -31,7 +31,6 @@ from shnitsel.io.helpers import (
     get_atom_number_from_symbol,
     make_uniform_path,
 )
-from shnitsel.units.definitions import get_default_input_attributes
 
 
 def parse_pyrai2md(

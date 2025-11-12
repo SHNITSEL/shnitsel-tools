@@ -13,7 +13,7 @@ from shnitsel.io.shared.variable_flagging import (
     is_variable_assigned,
     mark_variable_assigned,
 )
-from shnitsel.units.definitions import get_default_input_attributes
+from shnitsel.units.defaults import get_default_input_attributes
 import xarray as xr
 from itertools import combinations
 import pandas as pd

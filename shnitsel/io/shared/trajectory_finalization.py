@@ -26,6 +26,7 @@ def finalize_loaded_trajectory(
         Trajectory | None: _description_
     """
     if dataset is not None:
+        logging.debug(f"Finalizing: {repr(dataset)}")
         if isinstance(dataset, xr.Dataset):
             # TODO: FIXME: use loading_parameters to configure state names
             dataset = set_state_defaults(dataset, loading_parameters)
