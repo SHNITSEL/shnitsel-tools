@@ -2,7 +2,7 @@ from dataclasses import asdict, dataclass
 from itertools import combinations
 import logging
 import math
-from typing import Dict, List, Literal
+from typing import Dict, List, Literal, Tuple
 
 import pandas as pd
 import xarray as xr
@@ -43,7 +43,7 @@ class OptionalTrajectorySettings:
 
 
 def assign_required_settings(
-    dataset: xr.Dataset| xr.DataTree, settings: RequiredTrajectorySettings
+    dataset: xr.Dataset | xr.DataTree, settings: RequiredTrajectorySettings
 ) -> None:
     """Function to assign all required settings to the dataset.
 
@@ -80,10 +80,11 @@ def create_initial_dataset(
     format_name: Literal["sharc", "newtonx", "ase", "pyrai2md"],
     loading_parameters: LoadingParameters | None,
     **kwargs,
-) -> xr.Dataset:
+) -> Tuple[xr.Dataset, Dict]:
     """Function to initialize an `xr.Dataset` with appropriate variables and coordinates to acommodate loaded data.
 
-    All arguments are used to accurately size the dimensions of the dataset or assign
+    All arguments are used to accurately size the dimensions of the dataset or assign.
+    Also returns the default attributes associated with the variables in the dataset for later assignment of certain values like "time" which is not initialized with values.
 
     Args:
         num_time_steps (int): The number of expected time steps in this trajectory. Set to 0 to not create a "time" dimension.
@@ -92,6 +93,7 @@ def create_initial_dataset(
 
     Returns:
         xr.Dataset: An xarray Dataset with appropriately sized DataArrays and coordinates also including default attributes for all variables.
+        Dict: The key-value dict, where the key is the name of standard variables/coordinates in Shnitsel terminology and the value is the dict of default attributes associated with this variable in this format.
     """
     from shnitsel.units.defaults import get_default_input_attributes
 
@@ -244,4 +246,4 @@ def create_initial_dataset(
 
     res_dataset = res_dataset.set_coords(isolated_keys)
 
-    return res_dataset
+    return res_dataset, default_format_attributes

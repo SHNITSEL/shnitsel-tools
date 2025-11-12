@@ -44,7 +44,7 @@ def parse_pyrai2md(
     Returns:
         xr.Dataset: The Dataset object containing all of the loaded data in default shnitsel units
     """
-    from shnitsel.units.defaults import get_default_input_attributes
+
     # TODO: FIXME:
     logging.warning("No NACS available for PyrAI2md")
 
@@ -80,9 +80,7 @@ def parse_pyrai2md(
     natoms = settings["global"]["Active atoms"]
     delta_t = settings["md"]["Dt (au)"]
 
-    default_attributes = get_default_input_attributes("pyrai2md", loading_parameters)
-
-    trajectory = create_initial_dataset(
+    trajectory, default_format_attributes = create_initial_dataset(
         nsteps, nstates, natoms, "pyrai2md", loading_parameters
     )
 
@@ -101,8 +99,8 @@ def parse_pyrai2md(
 
     trajectory = trajectory.assign_coords(
         {
-            "time": ("time", times, default_attributes["time"]),
-            "state_types": ("state", state_types, default_attributes["state_types"]),
+            "time": ("time", times, default_format_attributes["time"]),
+            "state_types": ("state", state_types, default_format_attributes["state_types"]),
         }
     )
     mark_variable_assigned(trajectory["time"])
@@ -129,7 +127,7 @@ def parse_pyrai2md(
 
     optional_settings = OptionalTrajectorySettings(
         has_forces=is_variable_assigned(trajectory["forces"]),
-        misc_input_settings=settings
+        misc_input_settings=settings,
     )
     assign_optional_settings(trajectory, optional_settings)
 

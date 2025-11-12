@@ -37,7 +37,6 @@ def parse_newtonx(
     Returns:
         xr.Dataset: The Dataset object containing all of the loaded data in default shnitsel units
     """
-    from shnitsel.units.defaults import get_default_input_attributes
 
     path_obj: pathlib.Path = make_uniform_path(traj_path)  # type: ignore
 
@@ -47,10 +46,9 @@ def parse_newtonx(
     # TODO: FIXME: Read basis from JOB_NAD files
     with open(path_obj / "RESULTS" / "nx.log") as f:
         settings = parse_settings_from_nx_log(f)
-        default_attributes = get_default_input_attributes("newtonx", loading_parameters)
         # Add time dimension
 
-        trajectory = create_initial_dataset(
+        trajectory, default_format_attributes = create_initial_dataset(
             settings.num_steps,
             settings.num_states,
             settings.num_atoms,
@@ -58,12 +56,13 @@ def parse_newtonx(
             loading_parameters,
         )
 
+        # Time is not initilized with a variable, hence we need to apply default attributes here.
         trajectory = trajectory.assign_coords(
             {
                 "time": (
                     "time",
                     np.arange(0, settings.num_steps) * settings.delta_t,
-                    default_attributes[str("time")],
+                    default_format_attributes[str("time")],
                 ),
             }
         )

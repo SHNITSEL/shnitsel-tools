@@ -171,13 +171,9 @@ def read_traj(
             f"Could not find enough information to deduce the number of atoms or steps."
         )
 
-    trajectory = create_initial_dataset(
+    trajectory, default_format_attributes = create_initial_dataset(
         nsteps, nstates, natoms, "sharc", loading_parameters
     )
-
-    keep_time_attrs = trajectory.time.attrs
-    logging.debug(f"Initial time attrs: {keep_time_attrs}")
-    logging.debug(f"Initial energy attrs: {trajectory.energy.attrs}")
 
     if output_path.is_file():
         # Try and parse full output from output.dat
@@ -206,7 +202,7 @@ def read_traj(
                 trajectory.coords["time"] = (
                     "time",
                     variables_listings["time"],
-                    trajectory.time.attrs,
+                    default_format_attributes["time"],
                 )
                 mark_variable_assigned(trajectory["time"])
         if not is_variable_assigned(trajectory.astate):
@@ -214,7 +210,7 @@ def read_traj(
                 trajectory.coords["astate"] = (
                     "time",
                     variables_listings["astate"],
-                    trajectory.astate.attrs,
+                    default_format_attributes["astate"],
                 )
                 mark_variable_assigned(trajectory["astate"])
 

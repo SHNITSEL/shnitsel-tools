@@ -232,29 +232,28 @@ def check_dims(pathlist: List[pathlib.Path]) -> Tuple[int, int, int, int, int]:
 
 
 def finalize_icond_dataset(
-    dataset: xr.Dataset, loading_parameters: LoadingParameters
+    dataset: xr.Dataset,
+    loading_parameters: LoadingParameters,
+    default_format_attributes: Dict[str, Dict[str, Any]],
 ) -> xr.Dataset:
     """Function to expand the initial conditions dataset with a time dimension.
 
-    Also sets the default unit on the time dimension
+    Also sets the default unit on the time dimension based on `default_format_attributes`.
 
     Args:
         dataset (xr.Dataset): The initial conditions dataset. Should not have a "time" dimension yet.
         loading_parameters (LoadingParameters): Loading parameters to override units
+        default_format_attributes(Dict[str, Dict[str, Any]]): Default attributes to set on variables, mostly used to set the time dimension attributes
 
     Returns:
         xr.Dataset: The modified dataset
     """
-    from shnitsel.units.defaults import get_default_input_attributes
 
     if "time" not in dataset.coords:
         dataset_res = dataset.expand_dims("time")
         dataset_res = dataset_res.assign_coords(time=("time", [0.0]))
 
-        default_sharc_attributes = get_default_input_attributes(
-            "sharc", loading_parameters
-        )
-        dataset_res["time"].attrs.update(default_sharc_attributes["time"])
+        dataset_res["time"].attrs.update(default_format_attributes["time"])
         mark_variable_assigned(dataset_res["time"])
     else:
         dataset_res = dataset
@@ -285,7 +284,9 @@ def read_iconds_individual(
     sharc_version = "unkown"
 
     # Create dataset
-    iconds = create_initial_dataset(0, nstates, natoms, "sharc", loading_parameters)
+    iconds, default_format_attributes = create_initial_dataset(
+        0, nstates, natoms, "sharc", loading_parameters
+    )
 
     mark_variable_assigned(iconds.state_types)
 
@@ -303,14 +304,12 @@ def read_iconds_individual(
             parse_QM_log_geom(f, out=iconds)
     except FileNotFoundError:
         # This should be an error. We probably cannot recover from this and action needs to be taken
-        logging.error(
-            f"""no QM.log file found in {path}.
-            This is currently used to determine geometry.
-            Eventually, user-inputs will be accepted as an alternative.
-            See https://github.com/SHNITSEL/db-workflow/issues/3"""
-        )
         logging.warning(
-            f"No positional information found in {path}/QM.log. Attempting to read from. QM.in."
+            f"""no `QM.log` file found in {path}. 
+            This is mainly used to determine geometry.\n
+            Attempting to read from `QM.in` instead """
+            # Eventually, user-inputs will be accepted as an alternative.
+            # See https://github.com/SHNITSEL/db-workflow/issues/3"""
         )
 
         try:
@@ -331,9 +330,9 @@ def read_iconds_individual(
                 f"No positional information found in {path}/QM.in, the loaded trajectory does not contain positional data 'atXYZ'."
             )
 
-    iconds.attrs["delta_t"] = 0.0
-    iconds.attrs["t_max"] = 0.0
-    iconds.attrs["max_ts"] = 1
+    # iconds.attrs["delta_t"] = 0.0
+    # iconds.attrs["t_max"] = 0.0
+    # iconds.attrs["max_ts"] = 1
 
     # Set all settings we require to be present on the trajectory
     required_settings = RequiredTrajectorySettings(
@@ -356,7 +355,11 @@ def read_iconds_individual(
     )
     assign_optional_settings(iconds, optional_settings)
 
-    return finalize_icond_dataset(iconds, loading_parameters=loading_parameters)
+    return finalize_icond_dataset(
+        iconds,
+        loading_parameters=loading_parameters,
+        default_format_attributes=default_format_attributes,
+    )
 
 
 def parse_QM_in(qm_in: TextIOWrapper) -> Dict[str, Any]:
