@@ -40,7 +40,9 @@ def parse_newtonx(
     Returns:
         xr.Dataset: The Dataset object containing all of the loaded data in default shnitsel units
     """
-    path_obj = make_uniform_path(traj_path)
+    path_obj: pathlib.Path = make_uniform_path(traj_path)  # type: ignore
+
+    misc_settings = parse_nx_misc_input_settings(path_obj)
 
     # TODO: FIXME: Use other available files to read input if nx.log is not available, e.g. RESULTS/dyn.out, RESULTS/dyn.xyz, RESULTS/en.dat From those we can get most information anyway.
     # TODO: FIXME: Read basis from JOB_NAD files
@@ -100,15 +102,18 @@ def parse_newtonx(
         "newtonx",
         "dynamic",
         settings.newtonx_version,
-        -1,
-        -1,
-        -1,
+        settings.num_states,
+        0,
+        0,
     )
     assign_required_settings(trajectory, required_settings)
 
     # TODO: FIXME: Check if newtonx always prints only the active state forces or sometimes may include other forces.
     optional_settings = OptionalTrajectorySettings(
-        has_forces="active_only" if is_variable_assigned(trajectory["forces"]) else None
+        has_forces="active_only"
+        if is_variable_assigned(trajectory["forces"])
+        else None,
+        misc_input_settings=misc_settings,
     )
     assign_optional_settings(trajectory, optional_settings)
 
@@ -242,7 +247,7 @@ def parse_nx_log_data(
         # THIS MIGHT BE SOLVED WITH ABOVE TMP STORAGE AND ONLY WRITING UPON READING THE FINISHING LINE
         if stripline.startswith("FINISHING"):
             # Set active state for _current_ time step
-            t_astate = int(stripline.split()[8]) - 1
+            t_astate = int(stripline.split()[8])
 
             # Set step number and time for _the following_ time step
             t_time = float(stripline.split()[4])
@@ -253,7 +258,7 @@ def parse_nx_log_data(
             tmp_astate[ts] = t_astate
             tmp_times[ts] = t_time
             # Assign this to only the active state
-            tmp_full_forces[ts][t_astate] = tmp_forces
+            tmp_full_forces[ts][t_astate - 1] = tmp_forces
             tmp_full_energy[ts] = tmp_energy
             tmp_full_nacs[ts] = tmp_nacs
 
@@ -331,3 +336,52 @@ def parse_nx_log_data(
     #         "completed": completed,
     #     },
     # )
+
+
+def parse_nx_misc_input_settings(path: pathlib.Path) -> Dict:
+    """Function to parse various input settings from the newtonx trajectory directory.
+
+    Args:
+        path (pathlib.Path): The path of the base trajectory folder. Should Contain `RESULTS`, `control.dyn` and either `JOB_AD` or `JOB_NAD`
+
+    Returns:
+        Dict: The collected miscallenous settings
+    """
+
+    res = {}
+
+    control_dyn_path = path / "control.dyn"
+    if control_dyn_path.is_file():
+        control_dyn_settings = {}
+        with open(control_dyn_path) as dyn:
+            lines = [l.strip() for l in dyn.readlines()]
+
+            for l in lines:
+                if l.find("=") >= 0:
+                    key, val = re.split(" *= *", l.strip(), maxsplit=1)
+                    key = key.strip()
+                    val = val.strip()
+                    if key != "prog":
+                        if "." in val:
+                            val = float(val)
+                        else:
+                            val = int(val)
+                    else:
+                        prog_val = float(val)
+                        if prog_val >= 13.0:
+                            logging.warning(
+                                "We currently do not support reading Triplet states from NewtonX trajectories. \n"
+                                "If you require reading of triplet state input from NewtonX format, please open an issue in the Shnitsel-Tools github repo"
+                                " and provide an example configuration/setup.\n"
+                                "For now, all state multiplicities will be assumed to be singlets."
+                            )
+                    control_dyn_settings[key] = val
+
+        res["control.dyn"] = control_dyn_settings
+
+    results_path_log = path / "RESULTS" / "nx.log"
+
+    jobnad_path = path / "JOB_NAD"
+    jobad_path = path / "JOB_AD"
+
+    return res
