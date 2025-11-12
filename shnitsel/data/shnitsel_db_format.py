@@ -317,7 +317,7 @@ def build_shnitsel_db(
         return data
     elif isinstance(data, Trajectory):
         # If we are provided a single trajectory wrap in a TrajectoryData node and build rest of tree
-        return build_shnitsel_db(TrajectoryData(data, data.attrs.get("trajid", "0")))
+        return build_shnitsel_db(TrajectoryData(data, str(data.attrs.get("trajid", 0))))
     elif isinstance(data, list):
         # Convert individual nodes
         res_set = {}
