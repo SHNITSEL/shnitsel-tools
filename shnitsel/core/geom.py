@@ -12,12 +12,13 @@ import numpy as np
 from rdkit.Chem import Mol
 import xarray as xr
 
-from shnitsel.io.helpers import get_atom_number_from_symbol, get_symbol_from_atom_number
-from .postprocess import (
-    subtract_combinations,
-    norm,
-    default_mol,
+from shnitsel.io.helpers import (
+    get_atom_number_from_symbol,
+    # get_symbol_from_atom_number # TODO FIXME: replace the __atnum2symbol__ import with this
 )
+from shnitsel.io.helpers import __atnum2symbol__ # TODO
+from .numeric import subtract_combinations, norm
+from ..bridges import default_mol
 from .xrhelpers import expand_midx
 from .._contracts import needs
 
