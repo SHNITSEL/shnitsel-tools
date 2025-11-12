@@ -196,18 +196,19 @@ def convert_all_units_to_shnitsel_defaults(data: xr.Dataset) -> xr.Dataset:
 
     print("After conv:\n",repr(tmp.energy.values))  
 
-    if "delta_t" in data.attrs:
-        data.attrs["delta_t"] = convert_time.convert_value(
-            data.attrs["delta_t"],
+    if "delta_t" in tmp.attrs:
+        tmp.attrs["delta_t"] = convert_time.convert_value(
+            tmp.attrs["delta_t"],
             convert_from=time_unit,
-            to=new_vars["time"].attrs["units"],
+            to=new_coords["time"].attrs["units"],
         )
-    if "t_max" in data.attrs:
-        data.attrs["t_max"] = convert_time.convert_value(
-            data.attrs["t_max"],
+    if "t_max" in tmp.attrs:
+        tmp.attrs["t_max"] = convert_time.convert_value(
+            tmp.attrs["t_max"],
             convert_from=time_unit,
-            to=new_vars["time"].attrs["units"],
+            to=new_coords["time"].attrs["units"],
         )
+
     return tmp
 
 
