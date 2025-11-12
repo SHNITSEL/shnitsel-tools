@@ -308,7 +308,7 @@ def read_pyrai2md_settings_from_log(f: TextIOWrapper) -> Dict[str, Any]:
                         else:
                             settings["global"][key] = decode_setting_string(parts[1])
 
-    logging.info(f"Parsed pyrai2md settings: {settings}")
+    logging.debug(f"Parsed pyrai2md settings: {settings}")
     return settings
 
 
@@ -513,14 +513,11 @@ def parse_observables_from_log(
         )
 
     real_max_ts = explicit_ts.max()
-    print("astate:", astate)
     trajectory_in["astate"].values = astate
     mark_variable_assigned(trajectory_in["astate"])
 
-    print("forces:", forces)
     trajectory_in["forces"].values = forces
     mark_variable_assigned(trajectory_in["forces"])
-    print("atXYZ:", atXYZ)
     trajectory_in["atXYZ"].values = atXYZ
     mark_variable_assigned(trajectory_in["atXYZ"])
     trajectory_in.attrs["completed"] = (
