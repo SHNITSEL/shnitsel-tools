@@ -320,6 +320,7 @@ def build_shnitsel_db(
         # Convert individual nodes
         res_set = {}
 
+        logging.debug(f"Building Shnitsel DB from {len(data)} data entries")
         shared_level_id = None
         for i, d in enumerate(data):
             if isinstance(d, xr.DataTree):
@@ -375,15 +376,17 @@ def build_shnitsel_db(
 
             res_set[key] = d_conv
 
-            if shared_level_id == "TrajectoryData|TrajectoryGroup":
-                tmp_compound = CompoundGroup(CompoundInfo(), children=res_set)
-                return build_shnitsel_db(tmp_compound)
-            elif shared_level_id == CompoundGroup:
-                return ShnitselDBRoot(res_set)
-            else:
-                raise ValueError(
-                    "Could not find an appropriate level of the ShnitselDB hierarchy to build a full database."
-                )
+        logging.debug(f"Finalize Shnitsel DB from {len(res_set)} data entries")
+
+        if shared_level_id == "TrajectoryData|TrajectoryGroup":
+            tmp_compound = CompoundGroup(CompoundInfo(), children=res_set)
+            return build_shnitsel_db(tmp_compound)
+        elif shared_level_id == CompoundGroup:
+            return ShnitselDBRoot(res_set)
+        else:
+            raise ValueError(
+                "Could not find an appropriate level of the ShnitselDB hierarchy to build a full database."
+            )
 
     elif isinstance(data, xr.DataTree):
         # We have a datatree instance, check for the DataTree_Level attribute to convert to right type.
