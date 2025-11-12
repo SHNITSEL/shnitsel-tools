@@ -36,7 +36,7 @@ Frequently-used functions
     core.xrhelpers.sel_trajs
     core.postprocess.dihedral
     core.postprocess.get_inter_state
-    core.plot.spectra3d.spectra_all_times
+    core.spectra.spectra_all_times
 
 .. autosummary::
     :toctree: _generated
@@ -65,7 +65,7 @@ Frequently-used functions
     plot.pca_biplot
     core.postprocess.assign_fosc
     core.postprocess.get_inter_state
-    plot.spectra_all_times
+    core.spectra.spectra_all_times
     core.postprocess.broaden_gauss
     plot.Datasheet.plot_separated_spectra_and_hists
     plot.ski_plots

@@ -164,3 +164,17 @@ def sep_ground_excited_spectra(spectra, excited_transitions=None):
             ground[t, sc] = v
 
     return ground, excited
+
+@needs(data_vars={'energy', 'fosc'}, coords={'frame', 'trajid'})
+def spectra_all_times(inter_state: xr.Dataset):
+    assert isinstance(inter_state, xr.Dataset)
+    if 'energy' not in inter_state.data_vars:
+        raise ValueError("Missing required variable 'energy'")
+    if 'fosc' not in inter_state.data_vars:
+        raise ValueError("Missing required variable 'fosc'")
+    assert (
+        'frame' in inter_state and 'trajid' in inter_state
+    ), "Missing required dimensions"
+
+    data = inter_state.unstack('frame')
+    return broaden_gauss(data.energy, data.fosc, agg_dim='trajid')

@@ -295,7 +295,7 @@ def main():
         # parse
         st.io.sharc.parse_initial_conditions.iconds_to_frames,
         # plot
-        st.core.plot.spectra3d.spectra_all_times,
+        st.core.spectra.spectra_all_times,
         # filtre
         filtre.energy_filtranda,
         filtre.get_cutoffs,
