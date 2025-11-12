@@ -2,11 +2,6 @@ import inspect
 import logging
 from typing import Callable, Dict, List
 
-import shnitsel.bridges
-import shnitsel.core.convenience
-import shnitsel.core.midx
-import shnitsel.core.numeric
-import shnitsel.core.stats
 
 
 def generate_class_code(classes: Dict[str, List[Callable]]) -> str:
@@ -201,36 +196,37 @@ def main():
         import shnitsel.units as units
         from shnitsel.io.ase.write import write_ase
         from shnitsel.core.plot import p3mhelpers
-        from shnitsel.core import vmd
         from shnitsel.core.plot import select
+        from shnitsel import bridges
+        from shnitsel.core import (
+            convenience,
+            filtre,
+            geom,
+            midx,
+            ml,
+            numeric,
+            vmd,
+            spectra,
+            stats,
+        )
     except ImportError as e:
         logging.error(
             f"Import of module for generation of accessor classes failed: {e.msg} \n{repr(e)}. \n Please ensure all modules are available."
-
         )
 
     da_funcs = [
         # postprocess
-        st.postprocess.norm,
-        st.postprocess.subtract_combinations,
-        st.postprocess.pairwise_dists_pca,
-        shnitsel.core.midx.mdiff,
-        st.postprocess.hop_indices,
-        st.postprocess.relativize,
-        st.postprocess.ts_to_time,
-        shnitsel.core.numeric.keep_norming,
-        st.postprocess.calc_ci,
-        st.postprocess.time_grouped_ci,
-        shnitsel.bridges.to_xyz,
-        shnitsel.bridges.traj_to_xyz,
-        st.postprocess.dihedral,
-        st.postprocess.angle,
-        st.postprocess.distance,
-        st.postprocess.trajs_with_hops,
-        st.postprocess.get_hop_types,
-        st.postprocess.to_mol,
-        st.postprocess.smiles_map,
-        st.postprocess.default_mol,
+        numeric.norm,
+        numeric.subtract_combinations,
+        numeric.keep_norming,
+        stats.calc_ci,
+        stats.time_grouped_ci,
+        bridges.to_xyz,
+        bridges.traj_to_xyz,
+        bridges.to_mol,
+        bridges.smiles_map,
+        bridges.default_mol,
+        convenience.pairwise_dists_pca,
         # postprocess converters
         units.convert_energy,
         units.convert_force,
@@ -239,23 +235,27 @@ def main():
         units.convert_time,
         units.convert_nacs,
         units.convert_socs,
-        # xrhelpers
-        st.xrhelpers.flatten_levels,
-        st.xrhelpers.expand_midx,
-        st.xrhelpers.assign_levels,
-        st.xrhelpers.mgroupby,
-        st.xrhelpers.msel,
-        st.xrhelpers.sel_trajs,
-        st.xrhelpers.sel_trajids,
+        # midx
+        midx.mdiff,
+        midx.flatten_levels,
+        midx.expand_midx,
+        midx.assign_levels,
+        midx.mgroupby,
+        midx.msel,
+        midx.sel_trajs,
+        midx.sel_trajids,
         # filtre
-        st.core.filtre.last_time_where,
+        filtre.last_time_where,
         # geom
-        st.core.geom.get_bond_lengths,
-        st.core.geom.get_bond_angles,
-        st.core.geom.get_bond_torsions,
-        st.core.geom.get_pyramids,
-        st.core.geom.get_bats,
-        st.core.geom.kabsch,
+        geom.dihedral,
+        geom.angle,
+        geom.distance,
+        geom.get_bond_lengths,
+        geom.get_bond_angles,
+        geom.get_bond_torsions,
+        geom.get_pyramids,
+        geom.get_bats,
+        geom.kabsch,
         # select
         select.FrameSelector,
         select.TrajSelector,
@@ -267,46 +267,43 @@ def main():
         # vmd
         vmd.traj_vmd,
         # ml
-        st.core.ml.pca,
-        st.core.ml.lda,
-        st.core.ml.pls,
+        ml.pca,
+        ml.lda,
+        ml.pls,
     ]
 
     ds_funcs = [
         # postprocess
-        shnitsel.core.convenience.pca_and_hops,
-        st.postprocess.validate,
-        st.postprocess.ts_to_time,
-        st.postprocess.setup_frames,
-        st.postprocess.assign_fosc,
-        st.postprocess.ds_broaden_gauss,
-        shnitsel.core.stats.get_per_state,
-        shnitsel.core.stats.get_inter_state,
-        st.postprocess.calc_pops,
-        st.postprocess.find_hops,
-        st.postprocess.default_mol,
+        convenience.pca_and_hops,
+        convenience.validate,
+        spectra.assign_fosc,
+        spectra.ds_broaden_gauss,
+        stats.get_per_state,
+        stats.get_inter_state,
+        st.core.populations.calc_pops,
+        bridges.default_mol,
         # xrhelpers
-        st.xrhelpers.flatten_levels,
-        st.xrhelpers.expand_midx,
-        st.xrhelpers.assign_levels,
-        st.xrhelpers.mgroupby,
-        st.xrhelpers.msel,
+        midx.flatten_levels,
+        midx.expand_midx,
+        midx.assign_levels,
+        midx.mgroupby,
+        midx.msel,
+        midx.sel_trajs,
+        midx.unstack_trajs,
+        midx.stack_trajs,
         st.io.shnitsel.write_shnitsel_file,
-        st.xrhelpers.sel_trajs,
-        st.xrhelpers.unstack_trajs,
-        st.xrhelpers.stack_trajs,
         # parse
         st.io.sharc.parse_initial_conditions.iconds_to_frames,
         # plot
         st.core.plot.spectra3d.spectra_all_times,
         # filtre
-        st.core.filtre.energy_filtranda,
-        st.core.filtre.get_cutoffs,
-        st.core.filtre.truncate,
+        filtre.energy_filtranda,
+        filtre.get_cutoffs,
+        filtre.truncate,
         # ase
         write_ase,
         # ml
-        st.core.ml.pls_ds,
+        ml.pls_ds,
     ]
 
     code = generate_class_code(
