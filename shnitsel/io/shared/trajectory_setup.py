@@ -198,7 +198,7 @@ def create_initial_dataset(
     default_format_attributes = get_default_input_attributes(
         format_name, loading_parameters
     )
-    logging.debug(default_format_attributes)
+    # logging.debug(default_format_attributes)
 
     datavars = {
         varname: (
