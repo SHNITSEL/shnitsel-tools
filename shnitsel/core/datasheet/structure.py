@@ -1,14 +1,15 @@
-from logging import warning
+from logging import error, warning
 
 import rdkit
-import rdkit.Chem.Draw
 
 import matplotlib as mpl
 
+from .common import centertext
 from ..plot.common import figax, mpl_imshow_png
 
 
 def mol_to_png(mol, width=320, height=240):
+    import rdkit.Chem.Draw
     d = rdkit.Chem.Draw.rdMolDraw2D.MolDraw2DCairo(width, height)
 
     d.drawOptions().setBackgroundColour((1, 1, 1, 0))
@@ -37,7 +38,16 @@ def plot_structure(
     mol, name='', smiles=None, inchi=None, fig=None, ax=None
 ) -> mpl.axes.Axes:
     fig, ax = figax(fig, ax)
-    png = mol_to_png(mol)
+    try:
+        png = mol_to_png(mol)
+    except ImportError as err:
+        error(
+            "ImportError from rdkit.Chem.Draw while "
+            f"attempting to plot structure: {err}"
+        )
+        centertext("ImportError while attempting\nto plot structure", ax)
+        return ax
+
     mpl_imshow_png(ax, png)
     ax.set_title(name)
     ax.axis('on')
