@@ -6,6 +6,6 @@ from .read import read
 
 # Backward compatibility
 from .shnitsel import write_shnitsel_file
-from .ase import write_ase
+from .ase import write_ase_db
 
-__all__ = ["read", "write_shnitsel_file", "write_ase"]
+__all__ = ["read", "write_shnitsel_file", "write_ase_db"]

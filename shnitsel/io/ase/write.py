@@ -39,7 +39,7 @@ def _prepare_for_write(frames: xr.Dataset) -> xr.Dataset:
 
 
 @needs(dims={'frame'})
-def write_ase(
+def write_ase_db(
     frames: xr.Dataset,
     db_path: str,
     kind: str | None,
