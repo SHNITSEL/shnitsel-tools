@@ -380,6 +380,8 @@ def parse_output_log(f: TextIOWrapper) -> Dict[str, Any]:
     return settings
 
 
+# TODO: FIXME: The format differs between versions of SHARC. 2.0, 3.0 and 4.0 have different meta-information about the referenced state in their output.dat.
+# TODO: FIXME: They also have different multipliers and naming convention than the other formats
 def parse_trajout_dat(
     f: TextIOWrapper,
     trajectory_in: xr.Dataset,
