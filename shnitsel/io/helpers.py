@@ -292,8 +292,8 @@ def dip_sep(dipoles: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
     assert three == 3
     dip_perm = np.diagonal(dipoles).T
     dip_trans = dipoles[np.triu_indices(nstates, k=1)]
-    logging.debug("permanent dipoles\n" + str(dip_perm))
-    logging.debug("transitional dipoles\n" + str(dip_trans))
+    # logging.debug("permanent dipoles\n" + str(dip_perm))
+    # logging.debug("transitional dipoles\n" + str(dip_trans))
     return dip_perm, dip_trans
 
 
@@ -350,7 +350,6 @@ def default_state_name_assigner(dataset: xr.Dataset) -> xr.Dataset:
         logging.info("State names already assigned")
         return dataset
 
-
     if is_variable_assigned(dataset.state_types):
         counters = np.array([0, 0, 0], dtype=int)
         type_prefix = np.array(["S", "D", "T"])
@@ -370,9 +369,9 @@ def default_state_name_assigner(dataset: xr.Dataset) -> xr.Dataset:
             )
             counters[type_index - 1] += 1
 
-        logging.info(
-            "State names assigned based on types: {type_values} -> {res_names}"
-        )
+        # logging.info(
+        #    "State names assigned based on types: {type_values} -> {res_names}"
+        # )
         dataset = dataset.assign_coords(
             {"state_names": ("state", res_names, dataset.state_names.attrs)}
         )
