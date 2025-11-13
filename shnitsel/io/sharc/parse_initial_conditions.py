@@ -301,9 +301,8 @@ def read_iconds_individual(
     #     f"Found {nstates} States, among which: S/D/T = {nsinglets}/{ndoublets}/{ntriplets}"
     # )
 
-    # TODO: FIXME: Figure out how to find the SHARC version in iconds
-    # TODO: FIXME: Currently no way to determine the version of SHARC that wrote the iconds from QM.in and QM.out. only set from QM.log
-    sharc_version = "unkown"
+    # NOTE: Currently no way to determine the version of SHARC that wrote the iconds from QM.in and QM.out. only set from QM.log
+    sharc_version = "unknown"
 
     # Create dataset
     iconds, default_format_attributes = create_initial_dataset(
@@ -316,12 +315,12 @@ def read_iconds_individual(
         parse_QM_out(f, out=iconds, loading_parameters=loading_parameters)
 
         # if we have found the version, use it.
-        if "input_format_version" in iconds:
-            sharc_version = iconds.attrs["input_format_version"]
-
     try:
         with open(path_obj / "QM.log") as f:
             parse_QM_log_geom(f, out=iconds)
+
+        if "input_format_version" in iconds:
+            sharc_version = iconds.attrs["input_format_version"]
     except FileNotFoundError:
         # This should be an error. We probably cannot recover from this and action needs to be taken
         logging.warning(
@@ -384,14 +383,14 @@ def read_iconds_individual(
         misc_input_settings={"QM.in": info} if len(info) > 0 else None,
     )
 
-    if "state" in info:
-        multiplicities = info["state"]
+    if "states" in info:
+        multiplicities = info["states"]
 
         charges = None
         if "charge" in info:
             charges = info["charge"]
         else:
-            main_version = int(sharc_version.split(".")[0])
+            main_version = 0 if sharc_version == "unknown" else int(sharc_version.split(".")[0])
             if main_version < 4:
                 logging.info(
                     "For sharc before version 4.0, we will attempt to extract charge data from QM interface settings."
