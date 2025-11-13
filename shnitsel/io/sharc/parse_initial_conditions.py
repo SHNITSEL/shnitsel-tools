@@ -636,6 +636,38 @@ def parse_QM_log_geom(f: TextIOWrapper, out: xr.Dataset):
     mark_variable_assigned(out.atXYZ)
 
 
+# Example : 12 3 ! 1 1 0 1 3 0
+# Example : 12 3 ! 1 1 0
+# Example : 12 3
+_transition_identification_re = re.compile(
+    r"(?P<num_lines>\d)\w+(?P<num_colums>\d)(\w+!\w+(?P<state_1_mult>\d)\w+(?P<state_1_n>\d)\w+(?P<state_1_misc>\d)(\w+(?P<state_2_mult>\d)\w+(?P<state_2_n>\d)\w+(?P<state_2_misc>\d))?)?"
+)
+
+
+def _read_dim_or_transition_identification_line(f: TextIOWrapper, main_version: int):
+    """Function to optionally read the current state id or transition identification line.
+
+    Only for versions 3.0 and up do we need to read the identification.
+    Args:
+        f (TextIOWrapper): Input stream of text file
+        main_version (int): The main sharc version to switch the behavior
+
+    Raises:
+        ValueError: _description_
+
+    Returns:
+        _type_: _description_
+    """
+    # TODO: FIXME: This function could be used for debugging, currently not used.
+    if main_version < 3:
+        return None
+    else:
+        line = f.read()
+        match = _transition_identification_re.match(line)
+        if match:
+            logging.debug("Matched transition id line:", match.groups())
+
+
 def parse_QM_out(
     f: TextIOWrapper,
     out: xr.Dataset,

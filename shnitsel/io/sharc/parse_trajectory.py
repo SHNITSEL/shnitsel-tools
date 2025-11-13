@@ -532,6 +532,9 @@ def parse_trajout_dat(
     astate_assigned = False
     nacs_assigned = False
 
+    sharc_version_parts = [int(x) for x in settings["SHARC_version"].split()]
+    _sharc_main_version = sharc_version_parts[0]
+
     tmp_dip_all = np.full((nsteps, nstates, nstates, 3), np.nan)
 
     # skip through until initial step:
