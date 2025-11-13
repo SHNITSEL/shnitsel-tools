@@ -107,10 +107,9 @@ def read_molcas_qm_info(dataset: xr.Dataset, qm_path: pathlib.Path) -> Dict[str,
     resources_file = qm_path / "MOLCAS.resources"
     template_file = qm_path / "MOLCAS.template"
 
-
     res = {}
     if resources_file.is_file():
-        logging.debug(f"Reading MOLCAS resources: {resources_file}")
+        # logging.debug(f"Reading MOLCAS resources: {resources_file}")
         resource_res = {}
         with open(resources_file) as mol_res:
             lines = mol_res.readlines()
@@ -126,11 +125,12 @@ def read_molcas_qm_info(dataset: xr.Dataset, qm_path: pathlib.Path) -> Dict[str,
                 else:
                     resource_res[parts[0]] = parts[1]
         res["MOLCAS.resources"] = resource_res
+        # logging.debug(resource_res)
 
     if template_file.is_file():
-        logging.debug(f"Reading MOLCAS template: {template_file}")
+        # logging.debug(f"Reading MOLCAS template: {template_file}")
         template_res = {}
-        with open(resources_file) as mol_res:
+        with open(template_file) as mol_res:
             lines = mol_res.readlines()
 
             for line in lines:
@@ -144,6 +144,7 @@ def read_molcas_qm_info(dataset: xr.Dataset, qm_path: pathlib.Path) -> Dict[str,
                 else:
                     template_res[parts[0]] = parts[1]
         res["MOLCAS.template"] = template_res
+        # logging.debug(template_res)
 
         if "basis" in template_res:
             res["theory_basis"] = template_res["basis"]
