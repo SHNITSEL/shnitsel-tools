@@ -15,7 +15,7 @@ from shnitsel.io.helpers import (
     get_atom_number_from_symbol,
     make_uniform_path,
 )
-from shnitsel.io.sharc.helpers import (
+from shnitsel.io.sharc.qm_helpers import (
     INTERFACE_READERS,
     set_sharc_state_type_and_name_defaults,
 )
@@ -221,7 +221,7 @@ def read_traj(
 
         if not is_variable_assigned(trajectory.time):
             if "time" in variables_listings:
-                logging.debug(f"Time attributes: {trajectory.time.attrs}")
+                # logging.debug(f"Time attributes: {trajectory.time.attrs}")
                 trajectory.coords["time"] = (
                     "time",
                     variables_listings["time"],
@@ -292,7 +292,9 @@ def read_traj(
 
                 qm_path = path_obj / "QM"
                 for int_name, int_reader in INTERFACE_READERS.items():
+                    # logging.debug(f"Trying format: {int_name}")
                     res_dict = int_reader(trajectory, qm_path)
+                    # logging.debug(f"Res qm data: {res_dict}")
 
                     if "theory_basis" in res_dict:
                         optional_settings.theory_basis_set = res_dict["theory_basis"]
@@ -451,14 +453,15 @@ def parse_trajout_dat(
     nsteps = trajectory_in.sizes["time"]
 
     nsteps_output_dat = int(settings["nsteps"]) + 1  # let's not forget ts=0
-    logging.debug(f"(From input file) nsteps = {nsteps}")
+    # logging.debug(f"(From input file) nsteps = {nsteps}")
+    nsteps = max(nsteps_output_dat, nsteps)
 
     natoms = int(settings["natom"])  # yes, really 'natom', not 'natoms'!
-    logging.debug(f"natoms = {natoms}")
+    # logging.debug(f"natoms = {natoms}")
     energy_offset_zero = float(settings["ezero"])
-    logging.debug(f"energy_offset_zero = {energy_offset_zero}")
+    # logging.debug(f"energy_offset_zero = {energy_offset_zero}")
     nstates = trajectory_in.sizes["state"]
-    logging.debug(f"nstates = {nstates}")
+    # logging.debug(f"nstates = {nstates}")
     nstates = trajectory_in.sizes["state"]
 
     # Read atomic numbers and names from file
@@ -551,7 +554,7 @@ def parse_trajout_dat(
                 logging.warning(f"Non-consecutive timesteps: {ts} -> {new_ts}")
             ts = new_ts
             max_ts = max(max_ts, ts)
-            logging.debug(f"timestep = {ts}")
+            # logging.debug(f"timestep = {ts}")
 
         if line.startswith("! 1 Hamiltonian"):
             energy_assigned = True

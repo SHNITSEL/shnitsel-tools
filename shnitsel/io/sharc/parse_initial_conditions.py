@@ -16,7 +16,7 @@ from shnitsel.io.helpers import (
     ConsistentValue,
     get_atom_number_from_symbol,
 )
-from shnitsel.io.sharc.helpers import (
+from shnitsel.io.sharc.qm_helpers import (
     INTERFACE_READERS,
     set_sharc_state_type_and_name_defaults,
 )
