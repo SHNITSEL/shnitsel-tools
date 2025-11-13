@@ -112,6 +112,7 @@ def create_initial_dataset(
         "socs": ["time", "statecomb", "atom", "direction"],
         "state_names": ["state"],
         "state_types": ["state"],
+        "state_charges": ["state"],
         "astate": ["time"],
         "sdiag": ["time"],
         "phases": ["time", "state"],
@@ -132,6 +133,7 @@ def create_initial_dataset(
         "socs": np.nan,
         "state_names": "",
         "state_types": 0,
+        "state_charges": 0,
         "astate": -1,
         "sdiag": -1,
         "phases": np.nan,
@@ -196,7 +198,7 @@ def create_initial_dataset(
     default_format_attributes = get_default_input_attributes(
         format_name, loading_parameters
     )
-    logging.debug(default_format_attributes)
+    # logging.debug(default_format_attributes)
 
     datavars = {
         varname: (
@@ -235,6 +237,7 @@ def create_initial_dataset(
         "atNums",
         "statecomb",
         "state_names",
+        "state_charges",
         "state_types",
     ]
 
@@ -243,6 +246,9 @@ def create_initial_dataset(
     mark_variable_assigned(res_dataset.atom)
     mark_variable_assigned(res_dataset.direction)
     mark_variable_assigned(res_dataset.statecomb)
+    mark_variable_assigned(res_dataset["from"])
+    mark_variable_assigned(res_dataset["to"])
+    mark_variable_assigned(res_dataset.state_charges)
 
     res_dataset = res_dataset.set_coords(isolated_keys)
 

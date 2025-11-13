@@ -292,8 +292,8 @@ def dip_sep(dipoles: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
     assert three == 3
     dip_perm = np.diagonal(dipoles).T
     dip_trans = dipoles[np.triu_indices(nstates, k=1)]
-    logging.debug("permanent dipoles\n" + str(dip_perm))
-    logging.debug("transitional dipoles\n" + str(dip_trans))
+    # logging.debug("permanent dipoles\n" + str(dip_perm))
+    # logging.debug("transitional dipoles\n" + str(dip_trans))
     return dip_perm, dip_trans
 
 
@@ -316,7 +316,7 @@ def default_state_type_assigner(dataset: xr.Dataset) -> xr.Dataset:
     ntriplets = dataset.attrs["num_triplets"]
 
     if nsinglets >= 0 and ndoublets >= 0 and ntriplets >= 0:
-        logging.debug(f"S/D/T = {nsinglets}/{ndoublets}/{ntriplets}")
+        # logging.debug(f"S/D/T = {nsinglets}/{ndoublets}/{ntriplets}")
         logging.warning(
             "We made a best-effort guess for the types/multiplicities of the individual states. "
             "Please provide a list of state types or a function to assign the state types to have the correct values assigned."
@@ -350,7 +350,6 @@ def default_state_name_assigner(dataset: xr.Dataset) -> xr.Dataset:
         logging.info("State names already assigned")
         return dataset
 
-
     if is_variable_assigned(dataset.state_types):
         counters = np.array([0, 0, 0], dtype=int)
         type_prefix = np.array(["S", "D", "T"])
@@ -362,23 +361,23 @@ def default_state_name_assigner(dataset: xr.Dataset) -> xr.Dataset:
             assert (
                 type_index >= 1 and type_index <= 3
             ), f"Found invalid state multiplicity: {type_index} (must be 1,2 or 3)"
-            logging.debug(
-                f"{i}, {type_index}, {type_prefix[type_index - 1]}, {counters[type_index - 1]}"
-            )
+            # logging.debug(
+            #     f"{i}, {type_index}, {type_prefix[type_index - 1]}, {counters[type_index - 1]}"
+            # )
             res_names.append(
                 type_prefix[type_index - 1] + f"{counters[type_index-1]:d}"
             )
             counters[type_index - 1] += 1
 
-        logging.info(
-            "State names assigned based on types: {type_values} -> {res_names}"
-        )
+        # logging.info(
+        #    "State names assigned based on types: {type_values} -> {res_names}"
+        # )
         dataset = dataset.assign_coords(
             {"state_names": ("state", res_names, dataset.state_names.attrs)}
         )
 
         mark_variable_assigned(dataset.state_names)
-        logging.debug(f"Default name set on type basis: {repr(dataset)}")
+        # logging.debug(f"Default name set on type basis: {repr(dataset)}")
     else:
         nsinglets = dataset.attrs["num_singlets"]
         ndoublets = dataset.attrs["num_doublets"]

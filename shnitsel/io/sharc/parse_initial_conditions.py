@@ -16,6 +16,10 @@ from shnitsel.io.helpers import (
     ConsistentValue,
     get_atom_number_from_symbol,
 )
+from shnitsel.io.sharc.qm_helpers import (
+    INTERFACE_READERS,
+    set_sharc_state_type_and_name_defaults,
+)
 from shnitsel.io.shared.trajectory_setup import (
     OptionalTrajectorySettings,
     RequiredTrajectorySettings,
@@ -281,6 +285,8 @@ def read_iconds_individual(
     Returns:
         xr.Dataset: The Dataset object containing all of the loaded data from the initial condition in default shnitsel units
     """
+    from ...units.definitions import length
+
     path_obj: pathlib.Path = make_uniform_path(path)  # type: ignore
     # Read settings and initial setup from QM.in
     qm_in_path = path_obj / "QM.in"
@@ -289,33 +295,32 @@ def read_iconds_individual(
         with open(qm_in_path) as f:
             info = parse_QM_in(f)
 
-    logging.info("Ensuring consistency of ICONDs dimensions")
+    # logging.info("Ensuring consistency of ICONDs dimensions")
     nstates, natoms, nsinglets, ndoublets, ntriplets = check_dims([path_obj])
-    logging.debug(
-        f"Found {nstates} States, among which: S/D/T = {nsinglets}/{ndoublets}/{ntriplets}"
-    )
+    # logging.debug(
+    #     f"Found {nstates} States, among which: S/D/T = {nsinglets}/{ndoublets}/{ntriplets}"
+    # )
 
-    # TODO: FIXME: Figure out how to find the SHARC version in iconds
-    # TODO: FIXME: Currently no way to determine the version of SHARC that wrote the iconds from QM.in and QM.out. only set from QM.log
-    sharc_version = "unkown"
+    # NOTE: Currently no way to determine the version of SHARC that wrote the iconds from QM.in and QM.out. only set from QM.log
+    sharc_version = "unknown"
 
     # Create dataset
     iconds, default_format_attributes = create_initial_dataset(
         0, nstates, natoms, "sharc", loading_parameters
     )
 
-    logging.info("Reading ICONDs data into Dataset...")
+    # logging.info("Reading ICONDs data into Dataset...")
 
     with open(path_obj / "QM.out") as f:
         parse_QM_out(f, out=iconds, loading_parameters=loading_parameters)
 
         # if we have found the version, use it.
-        if "input_format_version" in iconds:
-            sharc_version = iconds.attrs["input_format_version"]
-
     try:
         with open(path_obj / "QM.log") as f:
             parse_QM_log_geom(f, out=iconds)
+
+        if "input_format_version" in iconds:
+            sharc_version = iconds.attrs["input_format_version"]
     except FileNotFoundError:
         # This should be an error. We probably cannot recover from this and action needs to be taken
         logging.warning(
@@ -328,9 +333,6 @@ def read_iconds_individual(
 
         try:
             # TODO: FIXME: Figure out unit of positions in QM.in
-            logging.warning(
-                "The unit of the positions in QM.in is currently still unknown."
-            )
             if "atNames" in info:
                 iconds["atNames"][:] = (atnames := info["atNames"])
                 mark_variable_assigned(iconds.atNames)
@@ -338,6 +340,18 @@ def read_iconds_individual(
                 mark_variable_assigned(iconds.atNums)
             if "atXYZ" in info:
                 iconds["atXYZ"][:, :] = info["atXYZ"]
+                if "unit" in info:
+                    # We should set the unit accordingly if a unit is specified in QM.in
+                    unit_name = info["unit"].lower()
+                    if unit_name == "angstrom":
+                        iconds.atXYZ.attrs["units"] = length.Angstrom
+                    elif unit_name == "bohr":
+                        iconds.atXYZ.attrs["units"] = length.Bohr
+                    else:
+                        logging.warning(
+                            f"Unsupported input length unit in QM.in: {unit_name}. Unit on the position is assumed to be of unit {default_format_attributes["atXYZ"]["units"]}"
+                        )
+
                 mark_variable_assigned(iconds.atXYZ)
         except FileNotFoundError:
             logging.warning(
@@ -368,6 +382,43 @@ def read_iconds_individual(
         has_forces=is_variable_assigned(iconds["forces"]),
         misc_input_settings={"QM.in": info} if len(info) > 0 else None,
     )
+
+    if "states" in info:
+        multiplicities = info["states"]
+
+        charges = None
+        if "charge" in info:
+            charges = info["charge"]
+        else:
+            main_version = 0 if sharc_version == "unknown" else int(sharc_version.split(".")[0])
+            if main_version < 4:
+                logging.info(
+                    "For sharc before version 4.0, we will attempt to extract charge data from QM interface settings."
+                )
+
+                qm_path = path_obj / "QM"
+                for int_name, int_reader in INTERFACE_READERS.items():
+                    res_dict = int_reader(iconds, qm_path)
+
+                    if "theory_basis" in res_dict:
+                        optional_settings.theory_basis_set = res_dict["theory_basis"]
+                    if "est_level" in res_dict:
+                        optional_settings.est_level = res_dict["est_level"]
+                    if "charge" in res_dict:
+                        charges = res_dict["charge"]
+
+                    if charges is not None:
+                        logging.info(f"Found charge data from the {int_name} interface")
+                        break
+            else:
+                # Assume we are uncharged if no charge data found.
+                logging.info(
+                    "We assume there is no charge because no charge information was found"
+                )
+                charges = 0
+
+        iconds = set_sharc_state_type_and_name_defaults(iconds, multiplicities, charges)
+
     assign_optional_settings(iconds, optional_settings)
 
     return finalize_icond_dataset(
@@ -443,7 +494,7 @@ def parse_QM_in(qm_in: TextIOWrapper) -> Dict[str, Any]:
     for i in range(num_atoms + 2, len(lines)):
         if len(lines[i]) > 0:
             line_parts = [x.strip() for x in lines[i].split()]
-            key = line_parts[0]
+            key = line_parts[0].lower()
             if len(line_parts) > 1:
                 value = " ".join(line_parts[1:])
             else:
@@ -453,7 +504,7 @@ def parse_QM_in(qm_in: TextIOWrapper) -> Dict[str, Any]:
     if "states" in info:
         state_string = info["states"]
         state_parts = state_string.split()
-        info["states"] = state_parts
+        info["states"] = [int(s) for s in state_parts]
         max_mult = len(state_parts)
         nsinglets = 0
         ndoublets = 0
@@ -474,6 +525,8 @@ def parse_QM_in(qm_in: TextIOWrapper) -> Dict[str, Any]:
         info["max_multiplicity"] = max_mult
         if max_mult > 3:
             info["nums_higher_multiplicities"] = [int(x) for x in state_parts[3:]]
+    if "charge" in info:
+        info["charge"] = [int(c) for c in info["charge"].split()]
 
     # print(info)
     return info
@@ -580,6 +633,38 @@ def parse_QM_log_geom(f: TextIOWrapper, out: xr.Dataset):
     mark_variable_assigned(out.atNames)
     mark_variable_assigned(out.atNums)
     mark_variable_assigned(out.atXYZ)
+
+
+# Example : 12 3 ! 1 1 0 1 3 0
+# Example : 12 3 ! 1 1 0
+# Example : 12 3
+_transition_identification_re = re.compile(
+    r"(?P<num_lines>\d)\w+(?P<num_colums>\d)(\w+!\w+(?P<state_1_mult>\d)\w+(?P<state_1_n>\d)\w+(?P<state_1_misc>\d)(\w+(?P<state_2_mult>\d)\w+(?P<state_2_n>\d)\w+(?P<state_2_misc>\d))?)?"
+)
+
+
+def _read_dim_or_transition_identification_line(f: TextIOWrapper, main_version: int):
+    """Function to optionally read the current state id or transition identification line.
+
+    Only for versions 3.0 and up do we need to read the identification.
+    Args:
+        f (TextIOWrapper): Input stream of text file
+        main_version (int): The main sharc version to switch the behavior
+
+    Raises:
+        ValueError: _description_
+
+    Returns:
+        _type_: _description_
+    """
+    # TODO: FIXME: This function could be used for debugging, currently not used.
+    if main_version < 3:
+        return None
+    else:
+        line = f.read()
+        match = _transition_identification_re.match(line)
+        if match:
+            logging.debug("Matched transition id line:", match.groups())
 
 
 def parse_QM_out(

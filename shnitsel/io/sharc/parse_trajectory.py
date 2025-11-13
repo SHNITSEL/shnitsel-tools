@@ -15,6 +15,10 @@ from shnitsel.io.helpers import (
     get_atom_number_from_symbol,
     make_uniform_path,
 )
+from shnitsel.io.sharc.qm_helpers import (
+    INTERFACE_READERS,
+    set_sharc_state_type_and_name_defaults,
+)
 from shnitsel.io.shared.trajectory_setup import (
     OptionalTrajectorySettings,
     RequiredTrajectorySettings,
@@ -63,13 +67,16 @@ def read_traj(
     veloc_file = path_obj / "veloc"
 
     sharc_version = "unknown"
-    nsinglets: int | None = None
-    ndoublets: int | None = None
-    ntriplets: int | None = None
+    nsinglets: int = 0
+    ndoublets: int = 0
+    ntriplets: int = 0
+
+    state_multiplicities = None
+    state_charges = None
 
     delta_t: float | None = None
     t_max: float | None = None
-    nsteps: int | None = None
+    nsteps: int = 0
     natoms: int | None = None
     nstates: int | None = None
     energy_offset: float | None = None
@@ -83,7 +90,7 @@ def read_traj(
             settings = parse_input_settings(f.readlines())
         delta_t = float(settings["stepsize"])
         t_max = float(settings["tmax"])
-        nsteps = int(t_max / delta_t) + 1
+        nsteps = max(nsteps, int(round(t_max / delta_t)) + 1)
         energy_offset = float(settings["ezero"])
 
         if "nstates" in settings:
@@ -94,6 +101,10 @@ def read_traj(
             nsinglets = state_mult_array[0] if max_mult >= 1 else 0
             ndoublets = state_mult_array[1] if max_mult >= 2 else 0
             ntriplets = state_mult_array[2] if max_mult >= 3 else 0
+            state_multiplicities = state_mult_array
+        if "charge" in settings:
+            state_charges = [int(x.strip()) for x in settings["charge"].split()]
+
         misc_settings["input"] = settings
 
     if output_path.is_file():
@@ -102,7 +113,7 @@ def read_traj(
         # Unit of dtstep is completely unclear.
         # delta_t = float(settings["dtstep"]) *time_
 
-        nsteps = int(settings["nsteps"]) + 1
+        nsteps = max(nsteps, int(settings["nsteps"]) + 1)
         natoms = int(settings["natom"])
 
         energy_offset = settings["ezero"]
@@ -115,13 +126,16 @@ def read_traj(
             nsinglets = state_mult_array[0] if max_mult >= 1 else 0
             ndoublets = state_mult_array[1] if max_mult >= 2 else 0
             ntriplets = state_mult_array[2] if max_mult >= 3 else 0
+            state_multiplicities = state_mult_array
+        if "charge" in settings:
+            state_charges = [int(x.strip()) for x in settings["charge"].split()]
         misc_settings["output.dat"] = settings
 
     if output_listing_path.is_file():
         settings, variables_listings = parse_output_listings(output_listing_path)
         delta_t = float(settings["delta_t"])
         t_max = float(settings["t_max"])
-        nsteps = int(settings["nsteps"]) + 1
+        nsteps = max(nsteps, int(settings["nsteps"]) + 1)
         misc_settings["output.lis"] = settings
 
     if output_log_path.is_file():
@@ -207,7 +221,7 @@ def read_traj(
 
         if not is_variable_assigned(trajectory.time):
             if "time" in variables_listings:
-                logging.debug(f"Time attributes: {trajectory.time.attrs}")
+                # logging.debug(f"Time attributes: {trajectory.time.attrs}")
                 trajectory.coords["time"] = (
                     "time",
                     variables_listings["time"],
@@ -266,6 +280,42 @@ def read_traj(
         has_forces=is_variable_assigned(trajectory["forces"]),
         misc_input_settings=misc_settings if len(misc_settings) > 0 else None,
     )
+
+    if state_multiplicities is not None:
+        charges = state_charges
+        if charges is None:
+            main_version = int(sharc_version.split(".")[0])
+            if main_version < 4:
+                logging.info(
+                    "For sharc before version 4.0, we will attempt to extract charge data from QM interface settings."
+                )
+
+                qm_path = path_obj / "QM"
+                for int_name, int_reader in INTERFACE_READERS.items():
+                    # logging.debug(f"Trying format: {int_name}")
+                    res_dict = int_reader(trajectory, qm_path)
+                    # logging.debug(f"Res qm data: {res_dict}")
+
+                    if "theory_basis" in res_dict:
+                        optional_settings.theory_basis_set = res_dict["theory_basis"]
+                    if "est_level" in res_dict:
+                        optional_settings.est_level = res_dict["est_level"]
+                    if "charge" in res_dict:
+                        charges = res_dict["charge"]
+
+                    if charges is not None:
+                        logging.info(f"Found charge data from the {int_name} interface")
+                        break
+            else:
+                # Assume we are uncharged if no charge data found.
+                logging.info(
+                    "We assume there is no charge because no charge information was found"
+                )
+                charges = 0
+
+        trajectory = set_sharc_state_type_and_name_defaults(
+            trajectory, state_multiplicities, charges
+        )
     assign_optional_settings(trajectory, optional_settings)
 
     return trajectory
@@ -403,14 +453,15 @@ def parse_trajout_dat(
     nsteps = trajectory_in.sizes["time"]
 
     nsteps_output_dat = int(settings["nsteps"]) + 1  # let's not forget ts=0
-    logging.debug(f"(From input file) nsteps = {nsteps}")
+    # logging.debug(f"(From input file) nsteps = {nsteps}")
+    nsteps = max(nsteps_output_dat, nsteps)
 
     natoms = int(settings["natom"])  # yes, really 'natom', not 'natoms'!
-    logging.debug(f"natoms = {natoms}")
+    # logging.debug(f"natoms = {natoms}")
     energy_offset_zero = float(settings["ezero"])
-    logging.debug(f"energy_offset_zero = {energy_offset_zero}")
+    # logging.debug(f"energy_offset_zero = {energy_offset_zero}")
     nstates = trajectory_in.sizes["state"]
-    logging.debug(f"nstates = {nstates}")
+    # logging.debug(f"nstates = {nstates}")
     nstates = trajectory_in.sizes["state"]
 
     # Read atomic numbers and names from file
@@ -481,6 +532,9 @@ def parse_trajout_dat(
     astate_assigned = False
     nacs_assigned = False
 
+    sharc_version_parts = [int(x) for x in settings["SHARC_version"].split(".")]
+    _sharc_main_version = sharc_version_parts[0]
+
     tmp_dip_all = np.full((nsteps, nstates, nstates, 3), np.nan)
 
     # skip through until initial step:
@@ -503,7 +557,7 @@ def parse_trajout_dat(
                 logging.warning(f"Non-consecutive timesteps: {ts} -> {new_ts}")
             ts = new_ts
             max_ts = max(max_ts, ts)
-            logging.debug(f"timestep = {ts}")
+            # logging.debug(f"timestep = {ts}")
 
         if line.startswith("! 1 Hamiltonian"):
             energy_assigned = True

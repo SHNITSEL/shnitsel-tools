@@ -12,6 +12,18 @@ class unit_dimensions:
     nacs = "nacs"
     time = "time"
     socs = "socs"
+    charge = "charge"
+
+
+class charge:
+    e = "e"
+    Coulomb = "C"
+
+
+_charge_unit_scales = {
+    charge.e: 1,
+    charge.Coulomb: si.C,
+}
 
 
 class time:
@@ -167,6 +179,7 @@ standard_shnitsel_units = {
     unit_dimensions.dipole: dipole.Debye,
     # "dipole_trans": "1",
     unit_dimensions.socs: socs.au,
+    unit_dimensions.charge: charge.e,
 }
 
 """
@@ -197,6 +210,7 @@ standard_units_of_formats = {
         unit_dimensions.dipole: dipole.au,
         # "dipole_trans": dipole.au,
         unit_dimensions.socs: socs.au,
+        unit_dimensions.charge: charge.e,
     },
     "ase": {
         unit_dimensions.length: length.Bohr,
@@ -208,6 +222,7 @@ standard_units_of_formats = {
         unit_dimensions.dipole: dipole.au,
         # "dipole_trans": dipole.au,
         unit_dimensions.socs: socs.au,
+        unit_dimensions.charge: charge.e,
     },
     "newtonx": {  # Generally uses atomic units?
         unit_dimensions.length: length.Angstrom,  # TODO: FIXME: Until 1.3 it was AU
@@ -218,10 +233,11 @@ standard_units_of_formats = {
         unit_dimensions.dipole: dipole.Debye,
         # "dipole_trans": dipole.au,
         unit_dimensions.socs: socs.au,
+        unit_dimensions.charge: charge.e,
     },
     "shnitsel": standard_shnitsel_units,
     "xyz": {
-        unit_dimensions.length: length.Bohr,
+        unit_dimensions.length: length.Angstrom,
     },
     # Below is tentative support for Pyrai2MD file reading
     "pyrai2md": {  # TODO: FIXME: Pyrai2MD parameters are quite uncertain based on their documentation
@@ -234,5 +250,6 @@ standard_units_of_formats = {
         unit_dimensions.dipole: dipole.au,
         # "dipole_trans": dipole.au,
         unit_dimensions.socs: socs.au,
+        unit_dimensions.charge: charge.e,
     },
 }
