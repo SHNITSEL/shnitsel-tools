@@ -10,6 +10,8 @@ We are currently suffering from missing input files for tests:
 - TODO: Make it possible to merge a trajectory into an already multi-trajectory. May be necessary for some users or for us extending datasets in the future.
 - TODO: FIXME: Improve error collection for multi-trajectory parsing.
 - TODO: FIXME: Improve errors and warnings texts
+- TODO: FIXME: Do NewtonX/PyrAI2md have charge information?
+- TODO: FIXME: PyrAI2md add reading of NAC/dcm/SOC
 
 
 
