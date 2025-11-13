@@ -248,6 +248,7 @@ def create_initial_dataset(
     mark_variable_assigned(res_dataset.statecomb)
     mark_variable_assigned(res_dataset["from"])
     mark_variable_assigned(res_dataset["to"])
+    mark_variable_assigned(res_dataset.state_charges)
 
     res_dataset = res_dataset.set_coords(isolated_keys)
 
