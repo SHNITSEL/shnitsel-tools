@@ -21,7 +21,7 @@ class charge:
 
 
 _charge_unit_scales = {
-    charge.e: si._e,
+    charge.e: 1,
     charge.Coulomb: si.C,
 }
 
