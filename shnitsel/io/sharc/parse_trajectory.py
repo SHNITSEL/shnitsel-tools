@@ -15,6 +15,10 @@ from shnitsel.io.helpers import (
     get_atom_number_from_symbol,
     make_uniform_path,
 )
+from shnitsel.io.sharc.helpers import (
+    INTERFACE_READERS,
+    set_sharc_state_type_and_name_defaults,
+)
 from shnitsel.io.shared.trajectory_setup import (
     OptionalTrajectorySettings,
     RequiredTrajectorySettings,
@@ -67,6 +71,9 @@ def read_traj(
     ndoublets: int | None = None
     ntriplets: int | None = None
 
+    state_multiplicities = None
+    state_charges = None
+
     delta_t: float | None = None
     t_max: float | None = None
     nsteps: int | None = None
@@ -94,6 +101,10 @@ def read_traj(
             nsinglets = state_mult_array[0] if max_mult >= 1 else 0
             ndoublets = state_mult_array[1] if max_mult >= 2 else 0
             ntriplets = state_mult_array[2] if max_mult >= 3 else 0
+            state_multiplicities = state_mult_array
+        if "charge" in settings:
+            state_charges = [int(x.strip()) for x in settings["charge"].split()]
+
         misc_settings["input"] = settings
 
     if output_path.is_file():
@@ -115,6 +126,9 @@ def read_traj(
             nsinglets = state_mult_array[0] if max_mult >= 1 else 0
             ndoublets = state_mult_array[1] if max_mult >= 2 else 0
             ntriplets = state_mult_array[2] if max_mult >= 3 else 0
+            state_multiplicities = state_mult_array
+        if "charge" in settings:
+            state_charges = [int(x.strip()) for x in settings["charge"].split()]
         misc_settings["output.dat"] = settings
 
     if output_listing_path.is_file():
@@ -266,6 +280,40 @@ def read_traj(
         has_forces=is_variable_assigned(trajectory["forces"]),
         misc_input_settings=misc_settings if len(misc_settings) > 0 else None,
     )
+
+    if state_multiplicities is not None:
+        charges = state_charges
+        if charges is None:
+            main_version = int(sharc_version.split(".")[0])
+            if main_version < 4:
+                logging.info(
+                    "For sharc before version 4.0, we will attempt to extract charge data from QM interface settings."
+                )
+
+                qm_path = path_obj / "QM"
+                for int_name, int_reader in INTERFACE_READERS.items():
+                    res_dict = int_reader(trajectory, qm_path)
+
+                    if "theory_basis" in res_dict:
+                        optional_settings.theory_basis_set = res_dict["theory_basis"]
+                    if "est_level" in res_dict:
+                        optional_settings.est_level = res_dict["est_level"]
+                    if "charge" in res_dict:
+                        charges = res_dict["charge"]
+
+                    if charges is not None:
+                        logging.info(f"Found charge data from the {int_name} interface")
+                        break
+            else:
+                # Assume we are uncharged if no charge data found.
+                logging.info(
+                    "We assume there is no charge because no charge information was found"
+                )
+                charges = 0
+
+        trajectory = set_sharc_state_type_and_name_defaults(
+            trajectory, state_multiplicities, charges
+        )
     assign_optional_settings(trajectory, optional_settings)
 
     return trajectory

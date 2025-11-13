@@ -16,6 +16,10 @@ from shnitsel.io.helpers import (
     ConsistentValue,
     get_atom_number_from_symbol,
 )
+from shnitsel.io.sharc.helpers import (
+    INTERFACE_READERS,
+    set_sharc_state_type_and_name_defaults,
+)
 from shnitsel.io.shared.trajectory_setup import (
     OptionalTrajectorySettings,
     RequiredTrajectorySettings,
@@ -350,9 +354,6 @@ def read_iconds_individual(
                         )
 
                 mark_variable_assigned(iconds.atXYZ)
-            if "charge" in info:
-                # TODO: FIXME: Deal with charged states
-                logging.warning("Currently no support for handling of charged states")
         except FileNotFoundError:
             logging.warning(
                 f"No positional information found in {path}/QM.in, the loaded trajectory does not contain positional data 'atXYZ'."
@@ -382,6 +383,43 @@ def read_iconds_individual(
         has_forces=is_variable_assigned(iconds["forces"]),
         misc_input_settings={"QM.in": info} if len(info) > 0 else None,
     )
+
+    if "state" in info:
+        multiplicities = info["state"]
+
+        charges = None
+        if "charge" in info:
+            charges = info["charge"]
+        else:
+            main_version = int(sharc_version.split(".")[0])
+            if main_version < 4:
+                logging.info(
+                    "For sharc before version 4.0, we will attempt to extract charge data from QM interface settings."
+                )
+
+                qm_path = path_obj / "QM"
+                for int_name, int_reader in INTERFACE_READERS.items():
+                    res_dict = int_reader(iconds, qm_path)
+
+                    if "theory_basis" in res_dict:
+                        optional_settings.theory_basis_set = res_dict["theory_basis"]
+                    if "est_level" in res_dict:
+                        optional_settings.est_level = res_dict["est_level"]
+                    if "charge" in res_dict:
+                        charges = res_dict["charge"]
+
+                    if charges is not None:
+                        logging.info(f"Found charge data from the {int_name} interface")
+                        break
+            else:
+                # Assume we are uncharged if no charge data found.
+                logging.info(
+                    "We assume there is no charge because no charge information was found"
+                )
+                charges = 0
+
+        iconds = set_sharc_state_type_and_name_defaults(iconds, multiplicities, charges)
+
     assign_optional_settings(iconds, optional_settings)
 
     return finalize_icond_dataset(
@@ -467,7 +505,7 @@ def parse_QM_in(qm_in: TextIOWrapper) -> Dict[str, Any]:
     if "states" in info:
         state_string = info["states"]
         state_parts = state_string.split()
-        info["states"] = state_parts
+        info["states"] = [int(s) for s in state_parts]
         max_mult = len(state_parts)
         nsinglets = 0
         ndoublets = 0
@@ -488,6 +526,8 @@ def parse_QM_in(qm_in: TextIOWrapper) -> Dict[str, Any]:
         info["max_multiplicity"] = max_mult
         if max_mult > 3:
             info["nums_higher_multiplicities"] = [int(x) for x in state_parts[3:]]
+    if "charge" in info:
+        info["charge"] = [int(c) for c in info["charge"].split()]
 
     # print(info)
     return info
