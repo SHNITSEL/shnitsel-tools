@@ -67,16 +67,16 @@ def read_traj(
     veloc_file = path_obj / "veloc"
 
     sharc_version = "unknown"
-    nsinglets: int | None = None
-    ndoublets: int | None = None
-    ntriplets: int | None = None
+    nsinglets: int = 0
+    ndoublets: int = 0
+    ntriplets: int = 0
 
     state_multiplicities = None
     state_charges = None
 
     delta_t: float | None = None
     t_max: float | None = None
-    nsteps: int | None = None
+    nsteps: int = 0
     natoms: int | None = None
     nstates: int | None = None
     energy_offset: float | None = None
@@ -90,7 +90,7 @@ def read_traj(
             settings = parse_input_settings(f.readlines())
         delta_t = float(settings["stepsize"])
         t_max = float(settings["tmax"])
-        nsteps = int(t_max / delta_t) + 1
+        nsteps = max(nsteps, int(round(t_max / delta_t)) + 1)
         energy_offset = float(settings["ezero"])
 
         if "nstates" in settings:
@@ -113,7 +113,7 @@ def read_traj(
         # Unit of dtstep is completely unclear.
         # delta_t = float(settings["dtstep"]) *time_
 
-        nsteps = int(settings["nsteps"]) + 1
+        nsteps = max(nsteps, int(settings["nsteps"]) + 1)
         natoms = int(settings["natom"])
 
         energy_offset = settings["ezero"]
@@ -135,7 +135,7 @@ def read_traj(
         settings, variables_listings = parse_output_listings(output_listing_path)
         delta_t = float(settings["delta_t"])
         t_max = float(settings["t_max"])
-        nsteps = int(settings["nsteps"]) + 1
+        nsteps = max(nsteps, int(settings["nsteps"]) + 1)
         misc_settings["output.lis"] = settings
 
     if output_log_path.is_file():
