@@ -46,7 +46,7 @@ def parse_pyrai2md(
     """
 
     # TODO: FIXME: Use /PyrAI2md/Dynamics/aimd.py to complete the reading of NACS/dcm
-    # TODO: FIXME: Pyrai2md has a different understanding of the number of triplets: It states per state whether it is singlet, doublet, triplet, no further multiplicities are considered. 
+    # TODO: FIXME: Pyrai2md has a different understanding of the number of triplets: It states per state whether it is singlet, doublet, triplet, no further multiplicities are considered.
     logging.warning("No NACS available for PyrAI2md")
 
     path_obj: pathlib.Path = make_uniform_path(traj_path)
@@ -101,7 +101,11 @@ def parse_pyrai2md(
     trajectory = trajectory.assign_coords(
         {
             "time": ("time", times, default_format_attributes["time"]),
-            "state_types": ("state", state_types, default_format_attributes["state_types"]),
+            "state_types": (
+                "state",
+                state_types,
+                default_format_attributes["state_types"],
+            ),
         }
     )
     mark_variable_assigned(trajectory["time"])
@@ -176,6 +180,58 @@ _float_pattern = re.compile(r"^[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?$")
 _double_whitespace_pattern = re.compile(r"\s{2,}")
 _colon_whitespace_pattern = re.compile(r":\s{1,}")
 _setting_name_pattern = re.compile(r"(\w+([\s_]{1}\w+)*)")
+
+
+"""
+TODO: FIXME: Read in the NAC, dcm or SOC values.
+
+
+ ' &nonadiabatic coupling vectors %3d - %3d in Hartree/Bohr M = %1d / %1d
+-------------------------------------------------------------------------------
+%s-------------------------------------------------------------------------------
+' % (s1 + 1, s2 + 1, m1, m2, print_coord(np.concatenate((self.traj.atoms, coupling), axis=1)))
+
+or 
+ ' &nonadiabatic coupling vectors %3d - %3d in Hartree/Bohr M = %1d / %1d
+-------------------------------------------------------------------------------
+  Not computed
+-------------------------------------------------------------------------------
+'
+
+
+  '&derivative coupling matrix          
+-------------------------------------------------------------------------------
+%s-------------------------------------------------------------------------------   
+'% (print_matrix(self.traj.nac))
+
+        soc_info = ''
+        for n, pair in enumerate(self.traj.soc_coupling):
+            s1, s2 = pair
+            m1 = self.traj.statemult[s1]
+            m2 = self.traj.statemult[s2]
+            try:
+                coupling = self.traj.soc[n]
+                soc_info += '  <H>=%10.4f            %3d - %3d in cm-1 M1 = %1d M2 = %1d\n' % (
+                    coupling, s1 + 1, s2 + 1, m1, m2)
+
+            except IndexError:
+                soc_info += '  Not computed              %3d - %3d in cm-1 M1 = %1d M2 = %1d\n' % (
+                    s1 + 1, s2 + 1, m1, m2)
+
+        if len(self.traj.soc_coupling) > 0:
+            log_info += '
+            &spin-orbit coupling
+    -------------------------------------------------------------------------------
+    %s-------------------------------------------------------------------------------
+    ' % soc_info
+
+        if self.traj.mixinfo:
+            log_info += '%s\n' % self.traj.mixinfo
+
+        return log_info
+
+We need to support these variables.
+"""
 
 
 def read_pyrai2md_settings_from_log(f: TextIOWrapper) -> Dict[str, Any]:
