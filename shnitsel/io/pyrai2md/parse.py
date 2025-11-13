@@ -231,6 +231,8 @@ or
         return log_info
 
 We need to support these variables.
+
+Do we need to support single-point and hopping probability calculations?
 """
 
 
