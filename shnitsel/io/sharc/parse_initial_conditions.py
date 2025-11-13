@@ -281,6 +281,8 @@ def read_iconds_individual(
     Returns:
         xr.Dataset: The Dataset object containing all of the loaded data from the initial condition in default shnitsel units
     """
+    from ...units.definitions import length
+
     path_obj: pathlib.Path = make_uniform_path(path)  # type: ignore
     # Read settings and initial setup from QM.in
     qm_in_path = path_obj / "QM.in"
@@ -289,11 +291,11 @@ def read_iconds_individual(
         with open(qm_in_path) as f:
             info = parse_QM_in(f)
 
-    logging.info("Ensuring consistency of ICONDs dimensions")
+    # logging.info("Ensuring consistency of ICONDs dimensions")
     nstates, natoms, nsinglets, ndoublets, ntriplets = check_dims([path_obj])
-    logging.debug(
-        f"Found {nstates} States, among which: S/D/T = {nsinglets}/{ndoublets}/{ntriplets}"
-    )
+    # logging.debug(
+    #     f"Found {nstates} States, among which: S/D/T = {nsinglets}/{ndoublets}/{ntriplets}"
+    # )
 
     # TODO: FIXME: Figure out how to find the SHARC version in iconds
     # TODO: FIXME: Currently no way to determine the version of SHARC that wrote the iconds from QM.in and QM.out. only set from QM.log
@@ -304,7 +306,7 @@ def read_iconds_individual(
         0, nstates, natoms, "sharc", loading_parameters
     )
 
-    logging.info("Reading ICONDs data into Dataset...")
+    # logging.info("Reading ICONDs data into Dataset...")
 
     with open(path_obj / "QM.out") as f:
         parse_QM_out(f, out=iconds, loading_parameters=loading_parameters)
@@ -328,9 +330,6 @@ def read_iconds_individual(
 
         try:
             # TODO: FIXME: Figure out unit of positions in QM.in
-            logging.warning(
-                "The unit of the positions in QM.in is currently still unknown."
-            )
             if "atNames" in info:
                 iconds["atNames"][:] = (atnames := info["atNames"])
                 mark_variable_assigned(iconds.atNames)
@@ -338,7 +337,22 @@ def read_iconds_individual(
                 mark_variable_assigned(iconds.atNums)
             if "atXYZ" in info:
                 iconds["atXYZ"][:, :] = info["atXYZ"]
+                if "unit" in info:
+                    # We should set the unit accordingly if a unit is specified in QM.in
+                    unit_name = info["unit"].lower()
+                    if unit_name == "angstrom":
+                        iconds.atXYZ.attrs["units"] = length.Angstrom
+                    elif unit_name == "bohr":
+                        iconds.atXYZ.attrs["units"] = length.Bohr
+                    else:
+                        logging.warning(
+                            f"Unsupported input length unit in QM.in: {unit_name}. Unit on the position is assumed to be of unit {default_format_attributes["atXYZ"]["units"]}"
+                        )
+
                 mark_variable_assigned(iconds.atXYZ)
+            if "charge" in info:
+                # TODO: FIXME: Deal with charged states
+                logging.warning("Currently no support for handling of charged states")
         except FileNotFoundError:
             logging.warning(
                 f"No positional information found in {path}/QM.in, the loaded trajectory does not contain positional data 'atXYZ'."
@@ -443,7 +457,7 @@ def parse_QM_in(qm_in: TextIOWrapper) -> Dict[str, Any]:
     for i in range(num_atoms + 2, len(lines)):
         if len(lines[i]) > 0:
             line_parts = [x.strip() for x in lines[i].split()]
-            key = line_parts[0]
+            key = line_parts[0].lower()
             if len(line_parts) > 1:
                 value = " ".join(line_parts[1:])
             else:

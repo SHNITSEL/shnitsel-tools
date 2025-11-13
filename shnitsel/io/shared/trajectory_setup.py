@@ -112,6 +112,7 @@ def create_initial_dataset(
         "socs": ["time", "statecomb", "atom", "direction"],
         "state_names": ["state"],
         "state_types": ["state"],
+        "state_charges": ["state"],
         "astate": ["time"],
         "sdiag": ["time"],
         "phases": ["time", "state"],
@@ -132,6 +133,7 @@ def create_initial_dataset(
         "socs": np.nan,
         "state_names": "",
         "state_types": 0,
+        "state_charges": 0,
         "astate": -1,
         "sdiag": -1,
         "phases": np.nan,
@@ -235,6 +237,7 @@ def create_initial_dataset(
         "atNums",
         "statecomb",
         "state_names",
+        "state_charges",
         "state_types",
     ]
 

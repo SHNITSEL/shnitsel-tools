@@ -162,6 +162,11 @@ convert_nacs = Converter(
 # Helper to convert socs
 convert_socs = Converter(definitions.unit_dimensions.time, definitions._socs_unit_scale)
 
+# Helper to convert socs
+convert_charge = Converter(
+    definitions.unit_dimensions.charge, definitions._charge_unit_scales
+)
+
 
 def convert_all_units_to_shnitsel_defaults(data: xr.Dataset) -> xr.Dataset:
     new_vars = {}
@@ -176,17 +181,17 @@ def convert_all_units_to_shnitsel_defaults(data: xr.Dataset) -> xr.Dataset:
                 )
 
     logging.debug("Converting Data: " + str(list(new_vars.keys())))
-    # NOTE: For some reason, sometimes, assigning multiple variables at once resulted in all of them being filled with NaN values. 
+    # NOTE: For some reason, sometimes, assigning multiple variables at once resulted in all of them being filled with NaN values.
     # NOTE: It may be an issue of setting the coordinate "time" before setting the variables. Split setting variables and coordinates
     tmp = data.assign(new_vars)
-    
+
     new_coords = {}
 
     with xr.set_options(keep_attrs=True):
         for coord_name in data.coords:
             if 'unitdim' in data[coord_name].attrs:
-                new_coords[coord_name] = convert_datarray_with_unitdim_to_shnitsel_defaults(
-                    data[coord_name]
+                new_coords[coord_name] = (
+                    convert_datarray_with_unitdim_to_shnitsel_defaults(data[coord_name])
                 )
 
     logging.debug("Converting Coords: " + str(list(new_coords.keys())))
@@ -217,6 +222,7 @@ _CONVERTERS: Dict[str, Callable[[xr.DataArray, str], xr.DataArray]] = {
     definitions.unit_dimensions.time: convert_time,
     definitions.unit_dimensions.nacs: convert_nacs,
     definitions.unit_dimensions.socs: convert_socs,
+    definitions.unit_dimensions.charge: convert_charge,
 }
 
 

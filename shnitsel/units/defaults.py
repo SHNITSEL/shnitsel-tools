@@ -77,6 +77,11 @@ def get_default_input_attributes(
         "state_types": {
             "long_name": "Multiplicity to indicate whether the respective state is singlet (1), doublet (2), or triplet(3)"
         },
+        "state_charges": {
+            "long_name": "Charge of the various states.",
+            "unitdim": unit_dimensions.charge,
+            "units": override_defaults(unit_dimensions.charge, "state_charge"),
+        },
         "statecomb": {
             "long_name": "Combination of two states used to index inter-state properties"
         },
