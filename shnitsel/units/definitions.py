@@ -116,10 +116,13 @@ class dipole:
 
 
 _dipole_unit_scales = {
-    dipole.CoulombMeter: si.C*si.m,
-    dipole.Debye: si.Debye,
+    dipole.CoulombMeter: si.C * si.m,
+    dipole.Debye: si.Debye,  # si.C* si.m * 1.e-21 / si._c,
     # TODO: FIXME: set actual atomic dipole unit.
-    dipole.au: si._e*si.Bohr,  # TODO: Check: 1D = 0.393456a.u.
+    dipole.au: si.C
+    * si.m
+    * si._e
+    * (1.0e-10 * si.Bohr),  # TODO: Check: 1D = 0.393456a.u.
 }
 
 
