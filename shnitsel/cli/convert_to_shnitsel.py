@@ -92,6 +92,12 @@ def main():
     )
 
     argument_parser.add_argument(
+        "-f--force_write",
+        action="store_true",
+        help="A flag to make the script override existing files instead of halting if the output path already exists.",
+    )
+
+    argument_parser.add_argument(
         "--force_sequential",
         action="store_true",
         help="A flag to force sequential execution of trajectory conversion. Defaults to False to allow for parallel import and conversion.",
@@ -112,6 +118,9 @@ def main():
     loglevel = args.loglevel
 
     force_sequential = args.force_sequential
+    force_write = args.force_write
+
+    found_file_at_beginning = False
 
     logging.basicConfig()
 
@@ -124,15 +133,21 @@ def main():
         if output_path.suffix != ".nc":
             output_path = output_path.parent / (output_path.name + ".nc")
 
-    if output_path.exists():
-        logging.error(
-            f"Conversion would override {output_path}. For safety reasons, we will not proceed."
-        )
-        sys.exit(1)
-
     if not input_path.exists():
         logging.error(f"Input path {input_path} does not exist")
         sys.exit(1)
+
+    if output_path.exists():
+        if force_write:
+            logging.warning(
+                f"Conversion will overwrite {output_path}. Will procede because of set `--force` flag."
+            )
+            found_file_at_beginning = True
+        else:
+            logging.error(
+                f"Conversion would override {output_path}. For safety reasons, we will not proceed."
+            )
+            sys.exit(1)
 
     trajectory = shnitsel.io.read(
         input_path,
@@ -176,7 +191,7 @@ def main():
         num_trajectories = len(trajectory.leaves)
         print(f"Number of Trajectories: {num_trajectories}")
 
-        if output_path.exists():
+        if output_path.exists() and not found_file_at_beginning:
             logging.warning(
                 f"File at {output_path} was written while conversion was running."
             )
