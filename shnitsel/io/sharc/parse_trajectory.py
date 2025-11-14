@@ -536,6 +536,13 @@ def parse_trajout_dat(
     _sharc_main_version = sharc_version_parts[0]
 
     tmp_dip_all = np.full((nsteps, nstates, nstates, 3), np.nan)
+    tmp_energy = np.full_like(trajectory_in.energy.values, np.nan)
+    tmp_forces = np.full_like(trajectory_in.forces.values, np.nan)
+    tmp_phases = np.full_like(trajectory_in.phases.values, np.nan)
+    tmp_e_kin = np.full_like(trajectory_in.e_kin.values, np.nan)
+    tmp_sdiag = np.full_like(trajectory_in.sdiag.values, 0, dtype=np.int32)
+    tmp_astate = np.full_like(trajectory_in.astate.values, 0, dtype=np.int32)
+    tmp_nacs = np.full_like(trajectory_in.nacs.values, np.nan)
 
     # skip through until initial step:
     for line in f:
@@ -563,7 +570,7 @@ def parse_trajout_dat(
             energy_assigned = True
             for istate in range(nstates):
                 # Energy needs to be offset by energy_offset_zero
-                trajectory_in.energy[ts, istate] = (
+                tmp_energy[ts, istate] = (
                     float(next(f).strip().split()[istate * 2]) + energy_offset_zero
                 )
 
@@ -597,24 +604,25 @@ def parse_trajout_dat(
 
             if found_overlap:
                 phases_assigned = True
-                trajectory_in.phases[ts] = phasevector
+                tmp_phases[ts] = phasevector
 
         if line.startswith("! 7 Ekin"):
-            trajectory_in.e_kin[ts] = float(next(f).strip())
+            e_kin_assigned = True
+            tmp_e_kin[ts] = float(next(f).strip())
 
         if line.startswith("! 8 states (diag, MCH)"):
             pair = next(f).strip().split()
             sdiag_assigned = True
             astate_assigned = True
-            trajectory_in.sdiag[ts] = int(pair[0])
-            trajectory_in.astate[ts] = int(pair[1])
+            tmp_sdiag[ts] = int(pair[0])
+            tmp_astate[ts] = int(pair[1])
 
         if line.startswith("! 15 Gradients (MCH)"):
             state = int(line.strip().split()[-1]) - 1
             force_assigned = True
 
             for atom in range(natoms):
-                trajectory_in.forces[ts, state, atom] = [
+                tmp_forces[ts, state, atom] = [
                     float(n) for n in next(f).strip().split()
                 ]
 
@@ -627,37 +635,42 @@ def parse_trajout_dat(
             if si < sj:  # elements (si, si) are all zero; elements (sj, si) = -(si, sj)
                 sc = idx_table_nacs[(si, sj)]  # statecomb index
                 for atom in range(natoms):
-                    trajectory_in.nacs[ts, sc, atom, :] = [
+                    tmp_nacs[ts, sc, atom, :] = [
                         float(n) for n in next(f).strip().split()
                     ]
             else:  # we can skip the block
                 for _ in range(natoms):
                     next(f)
 
-    # post-processing
-    # np.diagonal swaps state and direction, so we transpose them back
-    trajectory_in.dip_perm[:] = np.diagonal(tmp_dip_all, axis1=1, axis2=2).transpose(
-        0, 2, 1
-    )
-    idxs_dip_trans = (slice(None), *np.triu_indices(nstates, k=1), slice(None))
-    trajectory_in.dip_trans[:] = tmp_dip_all[idxs_dip_trans]
-    mark_variable_assigned(trajectory_in["dip_trans"])
     # has_forces = forces.any(axis=(1, 2, 3))
 
     if nacs_assigned:
+        trajectory_in["nacs"].values =  tmp_nacs
         mark_variable_assigned(trajectory_in["nacs"])
     if force_assigned:
+        trajectory_in["forces"].values =  tmp_forces
         mark_variable_assigned(trajectory_in["forces"])
     if sdiag_assigned:
+        trajectory_in["sdiag"].values =  tmp_sdiag
         mark_variable_assigned(trajectory_in["sdiag"])
     if astate_assigned:
+        trajectory_in["astate"].values =  tmp_astate
         mark_variable_assigned(trajectory_in["astate"])
     if phases_assigned:
+        trajectory_in["phases"].values =  tmp_phases
         mark_variable_assigned(trajectory_in["phases"])
     if dipole_assigned:
+        # post-processing
+        # np.diagonal swaps state and direction, so we transpose them back
+        trajectory_in.dip_perm.values[:] = np.diagonal(tmp_dip_all, axis1=1, axis2=2).transpose(
+            0, 2, 1
+        )
+        idxs_dip_trans = (slice(None), *np.triu_indices(nstates, k=1), slice(None))
+        trajectory_in.dip_trans.values[:] = tmp_dip_all[idxs_dip_trans]
         mark_variable_assigned(trajectory_in["dip_perm"])
         mark_variable_assigned(trajectory_in["dip_trans"])
     if energy_assigned:
+        trajectory_in["energy"].values =  tmp_energy
         mark_variable_assigned(trajectory_in["energy"])
     if e_kin_assigned:
         # For now, we do not include e_kin or velocities.
@@ -702,9 +715,9 @@ def parse_trajout_xyz(
 
     for index, line in enumerate(f):
         if "t=" in line:
-            assert (
-                ts < nsteps
-            ), f"Excess time step at ts={ts}, for a maximum nsteps={nsteps}"
+            assert ts < nsteps, (
+                f"Excess time step at ts={ts}, for a maximum nsteps={nsteps}"
+            )
             for atom in range(natoms):
                 linecont = re.split(" +", next(f).strip())
                 if ts == 0:
