@@ -91,6 +91,12 @@ def main():
         help="The log level, `error`, `warn`, `info`, `debug`. ",
     )
 
+    argument_parser.add_argument(
+        "--force_sequential",
+        action="store_true",
+        help="A flag to force sequential execution of trajectory conversion. Defaults to False to allow for parallel import and conversion.",
+    )
+
     args = argument_parser.parse_args()
 
     input_path = pathlib.Path(args.input_path)
@@ -104,6 +110,8 @@ def main():
 
     output_path = args.output_path
     loglevel = args.loglevel
+
+    force_sequential = args.force_sequential
 
     logging.basicConfig()
 
@@ -127,7 +135,11 @@ def main():
         sys.exit(1)
 
     trajectory = shnitsel.io.read(
-        input_path, sub_pattern=input_path_pattern, concat_method="db", kind=input_kind
+        input_path,
+        sub_pattern=input_path_pattern,
+        concat_method="db",
+        kind=input_kind,
+        parallel=not force_sequential,
     )
 
     from pprint import pprint
@@ -163,7 +175,6 @@ def main():
         print(f"Present compounds: {list_compounds}")
         num_trajectories = len(trajectory.leaves)
         print(f"Number of Trajectories: {num_trajectories}")
-
 
         shnitsel.io.write_shnitsel_file(trajectory, output_path)
 
