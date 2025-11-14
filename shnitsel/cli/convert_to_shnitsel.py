@@ -176,9 +176,31 @@ def main():
         num_trajectories = len(trajectory.leaves)
         print(f"Number of Trajectories: {num_trajectories}")
 
-        shnitsel.io.write_shnitsel_file(trajectory, output_path)
+        if output_path.exists():
+            logging.warning(
+                f"File at {output_path} was written while conversion was running."
+            )
 
-        print("Wrote resulting trajectory database:")
+            output_parent = output_path.parent
+            output_file_name = output_path.stem
+            output_suffix = output_path.suffix
+            curr_index = 0
+
+            while True:
+                alternative_path = output_parent / (
+                    output_file_name + f"_{curr_index}" + output_suffix
+                )
+
+                if not alternative_path.exists():
+                    shnitsel.io.write_shnitsel_file(trajectory, alternative_path)
+                    logging.warning(
+                        f"To avoid loss of data, we swapped the output path to: {alternative_path}"
+                    )
+                    break
+        else:
+            shnitsel.io.write_shnitsel_file(trajectory, output_path)
+
+        print("Wrote resulting trajectory collection:")
         pprint(trajectory)
         sys.exit(0)
 
