@@ -165,9 +165,10 @@ def main():
         print(f"Number of Trajectories: {num_trajectories}")
 
 
-        print("Resulting trajectory:")
-        pprint(trajectory)
         shnitsel.io.write_shnitsel_file(trajectory, output_path)
+
+        print("Wrote resulting trajectory database:")
+        pprint(trajectory)
         sys.exit(0)
 
 
