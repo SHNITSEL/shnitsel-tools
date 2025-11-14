@@ -92,7 +92,8 @@ def main():
     )
 
     argument_parser.add_argument(
-        "-f--force_write",
+        "-f",
+        "--force_write",
         action="store_true",
         help="A flag to make the script override existing files instead of halting if the output path already exists.",
     )
