@@ -196,13 +196,13 @@ def main():
     try:
         import shnitsel as st
         import shnitsel.units as units
-        from shnitsel.io.ase.write import write_ase
+        from shnitsel.io.ase.write import write_ase_db
         from shnitsel.core.plot import p3mhelpers
         from shnitsel.core.plot import select
         from shnitsel import bridges
         from shnitsel.core import (
             convenience,
-            filtre,
+            filtration,
             geom,
             midx,
             ml,
@@ -246,8 +246,8 @@ def main():
         midx.msel,
         midx.sel_trajs,
         midx.sel_trajids,
-        # filtre
-        filtre.last_time_where,
+        # filtration
+        filtration.last_time_where,
         # geom
         geom.dihedral,
         geom.angle,
@@ -298,12 +298,12 @@ def main():
         st.io.sharc.parse_initial_conditions.iconds_to_frames,
         # plot
         st.core.spectra.spectra_all_times,
-        # filtre
-        filtre.energy_filtranda,
-        filtre.get_cutoffs,
-        filtre.truncate,
+        # filtration
+        filtration.energy_filtranda,
+        filtration.get_cutoffs,
+        filtration.truncate,
         # ase
-        write_ase,
+        write_ase_db,
         # ml
         ml.pls_ds,
     ]

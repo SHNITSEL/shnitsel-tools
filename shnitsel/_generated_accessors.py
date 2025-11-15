@@ -14,7 +14,7 @@ from numpy import ndarray
 from rdkit.Chem.rdchem import Mol
 from shnitsel.bridges import default_mol, smiles_map, to_mol, to_xyz, traj_to_xyz
 from shnitsel.core.convenience import pairwise_dists_pca, pca_and_hops, validate
-from shnitsel.core.filtre import energy_filtranda, get_cutoffs, last_time_where, truncate
+from shnitsel.core.filtration import energy_filtranda, get_cutoffs, last_time_where, truncate
 from shnitsel.core.generic import keep_norming, norm, subtract_combinations
 from shnitsel.core.geom import angle, dihedral, distance, get_bats, get_bond_angles, get_bond_lengths, get_bond_torsions, get_pyramids, kabsch
 from shnitsel.core.midx import assign_levels, expand_midx, flatten_levels, mdiff, mgroupby, msel, sel_trajids, sel_trajs, stack_trajs, unstack_trajs
@@ -25,7 +25,7 @@ from shnitsel.core.populations import classical
 from shnitsel.core.spectra import assign_fosc, ds_broaden_gauss, spectra_all_times
 from shnitsel.core.stats import calc_ci, get_inter_state, get_per_state, time_grouped_ci
 from shnitsel.core.vmd import traj_vmd
-from shnitsel.io.ase.write import write_ase
+from shnitsel.io.ase.write import write_ase_db
 from shnitsel.io.sharc.parse_initial_conditions import iconds_to_frames
 from shnitsel.io.shnitsel.write import write_shnitsel_file
 from shnitsel.units.conversion import convert_dipole, convert_energy, convert_force, convert_length, convert_nacs, convert_time
@@ -200,7 +200,7 @@ class DataArrayAccessor(DAManualAccessor):
 
     @needs(dims={'frame'}, coords={'time', 'trajid'})
     def last_time_where(self):
-        """Wrapper for :py:func:`shnitsel.core.filtre.last_time_where`."""
+        """Wrapper for :py:func:`shnitsel.core.filtration.last_time_where`."""
         return last_time_where(self._obj)
 
     @needs(dims={'atom'})
@@ -316,7 +316,7 @@ class DatasetAccessor(DSManualAccessor):
         'energy_filtranda',
         'get_cutoffs',
         'truncate',
-        'write_ase',
+        'write_ase_db',
         'pls_ds',
     ]
 
@@ -389,7 +389,7 @@ class DatasetAccessor(DSManualAccessor):
         """Wrapper for :py:func:`shnitsel.core.midx.stack_trajs`."""
         return stack_trajs(self._obj)
 
-    def write_shnitsel_file(self, savepath: str | os.PathLike | pathlib.Path, complevel: int=9):
+    def write_shnitsel_file(self, savepath: str | os.PathLike | pathlib._local.Path, complevel: int=9):
         """Wrapper for :py:func:`shnitsel.io.shnitsel.write.write_shnitsel_file`."""
         return write_shnitsel_file(self._obj, savepath, complevel=complevel)
 
@@ -405,23 +405,23 @@ class DatasetAccessor(DSManualAccessor):
 
     @needs(data_vars={'e_kin', 'energy'})
     def energy_filtranda(self) -> Dataset:
-        """Wrapper for :py:func:`shnitsel.core.filtre.energy_filtranda`."""
+        """Wrapper for :py:func:`shnitsel.core.filtration.energy_filtranda`."""
         return energy_filtranda(self._obj)
 
     @needs(dims={'frame'}, coords={'time', 'trajid'})
     def get_cutoffs(self):
-        """Wrapper for :py:func:`shnitsel.core.filtre.get_cutoffs`."""
+        """Wrapper for :py:func:`shnitsel.core.filtration.get_cutoffs`."""
         return get_cutoffs(self._obj)
 
     @needs(dims={'frame'}, coords={'time', 'trajid'})
     def truncate(self, cutoffs):
-        """Wrapper for :py:func:`shnitsel.core.filtre.truncate`."""
+        """Wrapper for :py:func:`shnitsel.core.filtration.truncate`."""
         return truncate(self._obj, cutoffs)
 
     @needs(dims={'frame'})
-    def write_ase(self, db_path: str, kind: str | None, keys: Optional=None, preprocess: bool=True):
-        """Wrapper for :py:func:`shnitsel.io.ase.write.write_ase`."""
-        return write_ase(self._obj, db_path, kind, keys=keys, preprocess=preprocess)
+    def write_ase_db(self, db_path: str, kind: str | None, keys: Optional=None, preprocess: bool=True):
+        """Wrapper for :py:func:`shnitsel.io.ase.write.write_ase_db`."""
+        return write_ase_db(self._obj, db_path, kind, keys=keys, preprocess=preprocess)
 
     def pls_ds(self, xname, yname, n_components=2):
         """Wrapper for :py:func:`shnitsel.core.ml.pls_ds`."""
