@@ -403,7 +403,7 @@ class DatasetAccessor(DSManualAccessor):
         """Wrapper for :py:func:`shnitsel.core.spectra.spectra_all_times`."""
         return spectra_all_times(self._obj)
 
-    @needs(data_vars={'e_kin', 'energy'})
+    @needs(data_vars={'astate', 'energy'})
     def energy_filtranda(self) -> Dataset:
         """Wrapper for :py:func:`shnitsel.core.filtration.energy_filtranda`."""
         return energy_filtranda(self._obj)

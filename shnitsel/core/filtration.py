@@ -1,3 +1,5 @@
+from logging import warning
+
 import numpy as np
 import xarray as xr
 
@@ -7,18 +9,27 @@ from .._contracts import needs
 # link functions that have moved:
 from .geom import get_bond_lengths as get_bond_lengths
 
-@needs(data_vars={'energy', 'e_kin'})
+@needs(data_vars={'energy', 'astate'})
 def energy_filtranda(frames: xr.Dataset) -> xr.Dataset:
-    res = frames[['e_kin']]
-    res['e_pot'] = frames.energy.sel(state=frames.astate).drop_vars('state')
-    res['e_tot'] = res['e_pot'] + res['e_kin']
+    if 'e_kin' in frames.data_vars:
+        has_e_kin = True
+        res = frames[['e_kin']]
+    else:
+        has_e_kin = False
+        res = xr.Dataset()
+        warning("data does not contain kinetic energy variable ('e_kin')")
 
-    res['etot_drift'] = (
-        res['e_tot'].groupby('trajid').map(lambda traj: abs(traj - traj.isel(frame=0)))
-    )
-    res['ekin_step'] = mdiff(res['e_kin'])
+    res['e_pot'] = frames.energy.sel(state=frames.astate).drop_vars('state')
+    if has_e_kin:
+        res['e_tot'] = res['e_pot'] + res['e_kin']
+
+        res['etot_drift'] = (
+            res['e_tot'].groupby('trajid').map(lambda traj: abs(traj - traj.isel(frame=0)))
+        )
+        res['ekin_step'] = mdiff(res['e_kin'])
+        res['etot_step'] = mdiff(res['e_tot'])
+
     res['epot_step'] = mdiff(res['e_pot'])
-    res['etot_step'] = mdiff(res['e_tot'])
     res['is_hop'] = mdiff(frames['astate']) != 0
 
     return res
