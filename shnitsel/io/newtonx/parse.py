@@ -80,7 +80,7 @@ def parse_newtonx(
                 f"Trajectory data at {path_obj} contained data for {actual_steps} frames, which is more than the initially denoted {settings.num_steps} frames. Cannot allocate space after the fact."
             )
 
-    with open(os.path.join(traj_path, "RESULTS", "dyn.xyz")) as f:
+    with open(path_obj / "RESULTS" / "dyn.xyz") as f:
         atNames, atNums, atXYZ = parse_xyz(f)
 
     trajectory.atNames.values = atNames
@@ -89,6 +89,14 @@ def parse_newtonx(
     mark_variable_assigned(trajectory["atNums"])
     trajectory.atXYZ.values = atXYZ
     mark_variable_assigned(trajectory["atXYZ"])
+
+    try:
+        with open(path_obj / "RESULTS" / "dyn.out") as f:
+            trajectory = parse_dyn_out(f, trajectory)
+
+    except FileNotFoundError:
+        logging.info("Did not find RESULTS/dyn.out for E_kin and velocities input.")
+        pass
 
     # Set all settings we require to be present on the trajectory
     # TODO: FIXME: Check if we can actually derive the number of singlets, doublets, or triplets from newtonx output.
@@ -119,6 +127,8 @@ def parse_newtonx(
 
 
 class NewtonXSettingsResult(NamedTuple):
+    """Class to keep track of key settings from the NewtonX log files"""
+
     t_max: float
     delta_t: float
     num_steps: int
@@ -128,7 +138,15 @@ class NewtonXSettingsResult(NamedTuple):
     newtonx_version: str
 
 
-def parse_settings_from_nx_log(f) -> NewtonXSettingsResult:
+def parse_settings_from_nx_log(f: TextIOWrapper) -> NewtonXSettingsResult:
+    """Function to parse key settings from the NewtonX RESULTS/nx.log file
+
+    Args:
+        f (TextIOWrapper): The input stream of lines from nx.log
+
+    Returns:
+        NewtonXSettingsResult: Key setting parameters from nx.logs
+    """
     completed = True
     newtonx_version = "unknown"
 
@@ -185,6 +203,100 @@ def parse_settings_from_nx_log(f) -> NewtonXSettingsResult:
     return NewtonXSettingsResult(
         real_tmax, delta_t, nsteps, natoms, nstates, completed, newtonx_version
     )
+
+
+def parse_dyn_out(f: TextIOWrapper, dataset: xr.Dataset) -> xr.Dataset:
+    """Function to gather dynamics data (e_kin and velocities) from the RESULTS/dyn.out file, if it exists.
+
+    Args:
+        f (TextIOWrapper): The stream of lines from the dyn.out file
+        dataset (xr.Dataset): The dataset to write the data to
+
+    Returns:
+        xr.Dataset: The updated dataset after the read
+    """
+
+    natoms = dataset.sizes["atom"]
+    nstates = dataset.sizes["state"]
+    ntimesteps = dataset.sizes["time"]
+
+    ts: int = 0
+
+    tmp_pos_in_bohr = np.zeros((ntimesteps, natoms, 3))
+    tmp_e_kin = np.zeros(
+        (
+            ntimesteps,
+            nstates,
+        )
+    )
+    tmp_velocities_in_au = np.zeros((ntimesteps, nstates, natoms, 3))
+    tmp_e_pot = np.zeros(
+        (
+            ntimesteps,
+            nstates,
+        )
+    )
+
+    has_positions = False
+    has_velocities = False
+    has_ekin = False
+    has_epot = False
+
+    # See page 101, section 16.3 of newtonX documentation for order of output values.
+    # parse actual data
+    for line in f:
+        stripline = line.strip()
+        # TODO: FIXME: unfortunately, Newton-X reports current step number, time and
+        #       active state at the end of a timestep.
+        #       Currently we use this to set the step number and time for the
+        #       following time step. This is confusing and possibly vulnerable to
+        #       strangely-formatted data -- is there a guarantee that time steps are
+        #       always in order? There's almost certainly a better way to do this.
+        #       For example, instead of assuming times follow expected order,
+        #       lookahead to next FINISHING
+        # THIS MIGHT BE SOLVED WITH ABOVE TMP STORAGE AND ONLY WRITING UPON READING THE FINISHING LINE
+        if stripline.startswith("STEP"):
+            parts = stripline.split()
+            # Figure out current time step
+            ts = int(parts[1].strip())
+            logging.debug(f"Starting ts {ts}")
+
+        elif stripline.find("geometry:") > 0:
+            has_positions = True
+            for iatom in range(natoms):
+                tmp_pos_in_bohr[ts][iatom] = [float(n) for n in next(f).strip().split()]
+        elif stripline.find("velocity:") > 0:
+            has_velocities = True
+            for iatom in range(natoms):
+                tmp_velocities_in_au[ts][iatom] = [
+                    float(n) for n in next(f).strip().split()
+                ]
+        elif stripline.startswith("Time") and stripline.find("Ekin:") > 0:
+            #     Time    Etot         Ekin       Epot E0,      E1, ...
+            # %       0.50   -232.354045      0.055764   -232.578726   -232.409809   -232.393353
+            next_line = next(f).strip()
+            next_line_parts = next_line.split()
+
+            tmp_e_kin[ts] = float(next_line_parts[2])
+            tmp_e_pot[ts] = [float(next_line_parts[3 + i]) for i in range(nstates)]
+
+            has_ekin = True
+            has_epot = True
+
+    if has_epot:
+        logging.info("Currently, the E_pot from dyn.out is unused")
+        pass
+    if has_ekin:
+        dataset.e_kin.values = tmp_e_kin
+        mark_variable_assigned(dataset["e_kin"])
+    if has_velocities:
+        dataset.velocities.values = tmp_velocities_in_au
+        mark_variable_assigned(dataset["velocities"])
+    if has_positions:
+        logging.info("Currently, the positions from dyn.out are unused")
+        pass
+
+    return dataset
 
 
 def parse_nx_log_data(
