@@ -102,6 +102,11 @@ def get_default_input_attributes(
             "unitdim": unit_dimensions.socs,
             "units": override_defaults(unit_dimensions.socs, "socs"),
         },
+        "velocities": {
+            "long_name": "Velocities of the atoms",
+            "unitdim": unit_dimensions.velocity,
+            "units": override_defaults(unit_dimensions.velocity, "velocities"),
+        },
     }
 
     return res

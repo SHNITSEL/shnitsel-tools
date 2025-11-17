@@ -13,6 +13,7 @@ class unit_dimensions:
     time = "time"
     socs = "socs"
     charge = "charge"
+    velocity = "velocity"
 
 
 class charge:
@@ -166,6 +167,18 @@ class amount_units:
 
 _amount_unit_scales = {"mol": si.mol, "1": 1}
 
+
+class velocity:
+    au = "au"
+    Bohr_per_atu = "bohr_per_atu"
+    meter_per_second = "meter_per_second"
+
+
+_velocity_unit_scales = {
+    velocity.au: 1,
+    velocity.Bohr_per_atu: 1,
+}
+
 # TODO: FIXME: Deal with different codata versions?
 __codata_version__ = si.__codata_version__
 
@@ -211,6 +224,7 @@ standard_units_of_formats = {
         # "dipole_trans": dipole.au,
         unit_dimensions.socs: socs.au,
         unit_dimensions.charge: charge.e,
+        unit_dimensions.velocity: velocity.au,  # TODO: check
     },
     "ase": {
         unit_dimensions.length: length.Bohr,
@@ -223,10 +237,11 @@ standard_units_of_formats = {
         # "dipole_trans": dipole.au,
         unit_dimensions.socs: socs.au,
         unit_dimensions.charge: charge.e,
+        unit_dimensions.velocity: velocity.au,  # TODO: check
     },
     "newtonx": {  # Generally uses atomic units?
-        unit_dimensions.length: length.Angstrom,  # TODO: FIXME: Until 1.3 it was AU
-        unit_dimensions.energy: energy.eV,  # Hartree or eV, it depends || energy.Hartree,
+        unit_dimensions.length: length.Angstrom,  # TODO: FIXME: Until 1.3 it was AU. It is angstrom in dyn.xyz but Bohr in dyn.out
+        unit_dimensions.energy: energy.Hartree,  # Hartree or eV, it depends || energy.Hartree,
         unit_dimensions.force: force.Hartree_per_Bohr,
         unit_dimensions.time: time.femto_seconds,
         unit_dimensions.nacs: nacs.au,
@@ -234,6 +249,7 @@ standard_units_of_formats = {
         # "dipole_trans": dipole.au,
         unit_dimensions.socs: socs.au,
         unit_dimensions.charge: charge.e,
+        unit_dimensions.velocity: velocity.au,
     },
     "shnitsel": standard_shnitsel_units,
     "xyz": {
@@ -251,5 +267,6 @@ standard_units_of_formats = {
         # "dipole_trans": dipole.au,
         unit_dimensions.socs: socs.au,
         unit_dimensions.charge: charge.e,
+        unit_dimensions.velocity: velocity.au,  # TODO: check
     },
 }
