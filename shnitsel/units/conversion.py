@@ -162,9 +162,14 @@ convert_nacs = Converter(
 # Helper to convert socs
 convert_socs = Converter(definitions.unit_dimensions.time, definitions._socs_unit_scale)
 
-# Helper to convert socs
+# Helper to convert charges
 convert_charge = Converter(
     definitions.unit_dimensions.charge, definitions._charge_unit_scales
+)
+
+# Helper to convert velocities
+convert_velocity = Converter(
+    definitions.unit_dimensions.velocity, definitions._velocity_unit_scales
 )
 
 
@@ -223,6 +228,7 @@ _CONVERTERS: Dict[str, Callable[[xr.DataArray, str], xr.DataArray]] = {
     definitions.unit_dimensions.nacs: convert_nacs,
     definitions.unit_dimensions.socs: convert_socs,
     definitions.unit_dimensions.charge: convert_charge,
+    definitions.unit_dimensions.velocity: convert_velocity,
 }
 
 

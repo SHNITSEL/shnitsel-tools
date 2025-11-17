@@ -174,7 +174,7 @@ class velocity:
     meter_per_second = "meter_per_second"
 
 
-_velocity_unit_scales = {
+_velocity_unit_scales: dict[str, float] = {
     velocity.au: 1,
     velocity.Bohr_per_atu: 1,
 }
