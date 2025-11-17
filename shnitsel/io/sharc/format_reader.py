@@ -2,14 +2,14 @@ from dataclasses import dataclass
 import logging
 import pathlib
 import re
-from typing import Dict, List, Tuple
+import traceback
+from typing import Dict, List
 
 from shnitsel.data.shnitsel_db_format import ShnitselDB
-from shnitsel.data.trajectory_format import Trajectory
 from shnitsel.io.helpers import LoadingParameters, PathOptionsType, make_uniform_path
 from ..format_reader_base import FormatInformation, FormatReader
 from .parse_trajectory import read_traj
-from .parse_initial_conditions import list_iconds, read_iconds_individual
+from .parse_initial_conditions import read_iconds_individual
 
 import xarray as xr
 
@@ -226,7 +226,7 @@ class SHARCFormatReader(FormatReader):
         except FileNotFoundError as fnf_e:
             raise fnf_e
         except ValueError as v_e:
-            message = f"Attempt at reading SHARC trajectory from path `{path}` failed because of original error: {v_e}"
+            message = f"Attempt at reading SHARC trajectory from path `{path}` failed because of original error: {v_e}.\n Trace: \n {traceback.format_exc()}"
             logging.error(message)
             raise FileNotFoundError(message)
 

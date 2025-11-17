@@ -36,6 +36,9 @@ from shnitsel._contracts import needs
 
 _re_grads = re.compile("[(](?P<nstates>[0-9]+)x(?P<natoms>[0-9]+)x3")
 _re_nacs = re.compile("[(](?P<nstates>[0-9]+)x[0-9]+x(?P<natoms>[0-9]+)x3")
+_re_state_map_entry = re.compile(
+    r"(?P<state_id>\d+): +\[(?P<multiplicity>\d+), +(?P<n_mult>\d+), *(?P<unknown>[^\[]*)\]"
+)
 
 
 class IcondPath(NamedTuple):
@@ -140,28 +143,71 @@ def dims_from_QM_log(log: TextIOWrapper) -> Tuple[int, int, int, int, int]:
 
     natoms = ConsistentValue("natoms", weak=True)
     for line in log:
+        line = line.strip()
         if line.startswith("States:"):
-            linecont = line.strip().split()
-            if "Singlet" in linecont and "Triplet" not in linecont:
-                nsinglets = int(linecont[1])
-                ntriplets = 0
-            elif "Singlet" in linecont and "Triplet" in linecont:
-                nsinglets = int(linecont[1])
-                ntriplets = int(linecont[3])
-            elif "Triplet" in linecont and "Singlet" not in linecont:
-                ntriplets = int(linecont[1])
-                nsinglets = 0
-            else:
-                raise ValueError(f"Invalid State line in QM.log: {line}")
+            linecont = line[len("States:") :].strip().split()
+
+            num_parts = len(linecont)
+            if num_parts % 2 != 0:
+                logging.warning(
+                    "Found `States:` line with odd number of entries. Expected pairs `<number_of_states> <state_multiplicity>`."
+                )
+            nsinglets = 0
+            ndoublets = 0
+            ntriplets = 0
+            for i in range(0, num_parts, 2):
+                type_str = linecont[i + 1].strip().lower()
+                if type_str == "singlet":
+                    nsinglets = int(linecont[i])
+                elif type_str == "doublet":
+                    ndoublets = int(linecont[i])
+                elif type_str == "doublet":
+                    ntriplets = int(linecont[i])
+                else:
+                    raise ValueError(
+                        f"Invalid State line in QM.log: {line}. Found unknown multiplicity: `{type_str}`."
+                    )
 
             # calculate total number of states
-            nstates.v = nsinglets + (3 * ntriplets)
+            nstates.v = nsinglets + (2 * ndoublets) + (3 * ntriplets)
             nstates_singlet.v = nsinglets
+            nstates_doublet.v = ndoublets
             nstates_triplet.v = ntriplets
 
         elif line.startswith("Found Geo!"):
             linecont = re.split(" ", line.strip())
             natoms.v = int(linecont[-1][0:-1])
+        elif line.startswith("statemap:"):
+            # state_id: [multiplicity, index_mult, ?]
+            # {1: [1, 1, 0.0], 2: [1, 2, 0.0]}
+            state_map = line[len("statemap:") :].strip()
+            # print(state_map)
+
+            matches = _re_state_map_entry.findall(state_map)
+
+            if matches:
+                states_count = [0 for _ in range(0, 3)]
+                for match in matches:
+                    state_id, multiplicity, n_mult, unknown = match
+
+                    state_id = int(state_id)
+                    multiplicity = int(multiplicity)
+                    n_mult = int(n_mult)
+                    unknown = float(unknown)
+
+                    if multiplicity >= 4:
+                        logging.warning(
+                            f"Found state of above triplet multiplicity: {state_id} (full state descriptor: {(multiplicity, n_mult, unknown)}). Will be ignored."
+                        )
+                    else:
+                        states_count[multiplicity - 1] += 1
+
+                nsinglets, ndoublets, ntriplets = states_count
+
+                nstates.v = nsinglets + (2 * ndoublets) + (3 * ntriplets)
+                nstates_singlet.v = nsinglets
+                nstates_doublet.v = ndoublets
+                nstates_triplet.v = ntriplets
 
     num_states = nstates.v if nstates.v is not None else 0
     num_atoms = natoms.v if natoms.v is not None else 0
@@ -323,7 +369,7 @@ def read_iconds_individual(
             sharc_version = iconds.attrs["input_format_version"]
     except FileNotFoundError:
         # This should be an error. We probably cannot recover from this and action needs to be taken
-        logging.warning(
+        logging.info(
             f"""no `QM.log` file found in {path}. 
             This is mainly used to determine geometry.\n
             Attempting to read from `QM.in` instead """
@@ -355,7 +401,7 @@ def read_iconds_individual(
                 mark_variable_assigned(iconds.atXYZ)
         except FileNotFoundError:
             logging.warning(
-                f"No positional information found in {path}/QM.in, the loaded trajectory does not contain positional data 'atXYZ'."
+                f"No positional information found in {path}/QM.in nor in {path}/QM.log, the loaded trajectory does not contain positional data 'atXYZ'."
             )
 
     # iconds.attrs["delta_t"] = 0.0
@@ -381,6 +427,8 @@ def read_iconds_individual(
     optional_settings = OptionalTrajectorySettings(
         has_forces=is_variable_assigned(iconds["forces"]),
         misc_input_settings={"QM.in": info} if len(info) > 0 else None,
+        est_level=info["method"] if "method" in info else None,
+        theory_basis_set=info["basis"] if "basis" in info else None,
     )
 
     if "states" in info:
@@ -390,7 +438,9 @@ def read_iconds_individual(
         if "charge" in info:
             charges = info["charge"]
         else:
-            main_version = 0 if sharc_version == "unknown" else int(sharc_version.split(".")[0])
+            main_version = (
+                0 if sharc_version == "unknown" else int(sharc_version.split(".")[0])
+            )
             if main_version < 4:
                 logging.info(
                     "For sharc before version 4.0, we will attempt to extract charge data from QM interface settings."
@@ -579,10 +629,12 @@ def parse_QM_log(log: TextIOWrapper) -> Dict[str, Any]:
             info["nDipoles"] = int(nsinglets + ntriplets + nnacs)
 
         elif line.startswith("Method:"):
-            linecont = re.split(" +|\t", line.strip())
-            method = linecont[2]
+            method_indicator = "Method:"
+            method_parts = line[len(method_indicator)].strip().split("/")
 
-            info["method"] = method
+            info["method"] = method_parts[0]
+            if len(method_parts) > 1:
+                info["basis"] = method_parts[1]
 
         elif line.startswith("Found Geo!"):
             linecont = re.split(" ", line.strip())
@@ -623,16 +675,58 @@ def parse_QM_log_geom(f: TextIOWrapper, out: xr.Dataset):
             out.attrs["input_format_version"] = version_num
         pass
 
+    natoms = out.sizes["atom"]
+    nstates = out.sizes["state"]
+    tmp_names = np.full((natoms,), "")
+    tmp_nums = np.full((natoms,), -1)
+    tmp_positions = np.full((natoms, 3), 0.0)
+
     for i in range(out.sizes["atom"]):
         geometry_line = next(f).strip().split()
         atom_symbol = geometry_line[0].strip()
-        out["atNames"][i] = atom_symbol
-        out["atNums"][i] = get_atom_number_from_symbol(atom_symbol)
-        out["atXYZ"][i] = list(map(float, geometry_line[1:4]))
+        tmp_names[i] = atom_symbol
+        tmp_nums[i] = get_atom_number_from_symbol(atom_symbol)
+        tmp_positions[i] = list(map(float, geometry_line[1:4]))
+
+    out["atNames"][:] = tmp_names
+    out["atNums"][:] = tmp_nums
+    out["atXYZ"][:] = tmp_positions
 
     mark_variable_assigned(out.atNames)
     mark_variable_assigned(out.atNums)
     mark_variable_assigned(out.atXYZ)
+
+    while (line := next(f).strip()).find("Final Results") < 0:
+        if line.startswith("statemap:"):
+            state_types = np.full((nstates,), 0)
+            # state_id: [multiplicity, index_mult, ?]
+            # {1: [1, 1, 0.0], 2: [1, 2, 0.0]}
+            state_map = line[len("statemap:") :].strip()
+            # print(state_map)
+
+            matches = _re_state_map_entry.findall(state_map)
+
+            if matches:
+                for match in matches:
+                    state_id, multiplicity, n_mult, unknown = match
+
+                    state_id = int(state_id)
+                    multiplicity = int(multiplicity)
+                    n_mult = int(n_mult)
+                    unknown = float(unknown)
+                    state_types[state_id - 1] = multiplicity
+
+                out.assign_coords(
+                    {
+                        "state_types": (
+                            "state_types",
+                            state_types,
+                            out["state_types"].attrs,
+                        )
+                    }
+                )
+
+                mark_variable_assigned(out.state_types)
 
 
 # Example : 12 3 ! 1 1 0 1 3 0

@@ -3,6 +3,8 @@ from glob import glob
 import logging
 import pathlib
 import re
+import sys
+import traceback
 from typing import Dict, List, Tuple
 
 from shnitsel.data.shnitsel_db_format import ShnitselDB
@@ -132,7 +134,7 @@ class PyrAI2mdFormatReader(FormatReader):
         except FileNotFoundError as fnf_e:
             raise fnf_e
         except ValueError as v_e:
-            message = f"Attempt at reading PyrAI2md trajectory from path `{path}` failed because of original error: {v_e}"
+            message = f"Attempt at reading PyrAI2md trajectory from path `{path}` failed because of original error: {v_e}.\n Trace: \n {traceback.format_exc()}"
             logging.error(message)
             raise FileNotFoundError(message)
 

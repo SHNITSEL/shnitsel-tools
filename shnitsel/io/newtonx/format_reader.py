@@ -1,13 +1,11 @@
 from dataclasses import dataclass
-from glob import glob
 import logging
-import os
 import pathlib
 import re
-from typing import Dict, List, Tuple
+import traceback
+from typing import Dict, List
 
 from shnitsel.data.shnitsel_db_format import ShnitselDB
-from shnitsel.data.trajectory_format import Trajectory
 from shnitsel.io.helpers import LoadingParameters, PathOptionsType, make_uniform_path
 from ..format_reader_base import FormatInformation, FormatReader
 from .parse import parse_newtonx
@@ -128,14 +126,11 @@ class NewtonXFormatReader(FormatReader):
         """
 
         try:
-            loaded_dataset = parse_newtonx(
-                path,
-                loading_parameters=loading_parameters
-            )
+            loaded_dataset = parse_newtonx(path, loading_parameters=loading_parameters)
         except FileNotFoundError:
             raise
         except ValueError as v_e:
-            message = f"Attempt at reading NewtonX trajectory from path `{path}` failed because of original error: {v_e}"
+            message = f"Attempt at reading NewtonX trajectory from path `{path}` failed because of original error: {v_e}.\n Trace: \n {traceback.format_exc()}"
             logging.error(message)
             raise FileNotFoundError(message)
 

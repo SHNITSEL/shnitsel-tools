@@ -614,6 +614,7 @@ def _per_traj(
         logging.info(
             f"Reading of trajectory from path {trajdir} failed:\n"
             + str(err)
+            + f"Trace:{traceback.format_exc()}"
             + f"\nSkipping {trajdir}."
         )
 
