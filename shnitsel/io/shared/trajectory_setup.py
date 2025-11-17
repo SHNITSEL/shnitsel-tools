@@ -232,23 +232,31 @@ def create_initial_dataset(
     res_dataset.attrs["input_format"] = format_name
 
     # Assign some of the variables as coordinates
-    isolated_keys = [
-        "atNames",
-        "atNums",
-        "statecomb",
-        "state_names",
-        "state_charges",
-        "state_types",
-    ]
+    isolated_keys = list(
+        set(
+            [
+                "atNames",
+                "atNums",
+                "statecomb",
+                "state_names",
+                "state_charges",
+                "state_types",
+            ]
+        ).intersection(template.keys())
+    )
 
     # Prevent dimension labels from being lost.
-    mark_variable_assigned(res_dataset.state)
-    mark_variable_assigned(res_dataset.atom)
+    if "state" in res_dataset:
+        mark_variable_assigned(res_dataset.state)
+    if "atom" in res_dataset:
+        mark_variable_assigned(res_dataset.atom)
     mark_variable_assigned(res_dataset.direction)
-    mark_variable_assigned(res_dataset.statecomb)
-    mark_variable_assigned(res_dataset["from"])
-    mark_variable_assigned(res_dataset["to"])
-    mark_variable_assigned(res_dataset.state_charges)
+    if "statecomb" in res_dataset:
+        mark_variable_assigned(res_dataset.statecomb)
+        mark_variable_assigned(res_dataset["from"])
+        mark_variable_assigned(res_dataset["to"])
+    if "state_charges" in res_dataset:
+        mark_variable_assigned(res_dataset.state_charges)
 
     res_dataset = res_dataset.set_coords(isolated_keys)
 
