@@ -73,6 +73,7 @@ def assign_optional_settings(
             dataset.attrs[k] = v
 
 
+# TODO: FIXME: Consider caching here. May speed up ICONDS in large ICOND datasets
 def create_initial_dataset(
     num_time_steps: int,
     num_states: int,
