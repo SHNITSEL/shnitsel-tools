@@ -37,7 +37,20 @@ def energy_filtranda(frames: xr.Dataset) -> xr.Dataset:
 
 @needs(dims={'frame'}, coords={'trajid', 'time'})
 def last_time_where(mask):
-    mask = mask.unstack('frame', fill_value=False).transpose('trajid', 'time', ...)
+    # If tree:
+    if isinstance(mask, xr.DataTree):
+        raise NotImplementedError("This function does not yet support DataTree")
+    # If stacked:
+    elif 'frame' in mask.dims and {'trajid', 'time'}.issubset(mask.coords):
+        mask = mask.unstack('frame', fill_value=False).transpose('trajid', 'time', ...)
+    # Otherwise, had better be unstacked
+    elif {'trajid', 'time'}.issubset(mask.dims):
+        mask = mask.transpose('trajid', 'time', ...)
+    else:
+        raise ValueError(
+            "The mask argument should be trajectories, "
+            "either stacked or unstacked"
+        )
     idxs = np.logical_not((~mask.values).cumsum(axis=1)).sum(axis=1)
     times = np.concat([[-1], mask.time.values])
     return mask[:, 0].copy(data=times[idxs]).drop_vars('time').rename('time')
