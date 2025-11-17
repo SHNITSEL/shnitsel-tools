@@ -12,6 +12,7 @@ We are currently suffering from missing input files for tests:
 - TODO: FIXME: Improve errors and warnings texts
 - TODO: FIXME: Do NewtonX/PyrAI2md have charge information?
 - TODO: FIXME: PyrAI2md add reading of NAC/dcm/SOC
+- TODO: FIXME: Do not unwrap a single trajectory being read in a multi-trajectory setup. Behavior is quite unexpected.
 
 
 
