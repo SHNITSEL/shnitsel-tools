@@ -229,7 +229,7 @@ def parse_dyn_out(f: TextIOWrapper, dataset: xr.Dataset) -> xr.Dataset:
             nstates,
         )
     )
-    tmp_velocities_in_au = np.zeros((ntimesteps, nstates, natoms, 3))
+    tmp_velocities_in_au = np.zeros((ntimesteps, natoms, 3))
     tmp_e_pot = np.zeros(
         (
             ntimesteps,
@@ -264,7 +264,9 @@ def parse_dyn_out(f: TextIOWrapper, dataset: xr.Dataset) -> xr.Dataset:
         elif stripline.find("geometry:") > 0:
             has_positions = True
             for iatom in range(natoms):
-                tmp_pos_in_bohr[ts][iatom] = [float(n) for n in next(f).strip().split()]
+                tmp_pos_in_bohr[ts][iatom] = [
+                    float(n) for n in next(f).strip().split()[2:-1]
+                ]
         elif stripline.find("velocity:") > 0:
             has_velocities = True
             for iatom in range(natoms):
