@@ -13,6 +13,8 @@ We are currently suffering from missing input files for tests:
 - TODO: FIXME: Do NewtonX/PyrAI2md have charge information?
 - TODO: FIXME: PyrAI2md add reading of NAC/dcm/SOC
 - TODO: FIXME: Do not unwrap a single trajectory being read in a multi-trajectory setup. Behavior is quite unexpected.
+- TODO: FIXME: The creation of an xarray dataset seems to be extremely slow. Check alternatives to speed it up! Also: Add a profiled test file to check, where it slows down so much. I assume it is an issue with type checking/initialization? The same way that reading SHARC trajectories was extremely slow if we didn't convert from numpy arrays. 
+- TODO: Add benchmark for parallelized loading to compare to sequential loading
 
 
 
