@@ -653,8 +653,10 @@ def parse_observables_from_log(
         mark_variable_assigned(trajectory_in["velocities"])
 
     if has_dcms:
-        trajectory_in["dcm"].values = dcmat
-        mark_variable_assigned(trajectory_in["dcm"])
+        logging.warning("DCM currently not processed on PyRAI2md trajectories due to shape mismatch")
+        # TODO: FIXME: Deal with dcm shape and adding dcm to default template
+        # trajectory_in["dcm"].values = dcmat
+        # mark_variable_assigned(trajectory_in["dcm"])
 
     if has_nacs:
         trajectory_in["nacs"].values = nacs
@@ -667,6 +669,7 @@ def parse_observables_from_log(
         logging.warning(
             "SOCs from PyrAI2md files have not been tested. There may be a mismatch in dimensionality."
         )
+        # TODO: FIXME: Deal with soc shape
         trajectory_in["socs"].values = socs
         mark_variable_assigned(trajectory_in["socs"])
 
