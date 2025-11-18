@@ -308,25 +308,32 @@ def unstack_trajs(frames: xr.Dataset | xr.DataArray) -> xr.Dataset | xr.DataArra
         for k, v in dict(frames.coords).items()
         if 'trajid_' in v.dims and 'frame' not in v.dims
     }
-    per_traj_vars = {
-        k: v.rename(trajid_='trajid')
-        for k, v in dict(frames.data_vars).items()
-        if 'trajid_' in v.dims and 'frame' not in v.dims
-    }
     per_time_coords = {
         k: v.rename(time_='time')
         for k, v in dict(frames.coords).items()
         if 'time_' in v.dims and 'frame' not in v.dims
     }
-    per_time_vars = {
-        k: v.rename(time_='time')
-        for k, v in dict(frames.data_vars).items()
-        if 'time_' in v.dims and 'frame' not in v.dims
-    }
+    if hasattr(frames, 'data_vars'):
+        has_data_vars = True
+        per_traj_vars = {
+            k: v.rename(trajid_='trajid')
+            for k, v in dict(frames.data_vars).items()
+            if 'trajid_' in v.dims and 'frame' not in v.dims
+        }
+        per_time_vars = {
+            k: v.rename(time_='time')
+            for k, v in dict(frames.data_vars).items()
+            if 'time_' in v.dims and 'frame' not in v.dims
+        }
+    else:
+        has_data_vars = False
+        per_traj_vars = []
+        per_time_vars = []
+
     to_drop = to_drop = (
         list(per_traj_coords)
-        + list(per_traj_vars)
         + list(per_time_coords)
+        + list(per_traj_vars)
         + list(per_time_vars)
     )
 
@@ -342,9 +349,9 @@ def unstack_trajs(frames: xr.Dataset | xr.DataArray) -> xr.Dataset | xr.DataArra
         .unstack('frame')
         .assign_coords(per_traj_coords)
         .assign_coords(per_time_coords)
-        .assign(per_traj_vars)
-        .assign(per_time_vars)
     )
+    if has_data_vars:
+        res = res.assign(per_traj_vars).assign(per_time_vars)
     res['is_frame'] = res['is_frame'].fillna(0).astype(bool)
     return res
 
@@ -375,21 +382,27 @@ def stack_trajs(unstacked: xr.Dataset | xr.DataArray) -> xr.Dataset | xr.DataArr
         for k, v in dict(unstacked.coords).items()
         if 'trajid' in v.dims and 'time' not in v.dims and v.name != 'trajid'
     }
-    per_traj_vars = {
-        k: v.rename(trajid='trajid_')
-        for k, v in (dict(unstacked.data_vars)).items()
-        if 'trajid' in v.dims and 'time' not in v.dims
-    }
     per_time_coords = {
         k: v.rename(time='time_')
         for k, v in dict(unstacked.coords).items()
         if 'time' in v.dims and 'trajid' not in v.dims and v.name != 'time'
     }
-    per_time_vars = {
-        k: v.rename(time='time_')
-        for k, v in (dict(unstacked.data_vars)).items()
-        if 'time' in v.dims and 'trajid' not in v.dims
-    }
+    if hasattr(unstacked, 'data_vars'):
+        has_data_vars = True
+        per_traj_vars = {
+            k: v.rename(trajid='trajid_')
+            for k, v in (dict(unstacked.data_vars)).items()
+            if 'trajid' in v.dims and 'time' not in v.dims
+        }
+        per_time_vars = {
+            k: v.rename(time='time_')
+            for k, v in (dict(unstacked.data_vars)).items()
+            if 'time' in v.dims and 'trajid' not in v.dims
+        }
+    else:
+        has_data_vars = False
+        per_traj_vars = []
+        per_time_vars = []
     to_drop = (
         list(per_traj_coords)
         + list(per_traj_vars)
@@ -400,14 +413,15 @@ def stack_trajs(unstacked: xr.Dataset | xr.DataArray) -> xr.Dataset | xr.DataArr
     per_time_coords['time_'] = unstacked.coords['time'].rename(time='time_')
 
     res = unstacked.drop_vars(to_drop).stack({'frame': ['trajid', 'time']})
-    return (
+    res = (
         res.isel(frame=res.is_frame)
         .drop_vars('is_frame')
         .assign_coords(per_traj_coords)
         .assign_coords(per_time_coords)
-        .assign(per_traj_vars)
-        .assign(per_time_vars)
     )
+    if has_data_vars:
+        res = res.assign(per_traj_vars).assign(per_time_vars)
+    return res
 
 
 @needs(dims={'frame'})
