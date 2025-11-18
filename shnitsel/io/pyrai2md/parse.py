@@ -1,9 +1,6 @@
 from io import TextIOWrapper
 import logging
-import math
 import os
-from itertools import combinations
-from glob import glob
 import pathlib
 import re
 from typing import Any, Dict, Tuple
@@ -11,7 +8,6 @@ import xarray as xr
 import pandas as pd
 import numpy as np
 from pyparsing import nestedExpr
-from pprint import pprint
 from shnitsel.io.shared.trajectory_setup import (
     OptionalTrajectorySettings,
     RequiredTrajectorySettings,
@@ -164,9 +160,12 @@ def parse_md_energies(
     # print("t:", times)
 
     num_ts = df.shape[0]
+    e_kin = df.loc[:, 2].values
 
     trajectory_in["energy"].values[:num_ts] = energy
     mark_variable_assigned(trajectory_in["energy"])
+    trajectory_in["e_kin"].values[:num_ts] = e_kin
+    mark_variable_assigned(trajectory_in["e_kin"])
     return trajectory_in, num_ts, times
     return (
         xr.Dataset.from_dataframe(energy)
@@ -437,6 +436,11 @@ def parse_observables_from_log(
     veloc = np.full((expected_nsteps, natoms, 3), np.nan)
     dcmat = np.full((expected_nsteps, nstates, nstates), np.nan)
 
+    has_forces = False
+    has_veloc = False
+    has_nacs = False
+    has_positions = False
+
     # TODO: FIXME: Read variable units from the file and compare to expected values or override.
     ts_idx = -1
     end_msg_count = 0
@@ -474,6 +478,8 @@ def parse_observables_from_log(
         # -------------------------------------------------------------------------------
         if line.startswith("  &coordinates"):
             hline = next(f)
+            has_positions = True
+
             assert hline.startswith("---")
 
             for iatom in range(natoms):
@@ -495,6 +501,7 @@ def parse_observables_from_log(
         # -------------------------------------------------------------------------------
         if line.startswith("  &velocities"):
             hline = next(f)
+            has_veloc = True
             assert hline.startswith("---")
             for iatom in range(natoms):
                 veloc[ts_idx, iatom] = np.asarray(
@@ -512,6 +519,7 @@ def parse_observables_from_log(
         if line.startswith("  &gradient"):
             istate = int(line.strip().split()[2]) - 1
             hline = next(f)
+            has_forces = True
             assert hline.startswith("---")
             for iatom in range(natoms):
                 forces[ts_idx, istate, iatom] = np.asarray(
@@ -529,6 +537,7 @@ def parse_observables_from_log(
         # -------------------------------------------------------------------------------
         if line.startswith("  &derivative coupling matrix"):
             hline = next(f)
+            has_nacs = True
             assert hline.startswith("---")
             for istate1 in range(nstates):
                 dcmat[ts_idx, istate1] = np.asarray(
@@ -567,15 +576,24 @@ def parse_observables_from_log(
             'Completion message "Nonadiabatic Molecular Dynamics End:" appeared '
             f"{end_msg_count} times"
         )
-
+    
     real_max_ts = explicit_ts.max()
     trajectory_in["astate"].values = astate
     mark_variable_assigned(trajectory_in["astate"])
+    if has_veloc:
+        trajectory_in["velocities"].values = veloc
+        mark_variable_assigned(trajectory_in["velocities"])
 
-    trajectory_in["forces"].values = forces
-    mark_variable_assigned(trajectory_in["forces"])
-    trajectory_in["atXYZ"].values = atXYZ
-    mark_variable_assigned(trajectory_in["atXYZ"])
+    if has_nacs:
+        trajectory_in["nacs"].values =  dcmat
+        mark_variable_assigned(trajectory_in["nacs"])
+
+    if has_forces:
+        trajectory_in["forces"].values = forces
+        mark_variable_assigned(trajectory_in["forces"])
+    if has_positions:
+        trajectory_in["atXYZ"].values = atXYZ
+        mark_variable_assigned(trajectory_in["atXYZ"])
     trajectory_in.attrs["completed"] = (
         end_msg_count == 1 or real_max_ts >= expected_nsteps
     )
