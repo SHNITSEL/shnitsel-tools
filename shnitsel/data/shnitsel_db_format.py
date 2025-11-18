@@ -292,6 +292,22 @@ class ShnitselDBRoot(xr.DataTree):
             )  # type: ignore
 
 
+def collect_trajectories(db: xr.DataTree) -> List[Trajectory]:
+    """Function to retrieve all Trajectories in a subtree of a ShnitselDB
+
+    Args:
+        db (xr.DataTree): The subtree of the database in question
+
+    Returns:
+        List[Trajectory]: List of Trajectory entries in the Database
+    """
+    res: List[Trajectory] = []
+    for leaf in db.leaves:
+        if leaf.dataset is not None:
+            res.append(leaf.dataset)
+    return res
+
+
 def build_shnitsel_db(
     data: Trajectory | xr.DataTree | List,
 ) -> ShnitselDBRoot:
