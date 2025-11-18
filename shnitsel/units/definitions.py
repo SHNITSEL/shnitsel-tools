@@ -44,7 +44,7 @@ _time_unit_scales = {
     "seconds": si.second,
     time.au: si.AUT,
     # ASE uses this time unit: Ang/sqrt(u/eV) which might differ slightly from 10fs
-    time.ase_time_units: si.Angstrom / np.sqrt(si._amu / si.eV),
+    time.ase_time_units: 1,  # While the formula is: float(si.Angstrom / np.sqrt(si._amu / si.eV)), it amounts to 1 in the relative scale of the other times
 }
 
 
@@ -171,12 +171,15 @@ _amount_unit_scales = {"mol": si.mol, "1": 1}
 class velocity:
     au = "au"
     Bohr_per_atu = "bohr_per_atu"
+    Bohr_per_fs = "bohr_per_fs"
     meter_per_second = "meter_per_second"
 
 
 _velocity_unit_scales: dict[str, float] = {
-    velocity.au: 1,
-    velocity.Bohr_per_atu: 1,
+    velocity.au: si.Bohr / si.AUT,
+    velocity.Bohr_per_atu: si.Bohr / si.AUT,
+    velocity.Bohr_per_fs: si.Bohr / si.fs,
+    velocity.meter_per_second: si.m / si.s,
 }
 
 # TODO: FIXME: Deal with different codata versions?
@@ -193,6 +196,7 @@ standard_shnitsel_units = {
     # "dipole_trans": "1",
     unit_dimensions.socs: socs.au,
     unit_dimensions.charge: charge.e,
+    unit_dimensions.velocity: velocity.au,
 }
 
 """
