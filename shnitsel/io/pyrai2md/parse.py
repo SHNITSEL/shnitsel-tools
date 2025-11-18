@@ -27,6 +27,20 @@ from shnitsel.io.helpers import (
     make_uniform_path,
 )
 
+_int_pattern = re.compile(r"^[-+]?[0-9]+$")
+_float_pattern = re.compile(r"^[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?$")
+_double_whitespace_pattern = re.compile(r"\s{2,}")
+_colon_whitespace_pattern = re.compile(r":\s{1,}")
+_setting_name_pattern = re.compile(r"(\w+([\s_]{1}\w+)*)")
+
+
+_re_nac_header_line = re.compile(
+    r"&nonadiabatic coupling vectors (?P<state_1>\d+) *- *(?P<state_2>\d+) in Hartree/Bohr +M *= *(?P<mult_1>\d+) */ *(?P<mult_2>\d+)"
+)
+_re_soc_line = re.compile(
+    r"((?P<compute_missing>Not computed)|<H>=(?P<coupling>(\d\.)+)) +(?P<state_1>\d+) *- *(?P<state_2>\d+) *in cm-1 M1 *= *(?P<mult_1>\d+) *M2 *= *(?P<mult_2>\d+)"
+)
+
 
 def parse_pyrai2md(
     traj_path: PathOptionsType, loading_parameters: LoadingParameters | None = None
@@ -82,9 +96,10 @@ def parse_pyrai2md(
     # TODO: FIXME: apply state names
 
     with xr.set_options(keep_attrs=True):
+        trajectory, max_ts1, times = parse_md_energies(md_energies_paths[0], trajectory)
+
         with open(os.path.join(log_paths[0])) as f:
             trajectory, max_ts2 = parse_observables_from_log(f, trajectory)
-        trajectory, max_ts1, times = parse_md_energies(md_energies_paths[0], trajectory)
 
     completed = (max_ts1 == nsteps) and (max_ts2 == nsteps)
     real_max_ts = min(max_ts1, max_ts2)
@@ -165,72 +180,6 @@ def parse_md_energies(
     trajectory_in["e_kin"].values[:num_ts] = e_kin
     mark_variable_assigned(trajectory_in["e_kin"])
     return trajectory_in, num_ts, times
-    return (
-        xr.Dataset.from_dataframe(energy)
-        .to_array("state")
-        .assign_coords(state=np.arange(1, nstates + 1))
-    )
-
-
-_int_pattern = re.compile(r"^[-+]?[0-9]+$")
-_float_pattern = re.compile(r"^[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?$")
-_double_whitespace_pattern = re.compile(r"\s{2,}")
-_colon_whitespace_pattern = re.compile(r":\s{1,}")
-_setting_name_pattern = re.compile(r"(\w+([\s_]{1}\w+)*)")
-
-
-"""
-TODO: FIXME: Read in the NAC, dcm or SOC values.
-
-
- ' &nonadiabatic coupling vectors %3d - %3d in Hartree/Bohr M = %1d / %1d
--------------------------------------------------------------------------------
-%s-------------------------------------------------------------------------------
-' % (s1 + 1, s2 + 1, m1, m2, print_coord(np.concatenate((self.traj.atoms, coupling), axis=1)))
-
-or 
- ' &nonadiabatic coupling vectors %3d - %3d in Hartree/Bohr M = %1d / %1d
--------------------------------------------------------------------------------
-  Not computed
--------------------------------------------------------------------------------
-'
-
-
-  '&derivative coupling matrix          
--------------------------------------------------------------------------------
-%s-------------------------------------------------------------------------------   
-'% (print_matrix(self.traj.nac))
-
-        soc_info = ''
-        for n, pair in enumerate(self.traj.soc_coupling):
-            s1, s2 = pair
-            m1 = self.traj.statemult[s1]
-            m2 = self.traj.statemult[s2]
-            try:
-                coupling = self.traj.soc[n]
-                soc_info += '  <H>=%10.4f            %3d - %3d in cm-1 M1 = %1d M2 = %1d\n' % (
-                    coupling, s1 + 1, s2 + 1, m1, m2)
-
-            except IndexError:
-                soc_info += '  Not computed              %3d - %3d in cm-1 M1 = %1d M2 = %1d\n' % (
-                    s1 + 1, s2 + 1, m1, m2)
-
-        if len(self.traj.soc_coupling) > 0:
-            log_info += '
-            &spin-orbit coupling
-    -------------------------------------------------------------------------------
-    %s-------------------------------------------------------------------------------
-    ' % soc_info
-
-        if self.traj.mixinfo:
-            log_info += '%s\n' % self.traj.mixinfo
-
-        return log_info
-
-We need to support these variables.
-
-Do we need to support single-point and hopping probability calculations?
-"""
 
 
 def read_pyrai2md_settings_from_log(f: TextIOWrapper) -> Dict[str, Any]:
@@ -370,7 +319,9 @@ def parse_observables_from_log(
 ) -> Tuple[xr.Dataset, int]:
     """Function to read multiple observables from a PyrAI2md log file.
 
-    Returns the trajectory with added observables data
+    Returns the trajectory with added observables data.
+    To calculate the NACs accurately, the trajectory requires state-energy data to be set so that we can
+    renormalize the NACs data with energy deltas.
 
     Args:
         f (TextIOWrapper): The file input stream from which the log is read
@@ -396,6 +347,7 @@ def parse_observables_from_log(
     expected_nsteps: int | None = trajectory_in.sizes["time"]
     nstates: int = trajectory_in.sizes["state"]
     natoms: int = trajectory_in.sizes["atom"]
+    nstatecomb: int = trajectory_in.sizes["statecomb"]
 
     if expected_nsteps is None:
         raise ValueError("Could not read `nsteps` from trajectory")
@@ -433,20 +385,42 @@ def parse_observables_from_log(
     # TODO: Use velocities?
     veloc = np.full((expected_nsteps, natoms, 3), np.nan)
     dcmat = np.full((expected_nsteps, nstates, nstates), np.nan)
+    nacs = np.full((expected_nsteps, nstates, nstates), np.nan)
+    nacs = np.full((expected_nsteps, nstatecomb, natoms, 3), np.nan)
+    socs = np.full((expected_nsteps, nstatecomb), np.nan)
 
     has_forces = False
     has_veloc = False
+    has_dcms = False
     has_nacs = False
+    has_socs = False
     has_positions = False
+
+    has_energy_deltas = is_variable_assigned(trajectory_in.energy)
+    energies = trajectory_in.energy.values
+
+    energy_deltas = {
+        (i + 1, j + 1): energies[:, i] - energies[:, j]
+        for i in range(nstates)
+        for j in range(nstates)
+    }
+
+    state_comb_order = trajectory_in.statecomb.values
+    state_comb_dict: dict[tuple[int, int], int] = {
+        pair: i for i, pair in enumerate(state_comb_order)
+    }
+    logging.debug(state_comb_order)
+    logging.debug(state_comb_dict)
 
     # TODO: FIXME: Read variable units from the file and compare to expected values or override.
     ts_idx = -1
     end_msg_count = 0
     for line in f:
+        line = line.strip()
         # The start of a timestep
         # Iter:        1  Ekin =           0.1291084223229551 au T =   300.00 K dt =         20 CI:   3
         # Root chosen for geometry opt   2
-        if line.startswith("  Iter:"):
+        if line.startswith("Iter:"):
             ts_idx += 1
             explicit_ts[ts_idx] = int(line.strip().split()[1])
 
@@ -474,7 +448,7 @@ def parse_observables_from_log(
         # C          0.5765950000000000     -0.8169010000000000     -0.0775610000000000
         # C          1.7325100000000000     -0.1032670000000000      0.1707480000000000
         # -------------------------------------------------------------------------------
-        if line.startswith("  &coordinates"):
+        if line.startswith("&coordinates"):
             hline = next(f)
             has_positions = True
 
@@ -497,7 +471,7 @@ def parse_observables_from_log(
         # C          0.0003442000000000      0.0001534200000000     -0.0000597200000000
         # C         -0.0005580000000000      0.0003118300000000     -0.0000154900000000
         # -------------------------------------------------------------------------------
-        if line.startswith("  &velocities"):
+        if line.startswith("&velocities"):
             hline = next(f)
             has_veloc = True
             assert hline.startswith("---")
@@ -514,14 +488,18 @@ def parse_observables_from_log(
         # C         -0.0330978534152795      0.0073099255379017      0.0082666356536386
         # C          0.0313629524413876      0.0196036465968827      0.0060952442704520
         # -------------------------------------------------------------------------------
-        if line.startswith("  &gradient"):
+        if line.startswith("&gradient"):
             istate = int(line.strip().split()[2]) - 1
             hline = next(f)
             has_forces = True
             assert hline.startswith("---")
             for iatom in range(natoms):
+                next_line = next(f).strip()
+                if next_line.lower().find("not computed") > 0:
+                    # Skip if no computation has happened
+                    break
                 forces[ts_idx, istate, iatom] = np.asarray(
-                    next(f).strip().split()[1:], dtype=float
+                    next_line.split()[1:], dtype=float
                 )
             hline = next(f)
             assert hline.startswith("---")
@@ -533,9 +511,14 @@ def parse_observables_from_log(
         #      -0.0000000000000004       0.0000000000000000       0.0000000000000003
         #       0.0000000000000001      -0.0000000000000003       0.0000000000000000
         # -------------------------------------------------------------------------------
-        if line.startswith("  &derivative coupling matrix"):
+
+        # '&derivative coupling matrix
+        # -------------------------------------------------------------------------------
+        # %s-------------------------------------------------------------------------------
+        # '% (print_matrix(self.traj.nac))
+        if line.startswith("&derivative coupling matrix"):
             hline = next(f)
-            has_nacs = True
+            has_dcms = True
             assert hline.startswith("---")
             for istate1 in range(nstates):
                 dcmat[ts_idx, istate1] = np.asarray(
@@ -543,6 +526,93 @@ def parse_observables_from_log(
                 )
             hline = next(f)
             assert hline.startswith("---")
+
+        # ' &nonadiabatic coupling vectors %3d - %3d in Hartree/Bohr M = %1d / %1d
+        # -------------------------------------------------------------------------------
+        # %s-------------------------------------------------------------------------------
+        # ' % (s1 + 1, s2 + 1, m1, m2, print_coord(np.concatenate((self.traj.atoms, coupling), axis=1)))
+        #
+        # or
+        # ' &nonadiabatic coupling vectors %3d - %3d in Hartree/Bohr M = %1d / %1d
+        # -------------------------------------------------------------------------------
+        # Not computed
+        # -------------------------------------------------------------------------------
+        # '
+        if line.startswith("&nonadiabatic coupling vectors"):
+            has_nacs = True
+            match = _re_nac_header_line.match(line)
+            if match:
+                from_state = int(match.group("state_1"))
+                to_state = int(match.group("state_2"))
+                from_state_mult = int(match.group("mult_1"))
+                to_state_mult = int(match.group("mult_2"))
+                comb_index = state_comb_dict[(from_state, to_state)]
+
+                if not has_energy_deltas:
+                    raise ValueError(
+                        "To normalize PyRAI2md NACs, we need to have energy delta values. Please make sure the energy delta values can be read before the NAC entries in the `.log` file."
+                    )
+
+                # TODO: FIXME: Check if this needs the opposite sign
+                delta_e = energy_deltas[(from_state, to_state)]
+                nextline = next(f).strip()
+                assert nextline.startswith("---")
+                for iatom in range(natoms):
+                    nextline = next(f).strip()
+                    # We normalize with the \Delta E_ij to get 1/Bohr units
+                    vec = [float(x) / delta_e for x in nextline.split()]
+                    nacs[ts_idx, comb_index, iatom, :] = vec
+
+                nextline = next(f).strip()
+                assert nextline.startswith("---")
+
+            else:
+                logging.warning(f"Malformed NAC line in PyRAI2md trajectory: {line}")
+
+        # soc_info = ''
+        #         for n, pair in enumerate(self.traj.soc_coupling):
+        #             s1, s2 = pair
+        #             m1 = self.traj.statemult[s1]
+        #             m2 = self.traj.statemult[s2]
+        #             try:
+        #                 coupling = self.traj.soc[n]
+        #                 soc_info += '  <H>=%10.4f            %3d - %3d in cm-1 M1 = %1d M2 = %1d\n' % (
+        #                     coupling, s1 + 1, s2 + 1, m1, m2)
+
+        #             except IndexError:
+        #                 soc_info += '  Not computed              %3d - %3d in cm-1 M1 = %1d M2 = %1d\n' % (
+        #                     s1 + 1, s2 + 1, m1, m2)
+
+        #         if len(self.traj.soc_coupling) > 0:
+        # log_info += '
+        # &spin-orbit coupling
+        # -------------------------------------------------------------------------------
+        # %s-------------------------------------------------------------------------------
+        # ' % soc_info
+        if line.startswith("&spin-orbit coupling"):
+            has_socs = True
+            nextline = next(f).strip()
+            assert nextline.startswith("---")
+            nextline = next(f).strip()
+            while not nextline.startswith("---"):
+                match = _re_soc_line.match(nextline)
+
+                if match:
+                    from_state = int(match.group("state_1"))
+                    to_state = int(match.group("state_2"))
+                    from_state_mult = int(match.group("mult_1"))
+                    to_state_mult = int(match.group("mult_2"))
+
+                    if "compute_missing" in match.groupdict():
+                        logging.info(
+                            f"Soc missing for {from_state} -> {to_state} (mults: {from_state_mult} -> {to_state_mult})"
+                        )
+                    else:
+                        socs[ts_idx, state_comb_dict[(from_state, to_state)]] = float(
+                            match.group("coupling")
+                        )
+
+                nextline = next(f).strip()
 
         # Surface hopping information at the end of each timestep:
         #  &surface hopping information
@@ -557,7 +627,7 @@ def parse_observables_from_log(
         #
         #
         # -------------------------------------------------------
-        if line.startswith("  &surface hopping information"):
+        if line.startswith("&surface hopping information"):
             hline = next(f)
             assert hline.startswith("---")
             # We don't currently parse this
@@ -574,7 +644,7 @@ def parse_observables_from_log(
             'Completion message "Nonadiabatic Molecular Dynamics End:" appeared '
             f"{end_msg_count} times"
         )
-    
+
     real_max_ts = explicit_ts.max()
     trajectory_in["astate"].values = astate
     mark_variable_assigned(trajectory_in["astate"])
@@ -582,12 +652,23 @@ def parse_observables_from_log(
         trajectory_in["velocities"].values = veloc
         mark_variable_assigned(trajectory_in["velocities"])
 
-    if False and has_nacs:
-        trajectory_in["nacs"].values =  dcmat
+    if has_dcms:
+        trajectory_in["dcm"].values = dcmat
+        mark_variable_assigned(trajectory_in["dcm"])
+
+    if has_nacs:
+        trajectory_in["nacs"].values = nacs
         mark_variable_assigned(trajectory_in["nacs"])
     else:
-        # TODO: FIXME: Use /PyrAI2md/Dynamics/aimd.py to complete the reading of NACS/dcm
+        # NOTE: Use /PyrAI2md/Dynamics/aimd.py to complete the reading of NACS/dcm
         logging.info("No NACS available for PyrAI2md file")
+
+    if has_socs:
+        logging.warning(
+            "SOCs from PyrAI2md files have not been tested. There may be a mismatch in dimensionality."
+        )
+        trajectory_in["socs"].values = socs
+        mark_variable_assigned(trajectory_in["socs"])
 
     if has_forces:
         trajectory_in["forces"].values = forces
