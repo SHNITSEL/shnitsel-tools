@@ -1,0 +1,5 @@
+# Format    #Num trajectories   # Num frames    # Total time [s]   #mean time per 100frames [s/100frames]
+Newtonx:	3.0,	2403.0,	0.36360223810188474,	0.015131179280145016
+SHARC(icond):	505.0,	505.0,	8.653823715401813,	1.7136284584954087  # Consequence of many xarray initializations
+SHARC(traj):	4.0,	1004.0,	0.5394709023996256,	0.05373216159358821
+PyrAI2md:	2.0,	3250.0,	1.557583214796614,	0.04792563737835735
