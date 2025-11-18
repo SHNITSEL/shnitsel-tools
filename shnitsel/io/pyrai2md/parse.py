@@ -41,9 +41,7 @@ def parse_pyrai2md(
         xr.Dataset: The Dataset object containing all of the loaded data in default shnitsel units
     """
 
-    # TODO: FIXME: Use /PyrAI2md/Dynamics/aimd.py to complete the reading of NACS/dcm
     # TODO: FIXME: Pyrai2md has a different understanding of the number of triplets: It states per state whether it is singlet, doublet, triplet, no further multiplicities are considered.
-    logging.warning("No NACS available for PyrAI2md")
 
     path_obj: pathlib.Path = make_uniform_path(traj_path)
     # TODO: FIXME: Check if there are other files of pyrai2md trajectories to read information from.
@@ -587,6 +585,9 @@ def parse_observables_from_log(
     if has_nacs:
         trajectory_in["nacs"].values =  dcmat
         mark_variable_assigned(trajectory_in["nacs"])
+    else:
+        # TODO: FIXME: Use /PyrAI2md/Dynamics/aimd.py to complete the reading of NACS/dcm
+        logging.info("No NACS available for PyrAI2md file")
 
     if has_forces:
         trajectory_in["forces"].values = forces
