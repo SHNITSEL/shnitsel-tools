@@ -8,7 +8,6 @@ from shnitsel.io.shared.trajectory_setup import create_initial_dataset
 
 from types import ModuleType, FunctionType
 from gc import get_referents
-from pprint import pprint
 
 # Custom objects know their class.
 # Function objects seem to know way too much, including modules.
