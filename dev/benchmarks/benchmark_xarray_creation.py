@@ -48,9 +48,9 @@ def main():
     num_atoms = [0, 10, 100, 1000]
     num_states = [0, 2, 4, 6, 8]
 
-    num_steps = [1]
-    num_atoms = [12]
-    num_states = [2]
+    num_steps = [1, 100]
+    num_atoms = [12, 50]
+    num_states = [2, 5, 10]
 
     reps = 100
 
@@ -68,7 +68,7 @@ def main():
                     del traj
 
                 duration_create = timeit.timeit(create_set, number=reps)
-                stats[(nsteps, natoms, statecount)] = duration_create
+                stats[(nsteps, natoms, statecount)] = duration_create/reps
 
                 print(f"{stats[(nsteps, natoms, statecount)]=}")
 
