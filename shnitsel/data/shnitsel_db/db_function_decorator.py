@@ -1,6 +1,7 @@
 from functools import wraps
 from typing import Callable, Concatenate, Dict, Literal, ParamSpec, TypeVar
-from shnitsel.data.shnitsel_db_format import ShnitselDB
+from shnitsel.data.shnitsel_db.combiner_methods import concat_trajs, layer_trajs
+from shnitsel.data.shnitsel_db_format import ShnitselDB, collect_trajectories
 from shnitsel.data.trajectory_format import Trajectory
 import xarray as xr
 
@@ -137,15 +138,43 @@ def add_as_tree_method(
 # sys.exit(0)
 
 
+def concat_subtree(subtree: xr.DataTree) -> Trajectory:
+    """Helper function to concatenate the trajectories in a subtree into a multi-trajetctory dataset.
+
+    The resulting dataset has a new `frame` dimension along which we can iterate through all individual frames of all trajectories.
+
+    Args:
+        subtree (xr.DataTree): The subtree of the ShnitselDB datastructure
+
+    Returns:
+        Trajectory: The resulting multi-trajectory dataset
+    """
+    trajectories = collect_trajectories(subtree)
+    return concat_trajs(trajectories)
+
+
+def layer_subtree(subtree: xr.DataTree) -> Trajectory:
+    """Helper function to layer the trajectories in a subtree into a multi-trajetctory dataset.
+
+    The new trajectory has a `trajid` dimension along which we can iterate through the different trajectories.
+    Within trajectories, please check that you did not exceed the `time` dimension up to `max_ts` (which will be added as a variable) time steps or you will encounter NaN entries in most variables.
+
+    Args:
+        subtree (xr.DataTree): The subtree of the ShnitselDB datastructure
+
+    Returns:
+        Trajectory: The resulting multi-trajectory dataset
+    """
+    trajectories = collect_trajectories(subtree)
+    return layer_trajs(trajectories)
+
+
 # NOTE: This decorator is meant to allow the input of a datatree as first argument instead of a dataset
 def dataset_to_tree_method(
     cls: type[T] = ShnitselDB,
-    aggregate_prior: Literal['all', 'compound', 'group']
-    | Callable[[T], T]
-    | None = None,
-    aggregate_post: Literal['all', 'compound', 'group']
-    | Callable[[T], T]
-    | None = None,
+    aggregate_pre: Literal['all', 'compound', 'group'] | Callable[[T], T] | None = None,
+    aggregate_method_pre: Literal['concat', 'layer', 'list'] | None = None,
+    aggregate_post: Callable[[T], T] | None = None,
     unwrap_single_result: bool = False,
     parallel: bool = True,
 ) -> Callable[
@@ -184,22 +213,27 @@ def dataset_to_tree_method(
         # TODO: FIXME: Patch the annotations and documentation of the wrapper function compared to the original
         @wraps(ds_func)
         def wrapper(ds: Trajectory | T, *args: Param.args, **kwargs: Param.kwargs):
-            def simple_helper(ds: Trajectory) -> RetType:
-                """We simply add this so that we can apply the function with the correct arguments to all trajectories.
+            if isinstance(ds, cls):
 
-                Args:
-                    ds (Trajectory): The single trajectory to apply this method to
+                def simple_helper(ds: Trajectory) -> RetType:
+                    """We simply add this so that we can apply the function with the correct arguments to all trajectories.
 
-                Returns:
-                    RetType: The result of the function `ds_func` applied to this dataset.s
-                """
+                    Args:
+                        ds (Trajectory): The single trajectory to apply this method to
+
+                    Returns:
+                        RetType: The result of the function `ds_func` applied to this dataset.s
+                    """
+                    return ds_func(ds, *args, **kwargs)
+
+                # TODO: FIXME: Perform preprocessing.
+                res = ds.map_over_trajectories(simple_helper)
+                # TODO: FIXME: Perform postprocessing.
+                # TODO: FIXME: Perform unwrapping.
+                return res
+            else:
+                assert isinstance(ds, Trajectory)
                 return ds_func(ds, *args, **kwargs)
-
-            # TODO: FIXME: Perform preprocessing.
-            res = ds.map_over_trajectories(simple_helper)
-            # TODO: FIXME: Perform postprocessing.
-            # TODO: FIXME: Perform unwrapping.
-            return res
 
         return wrapper
 
