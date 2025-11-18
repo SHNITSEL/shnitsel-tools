@@ -215,6 +215,14 @@ def read_traj(
 
         nsteps = min(trajectory.sizes["time"], max_ts_dat)
 
+    # Starting with SHARC 4.1, there will be a "start.time" file with a time offset
+    start_time_file = path_obj / "start.time"
+    time_offset = 0.0
+    if start_time_file.exists():
+        with open(start_time_file) as f:
+            lines = f.readlines()
+            time_offset = float(lines[0])
+
     if variables_listings is not None:
         if nsteps > len(variables_listings["time"]):
             completed = False
@@ -224,7 +232,7 @@ def read_traj(
                 # logging.debug(f"Time attributes: {trajectory.time.attrs}")
                 trajectory.coords["time"] = (
                     "time",
-                    variables_listings["time"],
+                    variables_listings["time"] + time_offset,
                     default_format_attributes["time"],
                 )
                 mark_variable_assigned(trajectory["time"])
@@ -645,32 +653,32 @@ def parse_trajout_dat(
     # has_forces = forces.any(axis=(1, 2, 3))
 
     if nacs_assigned:
-        trajectory_in["nacs"].values =  tmp_nacs
+        trajectory_in["nacs"].values = tmp_nacs
         mark_variable_assigned(trajectory_in["nacs"])
     if force_assigned:
-        trajectory_in["forces"].values =  tmp_forces
+        trajectory_in["forces"].values = tmp_forces
         mark_variable_assigned(trajectory_in["forces"])
     if sdiag_assigned:
-        trajectory_in["sdiag"].values =  tmp_sdiag
+        trajectory_in["sdiag"].values = tmp_sdiag
         mark_variable_assigned(trajectory_in["sdiag"])
     if astate_assigned:
-        trajectory_in["astate"].values =  tmp_astate
+        trajectory_in["astate"].values = tmp_astate
         mark_variable_assigned(trajectory_in["astate"])
     if phases_assigned:
-        trajectory_in["phases"].values =  tmp_phases
+        trajectory_in["phases"].values = tmp_phases
         mark_variable_assigned(trajectory_in["phases"])
     if dipole_assigned:
         # post-processing
         # np.diagonal swaps state and direction, so we transpose them back
-        trajectory_in.dip_perm.values[:] = np.diagonal(tmp_dip_all, axis1=1, axis2=2).transpose(
-            0, 2, 1
-        )
+        trajectory_in.dip_perm.values[:] = np.diagonal(
+            tmp_dip_all, axis1=1, axis2=2
+        ).transpose(0, 2, 1)
         idxs_dip_trans = (slice(None), *np.triu_indices(nstates, k=1), slice(None))
         trajectory_in.dip_trans.values[:] = tmp_dip_all[idxs_dip_trans]
         mark_variable_assigned(trajectory_in["dip_perm"])
         mark_variable_assigned(trajectory_in["dip_trans"])
     if energy_assigned:
-        trajectory_in["energy"].values =  tmp_energy
+        trajectory_in["energy"].values = tmp_energy
         mark_variable_assigned(trajectory_in["energy"])
     if e_kin_assigned:
         # For now, we do not include e_kin or velocities.
@@ -715,9 +723,9 @@ def parse_trajout_xyz(
 
     for index, line in enumerate(f):
         if "t=" in line:
-            assert ts < nsteps, (
-                f"Excess time step at ts={ts}, for a maximum nsteps={nsteps}"
-            )
+            assert (
+                ts < nsteps
+            ), f"Excess time step at ts={ts}, for a maximum nsteps={nsteps}"
             for atom in range(natoms):
                 linecont = re.split(" +", next(f).strip())
                 if ts == 0:
