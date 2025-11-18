@@ -11,6 +11,7 @@ import xarray as xr
 from ._accessors import DAManualAccessor, DSManualAccessor
 from ._contracts import needs
 from numpy import ndarray
+from os import PathLike
 from rdkit.Chem.rdchem import Mol
 from shnitsel.bridges import default_mol, smiles_map, to_mol, to_xyz, traj_to_xyz
 from shnitsel.core.convenience import pairwise_dists_pca, pca_and_hops, validate
@@ -389,7 +390,7 @@ class DatasetAccessor(DSManualAccessor):
         """Wrapper for :py:func:`shnitsel.core.midx.stack_trajs`."""
         return stack_trajs(self._obj)
 
-    def write_shnitsel_file(self, savepath: str | os.PathLike | pathlib._local.Path, complevel: int=9):
+    def write_shnitsel_file(self, savepath: PathLike, complevel: int=9):
         """Wrapper for :py:func:`shnitsel.io.shnitsel.write.write_shnitsel_file`."""
         return write_shnitsel_file(self._obj, savepath, complevel=complevel)
 
