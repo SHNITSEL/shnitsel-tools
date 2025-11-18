@@ -582,7 +582,7 @@ def parse_observables_from_log(
         trajectory_in["velocities"].values = veloc
         mark_variable_assigned(trajectory_in["velocities"])
 
-    if has_nacs:
+    if False and has_nacs:
         trajectory_in["nacs"].values =  dcmat
         mark_variable_assigned(trajectory_in["nacs"])
     else:
