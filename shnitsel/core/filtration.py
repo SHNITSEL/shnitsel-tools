@@ -81,5 +81,3 @@ def truncate(frames, cutoffs):
     mask = frames['time'] <= expansion
     return frames.sel(frame=mask)
 
-
-def trajs_where(mask_da): ...
