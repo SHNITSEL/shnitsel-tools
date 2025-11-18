@@ -43,7 +43,7 @@ def read(
     kind: KindType | None = None,
     sub_pattern: str | None = None,
     multiple: bool = True,
-    concat_method: Literal["layers", "list", "frames", "db"] = "layers",
+    concat_method: Literal["layers", "list", "frames", "db"] = "db",
     parallel: bool = True,
     error_reporting: Literal["log", "raise"] = "log",
     input_units: Dict[str, str] | None = None,
@@ -117,7 +117,7 @@ def read(
         If `sub_pattern` is provided, this parameter should not be set to `False` or the matching will be ignored.
     concat_method (Literal['layers', 'list', 'frames'])
         How to combine the loaded trajectories if multiple trajectories have been loaded.
-        Defaults to ``concat_method='layers``.
+        Defaults to ``concat_method='db'``.
         The available methods are:
         `'layers'`: Introduce a new axis `trajid` along which the different trajectories are indexed in a combined `xr.Dataset` structure.
         `'list'`: Return the multiple trajectories as a list of individually loaded data.
