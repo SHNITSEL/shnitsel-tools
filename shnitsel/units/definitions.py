@@ -140,12 +140,15 @@ _dipole_unit_scales = {
 
 
 class nacs:
-    # TODO: FIXME: Figure out nacs units
-    one_per_Bohr = "one_per_Bohr"
+    one_per_m = "1/m"
+    one_per_cm = "1/cm"
+    one_per_Bohr = "1/Bohr"
     au = "au"
 
 
 _nacs_unit_scales = {
+    nacs.one_per_m: 1.0 / si.m,
+    nacs.one_per_cm: 1e2 / si.m,
     nacs.one_per_Bohr: 1.0,
     nacs.au: 1.0,
 }
@@ -153,10 +156,16 @@ _nacs_unit_scales = {
 
 class socs:
     # TODO: FIXME: Figure out nacs units
+    one_per_m = "1/m"
+    one_per_cm = "1/cm"
+    one_per_Bohr = "1/Bohr"
     au = "au"
 
 
 _socs_unit_scale = {
+    socs.one_per_m: 1.0 / si.m,
+    socs.one_per_cm: 1e2 / si.m,
+    socs.one_per_Bohr: 1.0,
     socs.au: 1.0,
 }
 
@@ -191,10 +200,10 @@ standard_shnitsel_units = {
     unit_dimensions.force: force.Hartree_per_Bohr,
     # TODO: FIXME: Check which default time unit is used in shnitsel
     unit_dimensions.time: time.femto_seconds,
-    unit_dimensions.nacs: "1",  # TODO: FIXME: NACS in molcas: 1/Bohr, SHARC liest 1/Bohr
+    unit_dimensions.nacs: nacs.one_per_Bohr,  # TODO: FIXME: NACS in molcas: 1/Bohr, SHARC liest 1/Bohr
     unit_dimensions.dipole: dipole.Debye,
     # "dipole_trans": "1",
-    unit_dimensions.socs: socs.au,
+    unit_dimensions.socs: socs.one_per_cm,
     unit_dimensions.charge: charge.e,
     unit_dimensions.velocity: velocity.au,
 }
@@ -226,7 +235,7 @@ standard_units_of_formats = {
         unit_dimensions.nacs: nacs.one_per_Bohr,
         unit_dimensions.dipole: dipole.au,
         # "dipole_trans": dipole.au,
-        unit_dimensions.socs: socs.au,
+        unit_dimensions.socs: socs.one_per_cm,
         unit_dimensions.charge: charge.e,
         unit_dimensions.velocity: velocity.au,  # TODO: check
     },
@@ -239,7 +248,7 @@ standard_units_of_formats = {
         unit_dimensions.nacs: nacs.au,
         unit_dimensions.dipole: dipole.au,
         # "dipole_trans": dipole.au,
-        unit_dimensions.socs: socs.au,
+        unit_dimensions.socs: socs.one_per_cm,
         unit_dimensions.charge: charge.e,
         unit_dimensions.velocity: velocity.au,  # TODO: check
     },
@@ -251,7 +260,7 @@ standard_units_of_formats = {
         unit_dimensions.nacs: nacs.au,
         unit_dimensions.dipole: dipole.Debye,
         # "dipole_trans": dipole.au,
-        unit_dimensions.socs: socs.au,
+        unit_dimensions.socs: socs.one_per_cm,
         unit_dimensions.charge: charge.e,
         unit_dimensions.velocity: velocity.au,
     },
@@ -269,7 +278,7 @@ standard_units_of_formats = {
         unit_dimensions.nacs: nacs.au,
         unit_dimensions.dipole: dipole.au,
         # "dipole_trans": dipole.au,
-        unit_dimensions.socs: socs.au,
+        unit_dimensions.socs: socs.one_per_cm,
         unit_dimensions.charge: charge.e,
         unit_dimensions.velocity: velocity.au,  # TODO: check
     },
