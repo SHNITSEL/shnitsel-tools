@@ -1,0 +1,11 @@
+&input
+  nxrestart = 1
+  t = 200.0000
+ nat = 14
+ nstat = 3
+  nstatdyn = 1
+ dt = 0.5
+ tmax = 400
+ prog = 12.0
+ thres = 100
+/
