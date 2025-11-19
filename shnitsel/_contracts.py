@@ -13,6 +13,8 @@ _fields = [
 ]
 Needs = namedtuple('Needs', _fields, defaults=(None,) * len(_fields))
 
+# TODO: FIXME: This decorator breaks type hints and autocomplete on my machine. I still see the documentation, but it no longer suggests parameter names.
+
 
 def needs(
     to_be: Literal['da', 'ds', None] = None,
