@@ -1,7 +1,12 @@
 from functools import wraps
-from typing import Callable, Concatenate, Dict, Literal, ParamSpec, TypeVar
+import logging
+from typing import Callable, Concatenate, Dict, List, Literal, ParamSpec, TypeVar
 from shnitsel.data.shnitsel_db.combiner_methods import concat_trajs, layer_trajs
 from shnitsel.data.shnitsel_db_format import ShnitselDB, collect_trajectories
+from shnitsel.data.shnitsel_db_helpers import (
+    aggregate_xr_over_levels,
+    unwrap_single_entry_in_tree,
+)
 from shnitsel.data.trajectory_format import Trajectory
 import xarray as xr
 
@@ -54,67 +59,30 @@ RetType = TypeVar("RetType")
 T = TypeVar("T", bound=xr.DataTree)
 
 
-# NOTE: TODO: FIXME: This combines multiple things that should be split: Converting from Dataset to Tree input,
-# Aggregation, unwrapping and registering with the ShnitselDB class.
-# This should be seen as a work in progress and not yet finished.
 def add_as_tree_method(
     cls: type[T] = ShnitselDB,
-    aggregate_prior: Literal['all', 'compound', 'group'] | Callable | None = None,
-    aggregate_post: Literal['all', 'compound', 'group'] | Callable | None = None,
-    unwrap_single_result=False,
 ) -> Callable[
-    [Callable[Concatenate[Trajectory, Param], RetType]],
-    Callable[Concatenate[Trajectory, Param], RetType],
+    [Callable[Concatenate[T, Param], RetType]],
+    Callable[Concatenate[T, Param], RetType],
 ]:
     """Decorator to add a function to the Tree/Database version of a shnitsel Dataset.
 
-    Automatically maps the function that applies to a dataset over the trajectories in the tree.
-    Via additional arguments, you can specify, which kind of pre- and postprocessing should be performed on the database to support the function.
-
+    If the function does not accept the tree-type argument as first argument, it can be transformed to support it with the decorator `dataset_to_tree_method`
     Args:
         cls (type, optional):  The class to add the method to. Defaults to ShnitselDB.
-        aggregate_prior (Literal["all", "compound", "group"] | Callable[[cls], cls] | None, optional): Preprocessing method to apply. Option 1: specify the scope within which all trajectories should be aggregated, i.e.
-            "all": use all the trajectories in the set as base of inputs to the function,
-            "compound": use only the trajectories per compound group as base for input,
-            "group": use only the trajectories within the same Group as base for input.
-            altn). Defaults to None.
-            Option 2: Provide an explicit pre-processing function to turn the tree structure into a different tree with potentially fewer datasets.
-            Option 3: Perform no pre-processing by setting `None`.
-            Defaults to `None.
-        aggregate_post (Literal["all", "compound", "group"] | Callable[[cls], cls] | None, optional): Same semantics as for `aggregate_prior`, but now the aggregation is applied to the tree after applying the wrapped function to all trajectories. Defaults to None.
-        unwrap_single_result (bool, optional): Whether a single result should be returned as the unwrapped value (True) or contained in the tree structure. Defaults to False.
 
     Returns:
         Callable[
-            [Callable[Concatenate[Trajectory, Param], RetType]],
-            Callable[Concatenate[Trajectory, Param], RetType]
-            ]: Returns a decorator that accepts a function with a trajectory as its first parameter and returns the function unchanged.
+            [Callable[Concatenate[T, Param], RetType]],
+            Callable[Concatenate[T, Param], RetType]
+            ]: Returns the function unchanged but adds it to the `cls` class as an instance method.
     """
 
     def decorator(
-        ds_func: Callable[Concatenate[Trajectory, Param], RetType],
-    ) -> Callable[Concatenate[Trajectory, Param], RetType]:
-        # TODO: FIXME: Patch the annotations and documentation of the wrapper function compared to the original
-        @wraps(ds_func)
-        def wrapper(self, *args: Param.args, **kwargs: Param.kwargs):
-            def simple_helper(ds: Trajectory) -> RetType:
-                """We simply add this so that we can apply the function with the correct arguments to all trajectories.
-
-                Args:
-                    ds (Trajectory): The single trajectory to apply this method to
-
-                Returns:
-                    RetType: The result of the function `ds_func` applied to this dataset.s
-                """
-                return ds_func(ds, *args, **kwargs)
-
-            # TODO: FIXME: Perform preprocessing.
-            res = self.map_over_trajectories(simple_helper)
-            # TODO: FIXME: Perform postprocessing.
-            # TODO: FIXME: Perform unwrapping.
-            return res
-
-        setattr(cls, ds_func.__name__, wrapper)
+        ds_func: Callable[Concatenate[T, Param], RetType],
+    ) -> Callable[Concatenate[T, Param], RetType]:
+        # TODO: FIXME: Make sure that this shows up in autocompletion and documentation
+        setattr(cls, ds_func.__name__, ds_func)
         return ds_func
 
     return decorator
@@ -169,6 +137,18 @@ def layer_subtree(subtree: xr.DataTree) -> Trajectory:
     return layer_trajs(trajectories)
 
 
+def list_subtree(subtree: xr.DataTree) -> List[Trajectory]:
+    """Helper function to collect the trajectories in a subtree into a trajectory list.
+
+    Args:
+        subtree (xr.DataTree): The subtree of the ShnitselDB datastructure
+
+    Returns:
+        List[Trajectory]: The resulting trajectory list
+    """
+    return collect_trajectories(subtree)
+
+
 # NOTE: This decorator is meant to allow the input of a datatree as first argument instead of a dataset
 def dataset_to_tree_method(
     cls: type[T] = ShnitselDB,
@@ -179,7 +159,7 @@ def dataset_to_tree_method(
     parallel: bool = True,
 ) -> Callable[
     [Callable[Concatenate[Trajectory, Param], RetType]],
-    Callable[Concatenate[Trajectory | T, Param], RetType],
+    Callable[Concatenate[Trajectory | T, Param], RetType | T],
 ]:
     """Decorator to add support for Tree/Database inputs when it originally only supports individual xr.Datasets.
 
@@ -209,11 +189,12 @@ def dataset_to_tree_method(
 
     def decorator(
         ds_func: Callable[Concatenate[Trajectory, Param], RetType],
-    ) -> Callable[Concatenate[Trajectory | T, Param], RetType]:
+    ) -> Callable[Concatenate[Trajectory | T, Param], RetType | T]:
         # TODO: FIXME: Patch the annotations and documentation of the wrapper function compared to the original
         @wraps(ds_func)
         def wrapper(ds: Trajectory | T, *args: Param.args, **kwargs: Param.kwargs):
             if isinstance(ds, cls):
+                tree = ds
 
                 def simple_helper(ds: Trajectory) -> RetType:
                     """We simply add this so that we can apply the function with the correct arguments to all trajectories.
@@ -226,10 +207,50 @@ def dataset_to_tree_method(
                     """
                     return ds_func(ds, *args, **kwargs)
 
-                # TODO: FIXME: Perform preprocessing.
-                res = ds.map_over_trajectories(simple_helper)
-                # TODO: FIXME: Perform postprocessing.
-                # TODO: FIXME: Perform unwrapping.
+                if aggregate_pre is not None:
+                    # Apply pre-processing
+                    if callable(aggregate_pre):
+                        tree = aggregate_pre(tree)
+                    else:
+                        if aggregate_method_pre == "concat":
+                            aggr_func = concat_subtree
+                        elif aggregate_method_pre == "layer":
+                            aggr_func = layer_subtree
+                        elif aggregate_method_pre == "list":
+                            raise NotImplementedError(
+                                f"Aggregation method {aggregate_method_pre} requested at DB level {aggregate_pre} has not been implemented."
+                            )
+                            # aggr_func = list_subtree
+                        else:
+                            logging.error(
+                                f"Unknown aggregation method {aggregate_method_pre} requested at DB level {aggregate_pre}"
+                            )
+                            raise ValueError(
+                                f"Unknown aggregation method {aggregate_method_pre} requested at DB level {aggregate_pre}"
+                            )
+                        tree_res = aggregate_xr_over_levels(
+                            tree, aggr_func, aggregate_pre
+                        )
+                        if tree_res is None:
+                            raise ValueError(
+                                f"Aggregation method {aggregate_method_pre} at DB level {aggregate_pre} yielded no result. Make sure that the tree is not empty."
+                            )
+                        else:
+                            tree = tree_res
+                tree: T
+                # TODO: FIXME: The return type of the function (Trajectory) does not match RetType. We may want to restrict RetType
+                # Perform preprocessing.
+                res = tree.map_over_trajectories(simple_helper, parallel=parallel)
+                assert isinstance(res, cls)
+
+                # Apply postprocessing
+                if aggregate_post is not None:
+                    res = aggregate_post(res)
+
+                # Unwrap result if requested
+                if unwrap_single_result:
+                    res: Trajectory | T = unwrap_single_entry_in_tree(res)
+
                 return res
             else:
                 assert isinstance(ds, Trajectory)
