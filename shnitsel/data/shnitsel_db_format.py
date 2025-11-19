@@ -263,19 +263,22 @@ class ShnitselDBRoot(xr.DataTree):
     def map_over_trajectories(
         self,
         map_func: Callable[[Trajectory], T],
-        result_as_dict=False,
         result_var_name: str = 'result',
+        result_as_dict: bool = False,
+        parallel: bool = False,
     ) -> Self | dict:
         """Method to apply a function to all trajectories
 
         Args:
             map_func (Callable[[Trajectory], T]): Function to be applied to each individual trajectory in this database structure.
-            result_as_dict (bool, optional): Whether to return the result as a dict or as a ShnitselDB structure. Defaults to False which yields a ShnitselDB.
             result_var_name (str,optional): The name of the result variable to be assigned in either the result dataset or in the result dict.
+            result_as_dict (bool, optional): Whether to return the result as a dict or as a ShnitselDB structure. Defaults to False which yields a ShnitselDB.
+            parallel (bool, optional): Whether the application of the function map_func can be evaluated in parallel.
 
         Returns:
             ShnitselDB|dict: The result, either again as a ShnitselDB structure or as a layered dict structure.
         """
+        # TODO: FIXME: Implement parallel processing of map
         if result_as_dict:
             return {
                 k: v.map_over_trajectories(map_func, result_as_dict, result_var_name)
