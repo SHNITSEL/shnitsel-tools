@@ -7,6 +7,7 @@ from shnitsel.data.shnitsel_db_format import ShnitselDB, build_shnitsel_db
 from shnitsel.data.trajectory_format import Trajectory
 import xarray as xr
 
+# TODO: FIXME: Set units on delta_t and t_max when converted into a variable
 
 def _check_matching_dimensions(
     datasets: Iterable[Trajectory],
