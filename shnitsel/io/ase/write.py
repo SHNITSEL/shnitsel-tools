@@ -150,6 +150,9 @@ def write_ase_db(
     Raises:
         ValueError: If neither `frame` nor `time` dimension is present on the dataset.
         ValueError: If the `db_format` is neither `schnet`, `spainn` nor None
+
+    Notes:
+        See `https://spainn-md.readthedocs.io/en/latest/userguide/data_pipeline.html#generate-a-spainn-database` for details on SPaiNN format.
     """
     leading_dim_name: Literal['frame', 'time']
 
