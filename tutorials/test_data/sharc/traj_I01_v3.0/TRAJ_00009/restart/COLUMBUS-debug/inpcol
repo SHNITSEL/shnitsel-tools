@@ -1,0 +1,67 @@
+yes 
+yes 
+1 
+c1 
+add 
+6 
+C 
+0.00000000 0.00000000 0.02441852 
+yes 
+library 
+2 
+yes 
+proceed 
+proceed 
+add 
+7 
+N 
+0.00000001 0.00000001 2.45746119 
+yes 
+library 
+2 
+yes 
+proceed 
+proceed 
+add 
+1 
+H 
+1.79562682 0.00000004 -0.98595860 
+yes 
+library 
+3 
+yes 
+proceed 
+proceed 
+add 
+1 
+H 
+1.64113711 -0.00000001 3.46219465 
+yes 
+library 
+3 
+yes 
+proceed 
+proceed 
+add 
+1 
+H 
+-1.64113709 0.00000000 3.46219465 
+yes 
+library 
+3 
+yes 
+proceed 
+proceed 
+add 
+1 
+H 
+-1.79562682 0.00000000 -0.98595861 
+yes 
+library 
+3 
+yes 
+proceed 
+proceed 
+proceed 
+yes 
+yes 

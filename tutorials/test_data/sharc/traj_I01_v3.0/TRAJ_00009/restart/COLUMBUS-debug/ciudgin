@@ -1,0 +1,23 @@
+ &input 
+  NTYPE = 0, 
+  GSET = 0,
+   DAVCOR =10,
+  NCOREL = 12 
+  NROOT = 3
+  IVMODE = 3 
+  NBKITR = 1
+  NVBKMN = 3
+  RTOLBK = 1e-4,1e-4,1e-4,
+  NITER = 90
+  NVCIMN = 5
+  RTOLCI = 0.000100, 0.000100, 0.000100,
+  NVCIMX = 8
+  NVRFMX = 8
+  NVBKMX = 8
+  iden=2
+  CSFPRN = 10, 
+ /&end
+transition
+  1  1  1  2 
+  1  1  1  3 
+  1  2  1  3 

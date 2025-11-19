@@ -1,0 +1,195 @@
+GTOSCALE      1.0000002591
+GTOSCALE      1.0000004399
+GTOSCALE      1.0000000000
+GTOSCALE      1.0000000000
+GTOSCALE      1.0000005582
+GTOSCALE      1.0000000000
+GTOSCALE      1.0000000000
+GTOSCALE      1.0000000000
+GTOSCALE      1.0000000000
+GTOSCALE      1.0000000494
+GTOSCALE      0.9999999254
+GTOSCALE      1.0000000000
+GTOSCALE      1.0000000000
+GTOSCALE      1.0000003088
+GTOSCALE      1.0000000000
+GTOSCALE      1.0000000000
+GTOSCALE      1.0000000000
+GTOSCALE      1.0000000000
+GTOSCALE      0.9999994915
+GTOSCALE      1.0000000000
+GTOSCALE      1.0000000000
+GTOSCALE      1.0000000000
+GTOSCALE      1.0000000000
+ATOMINFO: C  1     -0.0195492200      0.3648363400     -2.7768270400
+ATOMINFO: N  1      0.0120810200     -0.2675834400      4.7299788200
+ATOMINFO: H  1     -0.6504912300      0.9698078300     -4.5276287500
+ATOMINFO: H  2     -0.8713436100      0.3593372300      6.6006667000
+ATOMINFO: H  3      1.0271081300     -0.8128074300      6.1909058800
+ATOMINFO: H  4      0.5684865400     -1.1600523100     -1.5693822700
+CAOINFO:  1C  1 11s     1
+CAOINFO:  1C  1 11s     1
+CAOINFO:  1C  1 11s     1
+CAOINFO:  1C  1 11s     1
+CAOINFO:  1C  1 12px    2
+CAOINFO:  1C  1 12py    3
+CAOINFO:  1C  1 12pz    4
+CAOINFO:  1C  1 12px    2
+CAOINFO:  1C  1 12py    3
+CAOINFO:  1C  1 12pz    4
+CAOINFO:  1C  1 12px    2
+CAOINFO:  1C  1 12py    3
+CAOINFO:  1C  1 12pz    4
+CAOINFO:  1C  1 13d2-   5
+CAOINFO:  1C  1 13d1-   6
+CAOINFO:  1C  1 13d0    7
+CAOINFO:  1C  1 13d1+   8
+CAOINFO:  1C  1 13d2+   9
+CAOINFO:  1C  1 13d2-   5
+CAOINFO:  1C  1 13d1-   6
+CAOINFO:  1C  1 13d0    7
+CAOINFO:  1C  1 13d1+   8
+CAOINFO:  1C  1 13d2+   9
+CAOINFO:  2N  1 11s     1
+CAOINFO:  2N  1 11s     1
+CAOINFO:  2N  1 11s     1
+CAOINFO:  2N  1 11s     1
+CAOINFO:  2N  1 12px    2
+CAOINFO:  2N  1 12py    3
+CAOINFO:  2N  1 12pz    4
+CAOINFO:  2N  1 12px    2
+CAOINFO:  2N  1 12py    3
+CAOINFO:  2N  1 12pz    4
+CAOINFO:  2N  1 12px    2
+CAOINFO:  2N  1 12py    3
+CAOINFO:  2N  1 12pz    4
+CAOINFO:  2N  1 13d2-   5
+CAOINFO:  2N  1 13d1-   6
+CAOINFO:  2N  1 13d0    7
+CAOINFO:  2N  1 13d1+   8
+CAOINFO:  2N  1 13d2+   9
+CAOINFO:  2N  1 13d2-   5
+CAOINFO:  2N  1 13d1-   6
+CAOINFO:  2N  1 13d0    7
+CAOINFO:  2N  1 13d1+   8
+CAOINFO:  2N  1 13d2+   9
+CAOINFO:  3H  1 11s     1
+CAOINFO:  3H  1 11s     1
+CAOINFO:  3H  1 11s     1
+CAOINFO:  3H  1 12px    2
+CAOINFO:  3H  1 12py    3
+CAOINFO:  3H  1 12pz    4
+CAOINFO:  3H  1 12px    2
+CAOINFO:  3H  1 12py    3
+CAOINFO:  3H  1 12pz    4
+CAOINFO:  4H  2 11s     1
+CAOINFO:  4H  2 11s     1
+CAOINFO:  4H  2 11s     1
+CAOINFO:  4H  2 12px    2
+CAOINFO:  4H  2 12py    3
+CAOINFO:  4H  2 12pz    4
+CAOINFO:  4H  2 12px    2
+CAOINFO:  4H  2 12py    3
+CAOINFO:  4H  2 12pz    4
+CAOINFO:  5H  3 11s     1
+CAOINFO:  5H  3 11s     1
+CAOINFO:  5H  3 11s     1
+CAOINFO:  5H  3 12px    2
+CAOINFO:  5H  3 12py    3
+CAOINFO:  5H  3 12pz    4
+CAOINFO:  5H  3 12px    2
+CAOINFO:  5H  3 12py    3
+CAOINFO:  5H  3 12pz    4
+CAOINFO:  6H  4 11s     1
+CAOINFO:  6H  4 11s     1
+CAOINFO:  6H  4 11s     1
+CAOINFO:  6H  4 12px    2
+CAOINFO:  6H  4 12py    3
+CAOINFO:  6H  4 12pz    4
+CAOINFO:  6H  4 12px    2
+CAOINFO:  6H  4 12py    3
+CAOINFO:  6H  4 12pz    4
+  82   1
+  Symmetry  A  ( 1)
+  1    1
+  1    2
+  1    3
+  1    4
+  1    5
+  1    6
+  1    7
+  1    8
+  1    9
+  1   10
+  1   11
+  1   12
+  1   13
+  1   14
+  1   15
+  1   16
+  1   17
+  1   18
+  1   19
+  1   20
+  1   21
+  1   22
+  1   23
+  1   24
+  1   25
+  1   26
+  1   27
+  1   28
+  1   29
+  1   30
+  1   31
+  1   32
+  1   33
+  1   34
+  1   35
+  1   36
+  1   37
+  1   38
+  1   39
+  1   40
+  1   41
+  1   42
+  1   43
+  1   44
+  1   45
+  1   46
+  1   47
+  1   48
+  1   49
+  1   50
+  1   51
+  1   52
+  1   53
+  1   54
+  1   55
+  1   56
+  1   57
+  1   58
+  1   59
+  1   60
+  1   61
+  1   62
+  1   63
+  1   64
+  1   65
+  1   66
+  1   67
+  1   68
+  1   69
+  1   70
+  1   71
+  1   72
+  1   73
+  1   74
+  1   75
+  1   76
+  1   77
+  1   78
+  1   79
+  1   80
+  1   81
+  1   82

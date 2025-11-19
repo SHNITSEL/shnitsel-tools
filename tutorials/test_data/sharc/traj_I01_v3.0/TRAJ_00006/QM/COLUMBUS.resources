@@ -1,0 +1,13 @@
+columbus $COLUMBUS/
+scratchdir $TMPDIR/Singlet_2/TRAJ_00006//
+savedir $TMPDIR/Singlet_2/TRAJ_00006//restart
+memory 3000
+template /user/anna/Bachelor/Methylenimmonium/Trajectories/TEMPLATE/COLUMBUS.template
+integrals dalton
+DIR 1 1_3/
+
+MOCOEF 1_3/ 1_3/
+
+wfoverlap $SHARC/wfoverlap.x
+wfthres 0.970000
+numfrozcore 2

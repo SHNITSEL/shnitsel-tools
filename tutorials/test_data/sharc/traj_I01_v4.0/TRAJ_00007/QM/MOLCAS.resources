@@ -1,0 +1,4 @@
+molcas /usr/license/openmolcas/v24.06/
+scratchdir $TMPDIR/tut/traj
+ncpu 1
+memory 500

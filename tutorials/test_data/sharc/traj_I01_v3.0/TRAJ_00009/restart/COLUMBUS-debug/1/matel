@@ -1,0 +1,12 @@
+#  transition   1 A  ->   1 A  (nroot1,drt1,nroot2,drt2,lx,ly,lz)
+   1   1   1   1-0.98899913E-18-0.15578413E-17 0.28000247E-18
+#  transition   1 A  ->   2 A  (nroot1,drt1,nroot2,drt2,lx,ly,lz)
+   1   1   2   1 0.34845610E+00-0.16977868E+00 0.84348475E+00
+#  transition   1 A  ->   3 A  (nroot1,drt1,nroot2,drt2,lx,ly,lz)
+   1   1   3   1 0.14340842E-01-0.32067626E-02 0.37418560E-01
+#  transition   2 A  ->   2 A  (nroot1,drt1,nroot2,drt2,lx,ly,lz)
+   2   1   2   1 0.18959895E-17 0.50018817E-18 0.28487392E-18
+#  transition   2 A  ->   3 A  (nroot1,drt1,nroot2,drt2,lx,ly,lz)
+   2   1   3   1-0.60453319E-02-0.21247400E-01 0.79374744E-02
+#  transition   3 A  ->   3 A  (nroot1,drt1,nroot2,drt2,lx,ly,lz)
+   3   1   3   1-0.63032481E-18-0.45012731E-17-0.13075167E-17
