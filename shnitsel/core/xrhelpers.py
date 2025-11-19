@@ -1,11 +1,9 @@
 from __future__ import annotations
 
 import itertools
-import os
 import logging
 import math
-import typing
-from typing import Callable, Sequence
+from typing import Callable, Sequence, TypeVar
 
 import numpy.typing as npt
 
@@ -18,6 +16,8 @@ import pandas as pd
 from shnitsel.io.shnitsel.write import write_shnitsel_file
 
 from .._contracts import needs
+
+DatasetOrArray = TypeVar("DatasetOrArray", bound=xr.Dataset | xr.DataArray)
 
 
 def replace_total(
@@ -54,7 +54,7 @@ def replace_total(
     return da.copy(data=out.reshape(da.shape))
 
 
-def midx_combs(values: pd.core.indexes.base.Index|list, name: str|None =None):
+def midx_combs(values: pd.core.indexes.base.Index | list, name: str | None = None):
     if name is None:
         if hasattr(values, 'name'):
             # if `values` is a `pandas.core.indexes.base.Index`
@@ -64,17 +64,16 @@ def midx_combs(values: pd.core.indexes.base.Index|list, name: str|None =None):
             raise ValueError("need to specify name if values lack name attribute")
 
     return xr.Coordinates.from_pandas_multiindex(
-      pd.MultiIndex.from_tuples(
-        itertools.combinations(values, 2),
-        names=['from', 'to']
-      ),
-      dim=f'{name}comb'
+        pd.MultiIndex.from_tuples(
+            itertools.combinations(values, 2), names=['from', 'to']
+        ),
+        dim=f'{name}comb',
     )
 
 
 def flatten_midx(
-    obj: xr.Dataset | xr.DataArray, idx_name: str, renamer: Callable | None = None
-) -> xr.Dataset | xr.DataArray:
+    obj: DatasetOrArray, idx_name: str, renamer: Callable | None = None
+) -> DatasetOrArray:
     """Function to flatten a multi-index into a flat index.
 
     Has the option to provide a custom renaming function
@@ -91,18 +90,18 @@ def flatten_midx(
     to_drop = midx.names + [midx.name]
     fidx = midx.to_flat_index()
     if renamer is not None:
-        fidx = [renamer(x, y) for x,y in fidx]
+        fidx = [renamer(x, y) for x, y in fidx]
     return obj.drop_vars(to_drop).assign_coords({idx_name: fidx})
 
 
 def flatten_levels(
-    obj: xr.Dataset | xr.DataArray,
+    obj: DatasetOrArray,
     idx_name: str,
     levels: Sequence[str],
     new_name: str | None = None,
     position: int = 0,
     renamer: Callable | None = None,
-) -> xr.Dataset | xr.DataArray:
+) -> DatasetOrArray:
     dims = obj.coords[idx_name].dims
     if len(dims) != 1:
         raise ValueError(
@@ -129,27 +128,27 @@ def flatten_levels(
 
 
 def expand_midx(
-    obj: xr.Dataset | xr.DataArray, midx_name: str, level_name: str, value
-) -> xr.Dataset | xr.DataArray:
+    obj: DatasetOrArray, midx_name: str, level_name: str, value
+) -> DatasetOrArray:
     midx = obj.indexes[midx_name]
     to_drop = [midx.name] + midx.names
     df = midx.to_frame()
-    df.insert(0, level_name, [value]*len(midx)) # in place!
+    df.insert(0, level_name, [value] * len(midx))  # in place!
     midx = pd.MultiIndex.from_frame(df)
     coords = xr.Coordinates.from_pandas_multiindex(midx, dim=midx_name)
     return obj.drop_vars(to_drop).assign_coords(coords)
 
 
 def assign_levels(
-    obj: xr.Dataset | xr.DataArray,
+    obj: DatasetOrArray,
     levels: dict[str, npt.ArrayLike] | None = None,
     **levels_kwargs: npt.ArrayLike,
-) -> xr.Dataset | xr.DataArray:
+) -> DatasetOrArray:
     """Assign new values to levels of MultiIndexes in ``obj``
 
     Parameters
     ----------
-    obj
+    obj (xr.Dataset | xr.DataArray):
         An ``xarray`` object with at least one MultiIndex
     levels, optional
         A mapping whose keys are the names of the levels and whose values are the
@@ -158,7 +157,7 @@ def assign_levels(
 
     Returns
     -------
-        A new object with the new level values replacing the old level values.
+        xr.Dataset | xr.DataArray: A new object of the same type as `obj` with the new level values replacing the old level values.
     Raises
     ------
     ValueError
@@ -170,6 +169,16 @@ def assign_levels(
                 "cannot specify both keyword and positional arguments to assign_levels"
             )
         levels = levels_kwargs
+
+    if levels is None:
+        # Catch levels not being set in any way
+        logging.error(
+            "Neither `levels` nor keyword argument `levels_kewargs` provided."
+        )
+        raise ValueError(
+            "Neither `levels` nor keyword argument `levels_kewargs` provided."
+        )
+
     # Assignment of DataArrays fails. Workaround:
     for lvl in levels:
         if isinstance(levels[lvl], xr.DataArray):
@@ -178,12 +187,20 @@ def assign_levels(
             levels[lvl] = (lvl_dims[0], levels[lvl].data)
     lvl_names = list(levels.keys())
     midxs = set(obj.indexes[lvl].name for lvl in lvl_names)
+
+    # Retain attributes
+    collected_attrs = {lvl: obj[lvl].attrs for lvl in lvl_names}
+
     # Using sum() to ravel a list of lists
     to_restore = sum([list(obj.indexes[midx].names) for midx in midxs], [])
     obj = obj.reset_index(*midxs)
     obj = obj.assign_coords(levels)
-    return obj.set_xindex(to_restore)
 
+    # Restore attributes
+    for lvl, attrs_ in collected_attrs.items():
+        obj[lvl].attrs.update(attrs_)
+
+    return obj.set_xindex(to_restore)
 
 
 def split_for_saving(frames, bytes_per_chunk=50e6):
@@ -214,6 +231,7 @@ def save_split(
 
 #######################################
 # Functions to extend xarray selection:
+
 
 def mgroupby(
     obj: xr.Dataset | xr.DataArray, levels: Sequence[str]
@@ -276,6 +294,7 @@ def msel(obj: xr.Dataset | xr.DataArray, **kwargs) -> xr.Dataset | xr.DataArray:
         .reset_index(to_reset)
         .set_xindex(levels)
     )
+
 
 @needs(dims={'frame'}, coords_or_vars={'trajid'})
 def sel_trajs(
@@ -352,6 +371,7 @@ def sel_trajids(frames: xr.Dataset, trajids: npt.ArrayLike, invert=False) -> xr.
         actually_selected = np.unique(res['trajid'])
         res = res.sel(trajid_=actually_selected)
     return res
+
 
 def unstack_trajs(frames: xr.Dataset | xr.DataArray) -> xr.Dataset | xr.DataArray:
     """Unstack the ``frame`` MultiIndex so that ``trajid`` and ``time`` become
