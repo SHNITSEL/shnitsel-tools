@@ -176,7 +176,16 @@ convert_velocity = Converter(
 def convert_all_units_to_shnitsel_defaults(data: xr.Dataset) -> xr.Dataset:
     new_vars = {}
 
-    time_unit = data["time"].attrs["units"]
+    if "time" in data:
+        assert (
+            "units" in data["time"].attrs
+        ), "Dataset is missing `units` attribute on `time` coordinate"
+        time_unit = data["time"].attrs["units"]
+    else:
+        logging.warning(
+            f"Missing `time` coordinate on input dataset. Available variables: {[str(x) for x in data.variables.keys()]}"
+        )
+        time_unit = None
 
     with xr.set_options(keep_attrs=True):
         for var_name in data.data_vars:
@@ -203,18 +212,19 @@ def convert_all_units_to_shnitsel_defaults(data: xr.Dataset) -> xr.Dataset:
     # NOTE: Alignment screws us over if we convert the time before assigning the other variables.
     tmp = tmp.assign_coords(new_coords)
 
-    if "delta_t" in tmp.attrs:
-        tmp.attrs["delta_t"] = convert_time.convert_value(
-            tmp.attrs["delta_t"],
-            convert_from=time_unit,
-            to=new_coords["time"].attrs["units"],
-        )
-    if "t_max" in tmp.attrs:
-        tmp.attrs["t_max"] = convert_time.convert_value(
-            tmp.attrs["t_max"],
-            convert_from=time_unit,
-            to=new_coords["time"].attrs["units"],
-        )
+    if time_unit is not None:
+        if "delta_t" in tmp.attrs:
+            tmp.attrs["delta_t"] = convert_time.convert_value(
+                tmp.attrs["delta_t"],
+                convert_from=time_unit,
+                to=new_coords["time"].attrs["units"],
+            )
+        if "t_max" in tmp.attrs:
+            tmp.attrs["t_max"] = convert_time.convert_value(
+                tmp.attrs["t_max"],
+                convert_from=time_unit,
+                to=new_coords["time"].attrs["units"],
+            )
 
     return tmp
 
