@@ -5,6 +5,7 @@ from typing import Any, Callable, Dict, TypeVar
 import numpy as np
 import xarray as xr
 import sys
+from ...data.shnitsel_db.datatree_level import _datatree_level_attribute_key
 
 from shnitsel.data.shnitsel_db_format import (
     build_shnitsel_db,
@@ -43,6 +44,10 @@ def read_shnitsel_file(
     # The error raised for a missing file can be misleading
     try:
         frames = xr.open_datatree(path)
+
+        # Unpack the dataset if the file did not contain a tree
+        if _datatree_level_attribute_key not in frames.attrs:
+            frames = frames.dataset
     except ValueError as ds_err:
         dataset_info = sys.exc_info()
         if not os.path.exists(path):
@@ -94,8 +99,8 @@ def _parse_shnitsel_file_v1_0(
         )
 
     logging.warning(
-        f"You are opening a Shnitsel file of format v1.0. This format did not contain full unit information for all observables. \n"
-        f"You should either regenerate the shnitsel file from the input data with a later version of the shnitsel-tools package or attempt to retrieve a later version of the file."
+        "You are opening a Shnitsel file of format v1.0. This format did not contain full unit information for all observables. \n"
+        "You should either regenerate the shnitsel file from the input data with a later version of the shnitsel-tools package or attempt to retrieve a later version of the file."
     )
 
     # Restore MultiIndexes
