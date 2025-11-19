@@ -1,0 +1,16 @@
+[input]
+functional=pbe0
+method=tdhf
+basis=aug-cc-pvdz
+charge=1
+
+[scf]
+type=rohf
+multiplicity=3
+maxit=300
+converger_type=soscf
+
+[tdhf]
+nstate=3
+type=mrsf
+

@@ -1,0 +1,36 @@
+### Starting TaskPrologue of job 3079616 on f1029 at Tue Nov 18 11:04:46 CET 2025
+#   SLURM_JOB_NODELIST=f1029
+#   SLURM_JOB_NUM_NODES=1
+#   SLURM_NTASKS=32
+#   SLURM_NPROCS=32
+#   SLURM_TASKS_PER_NODE=32
+#   SLURM_JOB_CPUS_PER_NODE=72
+#   SLURM_EXPORT_ENV=NONE
+Running on cores 0-71 with governor powersave
+### Finished TaskPrologue
+ERROR: Unable to locate a modulefile for 'openmpi/4.1.3-gcc11.2.0'
+=== JOB_STATISTICS ===
+=== current date     : Tue Nov 18 11:12:10 CET 2025
+= Job-ID             : 3079616 on fritz
+= Job-Name           : aza-fssh
+= Job-Command        : /home/vault/bccc/bccc115h/test/pyrai2md-test/traj1/pymd.submit
+= Initial workdir    : /home/vault/bccc/bccc115h/test/pyrai2md-test/traj1
+= Queue/Partition    : singlenode
+= Slurm account      : bccc with QOS=normal
+= Requested resources:  for 01:00:00
+= Elapsed runtime    : 00:07:26
+= Total RAM usage    : 0.9 GiB 
+= Node list          : f1029
+= Subm/Elig/Start/End: 2025-11-18T11:04:40 / 2025-11-18T11:04:40 / 2025-11-18T11:04:42 / 2025-11-18T11:12:08
+======================
+=== Quota infos ======
+    Path                 Used     SoftQ    HardQ    Gracetime  Filec    FileQ    FiHaQ    FileGrace    
+    /home/woody           221.4G  1000.0G  1500.0G        N/A     502K   5,000K   7,500K        N/A    
+    /home/hpc              90.4G   104.9G   209.7G        N/A     133K     500K   1,000K        N/A    
+    /home/vault           794.6G  1048.6G  2097.2G        N/A      93K     200K     400K        N/A    
+    /lustre                 4.0K     0.0K     0.0K        N/A       1       80K     250K        N/A    
+======================
+=== Network traffic stats (does not include Infiniband) ======
+= HPC internal traffic (e.g. to fileservers): 0 GB in / 0 GB out
+= External traffic: 0 GB in / 0 GB out
+======================

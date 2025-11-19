@@ -1,0 +1,74 @@
+### Starting TaskPrologue of job 3079582 on f0383 at Tue Nov 18 10:50:32 CET 2025
+#   SLURM_JOB_NODELIST=f0383
+#   SLURM_JOB_NUM_NODES=1
+#   SLURM_NTASKS=32
+#   SLURM_NPROCS=32
+#   SLURM_TASKS_PER_NODE=32
+#   SLURM_JOB_CPUS_PER_NODE=72
+#   SLURM_EXPORT_ENV=NONE
+Running on cores 0-71 with governor powersave
+### Finished TaskPrologue
+ERROR: Unable to locate a modulefile for 'openmpi/4.1.3-gcc11.2.0'
+Traceback (most recent call last):
+  File "/home/woody/bccc/bccc115h/conda.envs/md/bin/pyrai2md", line 8, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/home/woody/bccc/bccc115h/conda.envs/md/lib/python3.12/site-packages/PyRAI2MD/pyrai2md.py", line 292, in main
+    pmd(sys.argv[1]).run()
+  File "/home/woody/bccc/bccc115h/conda.envs/md/lib/python3.12/site-packages/PyRAI2MD/pyrai2md.py", line 266, in run
+    job_func[self.jobtype]()
+  File "/home/woody/bccc/bccc115h/conda.envs/md/lib/python3.12/site-packages/PyRAI2MD/pyrai2md.py", line 186, in _dynamics
+    aimd.run()
+  File "/home/woody/bccc/bccc115h/conda.envs/md/lib/python3.12/site-packages/PyRAI2MD/Dynamics/aimd.py", line 744, in run
+    self._propagate()
+  File "/home/woody/bccc/bccc115h/conda.envs/md/lib/python3.12/site-packages/PyRAI2MD/Dynamics/aimd.py", line 208, in _propagate
+    self.traj = self._potential_energies(self.traj)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/woody/bccc/bccc115h/conda.envs/md/lib/python3.12/site-packages/PyRAI2MD/Dynamics/aimd.py", line 253, in _potential_energies
+    traj = self.QM.evaluate(traj)
+           ^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/woody/bccc/bccc115h/conda.envs/md/lib/python3.12/site-packages/PyRAI2MD/methods.py", line 138, in evaluate
+    traj = self.method.evaluate(traj)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/woody/bccc/bccc115h/conda.envs/md/lib/python3.12/site-packages/PyRAI2MD/Quantum_Chemistry/qc_openqp.py", line 423, in evaluate
+    energy, gradient, nac, soc = self._high_mid_low(traj)
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/woody/bccc/bccc115h/conda.envs/md/lib/python3.12/site-packages/PyRAI2MD/Quantum_Chemistry/qc_openqp.py", line 393, in _high_mid_low
+    self._run_openqp()
+  File "/home/woody/bccc/bccc115h/conda.envs/md/lib/python3.12/site-packages/PyRAI2MD/Quantum_Chemistry/qc_openqp.py", line 274, in _run_openqp_mem
+    self.runner.run()
+  File "/home/woody/bccc/bccc115h/conda.envs/md/lib/python3.12/site-packages/oqp/pyoqp.py", line 124, in run
+    self.run_func[run_type](self.mol)
+  File "/home/woody/bccc/bccc115h/conda.envs/md/lib/python3.12/site-packages/oqp/library/runfunc.py", line 118, in compute_properties
+    BasisOverlap(mol).overlap()
+  File "/home/woody/bccc/bccc115h/conda.envs/md/lib/python3.12/site-packages/oqp/library/single_point.py", line 796, in overlap
+    self.load_previous_data()
+  File "/home/woody/bccc/bccc115h/conda.envs/md/lib/python3.12/site-packages/oqp/library/single_point.py", line 852, in load_previous_data
+    self.mol.data["OQP::VEC_MO_B_old"] = previous_data["OQP::VEC_MO_B"]
+                                         ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+KeyError: 'OQP::VEC_MO_B'
+=== JOB_STATISTICS ===
+=== current date     : Tue Nov 18 10:50:53 CET 2025
+= Job-ID             : 3079582 on fritz
+= Job-Name           : aza-fssh
+= Job-Command        : /home/vault/bccc/bccc115h/test/pyrai2md-test/traj1/pymd.submit
+= Initial workdir    : /home/vault/bccc/bccc115h/test/pyrai2md-test/traj1
+= Queue/Partition    : singlenode
+= Slurm account      : bccc with QOS=normal
+= Requested resources:  for 01:00:00
+= Elapsed runtime    : 00:00:24
+= Total RAM usage    : 0.8 GiB 
+= Node list          : f0383
+= Subm/Elig/Start/End: 2025-11-18T10:50:28 / 2025-11-18T10:50:28 / 2025-11-18T10:50:28 / 2025-11-18T10:50:52
+======================
+=== Quota infos ======
+    Path                 Used     SoftQ    HardQ    Gracetime  Filec    FileQ    FiHaQ    FileGrace    
+    /home/woody           221.4G  1000.0G  1500.0G        N/A     502K   5,000K   7,500K        N/A    
+    /home/hpc              90.4G   104.9G   209.7G        N/A     133K     500K   1,000K        N/A    
+    /home/vault           794.6G  1048.6G  2097.2G        N/A      93K     200K     400K        N/A    
+    /lustre                 4.0K     0.0K     0.0K        N/A       1       80K     250K        N/A    
+======================
+=== Network traffic stats (does not include Infiniband) ======
+= HPC internal traffic (e.g. to fileservers): 0 GB in / 0 GB out
+= External traffic: 0 GB in / 0 GB out
+======================
