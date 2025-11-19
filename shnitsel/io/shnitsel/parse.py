@@ -150,7 +150,9 @@ def _decode_shnitsel_v1_1_dataset(dataset: xr.Dataset) -> xr.Dataset:
     if "__attrs_json_encoded" in dataset.attrs:
         del dataset.attrs["__attrs_json_encoded"]
 
-        def json_deserialize_ndarray(value: str) -> Any:
+        def json_deserialize_ndarray(key: str, value: str) -> Any:
+            if key.startswith("__") or not isinstance(value, str):
+                return value
             try:
                 value_d = json.loads(value)
                 if isinstance(value_d, dict):
@@ -163,18 +165,22 @@ def _decode_shnitsel_v1_1_dataset(dataset: xr.Dataset) -> xr.Dataset:
                         value_d = np.array(entries, dtype=dtype_descr)
                 return value_d
             except TypeError as e:
-                logging.debug(f"Encountered error during json decode: {e} {traceback.format_exc()}")
+                logging.debug(
+                    f"Encountered error during json decode: {e} {traceback.format_exc()}"
+                )
                 return value
 
         for attr in dataset.attrs:
-            dataset.attrs[attr] = json_deserialize_ndarray(dataset.attrs[attr])
+            dataset.attrs[attr] = json_deserialize_ndarray(
+                str(attr), dataset.attrs[attr]
+            )
 
         for data_var in dataset.variables:
             # Mark variables as assigned so they are not stripped in finalization
             mark_variable_assigned(dataset[data_var])
             for attr in dataset[data_var].attrs:
                 dataset[data_var].attrs[attr] = json_deserialize_ndarray(
-                    dataset[data_var].attrs[attr]
+                    str(attr), dataset[data_var].attrs[attr]
                 )
 
     # Restore MultiIndexes
@@ -184,8 +190,10 @@ def _decode_shnitsel_v1_1_dataset(dataset: xr.Dataset) -> xr.Dataset:
         del dataset.attrs[indicator]
         for k, v in dataset.attrs.items():
             if k.startswith("_MultiIndex_levels_for_"):
+                index_name = k[len("_MultiIndex_levels_for_") :]
                 dataset = dataset.set_xindex(v)
                 del dataset.attrs[k]
+                mark_variable_assigned(dataset[index_name])
     else:
         # TODO: FIXME: rename time trajectory to same name everywhere
         # Old way: hardcoded level names
@@ -212,20 +220,28 @@ def decode_attrs(obj):
     if "__attrs_json_encoded" in obj.attrs:
         del obj.attrs["__attrs_json_encoded"]
 
-        def json_deserialize_ndarray(value: str) -> Any:
-            value_d = json.loads(value)
-            if isinstance(value_d, dict):
-                if "__ndarray" in value_d:
-                    config = value_d["__ndarray"]
+        def json_deserialize_ndarray(key: str, value: str | Any) -> Any:
+            if key.startswith("__") or not isinstance(value, str):
+                return value
+            try:
+                value_d = json.loads(value)
+                if isinstance(value_d, dict):
+                    if "__ndarray" in value_d:
+                        config = value_d["__ndarray"]
 
-                    entries = config["entries"]
-                    dtype_descr = np.dtype([tuple(i) for i in config["dtype"]])
+                        entries = config["entries"]
+                        dtype_descr = np.dtype([tuple(i) for i in config["dtype"]])
 
-                    value_d = np.array(entries, dtype=dtype_descr)
-            return value_d
+                        value_d = np.array(entries, dtype=dtype_descr)
+                return value_d
+            except TypeError as e:
+                logging.debug(
+                    f"Encountered error during json decode: {e} {traceback.format_exc()}"
+                )
+                return value
 
         for attr in obj.attrs:
-            obj.attrs[attr] = json_deserialize_ndarray(obj.attrs[attr])
+            obj.attrs[attr] = json_deserialize_ndarray(str(attr), obj.attrs[attr])
 
     return obj
 
