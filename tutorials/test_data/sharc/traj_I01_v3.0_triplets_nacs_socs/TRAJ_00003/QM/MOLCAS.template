@@ -1,0 +1,14 @@
+basis cc-pVDZ
+ras2 4
+nactel 6
+inactive 5
+roots 4  0  3 
+
+method CASSCF
+
+
+#     Infos:
+#     bccc113h@meggie2
+#     Date: 2025-11-19 08:22:00.726482
+#     Current directory: /home/woody/bccc/bccc113h/shnitsel-data/I01_wTrip
+
