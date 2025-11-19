@@ -137,12 +137,21 @@ def assign_levels(
             assert len(lvl_dims) == 1
             levels[lvl] = (lvl_dims[0], levels[lvl].data)
     lvl_names = list(levels.keys())
-    midxs = set(obj.indexes[lvl].name for lvl in lvl_names)
+    midxs = set(
+        obj.indexes[lvl].name
+        for lvl in lvl_names
+        # The following filter lets this function also assign normal coords:
+        if obj.indexes[lvl].name != lvl
+    )
     # Using sum() to ravel a list of lists
     to_restore = sum([list(obj.indexes[midx].names) for midx in midxs], [])
-    obj = obj.reset_index(*midxs)
+    if midxs:
+        obj = obj.reset_index(*midxs)
     obj = obj.assign_coords(levels)
-    return obj.set_xindex(to_restore)
+    if to_restore:
+        obj = obj.set_xindex(to_restore)
+    return obj
+
 
 #######################################
 # Functions to extend xarray selection:
