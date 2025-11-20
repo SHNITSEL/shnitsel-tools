@@ -103,7 +103,9 @@ def read_traj(
             ntriplets = state_mult_array[2] if max_mult >= 3 else 0
             state_multiplicities = state_mult_array
         if "charge" in settings:
-            state_charges = [int(x.strip()) for x in settings["charge"].split()]
+            charge_settings = settings["charge"]
+            logging.debug(f"Found charge info in output data: {charge_settings}")
+            state_charges = [int(x.strip()) for x in charge_settings.split()]
 
         misc_settings["input"] = settings
 
@@ -128,7 +130,9 @@ def read_traj(
             ntriplets = state_mult_array[2] if max_mult >= 3 else 0
             state_multiplicities = state_mult_array
         if "charge" in settings:
-            state_charges = [int(x.strip()) for x in settings["charge"].split()]
+            charge_settings = settings["charge"]
+            logging.debug(f"Found charge info in output data: {charge_settings}")
+            state_charges = [int(x.strip()) for x in charge_settings.split()]
         misc_settings["output.dat"] = settings
 
     if output_listing_path.is_file():
@@ -292,6 +296,7 @@ def read_traj(
     if state_multiplicities is not None:
         charges = state_charges
         if charges is None:
+            logging.debug("Missing charge information.")
             main_version = int(sharc_version.split(".")[0])
             if main_version < 4:
                 logging.info(
@@ -321,7 +326,7 @@ def read_traj(
                 )
                 charges = 0
         else:
-            logging.debug("Missing charge information.")
+            logging.debug("Charge information present.")
 
         trajectory = set_sharc_state_type_and_name_defaults(
             trajectory, state_multiplicities, charges
