@@ -155,11 +155,12 @@ def dataset_to_tree_method(
     aggregate_pre: Literal['all', 'compound', 'group'] | Callable[[T], T] | None = None,
     aggregate_method_pre: Literal['concat', 'layer', 'list'] | None = None,
     aggregate_post: Callable[[T], T] | None = None,
+    map_result_as_dict: bool = False,
     unwrap_single_result: bool = False,
     parallel: bool = True,
 ) -> Callable[
     [Callable[Concatenate[Trajectory, Param], RetType]],
-    Callable[Concatenate[Trajectory | T, Param], RetType | T],
+    Callable[Concatenate[Trajectory | T, Param], RetType | T | dict],
 ]:
     """Decorator to add support for Tree/Database inputs when it originally only supports individual xr.Datasets.
 
@@ -240,15 +241,18 @@ def dataset_to_tree_method(
                 tree: T
                 # TODO: FIXME: The return type of the function (Trajectory) does not match RetType. We may want to restrict RetType
                 # Perform preprocessing.
-                res = tree.map_over_trajectories(simple_helper, parallel=parallel)
-                assert isinstance(res, cls)
+                res = tree.map_over_trajectories(
+                    simple_helper, parallel=parallel, result_as_dict=map_result_as_dict
+                )
+                # T
+                # assert isinstance(res, cls)
 
                 # Apply postprocessing
                 if aggregate_post is not None:
                     res = aggregate_post(res)
 
                 # Unwrap result if requested
-                if unwrap_single_result:
+                if not map_result_as_dict and unwrap_single_result:
                     res: Trajectory | T = unwrap_single_entry_in_tree(res)
 
                 return res
