@@ -53,33 +53,36 @@ def set_sharc_state_type_and_name_defaults(
             dataset.state_names[curr_index] = f"S{i}"
             dataset.state_charges[curr_index] = multiplicity_charges[0]
             curr_index += 1
+
     if max_mult >= 2:
         curr_mult = 2
         suffix = ["-", "+"]
         charge = multiplicity_charges[1]
-        for i in range(multiplicity_counts[1]):
-            for m in range(curr_mult):
+        for m in range(curr_mult):
+            for i in range(multiplicity_counts[1]):
                 dataset.state_types[curr_index] = curr_mult
                 dataset.state_names[curr_index] = f"D{i}{suffix[m]}"
                 dataset.state_charges[curr_index] = charge
                 curr_index += 1
+
     if max_mult >= 3:
         curr_mult = 3
         suffix = ["-", "", "+"]
         charge = multiplicity_charges[2]
-        for i in range(multiplicity_counts[2]):
-            for m in range(curr_mult):
+        for m in range(curr_mult):
+            for i in range(multiplicity_counts[2]):
                 dataset.state_types[curr_index] = curr_mult
                 dataset.state_names[curr_index] = f"T{i}{suffix[m]}"
                 dataset.state_charges[curr_index] = charge
                 curr_index += 1
+
     if max_mult > 3:
         for curr_mult in range(4, max_mult + 1):
             charge = multiplicity_charges[curr_mult - 1]
             lower_mult = -int(curr_mult // 2)
             upper_mult = int(curr_mult // 2)
-            for i in range(multiplicity_counts[curr_mult - 1]):
-                for m in range(lower_mult, upper_mult + 1):
+            for m in range(lower_mult, upper_mult + 1):
+                for i in range(multiplicity_counts[curr_mult - 1]):
                     dataset.state_types[curr_index] = curr_mult
                     dataset.state_names[curr_index] = f"S[{curr_mult}]{i}::{m}"
                     dataset.state_charges[curr_index] = charge
