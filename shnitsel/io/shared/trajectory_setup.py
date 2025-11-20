@@ -141,6 +141,30 @@ def create_initial_dataset(
         "atNames": "",
         "atNums": -1,
     }
+    
+    default_float_type = np.dtypes.Float32DType
+    default_string_type = 'U8'
+
+    template_default_dtypes = {
+        "energy": default_float_type,
+        "e_kin": default_float_type,
+        "velocities": default_float_type,
+        "forces": default_float_type,
+        "atXYZ": default_float_type,
+        "nacs": default_float_type,
+        # "dip_all": np.float32,
+        "dip_perm": default_float_type,
+        "dip_trans": default_float_type,
+        "socs": default_float_type,
+        "state_names": default_string_type,
+        "state_types": np.dtypes.Int8DType,
+        "state_charges": default_float_type,
+        "astate": np.dtypes.Int16DType,
+        "sdiag": np.dtypes.Int16DType,
+        "phases": default_float_type,
+        "atNames": default_string_type,
+        "atNums": np.dtypes.Int8DType,
+    }
 
     dim_lengths = {
         "time": num_time_steps,
@@ -210,6 +234,7 @@ def create_initial_dataset(
                 else np.full(
                     [dim_lengths[d] for d in dims],
                     fill_value=template_default_values[varname],
+                    dtype=template_default_dtypes[varname],
                 )
             ),
             (
