@@ -320,6 +320,8 @@ def read_traj(
                     "We assume there is no charge because no charge information was found"
                 )
                 charges = 0
+        else:
+            logging.debug("Missing charge information.")
 
         trajectory = set_sharc_state_type_and_name_defaults(
             trajectory, state_multiplicities, charges
