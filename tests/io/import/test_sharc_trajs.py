@@ -1,15 +1,14 @@
-import os
-
 
 from shnitsel.data.shnitsel_db_format import ShnitselDB
 from shnitsel.data.trajectory_format import Trajectory
 from shnitsel.io import read
-from shnitsel.io.helpers import LoadingParameters
 from shnitsel.io.sharc.format_reader import SHARCFormatReader
-from shnitsel.io.sharc.parse_trajectory import read_traj
 from shnitsel.io import write_shnitsel_file
 from shnitsel.test_support.trajectory_verification import verify_trajectory_format
 
+def _charge_check(ds, target):
+    assert ds.variables["state_charges"][0] == target
+    return ds
 
 class TestSHARCTrajectories:
     """Class to test functionality related to SHARC initial conditions and trajectories"""
@@ -208,6 +207,7 @@ class TestSHARCTrajectories:
         traj_frames_butene = read(
             "tutorials/test_data/sharc/traj_I01_v4.0/",
             concat_method='db',
+            parallel=False
         )
         assert isinstance(
             traj_frames_butene, ShnitselDB
@@ -219,7 +219,7 @@ class TestSHARCTrajectories:
         ), "Resulting trajectory from SHARC trajectory does not satisfy the Shnitsel standard format"
 
         # Check charge
-        assert traj_frames_butene.variables["state_charges"][0] == 1
+        traj_frames_butene.map_over_trajectories(lambda ds: _charge_check(ds, 1))
 
     def test_read_sharc_wrapper_direct_v4_0(self):
         # Read trajectory bundle from a v4.0 directory. Needs to detect the charges
@@ -227,6 +227,7 @@ class TestSHARCTrajectories:
             "tutorials/test_data/sharc/traj_I01_v4.0/",
             kind="sharc",
             concat_method='db',
+            parallel=False
         )
         assert isinstance(
             traj_frames_butene, ShnitselDB
@@ -237,7 +238,7 @@ class TestSHARCTrajectories:
         ), "Resulting trajectory from SHARC trajectory does not satisfy the Shnitsel standard format"
 
         # Check charge
-        assert traj_frames_butene.variables["state_charges"][0] == 1
+        traj_frames_butene.map_over_trajectories(lambda ds: _charge_check(ds, 1))
 
         write_shnitsel_file(
             traj_frames_butene, "tutorials/test_data/sharc/traj_I01_v4.nc"
