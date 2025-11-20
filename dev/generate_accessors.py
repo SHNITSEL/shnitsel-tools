@@ -64,6 +64,7 @@ def generate_class_code(classes: Dict[str, List[Callable]]) -> str:
         'needs': '._contracts',
         'DAManualAccessor': '._accessors',
         'DSManualAccessor': '._accessors',
+        'DatasetOrArray': 'shnitsel.core.xrhelpers',
     }
     plain_imports = {
         'xarray as xr',
@@ -74,6 +75,8 @@ def generate_class_code(classes: Dict[str, List[Callable]]) -> str:
         'typing',
         'sklearn',
         'rdkit',
+        'os',
+        'pathlib'
     }
 
     # Collect imports for all functions
@@ -193,14 +196,13 @@ def main():
     try:
         import shnitsel as st
         import shnitsel.units as units
-        from shnitsel.io.ase.write import write_ase
+        from shnitsel.io.ase.write import write_ase_db
         from shnitsel.core.plot import p3mhelpers
         from shnitsel.core import vmd
         from shnitsel.core.plot import select
     except ImportError as e:
         logging.error(
             f"Import of module for generation of accessor classes failed: {e.msg} \n{repr(e)}. \n Please ensure all modules are available."
-
         )
 
     da_funcs = [
@@ -298,7 +300,7 @@ def main():
         st.core.filtre.get_cutoffs,
         st.core.filtre.truncate,
         # ase
-        write_ase,
+        write_ase_db,
         # ml
         st.core.ml.pls_ds,
     ]

@@ -1,6 +1,8 @@
 import collections
 import numpy
 import numpy.typing as npt
+import os
+import pathlib
 import rdkit
 import sklearn
 import typing
@@ -9,7 +11,6 @@ import xarray as xr
 from ._accessors import DAManualAccessor, DSManualAccessor
 from ._contracts import needs
 from numpy import ndarray
-from os import PathLike
 from rdkit.Chem.rdchem import Mol
 from shnitsel.core.filtre import energy_filtranda, get_cutoffs, last_time_where, truncate
 from shnitsel.core.geom import get_bats, get_bond_angles, get_bond_lengths, get_bond_torsions, get_pyramids, kabsch
@@ -19,8 +20,8 @@ from shnitsel.core.plot.select import FrameSelector, TrajSelector
 from shnitsel.core.plot.spectra3d import spectra_all_times
 from shnitsel.core.postprocess import angle, assign_fosc, calc_ci, calc_pops, default_mol, dihedral, distance, ds_broaden_gauss, find_hops, get_hop_types, get_inter_state, get_per_state, hop_indices, keep_norming, norm, pairwise_dists_pca, pca_and_hops, relativize, setup_frames, smiles_map, subtract_combinations, sudi, time_grouped_ci, to_mol, to_xyz, traj_to_xyz, trajs_with_hops, ts_to_time, validate
 from shnitsel.core.vmd import traj_vmd
-from shnitsel.core.xrhelpers import assign_levels, expand_midx, flatten_levels, mgroupby, msel, sel_trajids, sel_trajs, stack_trajs, unstack_trajs
-from shnitsel.io.ase.write import write_ase
+from shnitsel.core.xrhelpers import DatasetOrArray, assign_levels, expand_midx, flatten_levels, mgroupby, msel, sel_trajids, sel_trajs, stack_trajs, unstack_trajs
+from shnitsel.io.ase.write import write_ase_db
 from shnitsel.io.sharc.parse_initial_conditions import iconds_to_frames
 from shnitsel.io.shnitsel.write import write_shnitsel_file
 from shnitsel.units.conversion import convert_dipole, convert_energy, convert_force, convert_length, convert_nacs, convert_time
@@ -204,15 +205,15 @@ class DataArrayAccessor(DAManualAccessor):
         """Wrapper for :py:func:`shnitsel.units.conversion.convert_time`."""
         return convert_time(self._obj, to, convert_from=convert_from)
 
-    def flatten_levels(self, idx_name: str, levels: Sequence[str], new_name: str | None=None, position: int=0, renamer: Callable | None=None) -> xr.Dataset | xr.DataArray:
+    def flatten_levels(self, idx_name: str, levels: Sequence[str], new_name: str | None=None, position: int=0, renamer: Callable | None=None) -> DatasetOrArray:
         """Wrapper for :py:func:`shnitsel.core.xrhelpers.flatten_levels`."""
         return flatten_levels(self._obj, idx_name, levels, new_name=new_name, position=position, renamer=renamer)
 
-    def expand_midx(self, midx_name: str, level_name: str, value) -> xr.Dataset | xr.DataArray:
+    def expand_midx(self, midx_name: str, level_name: str, value) -> DatasetOrArray:
         """Wrapper for :py:func:`shnitsel.core.xrhelpers.expand_midx`."""
         return expand_midx(self._obj, midx_name, level_name, value)
 
-    def assign_levels(self, levels: dict[str, npt.ArrayLike] | None=None, **levels_kwargs: npt.ArrayLike) -> xr.Dataset | xr.DataArray:
+    def assign_levels(self, levels: dict[str, npt.ArrayLike] | None=None, **levels_kwargs: npt.ArrayLike) -> DatasetOrArray:
         """Wrapper for :py:func:`shnitsel.core.xrhelpers.assign_levels`."""
         return assign_levels(self._obj, levels=levels, **levels_kwargs)
 
@@ -340,7 +341,7 @@ class DatasetAccessor(DSManualAccessor):
         'energy_filtranda',
         'get_cutoffs',
         'truncate',
-        'write_ase',
+        'write_ase_db',
         'pls_ds',
     ]
 
@@ -394,15 +395,15 @@ class DatasetAccessor(DSManualAccessor):
         """Wrapper for :py:func:`shnitsel.core.postprocess.default_mol`."""
         return default_mol(self._obj)
 
-    def flatten_levels(self, idx_name: str, levels: Sequence[str], new_name: str | None=None, position: int=0, renamer: Callable | None=None) -> xr.Dataset | xr.DataArray:
+    def flatten_levels(self, idx_name: str, levels: Sequence[str], new_name: str | None=None, position: int=0, renamer: Callable | None=None) -> DatasetOrArray:
         """Wrapper for :py:func:`shnitsel.core.xrhelpers.flatten_levels`."""
         return flatten_levels(self._obj, idx_name, levels, new_name=new_name, position=position, renamer=renamer)
 
-    def expand_midx(self, midx_name: str, level_name: str, value) -> xr.Dataset | xr.DataArray:
+    def expand_midx(self, midx_name: str, level_name: str, value) -> DatasetOrArray:
         """Wrapper for :py:func:`shnitsel.core.xrhelpers.expand_midx`."""
         return expand_midx(self._obj, midx_name, level_name, value)
 
-    def assign_levels(self, levels: dict[str, npt.ArrayLike] | None=None, **levels_kwargs: npt.ArrayLike) -> xr.Dataset | xr.DataArray:
+    def assign_levels(self, levels: dict[str, npt.ArrayLike] | None=None, **levels_kwargs: npt.ArrayLike) -> DatasetOrArray:
         """Wrapper for :py:func:`shnitsel.core.xrhelpers.assign_levels`."""
         return assign_levels(self._obj, levels=levels, **levels_kwargs)
 
@@ -414,9 +415,9 @@ class DatasetAccessor(DSManualAccessor):
         """Wrapper for :py:func:`shnitsel.core.xrhelpers.msel`."""
         return msel(self._obj, **kwargs)
 
-    def write_shnitsel_file(self, path: PathLike, complevel=9):
+    def write_shnitsel_file(self, savepath: str | os.PathLike | pathlib.Path, complevel: int=9):
         """Wrapper for :py:func:`shnitsel.io.shnitsel.write.write_shnitsel_file`."""
-        return write_shnitsel_file(self._obj, path, complevel=complevel)
+        return write_shnitsel_file(self._obj, savepath, complevel=complevel)
 
     @needs(dims={'frame'}, coords_or_vars={'trajid'})
     def sel_trajs(self, trajids_or_mask: Sequence[int] | Sequence[bool], invert=False) -> xr.Dataset | xr.DataArray:
@@ -456,10 +457,10 @@ class DatasetAccessor(DSManualAccessor):
         """Wrapper for :py:func:`shnitsel.core.filtre.truncate`."""
         return truncate(self._obj, cutoffs)
 
-    @needs(dims={'frame'})
-    def write_ase(self, db_path: str, kind: str | None, keys: Optional=None, preprocess: bool=True):
-        """Wrapper for :py:func:`shnitsel.io.ase.write.write_ase`."""
-        return write_ase(self._obj, db_path, kind, keys=keys, preprocess=preprocess)
+    @needs(data_vars={'atNames', 'atNums', 'atXYZ', 'energy'})
+    def write_ase_db(self, db_path: str, db_format: Optional, keys_to_write: Optional=None, preprocess: bool=True):
+        """Wrapper for :py:func:`shnitsel.io.ase.write.write_ase_db`."""
+        return write_ase_db(self._obj, db_path, db_format, keys_to_write=keys_to_write, preprocess=preprocess)
 
     def pls_ds(self, xname, yname, n_components=2):
         """Wrapper for :py:func:`shnitsel.core.ml.pls_ds`."""
