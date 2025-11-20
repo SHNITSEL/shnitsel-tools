@@ -110,7 +110,7 @@ def create_initial_dataset(
         "dip_perm": ["time", "state", "direction"],
         "dip_trans": ["time", "statecomb", "direction"],
         # TODO: FIXME: Check the correct dimensions for socs
-        "socs": ["time", "statecomb", "atom", "direction"],
+        "socs": ["time", "statecomb"],
         "state_names": ["state"],
         "state_types": ["state"],
         "state_charges": ["state"],
