@@ -185,29 +185,34 @@ class FormatReader(ABC):
 
             # Set some optional settings.
             optional_settings = OptionalTrajectorySettings()
-            optional_settings.trajectory_input_path = path_obj.as_posix()
+            if "trajectory_input_path" not in res.attrs:
+                # Do not overwrite original path
+                optional_settings.trajectory_input_path = path_obj.as_posix()
 
             assign_optional_settings(res, optional_settings)
 
             # If trajid has been extracted from the input path, set it
             if format_info is not None:
-                # If trajid has been extracted from the input path, set it
-                if loading_parameters.trajectory_id is not None:
-                    # the trajectory_id assignment should have been transformed into a callable
-                    traj_id_assigner: Callable[[pathlib.Path], int] = (
-                        loading_parameters.trajectory_id
-                    )  # type: ignore
-                    optional_settings.trajid = traj_id_assigner(
-                        format_info.path if format_info.path is not None else path_obj
-                    )
+                if "trajid" not in res:
+                    # If trajid has been extracted from the input path, set it
+                    if loading_parameters.trajectory_id is not None:
+                        # the trajectory_id assignment should have been transformed into a callable
+                        traj_id_assigner: Callable[[pathlib.Path], int] = (
+                            loading_parameters.trajectory_id
+                        )  # type: ignore
+                        optional_settings.trajid = traj_id_assigner(
+                            format_info.path
+                            if format_info.path is not None
+                            else path_obj
+                        )
 
-                    if (
-                        traj_id_assigner == random_trajid_assigner
-                        and format_info.trajid is not None
-                    ):
+                        if (
+                            traj_id_assigner == random_trajid_assigner
+                            and format_info.trajid is not None
+                        ):
+                            optional_settings.trajid = format_info.trajid
+                    elif format_info.trajid is not None:
                         optional_settings.trajid = format_info.trajid
-                elif format_info.trajid is not None:
-                    optional_settings.trajid = format_info.trajid
 
                 # Assign state types if provided
                 if loading_parameters.state_types is not None:

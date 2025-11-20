@@ -52,7 +52,8 @@ def main():
     logging.getLogger().setLevel(logging._nameToLevel[loglevel.upper()])
 
     if output_path is None:
-        output_path = input_paths[0].parent / (input_paths[0].name + ".nc")
+        path0 = pathlib.Path(input_paths[0])
+        output_path = path0.parent / (path0.name + ".nc")
     else:
         output_path = pathlib.Path(output_path)
         if output_path.suffix != ".nc":
@@ -101,7 +102,6 @@ def main():
     print(f"Number of compounds in trajectory: {num_compounds}")
     print(f"Present compounds: {list_compounds}")
     print(f"Number of Trajectories: {num_trajectories}")
-
 
     print("Resulting trajectory:")
     pprint(merged_trajectory)

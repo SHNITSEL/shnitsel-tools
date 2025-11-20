@@ -1,0 +1,6 @@
+molcas $MOLCAS/
+scratchdir $TMPDIR/Singlet_2/TRAJ_00001//
+savedir /home/woody/bccc/bccc113h/shnitsel-data/I01_wTrip/traj/Singlet_2/TRAJ_00001//restart
+memory 4000
+ncpu 1
+project MOLCAS

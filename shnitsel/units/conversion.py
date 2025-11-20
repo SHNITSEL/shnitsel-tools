@@ -1,5 +1,6 @@
 import logging
 from typing import Callable, Dict
+from pandas import MultiIndex
 import xarray as xr
 import shnitsel.units.definitions as definitions
 
@@ -176,14 +177,32 @@ convert_velocity = Converter(
 def convert_all_units_to_shnitsel_defaults(data: xr.Dataset) -> xr.Dataset:
     new_vars = {}
 
-    time_unit = data["time"].attrs["units"]
+    if "time" in data:
+        assert (
+            "units" in data["time"].attrs
+        ), "Dataset is missing `units` attribute on `time` coordinate"
+        time_unit = data["time"].attrs["units"]
+    else:
+        logging.warning(
+            f"Missing `time` coordinate on input dataset. Available variables: {[str(x) for x in data.variables.keys()]}"
+        )
+        time_unit = None
 
     with xr.set_options(keep_attrs=True):
         for var_name in data.data_vars:
             if 'unitdim' in data[var_name].attrs:
-                new_vars[var_name] = convert_datarray_with_unitdim_to_shnitsel_defaults(
+                conv_res = convert_datarray_with_unitdim_to_shnitsel_defaults(
                     data[var_name]
                 )
+
+                if var_name in data.indexes:
+                    var_index = data.indexes[var_name]
+                    if isinstance(var_index, MultiIndex):
+                        raise ValueError(
+                            "We do not support MultiIndices on non-coordinate variables."
+                        )
+
+                new_vars[var_name] = conv_res
 
     # logging.debug("Converting Data: " + str(list(new_vars.keys())))
     # NOTE: For some reason, sometimes, assigning multiple variables at once resulted in all of them being filled with NaN values.
@@ -195,26 +214,37 @@ def convert_all_units_to_shnitsel_defaults(data: xr.Dataset) -> xr.Dataset:
     with xr.set_options(keep_attrs=True):
         for coord_name in data.coords:
             if 'unitdim' in data[coord_name].attrs:
-                new_coords[coord_name] = (
-                    convert_datarray_with_unitdim_to_shnitsel_defaults(data[coord_name])
+                conv_res = convert_datarray_with_unitdim_to_shnitsel_defaults(
+                    data[coord_name]
                 )
+
+                if coord_name in data.indexes:
+                    coord_index = data.indexes[coord_name]
+                    if isinstance(coord_index, MultiIndex):
+                        from shnitsel.core.xrhelpers import assign_levels
+
+                        tmp = assign_levels(tmp, {str(coord_name): conv_res})
+                        continue
+
+                new_coords[coord_name] = conv_res
 
     # logging.debug("Converting Coords: " + str(list(new_coords.keys())))
     # NOTE: Alignment screws us over if we convert the time before assigning the other variables.
     tmp = tmp.assign_coords(new_coords)
 
-    if "delta_t" in tmp.attrs:
-        tmp.attrs["delta_t"] = convert_time.convert_value(
-            tmp.attrs["delta_t"],
-            convert_from=time_unit,
-            to=new_coords["time"].attrs["units"],
-        )
-    if "t_max" in tmp.attrs:
-        tmp.attrs["t_max"] = convert_time.convert_value(
-            tmp.attrs["t_max"],
-            convert_from=time_unit,
-            to=new_coords["time"].attrs["units"],
-        )
+    if time_unit is not None:
+        if "delta_t" in tmp.attrs:
+            tmp.attrs["delta_t"] = convert_time.convert_value(
+                tmp.attrs["delta_t"],
+                convert_from=time_unit,
+                to=tmp["time"].attrs["units"],
+            )
+        if "t_max" in tmp.attrs:
+            tmp.attrs["t_max"] = convert_time.convert_value(
+                tmp.attrs["t_max"],
+                convert_from=time_unit,
+                to=tmp["time"].attrs["units"],
+            )
 
     return tmp
 

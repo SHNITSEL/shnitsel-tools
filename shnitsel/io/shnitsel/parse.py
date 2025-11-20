@@ -1,10 +1,14 @@
 import json
 import logging
 import os
+import traceback
 from typing import Any, Callable, Dict, TypeVar
 import numpy as np
 import xarray as xr
 import sys
+from ...data.shnitsel_db.datatree_level import _datatree_level_attribute_key
+
+from shnitsel.io.shared.variable_flagging import mark_variable_assigned
 from ...data.shnitsel_db.datatree_level import _datatree_level_attribute_key
 
 from shnitsel.data.shnitsel_db_format import (
@@ -47,6 +51,7 @@ def read_shnitsel_file(
 
         # Unpack the dataset if the file did not contain a tree
         if _datatree_level_attribute_key not in frames.attrs:
+            # logging.debug(f"{frames.attrs=}")
             frames = frames.dataset
     except ValueError as ds_err:
         dataset_info = sys.exc_info()
@@ -125,8 +130,8 @@ def _parse_shnitsel_file_v1_0(
             frames = frames.rename({"ts": "time"})
             tcoord = "time"
 
-        if tcoord is not None:
-            frames = frames.set_xindex(["trajid", tcoord])
+        if tcoord is not None and tcoord in frames.coords and "trajid_" in frames:
+            frames = frames.set_xindex(["trajid_", tcoord])
 
         if "from" in frames.coords and "to" in frames.coords:
             frames = frames.set_xindex(["from", "to"])
@@ -146,25 +151,37 @@ def _decode_shnitsel_v1_1_dataset(dataset: xr.Dataset) -> xr.Dataset:
     if "__attrs_json_encoded" in dataset.attrs:
         del dataset.attrs["__attrs_json_encoded"]
 
-        def json_deserialize_ndarray(value: str) -> Any:
-            value_d = json.loads(value)
-            if isinstance(value_d, dict):
-                if "__ndarray" in value_d:
-                    config = value_d["__ndarray"]
+        def json_deserialize_ndarray(key: str, value: str) -> Any:
+            if key.startswith("__") or not isinstance(value, str):
+                return value
+            try:
+                value_d = json.loads(value)
+                if isinstance(value_d, dict):
+                    if "__ndarray" in value_d:
+                        config = value_d["__ndarray"]
 
-                    entries = config["entries"]
-                    dtype_descr = np.dtype([tuple(i) for i in config["dtype"]])
+                        entries = config["entries"]
+                        dtype_descr = np.dtype([tuple(i) for i in config["dtype"]])
 
-                    value_d = np.array(entries, dtype=dtype_descr)
-            return value_d
+                        value_d = np.array(entries, dtype=dtype_descr)
+                return value_d
+            except TypeError as e:
+                logging.debug(
+                    f"Encountered error during json decode: {e} {traceback.format_exc()}"
+                )
+                return value
 
         for attr in dataset.attrs:
-            dataset.attrs[attr] = json_deserialize_ndarray(dataset.attrs[attr])
+            dataset.attrs[attr] = json_deserialize_ndarray(
+                str(attr), dataset.attrs[attr]
+            )
 
         for data_var in dataset.variables:
+            # Mark variables as assigned so they are not stripped in finalization
+            mark_variable_assigned(dataset[data_var])
             for attr in dataset[data_var].attrs:
                 dataset[data_var].attrs[attr] = json_deserialize_ndarray(
-                    dataset[data_var].attrs[attr]
+                    str(attr), dataset[data_var].attrs[attr]
                 )
 
     # Restore MultiIndexes
@@ -174,8 +191,10 @@ def _decode_shnitsel_v1_1_dataset(dataset: xr.Dataset) -> xr.Dataset:
         del dataset.attrs[indicator]
         for k, v in dataset.attrs.items():
             if k.startswith("_MultiIndex_levels_for_"):
+                index_name = k[len("_MultiIndex_levels_for_") :]
                 dataset = dataset.set_xindex(v)
                 del dataset.attrs[k]
+                mark_variable_assigned(dataset[index_name])
     else:
         # TODO: FIXME: rename time trajectory to same name everywhere
         # Old way: hardcoded level names
@@ -189,8 +208,8 @@ def _decode_shnitsel_v1_1_dataset(dataset: xr.Dataset) -> xr.Dataset:
             dataset = dataset.rename({"ts": "time"})
             tcoord = "time"
 
-        if tcoord is not None:
-            dataset = dataset.set_xindex(["trajid", tcoord])
+        if tcoord is not None and tcoord in dataset.coords and "trajid_" in dataset:
+            dataset = dataset.set_xindex(["trajid_", tcoord])
 
         if "from" in dataset.coords and "to" in dataset.coords:
             dataset = dataset.set_xindex(["from", "to"])
@@ -202,20 +221,28 @@ def decode_attrs(obj):
     if "__attrs_json_encoded" in obj.attrs:
         del obj.attrs["__attrs_json_encoded"]
 
-        def json_deserialize_ndarray(value: str) -> Any:
-            value_d = json.loads(value)
-            if isinstance(value_d, dict):
-                if "__ndarray" in value_d:
-                    config = value_d["__ndarray"]
+        def json_deserialize_ndarray(key: str, value: str | Any) -> Any:
+            if key.startswith("__") or not isinstance(value, str):
+                return value
+            try:
+                value_d = json.loads(value)
+                if isinstance(value_d, dict):
+                    if "__ndarray" in value_d:
+                        config = value_d["__ndarray"]
 
-                    entries = config["entries"]
-                    dtype_descr = np.dtype([tuple(i) for i in config["dtype"]])
+                        entries = config["entries"]
+                        dtype_descr = np.dtype([tuple(i) for i in config["dtype"]])
 
-                    value_d = np.array(entries, dtype=dtype_descr)
-            return value_d
+                        value_d = np.array(entries, dtype=dtype_descr)
+                return value_d
+            except TypeError as e:
+                logging.debug(
+                    f"Encountered error during json decode: {e} {traceback.format_exc()}"
+                )
+                return value
 
         for attr in obj.attrs:
-            obj.attrs[attr] = json_deserialize_ndarray(obj.attrs[attr])
+            obj.attrs[attr] = json_deserialize_ndarray(str(attr), obj.attrs[attr])
 
     return obj
 
@@ -249,10 +276,10 @@ def _parse_shnitsel_file_v1_1(
             "A version 1.1 shnitsel file can only contain xr.Dataset or xr.DataTree entries."
         )
     if isinstance(frames, xr.DataTree):
-        import pprint
+        # import pprint
 
         shnitsel_db = build_shnitsel_db(frames)
-        pprint.pprint(shnitsel_db)
+        # pprint.pprint(shnitsel_db)
 
         # Decode json encoded attributes if json encoding is recorded
         return shnitsel_db.map_over_trajectories(_decode_shnitsel_v1_1_dataset)  # type: ignore
