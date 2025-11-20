@@ -290,7 +290,7 @@ def concat_trajs(datasets: Iterable[Trajectory]) -> Trajectory:
             )
 
     # Check that all dimensions match. May want to check the values match as well?
-    if not _check_matching_dimensions(datasets, set("time")):
+    if not _check_matching_dimensions(datasets, set(["time"])):
         message = "Dimensions of the provided data vary."
         logging.warning(
             f"{message} Merge result may be inconsistent. Please ensure you only merge consistent trajectories."
@@ -413,7 +413,7 @@ def layer_trajs(datasets: Iterable[Trajectory]) -> Trajectory:
     if len(datasets) == 0:
         raise ValueError("No trajectories were provided.")
 
-    if not _check_matching_dimensions(datasets, set("time")):
+    if not _check_matching_dimensions(datasets, set(["time"])):
         message = "Dimensions of the provided data vary."
         logging.warning(
             f"{message} Merge result may be inconsistent. Please ensure you only merge consistent trajectories."
