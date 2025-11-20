@@ -24,6 +24,15 @@ class TestSHARCTrajectories:
         "atNames",
     ]
 
+    asserted_properties_in_gradless_trajectory = [
+        "energy",
+        "atXYZ",
+        "state_types",
+        "state_names",
+        "atNums",
+        "atNames",
+    ]
+
     asserted_properties_in_v4_trajectory = [
         "energy",
         "atXYZ",
@@ -136,7 +145,7 @@ class TestSHARCTrajectories:
         ), f"Read result was not of requested type `db`. Was {type(traj_frames_butene)} instead."
 
         assert verify_trajectory_format(
-            traj_frames_butene, self.asserted_properties_in_trajectory
+            traj_frames_butene, self.asserted_properties_in_gradless_trajectory
         ), "Resulting trajectory from SHARC trajectory does not satisfy the Shnitsel standard format"
 
     def test_read_sharc_wrapper_direct_v3_0_triplets(self):
@@ -151,7 +160,7 @@ class TestSHARCTrajectories:
         ), f"Read result was not of requested type `db`. Was {type(traj_frames_butene)} instead."
 
         assert verify_trajectory_format(
-            traj_frames_butene, self.asserted_properties_in_trajectory
+            traj_frames_butene, self.asserted_properties_in_gradless_trajectory
         ), "Resulting trajectory from SHARC trajectory does not satisfy the Shnitsel standard format"
 
         write_shnitsel_file(
