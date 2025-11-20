@@ -1,21 +1,24 @@
 import logging
 from typing import Any, List, Set, Tuple
 
+from shnitsel.data.shnitsel_db.db_function_decorator import dataset_to_tree_method
 from shnitsel.data.trajectory_format import Trajectory
 import xarray as xr
 from shnitsel.units import standard_shnitsel_units
 from shnitsel.units.definitions import unit_dimensions
 
 # TODO: FIXME: Some attributes are turned into variables on merged trajectories.
-_required_shnitsel_variables = ["energy", "forces", "time"]
+_required_shnitsel_variables = ["energy", "time"]
 _optional_shnitsel_variables = [
     "atXYZ",
     "nacs",
     "dip_perm",
     "dip_trans",
+    "forces",
     "socs",
     "state_names",
     "state_types",
+    "state_charges",
     "astate",
     "sdiag",
     "state2",
@@ -43,16 +46,17 @@ _required_shnitsel_attributes = [
     "num_doublets",
     "num_triplets",
     "t_max",
-    "theory_basis_set",
-    "est_level",
 ]
 _optional_shnitsel_attributes = [
     "has_forces",
+    "DataTree_Level",
     "trajectory_input_path",
     "trajid",
     "__original_dataset",
     "is_multi_trajectory",
     "misc_input_settings",
+    "theory_basis_set",
+    "est_level",
 ]
 
 
@@ -87,7 +91,10 @@ def check_shnitsel_trajectory_data(
     for attr_name in trajectory.attrs:
         if attr_name in missing_required_attrs:
             missing_required_attrs.remove(attr_name)
-        elif attr_name not in _optional_shnitsel_attributes:
+        elif (
+            not attr_name.startswith("__")
+            and attr_name not in _optional_shnitsel_attributes
+        ):
             unexpected_attrs.append(attr_name)
 
     # All is well
@@ -125,6 +132,19 @@ def check_shnitsel_trajectory_data(
     )
 
 
+def _true_on_all_leaves(root: dict | bool) -> bool:
+    if isinstance(root, dict):
+        res = True
+        for k, v in root.items():
+            res = _true_on_all_leaves(v)
+        return res
+    elif isinstance(root, bool):
+        return root
+    else:
+        raise ValueError(f"Invalid entry of type {type(root)}")
+
+
+@dataset_to_tree_method(aggregate_post=_true_on_all_leaves, map_result_as_dict=True)
 def verify_trajectory_format(
     obj: Any, asserted_properties: List[str] | None = None
 ) -> bool:
