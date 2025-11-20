@@ -155,19 +155,25 @@ _nacs_unit_scales = {
 
 
 class socs:
-    # TODO: FIXME: Figure out nacs units
-    one_per_m = "1/m"
+    # SOCS are in energy units.
+    Hartree = "Hartree"
+    eV = "eV"
     one_per_cm = "1/cm"
-    one_per_Bohr = "1/Bohr"
     au = "au"
 
-
+# TODO: FIXME: one_per_cm unit is still in wrong reference! Seems to be SI
 _socs_unit_scale = {
-    socs.one_per_m: 1.0 / si.m,
-    socs.one_per_cm: 1e2 / si.m,
-    socs.one_per_Bohr: 1.0,
-    socs.au: 1.0,
+    socs.Hartree: si.Hartree,
+    socs.eV: si.eV,
+    # c should be in cm/s instead of m/s for this conversion
+    socs.one_per_cm: si._hplanck * si._c * 100,
+    socs.au: si.Hartree,
 }
+
+import sys, pprint
+
+pprint.pprint(_socs_unit_scale)
+# sys.exit(1)
 
 
 class amount_units:
