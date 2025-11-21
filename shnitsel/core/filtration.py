@@ -4,35 +4,57 @@ import numpy as np
 import xarray as xr
 
 from shnitsel.core.midx import mdiff
+from shnitsel.units.conversion import convert_energy
 from .._contracts import needs
 
 # link functions that have moved:
 from .geom import get_bond_lengths as get_bond_lengths
 
 @needs(data_vars={'energy', 'astate'})
-def energy_filtranda(frames: xr.Dataset) -> xr.Dataset:
+def energy_filtranda(
+    frames,
+    *,
+    etot_drift=0.2,
+    etot_step=0.1,
+    epot_step=0.7,
+    ekin_step=0.7,
+    hop_epot_step=1.0
+):
+    default_thresholds = {
+        'etot_drift': etot_drift,
+        'etot_step': etot_step,
+        'epot_step': epot_step,
+        'ekin_step': ekin_step,
+        'hop_epot_step': hop_epot_step,
+    }
+
+    res = xr.Dataset()
+    is_hop = mdiff(frames['astate']) != 0
+    e_pot = frames.energy.sel(state=frames.astate).drop_vars('state')
+    e_pot.attrs['units'] = frames['energy'].attrs.get('units', 'unknown')
+    e_pot = convert_energy(e_pot, to='eV')
+
+    res['epot_step'] = mdiff(e_pot).where(~is_hop, 0)
+    res['hop_epot_step'] = mdiff(e_pot).where(is_hop, 0)
+
     if 'e_kin' in frames.data_vars:
-        has_e_kin = True
-        res = frames[['e_kin']]
+        e_kin = frames['e_kin']
+        e_kin.attrs['units'] = frames['e_kin'].attrs.get('units', 'unknown')
+        e_kin = convert_energy(e_kin, to='eV')
+        
+        e_tot = e_pot + e_kin
+        res['etot_drift'] = (
+            e_tot.groupby('trajid').map(lambda traj: abs(traj - traj.item(0)))
+        )
+        res['ekin_step'] = mdiff(e_kin).where(~is_hop, 0)
+        res['etot_step'] = mdiff(e_tot)
     else:
-        has_e_kin = False
-        res = xr.Dataset()
+        e_kin = None
         warning("data does not contain kinetic energy variable ('e_kin')")
 
-    res['e_pot'] = frames.energy.sel(state=frames.astate).drop_vars('state')
-    if has_e_kin:
-        res['e_tot'] = res['e_pot'] + res['e_kin']
-
-        res['etot_drift'] = (
-            res['e_tot'].groupby('trajid').map(lambda traj: abs(traj - traj.isel(frame=0)))
-        )
-        res['ekin_step'] = mdiff(res['e_kin'])
-        res['etot_step'] = mdiff(res['e_tot'])
-
-    res['epot_step'] = mdiff(res['e_pot'])
-    res['is_hop'] = mdiff(frames['astate']) != 0
-
-    return res
+    da = np.abs(res.to_dataarray('criterion'))
+    thresholds = [default_thresholds[x] for x in da.coords['criterion'].data]
+    return da.assign_coords(thresholds=('criterion', thresholds))
 
 
 @needs(dims={'frame'}, coords={'trajid', 'time'})
