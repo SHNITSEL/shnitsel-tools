@@ -4,7 +4,7 @@ from numbers import Number
 import numpy as np
 import xarray as xr
 
-from shnitsel.core.midx import sel_trajs, unstack_trajs
+from shnitsel.core.midx import sel_trajs, stack_trajs, unstack_trajs
 
 
 def is_stacked(obj):
@@ -22,17 +22,26 @@ def is_stacked(obj):
 ########################
 
 def cum_mask_from_filtranda(filtranda):
-    # isn't this literally just
-    return (filtranda < filtranda.coords['thresholds']).cumprod('time').astype(bool)
-    # why is this a function
-    # also is "cumulative mask" really your best attempt to explain this concept?
+    if is_stacked(filtranda):
+        restack = True
+        filtranda = unstack_trajs(filtranda)
+    else:
+        restack = False
+    
+    res = (filtranda < filtranda.coords['thresholds']).cumprod('time').astype(bool)
+
+    # Is unstack-restack meaningfully less efficient than groupby?
+    if restack:
+        return stack_trajs(res)
+    else:
+        return res
+    
+
+# def cum_mask_from_dataset_cutoffs(ds):
+#     return (ds.coords['time'] <= ds.coords['good_upto']).cumprod('time').astype(bool)
 
 
-def cum_mask_from_cutoffs(good_upto, thresholds):
-    return good_upto < thresholds
-
-
-def cum_mask_from_dataset():
+def cum_mask_from_dataset(ds):
     # dataset might contain filtranda, the mask we're after, or the cutoffs
     # it doesn't matter whether the mask is cumulative, because our
     # accumulation is idempotent
@@ -40,19 +49,31 @@ def cum_mask_from_dataset():
     # two versions currently, for stacked and for unstacked
     # use `filtranda` and `thresholds` if available
     # otherwise use `good_upto`
-    ... # TODO
+    if 'is_good_frame' in ds:
+        return ds['is_good_frame'].cumprod('time').astype(bool)
+    elif 'good_upto' in ds.data_vars:
+        return (ds.coords['time'] <= ds.coords['good_upto']).cumprod('time').astype(bool)
+    elif 'filtranda' in ds.data_vars:
+        return cum_mask_from_filtranda(ds)
+    
 
 def true_upto(mask, dim):
     if is_stacked(mask):
         mask = unstack_trajs(mask).fillna(False)
-    shifted_coord = xr.DataArray(np.concat([[-1], mask.coords[dim].data]), dims=dim)
-    res = shifted_coord[mask.cumprod(dim).sum(dim)]
-    return res
+    # shifted_coord = xr.DataArray(np.concat([[-1], mask.coords[dim].data]), dims=dim)
+    shifted_coord = np.concat([[-1], mask.coords[dim].data])
+    indexer = mask.cumprod(dim).sum(dim).astype(int)
+    # res = shifted_coord[{dim: indexer}]
+    # res = np.choose(indexer.data, shifted_coord)
+    res = np.take(shifted_coord, indexer.data)
+    return indexer.copy(data=res)
 
 
-def cutoffs_from_mask(is_good_frame):
-    good_upto = true_upto(is_good_frame, 'time')
-    good_throughout = is_good_frame.groupby('time').all()
+def cutoffs_from_mask(mask):
+    if is_stacked(mask):
+        mask = unstack_trajs(mask)
+    good_upto = true_upto(mask, 'time')
+    good_throughout = mask.all('time')
     good_upto.name = 'good_upto'
     return good_upto.assign_coords(good_throughout=good_throughout)
     
@@ -95,6 +116,8 @@ def cutoffs_from_dataset(ds):
             "Please set data_vars 'filtranda' and 'thresholds', "
             "or alternatively supply cutoffs directly using data_var 'good_upto'"
         )
+
+def assign_cutoffs(ds): ...
 
 
 ####################
@@ -140,28 +163,75 @@ def transect(ds, cutoff: float):
 #########################
 
 
-def energy_filtranda(): ...
-
-
-def sanity_check(
+def energy_filtranda(
     frames,
-    cut=False,
     *,
-    units='eV',  # TODO: FIXME: Actually implement!
     etot_drift=0.2,
     etot_step=0.1,
     epot_step=0.7,
     ekin_step=0.7,
-    hop_epot_step=1.0,
+    hop_epot_step=1.0
+):
+    from logging import warning
+    from shnitsel.core.midx import mdiff
+    from shnitsel.units.conversion import convert_energy
+    default_thresholds = {
+        'etot_drift': etot_drift,
+        'etot_step': etot_step,
+        'epot_step': epot_step,
+        'ekin_step': ekin_step,
+        'hop_epot_step': hop_epot_step,
+    }
+
+    res = xr.Dataset()
+    is_hop = mdiff(frames['astate']) != 0
+    e_pot = frames.energy.sel(state=frames.astate).drop_vars('state')
+    e_pot.attrs['units'] = frames['energy'].attrs.get('units', 'unknown')
+    e_pot = convert_energy(e_pot, to='eV')
+
+    res['epot_step'] = mdiff(e_pot).where(~is_hop, 0)
+    res['hop_epot_step'] = mdiff(e_pot).where(is_hop, 0)
+
+    if 'e_kin' in frames.data_vars:
+        e_kin = frames['e_kin']
+        e_kin.attrs['units'] = frames['e_kin'].attrs.get('units', 'unknown')
+        e_kin = convert_energy(e_kin, to='eV')
+        
+        e_tot = e_pot + e_kin
+        res['etot_drift'] = (
+            e_tot.groupby('trajid').map(lambda traj: abs(traj - traj.item(0)))
+        )
+        res['ekin_step'] = mdiff(e_kin).where(~is_hop, 0)
+        res['etot_step'] = mdiff(e_tot)
+    else:
+        e_kin = None
+        warning("data does not contain kinetic energy variable ('e_kin')")
+
+    da = np.abs(res.to_dataarray('criterion'))
+    thresholds = [default_thresholds[x] for x in da.coords['criterion'].data]
+    return da.assign_coords(thresholds=('criterion', thresholds))
+
+
+def sanity_check(
+    frames,
+    cut='truncate',
+    *,
+    units='eV',  # TODO: FIXME: Actually implement!
+    etot_drift: float = 0.2,
+    etot_step: float = 0.1,
+    epot_step: float = 0.7,
+    ekin_step: float = 0.7,
+    hop_epot_step: float = 1.0,
 ):
     settings = {
         k: locals()[k]
         for k in ['etot_drift', 'etot_step', 'epot_step', 'ekin_step', 'hop_epot_step']
     }
+    # filtranda = energy_filtranda(frames, **settings)
     frames = frames.assign(filtranda=energy_filtranda(frames, **settings))
-    frames = get_cutoffs(frames)
+    # frames = get_cutoffs(frames)
     if not cut:
-        return frames
+        return frames.assign(good_upto=cutoffs_from_dataset(frames))
     elif cut == 'truncate':
         return truncate(frames)
     elif cut == 'omit':
