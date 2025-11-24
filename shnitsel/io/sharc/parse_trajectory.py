@@ -479,8 +479,10 @@ def parse_trajout_dat(
     # logging.debug(f"nstates = {nstates}")
     nstates = trajectory_in.sizes["state"]
 
+    print(settings)
     expect_socs = False
-    if "spinorbit" in settings:
+    if "nospinorbit" not in settings:
+        print("Expecting socs in SHARC")
         expect_socs = True
 
     # Read atomic numbers and names from file
@@ -681,8 +683,9 @@ def parse_trajout_dat(
         trajectory_in["nacs"].values = tmp_nacs
         mark_variable_assigned(trajectory_in["nacs"])
     if socs_assigned:
+        logging.debug("Mark SOCs as set")
         trajectory_in["socs"].values = tmp_socs
-        mark_variable_assigned(trajectory_in["nacs"])
+        mark_variable_assigned(trajectory_in["socs"])
     if force_assigned:
         trajectory_in["forces"].values = tmp_forces
         mark_variable_assigned(trajectory_in["forces"])
