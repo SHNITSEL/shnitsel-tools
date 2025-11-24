@@ -161,19 +161,20 @@ class socs:
     one_per_cm = "1/cm"
     au = "au"
 
+
 # TODO: FIXME: one_per_cm unit is still in wrong reference! Seems to be SI
 _socs_unit_scale = {
     socs.Hartree: si.Hartree,
     socs.eV: si.eV,
     # c should be in cm/s instead of m/s for this conversion
-    socs.one_per_cm: si._hplanck * si._c * 100,
+    # hc has Jm
+    # hc/cm has 100J
+    socs.one_per_cm: si._hplanck  # Js
+    * si._c  # in m/s
+    * 100  # m -> cm
+    * si.J,  # J in eV,
     socs.au: si.Hartree,
 }
-
-import sys, pprint
-
-pprint.pprint(_socs_unit_scale)
-# sys.exit(1)
 
 
 class amount_units:
