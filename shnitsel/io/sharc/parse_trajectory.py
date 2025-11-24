@@ -479,6 +479,10 @@ def parse_trajout_dat(
     # logging.debug(f"nstates = {nstates}")
     nstates = trajectory_in.sizes["state"]
 
+    expect_socs = False
+    if "spinorbit" in settings:
+        expect_socs = True
+
     # Read atomic numbers and names from file
     # ! Atomic numbers
     # 0.6000000000000E+001
@@ -546,6 +550,7 @@ def parse_trajout_dat(
     sdiag_assigned = False
     astate_assigned = False
     nacs_assigned = False
+    socs_assigned = False
 
     sharc_version_parts = [int(x) for x in settings["SHARC_version"].split(".")]
     _sharc_main_version = sharc_version_parts[0]
@@ -558,6 +563,7 @@ def parse_trajout_dat(
     tmp_sdiag = np.full_like(trajectory_in.sdiag.values, 0, dtype=np.int32)
     tmp_astate = np.full_like(trajectory_in.astate.values, 0, dtype=np.int32)
     tmp_nacs = np.full_like(trajectory_in.nacs.values, np.nan)
+    tmp_socs = np.full_like(trajectory_in.socs, 0 + 0j)
 
     # skip through until initial step:
     for line in f:
@@ -583,11 +589,23 @@ def parse_trajout_dat(
 
         if line.startswith("! 1 Hamiltonian"):
             energy_assigned = True
+
             for istate in range(nstates):
+                stripline = next(f).strip()
+                float_entries = [float(x) for x in stripline.split()]
+
                 # Energy needs to be offset by energy_offset_zero
-                tmp_energy[ts, istate] = (
-                    float(next(f).strip().split()[istate * 2]) + energy_offset_zero
-                )
+                tmp_energy[ts, istate] = float_entries[istate * 2] + energy_offset_zero
+                if expect_socs:
+                    socs_assigned = True
+
+                    for jstate in range(nstates):
+                        if istate == jstate:
+                            continue
+
+                        tmp_socs[ts, istate, jstate] = np.complex128(
+                            float_entries[jstate * 2], float_entries[jstate * 2 + 1]
+                        )
 
         if line.startswith("! 3 Dipole moments"):
             dipole_assigned = True
@@ -661,6 +679,9 @@ def parse_trajout_dat(
 
     if nacs_assigned:
         trajectory_in["nacs"].values = tmp_nacs
+        mark_variable_assigned(trajectory_in["nacs"])
+    if socs_assigned:
+        trajectory_in["socs"].values = tmp_socs
         mark_variable_assigned(trajectory_in["nacs"])
     if force_assigned:
         trajectory_in["forces"].values = tmp_forces
