@@ -1,5 +1,6 @@
+import json
 import os
-from typing import Any, Collection, Literal
+from typing import Any, Collection, Iterable, Literal
 
 from ase import Atoms
 from ase.db import connect
@@ -67,7 +68,7 @@ def _prepare_for_write_schnetpack(
     return traj
 
 
-def _collect_metadata(traj: Trajectory) -> dict[str, Any]:
+def _collect_metadata(traj: Trajectory, keys_to_write: Iterable[str]) -> dict[str, Any]:
     """Helper function to generate the SPaiNN Metadata dict from a Trajectory struct.
 
     Extracts info from attributes and variables to set up the dict.
@@ -93,24 +94,34 @@ def _collect_metadata(traj: Trajectory) -> dict[str, Any]:
     metadata['_distance_unit'] = traj["atXYZ"].attrs["unit"]
 
     metadata['_property_unit_dict'] = {
-        'energy': traj["energy"].attrs["unit"]
-        if "energy" in traj
-        else "1",  # 'Hartree',
-        'forces': traj["forces"].attrs["unit"]
-        if "forces" in traj
-        else "1",  # 'Hartree/Bohr',
-        'nacs': traj["nacs"].attrs["unit"]
-        if "nacs" in traj
-        else "1",  #'1',  # arb. units
-        # TODO: FIXME: smooth nacs should be Hartree/Bohr?
-        'smooth_nacs': '1',  # arb. units
-        'dipoles': traj["dipoles"].attrs["unit"]
-        if "dipoles" in traj
-        else "1",  #  '1', # arb. units
+        k: (traj[k].attrs["unit"] if "unit" in traj[k].attrs["unit"] else "1")
+        for k in keys_to_write
+        if k in traj and "unitdim" in traj[k].attrs
+        # 'energy': traj["energy"].attrs["unit"]
+        # if "energy" in traj
+        # else "1",  # 'Hartree',
+        # 'forces': traj["forces"].attrs["unit"]
+        # if "forces" in traj
+        # else "1",  # 'Hartree/Bohr',
+        # 'nacs': traj["nacs"].attrs["unit"]
+        # if "nacs" in traj
+        # else "1",  #'1',  # arb. units
+        # # TODO: FIXME: smooth nacs should be Hartree/Bohr?
+        # 'smooth_nacs': '1',  # arb. units
+        # 'dipoles': traj["dipoles"].attrs["unit"]
+        # if "dipoles" in traj
+        # else "1",  #  '1', # arb. units
     }
 
-    if "velocities" in traj:
-        metadata['_property_unit_dict']["velocities"] = traj["velocities"].attrs["unit"]
+    if "dipoles" in traj:
+        metadata['_property_unit_dict']["dipoles"] = (
+            traj["dipoles"].attrs["unit"]
+            if "dipoles" in traj and "unit" in traj["dipoles"].attrs
+            else "1"
+        )
+
+    # if "velocities" in traj:
+    #     metadata['_property_unit_dict']["velocities"] = traj["velocities"].attrs["unit"]
 
     metadata['atomrefs'] = {}
 
@@ -126,6 +137,41 @@ def _collect_metadata(traj: Trajectory) -> dict[str, Any]:
     metadata['states'] = " ".join(
         traj.state_names.values
     )  # 'S S S'  # three singlet states
+
+    # Very specific Shnitsel stuff:
+    metadata["misc_attrs"] = {
+        k: v for k, v in traj.attrs.items() if not str(k).startswith("__")
+    }
+
+    metadata["var_meta"] = {
+        varname: {
+            "attrs": {
+                v_k: v
+                for v_k, v in traj[varname].attrs.items()
+                if not str(v_k).startswith("__")
+            },
+            "dims": [str(d) for d in traj[varname].dims],
+        }
+        for varname in traj.variables.keys()
+    }
+    metadata["coords"] = {
+        coordname: {
+            "values": traj[coordname].values,
+            "dims": [str(d) for d in traj[coordname].dims],
+        }
+        for coordname in traj.coords.keys()
+    }
+    metadata["dims"] = {
+        dimname: {"length": traj.sizes[dimname]} for dimname in traj.sizes.keys()
+    }
+
+    midx_names = []
+    for name, index in traj.indexes.items():
+        if index.name == name and len(index.names) > 1:
+            midx_names.append(name)
+            midx_levels = list(index.names)
+            traj.attrs[f'_MultiIndex_levels_for_{name}'] = midx_levels
+    traj.attrs['_MultiIndex_levels_from_attrs'] = 1
 
     return metadata
 
@@ -198,7 +244,13 @@ def write_ase_db(
 
     with connect(db_path, type='db') as db:
         # FIXME: Metadata is only required for SPaiNN, but it seems to me like there is no harm in applying it to SchNarc as well.
-        db.metadata = _collect_metadata(traj)
+        meta_dict = _collect_metadata(traj, keys_to_write)
+        meta_dict['n_steps'] = traj.sizes[leading_dim_name]
+        if db_format is not None:
+            meta_dict["db_format"] = db_format
+
+        db.metadata = meta_dict
+
         for i, frame in traj.groupby(leading_dim_name):
             # Remove leading dimension
             frame = frame.squeeze(leading_dim_name)
@@ -225,13 +277,20 @@ def write_ase_db(
             else:
                 kv_pairs["input_format_version"] = traj.attrs["input_format_version"]
 
+            info = {"time": frame["time"][0]}
+
+            if "trajid" in frame:
+                info["trajid"] = frame["trajid"][0]
+
             # Actually output the entry
             db.write(
                 Atoms(
                     symbols=frame['atNames'].data,
                     positions=frame['atXYZ'],
-                    numbers=frame['atNums'],
+                    # numbers=frame['atNums'],
                     velocities=frame["velocities"] if "velocities" in frame else None,
+                    # info={"frame_attrs": info_attrs},
+                    info=info,
                 ),
                 key_value_pairs=kv_pairs,
                 data={k: frame[k].data for k in keys_to_write},
