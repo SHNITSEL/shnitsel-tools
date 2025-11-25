@@ -18,29 +18,29 @@ from shnitsel.io.newtonx.format_reader import NewtonXFormatReader
 input_R02_a = "tutorials/test_data/newtonx/test_R02_a/"
 input_R02_b = "tutorials/test_data/newtonx/test_R02_b/"
 
+R02_a_additional_properties = ["forces", "astate", "nacs"]
+R02_b_additional_properties = []
+
 
 class TestNewtonX:
     """Class to test functionality related to NewtonX file format"""
 
     asserted_properties_in_trajectory = [
         "energy",
-        "forces",
         "atXYZ",
         "state_types",
-        "nacs",
-        "astate",
         "atNums",
         "atNames",
     ]
 
     @pytest.mark.parametrize(
-        'path',
+        'path, add_props',
         [
-            (input_R02_a + "TRAJ1/"),
-            (input_R02_b + "TRAJ49/"),
+            (input_R02_a + "TRAJ1/", R02_a_additional_properties),
+            (input_R02_b + "TRAJ49/", R02_b_additional_properties),
         ],
     )
-    def test_nx_direct_R02_single_direct(self, path):
+    def test_nx_direct_R02_single_direct(self, path, add_props):
         # parse trajectory data from Newton-X output files
         traj = NewtonXFormatReader().read_trajectory(path)
         assert traj is not None, f"Failed to load NewtonX trajectory from {path}"
@@ -49,17 +49,17 @@ class TestNewtonX:
         ), f"Loaded NewtonX trajectory from {path} has wrong format: {type(traj)}"
 
         assert verify_trajectory_format(
-            traj, self.asserted_properties_in_trajectory
+            traj, self.asserted_properties_in_trajectory + add_props
         ), f"Resulting trajectory from NewtonX trajectory at {path} does not satisfy the Shnitsel standard format"
 
     @pytest.mark.parametrize(
-        'path',
+        'path, add_props',
         [
-            (input_R02_a + "TRAJ1/"),
-            (input_R02_b + "TRAJ49/"),
+            (input_R02_a + "TRAJ1/", R02_a_additional_properties),
+            (input_R02_b + "TRAJ49/", R02_b_additional_properties),
         ],
     )
-    def test_nx_FormatDetection_R02(self, path):
+    def test_nx_FormatDetection_R02(self, path, add_props):
         # check if the directory has appropriate files
         format_info = NewtonXFormatReader().check_path_for_format_info(path)
         assert (
@@ -70,13 +70,13 @@ class TestNewtonX:
         ), f"Did not correctly detect NewtonX format for {path}"
 
     @pytest.mark.parametrize(
-        'path',
+        'path, add_props',
         [
-            (input_R02_a),
-            (input_R02_b),
+            (input_R02_a, R02_a_additional_properties),
+            (input_R02_b, R02_b_additional_properties),
         ],
     )
-    def test_nx_general_wrapper_with_kind_R02_multiple(self, path):
+    def test_nx_general_wrapper_with_kind_R02_multiple(self, path, add_props):
         # parse multiple trajectory datasets from Newton-X output directories
         traj = read(path, kind="newtonx")
         assert traj is not None, f"Failed to load NewtonX trajectory db from {path}"
@@ -85,36 +85,36 @@ class TestNewtonX:
         ), f"Loaded NewtonX db from {path} has wrong format: {type(traj)}"
 
         assert verify_trajectory_format(
-            traj, self.asserted_properties_in_trajectory
+            traj, self.asserted_properties_in_trajectory + add_props
         ), f"Resulting trajectory db from NewtonX trajectory from {path} does not satisfy the Shnitsel standard format"
 
     @pytest.mark.parametrize(
-        'path',
+        'path, add_props',
         [
-            (input_R02_a + "TRAJ1/"),
-            (input_R02_b + "TRAJ49/"),
+            (input_R02_a + "TRAJ1/", R02_a_additional_properties),
+            (input_R02_b + "TRAJ49/", R02_b_additional_properties),
         ],
     )
-    def test_nx_general_wrapper_with_kind_R02_single(self, path):
+    def test_nx_general_wrapper_with_kind_R02_single(self, path, add_props):
         # parse trajectory data from Newton-X output files
-        traj = read("tutorials/test_data/newtonx/test_R02/TRAJ1", kind="newtonx")
+        traj = read(path, kind="newtonx")
         assert traj is not None, f"Failed to load NewtonX trajectory from {path}"
         assert isinstance(
             traj, Trajectory
         ), f"Loaded NewtonX trajectory from {path} has wrong format: {type(traj)}"
 
         assert verify_trajectory_format(
-            traj, self.asserted_properties_in_trajectory
+            traj, self.asserted_properties_in_trajectory + add_props
         ), f"Resulting trajectory from NewtonX trajectory from {path} does not satisfy the Shnitsel standard format"
 
     @pytest.mark.parametrize(
-        'path',
+        'path, add_props',
         [
-            (input_R02_a + "TRAJ1/"),
-            (input_R02_b + "TRAJ49/"),
+            (input_R02_a + "TRAJ1/", R02_a_additional_properties),
+            (input_R02_b + "TRAJ49/", R02_b_additional_properties),
         ],
     )
-    def test_nx_detected_R02_single(self, path):
+    def test_nx_detected_R02_single(self, path, add_props):
         # parse trajectory data from Newton-X output files
         traj = read(path, kind=None)
         assert traj is not None, f"Failed to load NewtonX trajectory from {path}"
@@ -122,17 +122,17 @@ class TestNewtonX:
             traj, Trajectory
         ), f"Loaded NewtonX trajectory from {path} has wrong format: {type(traj)}"
         assert verify_trajectory_format(
-            traj, self.asserted_properties_in_trajectory
+            traj, self.asserted_properties_in_trajectory + add_props
         ), f"Resulting trajectory from NewtonX trajectory from {path} does not satisfy the Shnitsel standard format"
 
     @pytest.mark.parametrize(
-        'path',
+        'path, add_props',
         [
-            (input_R02_a),
-            (input_R02_b),
+            (input_R02_a, R02_a_additional_properties),
+            (input_R02_b, R02_b_additional_properties),
         ],
     )
-    def test_nx_detected_R02_multi(self, path):
+    def test_nx_detected_R02_multi(self, path, add_props):
         # parse trajectory data from Newton-X output files
         traj = read(path, kind=None)
         assert traj is not None, f"Failed to load NewtonX trajectory from {path}"
@@ -140,17 +140,17 @@ class TestNewtonX:
             traj, ShnitselDB
         ), f"Loaded NewtonX trajectory from {path} has wrong format: {type(traj)}"
         assert verify_trajectory_format(
-            traj, self.asserted_properties_in_trajectory
+            traj, self.asserted_properties_in_trajectory + add_props
         ), f"Resulting trajectory from NewtonX trajectory db from {path} does not satisfy the Shnitsel standard format"
 
     @pytest.mark.parametrize(
-        'path',
+        'path, add_props',
         [
-            (input_R02_a),
-            (input_R02_b),
+            (input_R02_a, R02_a_additional_properties),
+            (input_R02_b, R02_b_additional_properties),
         ],
     )
-    def test_nx_detected_R02_multi_round_trip(self, path):
+    def test_nx_detected_R02_multi_round_trip(self, path, add_props):
         traj = read(path, kind=None)
         assert traj is not None, f"Failed to load NewtonX trajectory from {path}"
         assert isinstance(
