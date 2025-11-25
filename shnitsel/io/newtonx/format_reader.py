@@ -81,15 +81,25 @@ class NewtonXFormatReader(FormatReader):
         )
 
         nx_log_path = path_obj / "RESULTS" / "nx.log"
-        nx_positions_path = path_obj / "RESULTS" / "dyn.xyz"
-        for file in [nx_log_path, nx_positions_path]:
+        nx_dynxyz_path = path_obj / "RESULTS" / "dyn.xyz"
+        nx_dynout_path = path_obj / "RESULTS" / "dyn.out"
+        nx_endat_path = path_obj / "RESULTS" / "en.dat"
+
+        num_hits = 0
+        file_not_found_miss = None
+        for file in [nx_log_path, nx_dynxyz_path, nx_dynout_path, nx_endat_path]:
             if not file.is_file():
                 message = f"Input directory is missing {file}"
                 logging.debug(message)
-                raise FileNotFoundError(message)
+                file_not_found_miss = FileNotFoundError(message)
+            else:
+                num_hits += 1
+
+        if num_hits < 3 and file_not_found_miss is not None:
+            raise file_not_found_miss
 
         format_information = NewtonXFormatInformation(
-            "newtonx", "unkown", None, path_obj, nx_log_path, nx_positions_path
+            "newtonx", "unkown", None, path_obj, nx_log_path, nx_dynxyz_path
         )
 
         # Try and extract a trajectory ID from the path name

@@ -1,6 +1,6 @@
 from io import TextIOWrapper
 import pathlib
-from typing import Dict, NamedTuple, Tuple
+from typing import Any, Dict, NamedTuple, Tuple
 import numpy as np
 from shnitsel.io.shared.trajectory_setup import (
     OptionalTrajectorySettings,
@@ -40,75 +40,120 @@ def parse_newtonx(
 
     path_obj: pathlib.Path = make_uniform_path(traj_path)  # type: ignore
 
-    misc_settings = parse_nx_misc_input_settings(path_obj)
+    misc_settings, newtonx_res = parse_nx_misc_input_settings(path_obj)
+    actual_steps = -1
 
     # TODO: FIXME: Use other available files to read input if nx.log is not available, e.g. RESULTS/dyn.out, RESULTS/dyn.xyz, RESULTS/en.dat From those we can get most information anyway.
     # TODO: FIXME: Read basis from JOB_NAD files
-    with open(path_obj / "RESULTS" / "nx.log") as f:
-        settings = parse_settings_from_nx_log(f)
-        # Add time dimension
-
-        trajectory, default_format_attributes = create_initial_dataset(
-            settings.num_steps,
-            settings.num_states,
-            settings.num_atoms,
-            "newtonx",
-            loading_parameters,
+    # Add time dimension
+    if (
+        newtonx_res.num_states <= 0
+        or newtonx_res.num_atoms <= 0
+        or newtonx_res.num_steps <= 0
+    ):
+        logging.error(
+            "Could not extract trajectory settings like number of atoms, number of states or number of steps."
+        )
+        raise FileNotFoundError(
+            f"Could not find key files like `nx.log` in NewtonX directory:{path_obj}"
         )
 
+    trajectory, default_format_attributes = create_initial_dataset(
+        newtonx_res.num_steps,
+        newtonx_res.num_states,
+        newtonx_res.num_atoms,
+        "newtonx",
+        loading_parameters,
+    )
+
+    nxlog_path = path_obj / "RESULTS" / "nx.log"
+    if nxlog_path.is_file():
+        with open(nxlog_path) as f:
+            # Read several datasets into trajectory and get first indicator of actual performed steps
+            actual_steps, trajectory = parse_nx_log_data(
+                f, trajectory, newtonx_res, default_format_attributes
+            )
+
+            if actual_steps < newtonx_res.num_steps:
+                # Filter only assigned timesteps
+                trajectory.attrs["completed"] = False
+                trajectory = trajectory.isel(time=slice(0, actual_steps))
+            elif actual_steps > newtonx_res.num_steps:
+                raise ValueError(
+                    f"Trajectory data at {path_obj} contained data for {actual_steps} frames, which is more than the initially denoted {newtonx_res.num_steps} frames. Cannot allocate space after the fact."
+                )
+    else:
+        logging.warning(
+            f"Missing {nxlog_path} for input of comprehensive settings, newtonx version and observables like forces and NACs."
+        )
+
+    dyn_xyz_path = path_obj / "RESULTS" / "dyn.xyz"
+    if dyn_xyz_path.is_file():
+        with open(dyn_xyz_path) as f:
+            atNames, atNums, atXYZ = parse_xyz(f)
+            trajectory.atNames.values = atNames
+            mark_variable_assigned(trajectory["atNames"])
+            trajectory.atNums.values = atNums
+            mark_variable_assigned(trajectory["atNums"])
+            trajectory.atXYZ.values = atXYZ
+            mark_variable_assigned(trajectory["atXYZ"])
+    else:
+        logging.info(
+            f"Did not find {dyn_xyz_path} for position, atom names and types input."
+        )
+
+    en_dat_path = path_obj / "RESULTS" / "en.dat"
+
+    if en_dat_path.is_file():
+        try:
+            trajectory = parse_en_data(
+                en_dat_path, trajectory, default_format_attributes
+            )
+
+        except FileNotFoundError:
+            logging.warning(
+                f"Could not read {en_dat_path} for E_kin, times and E_pot<state> input."
+            )
+            pass
+    else:
+        logging.info(
+            f"Did not find {en_dat_path} for E_kin, times and E_pot<state> input."
+        )
+
+    dyn_out_path = path_obj / "RESULTS" / "dyn.out"
+    if dyn_out_path.is_file():
+        with open(dyn_out_path) as f:
+            trajectory = parse_dyn_out(f, trajectory)
+    else:
+        logging.info(f"Did not find {dyn_out_path} for E_kin and velocities input.")
+        pass
+
+    if not is_variable_assigned(trajectory["time"]):
         # Time is not initilized with a variable, hence we need to apply default attributes here.
         trajectory = trajectory.assign_coords(
             {
                 "time": (
                     "time",
-                    np.arange(0, settings.num_steps) * settings.delta_t,
+                    np.arange(0, newtonx_res.num_steps) * newtonx_res.delta_t,
                     default_format_attributes[str("time")],
                 ),
             }
         )
         mark_variable_assigned(trajectory["time"])
 
-        # Read several datasets into trajectory and get first indicator of actual performed steps
-        actual_steps, trajectory = parse_nx_log_data(f, trajectory, settings)
-
-        if actual_steps < settings.num_steps:
-            # Filter only assigned timesteps
-            trajectory.attrs["completed"] = False
-            trajectory = trajectory.isel(time=slice(0, actual_steps))
-        elif actual_steps > settings.num_steps:
-            raise ValueError(
-                f"Trajectory data at {path_obj} contained data for {actual_steps} frames, which is more than the initially denoted {settings.num_steps} frames. Cannot allocate space after the fact."
-            )
-
-    with open(path_obj / "RESULTS" / "dyn.xyz") as f:
-        atNames, atNums, atXYZ = parse_xyz(f)
-
-    trajectory.atNames.values = atNames
-    mark_variable_assigned(trajectory["atNames"])
-    trajectory.atNums.values = atNums
-    mark_variable_assigned(trajectory["atNums"])
-    trajectory.atXYZ.values = atXYZ
-    mark_variable_assigned(trajectory["atXYZ"])
-
-    try:
-        with open(path_obj / "RESULTS" / "dyn.out") as f:
-            trajectory = parse_dyn_out(f, trajectory)
-
-    except FileNotFoundError:
-        logging.info("Did not find RESULTS/dyn.out for E_kin and velocities input.")
-        pass
-
     # Set all settings we require to be present on the trajectory
     # TODO: FIXME: Check if we can actually derive the number of singlets, doublets, or triplets from newtonx output.
     required_settings = RequiredTrajectorySettings(
-        settings.t_max,
-        settings.delta_t,
-        min(settings.num_steps, actual_steps),
-        settings.completed,
+        newtonx_res.t_max,
+        newtonx_res.delta_t,
+        min(newtonx_res.num_steps, actual_steps)
+        if actual_steps > 0
+        else newtonx_res.num_steps,
+        newtonx_res.completed,
         "newtonx",
         "dynamic",
-        settings.newtonx_version,
-        settings.num_states,
+        newtonx_res.newtonx_version,
+        newtonx_res.num_states,
         0,
         0,
     )
@@ -138,14 +183,17 @@ class NewtonXSettingsResult(NamedTuple):
     newtonx_version: str
 
 
-def parse_settings_from_nx_log(f: TextIOWrapper) -> NewtonXSettingsResult:
+def parse_settings_from_nx_log(
+    f: TextIOWrapper,
+) -> Tuple[NewtonXSettingsResult, dict[str, Any]]:
     """Function to parse key settings from the NewtonX RESULTS/nx.log file
 
     Args:
         f (TextIOWrapper): The input stream of lines from nx.log
 
     Returns:
-        NewtonXSettingsResult: Key setting parameters from nx.logs
+        NewtonXSettingsResult: Key setting parameters from nx.log
+        dict[str, Any]: A Dict of all relevant settings loaded from nx.log
     """
     completed = True
     newtonx_version = "unknown"
@@ -202,7 +250,52 @@ def parse_settings_from_nx_log(f: TextIOWrapper) -> NewtonXSettingsResult:
 
     return NewtonXSettingsResult(
         real_tmax, delta_t, nsteps, natoms, nstates, completed, newtonx_version
-    )
+    ), settings
+
+
+def parse_en_data(
+    endata_path: pathlib.Path, dataset: xr.Dataset, default_attributes: dict
+) -> xr.Dataset:
+    """Function to read energy data from en.dat in case the reading from nx.log has not succeeded:
+
+    Args:
+        endata_path (pathlib.Path): Path to a RESULTS/en.dat file
+        dataset (xr.Dataset): The dataset to update
+        default_attributes (dict): Default attributes for the newtonx format
+
+    Returns:
+        xr.Dataset: the updated dataset
+    """
+
+    endata = np.loadtxt(endata_path, ndmin=2)
+
+    times = endata[:, 0]
+    en_tot = endata[:, -1]
+    en_active = endata[:, -2]
+    en_states = endata[:, 1:-2]
+
+    e_kin = en_tot - en_active
+
+    print(default_attributes["time"])
+
+    if not is_variable_assigned(dataset["time"]):
+        dataset = dataset.assign_coords(
+            {
+                "time": (
+                    "time",
+                    times,
+                    default_attributes["time"],
+                ),
+            }
+        )
+        mark_variable_assigned(dataset["time"])
+    if not is_variable_assigned(dataset["energy"]):
+        dataset["energy"].values = en_states
+        mark_variable_assigned(dataset["energy"])
+    if not is_variable_assigned(dataset["e_kin"]):
+        dataset["e_kin"].values = e_kin
+        mark_variable_assigned(dataset["e_kin"])
+    return dataset
 
 
 def parse_dyn_out(f: TextIOWrapper, dataset: xr.Dataset) -> xr.Dataset:
@@ -259,7 +352,7 @@ def parse_dyn_out(f: TextIOWrapper, dataset: xr.Dataset) -> xr.Dataset:
             parts = stripline.split()
             # Figure out current time step
             ts = int(parts[1].strip())
-            logging.debug(f"Starting ts {ts}")
+            # logging.debug(f"Starting ts {ts}")
 
         elif stripline.find("geometry:") > 0:
             has_positions = True
@@ -288,21 +381,30 @@ def parse_dyn_out(f: TextIOWrapper, dataset: xr.Dataset) -> xr.Dataset:
     if has_epot:
         logging.info("Currently, the E_pot from dyn.out is unused")
         pass
-    if has_ekin:
+    if has_ekin and not is_variable_assigned(dataset["e_kin"]):
         dataset.e_kin.values = tmp_e_kin
         mark_variable_assigned(dataset["e_kin"])
-    if has_velocities:
+
+    if has_velocities and not is_variable_assigned(dataset["velocities"]):
         dataset.velocities.values = tmp_velocities_in_au
         mark_variable_assigned(dataset["velocities"])
-    if has_positions:
-        logging.info("Currently, the positions from dyn.out are unused")
-        pass
+
+    if has_positions and not is_variable_assigned(dataset["atXYZ"]):
+        # If no other option to set positions has been used, use this source
+        from shnitsel.units.definitions import length
+
+        dataset["atXYZ"].values = tmp_pos_in_bohr
+        dataset["atXYZ"].attrs["unit"] = length.Bohr
+        mark_variable_assigned(dataset["atXYZ"])
 
     return dataset
 
 
 def parse_nx_log_data(
-    f: TextIOWrapper, dataset: xr.Dataset, settings: NewtonXSettingsResult
+    f: TextIOWrapper,
+    dataset: xr.Dataset,
+    settings: NewtonXSettingsResult,
+    default_attributes: dict,
 ) -> Tuple[int, xr.Dataset]:  # Tuple[int, xr.Dataset]:
     """Function to parse the nx.log data into a dataset from the input stream f.
 
@@ -312,6 +414,7 @@ def parse_nx_log_data(
     Args:
         f (TextIOWrapper): Input filestream of a nx.log file
         dataset (xr.Dataset): The dataset to parse the data into
+        default_attributes (dict): Default attributes for the newtonx format
 
     Returns:
         Tuple[int, xr.Dataset]: The total number of actual timesteps read and the resulting dataset after applying modifications.
@@ -375,7 +478,7 @@ def parse_nx_log_data(
             tmp_full_nacs[ts] = tmp_nacs
 
             actual_max_ts = max(actual_max_ts, ts)
-            logging.debug(f"finished ts {ts}")
+            # logging.debug(f"finished ts {ts}")
 
         elif stripline.startswith("Gradient vectors"):
             for iatom in range(natoms):
@@ -409,8 +512,11 @@ def parse_nx_log_data(
     mark_variable_assigned(dataset["energy"])
     dataset.nacs.values = tmp_full_nacs
     mark_variable_assigned(dataset["nacs"])
-    dataset = dataset.assign_coords({"time": ("time", tmp_times, dataset.time.attrs)})
-    mark_variable_assigned(dataset["time"])
+    if not is_variable_assigned(dataset["time"]):
+        dataset = dataset.assign_coords(
+            {"time": ("time", tmp_times, default_attributes["time"])}
+        )
+        mark_variable_assigned(dataset["time"])
 
     return actual_max_ts + 1, dataset  # , dataset
 
@@ -450,17 +556,29 @@ def parse_nx_log_data(
     # )
 
 
-def parse_nx_misc_input_settings(path: pathlib.Path) -> Dict:
+def parse_nx_misc_input_settings(
+    path: pathlib.Path,
+) -> tuple[dict, NewtonXSettingsResult]:
     """Function to parse various input settings from the newtonx trajectory directory.
 
     Args:
         path (pathlib.Path): The path of the base trajectory folder. Should Contain `RESULTS`, `control.dyn` and either `JOB_AD` or `JOB_NAD`
 
     Returns:
-        Dict: The collected miscallenous settings
+        Dict: The collected miscallenous settings. For specific settings, the keys "nx.log", "control.dyn"
+            allow for searching through specific settings if the files were present.
+        NewtonXSettingsResult: The combined key settings if they could be extracted.
     """
 
     res = {}
+
+    extracted_dt = -1.0
+    extracted_tmax = -1.0
+    extracted_nsteps = -1
+    extracted_natoms = -1
+    extracted_nstates = -1
+    extracted_completed = False
+    extracted_newtonx_version = "unknown"
 
     control_dyn_path = path / "control.dyn"
     if control_dyn_path.is_file():
@@ -491,9 +609,63 @@ def parse_nx_misc_input_settings(path: pathlib.Path) -> Dict:
 
         res["control.dyn"] = control_dyn_settings
 
-    results_path_log = path / "RESULTS" / "nx.log"
+    endata_path = path / "RESULTS" / "en.dat"
 
+    if endata_path.is_file():
+        endata_res = np.loadtxt(endata_path, ndmin=2)
+
+        if endata_res is not None and len(endata_res) > 0:
+            times = endata_res[:, 0]
+            extracted_nsteps = max(extracted_nsteps, endata_res.shape[0])
+            extracted_tmax = max(extracted_tmax, np.max(times))
+            extracted_dt = times[1] - times[0]
+            extracted_nstates = (
+                endata_res.shape[1] - 3
+            )  # No times, active energy and total energy
+
+    dyn_xyz_path = path / "RESULTS" / "dyn.xyz"
+    if dyn_xyz_path.is_file():
+        with open(dyn_xyz_path) as f:
+            while len((line := f.readline()).strip()) == 0:
+                pass
+
+            # Number of atoms on first line
+            extracted_natoms = int(line)
+
+    veloc_path = path / "veloc"
+    if veloc_path.is_file():
+        veloc_data = np.loadtxt(veloc_path, ndmin=2)
+        # Number of atoms on first line
+        extracted_natoms = veloc_data.shape[0]
+
+    # TODO: FIXME: Add input parsing from QM directories?
     jobnad_path = path / "JOB_NAD"
     jobad_path = path / "JOB_AD"
 
-    return res
+    results_path_log = path / "RESULTS" / "nx.log"
+    if results_path_log.is_file():
+        with open(results_path_log) as f:
+            newtonx_res, misc_settings = parse_settings_from_nx_log(f)
+            res["nx.log"] = misc_settings
+
+            extracted_dt = newtonx_res.delta_t
+            extracted_tmax = max(extracted_nsteps, newtonx_res.t_max)
+            extracted_nsteps = max(extracted_nsteps, newtonx_res.num_steps)
+            extracted_natoms = newtonx_res.num_atoms
+            extracted_nstates = newtonx_res.num_states
+            extracted_completed = newtonx_res.completed
+            extracted_newtonx_version = newtonx_res.newtonx_version
+    else:
+        logging.warning(
+            f"The NewtonX log file at {results_path_log} is missing. Key settings, gradients, NACs, etc. will not be extracted."
+        )
+
+    return res, NewtonXSettingsResult(
+        extracted_tmax,
+        extracted_dt,
+        extracted_nsteps,
+        extracted_natoms,
+        extracted_nstates,
+        extracted_completed,
+        extracted_newtonx_version,
+    )
