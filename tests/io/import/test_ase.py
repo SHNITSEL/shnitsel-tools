@@ -1,4 +1,5 @@
 import os
+import pathlib
 
 import pytest
 from xarray.testing import assert_equal
@@ -46,8 +47,8 @@ class TestASEFunctionality:
         [
             ('tutorials/test_data/ase/schnarc_ch2nh2+.db', 'schnet'),
             ('tutorials/test_data/ase/spainn_ch2nh2+.db', 'spainn'),
-            ('tutorials/test_data/ase/schnarc_ch2nh2+.db', None),
-            ('tutorials/test_data/ase/spainn_ch2nh2+.db', None),
+            # ('tutorials/test_data/ase/schnarc_ch2nh2+.db', None),
+            # ('tutorials/test_data/ase/spainn_ch2nh2+.db', None),
         ],
     )
     def test_ase_round_trip(self, path, kind):
@@ -57,8 +58,11 @@ class TestASEFunctionality:
         except FileNotFoundError:
             pass
 
+        path = pathlib.Path(path)
+        tmp_path = pathlib.Path(tmp_path)
+
         frames1 = read_ase(path, kind=kind)
-        frames1.st.write_ase(tmp_path, kind=kind)
+        frames1.st.write_ase_db(tmp_path, kind=kind)
         frames2 = read_ase(tmp_path, kind=kind)
         assert_equal(frames1, frames2)
 

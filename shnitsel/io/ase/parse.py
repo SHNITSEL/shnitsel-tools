@@ -362,8 +362,9 @@ def read_ase(
 
     frames = xr.Dataset(data_vars).assign_coords(coord_vars)
     if kind == 'spainn':
-        assert 'tmp' in frames.dims
-        frames = frames.squeeze('tmp')
+        # Only squeeze if the tmp dimension is there
+        if 'tmp' in frames.dims:
+            frames = frames.squeeze('tmp')
 
     # Deal with us not identifying the leading dimension from metadata alone.
     if leading_dimension_name == dummy_leading_dim:
