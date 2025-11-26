@@ -168,10 +168,12 @@ def _collect_metadata(traj: Trajectory, keys_to_write: Iterable[str]) -> dict[st
     midx_names = []
     for name, index in traj.indexes.items():
         if index.name == name and len(index.names) > 1:
+            if len(midx_names) == 0:
+                metadata["__multi_indices"] = {}
             midx_names.append(name)
             midx_levels = list(index.names)
-            traj.attrs[f'_MultiIndex_levels_for_{name}'] = midx_levels
-    traj.attrs['_MultiIndex_levels_from_attrs'] = 1
+            metadata["__multi_indices"][f'_MultiIndex_levels_for_{name}'] = midx_levels
+    metadata['_MultiIndex_levels_from_attrs'] = 1
 
     return metadata
 
@@ -216,11 +218,11 @@ def write_ase_db(
 
     statedims = ['state', 'statecomb', 'state_or_statecomb']
     if db_format == 'schnet':
-        order = ['frame', *statedims, 'atom', 'direction']
+        order = [leading_dim_name, *statedims, 'atom', 'direction']
         traj = traj.transpose(*order, missing_dims='ignore')
     elif db_format == 'spainn':
         traj['energy'] = traj['energy'].expand_dims('tmp', axis=1)
-        order = ['frame', 'tmp', 'atom', *statedims, 'direction']
+        order = [leading_dim_name, 'tmp', 'atom', *statedims, 'direction']
         traj = traj.transpose(*order, missing_dims='ignore')
     elif db_format is None:
         # leave the axis orders as they are
@@ -248,6 +250,8 @@ def write_ase_db(
         meta_dict['n_steps'] = traj.sizes[leading_dim_name]
         if db_format is not None:
             meta_dict["db_format"] = db_format
+
+        meta_dict['shnitsel_leading_dim'] = leading_dim_name
 
         db.metadata = meta_dict
 
