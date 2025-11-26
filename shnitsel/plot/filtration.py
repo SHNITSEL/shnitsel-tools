@@ -99,6 +99,15 @@ def check_thresholds(ds_or_da, quantiles=None):
 
 def validity_populations(ds, intersections=True):
     mask = cum_mask_from_dataset(ds)
+    if 'thresholds' in mask.coords:
+        mask = mask.drop('thresholds')
+    if 'good_throughout' in mask.coords:
+        mask = mask.drop('good_throughout')
+    mask = (
+        mask.to_dataset('criterion')
+        .assign({'total_population': mask.coords['is_frame']})
+        .to_dataarray('criterion')
+    )
     counts = mask.sum('trajid')
     means = counts.mean('time')
     if intersections:
