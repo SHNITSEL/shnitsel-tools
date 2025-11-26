@@ -75,32 +75,6 @@ def cum_mask_from_dataset(ds: Stacked | Unstacked) -> Unstacked:
     return mask.cumprod('time').astype(bool)
 
 
-# def stacked_cum_mask_from_filtranda(filtranda):
-#     if not is_stacked(filtranda):
-#         raise NotImplementedError()
-
-# def stacked_cum_mask_from_cutoffs(cutoffs):
-#     if not is_stacked(cutoffs):
-#         raise NotImplementedError()
-
-
-# def stacked_cum_mask_from_dataset(ds):
-#     if 'is_good_frame' in ds:
-#         mask = ensure_stacked(ds['is_good_frame'])
-#     elif 'good_upto' in ds:
-#         if is_stacked(ds):
-#             cutoffs = (
-#                 ds['good_upto'].sel(trajid_=ds.coords['trajid']).drop_vars('trajid_')
-#             )
-#             return ds.coords['time'] < cutoffs
-#         else:
-#             raise NotImplementedError()
-#     elif 'filtranda' in ds:
-#         return stacked_cum_mask_from_filtranda(ds['filtranda'])
-
-#     return mask.cumprod('time').astype(bool)
-
-
 def assign_mask(ds):
     "Does not change stacked status"
     mask = cum_mask_from_dataset(ds)
@@ -320,7 +294,3 @@ def cum_max_quantiles(obj, quantiles=None):
 
     cum_max = da.copy(data=np.maximum.accumulate(da.data, axis=time_axis))
     return cum_max.quantile(quantiles, 'trajid')
-
-
-# For validity_populations
-def validity_populations(ds, intersections=False): ...
