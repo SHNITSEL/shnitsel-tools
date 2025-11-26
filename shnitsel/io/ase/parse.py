@@ -9,6 +9,11 @@ import xarray as xr
 
 from shnitsel.data.trajectory_format import Trajectory
 from shnitsel.io.helpers import LoadingParameters
+from shnitsel.io.shared.trajectory_setup import (
+    RequiredTrajectorySettings,
+    assign_required_settings,
+)
+from shnitsel.io.shared.variable_flagging import mark_variable_assigned
 from shnitsel.units.defaults import get_default_input_attributes
 from shnitsel.io.helpers import get_atom_number_from_symbol
 
@@ -130,7 +135,7 @@ def shapes_from_metadata(
 
 
 def apply_dataset_meta_from_db_metadata(
-    dataset: Trajectory, db_meta: dict
+    dataset: Trajectory, db_meta: dict, default_attrs: dict
 ) -> Trajectory:
     """Apply attributes from db metadata and perform some validation checks on the result.
 
@@ -141,6 +146,7 @@ def apply_dataset_meta_from_db_metadata(
     Args:
         dataset (Trajectory): Trajectory dataset parsed from ASE db
         db_meta (dict): Metadata from the trajectory db file
+        default_attrs (dict): Attributes to apply to variables by default
 
     Returns:
         Trajectory: Dataset with attributes set from from db metadata and dimension sizes asserted
@@ -153,6 +159,7 @@ def apply_dataset_meta_from_db_metadata(
                 dataset = dataset.assign_coords(
                     {coordname: (coorddict["dims"], coorddict["values"])}
                 )
+                mark_variable_assigned(dataset[coordname])
 
     # Potentially reconstruct multiindex levels
     if (
@@ -174,13 +181,124 @@ def apply_dataset_meta_from_db_metadata(
                 if varname == "dipoles" and (
                     "dip_perm" in dataset or "dip_trans" in dataset
                 ):
-                    # Dipoles should have been split back up
+                    # Dipoles should have been split back up and the names should be updated accordingly
                     if "dip_perm" in dataset:
                         dataset["dip_perm"].attrs.update(var_attrs)
+                        if "dip_perm" in default_attrs:
+                            dataset["dip_perm"]["long_name"] = default_attrs[
+                                "dip_perm"
+                            ]["long_name"]
                     if "dip_trans" in dataset:
                         dataset["dip_trans"].attrs.update(var_attrs)
+                        if "dip_trans" in default_attrs:
+                            dataset["dip_trans"]["long_name"] = default_attrs[
+                                "dip_trans"
+                            ]["long_name"]
                 else:
                     dataset[varname].attrs.update(var_attrs)
+
+    if "_distance_unit" in db_meta:
+        if "atXYZ" in dataset and "unit" not in dataset["atXYZ"].attrs:
+            dataset["atXYZ"].attrs["unit"] = db_meta["_distance_unit"]
+
+    if "_property_unit_dict" in db_meta:
+        unit_dict = db_meta["_property_unit_dict"]
+
+        for varname, unit in unit_dict.items():
+            if varname == "dipoles":
+                if "dip_perm" in dataset and "unit" not in dataset["dip_perm"].attrs:
+                    dataset["dip_perm"].attrs["unit"] = unit
+                if "dip_trans" in dataset and "unit" not in dataset["dip_trans"].attrs:
+                    dataset["dip_trans"].attrs["unit"] = unit
+            else:
+                if varname in dataset and "unit" not in dataset[varname].attrs:
+                    dataset[varname].attrs["unit"] = unit
+
+    delta_t = dataset.attrs["delta_t"] if "delta_t" in dataset.attrs else None
+    if delta_t is None:
+        # Try and extract from time info
+        if "time" in dataset:
+            diff_t = list(set(dataset["time"].values))
+            diff_t = sorted(diff_t)
+            delta_t = diff_t[1] - diff_t[0]
+        else:
+            delta_t = -1
+
+    num_singlets = (
+        dataset.attrs["num_singlets"]
+        if "num_singlets" in dataset.attrs
+        else db_meta["n_singlets"]
+        if "n_singlets" in db_meta
+        else 0
+    )
+    num_doublets = (
+        dataset.attrs["num_doublets"]
+        if "num_doublets" in dataset.attrs
+        else db_meta["n_doublets"]
+        if "n_doublets" in db_meta
+        else 0
+    )
+    num_triplets = (
+        dataset.attrs["num_triplets"]
+        if "num_triplets" in dataset.attrs
+        else db_meta["n_triplets"]
+        if "n_triplets" in db_meta
+        else 0
+    )
+
+    # miscallaneous properties:
+    extract_settings = RequiredTrajectorySettings(
+        t_max=dataset.attrs["t_max"] if "t_max" in dataset.attrs else -1,
+        delta_t=delta_t,
+        max_ts=dataset.attrs["max_ts"]
+        if "max_ts" in dataset.attrs
+        else (
+            dataset.sizes["time"]
+            if "time" in dataset.sizes
+            else dataset.sizes["frame"]
+            if "frame" in dataset.sizes
+            else 0
+        ),
+        completed=dataset.attrs["completed"] if "completed" in dataset.attrs else False,
+        input_format=dataset.attrs["input_format"]
+        if "input_format" in dataset.attrs
+        else "ase",
+        input_type=dataset.attrs["input_type"]
+        if "input_type" in dataset.attrs
+        else "unknown",
+        input_format_version=dataset.attrs["input_format_version"]
+        if "input_format_version" in dataset.attrs
+        else "unknown",
+        num_singlets=num_singlets,
+        num_doublets=num_doublets,
+        num_triplets=num_triplets,
+    )
+
+    assign_required_settings(dataset, extract_settings)
+
+    if "state_names" not in dataset or "state_types" not in dataset:
+        if "states" in db_meta:
+            state_name_data = np.array(str(db_meta["states"]).split(), dtype='U8')
+            state_type_data = np.array(
+                [
+                    1
+                    if x.startswith("S")
+                    else 2
+                    if x.startswith("D")
+                    else 3
+                    if x.startswith("T")
+                    else -1
+                    for x in state_name_data
+                ]
+            )
+
+            dataset = dataset.assign_coords(
+                state_types=(["state"], state_type_data, default_attrs["state_types"]),
+                state_names=(["state"], state_name_data, default_attrs["state_names"]),
+            )
+
+            mark_variable_assigned(dataset["state_types"])
+            mark_variable_assigned(dataset["state_names"])
 
     # Set trajectory-level attributes
     if "misc_attrs" in db_meta:
@@ -244,8 +362,8 @@ def read_ase(
         data_vars = {}
         coord_vars = {}
         found_rows = 0
-        available_varnames = next(db.select()).data.keys()
-        print(available_varnames)
+        # available_varnames = next(db.select()).data.keys()
+        # print(available_varnames)
 
         tmp_data_in = {
             "atXYZ": [],
@@ -295,6 +413,10 @@ def read_ase(
     for k, v in tmp_data_in.items():
         data_array = np.stack(v)
         if k in shapes:
+            if str(k) == "socs":
+                raise ValueError(
+                    f"Read variable {k} with shape: {shapes[k]} and numpy shape: {data_array.shape}"
+                )
             data_vars[k] = (
                 shapes[k],
                 data_array,
@@ -361,10 +483,21 @@ def read_ase(
         )
 
     frames = xr.Dataset(data_vars).assign_coords(coord_vars)
+
+    # Set flags to mark as assigned
+    for k in coord_vars.keys():
+        mark_variable_assigned(frames[k])
+    for k in data_vars.keys():
+        mark_variable_assigned(frames[k])
+
     if kind == 'spainn':
         # Only squeeze if the tmp dimension is there
         if 'tmp' in frames.dims:
             frames = frames.squeeze('tmp')
+        else:
+            logging.warning(
+                f"Input of type `spainn` did not yield a `tmp` dimension, indicating missing energy. Input file {db_path} may be malformed."
+            )
 
     # Deal with us not identifying the leading dimension from metadata alone.
     if leading_dimension_name == dummy_leading_dim:
@@ -380,4 +513,17 @@ def read_ase(
                 {leading_dimension_name: leading_dimension_rename_target}
             )
 
-    return apply_dataset_meta_from_db_metadata(frames, metadata)
+    frames = apply_dataset_meta_from_db_metadata(frames, metadata, ase_default_attrs)
+
+    # Order dimensions in default shnitsel order
+    shnitsel_default_order = [
+        "frame",
+        "trajid",
+        "time",
+        "state",
+        "statecomb",
+        "atom",
+        "direction",
+    ]
+    frames = frames.transpose(*shnitsel_default_order, missing_dims="ignore")
+    return frames
