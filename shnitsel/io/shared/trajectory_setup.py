@@ -20,7 +20,7 @@ class RequiredTrajectorySettings:
     max_ts: int
     completed: bool
     input_format: Literal["sharc", "newtonx", "ase", "pyrai2md"]
-    input_type: Literal['static', 'dynamic']
+    input_type: Literal['static', 'dynamic', 'unknown']
     input_format_version: str
 
     num_singlets: int
@@ -109,6 +109,8 @@ def create_initial_dataset(
         # "dip_all": ["time", "state", "state2", "direction"],
         "dip_perm": ["time", "state", "direction"],
         "dip_trans": ["time", "statecomb", "direction"],
+        # TODO: FIXME: We need to fix the SOC to be a state x state matrix as it is not necessarily hermitean
+        # "socs": ["time", "state", "state2"],
         "socs": ["time", "statecomb"],
         "state_names": ["state"],
         "state_types": ["state"],
@@ -130,7 +132,7 @@ def create_initial_dataset(
         # "dip_all": np.nan,
         "dip_perm": np.nan,
         "dip_trans": np.nan,
-        "socs": np.nan+0j,
+        "socs": np.nan + 0j,
         "state_names": "",
         "state_types": 0,
         "state_charges": 0,
@@ -140,7 +142,7 @@ def create_initial_dataset(
         "atNames": "",
         "atNums": -1,
     }
-    
+
     default_float_type = np.dtypes.Float32DType
     default_string_type = 'U8'
 
