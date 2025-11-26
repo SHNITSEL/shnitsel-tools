@@ -105,10 +105,13 @@ def shapes_from_metadata(
         shapes = schnet_shapes
     elif kind == 'spainn':
         shapes = spainn_shapes
-    # elif kind is None:
-    #     shapes = {}
+    elif kind is None:
+        shapes = {}
+        logging.warning(
+            "Correct format could not be extracted from the database metadata. No dimension names assigned"
+        )
     else:
-        raise ValueError(f"'kind' should be one of 'schnet' or 'spainn', not '{kind}'. Correct format could not be extracted from the database metadata.")
+        raise ValueError(f"'kind' should be one of 'schnet' or 'spainn', not '{kind}'.")
 
     # Read further shape data from the database
     if "var_meta" in db_meta:
@@ -168,10 +171,14 @@ def apply_dataset_meta_from_db_metadata(
         for varname, vardict in vars_dict.items():
             if "attrs" in vardict:
                 var_attrs = vardict["attrs"]
-                if varname == "dipoles":
+                if varname == "dipoles" and (
+                    "dip_perm" in dataset or "dip_trans" in dataset
+                ):
                     # Dipoles should have been split back up
-                    dataset["dip_perm"].attrs.update(var_attrs)
-                    dataset["dip_trans"].attrs.update(var_attrs)
+                    if "dip_perm" in dataset:
+                        dataset["dip_perm"].attrs.update(var_attrs)
+                    if "dip_trans" in dataset:
+                        dataset["dip_trans"].attrs.update(var_attrs)
                 else:
                     dataset[varname].attrs.update(var_attrs)
 
@@ -317,6 +324,8 @@ def read_ase(
                     data_array,
                     (ase_default_attrs[k] if k in ase_default_attrs else None),
                 )
+        else:
+            logging.warning(f"Dropping data entry {k} due to missing shape information")
 
         # atXYZ = np.stack([row.positions for row in db.select()])
         # data_vars['atXYZ'] = ['frame', 'atom', 'direction'], atXYZ
@@ -331,9 +340,10 @@ def read_ase(
 
     if nstates < 0:
         logging.debug("Extracting number of states from shape of energy array")
-        nstates = data_vars['energy'][1].shape[1]
+        if "energy" in data_vars:
+            nstates = data_vars['energy'][1].shape[1]
 
-    if 'dipoles' in data_vars:
+    if 'dipoles' in data_vars and nstates > 0:
         dipoles = data_vars['dipoles'][1]
         dip_perm = dipoles[:, :nstates, :]
         dip_trans = dipoles[:, nstates:, :]
@@ -355,15 +365,18 @@ def read_ase(
         assert 'tmp' in frames.dims
         frames = frames.squeeze('tmp')
 
+    # Deal with us not identifying the leading dimension from metadata alone.
     if leading_dimension_name == dummy_leading_dim:
-        if leading_dimension_rename_target is None:
-            if "time" in coord_vars and "trajid" not in coord_vars:
-                leading_dimension_rename_target = "time"
-            else:
-                leading_dimension_rename_target = "frame"
+        # Only rename if a variable with the dimension was created. Otherwise an error would trigger in rename
+        if leading_dimension_name in frames.dims:
+            if leading_dimension_rename_target is None:
+                if "time" in coord_vars and "trajid" not in coord_vars:
+                    leading_dimension_rename_target = "time"
+                else:
+                    leading_dimension_rename_target = "frame"
 
-        frames = frames.rename(
-            {leading_dimension_name: leading_dimension_rename_target}
-        )
+            frames = frames.rename(
+                {leading_dimension_name: leading_dimension_rename_target}
+            )
 
     return apply_dataset_meta_from_db_metadata(frames, metadata)
