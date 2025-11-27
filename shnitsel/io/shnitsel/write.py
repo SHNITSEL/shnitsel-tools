@@ -43,7 +43,7 @@ class NumpyDataEncoder(json.JSONEncoder):
 
 
 def ndarray_to_json_ser(value):
-    return {"__ndarray:": {"entries": value.tolist(), "dtype": value.dtype.descr}}
+    return {"__ndarray": {"entries": value.tolist(), "dtype": value.dtype.descr}}
 
 
 def _prepare_datatree(node: xr.DataTree) -> xr.DataTree:
@@ -97,9 +97,6 @@ def _prepare_dataset(dataset: xr.Dataset) -> xr.Dataset:
             midx_levels = list(index.names)
             cleaned_ds.attrs[f'_MultiIndex_levels_for_{name}'] = midx_levels
     cleaned_ds.attrs['_MultiIndex_levels_from_attrs'] = 1
-
-    def ndarray_to_json_ser(value):
-        return {"__ndarray:": {"entries": value.tolist(), "dtype": value.dtype.descr}}
 
     remove_attrs = []
 
