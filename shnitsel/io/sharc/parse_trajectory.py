@@ -606,7 +606,7 @@ def parse_trajout_dat(
                     socs_assigned = True
 
                     for jstate in range(nstates):
-                        if istate != jstate:
+                        if istate == jstate:
                             continue
 
                         # State id and state index off by one
