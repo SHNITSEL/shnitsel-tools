@@ -70,7 +70,7 @@ shnitsel
 │   │   ├── structure.py
 │   │   └── time.py
 │   ├── filter_unphysical.py
-│   ├── filtre.py
+│   ├── filtration.py
 │   ├── indexes.py
 │   ├── __init__.py
 │   ├── parse

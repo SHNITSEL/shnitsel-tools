@@ -3,14 +3,15 @@ from math import sqrt, ceil
 import numpy as np
 import py3Dmol
 import xarray as xr
-from .. import postprocess as P
-from ..._contracts import needs
+
+from shnitsel.bridges import to_xyz, traj_to_xyz
+from shnitsel._contracts import needs
 
 
 @needs(coords_or_vars={'atNames'}, dims={'atom', 'direction'}, not_dims={'frame'})
 def frame3D(atXYZ_frame: str | xr.DataArray):
     if isinstance(atXYZ_frame, xr.DataArray):
-        atXYZ_frame = P.to_xyz(atXYZ_frame)
+        atXYZ_frame = to_xyz(atXYZ_frame)
     view = py3Dmol.view()
     view.addModel(atXYZ_frame)
 
@@ -28,7 +29,7 @@ def frames3Dgrid(atXYZ: xr.DataArray):
     for i, (label, frameXYZ) in enumerate(atXYZ.groupby('frame')):
         if 'frame' in frameXYZ.dims:
             frameXYZ = frameXYZ.squeeze('frame')
-        data = frameXYZ.pipe(P.to_xyz)
+        data = frameXYZ.pipe(to_xyz)
         viewer = (i // n, i % n)
         view.addModel(data, viewer=viewer)
         view.addLabel(
@@ -49,7 +50,7 @@ def frames3Dgrid(atXYZ: xr.DataArray):
 @needs(groupable={'time'}, dims={'atom', 'direction'}, coords_or_vars={'atNames'})
 def traj3D(traj: str | xr.DataArray):
     if isinstance(traj, xr.DataArray):
-        traj = P.traj_to_xyz(traj)
+        traj = traj_to_xyz(traj)
     view = py3Dmol.view()
     view.addModelsAsFrames(traj)
 
@@ -76,7 +77,7 @@ def trajs3Dgrid(
     view = py3Dmol.view(viewergrid=(n, n), width=1000, height=800, linked=True)
 
     for i, trajid in enumerate(trajids):
-        data = atXYZ.sel(trajid=trajid).pipe(P.traj_to_xyz)
+        data = atXYZ.sel(trajid=trajid).pipe(traj_to_xyz)
         viewer = (i // n, i % n)
         view.addModelsAsFrames(data, viewer=viewer)
         view.addLabel(

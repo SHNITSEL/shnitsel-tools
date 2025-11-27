@@ -12,15 +12,19 @@ from ._accessors import DAManualAccessor, DSManualAccessor
 from ._contracts import needs
 from numpy import ndarray
 from rdkit.Chem.rdchem import Mol
-from shnitsel.core.filtre import energy_filtranda, get_cutoffs, last_time_where, truncate
-from shnitsel.core.geom import get_bats, get_bond_angles, get_bond_lengths, get_bond_torsions, get_pyramids, kabsch
+from shnitsel.bridges import default_mol, smiles_map, to_mol, to_xyz, traj_to_xyz
+from shnitsel.core.convenience import pairwise_dists_pca, pca_and_hops, validate
+from shnitsel.core.filtration import energy_filtranda, get_cutoffs, last_time_where, truncate
+from shnitsel.core.generic import keep_norming, norm, subtract_combinations
+from shnitsel.core.geom import angle, dihedral, distance, get_bats, get_bond_angles, get_bond_lengths, get_bond_torsions, get_pyramids, kabsch
+from shnitsel.core.midx import DatasetOrArray, assign_levels, expand_midx, flatten_levels, mdiff, mgroupby, msel, sel_trajids, sel_trajs, stack_trajs, unstack_trajs
 from shnitsel.core.ml import lda, pca, pls, pls_ds
 from shnitsel.core.plot.p3mhelpers import frame3D, frames3Dgrid, traj3D, trajs3Dgrid
 from shnitsel.core.plot.select import FrameSelector, TrajSelector
-from shnitsel.core.plot.spectra3d import spectra_all_times
-from shnitsel.core.postprocess import angle, assign_fosc, calc_ci, calc_pops, default_mol, dihedral, distance, ds_broaden_gauss, find_hops, get_hop_types, get_inter_state, get_per_state, hop_indices, keep_norming, norm, pairwise_dists_pca, pca_and_hops, relativize, setup_frames, smiles_map, subtract_combinations, sudi, time_grouped_ci, to_mol, to_xyz, traj_to_xyz, trajs_with_hops, ts_to_time, validate
+from shnitsel.core.populations import classical
+from shnitsel.core.spectra import assign_fosc, ds_broaden_gauss, spectra_all_times
+from shnitsel.core.stats import calc_ci, get_inter_state, get_per_state, time_grouped_ci
 from shnitsel.core.vmd import traj_vmd
-from shnitsel.core.xrhelpers import DatasetOrArray, assign_levels, expand_midx, flatten_levels, mgroupby, msel, sel_trajids, sel_trajs, stack_trajs, unstack_trajs
 from shnitsel.io.ase.write import write_ase_db
 from shnitsel.io.sharc.parse_initial_conditions import iconds_to_frames
 from shnitsel.io.shnitsel.write import write_shnitsel_file
@@ -35,24 +39,15 @@ class DataArrayAccessor(DAManualAccessor):
     _methods = [
         'norm',
         'subtract_combinations',
-        'pairwise_dists_pca',
-        'sudi',
-        'hop_indices',
-        'relativize',
-        'ts_to_time',
         'keep_norming',
         'calc_ci',
         'time_grouped_ci',
         'to_xyz',
         'traj_to_xyz',
-        'dihedral',
-        'angle',
-        'distance',
-        'trajs_with_hops',
-        'get_hop_types',
         'to_mol',
         'smiles_map',
         'default_mol',
+        'pairwise_dists_pca',
         'convert_energy',
         'convert_force',
         'convert_dipole',
@@ -60,6 +55,7 @@ class DataArrayAccessor(DAManualAccessor):
         'convert_time',
         'convert_nacs',
         'convert_time',
+        'mdiff',
         'flatten_levels',
         'expand_midx',
         'assign_levels',
@@ -68,6 +64,9 @@ class DataArrayAccessor(DAManualAccessor):
         'sel_trajs',
         'sel_trajids',
         'last_time_where',
+        'dihedral',
+        'angle',
+        'distance',
         'get_bond_lengths',
         'get_bond_angles',
         'get_bond_torsions',
@@ -87,95 +86,54 @@ class DataArrayAccessor(DAManualAccessor):
     ]
 
     def norm(self, dim: Hashable='direction', keep_attrs: bool | str | None=None) -> DataArray:
-        """Wrapper for :py:func:`shnitsel.core.postprocess.norm`."""
+        """Wrapper for :py:func:`shnitsel.core.generic.norm`."""
         return norm(self._obj, dim=dim, keep_attrs=keep_attrs)
 
     def subtract_combinations(self, dim: Hashable, labels: bool=False) -> DataArray:
-        """Wrapper for :py:func:`shnitsel.core.postprocess.subtract_combinations`."""
+        """Wrapper for :py:func:`shnitsel.core.generic.subtract_combinations`."""
         return subtract_combinations(self._obj, dim, labels=labels)
 
-    @needs(dims={'atom'})
-    def pairwise_dists_pca(self, **kwargs) -> DataArray:
-        """Wrapper for :py:func:`shnitsel.core.postprocess.pairwise_dists_pca`."""
-        return pairwise_dists_pca(self._obj, **kwargs)
-
-    @needs(dims={'frame'})
-    def sudi(self) -> DataArray:
-        """Wrapper for :py:func:`shnitsel.core.postprocess.sudi`."""
-        return sudi(self._obj)
-
-    def hop_indices(self) -> DataArray:
-        """Wrapper for :py:func:`shnitsel.core.postprocess.hop_indices`."""
-        return hop_indices(self._obj)
-
-    def relativize(self, **sel) -> DataArray:
-        """Wrapper for :py:func:`shnitsel.core.postprocess.relativize`."""
-        return relativize(self._obj, **sel)
-
-    @needs(coords={'ts'})
-    def ts_to_time(self, delta_t: float | None=None, old: Literal='drop') -> xarray.core.dataset.Dataset | xarray.core.dataarray.DataArray:
-        """Wrapper for :py:func:`shnitsel.core.postprocess.ts_to_time`."""
-        return ts_to_time(self._obj, delta_t=delta_t, old=old)
-
     def keep_norming(self, exclude: Optional=None) -> DataArray:
-        """Wrapper for :py:func:`shnitsel.core.postprocess.keep_norming`."""
+        """Wrapper for :py:func:`shnitsel.core.generic.keep_norming`."""
         return keep_norming(self._obj, exclude=exclude)
 
     def calc_ci(self, confidence: float=0.95) -> ndarray:
-        """Wrapper for :py:func:`shnitsel.core.postprocess.calc_ci`."""
+        """Wrapper for :py:func:`shnitsel.core.stats.calc_ci`."""
         return calc_ci(self._obj, confidence=confidence)
 
     @needs(dims={'frame'}, groupable={'time'})
     def time_grouped_ci(self, confidence: float=0.9) -> Dataset:
-        """Wrapper for :py:func:`shnitsel.core.postprocess.time_grouped_ci`."""
+        """Wrapper for :py:func:`shnitsel.core.stats.time_grouped_ci`."""
         return time_grouped_ci(self._obj, confidence=confidence)
 
     @needs(dims={'atom', 'direction'}, coords_or_vars={'atNames'}, not_dims={'frame'})
     def to_xyz(self, comment='#') -> str:
-        """Wrapper for :py:func:`shnitsel.core.postprocess.to_xyz`."""
+        """Wrapper for :py:func:`shnitsel.bridges.to_xyz`."""
         return to_xyz(self._obj, comment=comment)
 
     @needs(dims={'atom', 'direction'}, groupable={'time'}, coords_or_vars={'atNames'})
     def traj_to_xyz(self) -> str:
-        """Wrapper for :py:func:`shnitsel.core.postprocess.traj_to_xyz`."""
+        """Wrapper for :py:func:`shnitsel.bridges.traj_to_xyz`."""
         return traj_to_xyz(self._obj)
-
-    @needs(dims={'atom'})
-    def dihedral(self, i: int, j: int, k: int, l: int, deg: bool=False, full: bool=False) -> DataArray:
-        """Wrapper for :py:func:`shnitsel.core.postprocess.dihedral`."""
-        return dihedral(self._obj, i, j, k, l, deg=deg, full=full)
-
-    @needs(dims={'atom'})
-    def angle(self, i: int, j: int, k: int, deg: bool=False) -> DataArray:
-        """Wrapper for :py:func:`shnitsel.core.postprocess.angle`."""
-        return angle(self._obj, i, j, k, deg=deg)
-
-    @needs(dims={'atom'})
-    def distance(self, i: int, j: int) -> DataArray:
-        """Wrapper for :py:func:`shnitsel.core.postprocess.distance`."""
-        return distance(self._obj, i, j)
-
-    def trajs_with_hops(self) -> list:
-        """Wrapper for :py:func:`shnitsel.core.postprocess.trajs_with_hops`."""
-        return trajs_with_hops(self._obj)
-
-    def get_hop_types(self) -> dict:
-        """Wrapper for :py:func:`shnitsel.core.postprocess.get_hop_types`."""
-        return get_hop_types(self._obj)
 
     @needs(dims={'atom', 'direction'}, coords_or_vars={'atNames'}, not_dims={'frame'})
     def to_mol(self, charge: int | None=None, covFactor: float=1.2, to2D: bool=True, molAtomMapNumber: Union=None, atomNote: Union=None, atomLabel: Union=None) -> Mol:
-        """Wrapper for :py:func:`shnitsel.core.postprocess.to_mol`."""
+        """Wrapper for :py:func:`shnitsel.bridges.to_mol`."""
         return to_mol(self._obj, charge=charge, covFactor=covFactor, to2D=to2D, molAtomMapNumber=molAtomMapNumber, atomNote=atomNote, atomLabel=atomLabel)
 
     @needs(dims={'atom', 'direction'}, coords_or_vars={'atNames'}, not_dims={'frame'})
     def smiles_map(self, charge=0, covFactor=1.5) -> str:
-        """Wrapper for :py:func:`shnitsel.core.postprocess.smiles_map`."""
+        """Wrapper for :py:func:`shnitsel.bridges.smiles_map`."""
         return smiles_map(self._obj, charge=charge, covFactor=covFactor)
 
     def default_mol(self) -> Mol:
-        """Wrapper for :py:func:`shnitsel.core.postprocess.default_mol`."""
+        """Wrapper for :py:func:`shnitsel.bridges.default_mol`."""
         return default_mol(self._obj)
+
+    @needs(dims={'atom'})
+    def pairwise_dists_pca(self, **kwargs) -> DataArray:
+        """Wrapper for :py:func:`shnitsel.core.convenience.pairwise_dists_pca`."""
+        return pairwise_dists_pca(self._obj, **kwargs)
 
     def convert_energy(self, to: str, convert_from: str | None=None):
         """Wrapper for :py:func:`shnitsel.units.conversion.convert_energy`."""
@@ -205,40 +163,60 @@ class DataArrayAccessor(DAManualAccessor):
         """Wrapper for :py:func:`shnitsel.units.conversion.convert_time`."""
         return convert_time(self._obj, to, convert_from=convert_from)
 
+    @needs(dims={'frame'})
+    def mdiff(self) -> xr.DataArray:
+        """Wrapper for :py:func:`shnitsel.core.midx.mdiff`."""
+        return mdiff(self._obj)
+
     def flatten_levels(self, idx_name: str, levels: Sequence[str], new_name: str | None=None, position: int=0, renamer: Callable | None=None) -> DatasetOrArray:
-        """Wrapper for :py:func:`shnitsel.core.xrhelpers.flatten_levels`."""
+        """Wrapper for :py:func:`shnitsel.core.midx.flatten_levels`."""
         return flatten_levels(self._obj, idx_name, levels, new_name=new_name, position=position, renamer=renamer)
 
     def expand_midx(self, midx_name: str, level_name: str, value) -> DatasetOrArray:
-        """Wrapper for :py:func:`shnitsel.core.xrhelpers.expand_midx`."""
+        """Wrapper for :py:func:`shnitsel.core.midx.expand_midx`."""
         return expand_midx(self._obj, midx_name, level_name, value)
 
     def assign_levels(self, levels: dict[str, npt.ArrayLike] | None=None, **levels_kwargs: npt.ArrayLike) -> DatasetOrArray:
-        """Wrapper for :py:func:`shnitsel.core.xrhelpers.assign_levels`."""
+        """Wrapper for :py:func:`shnitsel.core.midx.assign_levels`."""
         return assign_levels(self._obj, levels=levels, **levels_kwargs)
 
     def mgroupby(self, levels: Sequence[str]) -> DataArrayGroupBy | DatasetGroupBy:
-        """Wrapper for :py:func:`shnitsel.core.xrhelpers.mgroupby`."""
+        """Wrapper for :py:func:`shnitsel.core.midx.mgroupby`."""
         return mgroupby(self._obj, levels)
 
     def msel(self, **kwargs) -> xr.Dataset | xr.DataArray:
-        """Wrapper for :py:func:`shnitsel.core.xrhelpers.msel`."""
+        """Wrapper for :py:func:`shnitsel.core.midx.msel`."""
         return msel(self._obj, **kwargs)
 
     @needs(dims={'frame'}, coords_or_vars={'trajid'})
     def sel_trajs(self, trajids_or_mask: Sequence[int] | Sequence[bool], invert=False) -> xr.Dataset | xr.DataArray:
-        """Wrapper for :py:func:`shnitsel.core.xrhelpers.sel_trajs`."""
+        """Wrapper for :py:func:`shnitsel.core.midx.sel_trajs`."""
         return sel_trajs(self._obj, trajids_or_mask, invert=invert)
 
     @needs(dims={'frame'}, coords_or_vars={'trajid'})
     def sel_trajids(self, trajids: npt.ArrayLike, invert=False) -> xr.Dataset:
-        """Wrapper for :py:func:`shnitsel.core.xrhelpers.sel_trajids`."""
+        """Wrapper for :py:func:`shnitsel.core.midx.sel_trajids`."""
         return sel_trajids(self._obj, trajids, invert=invert)
 
     @needs(dims={'frame'}, coords={'time', 'trajid'})
     def last_time_where(self):
-        """Wrapper for :py:func:`shnitsel.core.filtre.last_time_where`."""
+        """Wrapper for :py:func:`shnitsel.core.filtration.last_time_where`."""
         return last_time_where(self._obj)
+
+    @needs(dims={'atom'})
+    def dihedral(self, i: int, j: int, k: int, l: int, deg: bool=False, full: bool=False) -> DataArray:
+        """Wrapper for :py:func:`shnitsel.core.geom.dihedral`."""
+        return dihedral(self._obj, i, j, k, l, deg=deg, full=full)
+
+    @needs(dims={'atom'})
+    def angle(self, i: int, j: int, k: int, deg: bool=False) -> DataArray:
+        """Wrapper for :py:func:`shnitsel.core.geom.angle`."""
+        return angle(self._obj, i, j, k, deg=deg)
+
+    @needs(dims={'atom'})
+    def distance(self, i: int, j: int) -> DataArray:
+        """Wrapper for :py:func:`shnitsel.core.geom.distance`."""
+        return distance(self._obj, i, j)
 
     @needs(dims={'atom', 'direction'})
     def get_bond_lengths(self, bond_types=None, mol: rdkit.Chem.rdchem.Mol | None=None) -> DataArray:
@@ -318,24 +296,21 @@ class DatasetAccessor(DSManualAccessor):
     _methods = [
         'pca_and_hops',
         'validate',
-        'ts_to_time',
-        'setup_frames',
         'assign_fosc',
         'ds_broaden_gauss',
         'get_per_state',
         'get_inter_state',
-        'calc_pops',
-        'find_hops',
+        'classical',
         'default_mol',
         'flatten_levels',
         'expand_midx',
         'assign_levels',
         'mgroupby',
         'msel',
-        'write_shnitsel_file',
         'sel_trajs',
         'unstack_trajs',
         'stack_trajs',
+        'write_shnitsel_file',
         'iconds_to_frames',
         'spectra_all_times',
         'energy_filtranda',
@@ -347,90 +322,76 @@ class DatasetAccessor(DSManualAccessor):
 
     @needs(coords_or_vars={'astate', 'atXYZ'})
     def pca_and_hops(self) -> tuple:
-        """Wrapper for :py:func:`shnitsel.core.postprocess.pca_and_hops`."""
+        """Wrapper for :py:func:`shnitsel.core.convenience.pca_and_hops`."""
         return pca_and_hops(self._obj)
 
     def validate(self) -> ndarray:
-        """Wrapper for :py:func:`shnitsel.core.postprocess.validate`."""
+        """Wrapper for :py:func:`shnitsel.core.convenience.validate`."""
         return validate(self._obj)
-
-    @needs(coords={'ts'})
-    def ts_to_time(self, delta_t: float | None=None, old: Literal='drop') -> xarray.core.dataset.Dataset | xarray.core.dataarray.DataArray:
-        """Wrapper for :py:func:`shnitsel.core.postprocess.ts_to_time`."""
-        return ts_to_time(self._obj, delta_t=delta_t, old=old)
-
-    def setup_frames(self, to_time: bool | None=None, convert_to_eV: bool | None=None, convert_e_kin_to_eV: bool | None=None, relativize_energy: bool | None=None, relativize_selector=None) -> Dataset:
-        """Wrapper for :py:func:`shnitsel.core.postprocess.setup_frames`."""
-        return setup_frames(self._obj, to_time=to_time, convert_to_eV=convert_to_eV, convert_e_kin_to_eV=convert_e_kin_to_eV, relativize_energy=relativize_energy, relativize_selector=relativize_selector)
 
     @needs(data_vars={'dip_trans', 'energy'})
     def assign_fosc(self) -> Dataset:
-        """Wrapper for :py:func:`shnitsel.core.postprocess.assign_fosc`."""
+        """Wrapper for :py:func:`shnitsel.core.spectra.assign_fosc`."""
         return assign_fosc(self._obj)
 
     def ds_broaden_gauss(self, width: float=0.5, nsamples: int=1000, xmax: float | None=None) -> DataArray:
-        """Wrapper for :py:func:`shnitsel.core.postprocess.ds_broaden_gauss`."""
+        """Wrapper for :py:func:`shnitsel.core.spectra.ds_broaden_gauss`."""
         return ds_broaden_gauss(self._obj, width=width, nsamples=nsamples, xmax=xmax)
 
     @needs(dims={'state'})
     def get_per_state(self) -> Dataset:
-        """Wrapper for :py:func:`shnitsel.core.postprocess.get_per_state`."""
+        """Wrapper for :py:func:`shnitsel.core.stats.get_per_state`."""
         return get_per_state(self._obj)
 
     def get_inter_state(self) -> Dataset:
-        """Wrapper for :py:func:`shnitsel.core.postprocess.get_inter_state`."""
+        """Wrapper for :py:func:`shnitsel.core.stats.get_inter_state`."""
         return get_inter_state(self._obj)
 
     @needs(dims={'frame', 'state'}, coords={'time'}, data_vars={'astate'})
-    def calc_pops(self) -> DataArray:
-        """Wrapper for :py:func:`shnitsel.core.postprocess.calc_pops`."""
-        return calc_pops(self._obj)
-
-    @needs(coords={'trajid'}, data_vars={'astate'})
-    def find_hops(self) -> Dataset:
-        """Wrapper for :py:func:`shnitsel.core.postprocess.find_hops`."""
-        return find_hops(self._obj)
+    def classical(self) -> DataArray:
+        """Wrapper for :py:func:`shnitsel.core.populations.classical`."""
+        return classical(self._obj)
 
     def default_mol(self) -> Mol:
-        """Wrapper for :py:func:`shnitsel.core.postprocess.default_mol`."""
+        """Wrapper for :py:func:`shnitsel.bridges.default_mol`."""
         return default_mol(self._obj)
 
     def flatten_levels(self, idx_name: str, levels: Sequence[str], new_name: str | None=None, position: int=0, renamer: Callable | None=None) -> DatasetOrArray:
-        """Wrapper for :py:func:`shnitsel.core.xrhelpers.flatten_levels`."""
+        """Wrapper for :py:func:`shnitsel.core.midx.flatten_levels`."""
         return flatten_levels(self._obj, idx_name, levels, new_name=new_name, position=position, renamer=renamer)
 
     def expand_midx(self, midx_name: str, level_name: str, value) -> DatasetOrArray:
-        """Wrapper for :py:func:`shnitsel.core.xrhelpers.expand_midx`."""
+        """Wrapper for :py:func:`shnitsel.core.midx.expand_midx`."""
         return expand_midx(self._obj, midx_name, level_name, value)
 
     def assign_levels(self, levels: dict[str, npt.ArrayLike] | None=None, **levels_kwargs: npt.ArrayLike) -> DatasetOrArray:
-        """Wrapper for :py:func:`shnitsel.core.xrhelpers.assign_levels`."""
+        """Wrapper for :py:func:`shnitsel.core.midx.assign_levels`."""
         return assign_levels(self._obj, levels=levels, **levels_kwargs)
 
     def mgroupby(self, levels: Sequence[str]) -> DataArrayGroupBy | DatasetGroupBy:
-        """Wrapper for :py:func:`shnitsel.core.xrhelpers.mgroupby`."""
+        """Wrapper for :py:func:`shnitsel.core.midx.mgroupby`."""
         return mgroupby(self._obj, levels)
 
     def msel(self, **kwargs) -> xr.Dataset | xr.DataArray:
-        """Wrapper for :py:func:`shnitsel.core.xrhelpers.msel`."""
+        """Wrapper for :py:func:`shnitsel.core.midx.msel`."""
         return msel(self._obj, **kwargs)
+
+    @needs(dims={'frame'}, coords_or_vars={'trajid'})
+    def sel_trajs(self, trajids_or_mask: Sequence[int] | Sequence[bool], invert=False) -> xr.Dataset | xr.DataArray:
+        """Wrapper for :py:func:`shnitsel.core.midx.sel_trajs`."""
+        return sel_trajs(self._obj, trajids_or_mask, invert=invert)
+
+    def unstack_trajs(self) -> xr.Dataset | xr.DataArray:
+        """Wrapper for :py:func:`shnitsel.core.midx.unstack_trajs`."""
+        return unstack_trajs(self._obj)
+
+    def stack_trajs(self) -> xr.Dataset | xr.DataArray:
+        """Wrapper for :py:func:`shnitsel.core.midx.stack_trajs`."""
+        return stack_trajs(self._obj)
 
     def write_shnitsel_file(self, savepath: str | os.PathLike | pathlib.Path, complevel: int=9):
         """Wrapper for :py:func:`shnitsel.io.shnitsel.write.write_shnitsel_file`."""
         return write_shnitsel_file(self._obj, savepath, complevel=complevel)
-
-    @needs(dims={'frame'}, coords_or_vars={'trajid'})
-    def sel_trajs(self, trajids_or_mask: Sequence[int] | Sequence[bool], invert=False) -> xr.Dataset | xr.DataArray:
-        """Wrapper for :py:func:`shnitsel.core.xrhelpers.sel_trajs`."""
-        return sel_trajs(self._obj, trajids_or_mask, invert=invert)
-
-    def unstack_trajs(self) -> xr.Dataset | xr.DataArray:
-        """Wrapper for :py:func:`shnitsel.core.xrhelpers.unstack_trajs`."""
-        return unstack_trajs(self._obj)
-
-    def stack_trajs(self) -> xr.Dataset | xr.DataArray:
-        """Wrapper for :py:func:`shnitsel.core.xrhelpers.stack_trajs`."""
-        return stack_trajs(self._obj)
 
     @needs(dims={'icond'}, coords={'icond'}, not_dims={'time'})
     def iconds_to_frames(self) -> Dataset:
@@ -439,22 +400,22 @@ class DatasetAccessor(DSManualAccessor):
 
     @needs(coords={'frame', 'trajid'}, data_vars={'energy', 'fosc'})
     def spectra_all_times(self):
-        """Wrapper for :py:func:`shnitsel.core.plot.spectra3d.spectra_all_times`."""
+        """Wrapper for :py:func:`shnitsel.core.spectra.spectra_all_times`."""
         return spectra_all_times(self._obj)
 
-    @needs(data_vars={'e_kin', 'energy'})
-    def energy_filtranda(self) -> Dataset:
-        """Wrapper for :py:func:`shnitsel.core.filtre.energy_filtranda`."""
-        return energy_filtranda(self._obj)
+    @needs(data_vars={'astate', 'energy'})
+    def energy_filtranda(self, etot_drift=0.2, etot_step=0.1, epot_step=0.7, ekin_step=0.7, hop_epot_step=1.0):
+        """Wrapper for :py:func:`shnitsel.core.filtration.energy_filtranda`."""
+        return energy_filtranda(self._obj, etot_drift=etot_drift, etot_step=etot_step, epot_step=epot_step, ekin_step=ekin_step, hop_epot_step=hop_epot_step)
 
     @needs(dims={'frame'}, coords={'time', 'trajid'})
     def get_cutoffs(self):
-        """Wrapper for :py:func:`shnitsel.core.filtre.get_cutoffs`."""
+        """Wrapper for :py:func:`shnitsel.core.filtration.get_cutoffs`."""
         return get_cutoffs(self._obj)
 
     @needs(dims={'frame'}, coords={'time', 'trajid'})
     def truncate(self, cutoffs):
-        """Wrapper for :py:func:`shnitsel.core.filtre.truncate`."""
+        """Wrapper for :py:func:`shnitsel.core.filtration.truncate`."""
         return truncate(self._obj, cutoffs)
 
     @needs(data_vars={'atNames', 'atNums', 'atXYZ', 'energy'})

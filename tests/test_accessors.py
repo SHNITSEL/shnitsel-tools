@@ -22,7 +22,7 @@ class TestAccessors:
 
     def test_da_accessors(self, traj_butene):
         frames = st.postprocess.ts_to_time(traj_butene)
-        e_step = frames.energy.st.sudi()
+        e_step = frames.energy.st.mdiff()
         assert isinstance(e_step, xr.DataArray)
         xyz = frames.atXYZ.isel(frame=0).squeeze().st.to_xyz()
         assert isinstance(xyz, str)

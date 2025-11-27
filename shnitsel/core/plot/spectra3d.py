@@ -2,25 +2,6 @@ import xarray as xr
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 
-from shnitsel.core import postprocess as P
-from shnitsel._contracts import needs
-
-
-@needs(data_vars={'energy', 'fosc'}, coords={'frame', 'trajid'})
-def spectra_all_times(inter_state: xr.Dataset):
-    assert isinstance(inter_state, xr.Dataset)
-    if 'energy' not in inter_state.data_vars:
-        raise ValueError("Missing required variable 'energy'")
-    if 'fosc' not in inter_state.data_vars:
-        raise ValueError("Missing required variable 'fosc'")
-    assert (
-        'frame' in inter_state and 'trajid' in inter_state
-    ), "Missing required dimensions"
-
-    data = inter_state.unstack('frame')
-    return P.broaden_gauss(data.energy, data.fosc, agg_dim='trajid')
-
-
 def inlabel(s, ax, ha='center', va='center'):
     return ax.text(
         0.05,
@@ -37,7 +18,7 @@ def ski_plots(spectra: xr.DataArray) -> mpl.figure.Figure:
     """Plot spectra for different times on top of each other,
     along with a dashed line that tracks the maximum.
     One plot per statecomb; plots stacked vertically.
-    Expected to be used on data produced by ``spectra3d.spectra_all_times``.
+    Expected to be used on data produced by ``spectra.spectra_all_times``.
 
     Parameters
     ----------
@@ -51,13 +32,13 @@ def ski_plots(spectra: xr.DataArray) -> mpl.figure.Figure:
 
     Examples
     --------
-        >>> from shnitsel.core import xrhelpers as xh, postprocess as P
+        >>> import shnitsel as st
         >>> from shnitsel.core.plot import spectra3d
         >>> spectra_data = (
-                xh.open_frames(path)
-                .pipe(P.get_inter_state)
-                .pipe(P.assign_fosc)
-                .pipe(spectra3d.spectra_all_times))
+                st.io.read(path)
+                .st.get_inter_state()
+                .st.assign_fosc()
+                .st.spectra_all_times())
         >>> spectra3d.ski_plots(spectra_data)
     """
     assert 'time' in spectra.coords, "Missing 'time' coordinate"
@@ -96,7 +77,7 @@ def pcm_plots(spectra: xr.DataArray) -> mpl.figure.Figure:
     """Represent fosc as colour in a plot of fosc against time and energy.
     The colour scale is logarithmic.
     One plot per statecomb; plots stacked horizontally.
-    Expected to be used on data produced by `spectra3d.spectra_all_times`.
+    Expected to be used on data produced by `spectra.spectra_all_times`.
 
     Parameters
     ----------
@@ -110,13 +91,13 @@ def pcm_plots(spectra: xr.DataArray) -> mpl.figure.Figure:
 
     Examples
     --------
-        >>> from shnitsel.core import xrhelpers as xh, postprocess as P
+        >>> import shnitsel as st
         >>> from shnitsel.core.plot import spectra3d
         >>> spectra_data = (
-                xh.open_frames(path)
-                .pipe(P.get_inter_state)
-                .pipe(P.assign_fosc)
-                .pipe(spectra3d.spectra_all_times))
+                st.io.read(path)
+                .st.get_inter_state()
+                .st.assign_fosc()
+                .st.spectra_all_times())
         >>> spectra3d.pcm_plots(spectra_data)
     """
     assert 'time' in spectra.coords, "Missing 'time' coordinate"

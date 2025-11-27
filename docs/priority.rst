@@ -31,12 +31,12 @@ Frequently-used functions
 .. autosummary::
     :toctree: _generated
 
-    core.filtre.get_bond_lengths
+    core.filtration.get_bond_lengths
     core.xrhelpers.msel
     core.xrhelpers.sel_trajs
     core.postprocess.dihedral
     core.postprocess.get_inter_state
-    core.plot.spectra3d.spectra_all_times
+    core.spectra.spectra_all_times
 
 .. autosummary::
     :toctree: _generated
@@ -55,23 +55,23 @@ Frequently-used functions
     io.write_shnitsel_file
     core.datasheet
     core.postprocess.relativize
-    core.filtre
-    core.filtre.energy_filtranda
-    core.filtre.get_cutoffs
-    core.filtre.truncate
+    core.filtration
+    core.filtration.energy_filtranda
+    core.filtration.get_cutoffs
+    core.filtration.truncate
     core.xrhelpers.sel_trajs
     core.postprocess.distance
-    core.filtre.get_bond_lengths
+    core.filtration.get_bond_lengths
     plot.pca_biplot
     core.postprocess.assign_fosc
     core.postprocess.get_inter_state
-    plot.spectra_all_times
+    core.spectra.spectra_all_times
     core.postprocess.broaden_gauss
     plot.Datasheet.plot_separated_spectra_and_hists
     plot.ski_plots
     core.postprocess.calc_pops
     core.xrhelpers.msel
-    core.filtre.last_time_where
+    core.filtration.last_time_where
     core.postprocess.subtract_combinations
     core.postprocess.to_mol
     core.postprocess.subtract_combinations

@@ -7,15 +7,10 @@ import xarray.testing.strategies as xrst
 import numpy as np
 import xarray as xr
 
-import shnitsel
+from shnitsel.core.generic import norm, subtract_combinations
+from shnitsel.core.ml import pca
+from shnitsel.core.convenience import ts_to_time
 from shnitsel.io.sharc import read_traj
-from shnitsel import postprocess
-from shnitsel.core.postprocess import (
-    norm,
-    subtract_combinations,
-    pca,
-    sudi,
-)
 
 
 class TestProcessing:
@@ -25,7 +20,7 @@ class TestProcessing:
     def traj_butene(self):
         frames = read_traj(
             'tutorials/test_data/sharc/traj_butene', kind='sharc')
-        return postprocess.ts_to_time(frames)
+        return ts_to_time(frames)
 
     @given(
         xrst.variables(

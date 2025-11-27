@@ -38,7 +38,7 @@ class TestPlotFunctionality:
     @pytest.fixture
     def spectra3d(self, ensembles):
         return {
-            name: frames.st.get_inter_state().st.assign_fosc().stsh.spectra_all_times()
+            name: frames.st.get_inter_state().st.assign_fosc().st.spectra_all_times()
             for name, frames in ensembles.items()
         }
 

@@ -3,12 +3,17 @@ from logging import warning
 import numpy as np
 import xarray as xr
 
-from . import postprocess as P, xrhelpers as xh
-from .plot import pca_biplot
-from .postprocess import (
+from shnitsel.bridges import (
+    to_mol,
     numbered_smiles_to_mol,
-    mol_to_numbered_smiles as mol_to_numbered_smiles,
     smiles_map as smiles_map,
+)
+from shnitsel.core.midx import sel_trajids, mdiff
+from shnitsel.core.convenience import pairwise_dists_pca
+from shnitsel.core.generic import norm
+from shnitsel.rd import (
+    mol_to_numbered_smiles as mol_to_numbered_smiles,
+    highlight_pairs,
 )
 
 
@@ -24,13 +29,13 @@ def find_bonds_by_element(mol, elem1: int, elem2: int):
 
 def max_bond_lengths(atXYZ, elem1=1, elem2=6):
     def dists(a1, a2):
-        return P.norm(atXYZ.isel(atom=a1) - atXYZ.isel(atom=a2), dim='direction')
+        return norm(atXYZ.isel(atom=a1) - atXYZ.isel(atom=a2), dim='direction')
 
     if 'smiles_map' in atXYZ.attrs:
         mol = numbered_smiles_to_mol(atXYZ.attrs['smiles_map'])
     else:
         warning("`smiles_map` attribute missing; falling back to frame 0")
-        mol = P.to_mol((atXYZ.isel(frame=0)))
+        mol = to_mol((atXYZ.isel(frame=0)))
 
     bonds = find_bonds_by_element(mol, elem1, elem2)
     maxlengths = xr.concat([
@@ -62,7 +67,7 @@ def exclude_overlong(frames, cutoff=2):
 def find_eccentric(atXYZ, maskfn=None):
     if not isinstance(atXYZ, xr.DataArray):
         raise TypeError()
-    noodle_da = P.pairwise_dists_pca(atXYZ)
+    noodle_da = pairwise_dists_pca(atXYZ)
     noodle = noodle_da.to_dataset('PC').rename({0: 'PC1', 1: 'PC2'})
     maskfn = maskfn or (lambda data: data.PC1**2 + data.PC2**2 > 1.5)
     mask = maskfn(noodle)
@@ -72,7 +77,7 @@ def show_bonds_mol(mol, elem1, elem2, to2D):
     pairs = find_bonds_by_element(mol, elem1, elem2)
     for atom in mol.GetAtoms():
         atom.SetProp("atomNote", str(atom.GetIdx()))
-    return pca_biplot.highlight_pairs(mol, pairs)
+    return highlight_pairs(mol, pairs)
 
 
 # TODO: refactor -- different way of specifying which bonds
@@ -96,13 +101,13 @@ def filter_cleavage(frames, *, CC=False, CH=False, CN=False, NH=False, verbose=2
             if can_show:
                 show(elem1, elem2)
             ntraj = len(np.unique(overlong))
-            nframes = xh.sel_trajids(frames, overlong).sizes['frame']
+            nframes = sel_trajids(frames, overlong).sizes['frame']
             print(
                 f"Remove {ntraj} trajectories ({nframes} frames) containing {descr} cleavage"
             )
             if verbose >= 2:
                 print("with IDs:", overlong)
-        frames = xh.sel_trajids(frames, overlong, invert=True)
+        frames = sel_trajids(frames, overlong, invert=True)
 
     if CC:
         act('C-C', 6, 6, 2.8)
@@ -150,10 +155,10 @@ def all_cutoffs(frames):
     feat['etot_drift'] = (
         e['e_tot'].groupby('trajid').apply(lambda traj: abs(traj - traj.isel(frame=0)))
     )
-    feat['ekin_step'] = P.sudi(e['e_kin'])
-    feat['epot_step'] = P.sudi(e['e_pot'])
-    feat['etot_step'] = P.sudi(e['e_tot'])
-    feat['is_hop'] = P.sudi(frames['astate']) != 0
+    feat['ekin_step'] = mdiff(e['e_kin'])
+    feat['epot_step'] = mdiff(e['e_pot'])
+    feat['etot_step'] = mdiff(e['e_tot'])
+    feat['is_hop'] = mdiff(frames['astate']) != 0
 
     c = xr.Dataset()
     c['cutoff_length'] = (

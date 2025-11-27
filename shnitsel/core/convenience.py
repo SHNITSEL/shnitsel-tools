@@ -1,0 +1,273 @@
+import logging
+import math
+from typing import TypeAlias, Literal
+
+import numpy as np
+import xarray as xr
+
+from .generic import norm, subtract_combinations
+from .midx import sel_trajs, mdiff
+from .ml import pca
+
+from .._contracts import needs
+from ..units import convert_energy
+from ..io import write_shnitsel_file
+
+AtXYZ: TypeAlias = xr.DataArray
+Frames: TypeAlias = xr.Dataset
+
+
+@needs(dims={'atom'})
+def pairwise_dists_pca(atXYZ: AtXYZ, **kwargs) -> xr.DataArray:
+    """PCA-reduced pairwise interatomic distances
+
+    Parameters
+    ----------
+    atXYZ
+        A DataArray containing the atomic positions;
+        must have a dimension called 'atom'
+
+    Returns
+    -------
+        A DataArray with the same dimensions as `atXYZ`, except for the 'atom'
+        dimension, which is replaced by a dimension 'PC' containing the principal
+        components (by default 2)
+    """
+    res = (
+        atXYZ.pipe(subtract_combinations, 'atom')
+        .pipe(norm)
+        .pipe(pca, 'atomcomb', **kwargs)
+    )
+    assert not isinstance(res, tuple)  # typing
+    return res
+
+
+
+
+
+def relativize(da: xr.DataArray, **sel) -> xr.DataArray:
+    res = da - da.sel(**sel).min()
+    res.attrs = da.attrs
+    return res
+
+
+@needs(coords={'ts'})
+def ts_to_time(
+    data: xr.Dataset | xr.DataArray,
+    delta_t: float | None = None,
+    old: Literal['drop', 'to_var', 'keep'] = 'drop',
+) -> xr.Dataset | xr.DataArray:
+    assert old in {'drop', 'to_var', 'keep'}
+
+    if delta_t is None:
+        if 'delta_t' in data:  # could be coord or var
+            # ensure unique
+            arr_delta_t = np.unique(data['delta_t'])
+            assert len(arr_delta_t.shape) == 1
+            if arr_delta_t.shape[0] > 1:
+                msg = "`delta_t` varies between the trajectories. Please separate the trajectories into groups"
+                raise ValueError(msg)
+            delta_t = arr_delta_t.item()
+            data = data.drop_vars('delta_t')
+
+        if 'delta_t' in data.attrs:
+            if (
+                delta_t is not None  # If we already got delta_t from var/coord
+                and data.attrs['delta_t'] != delta_t
+            ):
+                msg = "'delta_t' attribute inconsistent with variable/coordinate"
+                raise ValueError(msg)
+            delta_t = data.attrs['delta_t']
+
+        if delta_t is None:  # neither var/coord nor attr
+            msg = "Could not extract `delta_t` from `data`; please pass explicitly"
+            raise ValueError(msg)
+
+    data = data.reset_index('frame').assign_coords(time=data.coords['ts'] * delta_t)
+    if old in {'drop', 'to_var'}:
+        new_levels = list((set(data.indexes['frame'].names) - {'ts'}) | {'time'})
+        data = data.reset_index('frame').set_xindex(new_levels)
+    if old == 'drop':
+        data = data.drop_vars('ts')
+
+    data['time'].attrs.update((dict(units='fs', long_name='$t$', tex_name='t')))
+    data.attrs['delta_t'] = delta_t
+
+    return data
+
+
+def setup_frames(
+    ds: xr.Dataset,
+    *,
+    to_time: bool | None = None,
+    convert_to_eV: bool | None = None,
+    convert_e_kin_to_eV: bool | None = None,
+    relativize_energy: bool | None = None,
+    relativize_selector=None,
+) -> xr.Dataset:
+    """Performs several frequent setup tasks.
+    Each task can be skipped (by setting the corresponding parameter to False),
+    carried out if appropriate (None), or forced in the sense that an error is
+    thrown if the task is redundant (True).
+
+
+    Parameters
+    ----------
+    ds
+        The frames-like xr.Dataset to setup.
+    to_time, optional
+        Whether to convert a 'ts' (timestep) coordinate to a 'time' coordinate, by default None
+    convert_to_eV, optional
+        Whether to convert the 'energy' variable to eV, by default None
+    convert_e_kin_to_eV, optional
+        Whether to convert the 'e_kin' (kinetic energy) variable to eV, by default None
+    relativize_energy, optional
+        Whether to relativize energies, by default None
+    relativize_selector, optional
+        This argument is passed to relativize, by default None
+
+    Returns
+    -------
+        A modified frames-like xr.Dataset
+
+    Raises
+    ------
+    ValueError
+        If a task should be forced (i.e. the corresponding parameter is set to True)
+        but cannot be carried out (e.g. because the dataset was already processed previously)
+    """
+    # TODO: Reconsider how the conversion works here
+    match to_time, 'time' not in ds.coords, 'ts' in ds.coords:
+        case True, False, _:
+            raise ValueError("Timestep coordinate has already been converted to time")
+        case True, True, False:
+            raise ValueError("No 'ts' coordinate in Dataset")
+        case (None, True, True) | (True, True, True):
+            ds = ts_to_time(ds)
+
+    match relativize_energy, ds['energy'].min().item() != 0:
+        case True, False:
+            raise ValueError("Energy is already relativized")
+        case (True, True) | (None, True):
+            assert 'energy' in ds.data_vars
+            if relativize_selector is None:
+                relativize_selector = {}
+            ds = ds.assign({'energy': relativize(ds['energy'], **relativize_selector)})
+
+    match convert_to_eV, ds['energy'].attrs.get('units') != 'eV':
+        case True, False:
+            raise ValueError("Energy is already in eV")
+        case (True, True) | (None, True):
+            assert 'energy' in ds.data_vars
+            ds = ds.assign({'energy': convert_energy(ds['energy'], 'eV')})
+
+    if convert_e_kin_to_eV and 'e_kin' not in ds.data_vars:
+        raise ValueError("'frames' object does not have an 'e_kin' variable")
+    elif 'e_kin' in ds.data_vars:
+        match convert_e_kin_to_eV, ds['e_kin'].attrs.get('units') != 'eV':
+            case True, False:
+                raise ValueError("Energy is already in eV")
+            case (True, True) | (None, True):
+                assert 'e_kin' in ds.data_vars
+                ds = ds.assign({'e_kin': convert_energy(ds['e_kin'], 'eV')})
+
+    return ds
+
+
+def validate(frames: Frames) -> np.ndarray:
+    if 'time' in frames.coords:
+        tdim = 'time'
+    elif 'ts' in frames.coords:
+        tdim = 'ts'
+    else:
+        raise ValueError("Found neither 'time' nor 'ts' coordinate in frames")
+    bad_frames = []
+    for varname in frames.data_vars.keys():
+        # choose appropriate placeholder / bad value for the data_var's dtype
+        dtype = frames.dtypes[varname]
+        if dtype in {np.dtype('float64'), np.dtype('float32')}:
+            mask = np.isnan(frames[varname])
+            phname = '`nan`'
+        elif dtype in {np.dtype('int32'), np.dtype('int64')}:
+            mask = frames[varname] == -1
+            phname = 'placeholder `-1`'
+        else:
+            print(
+                f"Skipping verification of `{varname}` "
+                f"as no bad value known for dtype `{dtype}`"
+            )
+
+        if mask.all():
+            print(
+                f"Variable `{varname}` exclusively contains {phname}, "
+                "so is effectively missing"
+            )
+        elif mask.any():
+            da = frames[varname]
+            reddims = set(da.dims) - {'frame'}
+            nans = da.sel(frame=mask.any(reddims)).frame
+            n = len(nans)
+            bfstr = '; '.join(
+                [f"trajid={x.trajid.item()} {tdim}={x[tdim].item()}" for x in nans]
+            )
+            print(f"Variable `{varname}` contains {phname} in {n} frame(s),")
+            print(f"    namely: {bfstr}")
+            bad_frames += [nans]
+        else:
+            print(f"Variable `{varname}` does not contain {phname}")
+
+    res: np.ndarray
+    if len(bad_frames):
+        res = np.unique(xr.concat(bad_frames, dim='frame'))
+    else:
+        res = np.array([])
+    return res
+
+
+def split_for_saving(frames, bytes_per_chunk=50e6):
+    trajids = frames.get('trajid_', np.unique(frames['trajid']))
+    ntrajs = len(trajids)
+    nchunks = math.trunc(frames.nbytes / 50e6)
+    logging.debug(f"{nchunks=}")
+    indices = np.trunc(np.linspace(0, ntrajs, nchunks + 1)).astype(np.integer)
+    logging.debug(f"{indices=}")
+    trajidsets = [trajids[a:z].values for a, z in zip(indices[:-1], indices[1:])]
+    logging.debug(f"{trajidsets=}")
+    return [sel_trajs(frames, trajids[a:z]) for a, z in zip(indices[:-1], indices[1:])]
+
+
+def save_split(
+    frames, path_template, bytes_per_chunk=50e6, complevel=9, ignore_errors=False
+):
+    dss = split_for_saving(frames, bytes_per_chunk=bytes_per_chunk)
+    for i, ds in enumerate(dss):
+        current_path = path_template.format(i)
+        try:
+            write_shnitsel_file(ds, current_path, complevel=complevel)
+        except Exception as e:
+            logging.error(f"Exception while saving to {current_path=}")
+            if not ignore_errors:
+                raise e
+
+
+@needs(coords_or_vars={'atXYZ', 'astate'})
+def pca_and_hops(frames: xr.Dataset) -> tuple[xr.DataArray, xr.DataArray]:
+    """Get PCA points and info on which of them represent hops
+
+    Parameters
+    ----------
+    frames
+        A Dataset containing 'atXYZ' and 'astate' variables
+
+    Returns
+    -------
+    pca_res
+        The PCA-reduced pairwise interatomic distances
+    hops_pca_coords
+        `pca_res` filtered by hops, to facilitate marking hops when plotting
+
+    """
+    pca_res = pairwise_dists_pca(frames['atXYZ'])
+    mask = mdiff(frames['astate']) != 0
+    hops_pca_coords = pca_res[mask]
+    return pca_res, hops_pca_coords
