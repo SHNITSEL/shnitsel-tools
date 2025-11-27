@@ -174,6 +174,7 @@ def create_initial_dataset(
         "atom": num_atoms,
         "direction": 3,
         "statecomb": math.comb(num_states, 2),
+        "full_statecomb": math.perm(num_states, 2),
     }
 
     coords: dict | xr.Dataset = {
