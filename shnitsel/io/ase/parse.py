@@ -24,15 +24,15 @@ multi_level_prefix: str = "_MultiIndex_levels_for_"
 
 
 def shapes_from_metadata(
-    db_meta: dict, kind: Literal['spainn', 'schnet'] | None = None
+    db_meta: dict, db_format: Literal['spainn', 'schnet'] | None = None
 ) -> tuple[dict[str, list[str]], dict[str, list[str]], str]:
-    """Function to assign shapes based on the chosen kind and potential information in the metadata of a database.
+    """Function to assign shapes based on the chosen db_format and potential information in the metadata of a database.
 
-    If conflicting information on the format/kind is provided and present in the database, en error will be raised.
+    If conflicting information on the db_format is provided and present in the database, en error will be raised.
 
     Args:
         db_meta (dict): The metadata dict of an ASE database.
-        kind (Literal['spainn', 'schnet'] | None, optional): The requested format of the database. Defaults to None.
+        db_format (Literal['spainn', 'schnet'] | None, optional): The requested format of the database. Defaults to None.
 
     Return:
         dict[str, list[str]]: Dict of data_var shapes
@@ -40,7 +40,7 @@ def shapes_from_metadata(
         str: The name of the leading dimension. Should be `frame` or `time`, but can be `leading_dim_unknown` if unknown
 
     Raises:
-        ValueError: If a kind of database was requested that conflicts with the format of the database.
+        ValueError: If a db_format of database was requested that conflicts with the format of the database.
     """
 
     if 'shnitsel_leading_dim' in db_meta:
@@ -101,27 +101,29 @@ def shapes_from_metadata(
                 f"Database is of unsupported format: {meta_format}. Only `schnet` and `spainn` are supported."
             )
 
-        if kind is None:
-            kind = meta_format
-            logging.info(f"Automatically detected format: {kind}")
+        if db_format is None:
+            db_format = meta_format
+            logging.info(f"Automatically detected format: {db_format}")
 
-        if meta_format != kind:
+        if meta_format != db_format:
             raise ValueError(
-                f"Database is of format: {meta_format} instead of requested format {kind}."
+                f"Database is of format: {meta_format} instead of requested format {db_format}."
             )
     shapes: dict[str, list[str]]
     # Determine basis shapes based on the format
-    if kind == 'schnet':
+    if db_format == 'schnet':
         shapes = schnet_shapes
-    elif kind == 'spainn':
+    elif db_format == 'spainn':
         shapes = spainn_shapes
-    elif kind is None:
+    elif db_format is None:
         shapes = {}
         logging.warning(
             "Correct format could not be extracted from the database metadata. No dimension names assigned"
         )
     else:
-        raise ValueError(f"'kind' should be one of 'schnet' or 'spainn', not '{kind}'.")
+        raise ValueError(
+            f"'db_format' should be one of 'schnet' or 'spainn', not '{db_format}'."
+        )
 
     # Read further shape data from the database
     if "var_meta" in db_meta:
@@ -387,7 +389,7 @@ def apply_dataset_meta_from_db_metadata(
 
 def read_ase(
     db_path: pathlib.Path,
-    kind: Literal['spainn', 'schnet'] | None = None,
+    db_format: Literal['spainn', 'schnet'] | None = None,
     loading_parameters: LoadingParameters | None = None,
 ) -> xr.Dataset:
     """Reads an ASE DB containing data in the SPaiNN or SchNet format
@@ -396,7 +398,7 @@ def read_ase(
     ----------
     db_path: pathlib.Path
         Path to the database
-    kind: Literal['spainn', 'schnet'] | None, optional
+    db_format: Literal['spainn', 'schnet'] | None, optional
         Must be one of 'spainn' or 'schnet' or None; determines interpretation of array shapes If None is provided, no shape will be assumed
     loading_parameters: LoadingParameters
         Potentially configured parameters to overwrite loading behavior
@@ -408,11 +410,11 @@ def read_ase(
     Raises
     ------
     ValueError
-        If `kind` is not one of 'spainn' or 'schnet'
+        If `db_format` is not one of 'spainn' or 'schnet'
     FileNotFoundError
         If `db_path` is not a file
     ValueError
-        If `db_path` does not contain data corresponding to the format `kind`
+        If `db_path` does not contain data corresponding to the format `db_format`
     """
 
     if not os.path.isfile(db_path):
@@ -423,7 +425,7 @@ def read_ase(
     with connect(db_path) as db:
         metadata = db.metadata
         shapes, coord_shapes, leading_dimension_name = shapes_from_metadata(
-            metadata, kind
+            metadata, db_format
         )
         leading_dimension_rename_target = None
 
@@ -475,7 +477,7 @@ def read_ase(
     # If there are no valid rows, raise a ValueError
     if found_rows == 0:
         raise ValueError(
-            f"No rows with the appropriate format for kind=`{kind}` were found in {db_path}"
+            f"No rows with the appropriate format for `{db_format=}` were found in {db_path}"
         )
 
     for k, v in tmp_data_in.items():
@@ -558,7 +560,7 @@ def read_ase(
     for k in data_vars.keys():
         mark_variable_assigned(frames[k])
 
-    if kind == 'spainn':
+    if db_format == 'spainn':
         # Only squeeze if the tmp dimension is there
         if 'tmp' in frames.dims:
             frames = frames.squeeze('tmp')
