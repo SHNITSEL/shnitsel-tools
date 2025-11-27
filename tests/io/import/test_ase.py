@@ -52,7 +52,7 @@ class TestASEFunctionality:
         ],
     )
     def test_ase_round_trip(self, path, db_format):
-        tmp_path = 'tutorials/test_data/ase/tmp_test_round_trip.db'
+        tmp_path = path+'_tmp_test_round_trip.db'
         try:
             os.remove(tmp_path)
         except FileNotFoundError:

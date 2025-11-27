@@ -71,7 +71,7 @@ def _prepare_for_write_schnetpack(
 
 
 def _ndarray_to_json_ser(value):
-    return {"__ndarray": {"entries": value.tolist(), "dtype": value.dtype.descr}}
+    return {"__ndarray": {"entries": value.tolist(), "dtype": value.dtype}}
 
 
 def _collect_metadata(traj: Trajectory, keys_to_write: Iterable[str]) -> dict[str, Any]:
@@ -165,7 +165,7 @@ def _collect_metadata(traj: Trajectory, keys_to_write: Iterable[str]) -> dict[st
     }
     shnitsel_meta["coords"] = {
         coordname: {
-            "values": _ndarray_to_json_ser(traj[coordname].values),
+            "values": traj[coordname].values.tolist(),
             "dims": [str(d) for d in traj[coordname].dims],
         }
         for coordname in traj.coords.keys()
@@ -303,14 +303,16 @@ def write_ase_db(
                 kv_pairs["input_format_version"] = traj.attrs["input_format_version"]
 
             if "time" in frame:
-                print(frame["time"])
-                info = {"time": frame["time"][0]}
+                float_time = float(frame["time"])
+                # print(frame["time"], "-->", float_time)
+                info = {"time": float_time}
             else:
                 info = {}
 
             if "trajid" in frame:
-                print(frame["trajid"])
-                info["trajid"] = frame["trajid"][0]
+                int_id = int(frame["trajid"])
+                # print(frame["trajid"], "-->", int_id)
+                info["trajid"] = int_id
 
             # Actually output the entry
             db.write(

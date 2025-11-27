@@ -209,7 +209,7 @@ def apply_dataset_meta_from_db_metadata(
                     {
                         coordname: (
                             coorddict["dims"],
-                            _json_deserialize_ndarray(coorddict["values"]),
+                            np.array(coorddict["values"]),
                         )
                     }
                 )
@@ -249,6 +249,34 @@ def apply_dataset_meta_from_db_metadata(
 
                 # dataset =dataset.stack({index_name: index_levels})
                 # dataset = dataset.set_xindex(index_levels)
+
+    # Fill in missing frame/time coordinates
+    if "frame" in dataset.dims:
+        # Add dummy frame coordinate values treating all entries as initial conditions/static data in different trajectories
+        if "frame" not in dataset:
+            frame_vals = np.arange(0, dataset.sizes["frame"], 1)
+            dataset = dataset.assign_coords(
+                {
+                    "frame": (["frame"], frame_vals, default_attrs["frame"]),
+                    "trajid": (["frame"], frame_vals, default_attrs["trajid"]),
+                    "time": (["frame"], frame_vals * 0.0, default_attrs["time"]),
+                }
+            )
+    elif "time" in dataset.dims:
+        # Fill in missing time coordinate with dummy values if no frame is set as dimension
+        if "time" not in dataset:
+            time_vals = np.arange(0, dataset.sizes["time"], 1) * (
+                dataset.attrs["delta_t"] if "delta_t" in dataset.attrs else 1.0
+            )
+            dataset = dataset.assign_coords(
+                {
+                    "time": (["time"], time_vals, default_attrs["time"]),
+                }
+            )
+    else:
+        raise ValueError(
+            f"Neither `frame` nor `time` dimension generated. Indicates that no data could be read. Available dimensions: `{dataset.sizes.keys()}`. Available coordinates: `{dataset.coords.keys()}`"
+        )
 
     # Apply variable metadata where available
     if "var_meta" in shnitsel_meta:
@@ -292,13 +320,21 @@ def apply_dataset_meta_from_db_metadata(
                 if varname in dataset and "unit" not in dataset[varname].attrs:
                     dataset[varname].attrs["unit"] = unit
 
+    # print(dataset["time"])
+    # print(dataset["trajid"])
+
     delta_t = dataset.attrs["delta_t"] if "delta_t" in dataset.attrs else None
     if delta_t is None:
         # Try and extract from time info
         if "time" in dataset:
+            # print(dataset["time"])
+            # print(dataset["trajid"])
             diff_t = list(set(dataset["time"].values))
             diff_t = sorted(diff_t)
-            delta_t = diff_t[1] - diff_t[0]
+            if len(diff_t) > 1:
+                delta_t = diff_t[1] - diff_t[0]
+            else:
+                delta_t = 0
         else:
             delta_t = -1
 
@@ -438,34 +474,6 @@ def apply_dataset_meta_from_db_metadata(
             )
             mark_variable_assigned(dataset["full_statecomb_to"])
 
-    # Fill in missing frame/time coordinates
-    if "frame" in dataset.dims:
-        # Add dummy frame coordinate values treating all entries as initial conditions/static data in different trajectories
-        if "frame" not in dataset:
-            frame_vals = np.arange(0, dataset.sizes["frame"], 1)
-            dataset = dataset.assign_coords(
-                {
-                    "frame": (["frame"], frame_vals, default_attrs["frame"]),
-                    "trajid": (["frame"], frame_vals, default_attrs["trajid"]),
-                    "time": (["frame"], frame_vals * 0.0, default_attrs["time"]),
-                }
-            )
-    elif "time" in dataset.dims:
-        # Fill in missing time coordinate with dummy values if no frame is set as dimension
-        if "time" not in dataset:
-            time_vals = np.arange(0, dataset.sizes["time"], 1) * (
-                dataset.attrs["delta_t"] if "delta_t" in dataset.attrs else 1.0
-            )
-            dataset = dataset.assign_coords(
-                {
-                    "time": (["time"], time_vals, default_attrs["time"]),
-                }
-            )
-    else:
-        raise ValueError(
-            f"Neither `frame` nor `time` dimension generated. Indicates that no data could be read. Available dimensions: `{dataset.sizes.keys()}`. Available coordinates: `{dataset.coords.keys()}`"
-        )
-
     # Set trajectory-level attributes
     if "misc_attrs" in shnitsel_meta:
         dataset.attrs.update(shnitsel_meta["misc_attrs"])
@@ -473,6 +481,9 @@ def apply_dataset_meta_from_db_metadata(
     # Perform a check of the dimension sizes specified in the metadata if present
     if "dims" in shnitsel_meta:
         for dimname, dimdict in shnitsel_meta["dims"].items():
+            if dimname == "tmp" or dimname == "state_or_statecomb":
+                # Skip artificial dimensions
+                continue
             dim_length = dimdict["length"] if "length" in dimdict else -1
             if dim_length >= 0:
                 if dim_length != dataset.sizes[dimname]:
