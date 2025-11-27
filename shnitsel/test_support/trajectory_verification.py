@@ -22,18 +22,21 @@ _optional_shnitsel_variables = [
     "astate",
     "sdiag",
     "state2",
-    "statecomb",
     "phases",
     "atNames",
     "atNums",
     "e_kin",
     "velocities",
+    "statecomb",
     "from",
     "to",
     "atom",
     "state",
     "direction",
     "trajid",
+    'full_statecomb',
+    'full_statecomb_from',
+    'full_statecomb_to',
 ]
 _required_shnitsel_attributes = [
     "input_format",
@@ -194,35 +197,35 @@ def has_required_properties(
 
         if asserted_properties is not None:
             for prop in asserted_properties:
-                assert (
-                    prop in traj.variables.keys() or prop in traj.coords.keys()
-                ), f"Asserted property {prop} of format is missing in resulting trajectory. Only has: {available_keys}"
+                assert prop in traj.variables.keys() or prop in traj.coords.keys(), (
+                    f"Asserted property {prop} of format is missing in resulting trajectory. Only has: {available_keys}"
+                )
 
         for prop in check_prop_units:
             if asserted_properties is not None and prop in asserted_properties:
-                assert (
-                    prop in traj.variables.keys() or prop in traj.coords.keys()
-                ), f"Property {prop} is missing in resulting trajectory. Only has: {available_keys}"
+                assert prop in traj.variables.keys() or prop in traj.coords.keys(), (
+                    f"Property {prop} is missing in resulting trajectory. Only has: {available_keys}"
+                )
                 if "unit" in check_prop_units[prop]:
-                    assert (
-                        "units" in traj[prop].attrs
-                    ), f"Property {prop} has no unit set in resulting trajectory"
+                    assert "units" in traj[prop].attrs, (
+                        f"Property {prop} has no unit set in resulting trajectory"
+                    )
                     required_unit = check_prop_units[prop]["unit"]
                     actual_unit = traj[prop].attrs["units"]
-                    assert (
-                        actual_unit == required_unit
-                    ), f"Property {prop} has unit {actual_unit} instead of required unit {required_unit}"
+                    assert actual_unit == required_unit, (
+                        f"Property {prop} has unit {actual_unit} instead of required unit {required_unit}"
+                    )
 
         for var in traj:
             if "unitdim" in traj[var].attrs:
-                assert (
-                    "units" in traj[var].attrs
-                ), f"Variable {var} has property `unitdim` but no `units` set."
+                assert "units" in traj[var].attrs, (
+                    f"Variable {var} has property `unitdim` but no `units` set."
+                )
                 unit_dim = traj[var].attrs["unitdim"]
                 actual_unit = traj[var].attrs["units"]
                 required_unit = standard_shnitsel_units[unit_dim]
-                assert (
-                    required_unit == "1" or actual_unit == required_unit
-                ), f"Variable {var} has unit {actual_unit} instead of required unit {required_unit}."
+                assert required_unit == "1" or actual_unit == required_unit, (
+                    f"Variable {var} has unit {actual_unit} instead of required unit {required_unit}."
+                )
 
         return True
