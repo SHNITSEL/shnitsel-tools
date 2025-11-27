@@ -481,10 +481,10 @@ def read_ase(
     for k, v in tmp_data_in.items():
         data_array = np.stack(v)
         if k in shapes:
-            if str(k) == "socs":
-                raise ValueError(
-                    f"Read variable {k} with shape: {shapes[k]} and numpy shape: {data_array.shape}"
-                )
+            # if str(k) == "socs":
+            #     raise ValueError(
+            #         f"Read variable {k} with shape: {shapes[k]} and numpy shape: {data_array.shape}"
+            #     )
             data_vars[k] = (
                 shapes[k],
                 data_array,
