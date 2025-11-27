@@ -43,7 +43,7 @@ class TestASEFunctionality:
     """Class to test all functions of the shnitsel tools related to ASE (Atomic simulation Environment) Databases"""
 
     @pytest.mark.parametrize(
-        'path, kind',
+        'path, db_format',
         [
             ('tutorials/test_data/ase/schnarc_ch2nh2+.db', 'schnet'),
             ('tutorials/test_data/ase/spainn_ch2nh2+.db', 'spainn'),
@@ -51,8 +51,8 @@ class TestASEFunctionality:
             # ('tutorials/test_data/ase/spainn_ch2nh2+.db', None),
         ],
     )
-    def test_ase_round_trip(self, path, kind):
-        tmp_path = '/tmp/test_round_trip.db'
+    def test_ase_round_trip(self, path, db_format):
+        tmp_path = 'tutorials/test_data/ase/tmp_test_round_trip.db'
         try:
             os.remove(tmp_path)
         except FileNotFoundError:
@@ -61,39 +61,41 @@ class TestASEFunctionality:
         path = pathlib.Path(path)
         tmp_path = pathlib.Path(tmp_path)
 
-        frames1 = read_ase(path, kind=kind)
-        frames1.st.write_ase_db(tmp_path, kind=kind)
-        frames2 = read_ase(tmp_path, kind=kind)
+        frames1 = read_ase(path, db_format=db_format)
+        frames1.st.write_ase_db(tmp_path, db_format=db_format)
+        frames2 = read_ase(tmp_path, db_format=db_format)
         assert_equal(frames1, frames2)
 
     def test_generic_ase(self, FauxBulkDataDB):
         # Just test if we can open it. Should not fail
-        frames1 = read_ase(pathlib.Path(FauxBulkDataDB), kind=None)
-
-    def test_invalid_kinds_raises_valueerror(self, FauxBulkDataDB):
         with pytest.raises(ValueError) as excinfo:
-            # Should fail because of invalid kind of DB
-            frames1 = read_ase(pathlib.Path(FauxBulkDataDB), kind="harlow")
-        assert "'kind' should be one of 'schnet' or 'spainn'" in str(excinfo.value)
+            frames1 = read_ase(pathlib.Path(FauxBulkDataDB), db_format=None)
+
+    def test_invalid_db_format_raises_valueerror(self, FauxBulkDataDB):
+        with pytest.raises(ValueError) as excinfo:
+            # Should fail because of invalid db_format of DB
+            frames1 = read_ase(pathlib.Path(FauxBulkDataDB), db_format="harlow")
+        assert "'db_format' should be one of 'schnet' or 'spainn'" in str(excinfo.value)
 
     def test_missing_file(self):
         with pytest.raises(FileNotFoundError) as excinfo:
             # Should fail because of file not existing
-            read_ase(pathlib.Path("./nowhere.db"), kind=None)
+            read_ase(pathlib.Path("./nowhere.db"), db_format=None)
 
     def test_invalid_formats(self, FauxBulkDataDB):
         with pytest.raises(ValueError) as excinfo:
             # Should fail because DB is not in correct format
             read_ase(
                 pathlib.Path("tutorials/test_data/ase/schnarc_ch2nh2+.db"),
-                kind="spainn",
+                db_format="spainn",
             )
         # assert "No rows with the appropriate format" in str(excinfo.value)
 
         with pytest.raises(ValueError) as excinfo:
             # Should fail because DB is not in correct format
             read_ase(
-                pathlib.Path("tutorials/test_data/ase/spainn_ch2nh2+.db"), kind="schnet"
+                pathlib.Path("tutorials/test_data/ase/spainn_ch2nh2+.db"),
+                db_format="schnet",
             )
         # assert "No rows with the appropriate format" in str(excinfo.value)
 
@@ -103,5 +105,5 @@ if __name__ == '__main__':
     bulk_db_path = FauxBulkDataDB()
     # test.test_ase_round_trip()
     test.test_generic_ase(bulk_db_path)
-    test.test_invalid_kinds_raises_valueerror(bulk_db_path)
+    test.test_invalid_db_format_raises_valueerror(bulk_db_path)
     test.test_invalid_formats(bulk_db_path)
