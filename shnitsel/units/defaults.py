@@ -83,6 +83,12 @@ def get_default_input_attributes(
         "statecomb": {
             "long_name": "Combination of two states used to index inter-state properties that don't depend on state order"
         },
+        "frame": {
+            "long_name": "An index enumerating all momentous frames in a set of combined trajectory data"
+        },
+        "trajid": {
+            "long_name": "An index in a multi-trajectory dataset to specify, from which original trajectory this entry was merged."
+        },
         "from": {
             "long_name": "An alias for the first state of a statecomb combination"
         },
