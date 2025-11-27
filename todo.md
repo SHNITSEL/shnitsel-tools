@@ -19,12 +19,10 @@ We are currently suffering from missing input files for tests:
 - TODO: FIXME: Shape mismatch between DCM in PyRAI2md and default trajectory setup
 - TODO: Support reading SHARC netcdf output files
 - TODO: Rework Tree structure to use lightweight tree class and only use DataTree for load/save. Allows for better type hints and more versatile data storage
-- TODO: Read SOC from Hamiltonian in SHARC
-- TODO: Add reading back of ASE database data
+
 - TODO: Add command line tools for annotation and inspection of trajectories/netcdf files
 - TODO: Add tutorial for further CLI tools
 - TODO: Add tox for testing shnitsel with different python versions?
-- TODO: FIXME: 1/cm unit conversion in SOC is broken.
 
 
 python -m cProfile ./shnitsel/cli/convert_to_shnitsel.py tutorials/test_data/sharc/iconds_butene/ -o tutorials/test_data/playground/iconds_butene.nc -c butene -est bravo -basis gulasch -log debug > tutorials/test_data/playground/iconds_butene.profile.log
