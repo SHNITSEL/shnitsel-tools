@@ -348,6 +348,7 @@ def parse_observables_from_log(
     nstates: int = trajectory_in.sizes["state"]
     natoms: int = trajectory_in.sizes["atom"]
     nstatecomb: int = trajectory_in.sizes["statecomb"]
+    nfull_statecomb: int = trajectory_in.sizes["full_statecomb"]
 
     if expected_nsteps is None:
         raise ValueError("Could not read `nsteps` from trajectory")
@@ -387,7 +388,7 @@ def parse_observables_from_log(
     dcmat = np.full((expected_nsteps, nstates, nstates), np.nan)
     nacs = np.full((expected_nsteps, nstates, nstates), np.nan)
     nacs = np.full((expected_nsteps, nstatecomb, natoms, 3), np.nan)
-    socs = np.full((expected_nsteps, nstatecomb), np.nan)
+    socs = np.full((expected_nsteps, nfull_statecomb), np.nan + 0j, dtype=np.complex128)
 
     has_forces = False
     has_veloc = False
@@ -409,8 +410,14 @@ def parse_observables_from_log(
     state_comb_dict: dict[tuple[int, int], int] = {
         pair: i for i, pair in enumerate(state_comb_order)
     }
+
+    idx_table_socs = {
+        (si, sj): idx
+        for idx, (si, sj) in enumerate(trajectory_in.full_statecomb.values)
+    }
     logging.debug(state_comb_order)
     logging.debug(state_comb_dict)
+    logging.debug(idx_table_socs)
 
     # TODO: FIXME: Read variable units from the file and compare to expected values or override.
     ts_idx = -1
@@ -440,7 +447,7 @@ def parse_observables_from_log(
                     astate[ts_idx] = int(line.strip().split()[5])
                     break
             else:
-                raise ValueError(f"No state info found for Iter: {ts_idx+1}")
+                raise ValueError(f"No state info found for Iter: {ts_idx + 1}")
 
         # Positions:
         #   &coordinates in Angstrom
@@ -608,8 +615,8 @@ def parse_observables_from_log(
                             f"Soc missing for {from_state} -> {to_state} (mults: {from_state_mult} -> {to_state_mult})"
                         )
                     else:
-                        socs[ts_idx, state_comb_dict[(from_state, to_state)]] = float(
-                            match.group("coupling")
+                        socs[ts_idx, idx_table_socs[(from_state, to_state)]] = (
+                            float(match.group("coupling")) + 0j
                         )
 
                 nextline = next(f).strip()
@@ -653,7 +660,9 @@ def parse_observables_from_log(
         mark_variable_assigned(trajectory_in["velocities"])
 
     if has_dcms:
-        logging.warning("DCM currently not processed on PyRAI2md trajectories due to shape mismatch")
+        logging.warning(
+            "DCM currently not processed on PyRAI2md trajectories due to shape mismatch"
+        )
         # TODO: FIXME: Deal with dcm shape and adding dcm to default template
         # trajectory_in["dcm"].values = dcmat
         # mark_variable_assigned(trajectory_in["dcm"])
@@ -672,6 +681,9 @@ def parse_observables_from_log(
         # TODO: FIXME: Deal with soc shape
         trajectory_in["socs"].values = socs
         mark_variable_assigned(trajectory_in["socs"])
+        mark_variable_assigned(trajectory_in["full_statecomb"])
+        mark_variable_assigned(trajectory_in["full_statecomb_from"])
+        mark_variable_assigned(trajectory_in["full_statecomb_to"])
 
     if has_forces:
         trajectory_in["forces"].values = forces

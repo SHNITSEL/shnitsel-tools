@@ -1,3 +1,4 @@
+from itertools import combinations, permutations
 import logging
 import os
 import pathlib
@@ -5,6 +6,7 @@ from typing import Literal
 
 from ase.db import connect
 import numpy as np
+import pandas as pd
 import xarray as xr
 
 from shnitsel.data.trajectory_format import Trajectory
@@ -54,7 +56,7 @@ def shapes_from_metadata(
         'forces': [leading_dim_name, 'state', 'atom', 'direction'],
         'nacs': [leading_dim_name, 'statecomb', 'atom', 'direction'],
         'smooth_nacs': [leading_dim_name, 'statecomb', 'atom', 'direction'],
-        'socs': [leading_dim_name, 'statecomb'],
+        'socs': [leading_dim_name, 'full_statecomb'],
         'dipoles': [leading_dim_name, 'state_or_statecomb', 'direction'],
         "phases": [leading_dim_name, "state"],
     }
@@ -68,7 +70,7 @@ def shapes_from_metadata(
         'forces': [leading_dim_name, 'atom', 'state', 'direction'],
         'nacs': [leading_dim_name, 'atom', 'statecomb', 'direction'],
         'smooth_nacs': [leading_dim_name, 'atom', 'statecomb', 'direction'],
-        'socs': [leading_dim_name, 'statecomb'],
+        'socs': [leading_dim_name, 'full_statecomb'],
         'dipoles': [leading_dim_name, 'state_or_statecomb', 'direction'],
         "phases": [leading_dim_name, "state"],
     }
@@ -86,7 +88,10 @@ def shapes_from_metadata(
         "trajid": [leading_dim_name],  # This only exists for frame dimensions
         "from": ["statecomb"],
         "to": ["statecomb"],
-        "statecomb": ["statecomb"],
+        "full_statecomb_from": ["full_statecomb"],
+        "full_statecomb_to": ["full_statecomb"],
+        # "statecomb": ["statecomb"],
+        # "full_statecomb": ["full_statecomb"]
     }
 
     if "db_format" in db_meta:
@@ -135,7 +140,9 @@ def shapes_from_metadata(
 
 
 def apply_dataset_meta_from_db_metadata(
-    dataset: Trajectory, db_meta: dict, default_attrs: dict
+    dataset: Trajectory,
+    db_meta: dict,
+    default_attrs: dict,
 ) -> Trajectory:
     """Apply attributes from db metadata and perform some validation checks on the result.
 
@@ -147,6 +154,7 @@ def apply_dataset_meta_from_db_metadata(
         dataset (Trajectory): Trajectory dataset parsed from ASE db
         db_meta (dict): Metadata from the trajectory db file
         default_attrs (dict): Attributes to apply to variables by default
+
 
     Returns:
         Trajectory: Dataset with attributes set from from db metadata and dimension sizes asserted
@@ -276,29 +284,89 @@ def apply_dataset_meta_from_db_metadata(
 
     assign_required_settings(dataset, extract_settings)
 
-    if "state_names" not in dataset or "state_types" not in dataset:
-        if "states" in db_meta:
-            state_name_data = np.array(str(db_meta["states"]).split(), dtype='U8')
-            state_type_data = np.array(
-                [
-                    1
-                    if x.startswith("S")
-                    else 2
-                    if x.startswith("D")
-                    else 3
-                    if x.startswith("T")
-                    else -1
-                    for x in state_name_data
-                ]
-            )
+    # Fix derived coordinates if they are missing
+    if "state" in dataset.dims:
+        # Fix state coordinates if they are missing
+        if "state_names" not in dataset or "state_types" not in dataset:
+            if "states" in db_meta:
+                state_name_data = np.array(str(db_meta["states"]).split(), dtype='U8')
+                state_type_data = np.array(
+                    [
+                        1
+                        if x.startswith("S")
+                        else 2
+                        if x.startswith("D")
+                        else 3
+                        if x.startswith("T")
+                        else -1
+                        for x in state_name_data
+                    ]
+                )
 
+                dataset = dataset.assign_coords(
+                    state_types=(
+                        ["state"],
+                        state_type_data,
+                        default_attrs["state_types"],
+                    ),
+                    state_names=(
+                        ["state"],
+                        state_name_data,
+                        default_attrs["state_names"],
+                    ),
+                )
+
+                mark_variable_assigned(dataset["state_types"])
+                mark_variable_assigned(dataset["state_names"])
+
+        num_states = dataset.sizes["state"]
+        default_states = list(range(1, num_states + 1))
+
+        if "state" not in dataset.coords:
             dataset = dataset.assign_coords(
-                state_types=(["state"], state_type_data, default_attrs["state_types"]),
-                state_names=(["state"], state_name_data, default_attrs["state_names"]),
+                {"state": ("state", default_states, default_attrs["state"])}
             )
 
-            mark_variable_assigned(dataset["state_types"])
-            mark_variable_assigned(dataset["state_names"])
+        # Fix statecomb if missing:
+        if "statecomb" in dataset.dims:
+            if "from" not in dataset.coords or "to" not in dataset.coords:
+                statecomb_coords = xr.Coordinates.from_pandas_multiindex(
+                    pd.MultiIndex.from_tuples(
+                        combinations(default_states, 2), names=["from", "to"]
+                    ),
+                    dim="statecomb",
+                )
+                dataset = dataset.coords.merge(statecomb_coords)
+            dataset["statecomb"].attrs.update(default_attrs["statecomb"])
+            mark_variable_assigned(dataset["statecomb"])
+            dataset["from"].attrs.update(default_attrs["from"])
+            mark_variable_assigned(dataset["from"])
+            dataset["to"].attrs.update(default_attrs["to"])
+            mark_variable_assigned(dataset["to"])
+
+        if "full_statecomb" in dataset.dims:
+            if (
+                "full_statecomb_from" not in dataset.coords
+                or "full_statecomb_to" not in dataset.coords
+            ):
+                full_statecombs_coords = xr.Coordinates.from_pandas_multiindex(
+                    pd.MultiIndex.from_tuples(
+                        permutations(default_states, 2),
+                        names=["full_statecomb_from", "full_statecomb_to"],
+                    ),
+                    dim="full_statecomb",
+                )
+                dataset = dataset.coords.merge(full_statecombs_coords)
+            dataset["full_statecomb"].attrs.update(default_attrs["full_statecomb"])
+            mark_variable_assigned(dataset["full_statecomb"])
+            dataset["full_statecomb_from"].attrs.update(
+                default_attrs["full_statecomb_from"]
+            )
+            mark_variable_assigned(dataset["full_statecomb_from"])
+            dataset["full_statecomb_to"].attrs.update(
+                default_attrs["full_statecomb_to"]
+            )
+            mark_variable_assigned(dataset["full_statecomb_to"])
 
     # Set trajectory-level attributes
     if "misc_attrs" in db_meta:

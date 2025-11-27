@@ -71,8 +71,6 @@ def get_default_input_attributes(
         "astate": {"long_name": "Active state in dynamic trajectories (MCH)"},
         "state": {"long_name": "Index of relevant states for indexing"},
         "state2": {"long_name": "The second state to build state combinations out of"},
-        "from": {"long_name": "An alias for the first state of a state combination"},
-        "to": {"long_name": "An alias for the second state of a state combination"},
         "state_names": {"long_name": "String representations of the states."},
         "state_types": {
             "long_name": "Multiplicity to indicate whether the respective state is singlet (1), doublet (2), or triplet(3)"
@@ -83,7 +81,20 @@ def get_default_input_attributes(
             "units": override_defaults(unit_dimensions.charge, "state_charge"),
         },
         "statecomb": {
-            "long_name": "Combination of two states used to index inter-state properties"
+            "long_name": "Combination of two states used to index inter-state properties that don't depend on state order"
+        },
+        "from": {
+            "long_name": "An alias for the first state of a statecomb combination"
+        },
+        "to": {"long_name": "An alias for the second state of a statecomb combination"},
+        "full_statecomb": {
+            "long_name": "Combination of two states used to index inter-state properties that do depend on the order of states"
+        },
+        "full_statecomb_from": {
+            "long_name": "An alias for the first state of a full_statecomb combination"
+        },
+        "full_statecomb_to": {
+            "long_name": "An alias for the second state of a full_statecomb combination"
         },
         "atNames": {"long_name": "Names of atomic elements (short form)"},
         "atNums": {"long_name": "Periodic number of atomic elements"},

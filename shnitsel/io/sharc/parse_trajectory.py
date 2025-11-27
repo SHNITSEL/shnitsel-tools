@@ -3,7 +3,7 @@ import pathlib
 from typing import Any, Dict, List, Tuple
 import numpy as np
 import xarray as xr
-from itertools import combinations
+from itertools import combinations, permutations
 import pandas as pd
 import logging
 import os
@@ -539,6 +539,11 @@ def parse_trajout_dat(
         for idx, (si, sj) in enumerate(combinations(range(1, nstates + 1), 2))
     }
 
+    idx_table_socs = {
+        (si, sj): idx
+        for idx, (si, sj) in enumerate(permutations(range(1, nstates + 1), 2))
+    }
+
     # now we know the number of steps, we can initialize the data arrays:
     ts = -1
     max_ts = -1
@@ -601,13 +606,13 @@ def parse_trajout_dat(
                     socs_assigned = True
 
                     for jstate in range(nstates):
-                        if istate >= jstate:
+                        if istate != jstate:
                             continue
 
                         # State id and state index off by one
-                        sc = idx_table_nacs[(istate + 1, jstate + 1)]
+                        full_comb = idx_table_socs[(istate + 1, jstate + 1)]
 
-                        tmp_socs[ts, sc] = np.complex128(
+                        tmp_socs[ts, full_comb] = np.complex128(
                             float_entries[jstate * 2], float_entries[jstate * 2 + 1]
                         )
 
@@ -687,6 +692,9 @@ def parse_trajout_dat(
     if socs_assigned:
         trajectory_in["socs"].values = tmp_socs
         mark_variable_assigned(trajectory_in["socs"])
+        mark_variable_assigned(trajectory_in["full_statecomb"])
+        mark_variable_assigned(trajectory_in["full_statecomb_from"])
+        mark_variable_assigned(trajectory_in["full_statecomb_to"])
     if force_assigned:
         trajectory_in["forces"].values = tmp_forces
         mark_variable_assigned(trajectory_in["forces"])
@@ -755,9 +763,9 @@ def parse_trajout_xyz(
 
     for index, line in enumerate(f):
         if "t=" in line:
-            assert (
-                ts < nsteps
-            ), f"Excess time step at ts={ts}, for a maximum nsteps={nsteps}"
+            assert ts < nsteps, (
+                f"Excess time step at ts={ts}, for a maximum nsteps={nsteps}"
+            )
             for atom in range(natoms):
                 linecont = re.split(" +", next(f).strip())
                 if ts == 0:

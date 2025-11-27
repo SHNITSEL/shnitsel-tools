@@ -1,5 +1,5 @@
 from dataclasses import asdict, dataclass
-from itertools import combinations
+from itertools import combinations, permutations
 import logging
 import math
 from typing import Dict, List, Literal, Tuple
@@ -109,9 +109,9 @@ def create_initial_dataset(
         # "dip_all": ["time", "state", "state2", "direction"],
         "dip_perm": ["time", "state", "direction"],
         "dip_trans": ["time", "statecomb", "direction"],
-        # TODO: FIXME: We need to fix the SOC to be a state x state matrix as it is not necessarily hermitean
-        # "socs": ["time", "state", "state2"],
-        "socs": ["time", "statecomb"],
+        # SOCs need to be a state x state (without repetition) matrix as it is not necessarily hermitean
+        # "socs": ["time", "statecomb"],
+        "socs": ["time", "full_statecomb"],
         "state_names": ["state"],
         "state_types": ["state"],
         "state_charges": ["state"],
@@ -216,10 +216,22 @@ def create_initial_dataset(
         del dim_lengths["atom"]
         del coords["atom"]
 
-    coords = xr.Coordinates.from_pandas_multiindex(
-        pd.MultiIndex.from_tuples(combinations(states, 2), names=["from", "to"]),
-        dim="statecomb",
-    ).merge(coords)
+    coords = (
+        xr.Coordinates.from_pandas_multiindex(
+            pd.MultiIndex.from_tuples(combinations(states, 2), names=["from", "to"]),
+            dim="statecomb",
+        )
+        .merge(
+            xr.Coordinates.from_pandas_multiindex(
+                pd.MultiIndex.from_tuples(
+                    permutations(states, 2),
+                    names=["full_statecomb_from", "full_statecomb_to"],
+                ),
+                dim="full_statecomb",
+            )
+        )
+        .merge(coords)
+    )
 
     default_format_attributes = get_default_input_attributes(
         format_name, loading_parameters
