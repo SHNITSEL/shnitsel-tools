@@ -1,8 +1,10 @@
 from itertools import combinations, permutations
+import json
 import logging
 import os
 import pathlib
-from typing import Literal
+import traceback
+from typing import Any, Literal
 
 from ase.db import connect
 import numpy as np
@@ -43,8 +45,14 @@ def shapes_from_metadata(
         ValueError: If a db_format of database was requested that conflicts with the format of the database.
     """
 
-    if 'shnitsel_leading_dim' in db_meta:
-        leading_dim_name = db_meta['shnitsel_leading_dim']
+    if "__shnitsel_meta" in db_meta:
+        db_meta["__shnitsel_meta"] = json.loads(db_meta["__shnitsel_meta"])
+        shnitsel_meta = db_meta["__shnitsel_meta"]
+    else:
+        shnitsel_meta = {}
+
+    if 'shnitsel_leading_dim' in shnitsel_meta:
+        leading_dim_name = shnitsel_meta['shnitsel_leading_dim']
     else:
         leading_dim_name = dummy_leading_dim
 
@@ -94,8 +102,8 @@ def shapes_from_metadata(
         # "full_statecomb": ["full_statecomb"]
     }
 
-    if "db_format" in db_meta:
-        meta_format = db_meta["db_format"]
+    if "db_format" in shnitsel_meta:
+        meta_format = shnitsel_meta["db_format"]
         if meta_format not in ["schnet", "spainn"]:
             raise ValueError(
                 f"Database is of unsupported format: {meta_format}. Only `schnet` and `spainn` are supported."
@@ -126,19 +134,43 @@ def shapes_from_metadata(
         )
 
     # Read further shape data from the database
-    if "var_meta" in db_meta:
-        variable_metadata = db_meta["var_meta"]
+    if "var_meta" in shnitsel_meta:
+        variable_metadata = shnitsel_meta["var_meta"]
         for varname, vardict in variable_metadata.items():
             if "dims" in vardict:
                 shapes[varname] = vardict["dims"]
 
-    if "coords" in db_meta:
-        coord_metadata = db_meta["coords"]
+    if "coords" in shnitsel_meta:
+        coord_metadata = shnitsel_meta["coords"]
         for coordname, coorddict in coord_metadata.items():
             if "dims" in coorddict:
                 coord_shapes[coordname] = coorddict["dims"]
 
     return shapes, coord_shapes, leading_dim_name
+
+
+def _json_deserialize_ndarray(value: str) -> Any:
+    if isinstance(value, str):
+        value_d = json.loads(value)
+    else:
+        value_d = value
+
+    try:
+        # if isinstance(value_d, dict):
+        #     print("Is a dict")
+        # if "__ndarray" in value_d:
+        config = value_d["__ndarray"]
+
+        entries = config["entries"]
+        dtype_descr = np.dtype([tuple(i) for i in config["dtype"]])
+
+        return np.array(entries, dtype=dtype_descr)
+    except TypeError as e:
+        pass
+    except KeyError as e:
+        pass
+
+    return value
 
 
 def apply_dataset_meta_from_db_metadata(
@@ -161,30 +193,66 @@ def apply_dataset_meta_from_db_metadata(
     Returns:
         Trajectory: Dataset with attributes set from from db metadata and dimension sizes asserted
     """
+    if "__shnitsel_meta" in db_meta:
+        if isinstance(db_meta["__shnitsel_meta"], str):
+            db_meta["__shnitsel_meta"] = json.loads(db_meta["__shnitsel_meta"])
+        shnitsel_meta = db_meta["__shnitsel_meta"]
+    else:
+        shnitsel_meta = {}
+
     # Restore missing coordinates
-    if "coords" in db_meta:
-        coords_data = db_meta["coords"]
+    if "coords" in shnitsel_meta:
+        coords_data = shnitsel_meta["coords"]
         for coordname, coorddict in coords_data.items():
             if coordname not in dataset.coords:
                 dataset = dataset.assign_coords(
-                    {coordname: (coorddict["dims"], coorddict["values"])}
+                    {
+                        coordname: (
+                            coorddict["dims"],
+                            _json_deserialize_ndarray(coorddict["values"]),
+                        )
+                    }
                 )
                 mark_variable_assigned(dataset[coordname])
 
     # Potentially reconstruct multiindex levels
     if (
-        "_MultiIndex_levels_from_attrs" in db_meta
-        and db_meta["_MultiIndex_levels_from_attrs"] == 1
+        "_MultiIndex_levels_from_attrs" in shnitsel_meta
+        and shnitsel_meta["_MultiIndex_levels_from_attrs"] == 1
     ):
-        for k, v in db_meta["__multi_indices"].items():
+        for k, v in shnitsel_meta["__multi_indices"].items():
             if str(k).startswith(multi_level_prefix):
-                # index_name = str(k)[len(multi_level_prefix):]
-                index_levels = v
-                dataset = dataset.set_xindex(index_levels)
+                index_name = str(k)[len(multi_level_prefix) :]
+                index_levels = v["level_names"]
+                index_tuples = v["index_tuples"]
+                index_tuples = [tuple(x) for x in index_tuples]
+                # Stack the existing dimensions instead of setting an xindex
+
+                # tuples = list(
+                #     zip(*[dataset.coords[level].values for level in index_levels])
+                # )
+                # print(index_name, ":\t", tuples)
+
+                multi_coords = xr.Coordinates.from_pandas_multiindex(
+                    pd.MultiIndex.from_tuples(
+                        index_tuples,
+                        names=index_levels,
+                    ),
+                    dim=index_name,
+                )
+
+                dataset = dataset.assign_coords(multi_coords)
+
+                mark_variable_assigned(dataset[index_name])
+                for level in index_levels:
+                    mark_variable_assigned(dataset[level])
+
+                # dataset =dataset.stack({index_name: index_levels})
+                # dataset = dataset.set_xindex(index_levels)
 
     # Apply variable metadata where available
-    if "var_meta" in db_meta:
-        vars_dict = db_meta["var_meta"]
+    if "var_meta" in shnitsel_meta:
+        vars_dict = shnitsel_meta["var_meta"]
         for varname, vardict in vars_dict.items():
             if "attrs" in vardict:
                 var_attrs = vardict["attrs"]
@@ -338,7 +406,7 @@ def apply_dataset_meta_from_db_metadata(
                     ),
                     dim="statecomb",
                 )
-                dataset = dataset.coords.merge(statecomb_coords)
+                dataset = dataset.assign_coords(statecomb_coords)
             dataset["statecomb"].attrs.update(default_attrs["statecomb"])
             mark_variable_assigned(dataset["statecomb"])
             dataset["from"].attrs.update(default_attrs["from"])
@@ -358,7 +426,7 @@ def apply_dataset_meta_from_db_metadata(
                     ),
                     dim="full_statecomb",
                 )
-                dataset = dataset.coords.merge(full_statecombs_coords)
+                dataset = dataset.assign_coords(full_statecombs_coords)
             dataset["full_statecomb"].attrs.update(default_attrs["full_statecomb"])
             mark_variable_assigned(dataset["full_statecomb"])
             dataset["full_statecomb_from"].attrs.update(
@@ -370,19 +438,52 @@ def apply_dataset_meta_from_db_metadata(
             )
             mark_variable_assigned(dataset["full_statecomb_to"])
 
+    # Fill in missing frame/time coordinates
+    if "frame" in dataset.dims:
+        # Add dummy frame coordinate values treating all entries as initial conditions/static data in different trajectories
+        if "frame" not in dataset:
+            frame_vals = np.arange(0, dataset.sizes["frame"], 1)
+            dataset = dataset.assign_coords(
+                {
+                    "frame": (["frame"], frame_vals, default_attrs["frame"]),
+                    "trajid": (["frame"], frame_vals, default_attrs["trajid"]),
+                    "time": (["frame"], frame_vals * 0.0, default_attrs["time"]),
+                }
+            )
+    elif "time" in dataset.dims:
+        # Fill in missing time coordinate with dummy values if no frame is set as dimension
+        if "time" not in dataset:
+            time_vals = np.arange(0, dataset.sizes["time"], 1) * (
+                dataset.attrs["delta_t"] if "delta_t" in dataset.attrs else 1.0
+            )
+            dataset = dataset.assign_coords(
+                {
+                    "time": (["time"], time_vals, default_attrs["time"]),
+                }
+            )
+    else:
+        raise ValueError(
+            f"Neither `frame` nor `time` dimension generated. Indicates that no data could be read. Available dimensions: `{dataset.sizes.keys()}`. Available coordinates: `{dataset.coords.keys()}`"
+        )
+
     # Set trajectory-level attributes
-    if "misc_attrs" in db_meta:
-        dataset.attrs.update(db_meta["misc_attrs"])
+    if "misc_attrs" in shnitsel_meta:
+        dataset.attrs.update(shnitsel_meta["misc_attrs"])
 
     # Perform a check of the dimension sizes specified in the metadata if present
-    if "dims" in db_meta:
-        for dimname, dimdict in db_meta["dims"].items():
+    if "dims" in shnitsel_meta:
+        for dimname, dimdict in shnitsel_meta["dims"].items():
             dim_length = dimdict["length"] if "length" in dimdict else -1
             if dim_length >= 0:
                 if dim_length != dataset.sizes[dimname]:
                     msg = f"Size of dimension {dimname} in dataset parsed from ASE database has length inconsistent with metadata of ASE file. Was {dataset.sizes[dimname]} but metadata specifies {dim_length}"
                     logging.error(msg)
                     raise ValueError(msg)
+
+    if "est_level" not in dataset.attrs:
+        if 'ReferenceMethod' in db_meta:
+            # TODO: FIXME: Possibly split up into basis and method?
+            dataset.attrs["est_level"] = db_meta['ReferenceMethod']
 
     return dataset
 
@@ -445,15 +546,20 @@ def read_ase(
                     tmp_data_in[key] = []
 
                 tmp_data_in[key].append(value)
-            # TODO: FIXME: deal with different atoms/compounds in the same DB.
             row_atoms = row.toatoms()
-            if row_atoms.has("positions"):
-                tmp_data_in['atXYZ'].append(row_atoms.get_positions())
+            # TODO: FIXME: deal with different atoms/compounds in the same DB.
+            if 'atNames' not in tmp_data_in:
+                # tmp_data_in['atNames'] = []
+                tmp_data_in['atNames'] = row_atoms.get_chemical_symbols()
+            else:
+                new_symbols = row_atoms.get_chemical_symbols()
+                if tmp_data_in['atNames'] != new_symbols:
+                    raise ValueError(
+                        f"Mismatch between symbols of different rows. Previously read: {tmp_data_in['atNames']} now {new_symbols}. We currently do not support reading multiple different compounds from one ASE db."
+                    )
 
-            if row_atoms.has("symbols"):
-                if 'atNames' not in tmp_data_in:
-                    tmp_data_in['atNames'] = []
-                tmp_data_in['atNames'].append(row_atoms.get_symbols())
+            # if row_atoms.has("positions"):
+            tmp_data_in['atXYZ'].append(row_atoms.get_positions())
 
             if row_atoms.has("momenta"):
                 if 'velocities' not in tmp_data_in:
@@ -463,7 +569,7 @@ def read_ase(
             if "time" in row_atoms.info:
                 if "time" not in tmp_data_in:
                     tmp_data_in["time"] = []
-                tmp_data_in["time"].append(row_atoms.info["time"])
+                tmp_data_in["time"].append(float(row_atoms.info["time"]))
 
             if "trajid" in row_atoms.info:
                 if "trajid" not in tmp_data_in:
@@ -494,7 +600,6 @@ def read_ase(
             )
         elif k in coord_shapes:
             if k == "atNames":
-                data_array = data_array[0, :]
                 coord_vars[k] = (
                     coord_shapes[k],
                     data_array,
@@ -552,6 +657,9 @@ def read_ase(
             ase_default_attrs["dip_perm"],
         )
 
+    # print(data_vars["atXYZ"][1].shape)
+    # print(data_vars["atXYZ"][1].shape)
+    # print(coord_vars["frame"])
     frames = xr.Dataset(data_vars).assign_coords(coord_vars)
 
     # Set flags to mark as assigned
@@ -592,6 +700,7 @@ def read_ase(
         "time",
         "state",
         "statecomb",
+        "full_statecomb",
         "atom",
         "direction",
     ]

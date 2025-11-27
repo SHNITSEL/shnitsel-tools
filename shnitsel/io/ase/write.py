@@ -30,8 +30,10 @@ def _prepare_for_write_schnetpack(
     traj = traj.copy(deep=False)
     dip_attributes = {}
     if 'dipoles' in traj:
-        dipoles = traj['dipoles']
+        dipoles = traj['dipoles'].data
         dip_attributes = traj['dipoles'].attrs
+        # Special case: We already found a dipoles variable
+        return traj
     elif 'dip_perm' in traj and 'dip_trans' in traj:
         dip_perm = (
             traj['dip_perm'].transpose(leading_dim_name, 'state', 'direction').data
@@ -39,17 +41,17 @@ def _prepare_for_write_schnetpack(
         dip_trans = (
             traj['dip_trans'].transpose(leading_dim_name, 'statecomb', 'direction').data
         )
-        dipoles = np.concat((dip_perm, dip_trans.data), axis=1)
-        dip_attributes = dip_perm.attrs
+        dipoles = np.concat((dip_perm, dip_trans), axis=1)
+        dip_attributes = traj['dip_perm'].attrs
 
         del traj['dip_perm'], traj['dip_trans']
     elif 'dip_perm' in traj:
-        dipoles = traj['dip_perm']
-        dip_attributes = dipoles.attrs
+        dipoles = traj['dip_perm'].data
+        dip_attributes = traj['dip_perm'].attrs
         del traj['dip_perm']
     elif 'dip_trans' in traj:
         dipoles = traj['dip_trans']
-        dip_attributes = dipoles.attrs
+        dip_attributes = traj['dip_trans'].attrs
         del traj['dip_trans']
 
     if dipoles is not None:
@@ -68,6 +70,10 @@ def _prepare_for_write_schnetpack(
     return traj
 
 
+def _ndarray_to_json_ser(value):
+    return {"__ndarray": {"entries": value.tolist(), "dtype": value.dtype.descr}}
+
+
 def _collect_metadata(traj: Trajectory, keys_to_write: Iterable[str]) -> dict[str, Any]:
     """Helper function to generate the SPaiNN Metadata dict from a Trajectory struct.
 
@@ -81,6 +87,7 @@ def _collect_metadata(traj: Trajectory, keys_to_write: Iterable[str]) -> dict[st
     """
     # Define metadata information (dictionary)
     metadata: dict[str, Any] = {}
+    shnitsel_meta = {}
 
     if "trajectory_input_path" in traj.attrs:
         metadata['info'] = traj.attrs["trajectory_input_path"]
@@ -91,10 +98,12 @@ def _collect_metadata(traj: Trajectory, keys_to_write: Iterable[str]) -> dict[st
         #     'SA3-CASSCF(2,2)'  # state-average CASSCF with 2 electrons in 2 orbitals
         # )
 
-    metadata['_distance_unit'] = traj["atXYZ"].attrs["unit"]
+    metadata['_distance_unit'] = (
+        traj["atXYZ"].attrs["unit"] if "unit" in traj["atXYZ"].attrs else "Bohr"
+    )
 
     metadata['_property_unit_dict'] = {
-        k: (traj[k].attrs["unit"] if "unit" in traj[k].attrs["unit"] else "1")
+        k: (traj[k].attrs["unit"] if "unit" in traj[k].attrs else "1")
         for k in keys_to_write
         if k in traj and "unitdim" in traj[k].attrs
         # 'energy': traj["energy"].attrs["unit"]
@@ -139,11 +148,11 @@ def _collect_metadata(traj: Trajectory, keys_to_write: Iterable[str]) -> dict[st
     )  # 'S S S'  # three singlet states
 
     # Very specific Shnitsel stuff:
-    metadata["misc_attrs"] = {
+    shnitsel_meta["misc_attrs"] = {
         k: v for k, v in traj.attrs.items() if not str(k).startswith("__")
     }
 
-    metadata["var_meta"] = {
+    shnitsel_meta["var_meta"] = {
         varname: {
             "attrs": {
                 v_k: v
@@ -154,14 +163,18 @@ def _collect_metadata(traj: Trajectory, keys_to_write: Iterable[str]) -> dict[st
         }
         for varname in traj.variables.keys()
     }
-    metadata["coords"] = {
+    shnitsel_meta["coords"] = {
         coordname: {
-            "values": traj[coordname].values,
+            "values": _ndarray_to_json_ser(traj[coordname].values),
             "dims": [str(d) for d in traj[coordname].dims],
         }
         for coordname in traj.coords.keys()
+        if coordname not in traj.indexes
+        # or traj.indexes[coordname].name != coordname
+        or len(traj.indexes[coordname])
+        <= 1  # Do not store variables from multi-indices here
     }
-    metadata["dims"] = {
+    shnitsel_meta["dims"] = {
         dimname: {"length": traj.sizes[dimname]} for dimname in traj.sizes.keys()
     }
 
@@ -169,11 +182,18 @@ def _collect_metadata(traj: Trajectory, keys_to_write: Iterable[str]) -> dict[st
     for name, index in traj.indexes.items():
         if index.name == name and len(index.names) > 1:
             if len(midx_names) == 0:
-                metadata["__multi_indices"] = {}
+                shnitsel_meta["__multi_indices"] = {}
             midx_names.append(name)
             midx_levels = list(index.names)
-            metadata["__multi_indices"][f'_MultiIndex_levels_for_{name}'] = midx_levels
-    metadata['_MultiIndex_levels_from_attrs'] = 1
+
+            shnitsel_meta["__multi_indices"][f'_MultiIndex_levels_for_{name}'] = {
+                "level_names": midx_levels,
+                "index_tuples": index.values.tolist(),
+            }
+
+    shnitsel_meta['_MultiIndex_levels_from_attrs'] = 1
+
+    metadata["__shnitsel_meta"] = shnitsel_meta
 
     return metadata
 
@@ -216,7 +236,7 @@ def write_ase_db(
     if preprocess:
         traj = _prepare_for_write_schnetpack(traj, leading_dim_name)
 
-    statedims = ['state', 'statecomb', 'state_or_statecomb']
+    statedims = ['state', 'statecomb', 'full_statecomb', 'state_or_statecomb']
     if db_format == 'schnet':
         order = [leading_dim_name, *statedims, 'atom', 'direction']
         traj = traj.transpose(*order, missing_dims='ignore')
@@ -242,16 +262,17 @@ def write_ase_db(
         keys_to_write = data_var_keys
     else:
         keys_to_write = data_var_keys.intersection(keys_to_write)
-    keys_to_write = keys_to_write.difference(['atNames'])
+    keys_to_write = keys_to_write.difference(['atNames', 'velocities', 'atXYZ'])
 
     with connect(db_path, type='db') as db:
         # FIXME: Metadata is only required for SPaiNN, but it seems to me like there is no harm in applying it to SchNarc as well.
         meta_dict = _collect_metadata(traj, keys_to_write)
         meta_dict['n_steps'] = traj.sizes[leading_dim_name]
         if db_format is not None:
-            meta_dict["db_format"] = db_format
+            meta_dict["__shnitsel_meta"]["db_format"] = db_format
 
-        meta_dict['shnitsel_leading_dim'] = leading_dim_name
+        meta_dict["__shnitsel_meta"]['shnitsel_leading_dim'] = leading_dim_name
+        meta_dict["__shnitsel_meta"] = json.dumps(meta_dict["__shnitsel_meta"])
 
         db.metadata = meta_dict
 
@@ -281,16 +302,21 @@ def write_ase_db(
             else:
                 kv_pairs["input_format_version"] = traj.attrs["input_format_version"]
 
-            info = {"time": frame["time"][0]}
+            if "time" in frame:
+                print(frame["time"])
+                info = {"time": frame["time"][0]}
+            else:
+                info = {}
 
             if "trajid" in frame:
+                print(frame["trajid"])
                 info["trajid"] = frame["trajid"][0]
 
             # Actually output the entry
             db.write(
                 Atoms(
-                    symbols=frame['atNames'].data,
-                    positions=frame['atXYZ'],
+                    symbols=frame['atNames'].values,
+                    positions=frame['atXYZ'].values,
                     # numbers=frame['atNums'],
                     velocities=frame["velocities"] if "velocities" in frame else None,
                     # info={"frame_attrs": info_attrs},
