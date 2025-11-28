@@ -182,20 +182,24 @@ def get_bond_lengths(
         xr.concat(
             [
                 dists.sel(atomcomb=bonds).pipe(
-                    expand_midx, 'atomcomb', 'bond_type', bond_type
+                    expand_midx, 'atomcomb', 'descriptor_type', bond_type
                 )
                 for bond_type, bonds in bond_types.items()
             ],
             dim='atomcomb',
         )
-        .rename({'from': 'atom1', 'to': 'atom2', 'atomcomb': 'bond'})
+        .rename({'from': 'atom1', 'to': 'atom2', 'atomcomb': 'descriptor'})
         .transpose('frame', ...)
     )
-    return res.assign_coords(
-        bond_symbol=(  # TODO Is this name confusing, given the other use above?
-            'bond',
-            [r'$r_{%d,%d}$' % (b['atom1'], b['atom2']) for b in res.bond],
+    return (
+        res.assign_coords(
+            descriptor_tex=(  # TODO Is this name confusing, given the other use above?
+                'descriptor',
+                [r'$r_{%d,%d}$' % (b['atom1'], b['atom2']) for b in res['descriptor']],
+            )
         )
+        .reset_index('descriptor')
+        .set_xindex('descriptor_tex')
     )
 
 
@@ -235,11 +239,11 @@ def identify_angles(mol: Mol) -> xr.Dataset:
 
     return xr.Dataset(
         {
-            'at_idx': (('angle', 'atom'), np.array(triples)),
-            'at_num': (('angle', 'atom'), np.array(at_nums)),
-            'bond_type': (('angle', 'bond'), np.array(bond_types)),
-            'angle_type': ('angle', angle_types),
-            'angle_symbol': ('angle', angle_symbols),
+            'at_idx': (('descriptor', 'atom'), np.array(triples)),
+            'at_num': (('descriptor', 'atom'), np.array(at_nums)),
+            'bond_type': (('descriptor', 'bond'), np.array(bond_types)),
+            'descriptor_type': ('descriptor', angle_types),
+            'descriptor_tex': ('descriptor', angle_symbols),
         }
     )
 
@@ -308,11 +312,11 @@ def get_bond_angles(
             # bond_types=('angle', angle_types['bond_type'].astype('i,i').data),
             # at_nums=('angle', f(angle_types['at_num'], 3)),
             # bond_types=('angle', f(angle_types['bond_type'], 2)),
-            angle_type=angle_types['angle_type'],
-            angle_symbol=angle_types['angle_symbol'],
+            descriptor_type=angle_types['descriptor_type'],
+            descriptor_tex=angle_types['descriptor_tex'],
             **at_idxs,
         )
-        .set_xindex('angle_symbol')
+        .set_xindex('descriptor_tex')
     )
     if deg:
         angles *= 180 / np.pi
@@ -369,11 +373,11 @@ def identify_torsions(mol: Mol) -> xr.Dataset:
                 r"$\varphi_{%d,%d,%d,%d}$" % (i0, i1, i2, i3))
     return xr.Dataset(
         {
-            'at_idx': (('torsion', 'atom'), np.array(quadruples)),
-            'at_num': (('torsion', 'atom'), np.array(at_nums)),
-            'bond_type': (('torsion', 'bond'), np.array(bond_types)),
-            'torsion_type': ('torsion', torsion_types),
-            'torsion_symbol': ('torsion', torsion_symbols),
+            'at_idx': (('descriptor', 'atom'), np.array(quadruples)),
+            'at_num': (('descriptor', 'atom'), np.array(at_nums)),
+            'bond_type': (('descriptor', 'bond'), np.array(bond_types)),
+            'descriptor_type': ('descriptor', torsion_types),
+            'descriptor_tex': ('descriptor', torsion_symbols),
         }
     )
 
@@ -435,10 +439,10 @@ def get_bond_torsions(
     at_idxs = {f'atom{i}': quadruple_types['at_idx'].isel(
         atom=i) for i in range(4)}
     return res.assign_coords(
-        torsion_type=quadruple_types['torsion_type'],
-        torsion_symbol=quadruple_types['torsion_symbol'],
+        descriptor_type=quadruple_types['descriptor_type'],
+        descriptor_tex=quadruple_types['descriptor_tex'],
         **at_idxs,
-    ).set_xindex('torsion_symbol')
+    ).set_xindex('descriptor_tex')
 
 
 @needs(dims={'atom', 'direction'})
@@ -480,33 +484,28 @@ def get_bats(
         'torsion': get_bond_torsions(atXYZ, mol=mol, signed=signed, deg=deg),
     }
 
-    d['bond'] = (
-        d['bond']
-        .reset_index('bond')
-        .drop_vars(['atom1', 'atom2'])
-        .set_xindex('bond_symbol')
-    )
+    d['bond'] = d['bond'].drop_vars(['atom1', 'atom2'])
     d['angle'] = d['angle'].drop_vars(['atom0', 'atom1', 'atom2'])
     d['torsion'] = d['torsion'].drop_vars(['atom0', 'atom1', 'atom2', 'atom3'])
 
-    for k in d:
-        d[k] = d[k].rename(
-            {k: 'descriptor', f'{k}_symbol': 'descriptor', f'{k}_type': 'type'}
-        )
+    # for k in d:
+    #     d[k] = d[k].rename(
+    #         {k: 'descriptor', f'{k}_symbol': 'descriptor', f'{k}_type': 'type'}
+    #     )
 
     if pyr:
         d['pyr'] = get_pyramids(atXYZ, mol=mol, deg=deg, signed=signed)
         if 'atNames' in d['pyr'].coords:
             d['pyr'] = d['pyr'].drop_vars('atNames')
 
-        d['pyr'] = (
-            d['pyr']
-            .rename(atom='descriptor')
-            .assign_coords(
-                descriptor=('descriptor', d['pyr'].coords['atom'].data),
-                type=('descriptor', np.full(d['pyr'].sizes['atom'], 'pyr')),
-            )
-        )
+        # d['pyr'] = (
+        #     d['pyr']
+        #     .rename(atom='descriptor')
+        #     .assign_coords(
+        #         descriptor=('descriptor', d['pyr'].coords['atom'].data),
+        #         type=('descriptor', np.full(d['pyr'].sizes['atom'], 'pyr')),
+        #     )
+        # )
 
     to_concat = [d['bond'], d['angle'], d['torsion']]
 
@@ -615,10 +614,17 @@ def get_pyramids(
             data[i] = data[i].reset_index('atom')
 
     res = pyramid_(*data)
+    res = res.rename(atom='descriptor')
+    descriptor_tex = [
+        r'$\chi_{%d,%d}^{%d,%d}$' % (b, x, a, c)
+        for x, (a, b, c) in pyramid_idxs.items()
+    ]
+    res = res.assign_coords(
+        descriptor_tex=('descriptor', descriptor_tex),
+        descriptor_type=('descriptor', np.full(res.sizes['descriptor'], 'pyr')),
+    ).set_xindex('descriptor_tex')
     if deg:
         res *= 180 / np.pi
-    if 'atom' in atXYZ.coords:
-        res = res.assign_coords(atom=list(b))
     if not signed:
         res = np.abs(res)
     return res
