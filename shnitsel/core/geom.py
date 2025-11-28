@@ -119,6 +119,13 @@ def distance(atXYZ: AtXYZ, i: int, j: int) -> xr.DataArray:
     result.attrs['long_name'] = r"$\|\mathbf{r}_{%d,%d}\|$" % (i, j)
     return result
 
+def ndarray_of_tuples(da, dim):
+    da = da.transpose(..., dim)
+    res = np.empty(len(da), dtype=object)
+    list_of_tuples = [tuple(int(i) for i in x.data) for x in da]
+    res[:] = list_of_tuples
+    return res
+
 
 def bond_type_to_symbols(e1, e2):
     s1 = get_symbol_from_atom_number(e1)
@@ -170,35 +177,43 @@ def get_bond_lengths(
     UserWarning
         If both `bond_types` and `mol` are specified.
     """
-    dists = atXYZ.pipe(subtract_combinations, 'atom', labels=True).pipe(norm)
+    # dists = atXYZ.pipe(subtract_combinations, 'atom', labels=True).pipe(norm)
     if bond_types is None:
         if mol is None:
             mol = default_mol(atXYZ)
         bond_types = identify_bonds(mol, symbols=True)
     elif mol is not None:
         raise UserWarning("bond_types passed, so mol will not be used")
-    res = (
-        # Change how this works! We don't need to calculate them separately!
-        xr.concat(
-            [
-                dists.sel(atomcomb=bonds).pipe(
-                    expand_midx, 'atomcomb', 'descriptor_type', bond_type
-                )
-                for bond_type, bonds in bond_types.items()
-            ],
-            dim='atomcomb',
-        )
-        .rename({'from': 'atom1', 'to': 'atom2', 'atomcomb': 'descriptor'})
-        .transpose('frame', ...)
-    )
+
+    a0 = []
+    a1 = []
+    bt = []
+    for bond_type, bonds in bond_types.items():
+        for bond in bonds:
+            a0.append(bond[0])
+            a1.append(bond[1])
+            bt.append(bond_type)
+
+    atom_indices = np.empty(len(bt), dtype=object)
+    atom_indices[:] = list(zip(a0, a1))
+
+    sel = atXYZ.sel(atom=a0)
     return (
-        res.assign_coords(
-            descriptor_tex=(  # TODO Is this name confusing, given the other use above?
-                'descriptor',
-                [r'$r_{%d,%d}$' % (b['atom1'], b['atom2']) for b in res['descriptor']],
-            )
+        dnorm(sel.copy(data=atXYZ.sel(atom=a0).data - atXYZ.sel(atom=a1).data))
+        .drop(['atom', 'atNames'], errors='ignore')
+        .rename(atom='descriptor')
+        .assign_coords(
+            {
+                'atom0': ('descriptor', a0),
+                'atom1': ('descriptor', a1),
+                'atom_indices': ('descriptor', atom_indices),
+                'descriptor_type': ('descriptor', bt),
+                'descriptor_tex': (
+                    'descriptor',
+                    [r'$r_{%d,%d}$' % atom for atom in zip(a0, a1)],
+                ),
+            }
         )
-        .reset_index('descriptor')
         .set_xindex('descriptor_tex')
     )
 
@@ -314,6 +329,10 @@ def get_bond_angles(
             # bond_types=('angle', f(angle_types['bond_type'], 2)),
             descriptor_type=angle_types['descriptor_type'],
             descriptor_tex=angle_types['descriptor_tex'],
+            atom_indices=(
+                'descriptor',
+                ndarray_of_tuples(angle_types['at_idx'], 'atom'),
+            ),
             **at_idxs,
         )
         .set_xindex('descriptor_tex')
@@ -441,6 +460,10 @@ def get_bond_torsions(
     return res.assign_coords(
         descriptor_type=quadruple_types['descriptor_type'],
         descriptor_tex=quadruple_types['descriptor_tex'],
+        atom_indices=(
+            'descriptor',
+            ndarray_of_tuples(quadruple_types['at_idx'], 'atom'),
+        ),
         **at_idxs,
     ).set_xindex('descriptor_tex')
 
@@ -484,28 +507,15 @@ def get_bats(
         'torsion': get_bond_torsions(atXYZ, mol=mol, signed=signed, deg=deg),
     }
 
-    d['bond'] = d['bond'].drop_vars(['atom1', 'atom2'])
+    d['bond'] = d['bond'].drop_vars(['atom0', 'atom1'])
     d['angle'] = d['angle'].drop_vars(['atom0', 'atom1', 'atom2'])
     d['torsion'] = d['torsion'].drop_vars(['atom0', 'atom1', 'atom2', 'atom3'])
-
-    # for k in d:
-    #     d[k] = d[k].rename(
-    #         {k: 'descriptor', f'{k}_symbol': 'descriptor', f'{k}_type': 'type'}
-    #     )
 
     if pyr:
         d['pyr'] = get_pyramids(atXYZ, mol=mol, deg=deg, signed=signed)
         if 'atNames' in d['pyr'].coords:
             d['pyr'] = d['pyr'].drop_vars('atNames')
 
-        # d['pyr'] = (
-        #     d['pyr']
-        #     .rename(atom='descriptor')
-        #     .assign_coords(
-        #         descriptor=('descriptor', d['pyr'].coords['atom'].data),
-        #         type=('descriptor', np.full(d['pyr'].sizes['atom'], 'pyr')),
-        #     )
-        # )
 
     to_concat = [d['bond'], d['angle'], d['torsion']]
 
@@ -619,9 +629,14 @@ def get_pyramids(
         r'$\chi_{%d,%d}^{%d,%d}$' % (b, x, a, c)
         for x, (a, b, c) in pyramid_idxs.items()
     ]
+
+    atom_indices = np.empty(len(pyramid_idxs), dtype=object)
+    atom_indices[:] = [(b, x, a, c) for x, (a, b, c) in pyramid_idxs.items()]
+
     res = res.assign_coords(
         descriptor_tex=('descriptor', descriptor_tex),
         descriptor_type=('descriptor', np.full(res.sizes['descriptor'], 'pyr')),
+        atom_indices=('descriptor', atom_indices),
     ).set_xindex('descriptor_tex')
     if deg:
         res *= 180 / np.pi
