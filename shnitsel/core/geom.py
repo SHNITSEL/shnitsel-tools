@@ -12,11 +12,7 @@ import numpy as np
 from rdkit.Chem import Mol
 import xarray as xr
 
-from shnitsel.io.helpers import (
-    get_atom_number_from_symbol,
-    # get_symbol_from_atom_number # TODO FIXME: replace the __atnum2symbol__ import with this
-)
-from shnitsel.io.helpers import __atnum2symbol__ # TODO
+from shnitsel.io.helpers import get_symbol_from_atom_number
 from .generic import subtract_combinations, norm
 from ..bridges import default_mol
 from .xrhelpers import expand_midx
@@ -125,8 +121,8 @@ def distance(atXYZ: AtXYZ, i: int, j: int) -> xr.DataArray:
 
 
 def bond_type_to_symbols(e1, e2):
-    s1 = get_atom_number_from_symbol(e1)
-    s2 = get_atom_number_from_symbol(e2)
+    s1 = get_symbol_from_atom_number(e1)
+    s2 = get_symbol_from_atom_number(e2)
     return s1 + s2
 
 
@@ -233,8 +229,8 @@ def identify_angles(mol: Mol) -> xr.Dataset:
             triples.append((a1, a0, a2))
             at_nums.append((n1, n0, n2))
             bond_types.append((b10, b02))
-            s = __atnum2symbol__
-            angle_types.append(f"{s[n1]}{b10}{s[n0]}{b02}{s[n2]}")
+            s = get_symbol_from_atom_number
+            angle_types.append(f"{s(n1)}{b10}{s(n0)}{b02}{s(n2)}")
             angle_symbols.append(r"$\theta_{%d,%d,%d}$" % (a1, a0, a2))
 
     return xr.Dataset(
@@ -366,8 +362,9 @@ def identify_torsions(mol: Mol) -> xr.Dataset:
             quadruples.append(idxs)
             at_nums.append(an)
             bond_types.append(bt)
-            s = __atnum2symbol__
-            torsion_types.append('{}'.join([s[n] for n in an]).format(*bt))
+            torsion_types.append(
+                '{}'.join([get_symbol_from_atom_number(n) for n in an]).format(*bt)
+            )
             torsion_symbols.append(
                 r"$\varphi_{%d,%d,%d,%d}$" % (i0, i1, i2, i3))
     return xr.Dataset(
