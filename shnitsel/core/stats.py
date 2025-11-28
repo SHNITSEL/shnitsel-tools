@@ -108,7 +108,7 @@ def get_inter_state(frames: Frames) -> InterState:
             higher_str = f"S_{hi-1}"
         else:
             higher_str = hi
-        f'${higher_str} - {lower_str}$'
+        return f'${higher_str} - {lower_str}$'
 
     inter_state = flatten_midx(inter_state, 'statecomb', state_renamer)
     if {'energy', 'dip_trans'}.issubset(iprops):
