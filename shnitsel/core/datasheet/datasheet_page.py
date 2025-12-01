@@ -1,17 +1,19 @@
 from functools import cached_property
+from matplotlib.axes import Axes
 import xarray as xr
 import numpy as np
-import rdkit.Chem as rc
+import rdkit.Chem as rdchem
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from logging import info, warning
 from timeit import default_timer as timer
 
-from matplotlib.figure import Figure
+from matplotlib.figure import Figure, SubFigure
 
 import shnitsel
 import shnitsel.bridges
 from shnitsel.core import stats
+from shnitsel.data.trajectory_format import Trajectory
 from shnitsel.io import read
 
 import shnitsel.core.spectra
@@ -23,48 +25,36 @@ except ImportError:
 
 from ..spectra import calc_spectra, get_sgroups
 
-from .common import centertext
-from .per_state_hist import plot_per_state_histograms
-from .time import plot_timeplots
-from .dip_trans_hist import (
+from .figures.common import centertext
+from .figures.per_state_hist import plot_per_state_histograms
+from .figures.time import plot_timeplots
+from .figures.dip_trans_hist import (
     plot_separated_spectra_and_hists,
     plot_separated_spectra_and_hists_groundstate,
 )
-from .nacs_hist import plot_nacs_histograms
+from .figures.nacs_hist import plot_nacs_histograms
 from ..plot.pca_biplot import plot_noodleplot
-from .structure import plot_structure
+from .figures.structure import plot_structure
 
 
-class Datasheet:
+class DatasheetPage:
     def __init__(
         self,
-        frames: xr.Dataset | None = None,
+        data: Trajectory | Self,
         *,
-        path: str | None = None,
-        copy_data: Self | None = None,
         spectra_times: list[int | float] | np.ndarray | None = None,
         col_state: list | None = None,
         col_inter: list | None = None,
     ):
-        if copy_data is not None:
-            if path is not None or frames is not None:
-                raise ValueError(
-                    "if `copy_data` is set, neither `path` nor `frames` should be set"
-                )
-            self._copy_data(old=copy_data)
+        if isinstance(data, DatasheetPage):
+            self._copy_data(old=data)
             return
-
-        if path is not None and frames is not None:
-            raise ValueError("`path` and `frames` should not both be set")
-        elif frames is not None:
-            pass
-        elif path is not None:
-            frames = read(path, kind="shnitsel")  # type: ignore
+        elif isinstance(data, Trajectory):
+            self.frames = data
         else:
-            raise TypeError("Neither path nor frames given.")
+            raise TypeError("Neither DatasheetPage nor frames/Trajectory given.")
 
-        assert isinstance(frames, xr.Dataset)
-        self.frames = frames
+        assert isinstance(self.frames, xr.Dataset)
 
         if spectra_times is not None:
             self.spectra_times = spectra_times
@@ -76,7 +66,7 @@ class Datasheet:
             self.spectra_times += [max_time * i / 20 for i in range(5)]
             self.spectra_times += [max_time * i / 3 for i in range(4)]
 
-        nstates = frames.sizes['state']
+        nstates = self.frames.sizes['state']
         if col_state is not None:
             assert (ncols := len(col_state)) == nstates, (
                 f"`col_state` has {ncols} colors, "
@@ -99,7 +89,7 @@ class Datasheet:
                 "also pass an appropriate colormap to `col_state`."
             )
 
-        ncombs = frames.sizes['statecomb']
+        ncombs = self.frames.sizes['statecomb']
         if col_inter is not None:
             assert (ncols := len(col_inter)) == ncombs, (
                 f"`col_inter` has {ncols} colors, "
@@ -259,24 +249,52 @@ class Datasheet:
         return self.spectra_groups[1]
 
     @cached_property
-    def noodle(self):
+    def noodle(self) -> xr.DataArray:
+        """Noodle plot source data
+
+        Returns:
+            xr.DataArray: The pairwise distance PCA results
+        """
+        from shnitsel.core.convenience import pairwise_dists_pca
+
         start = timer()
-        res = shnitsel.core.convenience.pairwise_dists_pca(self.frames.atXYZ)
+        res = pairwise_dists_pca(self.frames.atXYZ)
         end = timer()
         info(f"cached noodle in {end-start} s")
         return res
 
     @cached_property
-    def hops(self):
-        mask = shnitsel.core.midx.mdiff(self.frames.astate) != 0
+    def hops(self) -> xr.DataArray:
+        """The PCA plots at the hopping points
+
+        Returns:
+            xr.DataArray: PCA data at the hopping points
+        """
+        from shnitsel.core.midx import mdiff
+
+        mask = mdiff(self.frames.astate) != 0
         return self.noodle[mask]
 
     @cached_property
-    def structure_atXYZ(self):
-        return self.frames.atXYZ.isel(frame=0)
+    def structure_atXYZ(self) -> xr.DataArray:
+        """Structure/Position data in the first frame/timestep of the trajectory
+
+        Returns:
+            _type_: _description_
+        """
+        if "frame" in self.frames.sizes:
+            return self.frames.atXYZ.isel(frame=0)
+        else:
+            return self.frames.atXYZ.isel(time=0)
 
     @cached_property
-    def mol(self):
+    def mol(self) -> rdchem.Mol:
+        """Property to get an rdkit Mol object from the structural data
+
+        Returns:
+            rdkit.Chem.Mol: Molecule object representing the structure in the first frame
+        """
+        # TODO: FIXME: This should be a private attribute prefixed with `__`
         if 'smiles_map' in self.frames['atXYZ'].attrs:
             mol = shnitsel.bridges.numbered_smiles_to_mol(
                 self.frames['atXYZ'].attrs['smiles_map']
@@ -289,22 +307,38 @@ class Datasheet:
             return shnitsel.bridges.to_mol(self.structure_atXYZ, charge=self.charge)
 
     @cached_property
-    def mol_skeletal(self):
-        mol = rc.Mol(self.mol)
-        return rc.RemoveHs(mol)
+    def mol_skeletal(self) -> rdchem.Mol:
+        """Skeletal representation of the the rdkit.Chem.Mol representation of the structure
+
+        Returns:
+            rdkit.Chem.Mol: Molecule object representing the skeletal structure (no H atoms) in the first frame
+        """
+        mol = rdchem.Mol(self.mol)
+        return rdchem.RemoveHs(mol)
 
     @cached_property
-    def smiles(self):
-        return rc.MolToSmiles(self.mol_skeletal)
+    def smiles(self) -> str:
+        """Smiles representation of the skeletal molecule structure.
+
+        Returns:
+            str: Smiles representation of the skeletal molecule structure
+        """
+        return rdchem.MolToSmiles(self.mol_skeletal)
 
     @cached_property
-    def inchi(self):
-        return rc.MolToInchi(self.mol_skeletal)
+    def inchi(self) -> str:
+        """InChI representation of the skeletal molecule structure.
+
+        Returns:
+            str: InChI representation of the skeletal molecule structure.
+        """
+        return rdchem.MolToInchi(self.mol_skeletal)
 
     # @cached_property
     # def axs(self):
 
     def calc_all(self):
+        """Helper method to allow for precalculation of all cached properties"""
         self.per_state
         self.inter_state
         self.pops
@@ -319,7 +353,7 @@ class Datasheet:
         self.smiles
         self.inchi
 
-    def plot_per_state_histograms(self, fig: Figure | None = None):
+    def plot_per_state_histograms(self, fig: Figure | None = None) -> Axes:
         start = timer()
         res = plot_per_state_histograms(
             per_state=self.per_state,
@@ -329,7 +363,7 @@ class Datasheet:
         info(f"finished plot_per_state_histograms in {end - start} s")
         return res
 
-    def plot_timeplots(self, fig: Figure | None = None):
+    def plot_timeplots(self, fig: Figure | None = None) -> Axes:
         start = timer()
         res = plot_timeplots(
             pops=self.pops,
@@ -341,7 +375,7 @@ class Datasheet:
         info(f"finished plot_timeplots in {end - start} s")
         return res
 
-    def plot_separated_spectra_and_hists(self, fig: Figure | None = None):
+    def plot_separated_spectra_and_hists(self, fig: Figure | None = None) -> Axes:
         start = timer()
         res = plot_separated_spectra_and_hists(
             inter_state=self.inter_state,
@@ -354,7 +388,7 @@ class Datasheet:
 
     def plot_separated_spectra_and_hists_groundstate(
         self, fig: Figure | None = None, scmap=plt.get_cmap('turbo')
-    ):
+    ) -> Axes:
         start = timer()
         res = plot_separated_spectra_and_hists_groundstate(
             inter_state=self.inter_state,
@@ -368,21 +402,21 @@ class Datasheet:
         )
         return res
 
-    def plot_nacs_histograms(self, fig: Figure | None = None):
+    def plot_nacs_histograms(self, fig: Figure | None = None) -> Axes:
         start = timer()
         res = plot_nacs_histograms(self.inter_state, self.hops.frame, fig=fig)
         end = timer()
         info(f"finished plot_nacs_histograms in {end - start} s")
         return res
 
-    def plot_noodle(self, fig: Figure | None = None):
+    def plot_noodle(self, fig: Figure | None = None) -> Axes:
         start = timer()
         res = plot_noodleplot(self.noodle, self.hops, fig=fig)
         end = timer()
         info(f"finished plot_noodle in {end - start} s")
         return res
 
-    def plot_structure(self, fig: Figure | None = None):
+    def plot_structure(self, fig: Figure | None = None) -> Axes:
         start = timer()
         mol = self.mol_skeletal if self.structure_skeletal else self.mol
         res = plot_structure(
@@ -398,7 +432,18 @@ class Datasheet:
         return res
 
     @staticmethod
-    def get_subfigures(include_per_state_hist: bool = False, borders: bool = False):
+    def get_subfigures(
+        include_per_state_hist: bool = False, borders: bool = False
+    ) -> tuple[Figure, dict[str, SubFigure]]:
+        """Helper function to prepare a figure to hold all subfigures in this DatasheetPage
+
+        Args:
+            include_per_state_hist (bool, optional): Flag whether per state histograms will be included. Defaults to False.
+            borders (bool, optional): Flag whether figure borders should be drawn. Defaults to False.
+
+        Returns:
+            tuple[Figure, dict[str, SubFigure]]: The overall figure and a dict to access individual subfigures by their name.
+        """
         nrows = 6 if include_per_state_hist else 5
         s = 1 if include_per_state_hist else 0
 
@@ -427,8 +472,20 @@ class Datasheet:
         self,
         include_per_state_hist: bool = False,
         borders: bool = False,
-        consitent_lettering: bool = True,
-    ):
+        consistent_lettering: bool = True,
+    ) -> Figure:
+        """Function to plot this Datasheet.
+
+        Will generate all subplots and calculate necessary data if it has not yet been generated.
+
+        Args:
+            include_per_state_hist (bool, optional): Flag whether per-state histograms should be included. Defaults to False.
+            borders (bool, optional): Flag whether the figure should have borders or not. Defaults to False.
+            consistent_lettering (bool, optional): Flag whether consistent lettering should be used, i.e. whether the same plot should always have the same label letter. Defaults to True.
+
+        Returns:
+            Figure: The figure holding the entirety of plots in this Datasheet page.
+        """
         letters = iter('abcdef')
 
         def outlabel(ax):
@@ -481,39 +538,45 @@ class Datasheet:
         if self.can['noodle']:
             ax = self.plot_noodle(fig=sfs['noodle'])
             inlabel(ax)
-        elif consitent_lettering:
+        elif consistent_lettering:
             next(letters)
         # structure
         if self.can['structure']:
             ax = self.plot_structure(fig=sfs['structure'])
             inlabel(ax)
-        elif consitent_lettering:
+        elif consistent_lettering:
             next(letters)
         # nacs_histograms
         if self.can['nacs_histograms']:
             axs = self.plot_nacs_histograms(fig=sfs['nacs_histograms'])
             ax = axs.get('ntd', axs['nde'])
             outlabel(ax)
-        elif consitent_lettering:
+        elif consistent_lettering:
             next(letters)
         # time plots
         if self.can['timeplots']:
             axs = self.plot_timeplots(fig=sfs['timeplots'])
             ax = axs['pop']
             outlabel(ax)
-        elif consitent_lettering:
+        elif consistent_lettering:
             next(letters)
         if include_per_state_hist:
             axs = self.plot_per_state_histograms(fig=sfs['per_state_histograms'])
             ax = axs['energy']
             outlabel(ax)
-        elif consitent_lettering:
+        elif consistent_lettering:
             next(letters)
         return fig
 
     def _test_subfigures(
         self, include_per_state_hist: bool = False, borders: bool = False
     ):
+        """Helper method to test whether subfigures are successfully plotted
+
+        Args:
+            include_per_state_hist (bool, optional): Flag to include per-state histograms. Defaults to False.
+            borders (bool, optional): Whether the figures should have borders. Defaults to False.
+        """
         fig, sfs = self.get_subfigures(
             include_per_state_hist=include_per_state_hist, borders=borders
         )
