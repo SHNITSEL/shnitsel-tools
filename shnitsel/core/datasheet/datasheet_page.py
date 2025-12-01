@@ -521,6 +521,8 @@ class DatasheetPage:
             include_per_state_hist=include_per_state_hist, borders=borders
         )
 
+        print(self.frames)
+
         # separated_spectra_and_hists
         if self.can['separated_spectra_and_hists']:
             axs = self.plot_separated_spectra_and_hists(

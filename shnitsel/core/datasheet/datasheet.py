@@ -71,29 +71,30 @@ class Datasheet:
 
         if isinstance(data, Datasheet):
             self._copy_data(old=data)
-        elif isinstance(data, str) or isinstance(data, PathLike):
-            base_data = read(data, concat_method='db')  # type: ignore # Should be Trajectory or Database
-        elif isinstance(data, ShnitselDB) or isinstance(data, Trajectory):
-            base_data = data
         else:
-            raise TypeError(
-                "The provided data is neither a Datasheet, a path to Trajectory data or a Trajectory or ShnitselDB object."
-            )
+            if isinstance(data, str) or isinstance(data, PathLike):
+                base_data = read(data, concat_method='db')  # type: ignore # Should be Trajectory or Database
+            elif isinstance(data, ShnitselDB) or isinstance(data, Trajectory):
+                base_data = data
+            else:
+                raise TypeError(
+                    f"The provided data is neither a Datasheet, a path to Trajectory data or a Trajectory or ShnitselDB object. Was {type(data)}"
+                )
 
-        if isinstance(data, ShnitselDB):
-            self.data_source = data
-            # TODO: FIXME: Still need to deal with the appropriate grouping of ShnitselDB entries.
-            pass
-        elif isinstance(data, Trajectory):
-            self.data_source = data
-            self.datasheet_pages[_Datasheet_default_page_key] = DatasheetPage(
-                self.data_source, col_inter=col_inter, col_state=col_state
-            )
-            pass
-        else:
-            raise TypeError(
-                "The provided (or read) data is neither Trajectory data nor a Trajectory or ShnitselDB object."
-            )
+            if isinstance(base_data, ShnitselDB):
+                self.data_source = base_data
+                # TODO: FIXME: Still need to deal with the appropriate grouping of ShnitselDB entries.
+                pass
+            elif isinstance(base_data, Trajectory):
+                self.data_source = base_data
+                self.datasheet_pages[_Datasheet_default_page_key] = DatasheetPage(
+                    self.data_source, col_inter=col_inter, col_state=col_state
+                )
+                pass
+            else:
+                raise TypeError(
+                    f"The provided (or read) data is neither Trajectory data nor a Trajectory or ShnitselDB object. Was {type(base_data)}"
+                )
 
     def _copy_data(self, old: Self):
         """Create a copy of an existing Datasheet instance.
