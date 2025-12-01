@@ -64,7 +64,7 @@ def aggregate_xr_over_levels(tree: T, func: Callable[[T], R], level: str) -> T |
     """Apply an aggregation function to every node at a level of a db structure
 
     Args:
-        tree (T): _description_
+        tree (T): The tree to aggregate at the specific level
         func (callable): The function to apply to that subtree
         level (str): The target level to apply the function `func` to. See `shnitsel_db.datatree_level.py` for values.
 
