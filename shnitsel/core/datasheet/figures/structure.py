@@ -5,7 +5,7 @@ import rdkit
 import matplotlib as mpl
 
 from .common import centertext
-from ..plot.common import figax, mpl_imshow_png
+from ...plot.common import figax, mpl_imshow_png
 
 
 def mol_to_png(mol, width=320, height=240):
