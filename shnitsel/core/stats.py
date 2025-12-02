@@ -32,7 +32,7 @@ def calc_ci(a: npt.NDArray, confidence: float = 0.95) -> npt.NDArray:
     )
 
 
-def ci_agg_last_dim(a, confidence=0.95):
+def ci_agg_last_dim(a: xr.DataArray, confidence=0.95):
     outer_shape = tuple(a.shape[:-1])
     res = np.full(outer_shape + (3,), np.nan)
     for idxs in np.ndindex(outer_shape):
