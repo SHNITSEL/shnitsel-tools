@@ -68,7 +68,7 @@ def flatten_midx(
     to_drop = midx.names + [midx.name]
     fidx = midx.to_flat_index()
     if renamer is not None:
-        fidx = [renamer(x, y) for x,y in fidx]
+        fidx = [renamer(x, y) for x, y in fidx]
     return obj.drop_vars(to_drop).assign_coords({idx_name: fidx})
 
 
@@ -111,7 +111,7 @@ def expand_midx(
     midx = obj.indexes[midx_name]
     to_drop = [midx.name] + midx.names
     df = midx.to_frame()
-    df.insert(0, level_name, [value]*len(midx)) # in place!
+    df.insert(0, level_name, [value] * len(midx))  # in place!
     midx = pd.MultiIndex.from_frame(df)
     coords = xr.Coordinates.from_pandas_multiindex(midx, dim=midx_name)
     return obj.drop_vars(to_drop).assign_coords(coords)
@@ -172,6 +172,7 @@ def assign_levels(
 
 #######################################
 # Functions to extend xarray selection:
+
 
 def mgroupby(
     obj: xr.Dataset | xr.DataArray, levels: Sequence[str]
@@ -234,6 +235,7 @@ def msel(obj: xr.Dataset | xr.DataArray, **kwargs) -> xr.Dataset | xr.DataArray:
         .reset_index(to_reset)
         .set_xindex(levels)
     )
+
 
 @needs(dims={'frame'}, coords_or_vars={'trajid'})
 def sel_trajs(
@@ -310,6 +312,7 @@ def sel_trajids(frames: xr.Dataset, trajids: npt.ArrayLike, invert=False) -> xr.
         actually_selected = np.unique(res['trajid'])
         res = res.sel(trajid_=actually_selected)
     return res
+
 
 def unstack_trajs(frames: xr.Dataset | xr.DataArray) -> xr.Dataset | xr.DataArray:
     """Unstack the ``frame`` MultiIndex so that ``trajid`` and ``time`` become
