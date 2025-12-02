@@ -5,8 +5,7 @@ import numpy as np
 import xarray as xr
 
 from .._contracts import needs
-
-Frames: TypeAlias = xr.Dataset
+from .typedefs import Frames
 
 
 @needs(dims={'frame', 'state'}, coords={'time'}, data_vars={'astate'})

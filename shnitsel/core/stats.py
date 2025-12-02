@@ -1,4 +1,5 @@
 from logging import warning
+import logging
 from typing import Hashable, TypeAlias
 
 import numpy as np
@@ -12,10 +13,8 @@ from .spectra import assign_fosc
 
 from .._contracts import needs
 
-DimName: TypeAlias = Hashable
-Frames: TypeAlias = xr.Dataset
-InterState: TypeAlias = xr.Dataset
-PerState: TypeAlias = xr.Dataset
+from .typedefs import DimName, Frames, InterState, PerState
+
 
 #####################################################
 # For calculating confidence intervals, the following

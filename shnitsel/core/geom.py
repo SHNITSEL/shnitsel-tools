@@ -6,7 +6,7 @@
 """
 
 from itertools import combinations, product
-from typing import Literal, TypeAlias
+from typing import Literal
 
 import numpy as np
 from rdkit.Chem import Mol
@@ -22,7 +22,7 @@ from ..bridges import default_mol
 from .xrhelpers import expand_midx
 from .._contracts import needs
 
-AtXYZ: TypeAlias = xr.DataArray
+from .typedefs import AtXYZ
 
 
 def dnorm(a):

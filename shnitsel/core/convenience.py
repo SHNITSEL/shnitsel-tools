@@ -13,8 +13,7 @@ from .._contracts import needs
 from ..units import convert_energy
 from ..io import write_shnitsel_file
 
-AtXYZ: TypeAlias = xr.DataArray
-Frames: TypeAlias = xr.Dataset
+from .typedefs import AtXYZ, Frames
 
 
 @needs(dims={'atom'})

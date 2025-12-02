@@ -1,8 +1,11 @@
 from itertools import product
-from typing import Hashable, TypeAlias
+import logging
+from typing import Iterable
 
 import numpy as np
 import xarray as xr
+
+from .typedefs import InterState, DimName, SpectraDictType
 
 from .generic import subtract_combinations
 from .._contracts import needs
