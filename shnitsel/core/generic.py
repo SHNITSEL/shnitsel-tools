@@ -72,6 +72,10 @@ def subtract_combinations(
     n = da.sizes[dim]
     dim_index = da.get_index(dim)
 
+    coordinates = None
+    dims = None
+    dims = [combination_dimension_name, dim]
+
     if combination_dimension_name in da:
         # Don't recalculate the combinations, just take whichever have already been set.
         logging.info(
@@ -86,8 +90,9 @@ def subtract_combinations(
             comb_indices.append((index_from, index_to))
     else:
         logging.info(f"Dimension {combination_dimension_name} is being generated.")
-        da = da.assign_coords({combination_dimension_name: midx(da, dim)})
+        da = da.assign_coords()
         comb_indices = list(itertools.combinations(range(n), 2))
+        coordinates = {combination_dimension_name: midx(da, dim), dim: dim_index}
 
     mat = np.zeros((len(comb_indices), n))
 
@@ -96,10 +101,13 @@ def subtract_combinations(
         mat[r, c1] = -1
         mat[r, c2] = 1
 
-    xrmat = xr.DataArray(
-        data=mat,
-        dims=[combination_dimension_name, dim],
-    )
+    if labels and coordinates is not None:
+        xrmat = xr.DataArray(
+            data=mat,
+            coords=coordinates,
+        )
+    else:
+        xrmat = xr.DataArray(data=mat, dims=dims)
 
     newdims = list(da.dims)
     newdims[newdims.index(dim)] = f'{dim}comb'

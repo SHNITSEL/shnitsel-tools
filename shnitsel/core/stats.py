@@ -89,12 +89,12 @@ def get_inter_state(frames: Frames) -> InterState:
         InterState: A Dataset containing interstate properties
     """
     prop: Hashable
-
-    iprops = []
+    inter_base_props = ['energy']
+    available_inter_base_props = []
     # TODO: Check that energy is actually the only inter-state property. We already have statecomb for nacs and dip_trans and astate is not state-dependent.
-    for prop in ['energy']:  # ['energy', 'nacs', 'astate', 'dip_trans']:
+    for prop in inter_base_props:
         if prop in frames:
-            iprops.append(prop)
+            available_inter_base_props.append(prop)
         else:
             warning(f"Dataset does not contain variable '{prop}'")
 
@@ -105,13 +105,14 @@ def get_inter_state(frames: Frames) -> InterState:
         frames = frames.assign_coords(get_statecomb_coordinate(frames.state))
         frames['statecomb'].attrs['long_name'] = "State combinations"
 
-    inter_state = frames[iprops]
-    for prop in inter_state:
-        if 'state' in inter_state[prop].dims:
-            inter_state[prop] = subtract_combinations(
-                inter_state[prop], dim='state', labels=True
+    inter_state = frames.copy()
+    for prop in available_inter_base_props:
+        if 'state' in frames[prop].dims and 'statecomb' not in frames[prop].dims:
+            inter_state_res = subtract_combinations(
+                frames[prop], dim='state', labels=False
             )
-    inter_state = inter_state.map(keep_norming)
+            inter_state[str(prop) + "_interstate"] = inter_state_res
+            inter_state[str(prop) + "_interstate"].attrs["long_name"] = f"Derived inter-state differences of variable `{prop}`"
 
     # TODO: FIXME: We can't just redefine the statecomb dimension. If it is there, we need to keep it.
     # def state_renamer(lo, hi):
@@ -134,7 +135,7 @@ def get_inter_state(frames: Frames) -> InterState:
     # inter_state = flatten_midx(inter_state, 'statecomb', state_renamer)
     # inter_state['statecomb'].attrs['long_name'] = "State combinations"
 
-    if {'energy', 'dip_trans'}.issubset(iprops):
+    if {'energy_interstate', 'dip_trans'}.issubset(frames.variables.keys()):
         inter_state = assign_fosc(inter_state)
 
     return inter_state

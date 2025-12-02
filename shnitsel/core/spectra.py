@@ -5,6 +5,8 @@ from typing import Iterable
 import numpy as np
 import xarray as xr
 
+from shnitsel.units.definitions import energy
+
 from .typedefs import InterState, DimName, SpectraDictType
 
 from .generic import subtract_combinations
@@ -27,28 +29,38 @@ def _get_fosc(energy: xr.DataArray, dip_trans: xr.DataArray) -> xr.DataArray:
     return 2 / 3 * energy * dip_trans**2
 
 
-def get_fosc(energy: xr.DataArray, dip_trans: xr.DataArray) -> xr.DataArray:
+def get_fosc(
+    energy_per_or_interstate: xr.DataArray, dip_trans: xr.DataArray
+) -> xr.DataArray:
     """Function to obtain a dataarray containing the oscillator strength as a dataarray.
 
     Args:
-        energy (DataArray): The Array of Energies in the system.
+        energy_interstate (DataArray): The array of per- or inter-state energies in the system.
+            If provided as a per-state energy, inter-state barriers will automatically be calculated.
         dip_trans (DataArray): The array of associated transition dipoles in the system.
 
     Returns:
         DataArray: The resulting datarray of oscillator strength f_osc
     """
-    if 'state' in energy.dims:
-        assert 'statecomb' not in energy.dims
-        energy = subtract_combinations(energy, 'state')
+    if 'state' in energy_per_or_interstate.dims:
+        assert 'statecomb' not in energy_per_or_interstate.dims
+        energy_interstate = subtract_combinations(energy_per_or_interstate, 'state')
+    else:
+        energy_interstate = energy_per_or_interstate
 
-    da = _get_fosc(convert_energy(energy, to='hartree'), dip_trans)
+    da = _get_fosc(convert_energy(energy_interstate, to=energy.Hartree), dip_trans)
     da.name = 'fosc'
-    da.attrs['long_name'] = r"$f_{\mathrm{osc}}$"
+    da.attrs.update(
+        {
+            "long_name": r"$f_{\mathrm{osc}}$",
+            "description": "derived from 'energy_interstate' and 'dip_trans' variables",
+        }
+    )
     return da
 
 
 # TODO: deprecate (made redundant by DerivedProperties)
-@needs(data_vars={'energy', 'dip_trans'})
+@needs(data_vars={'energy_interstate', 'dip_trans'}, coords={'statecomb'})
 def assign_fosc(ds: xr.Dataset) -> xr.Dataset:
     """Function to calculate oscillator strength fosc and create a new dataset with this variable assigned.
 
@@ -58,8 +70,9 @@ def assign_fosc(ds: xr.Dataset) -> xr.Dataset:
     Returns:
         xr.Dataset: Dataset with the member variable fosc set
     """
-    da = get_fosc(ds['energy'], ds['dip_trans'])
-    return ds.assign(fosc=da)
+    da = get_fosc(ds['energy_interstate'], ds['dip_trans'])
+    res = ds.assign(fosc=da)
+    return res
 
 
 @needs(data_vars={'energy', 'fosc'})
@@ -186,12 +199,14 @@ def get_spectrum(
 
 @needs(data_vars={'energy', 'fosc'}, coords={"statecomb", "time"})
 def calc_spectra(
-    spectral: InterState, times: Iterable[float] | None = None, rel_cutoff: float = 0.01
+    interstate: InterState,
+    times: Iterable[float] | None = None,
+    rel_cutoff: float = 0.01,
 ) -> SpectraDictType:
     """Function to
 
     Args:
-        spectral (InterState): An InterState transformed Dataset.
+        interstate (InterState): An InterState transformed Dataset.
         times (Iterable[float]|None, optional): The times at which the spectrum should be calculated. Defaults to None. If None, will be initialized as [0,10,20,30]
         rel_cutoff (float, optional): Factor for the cutoff of broadened/smoothened spectrum relative to maximum. Defaults to 0.01.
 
@@ -201,12 +216,10 @@ def calc_spectra(
     if times is None:
         times = [0, 10, 20, 30]
 
-    sc_values: Iterable[tuple[int, int]] = spectral.statecomb.values
-    print(f"{sc_values=}")
-    raise ValueError()
+    sc_values: Iterable[tuple[int, int]] = interstate.statecomb.values
 
     res: SpectraDictType = {
-        (t, sc): get_spectrum(spectral, t, sc, rel_cutoff=rel_cutoff)
+        (t, sc): get_spectrum(interstate, t, sc, rel_cutoff=rel_cutoff)
         for t, sc in product(times, sc_values)
     }
     print(f"{res=}")
