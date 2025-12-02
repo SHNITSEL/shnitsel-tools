@@ -1,4 +1,3 @@
-import os
 import pathlib
 
 import pytest
@@ -7,17 +6,16 @@ from shnitsel.data.shnitsel_db_format import ShnitselDB
 from shnitsel.data.trajectory_format import Trajectory
 from shnitsel.io.shnitsel.write import write_shnitsel_file
 from shnitsel.test_support.trajectory_verification import verify_trajectory_format
-import xarray as xr
 
-import shnitsel as sh
 from shnitsel.io import read
-from shnitsel.io.newtonx import parse_newtonx
 from shnitsel.io.newtonx.format_reader import NewtonXFormatReader
 
 
-input_R02_a = "tutorials/test_data/newtonx/test_R02_a/"
+input_I01 = "tutorials/test_data/newtonx/test_I01_v2.6/"
+input_R02_a = "tutorials/test_data/newtonx/test_R02_a_v2.2/"
 input_R02_b = "tutorials/test_data/newtonx/test_R02_b/"
 
+I01_additional_properties = ["forces", "astate", "nacs"]
 R02_a_additional_properties = ["forces", "astate", "nacs"]
 R02_b_additional_properties = []
 
@@ -36,6 +34,7 @@ class TestNewtonX:
     @pytest.mark.parametrize(
         'path, add_props',
         [
+            (input_I01 + "TRAJ1/", I01_additional_properties),
             (input_R02_a + "TRAJ1/", R02_a_additional_properties),
             (input_R02_b + "TRAJ49/", R02_b_additional_properties),
         ],
@@ -55,6 +54,7 @@ class TestNewtonX:
     @pytest.mark.parametrize(
         'path, add_props',
         [
+            (input_I01 + "TRAJ1/", I01_additional_properties),
             (input_R02_a + "TRAJ1/", R02_a_additional_properties),
             (input_R02_b + "TRAJ49/", R02_b_additional_properties),
         ],
@@ -72,6 +72,7 @@ class TestNewtonX:
     @pytest.mark.parametrize(
         'path, add_props',
         [
+            (input_I01, I01_additional_properties),
             (input_R02_a, R02_a_additional_properties),
             (input_R02_b, R02_b_additional_properties),
         ],
@@ -91,6 +92,7 @@ class TestNewtonX:
     @pytest.mark.parametrize(
         'path, add_props',
         [
+            (input_I01 + "TRAJ1/", I01_additional_properties),
             (input_R02_a + "TRAJ1/", R02_a_additional_properties),
             (input_R02_b + "TRAJ49/", R02_b_additional_properties),
         ],
@@ -110,6 +112,7 @@ class TestNewtonX:
     @pytest.mark.parametrize(
         'path, add_props',
         [
+            (input_I01 + "TRAJ1/", I01_additional_properties),
             (input_R02_a + "TRAJ1/", R02_a_additional_properties),
             (input_R02_b + "TRAJ49/", R02_b_additional_properties),
         ],
@@ -128,6 +131,7 @@ class TestNewtonX:
     @pytest.mark.parametrize(
         'path, add_props',
         [
+            (input_I01, I01_additional_properties),
             (input_R02_a, R02_a_additional_properties),
             (input_R02_b, R02_b_additional_properties),
         ],
@@ -146,6 +150,7 @@ class TestNewtonX:
     @pytest.mark.parametrize(
         'path, add_props',
         [
+            (input_I01, I01_additional_properties),
             (input_R02_a, R02_a_additional_properties),
             (input_R02_b, R02_b_additional_properties),
         ],
