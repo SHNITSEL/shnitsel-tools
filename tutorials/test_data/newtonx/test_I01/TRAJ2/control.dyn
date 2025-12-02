@@ -1,8 +1,0 @@
-&input
- nat = 10
- nstat = 7
- nstatdyn = 4
- dt = 0.500
- tmax = 100
- prog = 5
- thres = 100
