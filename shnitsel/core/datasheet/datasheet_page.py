@@ -217,7 +217,7 @@ class DatasheetPage:
     @cached_property
     def delta_E(self):
         start = timer()
-        res = stats.time_grouped_ci(self.inter_state['energy'])
+        res = stats.time_grouped_ci(self.inter_state['energy_interstate'])
         res['_color'] = 'statecomb', self.col_inter
         res.attrs['tex'] = r"$\Delta E$"
         end = timer()
