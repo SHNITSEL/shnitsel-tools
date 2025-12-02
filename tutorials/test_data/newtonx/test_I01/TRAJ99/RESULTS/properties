@@ -1,0 +1,1664 @@
+
+ TIME (fs): 0.0000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.004541 
+Oscillator strength (1,3) =  0.000404 
+Oscillator strength (1,4) =  0.000708 
+Oscillator strength (1,5) =  0.059539 
+Oscillator strength (1,6) =  0.011397 
+Oscillator strength (1,7) =  0.060012 
+
+ TIME (fs): 0.5000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.004401 
+Oscillator strength (1,3) =  0.000371 
+Oscillator strength (1,4) =  0.000696 
+Oscillator strength (1,5) =  0.055167 
+Oscillator strength (1,6) =  0.014969 
+Oscillator strength (1,7) =  0.073895 
+
+ TIME (fs): 1.0000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.004265 
+Oscillator strength (1,3) =  0.000340 
+Oscillator strength (1,4) =  0.000657 
+Oscillator strength (1,5) =  0.048145 
+Oscillator strength (1,6) =  0.020966 
+Oscillator strength (1,7) =  0.085349 
+
+ TIME (fs): 1.5000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.004141 
+Oscillator strength (1,3) =  0.000313 
+Oscillator strength (1,4) =  0.000594 
+Oscillator strength (1,5) =  0.037436 
+Oscillator strength (1,6) =  0.030402 
+Oscillator strength (1,7) =  0.094126 
+
+ TIME (fs): 2.0000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.004033 
+Oscillator strength (1,3) =  0.000294 
+Oscillator strength (1,4) =  0.000520 
+Oscillator strength (1,5) =  0.024621 
+Oscillator strength (1,6) =  0.041700 
+Oscillator strength (1,7) =  0.100373 
+
+ TIME (fs): 2.5000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.003939 
+Oscillator strength (1,3) =  0.000292 
+Oscillator strength (1,4) =  0.000453 
+Oscillator strength (1,5) =  0.014205 
+Oscillator strength (1,6) =  0.050375 
+Oscillator strength (1,7) =  0.104437 
+
+ TIME (fs): 3.0000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.003847 
+Oscillator strength (1,3) =  0.000323 
+Oscillator strength (1,4) =  0.000407 
+Oscillator strength (1,5) =  0.008184 
+Oscillator strength (1,6) =  0.054502 
+Oscillator strength (1,7) =  0.106370 
+
+ TIME (fs): 3.5000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.003747 
+Oscillator strength (1,3) =  0.000395 
+Oscillator strength (1,4) =  0.000391 
+Oscillator strength (1,5) =  0.005166 
+Oscillator strength (1,6) =  0.055563 
+Oscillator strength (1,7) =  0.106372 
+
+ TIME (fs): 4.0000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.003655 
+Oscillator strength (1,3) =  0.000490 
+Oscillator strength (1,4) =  0.000405 
+Oscillator strength (1,5) =  0.003689 
+Oscillator strength (1,6) =  0.055152 
+Oscillator strength (1,7) =  0.104774 
+
+ TIME (fs): 4.5000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.003598 
+Oscillator strength (1,3) =  0.000574 
+Oscillator strength (1,4) =  0.000442 
+Oscillator strength (1,5) =  0.002999 
+Oscillator strength (1,6) =  0.054103 
+Oscillator strength (1,7) =  0.101525 
+
+ TIME (fs): 5.0000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.003585 
+Oscillator strength (1,3) =  0.000630 
+Oscillator strength (1,4) =  0.000492 
+Oscillator strength (1,5) =  0.002742 
+Oscillator strength (1,6) =  0.052899 
+Oscillator strength (1,7) =  0.096597 
+
+ TIME (fs): 5.5000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.003612 
+Oscillator strength (1,3) =  0.000656 
+Oscillator strength (1,4) =  0.000542 
+Oscillator strength (1,5) =  0.002772 
+Oscillator strength (1,6) =  0.051727 
+Oscillator strength (1,7) =  0.089884 
+
+ TIME (fs): 6.0000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.003669 
+Oscillator strength (1,3) =  0.000655 
+Oscillator strength (1,4) =  0.000581 
+Oscillator strength (1,5) =  0.003060 
+Oscillator strength (1,6) =  0.050629 
+Oscillator strength (1,7) =  0.081298 
+
+ TIME (fs): 6.0000        CURRENT STATE: 5 
+Oscillator strength (1,2) =  0.003669 
+Oscillator strength (1,3) =  0.000655 
+Oscillator strength (1,4) =  0.000581 
+Oscillator strength (1,5) =  0.003058 
+Oscillator strength (1,6) =  0.050629 
+Oscillator strength (1,7) =  0.081298 
+
+ TIME (fs): 6.5000        CURRENT STATE: 5 
+Oscillator strength (1,2) =  0.003713 
+Oscillator strength (1,3) =  0.000643 
+Oscillator strength (1,4) =  0.000589 
+Oscillator strength (1,5) =  0.003221 
+Oscillator strength (1,6) =  0.050121 
+Oscillator strength (1,7) =  0.076053 
+
+ TIME (fs): 7.0000        CURRENT STATE: 5 
+Oscillator strength (1,2) =  0.003766 
+Oscillator strength (1,3) =  0.000623 
+Oscillator strength (1,4) =  0.000577 
+Oscillator strength (1,5) =  0.003206 
+Oscillator strength (1,6) =  0.049842 
+Oscillator strength (1,7) =  0.071300 
+
+ TIME (fs): 7.5000        CURRENT STATE: 5 
+Oscillator strength (1,2) =  0.003820 
+Oscillator strength (1,3) =  0.000601 
+Oscillator strength (1,4) =  0.000549 
+Oscillator strength (1,5) =  0.003004 
+Oscillator strength (1,6) =  0.049736 
+Oscillator strength (1,7) =  0.067186 
+
+ TIME (fs): 8.0000        CURRENT STATE: 5 
+Oscillator strength (1,2) =  0.003870 
+Oscillator strength (1,3) =  0.000583 
+Oscillator strength (1,4) =  0.000510 
+Oscillator strength (1,5) =  0.002613 
+Oscillator strength (1,6) =  0.049728 
+Oscillator strength (1,7) =  0.063576 
+
+ TIME (fs): 8.5000        CURRENT STATE: 5 
+Oscillator strength (1,2) =  0.003909 
+Oscillator strength (1,3) =  0.000574 
+Oscillator strength (1,4) =  0.000464 
+Oscillator strength (1,5) =  0.002119 
+Oscillator strength (1,6) =  0.049735 
+Oscillator strength (1,7) =  0.060760 
+
+ TIME (fs): 9.0000        CURRENT STATE: 5 
+Oscillator strength (1,2) =  0.003928 
+Oscillator strength (1,3) =  0.000578 
+Oscillator strength (1,4) =  0.000417 
+Oscillator strength (1,5) =  0.001598 
+Oscillator strength (1,6) =  0.049661 
+Oscillator strength (1,7) =  0.058952 
+
+ TIME (fs): 9.5000        CURRENT STATE: 5 
+Oscillator strength (1,2) =  0.003920 
+Oscillator strength (1,3) =  0.000596 
+Oscillator strength (1,4) =  0.000376 
+Oscillator strength (1,5) =  0.001134 
+Oscillator strength (1,6) =  0.049448 
+Oscillator strength (1,7) =  0.058393 
+
+ TIME (fs): 10.0000        CURRENT STATE: 5 
+Oscillator strength (1,2) =  0.003876 
+Oscillator strength (1,3) =  0.000631 
+Oscillator strength (1,4) =  0.000346 
+Oscillator strength (1,5) =  0.000765 
+Oscillator strength (1,6) =  0.049054 
+Oscillator strength (1,7) =  0.059134 
+
+ TIME (fs): 10.5000        CURRENT STATE: 5 
+Oscillator strength (1,2) =  0.003788 
+Oscillator strength (1,3) =  0.000685 
+Oscillator strength (1,4) =  0.000331 
+Oscillator strength (1,5) =  0.000522 
+Oscillator strength (1,6) =  0.048500 
+Oscillator strength (1,7) =  0.061754 
+
+ TIME (fs): 11.0000        CURRENT STATE: 5 
+Oscillator strength (1,2) =  0.003647 
+Oscillator strength (1,3) =  0.000758 
+Oscillator strength (1,4) =  0.000335 
+Oscillator strength (1,5) =  0.000394 
+Oscillator strength (1,6) =  0.047820 
+Oscillator strength (1,7) =  0.066113 
+
+ TIME (fs): 11.5000        CURRENT STATE: 5 
+Oscillator strength (1,2) =  0.003447 
+Oscillator strength (1,3) =  0.000857 
+Oscillator strength (1,4) =  0.000359 
+Oscillator strength (1,5) =  0.000363 
+Oscillator strength (1,6) =  0.047058 
+Oscillator strength (1,7) =  0.072247 
+
+ TIME (fs): 12.0000        CURRENT STATE: 5 
+Oscillator strength (1,2) =  0.003177 
+Oscillator strength (1,3) =  0.000990 
+Oscillator strength (1,4) =  0.000402 
+Oscillator strength (1,5) =  0.000407 
+Oscillator strength (1,6) =  0.046248 
+Oscillator strength (1,7) =  0.079285 
+
+ TIME (fs): 12.5000        CURRENT STATE: 5 
+Oscillator strength (1,2) =  0.002827 
+Oscillator strength (1,3) =  0.001171 
+Oscillator strength (1,4) =  0.000460 
+Oscillator strength (1,5) =  0.000503 
+Oscillator strength (1,6) =  0.045411 
+Oscillator strength (1,7) =  0.086918 
+
+ TIME (fs): 13.0000        CURRENT STATE: 5 
+Oscillator strength (1,2) =  0.002383 
+Oscillator strength (1,3) =  0.001421 
+Oscillator strength (1,4) =  0.000529 
+Oscillator strength (1,5) =  0.000632 
+Oscillator strength (1,6) =  0.044548 
+Oscillator strength (1,7) =  0.094574 
+
+ TIME (fs): 13.5000        CURRENT STATE: 5 
+Oscillator strength (1,2) =  0.001843 
+Oscillator strength (1,3) =  0.001752 
+Oscillator strength (1,4) =  0.000605 
+Oscillator strength (1,5) =  0.000775 
+Oscillator strength (1,6) =  0.043646 
+Oscillator strength (1,7) =  0.101815 
+
+ TIME (fs): 14.0000        CURRENT STATE: 5 
+Oscillator strength (1,2) =  0.001248 
+Oscillator strength (1,3) =  0.002134 
+Oscillator strength (1,4) =  0.000681 
+Oscillator strength (1,5) =  0.000919 
+Oscillator strength (1,6) =  0.042693 
+Oscillator strength (1,7) =  0.108380 
+
+ TIME (fs): 14.5000        CURRENT STATE: 5 
+Oscillator strength (1,2) =  0.000722 
+Oscillator strength (1,3) =  0.002454 
+Oscillator strength (1,4) =  0.000760 
+Oscillator strength (1,5) =  0.001046 
+Oscillator strength (1,6) =  0.041656 
+Oscillator strength (1,7) =  0.114267 
+
+ TIME (fs): 15.0000        CURRENT STATE: 5 
+Oscillator strength (1,2) =  0.000396 
+Oscillator strength (1,3) =  0.002593 
+Oscillator strength (1,4) =  0.000851 
+Oscillator strength (1,5) =  0.001127 
+Oscillator strength (1,6) =  0.040541 
+Oscillator strength (1,7) =  0.119371 
+
+ TIME (fs): 15.5000        CURRENT STATE: 5 
+Oscillator strength (1,2) =  0.000287 
+Oscillator strength (1,3) =  0.002546 
+Oscillator strength (1,4) =  0.001042 
+Oscillator strength (1,5) =  0.001064 
+Oscillator strength (1,6) =  0.039415 
+Oscillator strength (1,7) =  0.123761 
+
+ TIME (fs): 16.0000        CURRENT STATE: 5 
+Oscillator strength (1,2) =  0.000318 
+Oscillator strength (1,3) =  0.002398 
+Oscillator strength (1,4) =  0.001269 
+Oscillator strength (1,5) =  0.000910 
+Oscillator strength (1,6) =  0.038476 
+Oscillator strength (1,7) =  0.126966 
+
+ TIME (fs): 16.5000        CURRENT STATE: 5 
+Oscillator strength (1,2) =  0.000403 
+Oscillator strength (1,3) =  0.002241 
+Oscillator strength (1,4) =  0.001323 
+Oscillator strength (1,5) =  0.000880 
+Oscillator strength (1,6) =  0.037940 
+Oscillator strength (1,7) =  0.128614 
+
+ TIME (fs): 17.0000        CURRENT STATE: 5 
+Oscillator strength (1,2) =  0.000510 
+Oscillator strength (1,3) =  0.002098 
+Oscillator strength (1,4) =  0.001316 
+Oscillator strength (1,5) =  0.000877 
+Oscillator strength (1,6) =  0.037749 
+Oscillator strength (1,7) =  0.128733 
+
+ TIME (fs): 17.0000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.000510 
+Oscillator strength (1,3) =  0.002098 
+Oscillator strength (1,4) =  0.001316 
+Oscillator strength (1,5) =  0.000877 
+Oscillator strength (1,6) =  0.037756 
+Oscillator strength (1,7) =  0.128733 
+
+ TIME (fs): 17.5000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.000682 
+Oscillator strength (1,3) =  0.001921 
+Oscillator strength (1,4) =  0.001266 
+Oscillator strength (1,5) =  0.000886 
+Oscillator strength (1,6) =  0.037751 
+Oscillator strength (1,7) =  0.127725 
+
+ TIME (fs): 18.0000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.000924 
+Oscillator strength (1,3) =  0.001698 
+Oscillator strength (1,4) =  0.001186 
+Oscillator strength (1,5) =  0.000899 
+Oscillator strength (1,6) =  0.037956 
+Oscillator strength (1,7) =  0.125776 
+
+ TIME (fs): 18.5000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.001195 
+Oscillator strength (1,3) =  0.001469 
+Oscillator strength (1,4) =  0.001100 
+Oscillator strength (1,5) =  0.000905 
+Oscillator strength (1,6) =  0.038394 
+Oscillator strength (1,7) =  0.122429 
+
+ TIME (fs): 19.0000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.001444 
+Oscillator strength (1,3) =  0.001278 
+Oscillator strength (1,4) =  0.001019 
+Oscillator strength (1,5) =  0.000896 
+Oscillator strength (1,6) =  0.039130 
+Oscillator strength (1,7) =  0.117456 
+
+ TIME (fs): 19.5000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.001649 
+Oscillator strength (1,3) =  0.001143 
+Oscillator strength (1,4) =  0.000950 
+Oscillator strength (1,5) =  0.000873 
+Oscillator strength (1,6) =  0.040142 
+Oscillator strength (1,7) =  0.110673 
+
+ TIME (fs): 20.0000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.001811 
+Oscillator strength (1,3) =  0.001058 
+Oscillator strength (1,4) =  0.000895 
+Oscillator strength (1,5) =  0.000840 
+Oscillator strength (1,6) =  0.041385 
+Oscillator strength (1,7) =  0.102241 
+
+ TIME (fs): 20.5000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.001941 
+Oscillator strength (1,3) =  0.001007 
+Oscillator strength (1,4) =  0.000858 
+Oscillator strength (1,5) =  0.000798 
+Oscillator strength (1,6) =  0.042768 
+Oscillator strength (1,7) =  0.093048 
+
+ TIME (fs): 21.0000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.002051 
+Oscillator strength (1,3) =  0.000960 
+Oscillator strength (1,4) =  0.000852 
+Oscillator strength (1,5) =  0.000750 
+Oscillator strength (1,6) =  0.044174 
+Oscillator strength (1,7) =  0.084266 
+
+ TIME (fs): 21.5000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.002149 
+Oscillator strength (1,3) =  0.000784 
+Oscillator strength (1,4) =  0.001003 
+Oscillator strength (1,5) =  0.000697 
+Oscillator strength (1,6) =  0.045449 
+Oscillator strength (1,7) =  0.077047 
+
+ TIME (fs): 22.0000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.002241 
+Oscillator strength (1,3) =  0.000385 
+Oscillator strength (1,4) =  0.001390 
+Oscillator strength (1,5) =  0.000642 
+Oscillator strength (1,6) =  0.046427 
+Oscillator strength (1,7) =  0.071993 
+
+ TIME (fs): 22.5000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.002327 
+Oscillator strength (1,3) =  0.000438 
+Oscillator strength (1,4) =  0.001321 
+Oscillator strength (1,5) =  0.000598 
+Oscillator strength (1,6) =  0.046460 
+Oscillator strength (1,7) =  0.068894 
+
+ TIME (fs): 23.0000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.002410 
+Oscillator strength (1,3) =  0.000413 
+Oscillator strength (1,4) =  0.001318 
+Oscillator strength (1,5) =  0.000570 
+Oscillator strength (1,6) =  0.045480 
+Oscillator strength (1,7) =  0.066758 
+
+ TIME (fs): 23.0000        CURRENT STATE: 3 
+Oscillator strength (1,2) =  0.002410 
+Oscillator strength (1,3) =  0.000413 
+Oscillator strength (1,4) =  0.001318 
+Oscillator strength (1,5) =  0.000570 
+Oscillator strength (1,6) =  0.045481 
+Oscillator strength (1,7) =  0.066757 
+
+ TIME (fs): 23.5000        CURRENT STATE: 3 
+Oscillator strength (1,2) =  0.002516 
+Oscillator strength (1,3) =  0.000360 
+Oscillator strength (1,4) =  0.001329 
+Oscillator strength (1,5) =  0.000546 
+Oscillator strength (1,6) =  0.043563 
+Oscillator strength (1,7) =  0.064511 
+
+ TIME (fs): 24.0000        CURRENT STATE: 3 
+Oscillator strength (1,2) =  0.002628 
+Oscillator strength (1,3) =  0.000307 
+Oscillator strength (1,4) =  0.001347 
+Oscillator strength (1,5) =  0.000529 
+Oscillator strength (1,6) =  0.041434 
+Oscillator strength (1,7) =  0.062375 
+
+ TIME (fs): 24.5000        CURRENT STATE: 3 
+Oscillator strength (1,2) =  0.002737 
+Oscillator strength (1,3) =  0.000268 
+Oscillator strength (1,4) =  0.001364 
+Oscillator strength (1,5) =  0.000526 
+Oscillator strength (1,6) =  0.039257 
+Oscillator strength (1,7) =  0.060181 
+
+ TIME (fs): 25.0000        CURRENT STATE: 3 
+Oscillator strength (1,2) =  0.002825 
+Oscillator strength (1,3) =  0.000267 
+Oscillator strength (1,4) =  0.001364 
+Oscillator strength (1,5) =  0.000541 
+Oscillator strength (1,6) =  0.037190 
+Oscillator strength (1,7) =  0.057639 
+
+ TIME (fs): 25.5000        CURRENT STATE: 3 
+Oscillator strength (1,2) =  0.002873 
+Oscillator strength (1,3) =  0.000320 
+Oscillator strength (1,4) =  0.001342 
+Oscillator strength (1,5) =  0.000575 
+Oscillator strength (1,6) =  0.035371 
+Oscillator strength (1,7) =  0.054626 
+
+ TIME (fs): 26.0000        CURRENT STATE: 3 
+Oscillator strength (1,2) =  0.002879 
+Oscillator strength (1,3) =  0.000428 
+Oscillator strength (1,4) =  0.001293 
+Oscillator strength (1,5) =  0.000628 
+Oscillator strength (1,6) =  0.033895 
+Oscillator strength (1,7) =  0.051040 
+
+ TIME (fs): 26.5000        CURRENT STATE: 3 
+Oscillator strength (1,2) =  0.002858 
+Oscillator strength (1,3) =  0.000571 
+Oscillator strength (1,4) =  0.001222 
+Oscillator strength (1,5) =  0.000693 
+Oscillator strength (1,6) =  0.032811 
+Oscillator strength (1,7) =  0.046841 
+
+ TIME (fs): 27.0000        CURRENT STATE: 3 
+Oscillator strength (1,2) =  0.002835 
+Oscillator strength (1,3) =  0.000718 
+Oscillator strength (1,4) =  0.001139 
+Oscillator strength (1,5) =  0.000760 
+Oscillator strength (1,6) =  0.032124 
+Oscillator strength (1,7) =  0.042054 
+
+ TIME (fs): 27.5000        CURRENT STATE: 3 
+Oscillator strength (1,2) =  0.002825 
+Oscillator strength (1,3) =  0.000846 
+Oscillator strength (1,4) =  0.001055 
+Oscillator strength (1,5) =  0.000822 
+Oscillator strength (1,6) =  0.031811 
+Oscillator strength (1,7) =  0.036749 
+
+ TIME (fs): 28.0000        CURRENT STATE: 3 
+Oscillator strength (1,2) =  0.002834 
+Oscillator strength (1,3) =  0.000944 
+Oscillator strength (1,4) =  0.000980 
+Oscillator strength (1,5) =  0.000874 
+Oscillator strength (1,6) =  0.031796 
+Oscillator strength (1,7) =  0.031001 
+
+ TIME (fs): 28.5000        CURRENT STATE: 3 
+Oscillator strength (1,2) =  0.002862 
+Oscillator strength (1,3) =  0.001007 
+Oscillator strength (1,4) =  0.000924 
+Oscillator strength (1,5) =  0.000914 
+Oscillator strength (1,6) =  0.031997 
+Oscillator strength (1,7) =  0.024965 
+
+ TIME (fs): 29.0000        CURRENT STATE: 3 
+Oscillator strength (1,2) =  0.002906 
+Oscillator strength (1,3) =  0.001034 
+Oscillator strength (1,4) =  0.000892 
+Oscillator strength (1,5) =  0.000941 
+Oscillator strength (1,6) =  0.032332 
+Oscillator strength (1,7) =  0.018898 
+
+ TIME (fs): 29.5000        CURRENT STATE: 3 
+Oscillator strength (1,2) =  0.002964 
+Oscillator strength (1,3) =  0.001027 
+Oscillator strength (1,4) =  0.000890 
+Oscillator strength (1,5) =  0.000951 
+Oscillator strength (1,6) =  0.032721 
+Oscillator strength (1,7) =  0.013142 
+
+ TIME (fs): 30.0000        CURRENT STATE: 3 
+Oscillator strength (1,2) =  0.003032 
+Oscillator strength (1,3) =  0.000987 
+Oscillator strength (1,4) =  0.000918 
+Oscillator strength (1,5) =  0.000943 
+Oscillator strength (1,6) =  0.033097 
+Oscillator strength (1,7) =  0.008179 
+
+ TIME (fs): 30.5000        CURRENT STATE: 3 
+Oscillator strength (1,2) =  0.003107 
+Oscillator strength (1,3) =  0.000919 
+Oscillator strength (1,4) =  0.000974 
+Oscillator strength (1,5) =  0.000912 
+Oscillator strength (1,6) =  0.033412 
+Oscillator strength (1,7) =  0.004667 
+
+ TIME (fs): 31.0000        CURRENT STATE: 3 
+Oscillator strength (1,2) =  0.003187 
+Oscillator strength (1,3) =  0.000827 
+Oscillator strength (1,4) =  0.001050 
+Oscillator strength (1,5) =  0.000856 
+Oscillator strength (1,6) =  0.033629 
+Oscillator strength (1,7) =  0.003451 
+
+ TIME (fs): 31.5000        CURRENT STATE: 3 
+Oscillator strength (1,2) =  0.003268 
+Oscillator strength (1,3) =  0.000721 
+Oscillator strength (1,4) =  0.001133 
+Oscillator strength (1,5) =  0.000773 
+Oscillator strength (1,6) =  0.033731 
+Oscillator strength (1,7) =  0.005485 
+
+ TIME (fs): 32.0000        CURRENT STATE: 3 
+Oscillator strength (1,2) =  0.003345 
+Oscillator strength (1,3) =  0.000627 
+Oscillator strength (1,4) =  0.001191 
+Oscillator strength (1,5) =  0.000668 
+Oscillator strength (1,6) =  0.033712 
+Oscillator strength (1,7) =  0.011408 
+
+ TIME (fs): 32.5000        CURRENT STATE: 3 
+Oscillator strength (1,2) =  0.003410 
+Oscillator strength (1,3) =  0.001471 
+Oscillator strength (1,4) =  0.000298 
+Oscillator strength (1,5) =  0.000547 
+Oscillator strength (1,6) =  0.033584 
+Oscillator strength (1,7) =  0.020991 
+
+ TIME (fs): 33.0000        CURRENT STATE: 3 
+Oscillator strength (1,2) =  0.003424 
+Oscillator strength (1,3) =  0.001414 
+Oscillator strength (1,4) =  0.000296 
+Oscillator strength (1,5) =  0.000430 
+Oscillator strength (1,6) =  0.033200 
+Oscillator strength (1,7) =  0.035452 
+
+ TIME (fs): 33.5000        CURRENT STATE: 3 
+Oscillator strength (1,2) =  0.003374 
+Oscillator strength (1,3) =  0.001433 
+Oscillator strength (1,4) =  0.000216 
+Oscillator strength (1,5) =  0.000322 
+Oscillator strength (1,6) =  0.032656 
+Oscillator strength (1,7) =  0.054584 
+
+ TIME (fs): 33.5000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.003374 
+Oscillator strength (1,3) =  0.001433 
+Oscillator strength (1,4) =  0.000216 
+Oscillator strength (1,5) =  0.000322 
+Oscillator strength (1,6) =  0.032652 
+Oscillator strength (1,7) =  0.054583 
+
+ TIME (fs): 34.0000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.003296 
+Oscillator strength (1,3) =  0.001429 
+Oscillator strength (1,4) =  0.000166 
+Oscillator strength (1,5) =  0.000238 
+Oscillator strength (1,6) =  0.032248 
+Oscillator strength (1,7) =  0.071042 
+
+ TIME (fs): 34.5000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.003172 
+Oscillator strength (1,3) =  0.001433 
+Oscillator strength (1,4) =  0.000133 
+Oscillator strength (1,5) =  0.000160 
+Oscillator strength (1,6) =  0.032019 
+Oscillator strength (1,7) =  0.085386 
+
+ TIME (fs): 35.0000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.002942 
+Oscillator strength (1,3) =  0.001517 
+Oscillator strength (1,4) =  0.000115 
+Oscillator strength (1,5) =  0.000092 
+Oscillator strength (1,6) =  0.031969 
+Oscillator strength (1,7) =  0.096990 
+
+ TIME (fs): 35.5000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.002613 
+Oscillator strength (1,3) =  0.001686 
+Oscillator strength (1,4) =  0.000107 
+Oscillator strength (1,5) =  0.000041 
+Oscillator strength (1,6) =  0.032083 
+Oscillator strength (1,7) =  0.105981 
+
+ TIME (fs): 36.0000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.002316 
+Oscillator strength (1,3) =  0.001817 
+Oscillator strength (1,4) =  0.000102 
+Oscillator strength (1,5) =  0.000018 
+Oscillator strength (1,6) =  0.032349 
+Oscillator strength (1,7) =  0.112804 
+
+ TIME (fs): 36.5000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.002101 
+Oscillator strength (1,3) =  0.001867 
+Oscillator strength (1,4) =  0.000099 
+Oscillator strength (1,5) =  0.000025 
+Oscillator strength (1,6) =  0.032784 
+Oscillator strength (1,7) =  0.117932 
+
+ TIME (fs): 37.0000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.001947 
+Oscillator strength (1,3) =  0.001864 
+Oscillator strength (1,4) =  0.000104 
+Oscillator strength (1,5) =  0.000057 
+Oscillator strength (1,6) =  0.033476 
+Oscillator strength (1,7) =  0.121565 
+
+ TIME (fs): 37.5000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.001828 
+Oscillator strength (1,3) =  0.001840 
+Oscillator strength (1,4) =  0.000123 
+Oscillator strength (1,5) =  0.000110 
+Oscillator strength (1,6) =  0.034547 
+Oscillator strength (1,7) =  0.123835 
+
+ TIME (fs): 38.0000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.001731 
+Oscillator strength (1,3) =  0.001813 
+Oscillator strength (1,4) =  0.000159 
+Oscillator strength (1,5) =  0.000176 
+Oscillator strength (1,6) =  0.036201 
+Oscillator strength (1,7) =  0.124698 
+
+ TIME (fs): 38.5000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.001649 
+Oscillator strength (1,3) =  0.001793 
+Oscillator strength (1,4) =  0.000211 
+Oscillator strength (1,5) =  0.000255 
+Oscillator strength (1,6) =  0.038620 
+Oscillator strength (1,7) =  0.124002 
+
+ TIME (fs): 39.0000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.001577 
+Oscillator strength (1,3) =  0.001786 
+Oscillator strength (1,4) =  0.000274 
+Oscillator strength (1,5) =  0.000343 
+Oscillator strength (1,6) =  0.041876 
+Oscillator strength (1,7) =  0.121678 
+
+ TIME (fs): 39.5000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.001515 
+Oscillator strength (1,3) =  0.001789 
+Oscillator strength (1,4) =  0.000346 
+Oscillator strength (1,5) =  0.000437 
+Oscillator strength (1,6) =  0.045871 
+Oscillator strength (1,7) =  0.117865 
+
+ TIME (fs): 40.0000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.001463 
+Oscillator strength (1,3) =  0.001801 
+Oscillator strength (1,4) =  0.000421 
+Oscillator strength (1,5) =  0.000536 
+Oscillator strength (1,6) =  0.050243 
+Oscillator strength (1,7) =  0.112883 
+
+ TIME (fs): 40.5000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.001423 
+Oscillator strength (1,3) =  0.001814 
+Oscillator strength (1,4) =  0.000497 
+Oscillator strength (1,5) =  0.000638 
+Oscillator strength (1,6) =  0.054556 
+Oscillator strength (1,7) =  0.107170 
+
+ TIME (fs): 41.0000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.001397 
+Oscillator strength (1,3) =  0.001823 
+Oscillator strength (1,4) =  0.000567 
+Oscillator strength (1,5) =  0.000743 
+Oscillator strength (1,6) =  0.058400 
+Oscillator strength (1,7) =  0.101118 
+
+ TIME (fs): 41.5000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.001391 
+Oscillator strength (1,3) =  0.001818 
+Oscillator strength (1,4) =  0.000631 
+Oscillator strength (1,5) =  0.000864 
+Oscillator strength (1,6) =  0.061548 
+Oscillator strength (1,7) =  0.095146 
+
+ TIME (fs): 42.0000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.001408 
+Oscillator strength (1,3) =  0.001794 
+Oscillator strength (1,4) =  0.000689 
+Oscillator strength (1,5) =  0.001018 
+Oscillator strength (1,6) =  0.063770 
+Oscillator strength (1,7) =  0.089294 
+
+ TIME (fs): 42.5000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.001453 
+Oscillator strength (1,3) =  0.001739 
+Oscillator strength (1,4) =  0.000749 
+Oscillator strength (1,5) =  0.001261 
+Oscillator strength (1,6) =  0.065078 
+Oscillator strength (1,7) =  0.083713 
+
+ TIME (fs): 43.0000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.001532 
+Oscillator strength (1,3) =  0.001626 
+Oscillator strength (1,4) =  0.000839 
+Oscillator strength (1,5) =  0.001737 
+Oscillator strength (1,6) =  0.065392 
+Oscillator strength (1,7) =  0.078457 
+
+ TIME (fs): 43.5000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.001648 
+Oscillator strength (1,3) =  0.001334 
+Oscillator strength (1,4) =  0.001082 
+Oscillator strength (1,5) =  0.002862 
+Oscillator strength (1,6) =  0.064385 
+Oscillator strength (1,7) =  0.073501 
+
+ TIME (fs): 44.0000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.001806 
+Oscillator strength (1,3) =  0.000612 
+Oscillator strength (1,4) =  0.001735 
+Oscillator strength (1,5) =  0.005910 
+Oscillator strength (1,6) =  0.060811 
+Oscillator strength (1,7) =  0.068925 
+
+ TIME (fs): 44.5000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.002002 
+Oscillator strength (1,3) =  0.000441 
+Oscillator strength (1,4) =  0.001816 
+Oscillator strength (1,5) =  0.012649 
+Oscillator strength (1,6) =  0.052471 
+Oscillator strength (1,7) =  0.065276 
+
+ TIME (fs): 45.0000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.002237 
+Oscillator strength (1,3) =  0.000421 
+Oscillator strength (1,4) =  0.001732 
+Oscillator strength (1,5) =  0.020954 
+Oscillator strength (1,6) =  0.041551 
+Oscillator strength (1,7) =  0.062263 
+
+ TIME (fs): 45.0000        CURRENT STATE: 3 
+Oscillator strength (1,2) =  0.002237 
+Oscillator strength (1,3) =  0.000421 
+Oscillator strength (1,4) =  0.001732 
+Oscillator strength (1,5) =  0.020961 
+Oscillator strength (1,6) =  0.041545 
+Oscillator strength (1,7) =  0.062263 
+
+ TIME (fs): 45.5000        CURRENT STATE: 3 
+Oscillator strength (1,2) =  0.002532 
+Oscillator strength (1,3) =  0.000403 
+Oscillator strength (1,4) =  0.001641 
+Oscillator strength (1,5) =  0.028072 
+Oscillator strength (1,6) =  0.031452 
+Oscillator strength (1,7) =  0.058582 
+
+ TIME (fs): 46.0000        CURRENT STATE: 3 
+Oscillator strength (1,2) =  0.002878 
+Oscillator strength (1,3) =  0.000393 
+Oscillator strength (1,4) =  0.001557 
+Oscillator strength (1,5) =  0.033697 
+Oscillator strength (1,6) =  0.023233 
+Oscillator strength (1,7) =  0.053329 
+
+ TIME (fs): 46.5000        CURRENT STATE: 3 
+Oscillator strength (1,2) =  0.003270 
+Oscillator strength (1,3) =  0.000385 
+Oscillator strength (1,4) =  0.001489 
+Oscillator strength (1,5) =  0.037342 
+Oscillator strength (1,6) =  0.017466 
+Oscillator strength (1,7) =  0.046606 
+
+ TIME (fs): 47.0000        CURRENT STATE: 3 
+Oscillator strength (1,2) =  0.003694 
+Oscillator strength (1,3) =  0.000371 
+Oscillator strength (1,4) =  0.001441 
+Oscillator strength (1,5) =  0.039440 
+Oscillator strength (1,6) =  0.013743 
+Oscillator strength (1,7) =  0.038622 
+
+ TIME (fs): 47.5000        CURRENT STATE: 3 
+Oscillator strength (1,2) =  0.004137 
+Oscillator strength (1,3) =  0.000346 
+Oscillator strength (1,4) =  0.001409 
+Oscillator strength (1,5) =  0.040659 
+Oscillator strength (1,6) =  0.011405 
+Oscillator strength (1,7) =  0.029953 
+
+ TIME (fs): 48.0000        CURRENT STATE: 3 
+Oscillator strength (1,2) =  0.004581 
+Oscillator strength (1,3) =  0.000313 
+Oscillator strength (1,4) =  0.001390 
+Oscillator strength (1,5) =  0.041506 
+Oscillator strength (1,6) =  0.009943 
+Oscillator strength (1,7) =  0.021272 
+
+ TIME (fs): 48.5000        CURRENT STATE: 3 
+Oscillator strength (1,2) =  0.005005 
+Oscillator strength (1,3) =  0.000277 
+Oscillator strength (1,4) =  0.001373 
+Oscillator strength (1,5) =  0.042278 
+Oscillator strength (1,6) =  0.009011 
+Oscillator strength (1,7) =  0.013636 
+
+ TIME (fs): 49.0000        CURRENT STATE: 3 
+Oscillator strength (1,2) =  0.005388 
+Oscillator strength (1,3) =  0.000248 
+Oscillator strength (1,4) =  0.001351 
+Oscillator strength (1,5) =  0.043190 
+Oscillator strength (1,6) =  0.008402 
+Oscillator strength (1,7) =  0.007988 
+
+ TIME (fs): 49.5000        CURRENT STATE: 3 
+Oscillator strength (1,2) =  0.005714 
+Oscillator strength (1,3) =  0.000233 
+Oscillator strength (1,4) =  0.001321 
+Oscillator strength (1,5) =  0.044315 
+Oscillator strength (1,6) =  0.007992 
+Oscillator strength (1,7) =  0.005098 
+
+ TIME (fs): 50.0000        CURRENT STATE: 3 
+Oscillator strength (1,2) =  0.005968 
+Oscillator strength (1,3) =  0.000239 
+Oscillator strength (1,4) =  0.001288 
+Oscillator strength (1,5) =  0.045702 
+Oscillator strength (1,6) =  0.007707 
+Oscillator strength (1,7) =  0.004974 
+
+ TIME (fs): 50.5000        CURRENT STATE: 3 
+Oscillator strength (1,2) =  0.006143 
+Oscillator strength (1,3) =  0.000267 
+Oscillator strength (1,4) =  0.001252 
+Oscillator strength (1,5) =  0.047410 
+Oscillator strength (1,6) =  0.007501 
+Oscillator strength (1,7) =  0.007080 
+
+ TIME (fs): 51.0000        CURRENT STATE: 3 
+Oscillator strength (1,2) =  0.006236 
+Oscillator strength (1,3) =  0.000315 
+Oscillator strength (1,4) =  0.001220 
+Oscillator strength (1,5) =  0.049379 
+Oscillator strength (1,6) =  0.007377 
+Oscillator strength (1,7) =  0.010619 
+
+ TIME (fs): 51.5000        CURRENT STATE: 3 
+Oscillator strength (1,2) =  0.006250 
+Oscillator strength (1,3) =  0.000380 
+Oscillator strength (1,4) =  0.001197 
+Oscillator strength (1,5) =  0.051572 
+Oscillator strength (1,6) =  0.007336 
+Oscillator strength (1,7) =  0.014869 
+
+ TIME (fs): 52.0000        CURRENT STATE: 3 
+Oscillator strength (1,2) =  0.006191 
+Oscillator strength (1,3) =  0.000456 
+Oscillator strength (1,4) =  0.001184 
+Oscillator strength (1,5) =  0.053931 
+Oscillator strength (1,6) =  0.007386 
+Oscillator strength (1,7) =  0.019309 
+
+ TIME (fs): 52.5000        CURRENT STATE: 3 
+Oscillator strength (1,2) =  0.006064 
+Oscillator strength (1,3) =  0.000538 
+Oscillator strength (1,4) =  0.001184 
+Oscillator strength (1,5) =  0.056384 
+Oscillator strength (1,6) =  0.007546 
+Oscillator strength (1,7) =  0.023588 
+
+ TIME (fs): 53.0000        CURRENT STATE: 3 
+Oscillator strength (1,2) =  0.005880 
+Oscillator strength (1,3) =  0.000623 
+Oscillator strength (1,4) =  0.001199 
+Oscillator strength (1,5) =  0.058981 
+Oscillator strength (1,6) =  0.007768 
+Oscillator strength (1,7) =  0.027483 
+
+ TIME (fs): 53.5000        CURRENT STATE: 3 
+Oscillator strength (1,2) =  0.005645 
+Oscillator strength (1,3) =  0.000709 
+Oscillator strength (1,4) =  0.001226 
+Oscillator strength (1,5) =  0.061550 
+Oscillator strength (1,6) =  0.008055 
+Oscillator strength (1,7) =  0.030886 
+
+ TIME (fs): 54.0000        CURRENT STATE: 3 
+Oscillator strength (1,2) =  0.005369 
+Oscillator strength (1,3) =  0.000793 
+Oscillator strength (1,4) =  0.001262 
+Oscillator strength (1,5) =  0.064058 
+Oscillator strength (1,6) =  0.008355 
+Oscillator strength (1,7) =  0.033773 
+
+ TIME (fs): 54.5000        CURRENT STATE: 3 
+Oscillator strength (1,2) =  0.005071 
+Oscillator strength (1,3) =  0.000887 
+Oscillator strength (1,4) =  0.001300 
+Oscillator strength (1,5) =  0.066672 
+Oscillator strength (1,6) =  0.008594 
+Oscillator strength (1,7) =  0.036157 
+
+ TIME (fs): 55.0000        CURRENT STATE: 3 
+Oscillator strength (1,2) =  0.004758 
+Oscillator strength (1,3) =  0.000983 
+Oscillator strength (1,4) =  0.001337 
+Oscillator strength (1,5) =  0.069214 
+Oscillator strength (1,6) =  0.008744 
+Oscillator strength (1,7) =  0.038226 
+
+ TIME (fs): 55.5000        CURRENT STATE: 3 
+Oscillator strength (1,2) =  0.004445 
+Oscillator strength (1,3) =  0.001093 
+Oscillator strength (1,4) =  0.001354 
+Oscillator strength (1,5) =  0.071696 
+Oscillator strength (1,6) =  0.008781 
+Oscillator strength (1,7) =  0.039998 
+
+ TIME (fs): 56.0000        CURRENT STATE: 3 
+Oscillator strength (1,2) =  0.004145 
+Oscillator strength (1,3) =  0.001248 
+Oscillator strength (1,4) =  0.001318 
+Oscillator strength (1,5) =  0.074032 
+Oscillator strength (1,6) =  0.008718 
+Oscillator strength (1,7) =  0.041705 
+
+ TIME (fs): 56.5000        CURRENT STATE: 3 
+Oscillator strength (1,2) =  0.003868 
+Oscillator strength (1,3) =  0.001428 
+Oscillator strength (1,4) =  0.001248 
+Oscillator strength (1,5) =  0.075934 
+Oscillator strength (1,6) =  0.008622 
+Oscillator strength (1,7) =  0.043810 
+
+ TIME (fs): 57.0000        CURRENT STATE: 3 
+Oscillator strength (1,2) =  0.003607 
+Oscillator strength (1,3) =  0.001433 
+Oscillator strength (1,4) =  0.001371 
+Oscillator strength (1,5) =  0.076731 
+Oscillator strength (1,6) =  0.008668 
+Oscillator strength (1,7) =  0.047608 
+
+ TIME (fs): 57.5000        CURRENT STATE: 3 
+Oscillator strength (1,2) =  0.003361 
+Oscillator strength (1,3) =  0.001402 
+Oscillator strength (1,4) =  0.001565 
+Oscillator strength (1,5) =  0.076120 
+Oscillator strength (1,6) =  0.008942 
+Oscillator strength (1,7) =  0.053825 
+
+ TIME (fs): 58.0000        CURRENT STATE: 3 
+Oscillator strength (1,2) =  0.003129 
+Oscillator strength (1,3) =  0.001361 
+Oscillator strength (1,4) =  0.001840 
+Oscillator strength (1,5) =  0.073928 
+Oscillator strength (1,6) =  0.009566 
+Oscillator strength (1,7) =  0.062793 
+
+ TIME (fs): 58.0000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.003129 
+Oscillator strength (1,3) =  0.001361 
+Oscillator strength (1,4) =  0.001840 
+Oscillator strength (1,5) =  0.073927 
+Oscillator strength (1,6) =  0.009567 
+Oscillator strength (1,7) =  0.062796 
+
+ TIME (fs): 58.5000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.002993 
+Oscillator strength (1,3) =  0.001321 
+Oscillator strength (1,4) =  0.002084 
+Oscillator strength (1,5) =  0.071592 
+Oscillator strength (1,6) =  0.010231 
+Oscillator strength (1,7) =  0.070051 
+
+ TIME (fs): 59.0000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.002901 
+Oscillator strength (1,3) =  0.001265 
+Oscillator strength (1,4) =  0.002354 
+Oscillator strength (1,5) =  0.068902 
+Oscillator strength (1,6) =  0.011030 
+Oscillator strength (1,7) =  0.077038 
+
+ TIME (fs): 59.5000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.002857 
+Oscillator strength (1,3) =  0.001191 
+Oscillator strength (1,4) =  0.002647 
+Oscillator strength (1,5) =  0.065876 
+Oscillator strength (1,6) =  0.012015 
+Oscillator strength (1,7) =  0.083440 
+
+ TIME (fs): 60.0000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.002859 
+Oscillator strength (1,3) =  0.001099 
+Oscillator strength (1,4) =  0.002960 
+Oscillator strength (1,5) =  0.062593 
+Oscillator strength (1,6) =  0.013203 
+Oscillator strength (1,7) =  0.088989 
+
+ TIME (fs): 60.5000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.002911 
+Oscillator strength (1,3) =  0.000986 
+Oscillator strength (1,4) =  0.003273 
+Oscillator strength (1,5) =  0.059171 
+Oscillator strength (1,6) =  0.014587 
+Oscillator strength (1,7) =  0.093473 
+
+ TIME (fs): 61.0000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.003014 
+Oscillator strength (1,3) =  0.000849 
+Oscillator strength (1,4) =  0.003546 
+Oscillator strength (1,5) =  0.055807 
+Oscillator strength (1,6) =  0.016084 
+Oscillator strength (1,7) =  0.096716 
+
+ TIME (fs): 61.5000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.003164 
+Oscillator strength (1,3) =  0.000688 
+Oscillator strength (1,4) =  0.003707 
+Oscillator strength (1,5) =  0.052850 
+Oscillator strength (1,6) =  0.017500 
+Oscillator strength (1,7) =  0.098571 
+
+ TIME (fs): 62.0000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.003352 
+Oscillator strength (1,3) =  0.000512 
+Oscillator strength (1,4) =  0.003665 
+Oscillator strength (1,5) =  0.050644 
+Oscillator strength (1,6) =  0.018575 
+Oscillator strength (1,7) =  0.098862 
+
+ TIME (fs): 62.5000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.003552 
+Oscillator strength (1,3) =  0.000343 
+Oscillator strength (1,4) =  0.003368 
+Oscillator strength (1,5) =  0.049529 
+Oscillator strength (1,6) =  0.019019 
+Oscillator strength (1,7) =  0.097376 
+
+ TIME (fs): 63.0000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.003726 
+Oscillator strength (1,3) =  0.000218 
+Oscillator strength (1,4) =  0.002844 
+Oscillator strength (1,5) =  0.049542 
+Oscillator strength (1,6) =  0.018707 
+Oscillator strength (1,7) =  0.093798 
+
+ TIME (fs): 63.5000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.003850 
+Oscillator strength (1,3) =  0.000162 
+Oscillator strength (1,4) =  0.002223 
+Oscillator strength (1,5) =  0.050455 
+Oscillator strength (1,6) =  0.017684 
+Oscillator strength (1,7) =  0.087723 
+
+ TIME (fs): 64.0000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.003929 
+Oscillator strength (1,3) =  0.000169 
+Oscillator strength (1,4) =  0.001650 
+Oscillator strength (1,5) =  0.051882 
+Oscillator strength (1,6) =  0.016137 
+Oscillator strength (1,7) =  0.078674 
+
+ TIME (fs): 64.5000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.003989 
+Oscillator strength (1,3) =  0.000213 
+Oscillator strength (1,4) =  0.001200 
+Oscillator strength (1,5) =  0.053482 
+Oscillator strength (1,6) =  0.014306 
+Oscillator strength (1,7) =  0.066351 
+
+ TIME (fs): 65.0000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.004052 
+Oscillator strength (1,3) =  0.000270 
+Oscillator strength (1,4) =  0.000881 
+Oscillator strength (1,5) =  0.055026 
+Oscillator strength (1,6) =  0.012407 
+Oscillator strength (1,7) =  0.050927 
+
+ TIME (fs): 65.5000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.004132 
+Oscillator strength (1,3) =  0.000326 
+Oscillator strength (1,4) =  0.000667 
+Oscillator strength (1,5) =  0.056404 
+Oscillator strength (1,6) =  0.010599 
+Oscillator strength (1,7) =  0.033835 
+
+ TIME (fs): 66.0000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.004230 
+Oscillator strength (1,3) =  0.000374 
+Oscillator strength (1,4) =  0.000535 
+Oscillator strength (1,5) =  0.057584 
+Oscillator strength (1,6) =  0.008983 
+Oscillator strength (1,7) =  0.018328 
+
+ TIME (fs): 66.5000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.004345 
+Oscillator strength (1,3) =  0.000402 
+Oscillator strength (1,4) =  0.000476 
+Oscillator strength (1,5) =  0.058590 
+Oscillator strength (1,6) =  0.007610 
+Oscillator strength (1,7) =  0.008462 
+
+ TIME (fs): 67.0000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.004464 
+Oscillator strength (1,3) =  0.000226 
+Oscillator strength (1,4) =  0.000662 
+Oscillator strength (1,5) =  0.059470 
+Oscillator strength (1,6) =  0.006509 
+Oscillator strength (1,7) =  0.006185 
+
+ TIME (fs): 67.5000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.004563 
+Oscillator strength (1,3) =  0.000294 
+Oscillator strength (1,4) =  0.000650 
+Oscillator strength (1,5) =  0.060196 
+Oscillator strength (1,6) =  0.005735 
+Oscillator strength (1,7) =  0.009387 
+
+ TIME (fs): 68.0000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.004608 
+Oscillator strength (1,3) =  0.000344 
+Oscillator strength (1,4) =  0.000709 
+Oscillator strength (1,5) =  0.060725 
+Oscillator strength (1,6) =  0.005258 
+Oscillator strength (1,7) =  0.013785 
+
+ TIME (fs): 68.5000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.004594 
+Oscillator strength (1,3) =  0.000403 
+Oscillator strength (1,4) =  0.000795 
+Oscillator strength (1,5) =  0.061058 
+Oscillator strength (1,6) =  0.004940 
+Oscillator strength (1,7) =  0.017196 
+
+ TIME (fs): 69.0000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.004523 
+Oscillator strength (1,3) =  0.000481 
+Oscillator strength (1,4) =  0.000891 
+Oscillator strength (1,5) =  0.061143 
+Oscillator strength (1,6) =  0.004689 
+Oscillator strength (1,7) =  0.019491 
+
+ TIME (fs): 69.5000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.004401 
+Oscillator strength (1,3) =  0.000571 
+Oscillator strength (1,4) =  0.001004 
+Oscillator strength (1,5) =  0.060865 
+Oscillator strength (1,6) =  0.004526 
+Oscillator strength (1,7) =  0.021322 
+
+ TIME (fs): 70.0000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.004232 
+Oscillator strength (1,3) =  0.000628 
+Oscillator strength (1,4) =  0.001183 
+Oscillator strength (1,5) =  0.060094 
+Oscillator strength (1,6) =  0.004567 
+Oscillator strength (1,7) =  0.023891 
+
+ TIME (fs): 70.5000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.004022 
+Oscillator strength (1,3) =  0.000792 
+Oscillator strength (1,4) =  0.001291 
+Oscillator strength (1,5) =  0.058602 
+Oscillator strength (1,6) =  0.005024 
+Oscillator strength (1,7) =  0.029249 
+
+ TIME (fs): 71.0000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.003803 
+Oscillator strength (1,3) =  0.001146 
+Oscillator strength (1,4) =  0.001221 
+Oscillator strength (1,5) =  0.056350 
+Oscillator strength (1,6) =  0.006136 
+Oscillator strength (1,7) =  0.038183 
+
+ TIME (fs): 71.5000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.003575 
+Oscillator strength (1,3) =  0.001299 
+Oscillator strength (1,4) =  0.001353 
+Oscillator strength (1,5) =  0.052390 
+Oscillator strength (1,6) =  0.008835 
+Oscillator strength (1,7) =  0.050291 
+
+ TIME (fs): 72.0000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.003338 
+Oscillator strength (1,3) =  0.001443 
+Oscillator strength (1,4) =  0.001491 
+Oscillator strength (1,5) =  0.043191 
+Oscillator strength (1,6) =  0.016636 
+Oscillator strength (1,7) =  0.064121 
+
+ TIME (fs): 72.5000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.003088 
+Oscillator strength (1,3) =  0.001598 
+Oscillator strength (1,4) =  0.001607 
+Oscillator strength (1,5) =  0.022831 
+Oscillator strength (1,6) =  0.035460 
+Oscillator strength (1,7) =  0.078055 
+
+ TIME (fs): 73.0000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.002819 
+Oscillator strength (1,3) =  0.001775 
+Oscillator strength (1,4) =  0.001686 
+Oscillator strength (1,5) =  0.008209 
+Oscillator strength (1,6) =  0.048403 
+Oscillator strength (1,7) =  0.090860 
+
+ TIME (fs): 73.5000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.002525 
+Oscillator strength (1,3) =  0.001982 
+Oscillator strength (1,4) =  0.001717 
+Oscillator strength (1,5) =  0.004081 
+Oscillator strength (1,6) =  0.050750 
+Oscillator strength (1,7) =  0.101829 
+
+ TIME (fs): 74.0000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.002213 
+Oscillator strength (1,3) =  0.002213 
+Oscillator strength (1,4) =  0.001699 
+Oscillator strength (1,5) =  0.002832 
+Oscillator strength (1,6) =  0.050149 
+Oscillator strength (1,7) =  0.110795 
+
+ TIME (fs): 74.5000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.001905 
+Oscillator strength (1,3) =  0.002445 
+Oscillator strength (1,4) =  0.001640 
+Oscillator strength (1,5) =  0.002330 
+Oscillator strength (1,6) =  0.048782 
+Oscillator strength (1,7) =  0.117861 
+
+ TIME (fs): 75.0000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.001639 
+Oscillator strength (1,3) =  0.002641 
+Oscillator strength (1,4) =  0.001549 
+Oscillator strength (1,5) =  0.002044 
+Oscillator strength (1,6) =  0.047180 
+Oscillator strength (1,7) =  0.123406 
+
+ TIME (fs): 75.5000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.001440 
+Oscillator strength (1,3) =  0.002771 
+Oscillator strength (1,4) =  0.001454 
+Oscillator strength (1,5) =  0.001840 
+Oscillator strength (1,6) =  0.045570 
+Oscillator strength (1,7) =  0.127615 
+
+ TIME (fs): 76.0000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.001310 
+Oscillator strength (1,3) =  0.002833 
+Oscillator strength (1,4) =  0.001369 
+Oscillator strength (1,5) =  0.001655 
+Oscillator strength (1,6) =  0.044033 
+Oscillator strength (1,7) =  0.130902 
+
+ TIME (fs): 76.5000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.001234 
+Oscillator strength (1,3) =  0.002840 
+Oscillator strength (1,4) =  0.001295 
+Oscillator strength (1,5) =  0.001475 
+Oscillator strength (1,6) =  0.042609 
+Oscillator strength (1,7) =  0.133371 
+
+ TIME (fs): 77.0000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.001193 
+Oscillator strength (1,3) =  0.002809 
+Oscillator strength (1,4) =  0.001230 
+Oscillator strength (1,5) =  0.001307 
+Oscillator strength (1,6) =  0.041317 
+Oscillator strength (1,7) =  0.135291 
+
+ TIME (fs): 77.5000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.001174 
+Oscillator strength (1,3) =  0.002753 
+Oscillator strength (1,4) =  0.001169 
+Oscillator strength (1,5) =  0.001154 
+Oscillator strength (1,6) =  0.040161 
+Oscillator strength (1,7) =  0.136802 
+
+ TIME (fs): 78.0000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.001169 
+Oscillator strength (1,3) =  0.002683 
+Oscillator strength (1,4) =  0.001108 
+Oscillator strength (1,5) =  0.001022 
+Oscillator strength (1,6) =  0.039135 
+Oscillator strength (1,7) =  0.138003 
+
+ TIME (fs): 78.5000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.001171 
+Oscillator strength (1,3) =  0.002604 
+Oscillator strength (1,4) =  0.001043 
+Oscillator strength (1,5) =  0.000910 
+Oscillator strength (1,6) =  0.038219 
+Oscillator strength (1,7) =  0.138960 
+
+ TIME (fs): 79.0000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.001178 
+Oscillator strength (1,3) =  0.002520 
+Oscillator strength (1,4) =  0.000973 
+Oscillator strength (1,5) =  0.000820 
+Oscillator strength (1,6) =  0.037405 
+Oscillator strength (1,7) =  0.139704 
+
+ TIME (fs): 79.5000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.001189 
+Oscillator strength (1,3) =  0.002436 
+Oscillator strength (1,4) =  0.000900 
+Oscillator strength (1,5) =  0.000752 
+Oscillator strength (1,6) =  0.036710 
+Oscillator strength (1,7) =  0.140221 
+
+ TIME (fs): 80.0000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.001205 
+Oscillator strength (1,3) =  0.002353 
+Oscillator strength (1,4) =  0.000822 
+Oscillator strength (1,5) =  0.000702 
+Oscillator strength (1,6) =  0.036136 
+Oscillator strength (1,7) =  0.140464 
+
+ TIME (fs): 80.5000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.001225 
+Oscillator strength (1,3) =  0.002274 
+Oscillator strength (1,4) =  0.000742 
+Oscillator strength (1,5) =  0.000669 
+Oscillator strength (1,6) =  0.035739 
+Oscillator strength (1,7) =  0.140324 
+
+ TIME (fs): 81.0000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.001250 
+Oscillator strength (1,3) =  0.002198 
+Oscillator strength (1,4) =  0.000664 
+Oscillator strength (1,5) =  0.000650 
+Oscillator strength (1,6) =  0.035570 
+Oscillator strength (1,7) =  0.139682 
+
+ TIME (fs): 81.5000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.001284 
+Oscillator strength (1,3) =  0.002126 
+Oscillator strength (1,4) =  0.000590 
+Oscillator strength (1,5) =  0.000641 
+Oscillator strength (1,6) =  0.035673 
+Oscillator strength (1,7) =  0.138411 
+
+ TIME (fs): 82.0000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.001327 
+Oscillator strength (1,3) =  0.002056 
+Oscillator strength (1,4) =  0.000526 
+Oscillator strength (1,5) =  0.000639 
+Oscillator strength (1,6) =  0.036060 
+Oscillator strength (1,7) =  0.136384 
+
+ TIME (fs): 82.5000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.001383 
+Oscillator strength (1,3) =  0.001985 
+Oscillator strength (1,4) =  0.000473 
+Oscillator strength (1,5) =  0.000641 
+Oscillator strength (1,6) =  0.036705 
+Oscillator strength (1,7) =  0.133473 
+
+ TIME (fs): 83.0000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.001459 
+Oscillator strength (1,3) =  0.001910 
+Oscillator strength (1,4) =  0.000435 
+Oscillator strength (1,5) =  0.000641 
+Oscillator strength (1,6) =  0.037589 
+Oscillator strength (1,7) =  0.129657 
+
+ TIME (fs): 83.5000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.001556 
+Oscillator strength (1,3) =  0.001822 
+Oscillator strength (1,4) =  0.000416 
+Oscillator strength (1,5) =  0.000639 
+Oscillator strength (1,6) =  0.038625 
+Oscillator strength (1,7) =  0.124856 
+
+ TIME (fs): 84.0000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.001676 
+Oscillator strength (1,3) =  0.001719 
+Oscillator strength (1,4) =  0.000416 
+Oscillator strength (1,5) =  0.000632 
+Oscillator strength (1,6) =  0.039782 
+Oscillator strength (1,7) =  0.119013 
+
+ TIME (fs): 84.5000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.001822 
+Oscillator strength (1,3) =  0.001593 
+Oscillator strength (1,4) =  0.000439 
+Oscillator strength (1,5) =  0.000617 
+Oscillator strength (1,6) =  0.041023 
+Oscillator strength (1,7) =  0.112195 
+
+ TIME (fs): 85.0000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.001989 
+Oscillator strength (1,3) =  0.001429 
+Oscillator strength (1,4) =  0.000498 
+Oscillator strength (1,5) =  0.000593 
+Oscillator strength (1,6) =  0.042308 
+Oscillator strength (1,7) =  0.104515 
+
+ TIME (fs): 85.5000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.002168 
+Oscillator strength (1,3) =  0.000961 
+Oscillator strength (1,4) =  0.000861 
+Oscillator strength (1,5) =  0.000559 
+Oscillator strength (1,6) =  0.043592 
+Oscillator strength (1,7) =  0.096154 
+
+ TIME (fs): 86.0000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.002348 
+Oscillator strength (1,3) =  0.000479 
+Oscillator strength (1,4) =  0.001239 
+Oscillator strength (1,5) =  0.000518 
+Oscillator strength (1,6) =  0.044538 
+Oscillator strength (1,7) =  0.087660 
+
+ TIME (fs): 86.5000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.002507 
+Oscillator strength (1,3) =  0.000573 
+Oscillator strength (1,4) =  0.001028 
+Oscillator strength (1,5) =  0.000467 
+Oscillator strength (1,6) =  0.043879 
+Oscillator strength (1,7) =  0.080447 
+
+ TIME (fs): 87.0000        CURRENT STATE: 4 
+Oscillator strength (1,2) =  0.002638 
+Oscillator strength (1,3) =  0.000667 
+Oscillator strength (1,4) =  0.000814 
+Oscillator strength (1,5) =  0.000411 
+Oscillator strength (1,6) =  0.041839 
+Oscillator strength (1,7) =  0.074088 
+
+ TIME (fs): 87.0000        CURRENT STATE: 3 
+Oscillator strength (1,2) =  0.002638 
+Oscillator strength (1,3) =  0.000667 
+Oscillator strength (1,4) =  0.000814 
+Oscillator strength (1,5) =  0.000411 
+Oscillator strength (1,6) =  0.041839 
+Oscillator strength (1,7) =  0.074088 
+
+ TIME (fs): 87.5000        CURRENT STATE: 3 
+Oscillator strength (1,2) =  0.002758 
+Oscillator strength (1,3) =  0.000787 
+Oscillator strength (1,4) =  0.000573 
+Oscillator strength (1,5) =  0.000346 
+Oscillator strength (1,6) =  0.039128 
+Oscillator strength (1,7) =  0.066173 
+
+ TIME (fs): 88.0000        CURRENT STATE: 3 
+Oscillator strength (1,2) =  0.002848 
+Oscillator strength (1,3) =  0.000914 
+Oscillator strength (1,4) =  0.000362 
+Oscillator strength (1,5) =  0.000287 
+Oscillator strength (1,6) =  0.036820 
+Oscillator strength (1,7) =  0.056725 
+
+ TIME (fs): 88.5000        CURRENT STATE: 3 
+Oscillator strength (1,2) =  0.002907 
+Oscillator strength (1,3) =  0.001036 
+Oscillator strength (1,4) =  0.000201 
+Oscillator strength (1,5) =  0.000236 
+Oscillator strength (1,6) =  0.034855 
+Oscillator strength (1,7) =  0.046217 
+
+ TIME (fs): 89.0000        CURRENT STATE: 3 
+Oscillator strength (1,2) =  0.002938 
+Oscillator strength (1,3) =  0.001142 
+Oscillator strength (1,4) =  0.000093 
+Oscillator strength (1,5) =  0.000195 
+Oscillator strength (1,6) =  0.033154 
+Oscillator strength (1,7) =  0.035423 
+
+ TIME (fs): 89.5000        CURRENT STATE: 3 
+Oscillator strength (1,2) =  0.002956 
+Oscillator strength (1,3) =  0.001226 
+Oscillator strength (1,4) =  0.000034 
+Oscillator strength (1,5) =  0.000165 
+Oscillator strength (1,6) =  0.031663 
+Oscillator strength (1,7) =  0.025478 
+
+ TIME (fs): 90.0000        CURRENT STATE: 3 
+Oscillator strength (1,2) =  0.002975 
+Oscillator strength (1,3) =  0.001282 
+Oscillator strength (1,4) =  0.000014 
+Oscillator strength (1,5) =  0.000145 
+Oscillator strength (1,6) =  0.030341 
+Oscillator strength (1,7) =  0.017498 
+
+ TIME (fs): 90.5000        CURRENT STATE: 3 
+Oscillator strength (1,2) =  0.003008 
+Oscillator strength (1,3) =  0.001303 
+Oscillator strength (1,4) =  0.000023 
+Oscillator strength (1,5) =  0.000132 
+Oscillator strength (1,6) =  0.029172 
+Oscillator strength (1,7) =  0.012419 
+
+ TIME (fs): 91.0000        CURRENT STATE: 3 
+Oscillator strength (1,2) =  0.003067 
+Oscillator strength (1,3) =  0.001283 
+Oscillator strength (1,4) =  0.000056 
+Oscillator strength (1,5) =  0.000126 
+Oscillator strength (1,6) =  0.028166 
+Oscillator strength (1,7) =  0.010582 
+
+ TIME (fs): 91.5000        CURRENT STATE: 3 
+Oscillator strength (1,2) =  0.003161 
+Oscillator strength (1,3) =  0.001212 
+Oscillator strength (1,4) =  0.000111 
+Oscillator strength (1,5) =  0.000123 
+Oscillator strength (1,6) =  0.027369 
+Oscillator strength (1,7) =  0.011704 
+
+ TIME (fs): 92.0000        CURRENT STATE: 3 
+Oscillator strength (1,2) =  0.003292 
+Oscillator strength (1,3) =  0.001081 
+Oscillator strength (1,4) =  0.000189 
+Oscillator strength (1,5) =  0.000122 
+Oscillator strength (1,6) =  0.026837 
+Oscillator strength (1,7) =  0.015017 
+
+ TIME (fs): 92.5000        CURRENT STATE: 3 
+Oscillator strength (1,2) =  0.003450 
+Oscillator strength (1,3) =  0.000898 
+Oscillator strength (1,4) =  0.000291 
+Oscillator strength (1,5) =  0.000120 
+Oscillator strength (1,6) =  0.026646 
+Oscillator strength (1,7) =  0.019644 
+
+ TIME (fs): 93.0000        CURRENT STATE: 3 
+Oscillator strength (1,2) =  0.003598 
+Oscillator strength (1,3) =  0.000694 
+Oscillator strength (1,4) =  0.000420 
+Oscillator strength (1,5) =  0.000116 
+Oscillator strength (1,6) =  0.026909 
+Oscillator strength (1,7) =  0.024871 
+
+ TIME (fs): 93.5000        CURRENT STATE: 3 
+Oscillator strength (1,2) =  0.003682 
+Oscillator strength (1,3) =  0.000524 
+Oscillator strength (1,4) =  0.000577 
+Oscillator strength (1,5) =  0.000109 
+Oscillator strength (1,6) =  0.027679 
+Oscillator strength (1,7) =  0.030192 
+
+ TIME (fs): 94.0000        CURRENT STATE: 3 
+Oscillator strength (1,2) =  0.003667 
+Oscillator strength (1,3) =  0.000420 
+Oscillator strength (1,4) =  0.000764 
+Oscillator strength (1,5) =  0.000100 
+Oscillator strength (1,6) =  0.028992 
+Oscillator strength (1,7) =  0.035335 
+
+ TIME (fs): 94.5000        CURRENT STATE: 3 
+Oscillator strength (1,2) =  0.003572 
+Oscillator strength (1,3) =  0.000372 
+Oscillator strength (1,4) =  0.000977 
+Oscillator strength (1,5) =  0.000091 
+Oscillator strength (1,6) =  0.030861 
+Oscillator strength (1,7) =  0.040166 
+
+ TIME (fs): 95.0000        CURRENT STATE: 3 
+Oscillator strength (1,2) =  0.003435 
+Oscillator strength (1,3) =  0.000346 
+Oscillator strength (1,4) =  0.001209 
+Oscillator strength (1,5) =  0.000090 
+Oscillator strength (1,6) =  0.033200 
+Oscillator strength (1,7) =  0.044676 
+
+ TIME (fs): 95.5000        CURRENT STATE: 3 
+Oscillator strength (1,2) =  0.003287 
+Oscillator strength (1,3) =  0.000322 
+Oscillator strength (1,4) =  0.001449 
+Oscillator strength (1,5) =  0.000104 
+Oscillator strength (1,6) =  0.035934 
+Oscillator strength (1,7) =  0.048953 
+
+ TIME (fs): 96.0000        CURRENT STATE: 3 
+Oscillator strength (1,2) =  0.003144 
+Oscillator strength (1,3) =  0.000296 
+Oscillator strength (1,4) =  0.001685 
+Oscillator strength (1,5) =  0.000136 
+Oscillator strength (1,6) =  0.038920 
+Oscillator strength (1,7) =  0.052971 
+
+ TIME (fs): 96.5000        CURRENT STATE: 3 
+Oscillator strength (1,2) =  0.003013 
+Oscillator strength (1,3) =  0.000270 
+Oscillator strength (1,4) =  0.001904 
+Oscillator strength (1,5) =  0.000188 
+Oscillator strength (1,6) =  0.042030 
+Oscillator strength (1,7) =  0.056787 
+
+ TIME (fs): 97.0000        CURRENT STATE: 3 
+Oscillator strength (1,2) =  0.002896 
+Oscillator strength (1,3) =  0.000250 
+Oscillator strength (1,4) =  0.002096 
+Oscillator strength (1,5) =  0.000258 
+Oscillator strength (1,6) =  0.045160 
+Oscillator strength (1,7) =  0.060366 
+
+ TIME (fs): 97.5000        CURRENT STATE: 3 
+Oscillator strength (1,2) =  0.002791 
+Oscillator strength (1,3) =  0.000241 
+Oscillator strength (1,4) =  0.002254 
+Oscillator strength (1,5) =  0.000342 
+Oscillator strength (1,6) =  0.048237 
+Oscillator strength (1,7) =  0.063661 
+
+ TIME (fs): 98.0000        CURRENT STATE: 3 
+Oscillator strength (1,2) =  0.002696 
+Oscillator strength (1,3) =  0.000244 
+Oscillator strength (1,4) =  0.002375 
+Oscillator strength (1,5) =  0.000433 
+Oscillator strength (1,6) =  0.051226 
+Oscillator strength (1,7) =  0.066636 
+
+ TIME (fs): 98.5000        CURRENT STATE: 3 
+Oscillator strength (1,2) =  0.002610 
+Oscillator strength (1,3) =  0.000261 
+Oscillator strength (1,4) =  0.002461 
+Oscillator strength (1,5) =  0.000528 
+Oscillator strength (1,6) =  0.054110 
+Oscillator strength (1,7) =  0.069237 
+
+ TIME (fs): 99.0000        CURRENT STATE: 3 
+Oscillator strength (1,2) =  0.002528 
+Oscillator strength (1,3) =  0.000290 
+Oscillator strength (1,4) =  0.002515 
+Oscillator strength (1,5) =  0.000623 
+Oscillator strength (1,6) =  0.056864 
+Oscillator strength (1,7) =  0.071515 
+
+ TIME (fs): 99.5000        CURRENT STATE: 3 
+Oscillator strength (1,2) =  0.002450 
+Oscillator strength (1,3) =  0.000329 
+Oscillator strength (1,4) =  0.002541 
+Oscillator strength (1,5) =  0.000713 
+Oscillator strength (1,6) =  0.059430 
+Oscillator strength (1,7) =  0.073576 
+
+ TIME (fs): 100.0000        CURRENT STATE: 3 
+Oscillator strength (1,2) =  0.002375 
+Oscillator strength (1,3) =  0.000375 
+Oscillator strength (1,4) =  0.002542 
+Oscillator strength (1,5) =  0.000796 
+Oscillator strength (1,6) =  0.061678 
+Oscillator strength (1,7) =  0.075603 

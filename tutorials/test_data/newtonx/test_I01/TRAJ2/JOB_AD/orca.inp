@@ -1,0 +1,9 @@
+! B3LYP def2-SVP ENGRAD 
+
+%tddft
+  tda false
+  nroots 6
+  iroot 3
+end
+
+*xyzfile 0 1 geom.xyz
