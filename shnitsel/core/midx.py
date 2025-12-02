@@ -16,7 +16,20 @@ from .._contracts import needs
 DatasetOrArray = TypeVar("DatasetOrArray", bound=xr.Dataset | xr.DataArray)
 
 
-def midx_combs(values: pd.core.indexes.base.Index|list, name: str|None =None):
+def midx_combs(values: pd.core.indexes.base.Index | list, name: str | None = None):
+    """Helper function to create a Multi-index based dimension coordinate for an xarray
+    from all (unordered) pairwise combinations of entries in `values`
+
+    Args:
+        values (pd.core.indexes.base.Index | list): The source values to generate pairwise combinations for
+        name (str | None, optional): Optionally a name for the resulting combination dimension. Defaults to None.
+
+    Raises:
+        ValueError: If no name was provided and the name could not be extracted from the `values` parameter
+
+    Returns:
+        xr.Coordinates: The resulting coordinates object.
+    """
     if name is None:
         if hasattr(values, 'name'):
             # if `values` is a `pandas.core.indexes.base.Index`
@@ -25,12 +38,14 @@ def midx_combs(values: pd.core.indexes.base.Index|list, name: str|None =None):
         else:
             raise ValueError("need to specify name if values lack name attribute")
 
+    comb_name = f'{name}comb'
+
     return xr.Coordinates.from_pandas_multiindex(
-      pd.MultiIndex.from_tuples(
-        itertools.combinations(values, 2),
-        names=['from', 'to']
-      ),
-      dim=f'{name}comb'
+        pd.MultiIndex.from_tuples(
+            itertools.combinations(values, 2),
+            names=[f'{comb_name}_from', f'{comb_name}_to'],
+        ),
+        dim=comb_name,
     )
 
 
