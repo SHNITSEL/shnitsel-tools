@@ -178,8 +178,15 @@ class DatasheetPage:
         start = timer()
         inter_state = shnitsel.core.stats.get_inter_state(self.frames)
         inter_state['_color'] = 'statecomb', self.col_inter
-        if 'dip_trans' in inter_state:
+
+        # Calculate fosc if missing and conditions met
+        if (
+            "fosc" not in inter_state
+            and 'dip_trans' in inter_state
+            and "energy_interstate" in inter_state
+        ):
             inter_state = shnitsel.core.spectra.assign_fosc(inter_state)
+
         for var, tex in [
             ('energy', r"$\Delta E$"),
             ('nacs', r"$\|\mathrm{NAC}_{i,j}\|_2$"),
