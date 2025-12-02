@@ -15,7 +15,7 @@ from .typedefs import DimName
 def norm(
     da: xr.DataArray, dim: DimName = 'direction', keep_attrs: bool | str | None = None
 ) -> xr.DataArray:
-    """Calculate the 2-norm of a DataArray, reducing the dimension with name *dim*
+    """Calculate the 2-norm of a DataArray, reducing/squeezing the dimension with name `dim`
 
     Parameters
     ----------
@@ -121,9 +121,21 @@ def subtract_combinations(
 def keep_norming(
     da: xr.DataArray, exclude: Collection[DimName] | None = None
 ) -> xr.DataArray:
+    """Function to calculate the norm of a variable across all dimensions except the ones denoted in `exclude`
+
+    Args:
+        da (xr.DataArray): The data array to norm across all non-excluded dimensions
+        exclude (Collection[DimName] | None, optional): The dimensions to exclude/retain. Defaults to ['state', 'statecomb', 'frame'].
+
+    Returns:
+        xr.DataArray: The resulting, normed array
+    """
     if exclude is None:
         exclude = {'state', 'statecomb', 'frame'}
-    for dim in set(da.dims).difference(exclude):
+
+    # Get all non-excluded dimensions
+    diff_dims = set(da.dims).difference(exclude)
+    for dim in diff_dims:
         da = norm(da, dim, keep_attrs=True)
         da.attrs['norm_order'] = 2
     return da
