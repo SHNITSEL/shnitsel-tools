@@ -9,6 +9,8 @@ from rdkit import Chem as rc
 from shnitsel._contracts import needs
 from shnitsel.rd import set_atom_props, mol_to_numbered_smiles
 from .core.typedefs import AtXYZ
+from .units.conversion import convert_length
+from .units.definitions import length
 
 
 @needs(dims={'atom', 'direction'}, coords_or_vars={'atNames'}, not_dims={'frame'})
@@ -42,7 +44,7 @@ def traj_to_xyz(traj_atXYZ: AtXYZ) -> str:
 
 @needs(dims={'atom', 'direction'}, coords_or_vars={'atNames'}, not_dims={'frame'})
 def to_mol(
-    atXYZ_frame: xr.DataArray,
+    atXYZ_frame: AtXYZ,
     charge: int | None = None,
     covFactor: float = 1.2,
     to2D: bool = True,
@@ -82,7 +84,9 @@ def to_mol(
     ValueError
         If ``charge`` is not ``None`` and bond order determination fails
     """
-    mol = rc.rdmolfiles.MolFromXYZBlock(to_xyz(atXYZ_frame))
+    # Make sure the unit is correct
+    atXYZ_in_angstrom = convert_length(atXYZ_frame, to=length.Angstrom)
+    mol = rc.rdmolfiles.MolFromXYZBlock(to_xyz(atXYZ_in_angstrom))
     rc.rdDetermineBonds.DetermineConnectivity(mol, useVdw=True, covFactor=covFactor)
     try:
         rc.rdDetermineBonds.DetermineBondOrders(mol, charge=(charge or 0))
