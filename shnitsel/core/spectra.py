@@ -5,28 +5,28 @@ from typing import Iterable
 import numpy as np
 import xarray as xr
 
-from shnitsel.units.definitions import energy
+from shnitsel.units.definitions import energy, dipole
 
 from .typedefs import InterState, DimName, SpectraDictType
 
 from .generic import keep_norming, subtract_combinations
 from .._contracts import needs
-from ..units import convert_energy
+from ..units import convert_energy, convert_dipole
 
 
-def _get_fosc(energy: xr.DataArray, dip_trans: xr.DataArray) -> xr.DataArray:
+def _get_fosc(energy_interstate: xr.DataArray, dip_trans_norm: xr.DataArray) -> xr.DataArray:
     """Internal function to actually calculate the oscillator frequency for energies and transition dipoles.
 
     Args:
-        energy (DataArray): The Array of Energies in the system.
-        dip_trans (DataArray): The array of associated transition dipoles in the system.
+        energy_interstate (DataArray): The Array of Energies in the system.
+        dip_trans_norm (DataArray): The array of associated norm of transition dipoles in the system.
 
 
     Returns:
         DataArray: The resulting oscillation frequency (f_osc) array.
     """
 
-    return 2 / 3 * energy * dip_trans**2
+    return 2 / 3 * energy_interstate * dip_trans_norm**2
 
 
 def get_fosc(
@@ -52,7 +52,7 @@ def get_fosc(
         energy_interstate.values.shape == dip_trans_norm.values.shape
     ), f"Energy and dip_trans do not have the same shapes: {energy_interstate.values.shape} <-> {dip_trans_norm.values.shape}"
 
-    da = _get_fosc(convert_energy(energy_interstate, to=energy.Hartree), dip_trans_norm)
+    da = _get_fosc(convert_energy(energy_interstate, to=energy.Hartree), convert_dipole(dip_trans_norm, to=dipole.au))
     da.name = 'fosc'
     da.attrs.update(
         {
@@ -88,7 +88,7 @@ def broaden_gauss(
     fosc: xr.DataArray,
     agg_dim: DimName = 'frame',
     *,
-    width: float = 0.5,
+    width: float = 0.5, # in eV
     nsamples: int = 1000,
     xmin: float = 0,
     xmax: float | None = None,
@@ -123,23 +123,25 @@ def broaden_gauss(
 
     stdev = width / 2
 
+    E_eV = convert_energy(E, to=energy.eV)
+
     def g(x):
         nonlocal stdev
         return 1 / (np.sqrt(2 * np.pi) * stdev) * np.exp(-(x**2) / (2 * stdev**2))
 
-    xname = getattr(E, 'name', 'energy') or 'xdim'
+    xname = getattr(E_eV, 'name', 'energy') or 'xdim'
     yname = getattr(fosc, 'name', 'fosc') or 'ydim'
 
     if xmax is None:
         # TODO: FIXME: The calculation does not fit the statement of the comment above.
         # broadening could visibly overshoot the former maximum by 3 standard deviations
-        xmax = E.max().item() * (1 + 1.5 * width)
+        xmax = E_eV.max().item() * (1 + 1.5 * width)
 
         assert xmax is not None, "Could not calculate maximum of the provided energy"
 
     xs = np.linspace(0, xmax, num=nsamples)
-    Espace = xr.DataArray(xs, dims=[xname], attrs=E.attrs)
-    res: xr.DataArray = (g(Espace - E) * fosc).mean(dim=agg_dim)
+    Espace = xr.DataArray(xs, dims=[xname], attrs=E_eV.attrs)
+    res: xr.DataArray = (g(Espace - E_eV) * fosc).mean(dim=agg_dim)
     # print(res)
     res.name = yname
     res.attrs = fosc.attrs
