@@ -116,6 +116,10 @@ class DatasheetPage:
 
         self.can = {}
 
+        # print(self.frames['state_charges'])
+        if 'state_charges' in self.frames:
+            self.charge = int(self.frames.state_charges.isel(state=0))
+
         def check(*ks):
             return all(k in self.frames for k in ks)
 
@@ -167,7 +171,7 @@ class DatasheetPage:
     @cached_property
     def per_state(self):
         start = timer()
-        per_state = shnitsel.core.stats.get_per_state(self.frames)
+        per_state = stats.get_per_state(self.frames)
         per_state['_color'] = 'state', self.col_state
         end = timer()
         info(f"cached per_state in {end - start} s")
@@ -176,7 +180,7 @@ class DatasheetPage:
     @cached_property
     def inter_state(self):
         start = timer()
-        inter_state = shnitsel.core.stats.get_inter_state(self.frames)
+        inter_state = stats.get_inter_state(self.frames)
         inter_state['_color'] = 'statecomb', self.col_inter
 
         # Calculate fosc if missing and conditions met
@@ -303,7 +307,7 @@ class DatasheetPage:
         Returns:
             rdkit.Chem.Mol: Molecule object representing the structure in the first frame
         """
-        # TODO: FIXME: This should be a private attribute prefixed with `__`
+        # TODO: FIXME: Shouldn't this be a private attribute prefixed with `__` ?
         if 'smiles_map' in self.frames['atXYZ'].attrs:
             mol = shnitsel.bridges.numbered_smiles_to_mol(
                 self.frames['atXYZ'].attrs['smiles_map']
