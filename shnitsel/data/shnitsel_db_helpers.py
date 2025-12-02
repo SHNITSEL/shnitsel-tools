@@ -91,3 +91,26 @@ def aggregate_xr_over_levels(tree: T, func: Callable[[T], R], level: str) -> T |
         return tree.copy().drop_nodes(drop_keys).assign(new_children)
     else:
         return None
+
+
+def get_trajectories_with_path(subtree: xr.DataTree) -> List[tuple[str, Trajectory]]:
+    """Function to get a list of all datasets in the tree with their respective path
+
+    Args:
+        subtree (xr.DataTree): The subtree to generate the collection for.
+
+    Returns:
+        List[tuple[str, Trajectory]]: A list of tuples (path, dataset at that path) for all datasets in the respective subtree.
+    """
+    # TODO: FIXME: This needs to be a bit more generalized for trees with arbitrary data
+    
+    res = []
+    if subtree.dataset is not None:
+        res.append((subtree.path, subtree.dataset))
+
+    for key, child in subtree.children.items():
+        child_res = get_trajectories_with_path(child)
+        if child_res is not None and len(child_res) > 0:
+            res = res + child_res
+
+    return res

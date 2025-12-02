@@ -249,7 +249,7 @@ def _merge_traj_metadata(
 def concat_trajs(datasets: Iterable[Trajectory]) -> Trajectory:
     """Function to concatenate multiple trajectories along their `time` dimension.
 
-    Will create one continuous time dimension like an extended trajectory
+    Will create one continuous time dimension like an extended trajectory. The concatenated dimension will be renamed `frame`
 
     Args:
         datasets (Iterable[Trajectory]): Datasets representing the individual trajectories

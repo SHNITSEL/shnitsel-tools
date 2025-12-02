@@ -295,19 +295,27 @@ class ShnitselDBRoot(xr.DataTree):
             )  # type: ignore
 
 
-def collect_trajectories(db: xr.DataTree) -> List[Trajectory]:
+def collect_trajectories(
+    db: xr.DataTree, only_direct_children: bool = False
+) -> List[Trajectory]:
     """Function to retrieve all Trajectories in a subtree of a ShnitselDB
 
     Args:
         db (xr.DataTree): The subtree of the database in question
+        only_direct (bool, optional): Whether to only gather trajectories from direct children of this subtree.
 
     Returns:
         List[Trajectory]: List of Trajectory entries in the Database
     """
     res: List[Trajectory] = []
-    for leaf in db.leaves:
-        if leaf.dataset is not None:
-            res.append(leaf.dataset)
+    if only_direct_children:
+        for key, child in db.children.items():
+            if child.dataset is not None:
+                res.append(child.dataset)
+    else:
+        for leaf in db.leaves:
+            if leaf.dataset is not None:
+                res.append(leaf.dataset)
     return res
 
 

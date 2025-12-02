@@ -106,22 +106,27 @@ def add_as_tree_method(
 # sys.exit(0)
 
 
-def concat_subtree(subtree: xr.DataTree) -> Trajectory:
+def concat_subtree(
+    subtree: xr.DataTree, only_direct_children: bool = False
+) -> Trajectory:
     """Helper function to concatenate the trajectories in a subtree into a multi-trajetctory dataset.
 
     The resulting dataset has a new `frame` dimension along which we can iterate through all individual frames of all trajectories.
 
     Args:
         subtree (xr.DataTree): The subtree of the ShnitselDB datastructure
+        only_direct (bool, optional): Whether to only gather trajectories from direct children of this subtree.
 
     Returns:
         Trajectory: The resulting multi-trajectory dataset
     """
-    trajectories = collect_trajectories(subtree)
+    trajectories = collect_trajectories(subtree, only_direct_children)
     return concat_trajs(trajectories)
 
 
-def layer_subtree(subtree: xr.DataTree) -> Trajectory:
+def layer_subtree(
+    subtree: xr.DataTree, only_direct_children: bool = False
+) -> Trajectory:
     """Helper function to layer the trajectories in a subtree into a multi-trajetctory dataset.
 
     The new trajectory has a `trajid` dimension along which we can iterate through the different trajectories.
@@ -129,24 +134,28 @@ def layer_subtree(subtree: xr.DataTree) -> Trajectory:
 
     Args:
         subtree (xr.DataTree): The subtree of the ShnitselDB datastructure
+        only_direct (bool, optional): Whether to only gather trajectories from direct children of this subtree.
 
     Returns:
         Trajectory: The resulting multi-trajectory dataset
     """
-    trajectories = collect_trajectories(subtree)
+    trajectories = collect_trajectories(subtree, only_direct_children)
     return layer_trajs(trajectories)
 
 
-def list_subtree(subtree: xr.DataTree) -> List[Trajectory]:
+def list_subtree(
+    subtree: xr.DataTree, only_direct_children: bool = False
+) -> List[Trajectory]:
     """Helper function to collect the trajectories in a subtree into a trajectory list.
 
     Args:
         subtree (xr.DataTree): The subtree of the ShnitselDB datastructure
+        only_direct (bool, optional): Whether to only gather trajectories from direct children of this subtree.
 
     Returns:
         List[Trajectory]: The resulting trajectory list
     """
-    return collect_trajectories(subtree)
+    return collect_trajectories(subtree, only_direct_children)
 
 
 # NOTE: This decorator is meant to allow the input of a datatree as first argument instead of a dataset
