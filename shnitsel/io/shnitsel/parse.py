@@ -249,7 +249,7 @@ def decode_attrs(obj):
 
 def _decode_shnitsel_v1_2_datatree(datatree: xr.DataTree) -> xr.DataTree:
     res = datatree.copy()
-    if res.dataset is not None:
+    if res.has_data:
         res.dataset = _decode_shnitsel_v1_1_dataset(res.dataset)
 
     res = decode_attrs(res)

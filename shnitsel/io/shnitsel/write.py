@@ -49,7 +49,7 @@ def ndarray_to_json_ser(value):
 def _prepare_datatree(node: xr.DataTree) -> xr.DataTree:
     cleaned_node = node.copy()
 
-    if cleaned_node.dataset is not None:
+    if cleaned_node.has_data:
         cleaned_node.dataset = _prepare_dataset(cleaned_node.dataset)
 
     cleaned_node = cleaned_node.assign(
@@ -212,7 +212,7 @@ def write_shnitsel_file(
 
         encoding = {}
         for leaf in cleaned_tree.leaves:
-            if leaf.dataset is not None:
+            if leaf.has_data:
                 encoding[leaf.path] = _dataset_to_encoding(leaf.dataset, complevel)
 
         cleaned_tree.attrs["__shnitsel_format_version"] = "v1.2"

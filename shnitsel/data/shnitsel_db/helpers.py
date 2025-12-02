@@ -22,7 +22,7 @@ def traj_list_to_child_mapping(
 
     for i, v in enumerate(list):
         if isinstance(v, TrajectoryData):
-            if v.dataset is not None and "trajid" in v.dataset.attrs:
+            if v.has_data and "trajid" in v.dataset.attrs:
                 trajid = str(v.dataset.attrs["trajid"])
             else:
                 trajid = f"{i}"

@@ -88,7 +88,7 @@ def group_subtree_by_metadata(
 
         return res_tree
     else:
-        if subtree.dataset is not None:
+        if subtree.has_data:
             metadata = ShMetadataKeys(
                 delta_t=subtree.dataset.attrs.get("delta_t", -1),
                 software=subtree.dataset.attrs.get("input_format", "unknown"),

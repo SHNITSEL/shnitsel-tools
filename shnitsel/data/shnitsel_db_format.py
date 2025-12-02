@@ -321,11 +321,11 @@ def collect_trajectories(
     res: List[Trajectory] = []
     if only_direct_children:
         for key, child in db.children.items():
-            if child.dataset is not None:
+            if child.has_data:
                 res.append(child.dataset)
     else:
         for leaf in db.leaves:
-            if leaf.dataset is not None:
+            if leaf.has_data:
                 res.append(leaf.dataset)
     return res
 
@@ -394,7 +394,7 @@ def build_shnitsel_db(
                         if d_conv.name is not None
                         else (
                             d_conv.dataset.attrs["trajid"]
-                            if d_conv.dataset is not None
+                            if d_conv.has_data
                             and "trajid" in d_conv.dataset.attrs
                             else f"{i}"
                         )

@@ -173,7 +173,7 @@ class CompoundGroup(xr.DataTree):
         filtered_traj = [
             t
             for t in self.collect_trajectories()
-            if t.dataset is not None and composed_filter(t.dataset)
+            if t.has_data and composed_filter(t.dataset)
         ]
 
         if len(filtered_traj) > 0:

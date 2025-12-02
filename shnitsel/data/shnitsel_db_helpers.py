@@ -36,7 +36,7 @@ def unwrap_single_entry_in_tree(tree: T) -> Trajectory | T:
         """
         res = None
 
-        if root.dataset is not None:
+        if root.has_data:
             res = root.dataset
 
         for c_k, child in root.children.items():
@@ -105,7 +105,8 @@ def get_trajectories_with_path(subtree: xr.DataTree) -> List[tuple[str, Trajecto
     # TODO: FIXME: This needs to be a bit more generalized for trees with arbitrary data
 
     res = []
-    if subtree.dataset is not None:
+    if subtree.has_data:
+        # the tree will give us empty datasets instead of none if an attribute on the node has been set.
         res.append((subtree.path, subtree.dataset))
 
     for key, child in subtree.children.items():
