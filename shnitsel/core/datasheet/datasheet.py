@@ -6,11 +6,17 @@ from matplotlib.backends.backend_pdf import PdfPages
 
 from matplotlib.figure import Figure
 
-import shnitsel
-from shnitsel.core.datasheet.datasheet_page import DatasheetPage
-from shnitsel.data.shnitsel_db_format import ShnitselDB
-from shnitsel.data.trajectory_format import Trajectory
-from shnitsel.io import read
+from .datasheet_page import DatasheetPage
+from ...data.shnitsel_db.datatree_level import DataTreeLevel_keys
+from ...data.shnitsel_db.db_function_decorator import concat_subtree
+from ...data.shnitsel_db.grouping_methods import group_subtree_by_metadata
+from ...data.shnitsel_db_format import ShnitselDB
+from ...data.shnitsel_db_helpers import (
+    aggregate_xr_over_levels,
+    get_trajectories_with_path,
+)
+from ...data.trajectory_format import Trajectory
+from ...io import read
 
 try:
     from typing import Self
@@ -84,11 +90,40 @@ class Datasheet:
             if isinstance(base_data, ShnitselDB):
                 self.data_source = base_data
                 # TODO: FIXME: Still need to deal with the appropriate grouping of ShnitselDB entries.
-                pass
+
+                grouped_data = group_subtree_by_metadata(base_data)
+                assert (
+                    grouped_data is not None and isinstance(grouped_data, ShnitselDB)
+                ), "Grouping of the provided ShnitselDB did not yield any result. Please make sure your database is well formed and contains data."
+
+                tree_res_concat = aggregate_xr_over_levels(
+                    grouped_data,
+                    lambda x: concat_subtree(x, True),
+                    DataTreeLevel_keys["group"],
+                )
+                assert (
+                    tree_res_concat is not None
+                ), "Aggregation of ShnitselDB yielded None. Please provide a database with data."
+
+                datasheet_groups: list[tuple[str, Trajectory]] = (
+                    get_trajectories_with_path(tree_res_concat)
+                )
+
+                for name, traj in datasheet_groups:
+                    self.datasheet_pages[name] = DatasheetPage(
+                        traj,
+                        spectra_times=spectra_times,
+                        col_inter=col_inter,
+                        col_state=col_state,
+                    )
+                    self.datasheet_pages[name].name = name
             elif isinstance(base_data, Trajectory):
                 self.data_source = base_data
                 self.datasheet_pages[_Datasheet_default_page_key] = DatasheetPage(
-                    self.data_source, col_inter=col_inter, col_state=col_state
+                    self.data_source,
+                    spectra_times=spectra_times,
+                    col_inter=col_inter,
+                    col_state=col_state,
                 )
                 pass
             else:
