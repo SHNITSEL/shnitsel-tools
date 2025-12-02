@@ -9,7 +9,7 @@ from shnitsel.units.definitions import energy
 
 from .typedefs import InterState, DimName, SpectraDictType
 
-from .generic import subtract_combinations
+from .generic import keep_norming, subtract_combinations
 from .._contracts import needs
 from ..units import convert_energy
 
@@ -30,14 +30,14 @@ def _get_fosc(energy: xr.DataArray, dip_trans: xr.DataArray) -> xr.DataArray:
 
 
 def get_fosc(
-    energy_per_or_interstate: xr.DataArray, dip_trans: xr.DataArray
+    energy_per_or_interstate: xr.DataArray, dip_trans_norm: xr.DataArray
 ) -> xr.DataArray:
     """Function to obtain a dataarray containing the oscillator strength as a dataarray.
 
     Args:
         energy_interstate (DataArray): The array of per- or inter-state energies in the system.
             If provided as a per-state energy, inter-state barriers will automatically be calculated.
-        dip_trans (DataArray): The array of associated transition dipoles in the system.
+        dip_trans_norm (DataArray): The array of associated transition dipoles in the system with their norm calculated across the direction dimension.
 
     Returns:
         DataArray: The resulting datarray of oscillator strength f_osc
@@ -48,7 +48,11 @@ def get_fosc(
     else:
         energy_interstate = energy_per_or_interstate
 
-    da = _get_fosc(convert_energy(energy_interstate, to=energy.Hartree), dip_trans)
+    assert (
+        energy_interstate.values.shape == dip_trans_norm.values.shape
+    ), f"Energy and dip_trans do not have the same shapes: {energy_interstate.values.shape} <-> {dip_trans_norm.values.shape}"
+
+    da = _get_fosc(convert_energy(energy_interstate, to=energy.Hartree), dip_trans_norm)
     da.name = 'fosc'
     da.attrs.update(
         {
@@ -70,7 +74,10 @@ def assign_fosc(ds: xr.Dataset) -> xr.Dataset:
     Returns:
         xr.Dataset: Dataset with the member variable fosc set
     """
-    da = get_fosc(ds['energy_interstate'], ds['dip_trans'])
+    if 'dip_trans_norm' not in ds:
+        ds['dip_trans_norm'] = keep_norming(ds['dip_trans'])
+
+    da = get_fosc(ds['energy_interstate'], ds['dip_trans_norm'])
     res = ds.assign(fosc=da)
     return res
 
@@ -133,7 +140,7 @@ def broaden_gauss(
     xs = np.linspace(0, xmax, num=nsamples)
     Espace = xr.DataArray(xs, dims=[xname], attrs=E.attrs)
     res: xr.DataArray = (g(Espace - E) * fosc).mean(dim=agg_dim)
-    print(res)
+    # print(res)
     res.name = yname
     res.attrs = fosc.attrs
     for cname, coord in res.coords.items():
@@ -151,7 +158,7 @@ def ds_broaden_gauss(
     )
 
 
-@needs(data_vars={'energy', 'fosc'}, coords={"statecomb", "time"})
+@needs(data_vars={'energy_interstate', 'fosc'}, coords={"statecomb", "time"})
 def get_spectrum(
     data: InterState, t: float, sc: tuple[int, int], rel_cutoff: float = 0.01
 ) -> xr.DataArray:
@@ -172,22 +179,28 @@ def get_spectrum(
         times = np.unique(data.coords['time'])
         diffs = np.abs(times - t)
         t = times[np.argmin(diffs)]
+
     # Only take one timestep and one state combination
     data = data.sel(time=t, statecomb=sc)
 
     # Figure out how the trajectory is indexed across multiple trajectories or whether a single trajectory is provided
     trajid_dim = None
-    if "trajid_" in data.energy.sizes:
+    if "trajid_" in data.energy_interstate.sizes:
         trajid_dim = "trajid_"
-    elif "trajid" in data.energy.sizes:
+    elif "trajid" in data.energy_interstate.sizes:
         trajid_dim = "trajid"
+
     if trajid_dim is not None:
-        res: xr.DataArray = broaden_gauss(data.energy, data.fosc, agg_dim=trajid_dim)
+        res: xr.DataArray = broaden_gauss(
+            data.energy_interstate, data.fosc, agg_dim=trajid_dim
+        )
         max_ = res.max().item()
-        non_negligible = res.where(res > rel_cutoff * max_, drop=True).energy
+        non_negligible = res.where(res > rel_cutoff * max_, drop=True).energy_interstate
         if len(non_negligible) == 0:
-            return res.sel(energy=non_negligible)
-        return res.sel(energy=slice(non_negligible.min(), non_negligible.max()))
+            return res.sel(energy_interstate=non_negligible)
+        return res.sel(
+            energy_interstate=slice(non_negligible.min(), non_negligible.max())
+        )
     else:
         logging.warning(
             "A single trajectory was provided. No gaussian smoothing across multiple trajectories could be performed."
@@ -222,7 +235,6 @@ def calc_spectra(
         (t, sc): get_spectrum(interstate, t, sc, rel_cutoff=rel_cutoff)
         for t, sc in product(times, sc_values)
     }
-    print(f"{res=}")
     return res
 
 
