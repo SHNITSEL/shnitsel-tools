@@ -19,6 +19,17 @@ class TrajectoryData(xr.DataTree):
         super().__init__(dataset=dataset, children=None, name=name)
 
         self.attrs[_datatree_level_attribute_key] = "TrajectoryData"
+        
+    def is_level(self, target_level: str) -> bool:
+        """Check whether we are at a certain level
+
+        Args:
+            target_level (str): Desired level to check for
+
+        Returns:
+            bool: True if this level satisfies the requirements
+        """
+        return target_level == "TrajectoryData"
 
     def collect_trajectories(self) -> List[Self]:
         """Function to retrieve all trajectories in this subtree

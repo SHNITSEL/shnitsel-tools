@@ -38,6 +38,17 @@ class TrajectoryGroup(xr.DataTree):
         if group_info is not None:
             self.attrs["group_info"] = group_info.__dict__
 
+    def is_level(self, target_level: str) -> bool:
+        """Check whether we are at a certain level
+
+        Args:
+            target_level (str): Desired level to check for
+
+        Returns:
+            bool: True if this level satisfies the requirements
+        """
+        return target_level == "TrajectoryGroup"
+
     def get_group_info(self) -> GroupInfo:
         """Reconstruct the Group info object from settings stored in this node's attributes
 

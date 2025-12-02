@@ -43,6 +43,17 @@ class CompoundGroup(xr.DataTree):
         if compound_info is not None:
             self.attrs["compound_info"] = compound_info.__dict__
 
+    def is_level(self, target_level: str) -> bool:
+        """Check whether we are at a certain level
+
+        Args:
+            target_level (str): Desired level to check for
+
+        Returns:
+            bool: True if this level satisfies the requirements
+        """
+        return target_level == "TrajectoryGroup" or target_level == "CompoundGroup"
+
     def get_compound_info(self) -> CompoundInfo:
         """Get the store compound info of this Compound group.
 

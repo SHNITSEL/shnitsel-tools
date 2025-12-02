@@ -9,6 +9,9 @@ import xarray as xr
 
 # TODO: FIXME: Set units on delta_t and t_max when converted into a variable
 
+_coordinate_meta_keys = ["trajid", "delta_t", "max_ts", "t_max", "completed", "nsteps"]
+
+
 def _check_matching_dimensions(
     datasets: Iterable[Trajectory],
     excluded_dimensions: Set[str] = set(),
@@ -200,6 +203,8 @@ def _merge_traj_metadata(
                 # ignore private attrs
                 all_keys.add(str(x))
 
+    all_keys.intersection_update([str(k) for k in traj_meta_distinct_defaults.keys()])
+
     all_meta = {}
     for key in all_keys:
         kept_array = None
@@ -221,13 +226,16 @@ def _merge_traj_metadata(
             # We treat some specific values different
             distinct_meta[key] = all_meta[key]
         else:
-            set_of_vals = set(all_meta[key])
+            try:
+                set_of_vals = set(all_meta[key])
 
-            # If there are distinct meta values, we assign the values all to the distinct set. Otherwise, we only keep the one as shared.
-            if len(set_of_vals) > 1:
+                # If there are distinct meta values, we assign the values all to the distinct set. Otherwise, we only keep the one as shared.
+                if len(set_of_vals) > 1:
+                    distinct_meta[key] = all_meta[key]
+                else:
+                    shared_meta[key] = set_of_vals.pop()
+            except TypeError:
                 distinct_meta[key] = all_meta[key]
-            else:
-                shared_meta[key] = set_of_vals.pop()
 
     # Add missing trajectory ids and reassign duplicate ids
     used_trajectory_ids = set()
@@ -345,11 +353,21 @@ def concat_trajs(datasets: Iterable[Trajectory]) -> Trajectory:
     )
 
     # Add remaining trajectory-metadata
+    # First the ones that may end up as coordinates
     frames = frames.assign_coords(
         {
             k: ("trajid", v, {"description:": f"Attribute {k} merged in concatenation"})
-            for k, v in distinct_metadata
-            if k != "trajid"
+            for k, v in distinct_metadata.items()
+            if k != "trajid" and str(k) in _coordinate_meta_keys
+        }
+    )
+
+    # Then all remaining metadata
+    frames.attrs.update(
+        {
+            k: v
+            for k, v in distinct_metadata.items()
+            if k != "trajid" and str(k) not in _coordinate_meta_keys
         }
     )
 
@@ -456,10 +474,20 @@ def layer_trajs(datasets: Iterable[Trajectory]) -> Trajectory:
     layers = layers.assign_coords(
         {
             k: ("trajid", v, {"description:": f"Attribute {k} merged in concatenation"})
-            for k, v in distinct_metadata
-            if k != "trajid"
+            for k, v in distinct_metadata.items()
+            if k != "trajid" and str(k) in _coordinate_meta_keys
         }
     )
+    
+    # Then all remaining metadata
+    layers.attrs.update(
+        {
+            k: v
+            for k, v in distinct_metadata.items()
+            if k != "trajid" and str(k) not in _coordinate_meta_keys
+        }
+    )
+
 
     layers.attrs["is_multi_trajectory"] = True
     if not isinstance(layers, Trajectory):

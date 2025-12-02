@@ -42,6 +42,17 @@ class ShnitselDBRoot(xr.DataTree):
         super().__init__(dataset=None, children=compounds, name="ROOT")
         self.attrs[_datatree_level_attribute_key] = "ShnitselDBRoot"
 
+    def is_level(self, target_level: str) -> bool:
+        """Check whether we are at a certain level
+
+        Args:
+            target_level (str): Desired level to check for
+
+        Returns:
+            bool: True if this level satisfies the requirements
+        """
+        return target_level == "ShnitselDBRoot"
+
     def add_trajectory_group(
         self,
         group_name: str,
