@@ -210,7 +210,7 @@ standard_shnitsel_units = {
     unit_dimensions.nacs: nacs.one_per_Bohr,  # TODO: FIXME: NACS in molcas: 1/Bohr, SHARC liest 1/Bohr
     unit_dimensions.dipole: dipole.Debye,
     # "dipole_trans": "1",
-    unit_dimensions.socs: socs.Hartree,
+    unit_dimensions.socs: socs.one_per_cm,
     unit_dimensions.charge: charge.e,
     unit_dimensions.velocity: velocity.au,
 }
@@ -242,7 +242,7 @@ standard_units_of_formats = {
         unit_dimensions.nacs: nacs.one_per_Bohr,
         unit_dimensions.dipole: dipole.au,
         # "dipole_trans": dipole.au,
-        unit_dimensions.socs: socs.Hartree, # SOCs are off-diagonals of Hamiltonian in Hartree
+        unit_dimensions.socs: socs.Hartree,  # SOCs are off-diagonals of Hamiltonian in Hartree
         unit_dimensions.charge: charge.e,
         unit_dimensions.velocity: velocity.au,  # TODO: check
     },
