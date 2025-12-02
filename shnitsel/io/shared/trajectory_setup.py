@@ -72,6 +72,19 @@ def assign_optional_settings(
         if v is not None:
             dataset.attrs[k] = v
 
+def get_statecomb_coordinate(states:xr.DataArray) -> xr.Coordinates:
+    """Helper function to create a statecombination coordinate if it is missing, based on the states registered.
+
+    Args:
+        states (xr.DataArray): The state coordinate
+
+    Returns:
+        xr.Coordinates: The new coordinate having all non-ordered state combinations
+    """
+    return xr.Coordinates.from_pandas_multiindex(
+        pd.MultiIndex.from_tuples(combinations(states, 2), names=["from", "to"]),
+        dim="statecomb",
+    )
 
 # TODO: FIXME: Consider caching here. May speed up ICONDS in large ICOND datasets
 def create_initial_dataset(
