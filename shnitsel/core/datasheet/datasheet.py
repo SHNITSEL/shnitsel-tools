@@ -7,7 +7,6 @@ from matplotlib.backends.backend_pdf import PdfPages
 from matplotlib.figure import Figure
 
 from .datasheet_page import DatasheetPage
-from ...data.shnitsel_db.datatree_level import DataTreeLevel_keys
 from ...data.shnitsel_db.db_function_decorator import concat_subtree
 from ...data.shnitsel_db.grouping_methods import group_subtree_by_metadata
 from ...data.shnitsel_db_format import ShnitselDB
@@ -99,7 +98,7 @@ class Datasheet:
                 tree_res_concat = aggregate_xr_over_levels(
                     grouped_data,
                     lambda x: concat_subtree(x, True),
-                    DataTreeLevel_keys["group"],
+                    "group",
                 )
                 assert (
                     tree_res_concat is not None
