@@ -7,6 +7,8 @@ import numpy.typing as npt
 import scipy.stats as st
 import xarray as xr
 
+from shnitsel.io.shared.trajectory_setup import get_statecomb_coordinate
+
 from .midx import flatten_midx
 from .generic import keep_norming, subtract_combinations as subtract_combinations
 from .spectra import assign_fosc
@@ -72,23 +74,36 @@ def get_per_state(frames: Frames) -> PerState:
     return per_state
 
 
+@needs(dims={'state'}, coords={'state'})
 def get_inter_state(frames: Frames) -> InterState:
+    """Calculate inter-state properties of a dataset for certain observables.
+
+    Currently calculates inter-state levels of energy differences.
+    Will calculate Differences between the values of these observables indexed by state.
+    If no `statecomb` dimension exists, will create one.
+
+    Args:
+        frames (Frames): The basis Dataset to calculate the interstate properties for
+
+    Returns:
+        InterState: A Dataset containing interstate properties
+    """
     prop: Hashable
 
-    if 'statecomb' in frames:
-        # TODO: FIXME: Appropriately remove the 'statecomb' indices and coordinates from the Dataset
-        warning(
-            "'statecomb' already exists as an index, variable or coordinate"
-            " in the dataset, hence it will be removed before recomputation"
-        )
-
     iprops = []
-    # TODO: FIXME: check if astate is the correct variable to reference here
-    for prop in ['energy', 'nacs', 'astate', 'dip_trans']:
+    # TODO: Check that energy is actually the only inter-state property. We already have statecomb for nacs and dip_trans and astate is not state-dependent.
+    for prop in ['energy']:  # ['energy', 'nacs', 'astate', 'dip_trans']:
         if prop in frames:
             iprops.append(prop)
         else:
             warning(f"Dataset does not contain variable '{prop}'")
+
+    if 'statecomb' not in frames.sizes:
+        logging.info(
+            "Creating a new `statecomb` dimension because it was not yet set when calculating inter-state properties."
+        )
+        frames = frames.assign_coords(get_statecomb_coordinate(frames.state))
+        frames['statecomb'].attrs['long_name'] = "State combinations"
 
     inter_state = frames[iprops]
     for prop in inter_state:
@@ -98,20 +113,28 @@ def get_inter_state(frames: Frames) -> InterState:
             )
     inter_state = inter_state.map(keep_norming)
 
-    def state_renamer(lo, hi):
-        if isinstance(lo, int):
-            lower_str = f"S_{lo-1}"
-        else:
-            lower_str = lo
-        if isinstance(hi, int):
-            higher_str = f"S_{hi-1}"
-        else:
-            higher_str = hi
-        f'${higher_str} - {lower_str}$'
+    # TODO: FIXME: We can't just redefine the statecomb dimension. If it is there, we need to keep it.
+    # def state_renamer(lo, hi):
+    #     if isinstance(lo, int):
+    #         lower_str = f"S_{lo-1}"
+    #     else:
+    #         lower_str = lo
+    #     if isinstance(hi, int):
+    #         higher_str = f"S_{hi-1}"
+    #     else:
+    #         higher_str = hi
+    #     f'${higher_str} - {lower_str}$'
 
-    inter_state = flatten_midx(inter_state, 'statecomb', state_renamer)
+    # if 'statecomb' in frames:
+    #
+    #     warning(
+    #         "'statecomb' already exists as an index, variable or coordinate"
+    #         " in the dataset, hence it will be removed before recomputation"
+    #     )
+    # inter_state = flatten_midx(inter_state, 'statecomb', state_renamer)
+    # inter_state['statecomb'].attrs['long_name'] = "State combinations"
+
     if {'energy', 'dip_trans'}.issubset(iprops):
         inter_state = assign_fosc(inter_state)
 
-    inter_state['statecomb'].attrs['long_name'] = "State combinations"
     return inter_state
