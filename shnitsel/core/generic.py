@@ -1,13 +1,15 @@
 import itertools
+import logging
 import math
 from typing import Hashable, TypeAlias, Collection
 
 import numpy as np
 import xarray as xr
 
-from . import xrhelpers
+from shnitsel._contracts import needs
 
-DimName: TypeAlias = Hashable
+from . import xrhelpers
+from .typedefs import DimName
 
 
 def norm(
@@ -39,6 +41,7 @@ def norm(
     return res
 
 
+# @needs(dims={'statecomb'}, coords={'statecomb'})
 def subtract_combinations(
     da: xr.DataArray, dim: DimName, labels: bool = False
 ) -> xr.DataArray:
@@ -62,34 +65,41 @@ def subtract_combinations(
         return xrhelpers.midx_combs(da.get_index(dim))[f'{dim}comb']
 
     if dim not in da.dims:
-        raise ValueError(f"'{dim}' is not a dimension of the DataArray")
+        raise ValueError(f"'{dim}' is not a dimension of the DataArray {da}")
 
     combination_dimension_name = f"{dim}comb"
-    if combination_dimension_name in da:
-        # TODO: FIXME: Appropriately remove the 'combination_dimension_name' indices and coordinates from the Dataset
-        raise ValueError(
-            f"'{combination_dimension_name}' is already an index, a variable or a coordinate of the DataArray"
-        )
 
     n = da.sizes[dim]
+    dim_index = da.get_index(dim)
 
-    mat = np.zeros((math.comb(n, 2), n))
-    combs = itertools.combinations(range(n), 2)
+    if combination_dimension_name in da:
+        # Don't recalculate the combinations, just take whichever have already been set.
+        logging.info(
+            f"Dimension {combination_dimension_name} already exists, reusing existing entries."
+        )
+        # Generate array indices from combination values
+        comb_indices = []
+        for c_from, c_to in da[combination_dimension_name].values:
+            # TODO: Make sure that this is actually unique?
+            index_from = dim_index.get_loc(c_from)
+            index_to = dim_index.get_loc(c_to)
+            comb_indices.append((index_from, index_to))
+    else:
+        logging.info(f"Dimension {combination_dimension_name} is being generated.")
+        da = da.assign_coords({combination_dimension_name: midx(da, dim)})
+        comb_indices = list(itertools.combinations(range(n), 2))
+
+    mat = np.zeros((len(comb_indices), n))
 
     # After matrix multiplication, index r of output vector has value c2 - c1
-    for r, (c1, c2) in enumerate(combs):
+    for r, (c1, c2) in enumerate(comb_indices):
         mat[r, c1] = -1
         mat[r, c2] = 1
 
-    if labels:
-        xrmat = xr.DataArray(
-            data=mat, coords={f'{dim}comb': midx(da, dim), dim: da.get_index(dim)}
-        )
-    else:
-        xrmat = xr.DataArray(
-            data=mat,
-            dims=[f'{dim}comb', dim],
-        )
+    xrmat = xr.DataArray(
+        data=mat,
+        dims=[combination_dimension_name, dim],
+    )
 
     newdims = list(da.dims)
     newdims[newdims.index(dim)] = f'{dim}comb'
