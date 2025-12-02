@@ -1,21 +1,47 @@
+from shnitsel._contracts import needs
+from shnitsel.core.generic import keep_norming
+from shnitsel.core.typedefs import InterState
+from ....units.definitions import energy
+from ....units.conversion import convert_energy
+
 from .common import figaxs_defaults, centertext
 from .hist import create_marginals, trunc_max
 
 from matplotlib.axes import Axes
 
 
+@needs(data_vars={'nacs'})
 @figaxs_defaults(mosaic=[['ntd'], ['nde']], scale_factors=(1 / 3, 1 / 3))
-def plot_nacs_histograms(inter_state, hop_idxs, fig=None, axs=None) -> dict[str, Axes]:
-    """Plot 2D histograms of NACS vs delta_E or dip_trans"""
+def plot_nacs_histograms(
+    inter_state: InterState, hop_idxs, axs: dict[str, Axes] | None = None
+) -> dict[str, Axes]:
+    """Plot 2D histograms of NACS vs delta_E or dip_trans
+
+    Args:
+        inter_state (InterState): The dataset containing inter-state data including NACs
+        hop_idxs: Argument to specify, which frames should be selected for the histograms.
+        axs (dict[str, Axes]): Axes objects to plot to with the respective keys of the plot. Defaults to None.
+
+    Returns:
+        dict[str, Axes]: The axes used for plotting indexed by the subfigure name
+    """
+    assert axs is not None, "No axes objects provided."
 
     nacs_data = inter_state.sel(frame=hop_idxs)
     axs['nde'].set_ylabel(r'$\Delta E$ / eV')
     axs['nde'].minorticks_on()
     axs['nde'].set_xlabel(r"$\|\mathrm{NAC}_{i,j}\|_2$")
     axs['ntd'].tick_params(axis="x", labelbottom=False)
+
     if 'dip_trans' in inter_state:
         axs['ntd'].set_ylabel(r"$\|\mathbf{\mu}_{i,j}\|_2$")
         axs['ntd'].minorticks_on()
+        if 'dip_trans_norm' not in inter_state:
+            inter_state['dip_trans_norm'] = keep_norming(inter_state.dip_trans)
+
+    if 'nacs' in inter_state:
+        if 'nacs_norm' not in inter_state:
+            inter_state['nacs_norm'] = keep_norming(inter_state.nacs)
 
     def plot(label, yname):
         ax = axs[label]
@@ -24,8 +50,11 @@ def plot_nacs_histograms(inter_state, hop_idxs, fig=None, axs=None) -> dict[str,
 
         for i, (sc, data) in enumerate(nacs_data.groupby('statecomb')):
             ydata = data[yname].squeeze()
-            xdata = data['nacs'].squeeze()
+            xdata = data['nacs_norm'].squeeze()
             # xmax = trunc_max(xdata)
+            if yname == 'energy_interstate':
+                ydata = convert_energy(ydata, to=energy.eV)
+
             ymax = trunc_max(ydata)
             color = data['_color'].item()
             axx.hist(
@@ -40,9 +69,11 @@ def plot_nacs_histograms(inter_state, hop_idxs, fig=None, axs=None) -> dict[str,
 
             ax.scatter(xdata, ydata, color=color, s=0.2, alpha=0.5)
 
-    plot('nde', 'energy')
+    if 'energy_interstate' in inter_state:
+        plot('nde', 'energy_interstate')
+
     if 'dip_trans' in inter_state:
-        plot('ntd', 'dip_trans')
+        plot('ntd', 'dip_trans_norm')
     else:
         centertext(r"No $\mathbf{\mu}_{ij}$ data", axs['ntd'])
         # axs['ntd'].tick_params(axis='y', labelleft=False)
