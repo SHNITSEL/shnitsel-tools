@@ -14,7 +14,7 @@ import shnitsel
 import shnitsel.bridges
 from shnitsel.core import stats
 from shnitsel.data.trajectory_format import Trajectory
-from shnitsel.io import read
+# from shnitsel.io import read
 
 import shnitsel.core.spectra
 
@@ -23,7 +23,7 @@ try:
 except ImportError:
     from typing_extensions import Self
 
-from ..spectra import calc_spectra, get_sgroups
+from ..spectra import calc_spectra, get_spectra_groups
 
 from .figures.common import centertext
 from .figures.per_state_hist import plot_per_state_histograms
@@ -65,6 +65,8 @@ class DatasheetPage:
             self.spectra_times = [max_time * i / 40 for i in range(5)]
             self.spectra_times += [max_time * i / 20 for i in range(5)]
             self.spectra_times += [max_time * i / 3 for i in range(4)]
+
+        # print(self.frames)
 
         nstates = self.frames.sizes['state']
         if col_state is not None:
@@ -235,7 +237,7 @@ class DatasheetPage:
     @cached_property
     def spectra_groups(self):
         start = timer()
-        res = get_sgroups(self.spectra)
+        res = get_spectra_groups(self.spectra)
         end = timer()
         info(f"cached spectra_groups in {end-start} s")
         return res
@@ -521,7 +523,7 @@ class DatasheetPage:
             include_per_state_hist=include_per_state_hist, borders=borders
         )
 
-        print(self.frames)
+        # print(self.frames)
 
         # separated_spectra_and_hists
         if self.can['separated_spectra_and_hists']:
