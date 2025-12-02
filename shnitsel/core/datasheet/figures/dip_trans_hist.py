@@ -1,22 +1,54 @@
 import matplotlib as mpl
+from matplotlib.axes import Axes
 from matplotlib.lines import Line2D
 import matplotlib.pyplot as plt
 import numpy as np
 
+from ...typedefs import InterState, SpectraDictType
+from ....units.definitions import energy
+
 from .common import figaxs_defaults
 from .hist import trunc_max, create_marginals
 from .colormaps import magma_rw, custom_ylgnr
+from ....units.conversion import convert_energy
 
 
-def single_hist(data, shi, slo, color, bins=100, ax=None, cmap=None, cnorm=None):
+def single_hist(
+    interstate: InterState,
+    sc: tuple[int, int],
+    color: str,
+    bins: int = 100,
+    ax: Axes | None = None,
+    cmap=None,
+    cnorm=None,
+):
+    """Function to plot a single histogram of interstate data.
+
+    Args:
+        interstate (InterState): _description_
+        sc (tuple[int,int]): _description_
+        color (str): _description_
+        bins (int, optional): Number of bins for the histogram. Defaults to 100.
+        ax (Axes, optional): Axes object to plot into. Defaults to None.
+        cmap (str, optional): Colormap to use. Defaults to None.
+        cnorm (str, optional): Norming method to apply to the colormap. Defaults to None.
+
+    Returns:
+        ?: The result of ax.hist2d will be returned
+    """
     if ax is None:
         _, ax = plt.subplots(1, 1)
     if cmap is None:
         cmap = magma_rw
 
     axx, axy = create_marginals(ax)
-    xdata = data['energy'].squeeze()
-    ydata = data['dip_trans'].squeeze()
+    # We expect energies in eV for the plot
+    xdata = interstate['energy_interstate'].squeeze()
+    xdata = convert_energy(xdata, to=energy.eV)
+
+    # We need the normed transition dipole
+    ydata = interstate['dip_trans_norm'].squeeze()
+
     xmax = trunc_max(xdata)
     ymax = trunc_max(ydata)
     axx.hist(xdata, range=(0, xmax), color=color, bins=bins)
@@ -25,11 +57,11 @@ def single_hist(data, shi, slo, color, bins=100, ax=None, cmap=None, cnorm=None)
         xdata, ydata, range=[(0, xmax), (0, ymax)], bins=bins, cmap=cmap, norm=cnorm
     )
 
-    ax.set_ylabel(r"$\|\mathbf{\mu}_{%d,%d}\|_2$" % (shi, slo))
+    ax.set_ylabel(r"$\|\mathbf{\mu}_{%d,%d}\|_2$" % (sc[0], sc[1]))
     ax.text(
         1.05,
         1.05,
-        "$S_%d/S_%d$" % (shi, slo),
+        "$S_%d/S_%d$" % (sc[0], sc[1]),
         transform=ax.transAxes,
         ha="left",
         va="bottom",
@@ -40,28 +72,60 @@ def single_hist(data, shi, slo, color, bins=100, ax=None, cmap=None, cnorm=None)
     return hist2d_output
 
 
-def plot_dip_trans_histograms(inter_state, axs=None, cnorm=None):
+def plot_dip_trans_histograms(
+    inter_state: InterState,
+    axs: list[Axes] | None = None,
+    cnorm: str | None = None,
+) -> list:
+    """function to plot all relevant histograms for the provided inter_state data
+
+    Args:
+        inter_state (InterState): _description_
+        axs (Axes, optional): Axes objects to plot into. If not provided, will be created.
+        cnorm (str, optional): Optional specification of a colormap norm method. Defaults to None.
+
+    Returns:
+        list: The list of the results of hist2d() calls for the provided data in inter_state
+    """
     if axs is None:
         nplots = len(inter_state.coords['statecomb'])
         _, axs = plt.subplots(nplots, 1, layout='constrained')
 
+    assert axs is not None, "Could not create subplot axes."
+
     # TODO obviate following cludge:
-    sclabels = [(int(x[3]), int(x[9])) for x in inter_state.statecomb.values]
+    sclabels = [(int(x[0]), int(x[1])) for x in inter_state.statecomb.values]
 
     hist2d_outputs = []
-    for i, (sc, data) in enumerate(inter_state.groupby('statecomb')):
+    for i, (sc_, data) in enumerate(inter_state.groupby('statecomb')):
         # label = f't{i}'
-        shi, slo = sclabels[i]
+        sc = sclabels[i]
         ax = axs[i]
 
         color = data['_color'].item()
-        hist2d_outputs.append(
-            single_hist(data, shi, slo, color=color, ax=ax, cnorm=cnorm)
-        )
+        hist2d_outputs.append(single_hist(data, sc, color=color, ax=ax, cnorm=cnorm))
     return hist2d_outputs
 
 
-def plot_spectra(spectra, ax=None, cmap=None, cnorm=None, mark_peaks=False):
+def plot_spectra(
+    spectra: SpectraDictType,
+    ax: Axes | None = None,
+    cmap: str | None = None,
+    cnorm: str | None = None,
+    mark_peaks: bool = False,
+) -> Axes:
+    """Create the spectra plot of the system denoted by the results in spectra.
+
+    Args:
+        spectra (SpectraDictType): The spectra (t, state combination) -> fosc data to plot
+        ax (Axes, optional): Axis object to plot into. If not provided, will be created.
+        cmap (str, optional): Optional specification of a desired colormap. Defaults to None.
+        cnorm (str, optional): Optional specification of a colormap norm method. Defaults to None.
+        mark_peaks (bool, optional): Flag whether peaks should be clearly marked. Defaults to False.
+
+    Returns:
+        Axes: The axes object into which the graph was plotted
+    """
     if ax is None:
         _, ax = plt.subplots(1, 1)
     cmap = plt.get_cmap(cmap) if cmap else custom_ylgnr
@@ -73,14 +137,14 @@ def plot_spectra(spectra, ax=None, cmap=None, cnorm=None, mark_peaks=False):
     #               for i, t in enumerate(np.unique(list(zip(*spectra.keys()))[0]))}
     for (t, sc), data in spectra.items():
         # special casing for now
-        if sc == '$S_2 - S_0$':
+        if sc == (1, 3):
             linestyle = '--'
         else:
             linestyle = '-'
         c = cmap(cnorm(t))
         # ax.fill_between(data['energy'], data, alpha=0.5, color=c)
         ax.plot(
-            data['energy'],
+            convert_energy(data['energy_interstate'], to=energy.eV),
             data,
             # linestyle=linestyles[t], c=dcol_inter[sc],
             linestyle=linestyle,
@@ -89,8 +153,13 @@ def plot_spectra(spectra, ax=None, cmap=None, cnorm=None, mark_peaks=False):
         )
         if mark_peaks:
             try:
-                peak = data[data.argmax('energy')]
-                ax.text(peak['energy'], peak, f"{t:.2f}:{sc}", fontsize='xx-small')
+                peak = data[data.argmax('energy_interstate')]
+                ax.text(
+                    float(peak['energy_interstate'].values),
+                    peak,
+                    f"{t:.2f}:{sc}",
+                    fontsize='xx-small',
+                )
             except Exception as e:
                 print(e)
     _, ymax = ax.get_ylim()
@@ -210,19 +279,25 @@ def plot_separated_spectra_and_hists(
 
     return axs
 
+
 @figaxs_defaults(
-    #mosaic=[['sg'], ['t0'], ['t1'], ['se'], ['t2'], ['cb_spec'], ['cb_hist']],
-    mosaic=[['sg','t1'], ['cb_spec','cb_hist']],
-    scale_factors=(4/5, 4/5),
-    #height_ratios=([1] * 5) + ([0.1] * 2),
+    # mosaic=[['sg'], ['t0'], ['t1'], ['se'], ['t2'], ['cb_spec'], ['cb_hist']],
+    mosaic=[['sg', 't1'], ['cb_spec', 'cb_hist']],
+    scale_factors=(4 / 5, 4 / 5),
+    # height_ratios=([1] * 5) + ([0.1] * 2),
     height_ratios=([1]) + ([0.1]),
 )
 def plot_separated_spectra_and_hists_groundstate(
-    inter_state, sgroups, fig=None, axs=None, cb_spec_vlines=True, scmap = plt.get_cmap('turbo')
+    inter_state,
+    sgroups,
+    fig=None,
+    axs=None,
+    cb_spec_vlines=True,
+    scmap=plt.get_cmap('turbo'),
 ):
     ground, excited = sgroups
     times = [tup[0] for lst in sgroups for tup in lst]
-    scnorm = plt.Normalize(inter_state.time.min(), inter_state.time.max()+50)
+    scnorm = plt.Normalize(inter_state.time.min(), inter_state.time.max() + 50)
     scscale = mpl.cm.ScalarMappable(norm=scnorm, cmap=scmap)
 
     hist2d_outputs = []
@@ -246,7 +321,7 @@ def plot_separated_spectra_and_hists_groundstate(
     )
 
     # excited-state spectra and histograms
-    #if inter_state.sizes['statecomb'] >= 2:
+    # if inter_state.sizes['statecomb'] >= 2:
     #    plot_spectra(excited, ax=axs['se'], cnorm=scnorm, cmap=scmap)
     #    hist2d_outputs += plot_dip_trans_histograms(
     #        inter_state.isel(statecomb=[2]), axs=[axs['t2']]
@@ -276,7 +351,9 @@ def plot_separated_spectra_and_hists_groundstate(
     axs['sg'].tick_params(axis="x", labelbottom=True)
 
     secax = axs['sg'].secondary_xaxis('top', functions=(ev2nm, ev2nm))
-    secax.set_xticks([10, 25, 35, 40, 50, 75, 100, 125, 150, 200,250,300,350,400,500,750,1000])
+    secax.set_xticks(
+        [10, 25, 35, 40, 50, 75, 100, 125, 150, 200, 250, 300, 350, 400, 500, 750, 1000]
+    )
     secax.tick_params(axis='x', rotation=45, labelsize='small')
     for l in secax.get_xticklabels():
         l.set_horizontalalignment('left')
@@ -308,16 +385,16 @@ def plot_separated_spectra_and_hists_groundstate(
     axs['cb_hist'].figure.colorbar(hcscale, cax=axs['cb_hist'], location='bottom')
     axs['cb_hist'].set_xlabel('# data points')
 
-    #axs['se'].set_title(
+    # axs['se'].set_title(
     #    r"$\uparrow$ground state" + "\n" + r"$\downarrow$excited state absorption"
-    #)
+    # )
     axs['t1'].set_xlabel(r'$\Delta E$ / eV')
     axs['sg'].set_xlabel(r'$\Delta E$ / eV')
 
     legend_lines, legend_labels = zip(
         *[
             (Line2D([0], [0], color='k', linestyle='-', linewidth=2), "$S_1/S_0$"),
-            #(Line2D([0], [0], color='k', linestyle='--', linewidth=0.5), "$S_2/S_0$"),
+            # (Line2D([0], [0], color='k', linestyle='--', linewidth=0.5), "$S_2/S_0$"),
         ]
     )
     axs['sg'].legend(legend_lines, legend_labels, fontsize='small')
