@@ -19,7 +19,12 @@ import os
 import re
 import math
 
-from shnitsel.io.helpers import LoadingParameters, PathOptionsType, make_uniform_path
+from shnitsel.io.helpers import (
+    LoadingParameters,
+    PathOptionsType,
+    get_atom_number_from_symbol,
+    make_uniform_path,
+)
 
 from ..xyz import parse_xyz
 
@@ -276,7 +281,7 @@ def parse_en_data(
 
     e_kin = en_tot - en_active
 
-    print(default_attributes["time"])
+    # print(default_attributes["time"])
 
     if not is_variable_assigned(dataset["time"]):
         dataset = dataset.assign_coords(
@@ -330,6 +335,9 @@ def parse_dyn_out(f: TextIOWrapper, dataset: xr.Dataset) -> xr.Dataset:
         )
     )
 
+    tmp_atNames = []
+    has_atNames = False
+
     has_positions = False
     has_velocities = False
     has_ekin = False
@@ -357,9 +365,12 @@ def parse_dyn_out(f: TextIOWrapper, dataset: xr.Dataset) -> xr.Dataset:
         elif stripline.find("geometry:") > 0:
             has_positions = True
             for iatom in range(natoms):
-                tmp_pos_in_bohr[ts][iatom] = [
-                    float(n) for n in next(f).strip().split()[2:-1]
-                ]
+                line_parts = next(f).strip().split()
+                atName = line_parts[0]
+                tmp_pos_in_bohr[ts][iatom] = [float(n) for n in line_parts[2:-1]]
+                if not has_atNames:
+                    tmp_atNames.append(atName)
+            has_atNames = True
         elif stripline.find("velocity:") > 0:
             has_velocities = True
             for iatom in range(natoms):
@@ -396,6 +407,13 @@ def parse_dyn_out(f: TextIOWrapper, dataset: xr.Dataset) -> xr.Dataset:
         dataset["atXYZ"].values = tmp_pos_in_bohr
         dataset["atXYZ"].attrs["unit"] = length.Bohr
         mark_variable_assigned(dataset["atXYZ"])
+
+    if has_atNames and not is_variable_assigned(dataset["atNames"]):
+        tmp_atNums = [get_atom_number_from_symbol(sym) for sym in tmp_atNames]
+        dataset["atNames"].values = tmp_atNames
+        dataset["atNums"].values = tmp_atNums
+        mark_variable_assigned(dataset["atNames"])
+        mark_variable_assigned(dataset["atNums"])
 
     return dataset
 
