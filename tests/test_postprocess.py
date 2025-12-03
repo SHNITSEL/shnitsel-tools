@@ -7,10 +7,10 @@ import xarray.testing.strategies as xrst
 import numpy as np
 import xarray as xr
 
-from shnitsel.core.generic import norm, subtract_combinations
-from shnitsel.core.ml import pca
-from shnitsel.core.convenience import ts_to_time
-from shnitsel.io.sharc import read_traj
+from shnitsel.analyze.generic import norm, subtract_combinations
+from shnitsel.analyze.pca import pca
+from shnitsel.data.helpers import ts_to_time
+from shnitsel.io import read
 
 
 class TestProcessing:
@@ -18,8 +18,8 @@ class TestProcessing:
 
     @pytest.fixture
     def traj_butene(self):
-        frames = read_traj(
-            'tutorials/test_data/sharc/traj_butene', kind='sharc')
+        # TODO: FIXME: This does not work with default settings of the new read() function
+        frames = read('tutorials/test_data/sharc/traj_butene', kind='sharc')
         return ts_to_time(frames)
 
     @given(

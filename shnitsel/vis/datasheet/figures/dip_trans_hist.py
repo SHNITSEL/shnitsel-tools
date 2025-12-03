@@ -4,12 +4,12 @@ from matplotlib.lines import Line2D
 import matplotlib.pyplot as plt
 import numpy as np
 
-from ...typedefs import InterState, SpectraDictType
+from ....core.typedefs import InterState, SpectraDictType
 from ....units.definitions import energy
 
 from .common import figaxs_defaults
 from .hist import trunc_max, create_marginals
-from .colormaps import magma_rw, custom_ylgnr
+from ...colormaps import magma_rw, custom_ylgnr
 from ....units.conversion import convert_energy
 
 

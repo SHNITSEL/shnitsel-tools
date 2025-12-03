@@ -1,4 +1,4 @@
-from typing import Hashable, TypeAlias
+from typing import Hashable, TypeAlias, TypeVar
 import xarray as xr
 
 # For general analysis and data passing
@@ -10,3 +10,5 @@ PerState: TypeAlias = xr.Dataset
 
 # For spectra calculation
 SpectraDictType: TypeAlias = dict[tuple[float, tuple[int, int]], xr.DataArray]
+
+DatasetOrArray = TypeVar("DatasetOrArray", bound=xr.Dataset | xr.DataArray)

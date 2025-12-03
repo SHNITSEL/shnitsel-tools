@@ -6,6 +6,8 @@ from typing import Any, Callable, Dict, TypeVar
 import numpy as np
 import xarray as xr
 import sys
+
+from shnitsel.__api_info import internal
 from ...data.shnitsel_db.datatree_level import _datatree_level_attribute_key
 
 from shnitsel.io.shared.variable_flagging import mark_variable_assigned
@@ -21,6 +23,7 @@ from shnitsel.io.helpers import LoadingParameters, PathOptionsType
 T = TypeVar('T')
 
 
+@internal()
 def read_shnitsel_file(
     path: PathOptionsType, loading_parameters: LoadingParameters | None = None
 ) -> xr.Dataset | xr.DataTree:

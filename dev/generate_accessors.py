@@ -2,6 +2,8 @@ import inspect
 import logging
 from typing import Callable, Dict, List
 
+from shnitsel.data import multi_indices
+from shnitsel.geo import geom
 
 
 def generate_class_code(classes: Dict[str, List[Callable]]) -> str:
@@ -79,7 +81,7 @@ def generate_class_code(classes: Dict[str, List[Callable]]) -> str:
         'sklearn',
         'rdkit',
         'os',
-        'pathlib'
+        'pathlib',
     }
 
     # Collect imports for all functions
@@ -200,38 +202,33 @@ def main():
         import shnitsel as st
         import shnitsel.units as units
         from shnitsel.io.ase.write import write_ase_db
-        from shnitsel.core.plot import p3mhelpers
-        from shnitsel.core.plot import select
+        from shnitsel.vis.plot import p3mhelpers
+        from shnitsel.vis.plot import select
         from shnitsel import bridges
-        from shnitsel.core import (
-            convenience,
-            filtration,
-            geom,
-            midx,
-            ml,
-            generic,
-            vmd,
-            spectra,
-            stats,
-        )
+        from shnitsel.analyze import generic, spectra, stats, pca, lda, pls, populations
+        from shnitsel.clean import filtration
+        from shnitsel.vis import vmd
+        import shnitsel.data.helpers as data_helpers
+
     except ImportError as e:
         logging.error(
             f"Import of module for generation of accessor classes failed: {e.msg} \n{repr(e)}. \n Please ensure all modules are available."
         )
+        raise
 
     da_funcs = [
         # postprocess
         generic.norm,
         generic.subtract_combinations,
         generic.keep_norming,
-        stats.calc_ci,
-        stats.time_grouped_ci,
+        stats.calc_confidence_interval,
+        stats.time_grouped_confidence_interval,
         bridges.to_xyz,
         bridges.traj_to_xyz,
         bridges.to_mol,
         bridges.smiles_map,
         bridges.default_mol,
-        convenience.pairwise_dists_pca,
+        pca.pairwise_dists_pca,
         # postprocess converters
         units.convert_energy,
         units.convert_force,
@@ -241,14 +238,14 @@ def main():
         units.convert_nacs,
         units.convert_socs,
         # midx
-        midx.mdiff,
-        midx.flatten_levels,
-        midx.expand_midx,
-        midx.assign_levels,
-        midx.mgroupby,
-        midx.msel,
-        midx.sel_trajs,
-        midx.sel_trajids,
+        multi_indices.mdiff,
+        multi_indices.flatten_levels,
+        multi_indices.expand_midx,
+        multi_indices.assign_levels,
+        multi_indices.mgroupby,
+        multi_indices.msel,
+        multi_indices.sel_trajs,
+        multi_indices.sel_trajids,
         # filtration
         filtration.last_time_where,
         # geom
@@ -272,35 +269,33 @@ def main():
         # vmd
         vmd.traj_vmd,
         # ml
-        ml.pca,
-        ml.lda,
-        ml.pls,
+        pca.pca,
+        lda.lda,
+        pls.pls,
     ]
 
     ds_funcs = [
         # postprocess
-        convenience.pca_and_hops,
-        convenience.validate,
+        pca.pca_and_hops,
+        data_helpers.validate,
         spectra.assign_fosc,
         spectra.ds_broaden_gauss,
         stats.get_per_state,
         stats.get_inter_state,
-        st.core.populations.calc_pops,
+        populations.calc_pops,
         bridges.default_mol,
         # xrhelpers
-        midx.flatten_levels,
-        midx.expand_midx,
-        midx.assign_levels,
-        midx.mgroupby,
-        midx.msel,
-        midx.sel_trajs,
-        midx.unstack_trajs,
-        midx.stack_trajs,
+        multi_indices.flatten_levels,
+        multi_indices.expand_midx,
+        multi_indices.assign_levels,
+        multi_indices.mgroupby,
+        multi_indices.msel,
+        multi_indices.sel_trajs,
+        multi_indices.unstack_trajs,
+        multi_indices.stack_trajs,
         st.io.shnitsel.write_shnitsel_file,
-        # parse
-        st.io.sharc.parse_initial_conditions.iconds_to_frames,
         # plot
-        st.core.spectra.spectra_all_times,
+        spectra.spectra_all_times,
         # filtration
         filtration.energy_filtranda,
         filtration.get_cutoffs,
@@ -308,7 +303,7 @@ def main():
         # ase
         write_ase_db,
         # ml
-        ml.pls_ds,
+        pls.pls_ds,
     ]
 
     code = generate_class_code(

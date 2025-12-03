@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Set, Tuple
 
 import numpy as np
 
+from shnitsel.__api_info import API, internal
 from shnitsel.data.shnitsel_db_format import ShnitselDB, build_shnitsel_db
 from shnitsel.data.trajectory_format import Trajectory
 import xarray as xr
@@ -12,6 +13,7 @@ import xarray as xr
 _coordinate_meta_keys = ["trajid", "delta_t", "max_ts", "t_max", "completed", "nsteps"]
 
 
+@internal()
 def _check_matching_dimensions(
     datasets: Iterable[Trajectory],
     excluded_dimensions: Set[str] = set(),
@@ -62,6 +64,7 @@ def _check_matching_dimensions(
     return res_matching
 
 
+@internal()
 def _compare_dicts_of_values(
     curr_root_a: Any, curr_root_b: Any, base_key: List[str] = []
 ) -> Tuple[List[List[str]] | None, List[List[str]] | None]:
@@ -118,6 +121,7 @@ def _compare_dicts_of_values(
             return (None, [base_key])
 
 
+@internal()
 def _check_matching_var_meta(
     datasets: List[Trajectory],
 ) -> bool:
@@ -150,6 +154,11 @@ def _check_matching_var_meta(
             ds_meta[var_name] = var_attr
         collected_meta.append(ds_meta)
 
+    if shared_vars is None:
+        return True
+
+    # TODO: FIXME: This should probably fail if variables are not present on all datasets.
+
     for i in range(len(datasets) - 1):
         for var in shared_vars:
             _matching, distinct_keys = _compare_dicts_of_values(
@@ -162,6 +171,7 @@ def _check_matching_var_meta(
     return True
 
 
+@internal()
 def _merge_traj_metadata(
     datasets: List[Trajectory],
 ) -> Tuple[Dict[str, Any], Dict[str, np.ndarray]]:
@@ -254,6 +264,7 @@ def _merge_traj_metadata(
     return shared_meta, distinct_meta
 
 
+@API()
 def concat_trajs(datasets: Iterable[Trajectory]) -> Trajectory:
     """Function to concatenate multiple trajectories along their `time` dimension.
 
@@ -383,6 +394,7 @@ def concat_trajs(datasets: Iterable[Trajectory]) -> Trajectory:
     return frames
 
 
+@API()
 def db_from_trajs(datasets: Iterable[Trajectory] | Trajectory) -> ShnitselDB:  # noqa: F821
     """Function to merge multiple trajectories of the same molecule into a single ShnitselDB instance.
 
@@ -409,6 +421,7 @@ def db_from_trajs(datasets: Iterable[Trajectory] | Trajectory) -> ShnitselDB:  #
         return build_shnitsel_db(datasets)
 
 
+@API()
 def layer_trajs(datasets: Iterable[Trajectory]) -> Trajectory:
     """Function to combine trajectories into one Dataset by creating a new dimension 'trajid' and indexing the different trajectories along that.
 
@@ -478,7 +491,7 @@ def layer_trajs(datasets: Iterable[Trajectory]) -> Trajectory:
             if k != "trajid" and str(k) in _coordinate_meta_keys
         }
     )
-    
+
     # Then all remaining metadata
     layers.attrs.update(
         {
@@ -487,7 +500,6 @@ def layer_trajs(datasets: Iterable[Trajectory]) -> Trajectory:
             if k != "trajid" and str(k) not in _coordinate_meta_keys
         }
     )
-
 
     layers.attrs["is_multi_trajectory"] = True
     if not isinstance(layers, Trajectory):

@@ -7,6 +7,7 @@ import numpy.typing as npt
 import scipy.stats as st
 import xarray as xr
 
+from shnitsel.__api_info import internal
 from shnitsel.io.shared.trajectory_setup import get_statecomb_coordinate
 
 from .generic import keep_norming, subtract_combinations as subtract_combinations
@@ -14,7 +15,7 @@ from .spectra import assign_fosc
 
 from .._contracts import needs
 
-from .typedefs import DimName, Frames, InterState, PerState
+from ..core.typedefs import DimName, Frames, InterState, PerState
 
 
 #####################################################
@@ -52,13 +53,15 @@ def calc_confidence_interval(
     )
 
 
-def confidence_interval_aggregate_last_dim(data_array: npt.NDArray, confidence=0.95) -> npt.NDArray:
-    """Calculate the confidence interval from statistics aggregated across the last dimension. 
+def confidence_interval_aggregate_last_dim(
+    data_array: npt.NDArray, confidence=0.95
+) -> npt.NDArray:
+    """Calculate the confidence interval from statistics aggregated across the last dimension.
 
     For our purposes, this should amount to the trajectory being averaged over.
 
     Args:
-        data_array (npt.NDArray): The numpy data array to calculate the confidence interval for. 
+        data_array (npt.NDArray): The numpy data array to calculate the confidence interval for.
         confidence (float, optional): The confidence level to use for calculations. Defaults to 0.95.
 
     Returns:
@@ -67,16 +70,19 @@ def confidence_interval_aggregate_last_dim(data_array: npt.NDArray, confidence=0
     outer_shape = tuple(data_array.shape[:-1])
     res = np.full(outer_shape + (3,), np.nan)
     for idxs in np.ndindex(outer_shape):
-        res[idxs, :2] = calc_confidence_interval(data_array[idxs], confidence=confidence)
+        res[idxs, :2] = calc_confidence_interval(
+            data_array[idxs], confidence=confidence
+        )
         res[idxs, 2] = np.mean(data_array[idxs])
     return res
 
 
-def xr_calc_confidence_interval(
+@internal()
+def calc_confidence_interval_in_array_dimensions(
     data_array: xr.DataArray, dim: DimName, confidence: float = 0.95
-) -> xr.Dataset:
-    """Function to calculate confidence interval data for the input data_array. 
-    Results are then repackaged back into an xr.Dataset.
+) -> xr.DataArray:
+    """Function to calculate confidence interval data for the input data_array.
+    Results are then repackaged back into an xr.DataArray, where the dimension `bound` allows to choose between confidence interval limits and the mean of the distribution.
 
     The dimension denoted by `dim` will be aggregated across.
 
@@ -86,7 +92,7 @@ def xr_calc_confidence_interval(
         confidence (float, optional): Confidence level for Confidence interval calculation. Defaults to 0.95.
 
     Returns:
-        xr.Dataset: Dataset wrapping a Dataarray with coordinate `bound` with values 'lower', 'upper', and 'mean, which refer to the lower and the upper bound of the confidence interval of this and 
+        xr.DataArray: DataArray with coordinate `bound` with values 'lower', 'upper', and 'mean', which refer to the lower and the upper bound of the confidence interval of this and
     """
     res_da: xr.DataArray = xr.apply_ufunc(
         confidence_interval_aggregate_last_dim,
@@ -97,30 +103,37 @@ def xr_calc_confidence_interval(
     )
     return res_da.assign_coords(  #
         dict(bound=['lower', 'upper', 'mean'])
-    ).to_dataset('bound')
+    )
 
 
 @needs(groupable={'time'}, dims={'frame'})
 def time_grouped_confidence_interval(
-    x: xr.DataArray, confidence: float = 0.9
+    data_array: xr.DataArray, confidence: float = 0.9
 ) -> xr.Dataset:
-    # TODO: document
-    """Function to calculate the 
+    """Function to calculate the per-time confidence interval of a DataArray that is groupable by the `time` coordinate.
 
     Args:
-        x (xr.DataArray): _description_
-        confidence (float, optional): _description_. Defaults to 0.9.
+        data_array (xr.DataArray): Data Array for whose data the confidence intervals should be calculated
+        confidence (float, optional): The confidence level to calculate the interval bounds for. Defaults to 0.9.
 
     Returns:
-        xr.Dataset: _description_
+        xr.Dataset: A new Dataset, where variables 'lower', 'upper' and 'mean' contain the lower and upper bounds of the confidence interval in each time step and mean is the mean at each point in time.
     """
-    return x.groupby('time').map(
-        lambda x: xr_calc_confidence_interval(x, dim='frame', confidence=confidence)
+    return (
+        data_array.groupby('time')
+        .map(
+            lambda x: calc_confidence_interval_in_array_dimensions(
+                x, dim='frame', confidence=confidence
+            )
+        )
+        .to_dataset('bound')
     )
 
 
 @needs(dims={'state'})
 def get_per_state(frames: Frames) -> PerState:
+    # TODO: FIXME: This needs documentation. And attributes need to be kept.
+    # And why create a new dataset instead of amending the original one?
     props_per = {'energy', 'forces', 'dip_perm'}.intersection(frames.keys())
     per_state = frames[props_per].map(keep_norming, keep_attrs=False)
     per_state['forces'] = per_state['forces'].where(per_state['forces'] != 0)

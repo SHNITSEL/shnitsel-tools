@@ -1,6 +1,6 @@
-from matplotlib.figure import Figure
+from matplotlib.figure import Figure, SubFigure
 from shnitsel._contracts import needs
-from shnitsel.core.generic import keep_norming
+from shnitsel.analyze.generic import keep_norming
 from shnitsel.core.typedefs import InterState
 from ....units.definitions import energy
 from ....units.conversion import convert_energy
@@ -16,7 +16,7 @@ from matplotlib.axes import Axes
 def plot_nacs_histograms(
     inter_state: InterState,
     hop_idxs,
-    fig: Figure | None = None,
+    fig: Figure | SubFigure | None = None,
     axs: dict[str, Axes] | None = None,
 ) -> dict[str, Axes]:
     """Plot 2D histograms of NACS vs delta_E or dip_trans
@@ -24,7 +24,7 @@ def plot_nacs_histograms(
     Args:
         inter_state (InterState): The dataset containing inter-state data including NACs
         hop_idxs: Argument to specify, which frames should be selected for the histograms.
-        fig (Figure, optional): Unused figure provided to the plot. Consumed by the figaxs_defaults decorator.
+        fig (Figure | SubFigure, optional): Unused figure provided to the plot. Consumed by the figaxs_defaults decorator.
         axs (dict[str, Axes]): Axes objects to plot to with the respective keys of the plot. Defaults to None.
 
     Returns:

@@ -7,6 +7,7 @@ import numpy as np
 import xarray as xr
 import random
 
+from shnitsel.__api_info import internal
 from shnitsel.io.shared.variable_flagging import (
     is_variable_assigned,
     mark_variable_assigned,
@@ -33,10 +34,10 @@ class LoadingParameters:
     # List of the names of states or a function to label them or None and let the trajectory loader make an educated guess
     state_names: List[str] | Callable[[xr.Dataset], xr.Dataset] | None = None
 
-
+@internal()
 def make_uniform_path(
     path: PathOptionsType | None,
-) -> pathlib.Path | None:
+) -> pathlib.Path:
     """Unify the path options to alyways yield a pathlib.Path object
 
     Args:
@@ -45,9 +46,11 @@ def make_uniform_path(
     Returns:
         pathlib.Path|None: The converted path or None
     """
-    if path is not None:
-        if not isinstance(path, pathlib.Path):
-            path = pathlib.Path(path)
+    if path is None:
+        raise ValueError("Cannot canonize path `None`. Please provide a valid path.")
+    
+    if not isinstance(path, pathlib.Path):
+        path = pathlib.Path(path)
     return path
 
 
@@ -358,14 +361,14 @@ def default_state_name_assigner(dataset: xr.Dataset) -> xr.Dataset:
         res_names = []
         for i in range(len(type_values)):
             type_index = int(round(type_values[i]))
-            assert (
-                type_index >= 1 and type_index <= 3
-            ), f"Found invalid state multiplicity: {type_index} (must be 1,2 or 3)"
+            assert type_index >= 1 and type_index <= 3, (
+                f"Found invalid state multiplicity: {type_index} (must be 1,2 or 3)"
+            )
             # logging.debug(
             #     f"{i}, {type_index}, {type_prefix[type_index - 1]}, {counters[type_index - 1]}"
             # )
             res_names.append(
-                type_prefix[type_index - 1] + f"{counters[type_index-1]:d}"
+                type_prefix[type_index - 1] + f"{counters[type_index - 1]:d}"
             )
             counters[type_index - 1] += 1
 

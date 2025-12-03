@@ -1,4 +1,6 @@
 from dataclasses import dataclass
+from matplotlib.colors import Normalize
+from matplotlib.figure import Figure, SubFigure
 import numpy as np
 import xarray as xr
 import matplotlib as mpl
@@ -7,7 +9,7 @@ from matplotlib.axes import Axes
 
 from scipy import stats
 
-from shnitsel.core.generic import norm, subtract_combinations
+from shnitsel.analyze.generic import norm, subtract_combinations
 from shnitsel.core.ml import pca
 
 from .common import figax, extrude, mpl_imshow_png
@@ -17,12 +19,12 @@ from ...rd import highlight_pairs
 def plot_noodleplot(
     noodle,
     hops=None,
-    fig=None,
+    fig: Figure | SubFigure | None = None,
     ax=None,
     c=None,
-    colorbar_label=None,
-    cmap=None,
-    cnorm=None,
+    colorbar_label: str | None = None,
+    cmap: str | None = None,
+    cnorm: str | Normalize | None = None,
     cscale=None,
     noodle_kws=None,
     hops_kws=None,
@@ -31,6 +33,8 @@ def plot_noodleplot(
     if c is None:
         c = noodle['time']
         c_is_time = True
+    else:
+        c_is_time = False
 
     if colorbar_label is not None:
         pass
@@ -44,11 +48,10 @@ def plot_noodleplot(
     cmap = cmap or mpl.colormaps['cividis_r']
     if isinstance(cmap, str):
         cmap = mpl.colormaps[cmap]
-    cnorm = cnorm \
-      or mpl.colors.Normalize(c.min(), c.max()) #type: ignore
-    cscale = cscale or mpl.cm.ScalarMappable( #type: ignore
-        norm=cnorm,
-        cmap=cmap)
+    cnorm = cnorm or mpl.colors.Normalize(c.min(), c.max())  # type: ignore
+    cscale = cscale or mpl.cm.ScalarMappable(  # type: ignore
+        norm=cnorm, cmap=cmap
+    )
 
     # TODO: remove groupby? Needed only for line-plot or for legend
     # for trajid, traj in noodle.groupby('trajid'):
@@ -74,15 +77,19 @@ def plot_noodleplot(
     assert isinstance(ax, Axes)
     return ax
 
+
 # TODO: finish later!
-def plot_noodleplot_lines(noodle, #hops,
-  ax=None,
-  cmap=None, cnorm=None, cscale=None):
+def plot_noodleplot_lines(
+    noodle,  # hops,
+    ax=None,
+    cmap=None,
+    cnorm=None,
+    cscale=None,
+):
     fig, ax = figax(ax=ax)
     points = noodle.values
     # One traj per line
     for trajid, traj in noodle.groupby('trajid'):
-
         segments = np.concatenate([points[:-1], points[1:]], axis=1)
         lc = mpl.collections.LineCollection([[0, 0]])
 
@@ -90,18 +97,18 @@ def plot_noodleplot_lines(noodle, #hops,
     lc
     return ax
 
+
 def get_loadings(frames):
     atXYZ = subtract_combinations(frames['atXYZ'], 'atom', labels=True)
     atXYZ = norm(atXYZ)
     _, pca_obj = pca(atXYZ, 'atomcomb', return_pca_object=True)
     return xr.DataArray(
-      data=pca_obj.components_,
-      dims=['PC', 'atomcomb'],
-      coords=dict(
-        atomcomb=atXYZ.atomcomb
-      ),
-      attrs={'natoms': frames.sizes['atom']}
+        data=pca_obj.components_,
+        dims=['PC', 'atomcomb'],
+        coords=dict(atomcomb=atXYZ.atomcomb),
+        attrs={'natoms': frames.sizes['atom']},
     )
+
 
 def plot_loadings(ax, loadings):
     for _, pcs in loadings.groupby('atomcomb'):
@@ -123,7 +130,7 @@ def cluster_general(decider, n):
             continue
 
         cluster = [i]
-        for j in range(i+1, n):
+        for j in range(i + 1, n):
             if clustered[j]:
                 continue
             if decider(i, j):
@@ -134,10 +141,11 @@ def cluster_general(decider, n):
 
     return clusters
 
+
 def cluster_loadings(loadings: xr.DataArray, cutoff=0.05):
     def dist(i, j, l):
         pc1, pc2 = l.isel(atomcomb=j).values - l.isel(atomcomb=i).values
-        return (pc1**2 + pc2**2)**0.5
+        return (pc1**2 + pc2**2) ** 0.5
 
     def decider(i, j):
         nonlocal loadings, cutoff, dist
@@ -146,39 +154,49 @@ def cluster_loadings(loadings: xr.DataArray, cutoff=0.05):
     n = loadings.sizes['atomcomb']
     return cluster_general(decider, n)
 
+
 def plot_clusters(loadings, clusters, ax=None, labels=None):
     fig, ax = figax(ax=ax)
     for i, cluster in enumerate(clusters):
         acs = loadings.isel(atomcomb=cluster)
         x, y = acs.mean(dim='atomcomb')
-        s = (labels[i] if labels is not None else
-          ' '.join([f'({a1},{a2})' for a1, a2 in acs.atomcomb.values]))
+        s = (
+            labels[i]
+            if labels is not None
+            else ' '.join([f'({a1},{a2})' for a1, a2 in acs.atomcomb.values])
+        )
         ax.arrow(0, 0, x, y)
         ax.text(x, y, s)
 
 
 def get_clusters_coords(loadings, atomcomb_clusters):
-    return np.array([
-      loadings.isel(atomcomb=c).mean(dim='atomcomb').values
-      for c in atomcomb_clusters])
+    return np.array(
+        [
+            loadings.isel(atomcomb=c).mean(dim='atomcomb').values
+            for c in atomcomb_clusters
+        ]
+    )
+
 
 def calc_dist(point):
     x, y = point
-    return (x**2 + y**2)**0.5
+    return (x**2 + y**2) ** 0.5
+
 
 def calc_angle(point):
     x, y = point
     return float(np.degrees(np.arctan2(x, y)))
 
-def separate_angles(points, min_angle=10):
 
-    
+def separate_angles(points, min_angle=10):
     angles = [calc_angle(point) for point in points]
 
     def decider(i, j):
         nonlocal angles
-        return abs(angles[i] - angles[j]) <= min_angle # degrees. Edge case: -179 and 179
-    
+        return (
+            abs(angles[i] - angles[j]) <= min_angle
+        )  # degrees. Edge case: -179 and 179
+
     angle_clusters = cluster_general(decider, len(angles))
     scalefactors = {}
     for angle_cluster in angle_clusters:
@@ -186,24 +204,28 @@ def separate_angles(points, min_angle=10):
             continue
         dists = np.array(
             [(idx, calc_dist(points[idx])) for idx in angle_cluster],
-            dtype=[('idx', int), ('dist', float)])
+            dtype=[('idx', int), ('dist', float)],
+        )
         dists.sort(order='dist')
         factor: float = 1
         for idx, dist in dists[::-1]:
-            scalefactors[idx] = factor # less extrusion for the smaller radius
+            scalefactors[idx] = factor  # less extrusion for the smaller radius
             factor *= 0.8
     return scalefactors
 
+
 def filter_cluster_coords(coords, n):
-    radii = [(x**2 + y**2)**0.5 for x, y in coords]  
+    radii = [(x**2 + y**2) ** 0.5 for x, y in coords]
     angles = [np.degrees(np.arctan2(x, y)) for x, y in coords]
-    res = set(np.argsort(radii)[-(n-2):])
+    res = set(np.argsort(radii)[-(n - 2) :])
     avg = np.mean(angles)
-    splay = [abs(avg-angle) for angle in angles]
+    splay = [abs(avg - angle) for angle in angles]
     return res.union(np.argsort(splay)[-2:])
 
 
-def plot_clusters2(ax, loadings, clusters, mol, min_angle=10, inset_scale=1, show_at_most=None):
+def plot_clusters2(
+    ax, loadings, clusters, mol, min_angle=10, inset_scale=1, show_at_most=None
+):
     points = get_clusters_coords(loadings, clusters)
     if show_at_most is not None:
         indices = filter_cluster_coords(points, show_at_most)
@@ -214,32 +236,35 @@ def plot_clusters2(ax, loadings, clusters, mol, min_angle=10, inset_scale=1, sho
     scalefactors = separate_angles(points, min_angle)
 
     # else:
-        # indices = range(len(clusters))
+    # indices = range(len(clusters))
     for i, cluster in enumerate(clusters):
         acs = loadings.isel(atomcomb=cluster)
         x, y = acs.mean(dim='atomcomb')
         arrow_color = 'k' if i in indices else (0, 0, 0, 0.5)
-        ax.arrow(0, 0, x, y, head_width=0.01, length_includes_head=True, color=arrow_color)
+        ax.arrow(
+            0, 0, x, y, head_width=0.01, length_includes_head=True, color=arrow_color
+        )
 
         scale = scalefactors.get(i, 1)
-        
+
         x2, y2 = extrude(x, y, *ax.get_xlim(), *ax.get_ylim())
-        x2 *= 0.8*scale
-        y2 *= 0.8*scale     
+        x2 *= 0.8 * scale
+        y2 *= 0.8 * scale
 
         if i not in indices:
             continue
 
-        ax.plot([x,x2], [y,y2], '--', c='darkgray', lw=0.5)
+        ax.plot([x, x2], [y, y2], '--', c='darkgray', lw=0.5)
 
         ymin, ymax = ax.get_ylim()
-        inset_size = inset_scale*np.array([7, 10])*(ymax-ymin)/65
+        inset_size = inset_scale * np.array([7, 10]) * (ymax - ymin) / 65
         iax = ax.inset_axes([x2, y2, *inset_size], transform=ax.transData)
-        iax.set_anchor('SW') # keep bottom-left corner of image at arrow tip!
+        iax.set_anchor('SW')  # keep bottom-left corner of image at arrow tip!
 
         png = highlight_pairs(mol, acs.atomcomb.values)
         # display(Image(png))  # DEBUG
         mpl_imshow_png(iax, png)
+
 
 def plot_clusters3(loadings, clusters, ax=None, labels=None, axs=None, mol=None):
     fig, ax = figax(ax=ax)
@@ -251,10 +276,10 @@ def plot_clusters3(loadings, clusters, ax=None, labels=None, axs=None, mol=None)
         x, y = acs.mean(dim='atomcomb')
         s = labels[i]
         ax.arrow(0, 0, x, y, head_width=0.01, length_includes_head=True)
-        
+
         x2, y2 = extrude(x, y, *ax.get_xlim(), *ax.get_ylim())
 
-        ax.plot([x,x2], [y,y2], '--', c='k', lw=0.5)
+        ax.plot([x, x2], [y, y2], '--', c='k', lw=0.5)
         ax.text(x2, y2, s)
 
         if axs is not None and mol is not None:
@@ -266,29 +291,32 @@ def plot_clusters3(loadings, clusters, ax=None, labels=None, axs=None, mol=None)
 ##################
 # New stuff for angle binning!
 
+
 def get_mask(angles, theta1, theta2, seam=180):
-    if not theta1 <= theta2: theta1, theta2 = theta2, theta1
+    if not theta1 <= theta2:
+        theta1, theta2 = theta2, theta1
     if theta1 < seam and theta2 < seam:
         mask = (angles > theta1) & (angles < theta2)
     elif theta1 < seam and theta2 > seam:
-        mask = (angles > theta1) | (angles < theta2-360)
+        mask = (angles > theta1) | (angles < theta2 - 360)
     elif theta1 > seam and theta2 > seam:
-        mask = (angles > theta1-360) & (angles < theta2-360)
+        mask = (angles > theta1 - 360) & (angles < theta2 - 360)
     else:
         print(theta1, theta2)
         mask = []
         raise ValueError()
     return mask
 
+
 def circbins(angles, nbins=4, center=0):
     @dataclass
     class Sweeper:
         inner: int = 0
         outer: int = 0
-    
-    ppbin = len(angles)/nbins
-    
-    sweepers = [Sweeper(), Sweeper()] # anticlockwise; clockwise
+
+    ppbin = len(angles) / nbins
+
+    sweepers = [Sweeper(), Sweeper()]  # anticlockwise; clockwise
     bins = []
     edges = []
     # first bin spreads evenly clockw and anticw
@@ -296,31 +324,33 @@ def circbins(angles, nbins=4, center=0):
         sweepers[0].outer += 5
         sweepers[1].outer -= 5
         idxs = np.nonzero(
-          get_mask(angles, center-sweepers[0].outer, center-sweepers[1].outer))[0]
+            get_mask(angles, center - sweepers[0].outer, center - sweepers[1].outer)
+        )[0]
         if len(idxs) >= ppbin:
             sweepers[0].inner = sweepers[0].outer
             sweepers[1].inner = sweepers[1].outer
-            edges += [center+sweepers[0].inner, center+sweepers[1].inner]
+            edges += [center + sweepers[0].inner, center + sweepers[1].inner]
             bins.append(idxs)
             break
-    
+
     # intermediate bins
-    for ibin in range(1, nbins-1):
+    for ibin in range(1, nbins - 1):
         way = ibin % 2
         cur = sweepers[way]  # sweepers[0] increases, sweepers[1] decreases
         sgn = [1, -1][way]  # bins 1,3,5 clockw; bins 2,4,6 anti
         print(f"sweeping {['anti', 'clock'][way]} from {cur.inner}°")
         while sweepers[0].outer - sweepers[1].outer < 360:
-            cur.outer += sgn*10
-            idxs = np.nonzero(
-              get_mask(angles, center+cur.outer, center+cur.inner))[0]
+            cur.outer += sgn * 10
+            idxs = np.nonzero(get_mask(angles, center + cur.outer, center + cur.inner))[
+                0
+            ]
             if len(idxs) >= ppbin:
                 print(f"swept to {cur.outer}°")
                 cur.inner = cur.outer
                 bins.append(idxs)
                 edges.append(center + cur.inner)
                 break
-    
+
     # last bin
     all_indices = range(len(angles))
     already_binned = np.concatenate(bins)
@@ -328,14 +358,15 @@ def circbins(angles, nbins=4, center=0):
 
     return bins, edges
 
+
 def plot_bin_edges(angles, radii, bins, edges, picks, ax, labels):
     rangles = np.radians(angles)
 
     for e in np.radians(edges):
         ax.plot([e, e], [0, 0.4], c='gray', ls='--', lw='1')
 
-    for a, r, s in zip(rangles[picks], radii[picks], labels[:len(picks)]):
-        ax.text(a,r,s, ha='left', va='bottom', fontsize=6)
+    for a, r, s in zip(rangles[picks], radii[picks], labels[: len(picks)]):
+        ax.text(a, r, s, ha='left', va='bottom', fontsize=6)
 
     for b, c in zip(bins, list('rgbm')):
         # ax.plot(x, y)
@@ -345,6 +376,7 @@ def plot_bin_edges(angles, radii, bins, edges, picks, ax, labels):
     ax.scatter(rangles[picks], radii[picks], c='k', s=5)
 
     ax.set_rlabel_position(200)
+
 
 def pick_clusters(frames, nbins):
     loadings = get_loadings(frames)
@@ -358,8 +390,8 @@ def pick_clusters(frames, nbins):
     picks, bins, edges = binning_with_min_entries(
         nbins=nbins, angles=angles, center=center, radii=radii, return_bins_edges=True
     )
-    #bins, edges = circbins(angles, nbins=4, center=center)
-    #picks = [b[np.argmax(radii[b])] for b in bins]
+    # bins, edges = circbins(angles, nbins=4, center=center)
+    # picks = [b[np.argmax(radii[b])] for b in bins]
 
     return dict(
         loadings=loadings,
@@ -387,7 +419,9 @@ def binning_with_min_entries(
 
     # Repeat binning until all bins have at least 'min_entries' or exceed max_attempts
     while any(arr.size == 0 for arr in bins) and attempts < max_attempts:
-        print(f"Less than {min_entries} directions found, procedure repeated with another binning.")
+        print(
+            f"Less than {min_entries} directions found, procedure repeated with another binning."
+        )
         nbins += 1  # Increase the number of bins
         bins, edges = circbins(angles, nbins, center=center)
         attempts += 1

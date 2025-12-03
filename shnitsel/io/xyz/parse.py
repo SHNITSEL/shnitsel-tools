@@ -2,9 +2,11 @@ from io import TextIOWrapper
 from typing import List, Tuple
 import numpy as np
 
+from shnitsel.__api_info import internal
 from shnitsel.io.helpers import get_atom_number_from_symbol
 
 
+@internal()
 def parse_xyz(f: TextIOWrapper) -> Tuple[List[str], List[int], np.ndarray]:
     """Read the inputs from a text file stream into a tuple of atom names, atom numbers and positions.
 
@@ -52,6 +54,7 @@ def parse_xyz(f: TextIOWrapper) -> Tuple[List[str], List[int], np.ndarray]:
     return (atNames, atNums, np.stack(atXYZ, axis=0))
 
 
+@internal()
 def get_dipoles_per_xyz(file: TextIOWrapper, n: int, m: int) -> np.ndarray:
     """Read full dipole matrix from an xyz file
 

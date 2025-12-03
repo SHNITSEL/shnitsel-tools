@@ -3,22 +3,24 @@ from logging import warning
 import numpy as np
 import xarray as xr
 
-from shnitsel.core.midx import mdiff
+from shnitsel.data.multi_indices import mdiff
+from shnitsel.data.trajectory_format import Trajectory
 from shnitsel.units.conversion import convert_energy
 from .._contracts import needs
 
 # link functions that have moved:
-from .geom import get_bond_lengths as get_bond_lengths
+from ..geo.geom import get_bond_lengths as get_bond_lengths
+
 
 @needs(data_vars={'energy', 'astate'})
 def energy_filtranda(
-    frames,
+    frames: Trajectory,
     *,
     etot_drift=0.2,
     etot_step=0.1,
     epot_step=0.7,
     ekin_step=0.7,
-    hop_epot_step=1.0
+    hop_epot_step=1.0,
 ):
     default_thresholds = {
         'etot_drift': etot_drift,
@@ -41,10 +43,10 @@ def energy_filtranda(
         e_kin = frames['e_kin']
         e_kin.attrs['units'] = frames['e_kin'].attrs.get('units', 'unknown')
         e_kin = convert_energy(e_kin, to='eV')
-        
+
         e_tot = e_pot + e_kin
-        res['etot_drift'] = (
-            e_tot.groupby('trajid').map(lambda traj: abs(traj - traj.item(0)))
+        res['etot_drift'] = e_tot.groupby('trajid').map(
+            lambda traj: abs(traj - traj.item(0))
         )
         res['ekin_step'] = mdiff(e_kin).where(~is_hop, 0)
         res['etot_step'] = mdiff(e_tot)
@@ -52,7 +54,7 @@ def energy_filtranda(
         e_kin = None
         warning("data does not contain kinetic energy variable ('e_kin')")
 
-    da = np.abs(res.to_dataarray('criterion'))
+    da: xr.DataArray = np.abs(res.to_dataarray('criterion'))  # type: ignore # Result of numpy application to DataArray is a DA.
     thresholds = [default_thresholds[x] for x in da.coords['criterion'].data]
     return da.assign_coords(thresholds=('criterion', thresholds))
 
@@ -70,8 +72,7 @@ def last_time_where(mask):
         mask = mask.transpose('trajid', 'time', ...)
     else:
         raise ValueError(
-            "The mask argument should be trajectories, "
-            "either stacked or unstacked"
+            "The mask argument should be trajectories, either stacked or unstacked"
         )
     idxs = np.logical_not((~mask.values).cumsum(axis=1)).sum(axis=1)
     times = np.concat([[-1], mask.time.values])
@@ -95,6 +96,7 @@ def get_cutoffs(masks_ds):
     ds.attrs['reasons'] = names
     return ds
 
+
 @needs(dims={'frame'}, coords={'trajid', 'time'})
 def truncate(frames, cutoffs):
     if 'trajid_' not in cutoffs.coords and 'trajid' in cutoffs.coords:
@@ -102,4 +104,3 @@ def truncate(frames, cutoffs):
     expansion = cutoffs.sel(trajid_=frames.coords['trajid']).drop_vars('trajid_')
     mask = frames['time'] <= expansion
     return frames.sel(frame=mask)
-

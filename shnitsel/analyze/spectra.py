@@ -7,14 +7,18 @@ import xarray as xr
 
 from shnitsel.units.definitions import energy, dipole
 
-from .typedefs import InterState, DimName, SpectraDictType
+from shnitsel.core.typedefs import InterState, DimName, SpectraDictType
 
 from .generic import keep_norming, subtract_combinations
 from .._contracts import needs
 from ..units import convert_energy, convert_dipole
 
+import ase.units as si
 
-def _get_fosc(energy_interstate: xr.DataArray, dip_trans_norm: xr.DataArray) -> xr.DataArray:
+
+def _get_fosc(
+    energy_interstate: xr.DataArray, dip_trans_norm: xr.DataArray
+) -> xr.DataArray:
     """Internal function to actually calculate the oscillator frequency for energies and transition dipoles.
 
     Args:
@@ -24,9 +28,22 @@ def _get_fosc(energy_interstate: xr.DataArray, dip_trans_norm: xr.DataArray) -> 
 
     Returns:
         DataArray: The resulting oscillation frequency (f_osc) array.
+
+    Notes:
+        We use the following unitless form of f_osc:
+        $$f_{osc} = \\frac{2}{3} \\frac{m_e}{\\hbar^2} \\cdot \\Delta E \\cdot \\frac{\\mu^2}{e^2}$$
     """
 
-    return 2 / 3 * energy_interstate * dip_trans_norm**2
+    return (
+        2
+        / 3
+        * si._me
+        / (si._hbar**2)
+        * (si.Bohr / si.m) ** 2
+        * convert_energy(energy_interstate, to=energy.J)
+        * convert_dipole(dip_trans_norm, to=dipole.au)
+        ** 2  # Until here, we have unit of Bohr^2/m^2 without the  (si.Bohr/si.m)**2 conversion
+    )
 
 
 def get_fosc(
@@ -48,11 +65,11 @@ def get_fosc(
     else:
         energy_interstate = energy_per_or_interstate
 
-    assert (
-        energy_interstate.values.shape == dip_trans_norm.values.shape
-    ), f"Energy and dip_trans do not have the same shapes: {energy_interstate.values.shape} <-> {dip_trans_norm.values.shape}"
+    assert energy_interstate.values.shape == dip_trans_norm.values.shape, (
+        f"Energy and dip_trans do not have the same shapes: {energy_interstate.values.shape} <-> {dip_trans_norm.values.shape}"
+    )
 
-    da = _get_fosc(convert_energy(energy_interstate, to=energy.Hartree), convert_dipole(dip_trans_norm, to=dipole.au))
+    da = _get_fosc(energy_interstate, dip_trans_norm)
     da.name = 'fosc'
     da.attrs.update(
         {
@@ -88,7 +105,7 @@ def broaden_gauss(
     fosc: xr.DataArray,
     agg_dim: DimName = 'frame',
     *,
-    width: float = 0.5, # in eV
+    width: float = 0.5,  # in eV
     nsamples: int = 1000,
     xmin: float = 0,
     xmax: float | None = None,
@@ -117,10 +134,11 @@ def broaden_gauss(
         the maximum x-value, by default 3 standard deviations
         beyond the pre-broadened maximum
     """
-    assert (
-        agg_dim in E.sizes
-    ), f"E does not have required dimension {agg_dim} for aggregation"
+    assert agg_dim in E.sizes, (
+        f"E does not have required dimension {agg_dim} for aggregation"
+    )
 
+    # TODO: FIXME: Should this remain as-is?
     stdev = width / 2
 
     E_eV = convert_energy(E, to=energy.eV)
@@ -133,7 +151,7 @@ def broaden_gauss(
     yname = getattr(fosc, 'name', 'fosc') or 'ydim'
 
     if xmax is None:
-        # TODO: FIXME: The calculation does not fit the statement of the comment above.
+        # TODO: FIXME: The calculation does not fit the statement of the comment above it. Is stdev relative?
         # broadening could visibly overshoot the former maximum by 3 standard deviations
         xmax = E_eV.max().item() * (1 + 1.5 * width)
 
@@ -231,6 +249,7 @@ def calc_spectra(
     if times is None:
         times = [0, 10, 20, 30]
 
+    # TODO: FIXME: Allow filtering of state combinations.
     sc_values: Iterable[tuple[int, int]] = interstate.statecomb.values
 
     res: SpectraDictType = {
@@ -325,9 +344,10 @@ def spectra_all_times(inter_state: xr.Dataset) -> xr.DataArray:
         raise ValueError("Missing required variable 'energy'")
     if 'fosc' not in inter_state.data_vars:
         raise ValueError("Missing required variable 'fosc'")
-    assert (
-        'frame' in inter_state and 'trajid_' in inter_state
-    ), "Missing required dimensions"
+    assert 'frame' in inter_state and 'trajid_' in inter_state, (
+        "Missing required dimensions"
+    )
+    # TODO: FIXME: This probably should not have to unstack here? We should just accept a tree and use each trajectory individually and then aggregate over trajectories?
 
     data = inter_state.unstack('frame')
     return broaden_gauss(data.energy, data.fosc, agg_dim='trajid_')

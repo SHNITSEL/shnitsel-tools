@@ -8,9 +8,9 @@ from shnitsel.bridges import (
     numbered_smiles_to_mol,
     smiles_map as smiles_map,
 )
-from shnitsel.core.midx import sel_trajids, mdiff
-from shnitsel.core.convenience import pairwise_dists_pca
-from shnitsel.core.generic import norm
+from shnitsel.data.multi_indices import sel_trajids, mdiff
+from shnitsel.analyze.pca import pairwise_dists_pca
+from shnitsel.analyze.generic import norm
 from shnitsel.rd import (
     mol_to_numbered_smiles as mol_to_numbered_smiles,
     highlight_pairs,
@@ -27,6 +27,7 @@ def find_bonds_by_element(mol, elem1: int, elem2: int):
 
     return [indices(b) for b in mol.GetBonds() if elems_correct(b)]
 
+
 def max_bond_lengths(atXYZ, elem1=1, elem2=6):
     def dists(a1, a2):
         return norm(atXYZ.isel(atom=a1) - atXYZ.isel(atom=a2), dim='direction')
@@ -38,31 +39,36 @@ def max_bond_lengths(atXYZ, elem1=1, elem2=6):
         mol = to_mol((atXYZ.isel(frame=0)))
 
     bonds = find_bonds_by_element(mol, elem1, elem2)
-    maxlengths = xr.concat([
-      dists(a1, a2).groupby('trajid').map(np.max)
-      for a1, a2 in bonds ], dim='bond')
+    maxlengths = xr.concat(
+        [dists(a1, a2).groupby('trajid').map(np.max) for a1, a2 in bonds], dim='bond'
+    )
     atoms1, atoms2 = zip(*bonds)
-    maxlengths.coords['atom1'] = 'bond',list(atoms1)
-    maxlengths.coords['atom2'] = 'bond',list(atoms2)
+    maxlengths.coords['atom1'] = 'bond', list(atoms1)
+    maxlengths.coords['atom2'] = 'bond', list(atoms2)
     maxlengths = maxlengths.set_xindex(['atom1', 'atom2'])
     return maxlengths
+
 
 def lengths_sorted(atXYZ, elem1=1, elem2=6):
     lengths = max_bond_lengths(atXYZ, elem1, elem2)
     return lengths.sortby(lengths.sum(dim='bond'))
 
+
 def find_overlong(atXYZ, elem1=1, elem2=6, cutoff=2):
     lengths = lengths_sorted(atXYZ, elem1, elem2)
-    mask = (lengths>cutoff).any('bond')
+    mask = (lengths > cutoff).any('bond')
     return lengths.trajid.sel(trajid=mask).values
+
 
 def exclude_trajs(frames, trajids):
     if isinstance(trajids, set):
         trajids = list(trajids)
     return frames.sel(frame=~frames.trajid.isin(trajids))
 
+
 def exclude_overlong(frames, cutoff=2):
-    return exclude_trajs(frames, find_overlong(frames.atXYZ, cutoff=cutoff))   
+    return exclude_trajs(frames, find_overlong(frames.atXYZ, cutoff=cutoff))
+
 
 def find_eccentric(atXYZ, maskfn=None):
     if not isinstance(atXYZ, xr.DataArray):
@@ -72,6 +78,7 @@ def find_eccentric(atXYZ, maskfn=None):
     maskfn = maskfn or (lambda data: data.PC1**2 + data.PC2**2 > 1.5)
     mask = maskfn(noodle)
     return np.unique(noodle.sel(frame=mask).trajid)
+
 
 def show_bonds_mol(mol, elem1, elem2, to2D):
     pairs = find_bonds_by_element(mol, elem1, elem2)
@@ -85,21 +92,21 @@ def filter_cleavage(frames, *, CC=False, CH=False, CN=False, NH=False, verbose=2
     try:
         from IPython.display import display, Image
     except ImportError:
-        can_show = False
-    else:
-        can_show = True
 
-    def show(elem1, elem2):
-        mol = numbered_smiles_to_mol(frames.atXYZ.attrs['smiles_map'])
-        display(Image(show_bonds_mol(mol, elem1, elem2, to2D=True)))
+        def show(elem1, elem2):
+            pass
+    else:
+
+        def show(elem1, elem2):
+            mol = numbered_smiles_to_mol(frames.atXYZ.attrs['smiles_map'])
+            display(Image(show_bonds_mol(mol, elem1, elem2, to2D=True)))
 
     def act(descr, elem1, elem2, cutoff):
         nonlocal frames
         overlong = find_overlong(frames.atXYZ, elem1, elem2, cutoff=cutoff)
         if verbose:
             print(f"Found following {descr} bonds:")
-            if can_show:
-                show(elem1, elem2)
+            show(elem1, elem2)
             ntraj = len(np.unique(overlong))
             nframes = sel_trajids(frames, overlong).sizes['frame']
             print(

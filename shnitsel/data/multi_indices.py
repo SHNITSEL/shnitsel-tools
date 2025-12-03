@@ -11,11 +11,14 @@ import xarray as xr
 import numpy as np
 import pandas as pd
 
+from shnitsel.__api_info import internal
+
 from .._contracts import needs
 
 DatasetOrArray = TypeVar("DatasetOrArray", bound=xr.Dataset | xr.DataArray)
 
 
+@internal()
 def midx_combs(values: pd.core.indexes.base.Index | list, name: str | None = None):
     """Helper function to create a Multi-index based dimension coordinate for an xarray
     from all (unordered) pairwise combinations of entries in `values`
@@ -314,13 +317,14 @@ def sel_trajids(frames: xr.Dataset, trajids: npt.ArrayLike, invert=False) -> xr.
     return res
 
 
-def unstack_trajs(frames: xr.Dataset | xr.DataArray) -> xr.Dataset | xr.DataArray:
+@internal()
+def unstack_trajs(frames: DatasetOrArray) -> DatasetOrArray:
     """Unstack the ``frame`` MultiIndex so that ``trajid`` and ``time`` become
     separate dims. Wraps the :py:meth:`xarray.Dataset.unstack` method.
 
     Parameters
     ----------
-    frames
+    frames, DatasetOrArray
         An :py:class:`xarray.Dataset` with a ``frame`` dimension associated with
         a MultiIndex coordinate with levels named ``trajid`` and ``time``. The
         Dataset may also have a ``trajid_`` dimension used for variables and coordinates
@@ -330,7 +334,7 @@ def unstack_trajs(frames: xr.Dataset | xr.DataArray) -> xr.Dataset | xr.DataArra
     Returns
     -------
         An :py:class:`xarray.Dataset` with independent ``trajid`` and ``time``
-        dimensions.
+        dimensions. Same type as `frames`
     """
     per_traj_coords = {
         k: v.rename(trajid_='trajid')
@@ -385,6 +389,7 @@ def unstack_trajs(frames: xr.Dataset | xr.DataArray) -> xr.Dataset | xr.DataArra
     return res
 
 
+@internal()
 def stack_trajs(unstacked: xr.Dataset | xr.DataArray) -> xr.Dataset | xr.DataArray:
     """Stack the ``trajid`` and ``time`` dims of an unstacked Dataset
     into a MultiIndex along a new dimension called ``frame``.

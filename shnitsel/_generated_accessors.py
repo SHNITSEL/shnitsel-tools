@@ -13,18 +13,18 @@ from ._contracts import needs
 from numpy import ndarray
 from rdkit.Chem.rdchem import Mol
 from shnitsel.bridges import default_mol, smiles_map, to_mol, to_xyz, traj_to_xyz
-from shnitsel.core.convenience import pairwise_dists_pca, pca_and_hops, validate
-from shnitsel.core.filtration import energy_filtranda, get_cutoffs, last_time_where, truncate
-from shnitsel.core.generic import keep_norming, norm, subtract_combinations
-from shnitsel.core.geom import angle, dihedral, distance, get_bats, get_bond_angles, get_bond_lengths, get_bond_torsions, get_pyramids, kabsch
-from shnitsel.core.midx import DatasetOrArray, assign_levels, expand_midx, flatten_levels, mdiff, mgroupby, msel, sel_trajids, sel_trajs, stack_trajs, unstack_trajs
-from shnitsel.core.ml import lda, pca, pls, pls_ds
-from shnitsel.core.plot.p3mhelpers import frame3D, frames3Dgrid, traj3D, trajs3Dgrid
-from shnitsel.core.plot.select import FrameSelector, TrajSelector
-from shnitsel.core.populations import classical
-from shnitsel.core.spectra import assign_fosc, ds_broaden_gauss, spectra_all_times
-from shnitsel.core.stats import calc_ci, get_inter_state, get_per_state, time_grouped_ci
-from shnitsel.core.vmd import traj_vmd
+from shnitsel.analyze.pca import pairwise_dists_pca, pca_and_hops
+from shnitsel.clean.filtration import energy_filtranda, get_cutoffs, last_time_where, truncate
+from shnitsel.analyze.generic import keep_norming, norm, subtract_combinations
+from shnitsel.geo.geom import angle, dihedral, distance, get_bats, get_bond_angles, get_bond_lengths, get_bond_torsions, get_pyramids, kabsch
+from shnitsel.data.multi_indices import DatasetOrArray, assign_levels, expand_midx, flatten_levels, mdiff, mgroupby, msel, sel_trajids, sel_trajs, stack_trajs, unstack_trajs
+from shnitsel.analyze import lda, pca, pls
+from shnitsel.vis.plot.p3mhelpers import frame3D, frames3Dgrid, traj3D, trajs3Dgrid
+from shnitsel.vis.plot.select import FrameSelector, TrajSelector
+from shnitsel.analyze.populations import calc_classical_populations
+from shnitsel.analyze.spectra import assign_fosc, ds_broaden_gauss, spectra_all_times
+from shnitsel.analyze.stats import calc_ci, get_inter_state, get_per_state, time_grouped_ci
+from shnitsel.vis.vmd import traj_vmd
 from shnitsel.io.ase.write import write_ase_db
 from shnitsel.io.sharc.parse_initial_conditions import iconds_to_frames
 from shnitsel.io.shnitsel.write import write_shnitsel_file

@@ -1,3 +1,4 @@
+from shnitsel.__api_info import API, internal
 from shnitsel.data.trajectory_format import Trajectory
 from shnitsel.data.shnitsel_db_format import ShnitselDB, build_shnitsel_db
 from shnitsel.io.format_reader_base import FormatInformation, FormatReader
@@ -38,6 +39,7 @@ import pathlib
 
 
 # def read_trajs(
+@API()
 def read(
     path: PathOptionsType,
     kind: KindType | None = None,
@@ -262,6 +264,7 @@ def read(
         raise FileNotFoundError(message)
 
 
+@internal()
 def read_folder_multi(
     path: PathOptionsType,
     kind: KindType | None = None,
@@ -433,6 +436,7 @@ def read_folder_multi(
         return res_trajectories
 
 
+@internal()
 def read_single(
     path: PathOptionsType,
     kind: KindType | None,
@@ -446,6 +450,7 @@ def read_single(
             trajectory = reader.read_trajectory(
                 path, res_format, base_loading_parameters
             )
+            # TODO: FIXME: Deal with a full SchnitselDB being loaded from a single file in a directory and then combined with others.
             return trajectory
     except Exception as e:
         if error_reporting == "log":
@@ -457,6 +462,7 @@ def read_single(
     return None
 
 
+@internal()
 def identify_or_check_input_kind(
     path: PathOptionsType,
     kind_hint: KindType | None,
@@ -478,7 +484,7 @@ def identify_or_check_input_kind(
     """
     # TODO: FIXME: Add ASE loading capability
 
-    path_obj: pathlib.Path = make_uniform_path(path)
+    path_obj: pathlib.Path = make_uniform_path(path)  # type: ignore # will always yield a pathlib.Path
 
     if not path_obj.exists():
         raise FileNotFoundError(f"The path `{path}` is not valid.")

@@ -4,7 +4,9 @@ from numbers import Number
 import numpy as np
 import xarray as xr
 
-from shnitsel.core.midx import sel_trajs, stack_trajs, unstack_trajs
+from shnitsel.core.typedefs import Frames
+from shnitsel.data.multi_indices import sel_trajs, stack_trajs, unstack_trajs
+from shnitsel.data.trajectory_format import Trajectory
 
 
 def is_stacked(obj):
@@ -17,9 +19,11 @@ def is_stacked(obj):
             "The mask argument should be trajectories, either stacked or unstacked"
         )
 
+
 ########################
 # Formats we will need #
 ########################
+
 
 def cum_mask_from_filtranda(filtranda):
     if is_stacked(filtranda):
@@ -27,7 +31,7 @@ def cum_mask_from_filtranda(filtranda):
         filtranda = unstack_trajs(filtranda)
     else:
         restack = False
-    
+
     res = (filtranda < filtranda.coords['thresholds']).cumprod('time').astype(bool)
 
     # Is unstack-restack meaningfully less efficient than groupby?
@@ -35,7 +39,7 @@ def cum_mask_from_filtranda(filtranda):
         return stack_trajs(res)
     else:
         return res
-    
+
 
 # def cum_mask_from_dataset_cutoffs(ds):
 #     return (ds.coords['time'] <= ds.coords['good_upto']).cumprod('time').astype(bool)
@@ -45,17 +49,19 @@ def cum_mask_from_dataset(ds):
     # dataset might contain filtranda, the mask we're after, or the cutoffs
     # it doesn't matter whether the mask is cumulative, because our
     # accumulation is idempotent
-    
+
     # two versions currently, for stacked and for unstacked
     # use `filtranda` and `thresholds` if available
     # otherwise use `good_upto`
     if 'is_good_frame' in ds:
         return ds['is_good_frame'].cumprod('time').astype(bool)
     elif 'good_upto' in ds.data_vars:
-        return (ds.coords['time'] <= ds.coords['good_upto']).cumprod('time').astype(bool)
+        return (
+            (ds.coords['time'] <= ds.coords['good_upto']).cumprod('time').astype(bool)
+        )
     elif 'filtranda' in ds.data_vars:
         return cum_mask_from_filtranda(ds)
-    
+
 
 def true_upto(mask, dim):
     if is_stacked(mask):
@@ -76,7 +82,7 @@ def cutoffs_from_mask(mask):
     good_throughout = mask.all('time')
     good_upto.name = 'good_upto'
     return good_upto.assign_coords(good_throughout=good_throughout)
-    
+
 
 def cutoffs_from_filtranda(filtranda):
     thresholds = filtranda.coords['thresholds']
@@ -105,9 +111,9 @@ def cutoffs_from_dataset(ds):
             return res
         else:
             warning(
-                    "data_var 'good_upto' is missing expected coord "
-                    "'good_throughout'; will recalculate."
-                )
+                "data_var 'good_upto' is missing expected coord "
+                "'good_throughout'; will recalculate."
+            )
 
     elif 'filtranda' in ds.data_vars:
         return cutoffs_from_filtranda(ds.data_vars['filtranda'])
@@ -116,6 +122,7 @@ def cutoffs_from_dataset(ds):
             "Please set data_vars 'filtranda' and 'thresholds', "
             "or alternatively supply cutoffs directly using data_var 'good_upto'"
         )
+
 
 def assign_cutoffs(ds): ...
 
@@ -128,14 +135,14 @@ def assign_cutoffs(ds): ...
 # They can use the functions above to get the info they need
 
 
-def omit(ds):
+def omit(ds:Trajectory):
     cutoffs = cutoffs_from_dataset(ds)
     good_throughout = cutoffs['good_throughout']
     selection = good_throughout.all('criterion')
     return sel_trajs(ds, selection)
 
 
-def truncate(ds):
+def truncate(ds:Trajectory):
     mask = cum_mask_from_dataset(ds)
     # So does `mask_from_dataset` return stacked or unstacked?
     assert is_stacked(mask)
@@ -143,13 +150,15 @@ def truncate(ds):
     return ds.isel(frame=selection)
 
 
-def transect(ds, cutoff: float):
+def transect(ds: Trajectory|Frames, cutoff: float):
     if is_stacked(ds):
         ds = unstack_trajs(ds)
     ds = ds.loc[{'time': slice(float(cutoff))}]
     good_upto = cutoffs_from_dataset(ds)
     # NB. the second mask must be calculated after time-slicing.
-    traj_selection = (good_upto >= cutoff).all('criterion') & ds.coords['is_frame'].all('time')
+    traj_selection = (good_upto >= cutoff).all('criterion') & ds.coords['is_frame'].all(
+        'time'
+    )
     return ds.isel[{'trajid': traj_selection}]
 
 
@@ -170,11 +179,12 @@ def energy_filtranda(
     etot_step=0.1,
     epot_step=0.7,
     ekin_step=0.7,
-    hop_epot_step=1.0
+    hop_epot_step=1.0,
 ):
     from logging import warning
-    from shnitsel.core.midx import mdiff
+    from shnitsel.data.multi_indices import mdiff
     from shnitsel.units.conversion import convert_energy
+
     default_thresholds = {
         'etot_drift': etot_drift,
         'etot_step': etot_step,
@@ -196,10 +206,10 @@ def energy_filtranda(
         e_kin = frames['e_kin']
         e_kin.attrs['units'] = frames['e_kin'].attrs.get('units', 'unknown')
         e_kin = convert_energy(e_kin, to='eV')
-        
+
         e_tot = e_pot + e_kin
-        res['etot_drift'] = (
-            e_tot.groupby('trajid').map(lambda traj: abs(traj - traj.item(0)))
+        res['etot_drift'] = e_tot.groupby('trajid').map(
+            lambda traj: abs(traj - traj.item(0))
         )
         res['ekin_step'] = mdiff(e_kin).where(~is_hop, 0)
         res['etot_step'] = mdiff(e_tot)
@@ -207,7 +217,7 @@ def energy_filtranda(
         e_kin = None
         warning("data does not contain kinetic energy variable ('e_kin')")
 
-    da = np.abs(res.to_dataarray('criterion'))
+    da: xr.DataArray = np.abs(res.to_dataarray('criterion'))  # type: ignore # numpy on DataArray yields DataArray.
     thresholds = [default_thresholds[x] for x in da.coords['criterion'].data]
     return da.assign_coords(thresholds=('criterion', thresholds))
 

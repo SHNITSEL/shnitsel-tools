@@ -12,52 +12,143 @@ import numpy as np
 from rdkit.Chem import Mol
 import xarray as xr
 
+from shnitsel.__api_info import API, internal
+from shnitsel.data.multi_indices import expand_midx
 from shnitsel.io.helpers import (
     get_atom_number_from_symbol,
-    # get_symbol_from_atom_number # TODO FIXME: replace the __atnum2symbol__ import with this
+    get_symbol_from_atom_number,
 )
-from shnitsel.io.helpers import __atnum2symbol__ # TODO
-from .generic import subtract_combinations, norm
+from ..analyze.generic import subtract_combinations, norm
 from ..bridges import default_mol
-from .xrhelpers import expand_midx
 from .._contracts import needs
 
-from .typedefs import AtXYZ
+from ..core.typedefs import AtXYZ
 
 
-def dnorm(a):
+def dnorm(a: xr.DataArray | xr.Variable) -> xr.DataArray | xr.Variable:
+    """Calculate the norm along the `direction` dimension. All other dimensions are maintaned
+
+    Args:
+        a (xr.DataArray | xr.Variable): The data array to perform the norming on
+
+    Returns:
+        xr.DataArray | xr.Variable: Resulting dataarray after calculation of the norm in the dimension `direction.
+    """
     return norm(a, dim='direction')
 
 
-def dcross(a, b):
+def dcross(
+    a: xr.DataArray | xr.Variable, b: xr.DataArray | xr.Variable
+) -> xr.DataArray | xr.Variable:
+    """Generalized cross vector product in the dimension of `direction`.
+
+    Args:
+        a (xr.DataArray | xr.Variable): The first array to use for the binary operation
+        b (xr.DataArray | xr.Variable): The second array to use for the binary operation
+
+    Returns:
+        xr.DataArray | xr.Variable: The resulting array of the cross-product
+    """
     return xr.cross(a, b, dim='direction')
 
 
-def ddot(a, b):
+def ddot(
+    a: xr.DataArray | xr.Variable, b: xr.DataArray | xr.Variable
+) -> xr.DataArray | xr.Variable:
+    """Dot product in the dimension of `direction`.
+
+    Args:
+        a (xr.DataArray | xr.Variable): The first array to use for the binary operation
+        b (xr.DataArray | xr.Variable): The second array to use for the binary operation
+
+    Returns:
+        xr.DataArray | xr.Variable: The resulting array of the dot-product still retaining all other dimensions except `direction`.
+    """
     return xr.dot(a, b, dim='direction')
 
 
-def angle_(a, b):
+def angle_(
+    a: xr.DataArray | xr.Variable, b: xr.DataArray | xr.Variable
+) -> xr.DataArray | xr.Variable:
+    """Helper function to calculate the angle between the entries in a and b based on their coordinates in the `direction` dimension.
+
+    Args:
+        a (xr.DataArray | xr.Variable): The first array to use for the binary operation
+        b (xr.DataArray | xr.Variable): The second array to use for the binary operation
+
+    Returns:
+        xr.DataArray | xr.Variable: The resulting array of the angle calculation still retaining all other dimensions except `direction`.
+    """
     return np.arccos(ddot(a, b) / (dnorm(a) * dnorm(b)))
 
 
-def normal(a, b, c):
+def normal(
+    a: xr.DataArray | xr.Variable,
+    b: xr.DataArray | xr.Variable,
+    c: xr.DataArray | xr.Variable,
+) -> xr.DataArray | xr.Variable:
+    """Calculate normal vectors on the planes through corresponding points in a, b and c.
+
+    The normal vector will be calculated based on the position in `direction` dimension.
+
+    Args:
+        a (xr.DataArray | xr.Variable): The first array to use for the ternary operation
+        b (xr.DataArray | xr.Variable): The second array to use for the ternary operation
+        c (xr.DataArray | xr.Variable): The third array to use for the ternary operation
+
+    Returns:
+        xr.DataArray | xr.Variable: An array with all dimensions equal to those of a, b, and c but holding normal vectors along the `direction` dimension.
+    """
     return dcross(a - b, c - b)
 
 
-def dihedral_(a, b, c, d):
+def dihedral_(
+    a: xr.DataArray | xr.Variable,
+    b: xr.DataArray | xr.Variable,
+    c: xr.DataArray | xr.Variable,
+    d: xr.DataArray | xr.Variable,
+) -> xr.DataArray | xr.Variable:
+    """Function to calculate the limited (up to +-\\pi/2 radian) dihedral angle between the points in arrays a,b,c and d.
+
+    Args:
+        a (xr.DataArray | xr.Variable): The first array to use for the operation
+        b (xr.DataArray | xr.Variable): The second array to use for the operation
+        c (xr.DataArray | xr.Variable): The third array to use for the operation
+        d (xr.DataArray | xr.Variable): The fourth array to use for the operation
+
+    Returns:
+        xr.DataArray | xr.Variable: The array of dihedral angels between the four input arrays.
+    """
     abc = normal(a, b, c)
     bcd = normal(b, c, d)
     return angle_(abc, bcd)
 
 
-def full_dihedral_(a, b, c, d):
+@internal()
+def full_dihedral_(
+    a: xr.DataArray | xr.Variable,
+    b: xr.DataArray | xr.Variable,
+    c: xr.DataArray | xr.Variable,
+    d: xr.DataArray | xr.Variable,
+) -> xr.DataArray | xr.Variable:
+    """Function to calculate the signed/full dihedral angle (up to +-\\pi radian) between the points in arrays a,b,c and d.
+
+    Args:
+        a (xr.DataArray | xr.Variable): The first array to use for the operation
+        b (xr.DataArray | xr.Variable): The second array to use for the operation
+        c (xr.DataArray | xr.Variable): The third array to use for the operation
+        d (xr.DataArray | xr.Variable): The fourth array to use for the operation
+
+    Returns:
+        xr.DataArray | xr.Variable: The array of full signed dihedral angels between the four input arrays.
+    """
     abc = normal(a, b, c)
     bcd = normal(b, c, d)
     sign = np.sign(ddot(dcross(abc, bcd), (c - b)))
     return sign * angle_(abc, bcd)
 
 
+@API()
 @needs(dims={'atom'})
 def dihedral(
     atXYZ: AtXYZ,
@@ -99,8 +190,23 @@ def dihedral(
     return result
 
 
+@API()
 @needs(dims={'atom'})
 def angle(atXYZ: AtXYZ, i: int, j: int, k: int, *, deg: bool = False) -> xr.DataArray:
+    """Method to calculate the angle between atoms i,j, and k in the positions DataArray throughout time.
+
+    Can return results in radian (default) and degrees (if `deg=True`)
+
+    Args:
+        atXYZ (AtXYZ): DataArray with positions
+        i (int): Index of first atom
+        j (int): Index of second atom
+        k (int): Index of third atom
+        deg (bool, optional): Flag whether the results should be in degrees instead of radian. Defaults to False.
+
+    Returns:
+        xr.DataArray: The resulting angles between the denoted atoms.
+    """
     a = atXYZ.isel(atom=i)
     b = atXYZ.isel(atom=j)
     c = atXYZ.isel(atom=k)
@@ -114,8 +220,19 @@ def angle(atXYZ: AtXYZ, i: int, j: int, k: int, *, deg: bool = False) -> xr.Data
     return result
 
 
+@API()
 @needs(dims={'atom'})
 def distance(atXYZ: AtXYZ, i: int, j: int) -> xr.DataArray:
+    """Method to calculate the various distances between atoms i and j throughout time
+
+    Args:
+        atXYZ (AtXYZ): Array with atom positions
+        i (int): Index of the first atom
+        j (int): Index of the second atom
+
+    Returns:
+        xr.DataArray: The resulting array holding the pairwise distance between i and j.
+    """
     a = atXYZ.isel(atom=i)
     b = atXYZ.isel(atom=j)
     result: xr.DataArray = dnorm(a - b)
@@ -124,13 +241,37 @@ def distance(atXYZ: AtXYZ, i: int, j: int) -> xr.DataArray:
     return result
 
 
-def bond_type_to_symbols(e1, e2):
-    s1 = get_atom_number_from_symbol(e1)
-    s2 = get_atom_number_from_symbol(e2)
+@internal()
+def bond_type_to_symbols(element1: int, element2: int) -> str:
+    """Helper function to get the Symbol string of the bond type denoted by elements 1 and 2.
+
+    Args:
+        element1 (int): First element in the bond
+        element2 (int): Second element in the bond.
+
+    Returns:
+        str: Resulting String representation of elements in the bond type.
+    """
+    s1 = get_symbol_from_atom_number(element1)
+    s2 = get_symbol_from_atom_number(element2)
     return s1 + s2
 
 
-def identify_bonds(mol: Mol, symbols: bool = True) -> dict:
+@internal()
+def identify_bonds(
+    mol: Mol, symbols: bool = True
+) -> dict[tuple[int, int], list[tuple[int, int]]] | dict[str, list[tuple[int, int]]]:
+    """Function to get a dict of all bond types and associated bonds.
+
+    The bond type is either identified as a tuple of atom numbers/elements or as a string of the element names in the bond.
+
+    Args:
+        mol (Mol): The RDkit Mol object
+        symbols (bool, optional): Flag whether the keys for the bond dictionary should be string represenations of the bond atoms instead. Defaults to True.
+
+    Returns:
+        dict[tuple[int, int], list[tuple[int, int]]] | dict[str, list[tuple[int, int]]]: The dictionary with the bond type (tuple of element numbers or string representation) as keys and the pairs of indices of the respective bonds as lists in the values.
+    """
     bond_types: dict[tuple[int, int], list[tuple[int, int]]] = {}
     for b in mol.GetBonds():
         a1 = b.GetBeginAtom()
@@ -145,6 +286,7 @@ def identify_bonds(mol: Mol, symbols: bool = True) -> dict:
     return bond_types
 
 
+@API()
 @needs(dims={'atom', 'direction'})
 def get_bond_lengths(
     atXYZ: xr.DataArray, bond_types=None, mol: Mol | None = None
@@ -204,6 +346,25 @@ def get_bond_lengths(
 
 
 def identify_angles(mol: Mol) -> xr.Dataset:
+    """Helper function to generate a dataset containing the angles within the molecules,
+    bond types, angle types, atom types, etc. for a rigorous angle analysis.
+
+    Args:
+        mol (Mol): The molecule as RDkit Molecule to derive the angles for.
+
+    Returns:
+        xr.Dataset: The dataset holding the full angular information.
+            Will contain variables:
+             - `at_idx`: The ids of the atoms in the molecule
+             - `at_nums`: The elements of the atoms in the molecule
+             - `bond_type`: The types of bonds involved in the respective angle
+             - `angle_type`: str representation of the bond types and elements involved in the angle.
+             - `angle_symbol`: LaTeX-printable angle label including the atom indices.
+            Will have the dimensions:
+             - `angle`: to iterate through all angles
+             - `atom`: To iterate through the atoms as parts of the respective angle (not all atoms in the molecule). Length 3.
+             - `bond`: To iterate through the bonds involved in the respective angle (not all bonds in the molecule). Length 2.
+    """
     triples = []
     at_nums = []
     bond_types = []
@@ -233,8 +394,9 @@ def identify_angles(mol: Mol) -> xr.Dataset:
             triples.append((a1, a0, a2))
             at_nums.append((n1, n0, n2))
             bond_types.append((b10, b02))
-            s = __atnum2symbol__
-            angle_types.append(f"{s[n1]}{b10}{s[n0]}{b02}{s[n2]}")
+            angle_types.append(
+                f"{get_symbol_from_atom_number(n1)}{b10}{get_symbol_from_atom_number(n0)}{b02}{get_symbol_from_atom_number(n2)}"
+            )
             angle_symbols.append(r"$\theta_{%d,%d,%d}$" % (a1, a0, a2))
 
     return xr.Dataset(
@@ -248,6 +410,7 @@ def identify_angles(mol: Mol) -> xr.Dataset:
     )
 
 
+@API()
 @needs(dims={'atom', 'direction'})
 def get_bond_angles(
     atXYZ: xr.DataArray,
@@ -303,8 +466,7 @@ def get_bond_angles(
         dtype = ','.join(['i'] * n)
         return np.array([tuple(x) for x in xs], dtype=dtype)
 
-    at_idxs = {f'atom{i}': angle_types['at_idx'].isel(
-        atom=i) for i in range(3)}
+    at_idxs = {f'atom{i}': angle_types['at_idx'].isel(atom=i) for i in range(3)}
     angles = (
         angle_(al - ac, ar - ac)
         .assign_coords(
@@ -323,8 +485,26 @@ def get_bond_angles(
     return angles
 
 
+@internal()
 def identify_torsions(mol: Mol) -> xr.Dataset:
-    """Finds sets of four contiguous atoms that form a torsion"""
+    """Method to find sets of four contiguous atoms that form a torsion.
+
+    Args:
+        mol (Mol): The molecule as RDkit Molecule to derive the angles for.
+
+    Returns:
+        xr.Dataset: Dataset containing the full torsion information.
+            Will contain variables:
+             - `at_idx`: The ids of the atoms in the molecule part of the respective torsion.
+             - `at_nums`: The elements of the atoms in the molecule part of the respective torsion.
+             - `bond_type`: The types of bonds involved in the respective torsion.
+             - `torsion_type`: str representation of the bond types and elements involved in the torsion.
+             - `torsion_symbol`: LaTeX-printable torsion label including the atom indices.
+            Will have the dimensions:
+             - `torsion`: to iterate through all torsions
+             - `atom`: To iterate through the atoms as parts of the respective torsion (not all atoms in the molecule). Length 4.
+             - `bond`: To iterate through the bonds involved in the respective torsion (not all bonds in the molecule). Length 3.
+    """
     quadruples = []
     at_nums = []
     bond_types = []
@@ -366,10 +546,10 @@ def identify_torsions(mol: Mol) -> xr.Dataset:
             quadruples.append(idxs)
             at_nums.append(an)
             bond_types.append(bt)
-            s = __atnum2symbol__
-            torsion_types.append('{}'.join([s[n] for n in an]).format(*bt))
-            torsion_symbols.append(
-                r"$\varphi_{%d,%d,%d,%d}$" % (i0, i1, i2, i3))
+            torsion_types.append(
+                '{}'.join([get_symbol_from_atom_number(n) for n in an]).format(*bt)
+            )
+            torsion_symbols.append(r"$\varphi_{%d,%d,%d,%d}$" % (i0, i1, i2, i3))
     return xr.Dataset(
         {
             'at_idx': (('torsion', 'atom'), np.array(quadruples)),
@@ -381,6 +561,7 @@ def identify_torsions(mol: Mol) -> xr.Dataset:
     )
 
 
+@API()
 @needs(dims={'atom', 'direction'})
 def get_bond_torsions(
     atXYZ: xr.DataArray,
@@ -427,16 +608,14 @@ def get_bond_torsions(
         raise UserWarning("quadruple_types passed, so mol will not be used")
     if 'atNames' in atXYZ.coords or 'atNames' in atXYZ:
         atXYZ = atXYZ.drop_vars('atNames')
-    atom_positions = [atXYZ.sel(atom=quadruple_types.at_idx[:, i])
-                      for i in range(4)]
+    atom_positions = [atXYZ.sel(atom=quadruple_types.at_idx[:, i]) for i in range(4)]
     if signed:
         res = full_dihedral_(*atom_positions)
     else:
         res = dihedral_(*atom_positions)
     if deg:
         res *= 180 / np.pi
-    at_idxs = {f'atom{i}': quadruple_types['at_idx'].isel(
-        atom=i) for i in range(4)}
+    at_idxs = {f'atom{i}': quadruple_types['at_idx'].isel(atom=i) for i in range(4)}
     return res.assign_coords(
         torsion_type=quadruple_types['torsion_type'],
         torsion_symbol=quadruple_types['torsion_symbol'],
@@ -555,11 +734,28 @@ def identify_pyramids(mol: Mol) -> dict[int, list[int]]:
 
 
 @needs(dims={'atom', 'direction'})
-def pyramid_(a, b, c, x):
+def pyramid_(
+    a: xr.DataArray, b: xr.DataArray, c: xr.DataArray, x: xr.DataArray
+) -> xr.DataArray:
+    """Method to calculate the pyramidalization angle of a quadruple of atoms.
+
+    The result will be \\pi/2 minus the angle between the normal of ABC and the vector BX.
+    (I.e.: the pyramidalization at atom b)
+
+    Args:
+        a (xr.DataArray): The first array to use for the operation
+        b (xr.DataArray): The second array to use for the operation
+        c (xr.DataArray): The third array to use for the operation
+        x (xr.DataArray): The fourth array to use for the operation
+
+    Returns:
+        xr.DataArray: The array of pyramidalization angles
+    """
     abc = normal(a, b, c)
-    return 0.5 * np.pi - angle_(abc, x - b)
+    return 0.5 * np.pi - angle_(abc, x - b)  # type: ignore # Cannot be a variable if provided with a DataArray
 
 
+@API()
 def get_pyramids(
     atXYZ: xr.DataArray,
     pyramid_idxs: dict[int, list[int]] | None = None,
@@ -627,13 +823,28 @@ def get_pyramids(
     return res
 
 
-def center_geoms(atXYZ, by_mass: Literal[False] = False):
+@API()
+@needs(dims={'atom'})
+def center_geoms(atXYZ: AtXYZ, by_mass: Literal[False] = False) -> AtXYZ:
+    """Helper function to set the center of the geometry (i.e. mean along the `atom` axis) to zero.
+
+    Args:
+        atXYZ (AtXYZ): Array of positional data
+        by_mass (Literal[False], optional): Flag whether the centering/average should be center of mass or just plain average of positions. Defaults to False.
+
+    Raises:
+        NotImplementedError: Centering the COM instead of the mean is currently not implemented.
+
+    Returns:
+        AtXYZ: Resulting positions after centering.
+    """
     if by_mass:
         raise NotImplementedError
     return atXYZ - atXYZ.mean('atom')
 
 
 def rotational_procrustes_(A, B, weight=None):
+    # TODO: FIXME: Document
     from scipy.linalg import svd
 
     if weight is not None:
@@ -656,6 +867,7 @@ def rotational_procrustes_(A, B, weight=None):
 
 
 def rotational_procrustes(A, B, dim0='atom', dim1='direction', weight=None):
+    # TODO: FIXME: Document
     return xr.apply_ufunc(
         rotational_procrustes_,
         A,
@@ -670,6 +882,7 @@ def rotational_procrustes(A, B, dim0='atom', dim1='direction', weight=None):
 def kabsch(
     atXYZ, reference_or_indexers: xr.DataArray | dict | None = None, **indexers_kwargs
 ):
+    # TODO: FIXME: Document
     if isinstance(reference_or_indexers, xr.DataArray):
         reference = reference_or_indexers
     elif isinstance(reference_or_indexers, dict):

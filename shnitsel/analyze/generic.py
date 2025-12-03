@@ -1,15 +1,14 @@
 import itertools
 import logging
-import math
-from typing import Hashable, TypeAlias, Collection
+from typing import Collection
 
 import numpy as np
 import xarray as xr
 
-from shnitsel._contracts import needs
+from shnitsel.data.multi_indices import midx_combs
 
-from . import xrhelpers
-from .typedefs import DimName
+
+from ..core.typedefs import DimName
 
 
 def norm(
@@ -62,7 +61,7 @@ def subtract_combinations(
     """
 
     def midx(da, dim):
-        return xrhelpers.midx_combs(da.get_index(dim))[f'{dim}comb']
+        return midx_combs(da.get_index(dim))[f'{dim}comb']
 
     if dim not in da.dims:
         raise ValueError(f"'{dim}' is not a dimension of the DataArray {da}")
@@ -173,3 +172,9 @@ def replace_total(
 
     out = value[indices[replaceable]]
     return da.copy(data=out.reshape(da.shape))
+
+
+def relativize(da: xr.DataArray, **sel) -> xr.DataArray:
+    res = da - da.sel(**sel).min()
+    res.attrs = da.attrs
+    return res

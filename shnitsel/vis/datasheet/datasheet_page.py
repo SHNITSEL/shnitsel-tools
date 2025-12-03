@@ -11,19 +11,17 @@ from timeit import default_timer as timer
 from matplotlib.figure import Figure, SubFigure
 
 import shnitsel
+from shnitsel.analyze.populations import calc_classical_populations
 import shnitsel.bridges
-from shnitsel.core import stats
+from shnitsel.analyze import stats
 from shnitsel.data.trajectory_format import Trajectory
-# from shnitsel.io import read
-
-import shnitsel.core.spectra
 
 try:
     from typing import Self
 except ImportError:
     from typing_extensions import Self
 
-from ..spectra import calc_spectra, get_spectra_groups
+from shnitsel.analyze.spectra import assign_fosc, calc_spectra, get_spectra_groups
 
 from .figures.common import centertext
 from .figures.per_state_hist import plot_per_state_histograms
@@ -189,7 +187,7 @@ class DatasheetPage:
             and 'dip_trans' in inter_state
             and "energy_interstate" in inter_state
         ):
-            inter_state = shnitsel.core.spectra.assign_fosc(inter_state)
+            inter_state = assign_fosc(inter_state)
 
         for var, tex in [
             ('energy', r"$\Delta E$"),
@@ -208,33 +206,35 @@ class DatasheetPage:
     @cached_property
     def pops(self):
         start = timer()
-        pops = shnitsel.core.populations.classical(self.frames)
+        pops = calc_classical_populations(self.frames)
         pops['_color'] = 'state', self.col_state
         end = timer()
-        info(f"cached pops in {end-start} s")
+        info(f"cached pops in {end - start} s")
         return pops
 
     @cached_property
     def delta_E(self):
         start = timer()
-        res = stats.time_grouped_ci(self.inter_state['energy_interstate'])
+        res = stats.time_grouped_confidence_interval(
+            self.inter_state['energy_interstate']
+        )
         res['_color'] = 'statecomb', self.col_inter
         res.attrs['tex'] = r"$\Delta E$"
         end = timer()
-        info(f"cached delta_E in {end-start} s")
+        info(f"cached delta_E in {end - start} s")
         return res
 
     @cached_property
     def fosc_time(self):
         start = timer()
         if 'fosc' in self.inter_state:
-            res = stats.time_grouped_ci(self.inter_state['fosc'])
+            res = stats.time_grouped_confidence_interval(self.inter_state['fosc'])
             res['_color'] = 'statecomb', self.col_inter
             res.attrs['tex'] = r"$f_\mathrm{osc}$"
         else:
             res = None
         end = timer()
-        info(f"cached fosc_time in {end-start} s")
+        info(f"cached fosc_time in {end - start} s")
         return res
 
     @cached_property
@@ -242,7 +242,7 @@ class DatasheetPage:
         start = timer()
         res = calc_spectra(self.inter_state, times=self.spectra_times)
         end = timer()
-        info(f"cached spectra in {end-start} s")
+        info(f"cached spectra in {end - start} s")
         return res
 
     @cached_property
@@ -250,7 +250,7 @@ class DatasheetPage:
         start = timer()
         res = get_spectra_groups(self.spectra)
         end = timer()
-        info(f"cached spectra_groups in {end-start} s")
+        info(f"cached spectra_groups in {end - start} s")
         return res
 
     @cached_property
@@ -268,12 +268,12 @@ class DatasheetPage:
         Returns:
             xr.DataArray: The pairwise distance PCA results
         """
-        from shnitsel.core.convenience import pairwise_dists_pca
+        from shnitsel.analyze.pca import pairwise_dists_pca
 
         start = timer()
         res = pairwise_dists_pca(self.frames.atXYZ)
         end = timer()
-        info(f"cached noodle in {end-start} s")
+        info(f"cached noodle in {end - start} s")
         return res
 
     @cached_property
@@ -283,7 +283,7 @@ class DatasheetPage:
         Returns:
             xr.DataArray: PCA data at the hopping points
         """
-        from shnitsel.core.midx import mdiff
+        from shnitsel.data.multi_indices import mdiff
 
         mask = mdiff(self.frames.astate) != 0
         return self.noodle[mask]
@@ -366,7 +366,7 @@ class DatasheetPage:
         self.smiles
         self.inchi
 
-    def plot_per_state_histograms(self, fig: Figure | None = None) -> Axes:
+    def plot_per_state_histograms(self, fig: Figure | SubFigure | None = None) -> Axes:
         start = timer()
         res = plot_per_state_histograms(
             per_state=self.per_state,
@@ -376,7 +376,15 @@ class DatasheetPage:
         info(f"finished plot_per_state_histograms in {end - start} s")
         return res
 
-    def plot_timeplots(self, fig: Figure | None = None) -> Axes:
+    def plot_timeplots(self, fig: Figure | SubFigure | None = None) -> Axes:
+        """Create the Time plots of populations and energy level errors of each state for this DataSheetPage.
+
+        Args:
+            fig (Figure | SubFigure | None, optional): The figure to plot to. Defaults to None.
+
+        Returns:
+            Axes: The axes that have been plotted to
+        """
         start = timer()
         res = plot_timeplots(
             pops=self.pops,
@@ -388,7 +396,9 @@ class DatasheetPage:
         info(f"finished plot_timeplots in {end - start} s")
         return res
 
-    def plot_separated_spectra_and_hists(self, fig: Figure | None = None) -> Axes:
+    def plot_separated_spectra_and_hists(
+        self, fig: Figure | SubFigure | None = None
+    ) -> Axes:
         start = timer()
         res = plot_separated_spectra_and_hists(
             inter_state=self.inter_state,
@@ -400,7 +410,7 @@ class DatasheetPage:
         return res
 
     def plot_separated_spectra_and_hists_groundstate(
-        self, fig: Figure | None = None, scmap=plt.get_cmap('turbo')
+        self, fig: Figure | SubFigure | None = None, scmap=plt.get_cmap('turbo')
     ) -> Axes:
         start = timer()
         res = plot_separated_spectra_and_hists_groundstate(
@@ -415,21 +425,21 @@ class DatasheetPage:
         )
         return res
 
-    def plot_nacs_histograms(self, fig: Figure | None = None) -> Axes:
+    def plot_nacs_histograms(self, fig: Figure | SubFigure | None = None) -> dict[str,Axes]:
         start = timer()
         res = plot_nacs_histograms(self.inter_state, self.hops.frame, fig=fig)
         end = timer()
         info(f"finished plot_nacs_histograms in {end - start} s")
         return res
 
-    def plot_noodle(self, fig: Figure | None = None) -> Axes:
+    def plot_noodle(self, fig: Figure | SubFigure | None = None) -> Axes:
         start = timer()
         res = plot_noodleplot(self.noodle, self.hops, fig=fig)
         end = timer()
         info(f"finished plot_noodle in {end - start} s")
         return res
 
-    def plot_structure(self, fig: Figure | None = None) -> Axes:
+    def plot_structure(self, fig: Figure | SubFigure | None = None) -> Axes:
         start = timer()
         mol = self.mol_skeletal if self.structure_skeletal else self.mol
         res = plot_structure(

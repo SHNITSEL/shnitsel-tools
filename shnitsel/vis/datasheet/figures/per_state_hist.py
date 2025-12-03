@@ -1,10 +1,30 @@
+from matplotlib.axes import Axes
+from matplotlib.figure import Figure, SubFigure
 import numpy as np
+
+from shnitsel.core.typedefs import PerState
 
 from .common import figaxs_defaults, centertext, symbols
 from .hist import truncate
 
+
 @figaxs_defaults(mosaic=[['energy', 'forces', 'dip_perm']], scale_factors=(1, 1 / 5))
-def plot_per_state_histograms(per_state, axs=None, fig=None):
+def plot_per_state_histograms(
+    per_state: PerState,
+    axs: dict[str, Axes] | None = None,
+    fig: Figure | SubFigure | None = None,
+) -> dict[str, Axes]:
+    """Function to plot the per-state energy, forces and permanent dipole histogram plots.
+
+    Args:
+        per_state (PerState): A dataset with per-state observable data.
+        axs (dict[str, Axes] | None, optional): The map of subplot-axes. Keys identify the subplots (`energy`, `forces`, `dip_perm`) and the values are the axes to plot the subplot to. Defaults to None.
+        fig (Figure | SubFigure | None, optional): Figure to generated axes from. Defaults to None.
+
+    Returns:
+        dict[str, Axes]: The axes dictionary after plotting.
+    """
+    assert axs is not None, "Could not obtain axes for plotting the graphs."
     for quantity in ['energy', 'forces', 'dip_perm']:
         ax = axs[quantity]
         if quantity not in per_state:
