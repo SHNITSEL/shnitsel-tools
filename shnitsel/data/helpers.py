@@ -10,10 +10,10 @@ from shnitsel._contracts import needs
 from shnitsel.analyze.generic import relativize
 from shnitsel.data.multi_indices import sel_trajs
 from shnitsel.core.typedefs import DatasetOrArray, Frames
-from shnitsel.io.shnitsel.write import write_shnitsel_file
 from shnitsel.units.conversion import convert_energy
 
 T = TypeVar("T")
+
 
 @internal()
 def dataclass_from_dict(datatype: type[T], d: List | Dict | T) -> T:
@@ -235,6 +235,8 @@ def split_for_saving(frames: Frames, bytes_per_chunk=50e6):
 def save_split(
     frames, path_template, bytes_per_chunk=50e6, complevel=9, ignore_errors=False
 ):
+    from shnitsel.io.shnitsel.write import write_shnitsel_file
+
     dss = split_for_saving(frames, bytes_per_chunk=bytes_per_chunk)
     for i, ds in enumerate(dss):
         current_path = path_template.format(i)
