@@ -210,10 +210,15 @@ def get_inter_state(frames: Frames) -> InterState:
     # inter_state = flatten_midx(inter_state, 'statecomb', state_renamer)
     # inter_state['statecomb'].attrs['long_name'] = "State combinations"
 
-    if {'energy_interstate', 'dip_trans'}.issubset(frames.variables.keys()):
+    if {'energy_interstate', 'dip_trans'}.issubset(inter_state.variables.keys()):
         inter_state = assign_fosc(inter_state)
 
-    inter_state['energy_interstate'] = convert_energy(
-        inter_state['energy_interstate'], to=energy.eV
-    )
+    if 'energy_interstate' in inter_state:
+        inter_state['energy_interstate'] = convert_energy(
+            inter_state['energy_interstate'], to=energy.eV
+        )
+        inter_state['energy_interstate'].attrs["long_name"] = (
+            "Energy delta between the energy levels of various states derived from `energy`"
+        )
+        
     return inter_state
