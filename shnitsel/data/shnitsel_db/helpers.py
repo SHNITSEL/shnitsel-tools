@@ -1,4 +1,3 @@
-import logging
 from typing import Any, Iterable, Mapping
 
 from .db_trajectory_data import TrajectoryData
