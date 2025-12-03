@@ -2,7 +2,6 @@ import dataclasses
 import logging
 import math
 from typing import Dict, List, Literal, TypeVar
-from warnings import deprecated
 import xarray as xr
 import numpy as np
 
@@ -16,7 +15,7 @@ from shnitsel.units.conversion import convert_energy
 
 T = TypeVar("T")
 
-@internal
+@internal()
 def dataclass_from_dict(datatype: type[T], d: List | Dict | T) -> T:
     """Helper function to restore a Dataclass object from its dict representation.
 
