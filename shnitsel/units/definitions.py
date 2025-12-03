@@ -235,9 +235,9 @@ standard_units_of_formats = {
     "sharc": {  # These units are wild and only apply to certain files...
         unit_dimensions.length: length.Bohr,
         # Units are in eV relative to the ezero setting.
-        unit_dimensions.energy: energy.eV,
+        unit_dimensions.energy: energy.Hartree,
         # TODO: FIXME: The SHARC documentation does not state the unit, the output.dat file does not state the unit, but this seems most likely. output.lis lists eV/Ang, which would not match the other data in output.log at all.
-        unit_dimensions.force: force.eV_per_Bohr,
+        unit_dimensions.force: force.Hartree_per_Bohr,
         unit_dimensions.time: time.femto_seconds,
         unit_dimensions.nacs: nacs.one_per_Bohr,
         unit_dimensions.dipole: dipole.au,
