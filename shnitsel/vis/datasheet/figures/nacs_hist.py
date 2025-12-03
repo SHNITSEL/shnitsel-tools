@@ -6,13 +6,13 @@ from ....units.definitions import energy
 from ....units.conversion import convert_energy
 
 from .common import figaxs_defaults, centertext
-from .hist import create_marginals, trunc_max
+from .hist import create_marginals, calc_truncation_maximum
 
 from matplotlib.axes import Axes
 
 
-@needs(data_vars={'nacs'})
 @figaxs_defaults(mosaic=[['ntd'], ['nde']], scale_factors=(1 / 3, 1 / 3))
+@needs(data_vars={'nacs'})
 def plot_nacs_histograms(
     inter_state: InterState,
     hop_idxs,
@@ -61,7 +61,7 @@ def plot_nacs_histograms(
             if yname == 'energy_interstate':
                 ydata = convert_energy(ydata, to=energy.eV)
 
-            ymax = trunc_max(ydata)
+            ymax = calc_truncation_maximum(ydata)
             color = data['_color'].item()
             axx.hist(
                 xdata,
