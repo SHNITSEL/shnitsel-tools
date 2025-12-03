@@ -13,9 +13,6 @@ from ...data.shnitsel_db.datatree_level import _datatree_level_attribute_key
 from shnitsel.io.shared.variable_flagging import mark_variable_assigned
 from ...data.shnitsel_db.datatree_level import _datatree_level_attribute_key
 
-from shnitsel.data.shnitsel_db_format import (
-    build_shnitsel_db,
-)
 from shnitsel.io.helpers import LoadingParameters, PathOptionsType
 
 # def open_frames(path):
@@ -274,6 +271,10 @@ def _parse_shnitsel_file_v1_1(
     Returns:
         xr.Dataset: The post-processed shnitsel trajectory
     """
+    from shnitsel.data.shnitsel_db_format import (
+        build_shnitsel_db,
+    )
+
     if not isinstance(frames, xr.Dataset) and not isinstance(frames, xr.DataTree):
         raise ValueError(
             "A version 1.1 shnitsel file can only contain xr.Dataset or xr.DataTree entries."
@@ -303,6 +304,10 @@ def _parse_shnitsel_file_v1_2(
     Returns:
         xr.DataTree: The post-processed shnitsel trajectory
     """
+    from shnitsel.data.shnitsel_db_format import (
+        build_shnitsel_db,
+    )
+
     if not isinstance(frames, xr.Dataset) and not isinstance(frames, xr.DataTree):
         raise ValueError(
             "A version 1.2 shnitsel file can only contain xr.Dataset or xr.DataTree entries."
