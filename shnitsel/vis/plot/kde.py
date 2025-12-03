@@ -4,10 +4,10 @@ import numpy as np
 from scipy import stats
 import matplotlib.pyplot as plt
 
-from shnitsel.core.convenience import pca_and_hops
+from shnitsel.analyze.pca import pca_and_hops
 from shnitsel.geo.geom import distance, angle, dihedral
-from shnitsel.core.plot import pca_biplot as pb
-from shnitsel.core.plot.common import figax
+from . import pca_biplot as pb
+from .common import figax
 from shnitsel.bridges import to_mol
 
 
@@ -63,6 +63,7 @@ def plot_kdes(xx, yy, Zs, colors=None, levels=None, fill=True, fig=None, ax=None
         if fill:
             ax.contourf(xx, yy, Z, levels=levels, colors=c, alpha=0.1)
         ax.contour(xx, yy, Z, levels=levels, colors=c, linewidths=0.5)
+
 
 def biplot_kde(
     frames,

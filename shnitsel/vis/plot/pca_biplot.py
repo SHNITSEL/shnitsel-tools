@@ -10,7 +10,7 @@ from matplotlib.axes import Axes
 from scipy import stats
 
 from shnitsel.analyze.generic import norm, subtract_combinations
-from shnitsel.core.ml import pca
+from shnitsel.analyze.pca import pca
 
 from .common import figax, extrude, mpl_imshow_png
 from ...rd import highlight_pairs
