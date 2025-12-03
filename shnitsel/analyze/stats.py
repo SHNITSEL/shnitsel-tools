@@ -9,6 +9,8 @@ import xarray as xr
 
 from shnitsel.__api_info import internal
 from shnitsel.io.shared.trajectory_setup import get_statecomb_coordinate
+from shnitsel.units.definitions import energy
+from shnitsel.units.conversion import convert_energy
 
 from .generic import keep_norming, subtract_combinations as subtract_combinations
 from .spectra import assign_fosc
@@ -211,4 +213,7 @@ def get_inter_state(frames: Frames) -> InterState:
     if {'energy_interstate', 'dip_trans'}.issubset(frames.variables.keys()):
         inter_state = assign_fosc(inter_state)
 
+    inter_state['energy_interstate'] = convert_energy(
+        inter_state['energy_interstate'], to=energy.eV
+    )
     return inter_state
