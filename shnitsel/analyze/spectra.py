@@ -5,6 +5,7 @@ from typing import Iterable
 import numpy as np
 import xarray as xr
 
+from shnitsel.__api_info import internal
 from shnitsel.units.definitions import energy, dipole
 
 from shnitsel.core.typedefs import InterState, DimName, SpectraDictType
@@ -16,6 +17,7 @@ from ..units import convert_energy, convert_dipole
 import ase.units as si
 
 
+@internal()
 def _get_fosc(
     energy_interstate: xr.DataArray, dip_trans_norm: xr.DataArray
 ) -> xr.DataArray:
@@ -101,11 +103,11 @@ def assign_fosc(ds: xr.Dataset) -> xr.Dataset:
 
 @needs(data_vars={'energy', 'fosc'})
 def broaden_gauss(
-    E: xr.DataArray,
+    delta_E: xr.DataArray,
     fosc: xr.DataArray,
     agg_dim: DimName = 'frame',
     *,
-    width: float = 0.5,  # in eV
+    width_in_eV: float = 0.5,  # in eV
     nsamples: int = 1000,
     xmin: float = 0,
     xmax: float | None = None,
@@ -117,16 +119,15 @@ def broaden_gauss(
 
     Parameters
     ----------
-    E
+    delta_E
         values used for the x-axis, presumably $E_i$
     fosc
         values used for the y-axis, presumably $f_\mathrm{osc}$
     agg_dim, optional
         dimension along which to aggregate the many Gaussian distributions,
         by default 'frame'
-    width, optional
-        the width (i.e. 2 standard deviations) of the Gaussian distributions
-        used, by default 0.001
+    width_in_eV, optional
+        the width of the Gaussian distributions used, by default 0.5 eV
     nsamples, optional
         number of evenly spaced x-values over which to sample the distribution,
         by default 1000
@@ -134,32 +135,36 @@ def broaden_gauss(
         the maximum x-value, by default 3 standard deviations
         beyond the pre-broadened maximum
     """
-    assert agg_dim in E.sizes, (
+    assert agg_dim in delta_E.sizes, (
         f"E does not have required dimension {agg_dim} for aggregation"
     )
 
     # TODO: FIXME: Should this remain as-is?
-    stdev = width / 2
+    stdev_in_eV = width_in_eV / 2
 
-    E_eV = convert_energy(E, to=energy.eV)
+    delta_E_eV = convert_energy(delta_E, to=energy.eV)
 
-    def g(x):
-        nonlocal stdev
-        return 1 / (np.sqrt(2 * np.pi) * stdev) * np.exp(-(x**2) / (2 * stdev**2))
+    def gaussian_filter(x):
+        nonlocal stdev_in_eV
+        return (
+            1
+            / (np.sqrt(2 * np.pi) * stdev_in_eV)
+            * np.exp(-(x**2) / (2 * stdev_in_eV**2))
+        )
 
-    xname = getattr(E_eV, 'name', 'energy') or 'xdim'
+    xname = getattr(delta_E_eV, 'name', 'energy') or 'xdim'
     yname = getattr(fosc, 'name', 'fosc') or 'ydim'
 
     if xmax is None:
         # TODO: FIXME: The calculation does not fit the statement of the comment above it. Is stdev relative?
         # broadening could visibly overshoot the former maximum by 3 standard deviations
-        xmax = E_eV.max().item() * (1 + 1.5 * width)
+        xmax = delta_E_eV.max().item() + 3 * stdev_in_eV
 
         assert xmax is not None, "Could not calculate maximum of the provided energy"
 
     xs = np.linspace(0, xmax, num=nsamples)
-    Espace = xr.DataArray(xs, dims=[xname], attrs=E_eV.attrs)
-    res: xr.DataArray = (g(Espace - E_eV) * fosc).mean(dim=agg_dim)
+    Espace = xr.DataArray(xs, dims=[xname], attrs=delta_E_eV.attrs)
+    res: xr.DataArray = (gaussian_filter(Espace - delta_E_eV) * fosc).mean(dim=agg_dim)
     # print(res)
     res.name = yname
     res.attrs = fosc.attrs
@@ -169,12 +174,33 @@ def broaden_gauss(
     return res.assign_coords({xname: Espace})
 
 
-@needs(data_vars={'energy', 'fosc'})
+@needs(data_vars={'energy_interstate', 'fosc'})
 def ds_broaden_gauss(
-    ds: xr.Dataset, width: float = 0.5, nsamples: int = 1000, xmax: float | None = None
+    interstate: InterState,
+    width_in_eV: float = 0.5,
+    nsamples: int = 1000,
+    xmax: float | None = None,
 ) -> xr.DataArray:
+    """Function to Get the broadened spectrum of the interstate energy and oscillator strength data to plot
+    a nice and smooth spectrum.
+
+    Width of the smoothing kernel is given in eV and the energy is assumed to be in eV or will be converted to eV.
+
+    Args:
+        interstate (InterState): Interstate dataset with `energy_interstate` and `fosc` information.
+        width_in_eV (float, optional): Width of the gaussian smoothing kernel in eV. Defaults to 0.5 eV.
+        nsamples (int, optional): Number of samples/steps in the range of the energy spectrum. Defaults to 1000.
+        xmax (float | None, optional): Maximum of the energy range to consider for the spectrum. Defaults to None.
+
+    Returns:
+        xr.DataArray: Resulting broadened spectrum statistics.
+    """
     return broaden_gauss(
-        ds['energy'], ds['fosc'], width=width, nsamples=nsamples, xmax=None
+        interstate['energy_interstate'],
+        interstate['fosc'],
+        width_in_eV=width_in_eV,
+        nsamples=nsamples,
+        xmax=xmax,
     )
 
 
@@ -236,7 +262,7 @@ def calc_spectra(
     times: Iterable[float] | None = None,
     rel_cutoff: float = 0.01,
 ) -> SpectraDictType:
-    """Function to
+    """Function to calculate spectra
 
     Args:
         interstate (InterState): An InterState transformed Dataset.
