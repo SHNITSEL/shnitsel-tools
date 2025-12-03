@@ -14,6 +14,7 @@ import shnitsel
 from shnitsel.analyze.populations import calc_classical_populations
 import shnitsel.bridges
 from shnitsel.analyze import stats
+from shnitsel.core.typedefs import InterState, PerState, SpectraDictType
 from shnitsel.data.trajectory_format import Trajectory
 
 try:
@@ -167,7 +168,7 @@ class DatasheetPage:
         self.inchi = old.inchi
 
     @cached_property
-    def per_state(self):
+    def per_state(self) -> PerState:
         start = timer()
         per_state = stats.get_per_state(self.frames)
         per_state['_color'] = 'state', self.col_state
@@ -176,7 +177,7 @@ class DatasheetPage:
         return per_state
 
     @cached_property
-    def inter_state(self):
+    def inter_state(self) -> InterState:
         start = timer()
         inter_state = stats.get_inter_state(self.frames)
         inter_state['_color'] = 'statecomb', self.col_inter
@@ -204,7 +205,7 @@ class DatasheetPage:
         return inter_state
 
     @cached_property
-    def pops(self):
+    def pops(self) -> xr.DataArray:
         start = timer()
         pops = calc_classical_populations(self.frames)
         pops['_color'] = 'state', self.col_state
@@ -213,7 +214,7 @@ class DatasheetPage:
         return pops
 
     @cached_property
-    def delta_E(self):
+    def delta_E(self) -> xr.Dataset:
         start = timer()
         res = stats.time_grouped_confidence_interval(
             self.inter_state['energy_interstate']
@@ -225,7 +226,7 @@ class DatasheetPage:
         return res
 
     @cached_property
-    def fosc_time(self):
+    def fosc_time(self) -> xr.Dataset | None:
         start = timer()
         if 'fosc' in self.inter_state:
             res = stats.time_grouped_confidence_interval(self.inter_state['fosc'])
@@ -238,7 +239,7 @@ class DatasheetPage:
         return res
 
     @cached_property
-    def spectra(self):
+    def spectra(self) -> SpectraDictType:
         start = timer()
         res = calc_spectra(self.inter_state, times=self.spectra_times)
         end = timer()
@@ -246,7 +247,12 @@ class DatasheetPage:
         return res
 
     @cached_property
-    def spectra_groups(self):
+    def spectra_groups(
+        self,
+    ) -> tuple[
+        SpectraDictType,
+        SpectraDictType,
+    ]:
         start = timer()
         res = get_spectra_groups(self.spectra)
         end = timer()
@@ -254,11 +260,11 @@ class DatasheetPage:
         return res
 
     @cached_property
-    def spectra_ground(self):
+    def spectra_ground(self) -> SpectraDictType:
         return self.spectra_groups[0]
 
     @cached_property
-    def spectra_excited(self):
+    def spectra_excited(self) -> SpectraDictType:
         return self.spectra_groups[1]
 
     @cached_property
@@ -366,7 +372,17 @@ class DatasheetPage:
         self.smiles
         self.inchi
 
-    def plot_per_state_histograms(self, fig: Figure | SubFigure | None = None) -> Axes:
+    def plot_per_state_histograms(
+        self, fig: Figure | SubFigure | None = None
+    ) -> dict[str, Axes]:
+        """Plot histograms of forces, energies and permanent dipoles for each selected state.
+
+        Args:
+            fig (Figure | SubFigure | None, optional): Figure to plot the graphs to. Defaults to None.
+
+        Returns:
+            Axes: _description_
+        """
         start = timer()
         res = plot_per_state_histograms(
             per_state=self.per_state,
@@ -376,7 +392,7 @@ class DatasheetPage:
         info(f"finished plot_per_state_histograms in {end - start} s")
         return res
 
-    def plot_timeplots(self, fig: Figure | SubFigure | None = None) -> Axes:
+    def plot_timeplots(self, fig: Figure | SubFigure | None = None) -> dict[str, Axes]:
         """Create the Time plots of populations and energy level errors of each state for this DataSheetPage.
 
         Args:
@@ -398,7 +414,7 @@ class DatasheetPage:
 
     def plot_separated_spectra_and_hists(
         self, fig: Figure | SubFigure | None = None
-    ) -> Axes:
+    ) -> dict[str, Axes]:
         start = timer()
         res = plot_separated_spectra_and_hists(
             inter_state=self.inter_state,
@@ -411,11 +427,11 @@ class DatasheetPage:
 
     def plot_separated_spectra_and_hists_groundstate(
         self, fig: Figure | SubFigure | None = None, scmap=plt.get_cmap('turbo')
-    ) -> Axes:
+    ) -> dict[str, Axes]:
         start = timer()
         res = plot_separated_spectra_and_hists_groundstate(
             inter_state=self.inter_state,
-            sgroups=self.spectra_groups,
+            spectra_groups=self.spectra_groups,
             fig=fig,
             scmap=scmap,
         )
@@ -425,7 +441,9 @@ class DatasheetPage:
         )
         return res
 
-    def plot_nacs_histograms(self, fig: Figure | SubFigure | None = None) -> dict[str,Axes]:
+    def plot_nacs_histograms(
+        self, fig: Figure | SubFigure | None = None
+    ) -> dict[str, Axes]:
         start = timer()
         res = plot_nacs_histograms(self.inter_state, self.hops.frame, fig=fig)
         end = timer()
