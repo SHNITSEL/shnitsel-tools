@@ -5,7 +5,7 @@ import numpy as np
 from shnitsel.core.typedefs import PerState
 
 from .common import figaxs_defaults, centertext, symbols
-from .hist import truncate
+from .hist import truncate_from_above
 
 
 @figaxs_defaults(mosaic=[['energy', 'forces', 'dip_perm']], scale_factors=(1, 1 / 5))
@@ -34,7 +34,7 @@ def plot_per_state_histograms(
         for state, data in per_state.groupby('state'):
             c = data['_color'].item()
             counts, edges, _ = ax.hist(
-                truncate(data[quantity].squeeze(), bins=100),
+                truncate_from_above(data[quantity].squeeze().values, bins=100),
                 color=c,
                 alpha=0.2,
                 bins=100,
