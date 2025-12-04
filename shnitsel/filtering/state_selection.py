@@ -821,3 +821,5 @@ class StateSelection:
         for comb in self.state_combinations:
             name = self.get_state_combination_name_or_default(comb)
             yield StateCombInfo(comb, name)
+
+    # TODO: FIXME: Add print output __str__, __html__ and __repr__
