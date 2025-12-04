@@ -1,4 +1,4 @@
-from typing import Hashable, TypeAlias, TypeVar
+from typing import Hashable, Literal, NamedTuple, TypeAlias, TypeVar
 import xarray as xr
 
 # For general analysis and data passing
@@ -16,3 +16,23 @@ Stacked: TypeAlias = xr.Dataset | xr.DataArray
 Unstacked: TypeAlias = xr.Dataset | xr.DataArray
 
 DatasetOrArray = TypeVar("DatasetOrArray", bound=xr.Dataset | xr.DataArray)
+
+# Types for selecting and managing states and state combinations
+StateId: TypeAlias = int
+StateCombination: TypeAlias = tuple[StateId, StateId]
+
+MultiplicityLabel: TypeAlias = Literal[
+    's', 'S', 'singlet', 'd', 'D', 'doublet', 't', 'T', 'triplet'
+]
+
+
+class StateInfo(NamedTuple):
+    id: StateId
+    name: str
+    multiplicity: int | None
+    charge: int | None
+
+
+class StateCombInfo(NamedTuple):
+    ids: StateCombination
+    name: str

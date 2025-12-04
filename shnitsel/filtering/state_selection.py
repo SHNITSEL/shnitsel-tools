@@ -1,22 +1,22 @@
 from dataclasses import dataclass
 from itertools import combinations
 import logging
-from typing import Iterable, Self, Sequence, TypeAlias, Literal
+from typing import Iterable, Self, Sequence, Literal
 
 import numpy as np
 import xarray as xr
-
-StateId: TypeAlias = int
-StateCombination: TypeAlias = tuple[StateId, StateId]
-
-MultiplicityLabel: TypeAlias = Literal[
-    's', 'S', 'singlet', 'd', 'D', 'doublet', 't', 'T', 'triplet'
-]
+from ..core.typedefs import (
+    StateCombination,
+    StateId,
+    StateInfo,
+    StateCombInfo,
+    MultiplicityLabel,
+)
 
 
 @dataclass
 class StateSelection:
-    """Class to keep track of a (sub-)selection of states and state transitions"""
+    """Class to keep track of a (sub-)selection of states and state transitions for analysis and plotting."""
 
     states: Sequence[StateId]
     state_types: dict[StateId, int] | None
@@ -754,3 +754,70 @@ class StateSelection:
                 new_state_combs.append(comb)
 
         return self.copy_or_update(state_combinations=new_state_combs, inplace=inplace)
+
+    def state_info(self) -> Iterable[StateInfo]:
+        """Get an iterator over the states in this selection.
+
+        Returns:
+            Iterable[StateInfo]: An iterator over the available state info
+        """
+
+        for id in self.states:
+            if self.state_charges:
+                charge = self.state_charges[id] if id in self.state_charges else None
+            else:
+                charge = None
+
+            name = self.get_state_name_or_default(id)
+
+            if self.state_types:
+                multiplicity = self.state_types[id] if id in self.state_types else None
+            else:
+                multiplicity = None
+
+            yield StateInfo(id, name, multiplicity, charge)
+
+    def get_state_name_or_default(self, id: StateId) -> str:
+        """Helper method to either get registered state name or a default string to identify the state
+
+        Args:
+            id (StateId): Id of the state to get the name for.
+
+        Returns:
+            str: Label of the state
+        """
+        if self.state_names:
+            if id in self.state_names:
+                return self.state_names[id]
+
+        return f"state{id-1}"
+
+    def get_state_combination_name_or_default(self, comb: StateCombination) -> str:
+        """Helper method to either get registered state combination name or a default string to identify the state combination.
+
+        Args:
+            comb (StateCombination): Id of the state combination to get the name for.
+
+        Returns:
+            str: Label of the state combination
+        """
+        if self.state_combination_names:
+            if comb in self.state_combination_names:
+                return self.state_combination_names[comb]
+
+        first, second = comb
+
+        s1 = self.get_state_name_or_default(first)
+        s2 = self.get_state_name_or_default(second)
+        return f"{s1} - {s2}"
+
+    def combination_info(self) -> Iterable[StateCombInfo]:
+        """Get an iterator over the state combinations in this selection.
+
+        Returns:
+            Iterable[StateCombInfo]: An iterator over the available state combination info
+        """
+
+        for comb in self.state_combinations:
+            name = self.get_state_combination_name_or_default(comb)
+            yield StateCombInfo(comb, name)
