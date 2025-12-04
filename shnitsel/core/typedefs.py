@@ -11,4 +11,8 @@ PerState: TypeAlias = xr.Dataset
 # For spectra calculation
 SpectraDictType: TypeAlias = dict[tuple[float, tuple[int, int]], xr.DataArray]
 
+# Types for stacked and unstacked trajectories
+Stacked: TypeAlias = xr.Dataset | xr.DataArray
+Unstacked: TypeAlias = xr.Dataset | xr.DataArray
+
 DatasetOrArray = TypeVar("DatasetOrArray", bound=xr.Dataset | xr.DataArray)
