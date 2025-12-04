@@ -26,6 +26,72 @@ class StateSelection:
     state_combinations: list[StateCombination]
     state_combination_names: dict[StateCombination, str] | None
 
+    def copy_or_update(
+        self,
+        states: Sequence[StateId] | None = None,
+        state_types: dict[StateId, int] | None = None,
+        state_names: dict[StateId, str] | None = None,
+        state_charges: dict[StateId, int] | None = None,
+        state_combinations: list[StateCombination] | None = None,
+        state_combination_names: dict[StateCombination, str] | None = None,
+        inplace: bool = False,
+    ) -> Self:
+        """Function to create a copy with replaced member values.
+
+        Meant as a helper for the `Frozen` logic of the selection, i.e. method calls return a new instance
+        instead of updating the existing instance.
+
+        Args:
+            states (Sequence[StateId] | None, optional): Potentially new state ids. Defaults to None.
+            state_types (dict[StateId, int] | None, optional): Potentially new state types/multiplicities. Defaults to None.
+            state_names (dict[StateId, str] | None, optional): Potentially new state names. Defaults to None.
+            state_charges (dict[StateId, int] | None, optional): Potentially new state charges. Defaults to None.
+            state_combinations (list[StateCombination] | None, optional): Potentially new state combinations. Defaults to None.
+            state_combination_names (dict[StateCombination, str] | None, optional): Potentially new names for state combinations. Defaults to None.
+            inplace (bool, optional): A flag whether the existing instance should be updated or a new one should be created. Defaults to False, i.e. a new instance is created.
+
+        Returns:
+            StateSelection: The selection update with the new members set. Can either be a copy if `inplace=False` or the old instance with updated members otherwise.
+        """
+        if inplace:
+            # Update and create
+            if states:
+                self.states = states
+            if state_types:
+                self.state_types = state_types
+            if state_names:
+                self.state_names = state_names
+            if state_charges:
+                self.state_charges = state_charges
+            if state_combinations:
+                self.state_combinations = state_combinations
+            if state_combination_names:
+                self.state_combination_names = state_combination_names
+
+            return self
+        else:
+            if not states:
+                states = self.states
+            if not state_types:
+                state_types = self.state_types
+            if not state_names:
+                state_names = self.state_names
+            if not state_charges:
+                state_charges = self.state_charges
+            if not state_combinations:
+                state_combinations = self.state_combinations
+            if not state_combination_names:
+                state_combination_names = self.state_combination_names
+
+            return type(self)(
+                states=states,
+                state_types=state_types,
+                state_names=state_names,
+                state_charges=state_charges,
+                state_combinations=state_combinations,
+                state_combination_names=state_combination_names,
+            )
+
     @classmethod
     def init_from_dataset(cls: type[Self], dataset: xr.Dataset) -> Self:
         """Alternative constructor that creates an initial StateSelection object from a dataset using the entire state information in it.
@@ -42,9 +108,9 @@ class StateSelection:
         Returns:
             StateSelection: A state selection object initially covering all states (and state combinations) present in the dataset.
         """
-        assert 'state' in dataset.sizes, (
-            "No state information on the provided dataset. Cannot initialize state selection."
-        )
+        assert (
+            'state' in dataset.sizes
+        ), "No state information on the provided dataset. Cannot initialize state selection."
 
         if 'states' in dataset.coords:
             states = list(dataset.coords['states'].values)
@@ -156,17 +222,238 @@ class StateSelection:
     def filter_state_combinations(
         self,
         *,
-        ids: Iterable[StateCombination] | StateCombination | None = None,
+        ids: Iterable[StateCombination] | None = None,
         min_states_in_selection: Literal[0, 1, 2] = 0,
+        inplace: bool = True,
     ) -> Self:
         """Method to get a new state selection with a potentially reduced set of state combinations.
 
         Args:
-            ids (Iterable[StateCombination] | StateCombination | None, optional): Explicit state transitions ids to retain. Defaults to None.
-            min_states_in_selection (Literal[0, 1, 2], optional): Minimum number of states involved in the state combination that still need to be within the state selection to keep this combination. Defaults to 0.
+            ids (Iterable[StateCombination] | None, optional): Explicit state transitions ids to retain. Defaults to None.
+            min_states_in_selection (Literal[0, 1, 2], optional): Minimum number of states involved in the state combination that still need to be within the state selection to keep this combination. Defaults to 0, meaning no check will be performed.
 
         Returns:
             StateSelection: A new state selection with potentially fewer state combinations considered.
         """
-        # TODO: implement filtering
-        return self
+
+        new_state_combinations = self.state_combinations
+
+        if ids:
+            # Filter explicit states
+            next_state_combinations = []
+            for old_comb in new_state_combinations:
+                if old_comb in ids:
+                    next_state_combinations.append(old_comb)
+
+            new_state_combinations = next_state_combinations
+
+        if min_states_in_selection > 0:
+            # Check that there are sufficiently many states of the combination still in teh selection
+            retained_combs = []
+            for comb in new_state_combinations:
+                states = set(comb)
+                num_selected_states = len(states.intersection(self.states))
+
+                if num_selected_states >= min_states_in_selection:
+                    retained_combs.append(comb)
+
+            new_state_combinations = retained_combs
+
+        return self.copy_or_update(
+            state_combinations=new_state_combinations, inplace=inplace
+        )
+
+    def set_state_names(
+        self, names: Sequence[str] | dict[StateId, str], inplace: bool = True
+    ) -> Self:
+        """Helper function to assign new state names to the selection.
+
+        Will peform some sanity checks first.
+
+        Args:
+            names (Sequence[str] | dict[StateId, str]): Either a list of state names aligned with `self.states` ids or a dictionary mapping state ids to names.
+            inplace (bool, optional): Flag to determine whether this function should update the existing selection sequence or return a modified copy. Defaults to True, meaning the existing instance is updated.
+
+        Raises:
+            ValueError: If a Sequence is provided that does not have enough values
+            ValueError: If a dict is  provided that does not have mapping for all state ids in `self.states`
+
+        Returns:
+            Self: Either the existing selection with updated names or a new instance with modified names.
+        """
+        new_state_names = None
+        if isinstance(names, dict):
+            state_set = set(self.states)
+            if state_set.issubset(names.keys()):
+                new_state_names = names
+            else:
+                raise ValueError(
+                    f"Provided `names` dict does not have names assigned for all states. It is missing {state_set.difference(names.keys())}."
+                )
+        else:
+            num_names = len(names)
+            if num_names >= len(self.states):
+                new_state_names = {
+                    state_id: state_name
+                    for (state_id, state_name) in zip(self.states, names)
+                }
+            else:
+                raise ValueError(
+                    f"Provided `names` sequence does not have enough names for the states in this selection. Provided: {num_names}, Required: {len(self.states)}."
+                )
+        return self.copy_or_update(state_names=new_state_names, inplace=inplace)
+
+    def set_state_types(
+        self, types: Sequence[int] | dict[StateId, int], inplace: bool = True
+    ) -> Self:
+        """Helper function to assign new state types/multiplicites to the selection.
+
+        Will peform some sanity checks first.
+
+        Args:
+            types (Sequence[int] | dict[StateId, int]): Either a list of state types/multiplicities aligned with `self.states` ids or a dictionary mapping state ids to types.
+            inplace (bool, optional): Flag to determine whether this function should update the existing selection sequence or return a modified copy. Defaults to True, meaning the existing instance is updated.
+
+        Raises:
+            ValueError: If a Sequence is provided that does not have enough values
+            ValueError: If a dict is  provided that does not have mapping for all state ids in `self.states`
+
+        Returns:
+            Self: Either the existing selection with updated types or a new instance with modified types.
+        """
+        new_state_types = None
+        if isinstance(types, dict):
+            state_set = set(self.states)
+            if state_set.issubset(types.keys()):
+                new_state_types = types
+            else:
+                raise ValueError(
+                    f"Provided `types` dict does not have names assigned for all states. It is missing {state_set.difference(types.keys())}."
+                )
+        else:
+            num_values = len(types)
+            if num_values >= len(self.states):
+                new_state_types = {
+                    state_id: state_type
+                    for (state_id, state_type) in zip(self.states, types)
+                }
+            else:
+                raise ValueError(
+                    f"Provided `types` sequence does not have enough types for the states in this selection. Provided: {num_values}, Required: {len(self.states)}."
+                )
+        return self.copy_or_update(state_types=new_state_types, inplace=inplace)
+
+    def set_state_charges(
+        self, charges: int | Sequence[int] | dict[StateId, int], inplace: bool = True
+    ) -> Self:
+        """Helper function to assign new state charges to the selection.
+
+        Will peform some sanity checks first.
+
+        Args:
+            charges (int| Sequence[int] | dict[StateId, int]): Either a single charge for all states or a list of state charges aligned with `self.states` ids or a dictionary mapping state ids to charges.
+            inplace (bool, optional): Flag to determine whether this function should update the existing selection sequence or return a modified copy. Defaults to True, meaning the existing instance is updated.
+
+        Raises:
+            ValueError: If a Sequence is provided that does not have enough charges
+            ValueError: If a dict is provided that does not have mapping for all state ids in `self.states`
+
+        Returns:
+            Self: Either the existing selection with updated charges or a new instance with modified charges.
+        """
+        new_state_charges = None
+        if isinstance(charges, int):
+            new_state_charges = {state_id: charges for state_id in self.states}
+        elif isinstance(charges, dict):
+            state_set = set(self.states)
+            if state_set.issubset(charges.keys()):
+                new_state_charges = charges
+            else:
+                raise ValueError(
+                    f"Provided `charges` dict does not have names assigned for all states. It is missing {state_set.difference(charges.keys())}."
+                )
+        else:
+            num_values = len(charges)
+            if num_values >= len(self.states):
+                new_state_charges = {
+                    state_id: state_type
+                    for (state_id, state_type) in zip(self.states, charges)
+                }
+            else:
+                raise ValueError(
+                    f"Provided `charges` sequence does not have enough charges for the states in this selection. Provided: {num_values}, Required: {len(self.states)}."
+                )
+        return self.copy_or_update(state_charges=new_state_charges, inplace=inplace)
+
+    def set_state_combinations(
+        self, combinations: Sequence[StateCombination], inplace: bool = True
+    ) -> Self:
+        """Helper function to assign new state combinations to the selection.
+
+        Will peform some sanity checks first.
+
+        Args:
+            combinations (Sequence[StateCombination]): A list of state combination tuples to set to the selection
+            inplace (bool, optional): Flag to determine whether this function should update the existing selection or return a modified copy. Defaults to True, meaning the existing instance is updated.
+
+        Raises:
+            ValueError: If an entry in the combinations sequence has a non-positive state entry.
+
+        Returns:
+            Self: Either the existing selection with updated combinations or a new instance with modified combinations.
+        """
+        new_state_combinations = None
+
+        for first, second in combinations:
+            if first <= 0:
+                raise ValueError(f"State {first} from combinations must be positive")
+            if second <= 0:
+                raise ValueError(f"State {second} from combinations must be positive")
+
+        return self.copy_or_update(
+            state_combinations=new_state_combinations, inplace=inplace
+        )
+
+    def set_state_combination_names(
+        self, names: Sequence[str] | dict[StateCombination, str], inplace: bool = True
+    ) -> Self:
+        """Helper function to assign new state combination labels to the selection.
+
+        Will peform some sanity checks first.
+
+        Args:
+            names (Sequence[str] | dict[StateCombination, str]): Either a list of state combination names aligned with `self.state_combinations` or a dictionary mapping state combination ids to names.
+            inplace (bool, optional): Flag to determine whether this function should update the existing selection or return a modified copy. Defaults to True, meaning the existing instance is updated.
+
+        Raises:
+            ValueError: If a Sequence is provided that does not have enough values
+            ValueError: If a dict is  provided that does not have mapping for all state combination ids in `self.state_combinations`
+
+        Returns:
+            Self: Either the existing selection with updated names or a new instance with modified names.
+        """
+        new_state_combination_names = None
+        if isinstance(names, dict):
+            state_combinations_set = set(self.state_combinations)
+            if state_combinations_set.issubset(names.keys()):
+                new_state_combination_names = names
+            else:
+                raise ValueError(
+                    f"Provided `names` dict does not have names assigned for all state combinations. It is missing {state_combinations_set.difference(names.keys())}."
+                )
+        else:
+            num_names = len(names)
+            if num_names >= len(self.state_combinations):
+                new_state_combination_names = {
+                    state_comb_id: state_comb_name
+                    for (state_comb_id, state_comb_name) in zip(
+                        self.state_combinations, names
+                    )
+                }
+            else:
+                raise ValueError(
+                    f"Provided `names` sequence does not have enough names for the state combinations in this selection. Provided: {num_names}, Required: {len(self.state_combinations)}."
+                )
+        return self.copy_or_update(
+            state_combination_names=new_state_combination_names, inplace=inplace
+        )
