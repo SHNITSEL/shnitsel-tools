@@ -194,8 +194,12 @@ class StateSelection:
         | int
         | MultiplicityLabel
         | None = None,
-        exclude_multiplicity: Iterable[int] | int | None = None,
-        combinations_min_states_in_selection: Literal[0, 1, 2] = 0,
+        exclude_multiplicity: Iterable[int | MultiplicityLabel]
+        | int
+        | MultiplicityLabel
+        | None = None,
+        min_states_in_selection: Literal[0, 1, 2] = 0,
+        inplace: bool = False,
     ) -> Self:
         """
         Method to get a new state selection only retaining the states satisfying the required inclusion criteria and
@@ -210,14 +214,158 @@ class StateSelection:
             exclude_charge (Iterable[int] | int | None, optional): Charges of states to exclude. Defaults to None.
             multiplicity (Iterable[int] | int | None, optional): Multiplicity of states to retain. Defaults to None.
             exclude_multiplicity (Iterable[int] | int | None, optional): Multiplicity of states to exclude. Defaults to None.
-            combinations_min_states_in_selection (Literal[0, 1, 2], optional): Optional parameter to determine whether state combinations should be kept if states they include are no longer part of the selection.
-                A state combination is retained if at least `combinations_min_states_in_selection` of their states are still within the state selection. Defaults to 0, meaning all combinations are kept.
+            min_states_in_selection (Literal[0, 1, 2], optional): Optional parameter to determine whether state combinations should be kept if states they include are no longer part of the selection.
+                A state combination is retained if at least `min_states_in_selection` of their states are still within the state selection. Defaults to 0, meaning all combinations are kept.
+            inplace (bool, optional): Flag to update the selection in-place. Defaults to False, meaning a modified copy is returned.
 
         Returns:
             StateSelection: The resulting selection after applying all of the requested conditions.
         """
-        # TODO: implement filtering
-        return self
+        new_states = list(self.states)
+        if ids:
+            if isinstance(ids, StateId):
+                ids = [ids]
+            next_states = []
+            for old_state in new_states:
+                if old_state in ids:
+                    next_states.append(old_state)
+
+            new_states = next_states
+
+        if exclude_ids:
+            if isinstance(exclude_ids, StateId):
+                exclude_ids = [exclude_ids]
+
+            next_states = []
+            for old_state in new_states:
+                if old_state not in exclude_ids:
+                    next_states.append(old_state)
+
+            new_states = next_states
+
+        if charge:
+            if isinstance(charge, int):
+                charge = [charge]
+            if self.state_charges:
+                next_states = []
+
+                for old_state in new_states:
+                    if (
+                        old_state in self.state_charges
+                        and self.state_charges[old_state] in charge
+                    ):
+                        next_states.append(old_state)
+
+                new_states = next_states
+            else:
+                raise ValueError(
+                    "Requested filtering by charges but state charges are unknown. Please set the charges first."
+                )
+
+        if exclude_charge:
+            if isinstance(exclude_charge, int):
+                exclude_charge = [exclude_charge]
+            if self.state_charges:
+                next_states = []
+
+                for old_state in new_states:
+                    if (
+                        old_state not in self.state_charges
+                        or self.state_charges[old_state] not in exclude_charge
+                    ):
+                        next_states.append(old_state)
+
+                new_states = next_states
+            else:
+                raise ValueError(
+                    "Requested filtering by charges but state charges are unknown. Please set the charges first."
+                )
+
+        def mult_label_transl(multipl: Iterable[int | MultiplicityLabel]) -> set[int]:
+            """Function to translate potential string-based multiplicities to integers
+
+            Args:
+                multipl (Iterable[int | MultiplicityLabel]): List of multiplicities, either ints or string labels
+
+            Returns:
+                set[int]: A set representation of the numeric multiplicities
+            """
+            mult_translate = []
+            for mult in multipl:
+                if isinstance(mult, int):
+                    mult_translate.append(mult)
+
+                elif isinstance(mult, str):
+                    lower_label = mult.lower()
+                    if lower_label.startswith("s"):
+                        mult_translate.append(1)
+                    elif lower_label.startswith("d"):
+                        mult_translate.append(2)
+                    elif lower_label.startswith("t"):
+                        mult_translate.append(3)
+                    else:
+                        raise ValueError(
+                            f"Label `{mult}` is not a valid multiplicity label."
+                        )
+                else:
+                    raise ValueError(
+                        f"Invalid state type {mult} of object type {type(mult)}."
+                    )
+
+            res = set(mult_translate)
+            return res
+
+        if multiplicity:
+            if isinstance(multiplicity, int) or isinstance(multiplicity, str):
+                multiplicity = [multiplicity]
+
+            trans_mult = mult_label_transl(multiplicity)
+
+            if self.state_types:
+                next_states = []
+
+                for old_state in new_states:
+                    if (
+                        old_state in self.state_types
+                        and self.state_types[old_state] in trans_mult
+                    ):
+                        next_states.append(old_state)
+
+                new_states = next_states
+            else:
+                raise ValueError(
+                    "Requested filtering by multiplicities but state multiplicities are unknown. Please set the multiplicities/types first."
+                )
+
+        if exclude_multiplicity:
+            if isinstance(exclude_multiplicity, int) or isinstance(
+                exclude_multiplicity, str
+            ):
+                exclude_multiplicity = [exclude_multiplicity]
+
+            trans_mult_excl = mult_label_transl(exclude_multiplicity)
+
+            if self.state_types:
+                next_states = []
+
+                for old_state in new_states:
+                    if (
+                        old_state in self.state_types
+                        and self.state_types[old_state] not in trans_mult_excl
+                    ):
+                        next_states.append(old_state)
+
+                new_states = next_states
+            else:
+                raise ValueError(
+                    "Requested filtering by multiplicities but state multiplicities are unknown. Please set the multiplicities/types first."
+                )
+
+        return self.copy_or_update(
+            states=new_states, inplace=inplace
+        ).filter_state_combinations(
+            min_states_in_selection=min_states_in_selection, inplace=inplace
+        )
 
     def filter_state_combinations(
         self,
