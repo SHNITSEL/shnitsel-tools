@@ -67,6 +67,20 @@ class StateSelection:
                 self.state_combinations = state_combinations
             if state_combination_names:
                 self.state_combination_names = state_combination_names
+            elif state_names and state_combinations:
+                state_combination_names = {}
+                for comb in state_combinations:
+                    first, second = comb
+
+                    if first in state_names and second in state_names:
+                        state_combination_names[comb] = (
+                            f"{state_names[first]} - {state_names[second]}"
+                        )
+                    else:
+                        logging.warning(
+                            f"Could not assign name to state combination {comb} because of missing state names for {first} or {second}."
+                        )
+                self.state_combination_names = state_combination_names
 
             return self
         else:
@@ -82,6 +96,19 @@ class StateSelection:
                 state_combinations = self.state_combinations
             if not state_combination_names:
                 state_combination_names = self.state_combination_names
+            elif state_names and state_combinations:
+                state_combination_names = {}
+                for comb in state_combinations:
+                    first, second = comb
+
+                    if first in state_names and second in state_names:
+                        state_combination_names[comb] = (
+                            f"{state_names[first]} - {state_names[second]}"
+                        )
+                    else:
+                        logging.warning(
+                            f"Could not assign name to state combination {comb} because of missing state names for {first} or {second}."
+                        )
 
             return type(self)(
                 states=states,
@@ -605,3 +632,125 @@ class StateSelection:
         return self.copy_or_update(
             state_combination_names=new_state_combination_names, inplace=inplace
         )
+
+    def singlets_only(self, inplace: bool = False) -> Self:
+        """Helper function to immediately filter only singlet states. Does not affect state combinations.
+
+        Args:
+            inplace (bool, optional): Flag whether the operation should update the selection in-place. Defaults to False.
+
+        Returns:
+            StateSelection: the updated selection only containing singlet states.
+        """
+        return self.filter_states(multiplicity=1, inplace=inplace)
+
+    def triplets_only(self, inplace: bool = False) -> Self:
+        """Helper function to immediately filter only triplet states. Does not affect state combinations.
+
+        Args:
+            inplace (bool, optional): Flag whether the operation should update the selection in-place. Defaults to False.
+
+        Returns:
+            StateSelection: the updated selection only containing triplet states.
+        """
+        return self.filter_states(multiplicity=1, inplace=inplace)
+
+    def same_multiplicity_transitions(self, inplace: bool = False) -> Self:
+        """Helper function to only retain combinations between states of the same multiplicities (e.g. for NACs)
+
+        Args:
+            inplace (bool, optional): Flag whether the operation should update the selection in-place. Defaults to False.
+
+        Returns:
+            StateSelection: the updated selection only containing transitions between states of same multiplicity (i.e. singlet-singlet, triplet-tiplet).
+        """
+
+        if not self.state_types:
+            raise ValueError(
+                "Cannot filter transitions by state multiplicity without multiplicities/types being set."
+            )
+
+        new_state_combs = []
+        for comb in self.state_combinations:
+            first, second = comb
+
+            if first in self.state_types and second in self.state_types:
+                if self.state_types[first] == self.state_types[second]:
+                    new_state_combs.append((first, second))
+
+        return self.copy_or_update(state_combinations=new_state_combs, inplace=inplace)
+
+    def different_multiplicity_transitions(self, inplace: bool = False) -> Self:
+        """Helper function to only retain combinations between states of the different multiplicities (e.g. for SOCs)
+
+        Args:
+            inplace (bool, optional): Flag whether the operation should update the selection in-place. Defaults to False.
+
+        Returns:
+            StateSelection: the updated selection only containing transitions between states of different multiplicity (i.e. singlet-triplet).
+        """
+
+        if not self.state_types:
+            raise ValueError(
+                "Cannot filter transitions by state multiplicity without multiplicities/types being set."
+            )
+
+        new_state_combs = []
+        for comb in self.state_combinations:
+            first, second = comb
+
+            if first in self.state_types and second in self.state_types:
+                if self.state_types[first] != self.state_types[second]:
+                    new_state_combs.append((first, second))
+
+        return self.copy_or_update(state_combinations=new_state_combs, inplace=inplace)
+
+    def ground_state_transitions(
+        self, ground_state_id: StateId | None = None, inplace: bool = False
+    ) -> Self:
+        """Helper function to only retain combinations between states containing the lowest-level state id.
+
+        Args:
+            ground_state_id (StateId, optional): Id of the state to be considered the ground state. Defaults to the lowest id of the selected states.
+            inplace (bool, optional): Flag whether the operation should update the selection in-place. Defaults to False.
+
+        Returns:
+            StateSelection: the updated selection only containing transitions between ground state and other states.
+        """
+
+        if ground_state_id is None:
+            ground_state_id = np.min(self.states)
+
+        new_state_combs = []
+        for comb in self.state_combinations:
+            first, second = comb
+
+            if first == ground_state_id or second == ground_state_id:
+                new_state_combs.append(comb)
+
+        return self.copy_or_update(state_combinations=new_state_combs, inplace=inplace)
+
+    def excited_state_transitions(
+        self, ground_state_id: StateId | None = None, inplace: bool = False
+    ) -> Self:
+        """Helper function to only retain combinations between states not involving the ground state.
+
+        Args:
+            ground_state_id (StateId, optional): Id of the state to be considered the ground state. Defaults to the lowest id of the selected states.
+            inplace (bool, optional): Flag whether the operation should update the selection in-place. Defaults to False.
+
+        Returns:
+            StateSelection: the updated selection only containing transitions between non-ground states.
+        """
+
+        if ground_state_id is None:
+            ground_state_id = np.min(self.states)
+
+        new_state_combs = []
+        for comb in self.state_combinations:
+            first, second = comb
+
+            if first != ground_state_id and second != ground_state_id:
+                new_state_combs.append(comb)
+
+        return self.copy_or_update(state_combinations=new_state_combs, inplace=inplace)
