@@ -16,8 +16,9 @@ from shnitsel.io.shared.helpers import (
 from shnitsel.data.atom_helpers import get_atom_number_from_symbol
 from shnitsel.io.sharc.qm_helpers import (
     INTERFACE_READERS,
-    set_sharc_state_type_and_name_defaults,
 )
+from shnitsel.data.state_helpers import set_sharc_state_type_and_name_defaults
+
 from shnitsel.io.shared.trajectory_setup import (
     OptionalTrajectorySettings,
     RequiredTrajectorySettings,
