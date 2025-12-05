@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 import datetime
 from os import PathLike
 import numpy as np
@@ -5,6 +6,8 @@ from timeit import default_timer as timer
 from matplotlib.backends.backend_pdf import PdfPages
 
 from matplotlib.figure import Figure
+
+from shnitsel.filtering.state_selection import StateSelection
 
 from .datasheet_page import DatasheetPage
 from ...data.shnitsel_db.db_function_decorator import concat_subtree
@@ -25,6 +28,7 @@ except ImportError:
 _Datasheet_default_page_key = "root"
 
 
+@dataclass
 class Datasheet:
     """Class to generate overview plots for a collection of trajectories.
 
@@ -38,13 +42,15 @@ class Datasheet:
     - timeplots: Plot of the active states over time.
     """
 
+    data_source: ShnitselDB | Trajectory
     name: str | None = None
     datasheet_pages: dict[str, DatasheetPage] = {}
-    data_source: ShnitselDB | Trajectory
 
     def __init__(
         self,
         data: Trajectory | ShnitselDB | str | PathLike | Self,
+        state_selection: StateSelection | None = None,
+        feature_selection: None = None,
         *,
         name: str | None = None,
         spectra_times: list[int | float] | np.ndarray | None = None,
@@ -62,10 +68,15 @@ class Datasheet:
                 Trajectory object or as a collection of Trajectory objects contained in a ShnitselDB instance.
                 Alternatively, a path can be provided from which the data can be loaded via the shnitsel.io.read() function.
                 As a last option, another Datasheet instance can be provided and this new instance will be a copy of the other Datasheet.
+            # TODO: FIXME: Deal with hierarchical state and feature selection for a full shnitsel-DB.
+            state_selection (StateSelection, optional): Optional parameter to specify a subset of states and state combinations that may be considered for the dataset.
+                Will be generated if not provided.
+            # TODO: FIXME: Add feature selection option
+            feature_selection (optional): Optional parameter to limit the PCA plot and analysis to a specific subset of the structure. Will be generated if not provided.
             name (str, optional): The name of this Datasheet. Will be used as a title for output files if set.
-            spectra_times (list[int  |  float] | np.ndarray | None, optional): _description_. Defaults to None.
-            col_state (list | None, optional): _description_. Defaults to None.
-            col_inter (list | None, optional): _description_. Defaults to None.
+            spectra_times (list[int  |  float] | np.ndarray | None, optional): Sequence of times to calculate spectra at. Defaults to None.
+            col_state (list | None, optional): A list of colors to use for the states. Defaults to default shnitsel colors.
+            col_inter (list | None, optional): A list of colors to use for state combinations. Defaults to default shnitsel colors.
 
         Raises:
             TypeError: If the provided (or read) data is not of Trajectory or ShnitselDB format.
@@ -91,18 +102,20 @@ class Datasheet:
                 # TODO: FIXME: Still need to deal with the appropriate grouping of ShnitselDB entries.
 
                 grouped_data = group_subtree_by_metadata(base_data)
-                assert (
-                    grouped_data is not None and isinstance(grouped_data, ShnitselDB)
-                ), "Grouping of the provided ShnitselDB did not yield any result. Please make sure your database is well formed and contains data."
+                assert grouped_data is not None and isinstance(
+                    grouped_data, ShnitselDB
+                ), (
+                    "Grouping of the provided ShnitselDB did not yield any result. Please make sure your database is well formed and contains data."
+                )
 
                 tree_res_concat = aggregate_xr_over_levels(
                     grouped_data,
                     lambda x: concat_subtree(x, True),
                     "group",
                 )
-                assert (
-                    tree_res_concat is not None
-                ), "Aggregation of ShnitselDB yielded None. Please provide a database with data."
+                assert tree_res_concat is not None, (
+                    "Aggregation of ShnitselDB yielded None. Please provide a database with data."
+                )
 
                 datasheet_groups: list[tuple[str, Trajectory]] = (
                     get_trajectories_with_path(tree_res_concat)

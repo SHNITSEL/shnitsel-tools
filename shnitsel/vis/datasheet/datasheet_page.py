@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from functools import cached_property
 from matplotlib.axes import Axes
 import xarray as xr
@@ -14,8 +15,9 @@ import shnitsel
 from shnitsel.analyze.populations import calc_classical_populations
 import shnitsel.bridges
 from shnitsel.analyze import stats
-from shnitsel.core.typedefs import InterState, PerState, SpectraDictType
+from shnitsel.core.typedefs import AtXYZ, InterState, PerState, SpectraDictType
 from shnitsel.data.trajectory_format import Trajectory
+from shnitsel.filtering.state_selection import StateSelection
 
 try:
     from typing import Self
@@ -36,15 +38,52 @@ from ..plot.pca_biplot import plot_noodleplot
 from .figures.structure import plot_structure
 
 
+@dataclass
 class DatasheetPage:
+    """Class encapsulating the data generation and plotting of a single page of a datasheet.
+
+    Involves plotting of inter-state graphs like spectra, statistics of energy deltas and transitional dipoles,
+    histograms of per-state and inter-state properties, etc.
+    """
+
+    state_selection: StateSelection | None = None
+    feature_selection: None = None
+    spectra_times: list[int | float] | np.ndarray | None = None
+    charge: int = 0
+    structure_skeletal: bool = False
+    name: str = ''
+
     def __init__(
         self,
         data: Trajectory | Self,
+        state_selection: StateSelection | None = None,
+        feature_selection: None = None,
         *,
         spectra_times: list[int | float] | np.ndarray | None = None,
         col_state: list | None = None,
         col_inter: list | None = None,
     ):
+        """Create a new DataSheet page, initializating the data of the class and preparing the plotting later on
+
+        Args:
+            data (Trajectory | Self): Either a Shnitsel Trajectory data object from which to generate the statistical information visualized in this DataSheet page
+                or another DataSheetPage that should be copied.
+            state_selection (StateSelection, optional): Optional parameter to specify a subset of states and state combinations that may be considered for the dataset.
+                Will be generated if not provided.
+            # TODO: FIXME: Add feature selection option
+            feature_selection (optional): Optional parameter to limit the PCA plot and analysis to a specific subset of the structure. Will be generated if not provided.
+            spectra_times (list[int  |  float] | np.ndarray | None, optional): Sequence of times to calculate spectra at. Defaults to None.
+            col_state (list | None, optional): A list of colors to use for the states. Defaults to default shnitsel colors.
+            col_inter (list | None, optional): A list of colors to use for state combinations. Defaults to default shnitsel colors.
+
+        Raises:
+            TypeError: If wrong type of `data` parameter is provided.
+            ValueError: If the wrong number of colors for the states is provided.
+            ValueError: If the wrong number of colors for state transitions is provided.
+
+        Returns:
+            DatasheetPage: The constructed (or copied) DataSheetPage
+        """
         if isinstance(data, DatasheetPage):
             self._copy_data(old=data)
             return
@@ -64,6 +103,18 @@ class DatasheetPage:
             self.spectra_times = [max_time * i / 40 for i in range(5)]
             self.spectra_times += [max_time * i / 20 for i in range(5)]
             self.spectra_times += [max_time * i / 3 for i in range(4)]
+
+        # Initialize state selection or use provided selection
+        if state_selection is not None:
+            self.state_selection = state_selection
+        else:
+            self.state_selection = StateSelection.init_from_dataset(self.frames)
+
+        # Initialize feature selection or use provided selection
+        if feature_selection is not None:
+            self.feature_selection = feature_selection
+        else:
+            self.feature_selection = None
 
         # print(self.frames)
 
@@ -138,13 +189,15 @@ class DatasheetPage:
 
         return None
 
-    spectra_times: list[int | float] | np.ndarray | None
-    charge: int = 0
-    structure_skeletal: bool = False
-    name: str = ''
-
     def _copy_data(self, old: Self):
+        """Copy data from the other DataSheetPage into this entity's fields.
+
+        Args:
+            old (Self): The DataSheet to create a copy of.
+        """
         self.spectra_times = old.spectra_times
+        self.state_selection = old.state_selection
+        self.feature_selection = old.feature_selection
         self.col_state = old.col_state
         self.col_inter = old.col_inter
         self.name = old.name
@@ -169,6 +222,11 @@ class DatasheetPage:
 
     @cached_property
     def per_state(self) -> PerState:
+        """Get per-state data for the underlying dataset and cache it for repeated use.
+
+        Returns:
+            PerState: Per-state data of the self.frames object. (Energies, permanent dipoles)
+        """
         start = timer()
         per_state = stats.get_per_state(self.frames)
         per_state['_color'] = 'state', self.col_state
@@ -178,7 +236,13 @@ class DatasheetPage:
 
     @cached_property
     def inter_state(self) -> InterState:
+        """Inter-state (state-transition) data of the underlying self.frames object
+
+        Returns:
+            InterState: Inter-state properties of the underlying data. (delta_energies, transition dipoles, SOCs, NACs, fosc)
+        """
         start = timer()
+        # TODO: FIXME: Use state selection for limit on which to calculate
         inter_state = stats.get_inter_state(self.frames)
         inter_state['_color'] = 'statecomb', self.col_inter
 
@@ -206,7 +270,13 @@ class DatasheetPage:
 
     @cached_property
     def pops(self) -> xr.DataArray:
+        """Population data for the underlying self.frames
+
+        Returns:
+            xr.DataArray: Population data encapsulated in a dataset.
+        """
         start = timer()
+        # TODO: FIXME: Use state selection for limit on which to calculate
         pops = calc_classical_populations(self.frames)
         pops['_color'] = 'state', self.col_state
         end = timer()
@@ -215,7 +285,13 @@ class DatasheetPage:
 
     @cached_property
     def delta_E(self) -> xr.Dataset:
+        """Energy deltas between different states in a dataset.
+
+        Returns:
+            xr.Dataset: Dataset holding 'energy_interstate' variable.
+        """
         start = timer()
+        # TODO: FIXME: Use state selection for limit on which to calculate
         res = stats.time_grouped_confidence_interval(
             self.inter_state['energy_interstate']
         )
@@ -227,6 +303,11 @@ class DatasheetPage:
 
     @cached_property
     def fosc_time(self) -> xr.Dataset | None:
+        """Strength of oscillator/transition rate between states at different points in time.
+
+        Returns:
+            xr.Dataset | None: Either the f_osc data (with confidence intervals) or None if not sufficient data in self.frames to calculate it.
+        """
         start = timer()
         if 'fosc' in self.inter_state:
             res = stats.time_grouped_confidence_interval(self.inter_state['fosc'])
@@ -240,7 +321,13 @@ class DatasheetPage:
 
     @cached_property
     def spectra(self) -> SpectraDictType:
+        """Spectral statistics of the self.frames object.
+
+        Returns:
+            SpectraDictType: The spectral information per state transition
+        """
         start = timer()
+        # TODO: FIXME: Use state selection for limit on which to calculate
         res = calc_spectra(self.inter_state, times=self.spectra_times)
         end = timer()
         info(f"cached spectra in {end - start} s")
@@ -253,7 +340,13 @@ class DatasheetPage:
         SpectraDictType,
         SpectraDictType,
     ]:
+        """Get different spectral groups for ground-state transitions and for excited-state transitions
+
+        Returns:
+            tuple[ SpectraDictType, SpectraDictType, ]: One spectral dict per ground-state or excited-state transitions.
+        """
         start = timer()
+        # TODO: FIXME: Use state selection for split
         res = get_spectra_groups(self.spectra)
         end = timer()
         info(f"cached spectra_groups in {end - start} s")
@@ -261,15 +354,25 @@ class DatasheetPage:
 
     @cached_property
     def spectra_ground(self) -> SpectraDictType:
+        """Extracted spectral information of only the ground-state transitions
+
+        Returns:
+            SpectraDictType: Extracted spectral information of only the ground-state transitions
+        """
         return self.spectra_groups[0]
 
     @cached_property
     def spectra_excited(self) -> SpectraDictType:
+        """Extracted spectral information of only the excited-state transitions
+
+        Returns:
+            SpectraDictType: Extracted spectral information of only the excited-state transitions
+        """
         return self.spectra_groups[1]
 
     @cached_property
     def noodle(self) -> xr.DataArray:
-        """Noodle plot source data
+        """Noodle plot source data derived from principal component analysis (PCA) on the full data in self.frames using only pairwise distances.
 
         Returns:
             xr.DataArray: The pairwise distance PCA results
@@ -295,11 +398,11 @@ class DatasheetPage:
         return self.noodle[mask]
 
     @cached_property
-    def structure_atXYZ(self) -> xr.DataArray:
+    def structure_atXYZ(self) -> AtXYZ:
         """Structure/Position data in the first frame/timestep of the trajectory
 
         Returns:
-            _type_: _description_
+            AtXYZ: Positional data.
         """
         if "frame" in self.frames.sizes:
             return self.frames.atXYZ.isel(frame=0)
