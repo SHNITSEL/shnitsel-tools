@@ -40,6 +40,11 @@ def plot_time_interstate_error(
         if not state_selection.has_state_combination(sc):
             continue
 
+        data_filtered_na = scdata.dropna(dim='time', how='all')
+        if data_filtered_na.time.size == 0:
+            # Skip combinations without data
+            continue
+
         # c = scdata['_color'].item()
         color = state_selection.get_state_combination_color(sc)
         scdata = scdata.squeeze('statecomb')
@@ -61,11 +66,17 @@ def plot_time_interstate_error(
         label_x: float
         label_y: float
         if label_va == "bottom":
-            max_index = scdata['upper'].argmax()
+            try:
+                max_index = scdata['upper'].dropna(dim='time', how='all').argmax()
+            except ValueError:
+                max_index = scdata['mean'].dropna(dim='time', how='all').argmax()
             label_x = float(scdata['time'][max_index])
             label_y = float(scdata['mean'][max_index])
         elif label_va == "top":
-            min_index = scdata['lower'].argmin()
+            try:
+                min_index = scdata['lower'].dropna(dim='time', how='all').argmin()
+            except ValueError:
+                min_index = scdata['mean'].dropna(dim='time', how='all').argmin()
             label_x = float(scdata['time'][min_index])
             label_y = float(scdata['mean'][min_index])
         else:
