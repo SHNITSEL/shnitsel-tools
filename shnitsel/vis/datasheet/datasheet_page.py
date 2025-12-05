@@ -46,7 +46,7 @@ class DatasheetPage:
     histograms of per-state and inter-state properties, etc.
     """
 
-    state_selection: StateSelection | None = None
+    state_selection: StateSelection
     feature_selection: None = None
     spectra_times: list[int | float] | np.ndarray | None = None
     charge: int = 0
@@ -273,7 +273,7 @@ class DatasheetPage:
         """Population data for the underlying self.frames
 
         Returns:
-            xr.DataArray: Population data encapsulated in a dataset.
+            xr.DataArray: Population data encapsulated in a DataArray.
         """
         start = timer()
         # TODO: FIXME: Use state selection for limit on which to calculate
@@ -510,6 +510,7 @@ class DatasheetPage:
             delta_E=self.delta_E,
             fosc_time=self.fosc_time,
             fig=fig,
+            state_selection=self.state_selection,
         )
         end = timer()
         info(f"finished plot_timeplots in {end - start} s")
@@ -523,6 +524,7 @@ class DatasheetPage:
             inter_state=self.inter_state,
             sgroups=self.spectra_groups,
             fig=fig,
+            state_selection=self.state_selection,
         )
         end = timer()
         info(f"finished plot_separated_spectra_and_hists in {end - start} s")
