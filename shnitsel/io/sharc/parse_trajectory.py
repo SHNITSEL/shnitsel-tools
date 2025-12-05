@@ -194,7 +194,7 @@ def read_traj(
 
     if nsteps is None or natoms is None:
         raise FileNotFoundError(
-            f"Could not find enough information to deduce the number of atoms or steps."
+            "Could not find enough information to deduce the number of atoms or steps."
         )
 
     trajectory, default_format_attributes = create_initial_dataset(
@@ -281,8 +281,10 @@ def read_traj(
         "dynamic",
         sharc_version,
         nsinglets,
-        ndoublets,
-        ntriplets,
+        ndoublets
+        * 2,  # To agree with numbering conventions of the other systems, we need to multiply by 2.
+        ntriplets
+        * 3,  # To agree with numbering conventions of the other systems, we need to multiply by 3.
     )
 
     assign_required_settings(trajectory, required_settings)
