@@ -1,3 +1,4 @@
+import logging
 import matplotlib as mpl
 from matplotlib.axes import Axes
 from matplotlib.colors import Colormap, Normalize
@@ -5,6 +6,8 @@ from matplotlib.figure import Figure, SubFigure
 from matplotlib.lines import Line2D
 import matplotlib.pyplot as plt
 import numpy as np
+
+from shnitsel.filtering.state_selection import StateSelection
 
 from ....core.typedefs import InterState, SpectraDictType
 from ....units.definitions import energy
@@ -17,7 +20,8 @@ from ....units.conversion import convert_energy
 
 def single_hist(
     interstate: InterState,
-    sc: tuple[int, int],
+    sc_label: str,
+    state_labels: tuple[str, str],
     color: str,
     bins: int = 100,
     ax: Axes | None = None,
@@ -28,7 +32,8 @@ def single_hist(
 
     Args:
         interstate (InterState): Inter-state Dataset
-        sc (tuple[int,int]): State combination tuple
+        sc_label (str): Label to use for the state combination.
+        state_labels (tuple[str,str]): Labels for the individual states.
         color (str): Color for the histogram of this state combination.
         bins (int, optional): Number of bins for the histogram. Defaults to 100.
         ax (Axes, optional): Axes object to plot into. Defaults to None.
@@ -59,11 +64,13 @@ def single_hist(
         xdata, ydata, range=[(0, xmax), (0, ymax)], bins=bins, cmap=cmap, norm=cnorm
     )
 
-    ax.set_ylabel(r"$\|\mathbf{\mu}_{%d,%d}\|_2$" % (sc[0], sc[1]))
+    ax.set_ylabel(
+        r"$\|\mathbf{\mu}_{%d,%d}\|_2$" % (state_labels[0], state_labels[1])
+    )  # (sc[0], sc[1]))
     ax.text(
         1.05,
         1.05,
-        "$S_%d/S_%d$" % (sc[0], sc[1]),
+        f"{sc_label}",  # $S_%d/S_%d$" % (sc[0], sc[1]),
         transform=ax.transAxes,
         ha="left",
         va="bottom",
@@ -76,13 +83,15 @@ def single_hist(
 
 def plot_dip_trans_histograms(
     inter_state: InterState,
+    state_selection: StateSelection,
     axs: list[Axes] | None = None,
     cnorm: str | None = None,
 ) -> list:
     """function to plot all relevant histograms for the provided inter_state data
 
     Args:
-        inter_state (InterState): _description_
+        inter_state (InterState): Inter-state data to get the transitional dipole data from.
+        state_selection (StateSelection): State selection object to limit the states included in plotting and to provide state names.
         axs (Axes, optional): Axes objects to plot into. If not provided, will be created.
         cnorm (str, optional): Optional specification of a colormap norm method. Defaults to None.
 
@@ -90,27 +99,36 @@ def plot_dip_trans_histograms(
         list: The list of the results of hist2d() calls for the provided data in inter_state
     """
     if axs is None:
-        nplots = len(inter_state.coords['statecomb'])
+        state_combs = list(state_selection.combination_info())
+        nplots = len(state_combs)
         _, axs = plt.subplots(nplots, 1, layout='constrained')
 
     assert axs is not None, "Could not create subplot axes."
 
-    # TODO obviate following cludge:
-    sclabels = [(int(x[0]), int(x[1])) for x in inter_state.statecomb.values]
-
     hist2d_outputs = []
     for i, (sc_, data) in enumerate(inter_state.groupby('statecomb')):
+        if not state_selection.has_state_combination(sc_):
+            continue
         # label = f't{i}'
-        sc = sclabels[i]
+        sc_label = state_selection.get_state_combination_name_or_default(
+            sc_
+        )  # = sclabels[i]
+        state_labels = (
+            state_selection.get_state_name_or_default(sc_[0]),
+            state_selection.get_state_name_or_default(sc_[1]),
+        )
         ax = axs[i]
 
         color = data['_color'].item()
-        hist2d_outputs.append(single_hist(data, sc, color=color, ax=ax, cnorm=cnorm))
+        hist2d_outputs.append(
+            single_hist(data, sc_label, state_labels, color=color, ax=ax, cnorm=cnorm)
+        )
     return hist2d_outputs
 
 
 def plot_spectra(
     spectra: SpectraDictType,
+    state_selection: StateSelection,
     ax: Axes | None = None,
     cmap: str | Colormap | None = None,
     cnorm: str | Normalize | None = None,
@@ -121,6 +139,7 @@ def plot_spectra(
     Args:
         spectra (SpectraDictType): The spectra (t, state combination) -> fosc data to plot
         ax (Axes, optional): Axis object to plot into. If not provided, will be created.
+        state_selection (StateSelection): State selection object to limit the states included in plotting and to provide state names.
         cmap (str | Colormap, optional): Optional specification of a desired colormap. Defaults to None.
         cnorm (str | Normalize, optional): Optional specification of a colormap norm method. Defaults to None.
         mark_peaks (bool, optional): Flag whether peaks should be clearly marked. Defaults to False.
@@ -137,12 +156,17 @@ def plot_spectra(
     ax.invert_xaxis()
     # linestyles = {t: ['-', '--', '-.', ':'][i]
     #               for i, t in enumerate(np.unique(list(zip(*spectra.keys()))[0]))}
-    for (t, sc), data in spectra.items():
+
+    linestyles = ['-', '--']
+    for i, ((t, sc), data) in enumerate(spectra.items()):
+        if not state_selection.has_state_combination(sc):
+            continue
         # special casing for now
-        if sc == (1, 3):
-            linestyle = '--'
+        if i > 0:
+            linestyle = linestyles[1]
         else:
-            linestyle = '-'
+            linestyle = linestyles[0]
+
         c = cmap(cnorm(t))
         # ax.fill_between(data['energy'], data, alpha=0.5, color=c)
         converted_energy = convert_energy(data['energy_interstate'], to=energy.eV)
@@ -166,7 +190,7 @@ def plot_spectra(
                     fontsize='xx-small',
                 )
             except Exception as e:
-                print(e)
+                logging.warning(f"{e}")
     _, ymax = ax.get_ylim()
     ax.set_ylim(0, ymax)
 
@@ -179,17 +203,38 @@ def plot_spectra(
     height_ratios=([1] * 5) + ([0.1] * 2),
 )
 def plot_separated_spectra_and_hists(
-    inter_state, sgroups, fig=None, axs=None, cb_spec_vlines=True
+    inter_state: InterState,
+    spectra_groups: tuple[SpectraDictType, SpectraDictType],
+    state_selection: StateSelection,
+    fig: Figure | SubFigure | None = None,
+    axs: dict[str, Axes] | None = None,
+    cb_spec_vlines: bool = True,
 ):
-    ground, excited = sgroups
-    times = [tup[0] for lst in sgroups for tup in lst]
+    """Create separate spectra plots for ground and excited states.
+
+    Args:
+        inter_state (InterState): The interstate data to use for the spectra plots
+        spectra_groups (tuple[SpectraDictType, SpectraDictType]): Spectra separated into `ground` state spectra and `excited` spectra.
+        state_selection (StateSelection): State selection object to limit the states included in plotting and to provide state names.
+        fig (Figure| SubFigure): A figure, consumed by the automatic axes generation. Not used by the function itself.
+        axs (dict[str,Axes], optional): Axis dictionary object to plot into.
+        cb_spec_vlines (bool, optional): Whether to mark spectral lines in the energy spectrum. Defaults to True.
+
+    Returns:
+        dict[str, Axes]: The axes dict after plotting to it.
+    """
+    assert axs is not None, "Could not acquire axes for plotting"
+    ground, excited = spectra_groups
+    times = [tup[0] for lst in spectra_groups for tup in lst]
     scnorm = plt.Normalize(inter_state.time.min(), inter_state.time.max())
     scmap = plt.get_cmap('turbo')
     scscale = mpl.cm.ScalarMappable(norm=scnorm, cmap=scmap)
 
     hist2d_outputs = []
     # ground-state spectra and histograms
-    plot_spectra(ground, ax=axs['sg'], cnorm=scnorm, cmap=scmap)
+    plot_spectra(
+        ground, ax=axs['sg'], state_selection=state_selection, cnorm=scnorm, cmap=scmap
+    )
 
     # We show at most the first two statecombs
     if inter_state.sizes['statecomb'] >= 2:
@@ -203,15 +248,22 @@ def plot_separated_spectra_and_hists(
             "Too few statecombs (expecting at least 2 states => 1 statecomb)"
         )
     hist2d_outputs += plot_dip_trans_histograms(
-        inter_state.isel(statecomb=selsc),
-        axs=selaxs,
+        inter_state.isel(statecomb=selsc), axs=selaxs, state_selection=state_selection
     )
 
     # excited-state spectra and histograms
     if len(excited) >= 2:
-        plot_spectra(excited, ax=axs['se'], cnorm=scnorm, cmap=scmap)
+        plot_spectra(
+            excited,
+            ax=axs['se'],
+            state_selection=state_selection,
+            cnorm=scnorm,
+            cmap=scmap,
+        )
         hist2d_outputs += plot_dip_trans_histograms(
-            inter_state.isel(statecomb=[2]), axs=[axs['t2']]
+            inter_state.isel(statecomb=[2]),
+            axs=[axs['t2']],
+            state_selection=state_selection,
         )
 
     hists = np.array([tup[0] for tup in hist2d_outputs])
@@ -221,8 +273,16 @@ def plot_separated_spectra_and_hists(
     for quadmesh in quadmeshes:
         quadmesh.set_norm(hcnorm)
 
-    def ev2nm(ev):
-        return 4.135667696 * 2.99792458 * 100 / np.where(ev != 0, ev, 1)
+    def ev2nm(delta_E):
+        """Helper function to convert delta energy of a transition in eV to a nanometer wavelength
+
+        Args:
+            delta_E (float-like): Energy delta in electron Volts (eV) units.
+
+        Returns:
+            float-like: Resulting wavelength in nm.
+        """
+        return 4.135667696 * 2.99792458 * 100 / np.where(delta_E != 0, delta_E, 1)
 
     lims = [l for ax in axs.values() for l in ax.get_xlim()]
     new_lims = (min(lims), max(lims))
@@ -295,6 +355,7 @@ def plot_separated_spectra_and_hists(
 def plot_separated_spectra_and_hists_groundstate(
     inter_state: InterState,
     spectra_groups: tuple[SpectraDictType, SpectraDictType],
+    state_selection: StateSelection,
     fig: Figure | SubFigure | None = None,
     axs: dict[str, Axes] | None = None,
     cb_spec_vlines: bool = True,
@@ -306,6 +367,7 @@ def plot_separated_spectra_and_hists_groundstate(
     Args:
         inter_state (InterState): Inter-State dataset containing energy differences
         spectra_groups (tuple[SpectraDictType, SpectraDictType]): Tuple holding the spectra groups of ground-state transitions and excited-state transitions.
+        state_selection (StateSelection): State selection object to limit the states included in plotting and to provide state names.
         fig (Figure | SubFigure | None, optional): Figure to plot the graphs to. Defaults to None.
         axs (dict[str, Axes] | None, optional): Dict of named axes to plot to. Defaults to None.
         cb_spec_vlines (bool, optional): Flag to enable vertical lines in the time-dependent spectra. Defaults to True.
@@ -325,7 +387,9 @@ def plot_separated_spectra_and_hists_groundstate(
 
     hist2d_outputs = []
     # ground-state spectra and histograms
-    plot_spectra(ground, ax=axs['sg'], cnorm=scnorm, cmap=scmap)
+    plot_spectra(
+        ground, ax=axs['sg'], state_selection=state_selection, cnorm=scnorm, cmap=scmap
+    )
 
     # We show at most the first two statecombs
     if inter_state.sizes['statecomb'] >= 2:
@@ -340,8 +404,7 @@ def plot_separated_spectra_and_hists_groundstate(
         )
 
     hist2d_outputs += plot_dip_trans_histograms(
-        inter_state.isel(statecomb=selsc),
-        axs=selaxs,
+        inter_state.isel(statecomb=selsc), axs=selaxs, state_selection=state_selection
     )
 
     # excited-state spectra and histograms
