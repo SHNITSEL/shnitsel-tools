@@ -480,7 +480,7 @@ class DatasheetPage:
         self.inchi
 
     def plot_per_state_histograms(
-        self, fig: Figure | SubFigure | None = None
+        self, state_selection: StateSelection, fig: Figure | SubFigure | None = None
     ) -> dict[str, Axes]:
         """Plot histograms of forces, energies and permanent dipoles for each selected state.
 
@@ -493,14 +493,16 @@ class DatasheetPage:
         start = timer()
         res = plot_per_state_histograms(
             per_state=self.per_state,
-            state_selection=self.state_selection,
+            state_selection=state_selection,
             fig=fig,
         )
         end = timer()
         info(f"finished plot_per_state_histograms in {end - start} s")
         return res
 
-    def plot_timeplots(self, fig: Figure | SubFigure | None = None) -> dict[str, Axes]:
+    def plot_timeplots(
+        self, state_selection: StateSelection, fig: Figure | SubFigure | None = None
+    ) -> dict[str, Axes]:
         """Create the Time plots of populations and energy level errors of each state for this DataSheetPage.
 
         Args:
@@ -515,28 +517,31 @@ class DatasheetPage:
             delta_E=self.delta_E,
             fosc_time=self.fosc_time,
             fig=fig,
-            state_selection=self.state_selection,
+            state_selection=state_selection,
         )
         end = timer()
         info(f"finished plot_timeplots in {end - start} s")
         return res
 
     def plot_separated_spectra_and_hists(
-        self, fig: Figure | SubFigure | None = None
+        self, state_selection: StateSelection, fig: Figure | SubFigure | None = None
     ) -> dict[str, Axes]:
         start = timer()
         res = plot_separated_spectra_and_hists(
             inter_state=self.inter_state,
             spectra_groups=self.spectra_groups,
             fig=fig,
-            state_selection=self.state_selection,
+            state_selection=state_selection,
         )
         end = timer()
         info(f"finished plot_separated_spectra_and_hists in {end - start} s")
         return res
 
     def plot_separated_spectra_and_hists_groundstate(
-        self, fig: Figure | SubFigure | None = None, scmap=plt.get_cmap('turbo')
+        self,
+        state_selection: StateSelection,
+        fig: Figure | SubFigure | None = None,
+        scmap=plt.get_cmap('turbo'),
     ) -> dict[str, Axes]:
         start = timer()
         res = plot_separated_spectra_and_hists_groundstate(
@@ -544,7 +549,7 @@ class DatasheetPage:
             spectra_groups=self.spectra_groups,
             fig=fig,
             scmap=scmap,
-            state_selection=self.state_selection,
+            state_selection=state_selection,
         )
         end = timer()
         info(
@@ -553,27 +558,37 @@ class DatasheetPage:
         return res
 
     def plot_nacs_histograms(
-        self, fig: Figure | SubFigure | None = None
+        self,
+        state_selection: StateSelection,
+        fig: Figure | SubFigure | None = None,
     ) -> dict[str, Axes]:
         start = timer()
         res = plot_nacs_histograms(
             self.inter_state,
             self.hops.frame,
             fig=fig,
-            state_selection=self.state_selection,
+            state_selection=state_selection,
         )
         end = timer()
         info(f"finished plot_nacs_histograms in {end - start} s")
         return res
 
-    def plot_noodle(self, fig: Figure | SubFigure | None = None) -> Axes:
+    def plot_noodle(
+        self,
+        fig: Figure | SubFigure | None = None,
+        state_selection: StateSelection | None = None,
+    ) -> Axes:
         start = timer()
         res = plot_noodleplot(self.noodle, self.hops, fig=fig)
         end = timer()
         info(f"finished plot_noodle in {end - start} s")
         return res
 
-    def plot_structure(self, fig: Figure | SubFigure | None = None) -> Axes:
+    def plot_structure(
+        self,
+        fig: Figure | SubFigure | None = None,
+        state_selection: StateSelection | None = None,
+    ) -> Axes:
         start = timer()
         mol = self.mol_skeletal if self.structure_skeletal else self.mol
         res = plot_structure(
@@ -672,7 +687,7 @@ class DatasheetPage:
         include_per_state_hist: bool = False,
         borders: bool = False,
         consistent_lettering: bool = True,
-    ) -> Figure:
+    ) -> Figure | list[Figure]:
         """Function to plot this Datasheet.
 
         Will generate all subplots and calculate necessary data if it has not yet been generated.
@@ -685,7 +700,7 @@ class DatasheetPage:
         Returns:
             Figure: The figure holding the entirety of plots in this Datasheet page.
         """
-        letters = iter('abcdef')
+        letter_base = 'abcdef'
 
         def outlabel(ax):
             nonlocal letters
@@ -716,60 +731,94 @@ class DatasheetPage:
                 bbox=dict(facecolor='0.9', edgecolor='none', pad=3.0),
             )
 
-        fig, sfs = self.get_subfigures_main_page(
-            include_per_state_hist=include_per_state_hist, borders=borders
-        )
+        multiplicities_handled = []
 
-        fig.suptitle(f'Datasheet:{self.name}', fontsize=16)
+        figures = []
 
-        # print(self.frames)
-
-        # separated_spectra_and_hists
-        if self.can['separated_spectra_and_hists']:
-            axs = self.plot_separated_spectra_and_hists(
-                fig=sfs['separated_spectra_and_hists']
+        for mult, mult_name in [(1, "Singlets"), (2, "Doublets"), (3, "Triplets")]:
+            page_selection = self.state_selection.filter_states(
+                multiplicity=mult, min_states_in_selection=1
             )
-            ax = axs['sg']
-            outlabel(ax)
-        else:
-            ax = sfs['separated_spectra_and_hists'].subplots(1, 1)
-            centertext(r"No $\mathbf{\mu}_{ij}$ data", ax=ax)
-            ax.get_yaxis().set_visible(False)
-            ax.get_xaxis().set_visible(False)
-            inlabel(ax)
-        # noodle
-        if self.can['noodle']:
-            ax = self.plot_noodle(fig=sfs['noodle'])
-            inlabel(ax)
-        elif consistent_lettering:
-            next(letters)
-        # structure
-        if self.can['structure']:
-            ax = self.plot_structure(fig=sfs['structure'])
-            outlabel(ax)
-        elif consistent_lettering:
-            next(letters)
-        # nacs_histograms
-        if self.can['nacs_histograms']:
-            axs = self.plot_nacs_histograms(fig=sfs['nacs_histograms'])
-            ax = axs.get('ntd', axs['nde'])
-            outlabel(ax)
-        elif consistent_lettering:
-            next(letters)
-        # time plots
-        if self.can['timeplots']:
-            axs = self.plot_timeplots(fig=sfs['timeplots'])
-            ax = axs['pop']
-            outlabel(ax)
-        elif consistent_lettering:
-            next(letters)
-        if include_per_state_hist:
-            axs = self.plot_per_state_histograms(fig=sfs['per_state_histograms'])
-            ax = axs['energy']
-            outlabel(ax)
-        elif consistent_lettering:
-            next(letters)
-        return fig
+
+            if not page_selection.states:
+                continue
+
+            # print(mult, mult_name, page_selection.states)
+            # print(mult, mult_name, page_selection.state_combinations)
+            # continue
+
+            multiplicities_handled.append(mult)
+
+            fig, sfs = self.get_subfigures_main_page(
+                include_per_state_hist=include_per_state_hist, borders=borders
+            )
+
+            letters = iter(letter_base)
+            fig.suptitle(f'Datasheet:{self.name} [Page:{mult_name}]', fontsize=16)
+
+            # print(self.frames)
+
+            # separated_spectra_and_hists
+            if self.can['separated_spectra_and_hists']:
+                axs = self.plot_separated_spectra_and_hists(
+                    state_selection=page_selection,
+                    fig=sfs['separated_spectra_and_hists'],
+                )
+                ax = axs['sg']
+                outlabel(ax)
+            else:
+                ax = sfs['separated_spectra_and_hists'].subplots(1, 1)
+                centertext(r"No $\mathbf{\mu}_{ij}$ data", ax=ax)
+                ax.get_yaxis().set_visible(False)
+                ax.get_xaxis().set_visible(False)
+                inlabel(ax)
+            # noodle
+            if self.can['noodle']:
+                ax = self.plot_noodle(state_selection=page_selection, fig=sfs['noodle'])
+                inlabel(ax)
+            elif consistent_lettering:
+                next(letters)
+            # structure
+            if self.can['structure']:
+                ax = self.plot_structure(
+                    state_selection=page_selection, fig=sfs['structure']
+                )
+                outlabel(ax)
+            elif consistent_lettering:
+                next(letters)
+            # nacs_histograms
+            if self.can['nacs_histograms']:
+                axs = self.plot_nacs_histograms(
+                    state_selection=page_selection, fig=sfs['nacs_histograms']
+                )
+                ax = axs.get('ntd', axs['nde'])
+                outlabel(ax)
+            elif consistent_lettering:
+                next(letters)
+            # time plots
+            if self.can['timeplots']:
+                axs = self.plot_timeplots(
+                    state_selection=page_selection.filter_states(
+                        multiplicity=mult, min_states_in_selection=2
+                    ),
+                    fig=sfs['timeplots'],
+                )
+                ax = axs['pop']
+                outlabel(ax)
+            elif consistent_lettering:
+                next(letters)
+            if include_per_state_hist:
+                axs = self.plot_per_state_histograms(
+                    state_selection=page_selection, fig=sfs['per_state_histograms']
+                )
+                ax = axs['energy']
+                outlabel(ax)
+            elif consistent_lettering:
+                next(letters)
+
+            figures.append(fig)
+
+        return figures if len(figures) != 1 else figures[0]
 
     def _test_subfigures(
         self, include_per_state_hist: bool = False, borders: bool = False
