@@ -3,6 +3,7 @@ from matplotlib.figure import Figure, SubFigure
 import numpy as np
 
 from shnitsel.core.typedefs import PerState
+from shnitsel.filtering.state_selection import StateSelection
 
 from .common import figaxs_defaults, centertext, symbols
 from .hist import truncate_from_above
@@ -11,6 +12,7 @@ from .hist import truncate_from_above
 @figaxs_defaults(mosaic=[['energy', 'forces', 'dip_perm']], scale_factors=(1, 1 / 5))
 def plot_per_state_histograms(
     per_state: PerState,
+    state_selection: StateSelection,
     axs: dict[str, Axes] | None = None,
     fig: Figure | SubFigure | None = None,
 ) -> dict[str, Axes]:
@@ -18,6 +20,7 @@ def plot_per_state_histograms(
 
     Args:
         per_state (PerState): A dataset with per-state observable data.
+        state_selection (StateSelection): State selection object to limit the states included in plotting and to provide state names.
         axs (dict[str, Axes] | None, optional): The map of subplot-axes. Keys identify the subplots (`energy`, `forces`, `dip_perm`) and the values are the axes to plot the subplot to. Defaults to None.
         fig (Figure | SubFigure | None, optional): Figure to generated axes from. Defaults to None.
 
@@ -32,10 +35,13 @@ def plot_per_state_histograms(
             continue
 
         for state, data in per_state.groupby('state'):
-            c = data['_color'].item()
+            if not state_selection.has_state(state):
+                continue
+
+            color = state_selection.get_state_color(state)
             counts, edges, _ = ax.hist(
                 truncate_from_above(data[quantity].squeeze().values, bins=100),
-                color=c,
+                color=color,
                 alpha=0.2,
                 bins=100,
             )
@@ -45,7 +51,7 @@ def plot_per_state_histograms(
                 edges[[idxmax, idxmax + 1]].mean(),
                 counts[idxmax],
                 r"$S_%d$" % (state - 1),
-                c=c,
+                c=color,
             )
 
         long_name = per_state[quantity].attrs.get('long_name')

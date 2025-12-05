@@ -28,6 +28,9 @@ class StateSelection:
     state_combinations: list[StateCombination]
     state_combination_names: dict[StateCombination, str] | None
 
+    state_colors: dict[StateId, str] | None = None
+    state_combination_colors: dict[StateCombination, str] | None = None
+
     def copy_or_update(
         self,
         states: Sequence[StateId] | None = None,
@@ -36,6 +39,8 @@ class StateSelection:
         state_charges: dict[StateId, int] | None = None,
         state_combinations: list[StateCombination] | None = None,
         state_combination_names: dict[StateCombination, str] | None = None,
+        state_colors: dict[StateId, str] | None = None,
+        state_combination_colors: dict[StateCombination, str] | None = None,
         inplace: bool = False,
     ) -> Self:
         """Function to create a copy with replaced member values.
@@ -51,6 +56,8 @@ class StateSelection:
             state_combinations (list[StateCombination] | None, optional): Potentially new state combinations. Defaults to None.
             state_combination_names (dict[StateCombination, str] | None, optional): Potentially new names for state combinations. Defaults to None.
             inplace (bool, optional): A flag whether the existing instance should be updated or a new one should be created. Defaults to False, i.e. a new instance is created.
+            state_colors (dict[StateId, str] | None, optional): An optional colormap for states. Defaults to None.
+            state_combination_colors (dict[StateCombination, str] | None, optional): An optional colormap for state combinations. Defaults to None.
 
         Returns:
             StateSelection: The selection update with the new members set. Can either be a copy if `inplace=False` or the old instance with updated members otherwise.
@@ -83,6 +90,10 @@ class StateSelection:
                             f"Could not assign name to state combination {comb} because of missing state names for {first} or {second}."
                         )
                 self.state_combination_names = state_combination_names
+            if state_colors:
+                self.state_colors = state_colors
+            if state_combination_colors:
+                self.state_combination_colors = state_combination_colors
 
             return self
         else:
@@ -111,6 +122,10 @@ class StateSelection:
                         logging.warning(
                             f"Could not assign name to state combination {comb} because of missing state names for {first} or {second}."
                         )
+            if not state_colors:
+                state_colors = self.state_colors
+            if not state_combination_colors:
+                state_combination_colors = self.state_combination_colors
 
             return type(self)(
                 states=states,
@@ -119,6 +134,8 @@ class StateSelection:
                 state_charges=state_charges,
                 state_combinations=state_combinations,
                 state_combination_names=state_combination_names,
+                state_colors=state_colors,
+                state_combination_colors=state_combination_colors,
             )
 
     @classmethod
@@ -873,5 +890,103 @@ class StateSelection:
             bool: True if in the selection, False otherwise.
         """
         return comb in self.state_combinations
+
+    def auto_assign_colors(self, inplace: bool = True) -> Self:
+        """Function to automatically generate colors for states and state combinations
+
+        Args:
+            inplace (bool, optional): Flag whether the operation should update the selection in-place. Defaults to True because setting colors is not a big issue.
+
+        Returns:
+            Self: Returns the updated instance.
+        """
+        from shnitsel.vis.colormaps import (
+            get_default_state_colormap,
+            get_default_interstate_colormap_inter_mult,
+            get_default_interstate_colormap_same_mult,
+        )
+
+        multiplicities = self.state_types
+
+        if multiplicities is None:
+            # Consider all states singlets then
+            multiplicities = {s: 1 for s in self.states}
+
+        mult_state_collection: dict[int, set[StateId]] = {}
+
+        for state, mult in multiplicities.items():
+            if mult not in mult_state_collection:
+                mult_state_collection[mult] = set()
+            mult_state_collection[mult].add(state)
+
+        full_state_colormap: dict[StateId, str] = {}
+        mult_color_maps: dict[int, dict[StateId, str]] = {}
+        for mult, states in mult_state_collection.items():
+            state_list = list(states)
+            state_list.sort()
+
+            mult_color_maps[mult] = {
+                state_id: color
+                for state_id, color in zip(
+                    state_list,
+                    get_default_state_colormap(len(state_list), multiplicity=mult),
+                )
+            }
+            full_state_colormap.update(mult_color_maps[mult])
+
+        full_interstate_colormap: dict[StateCombination, str] = {}
+
+        for mult1, state_colors1 in mult_color_maps.items():
+            for mult2, state_colors2 in mult_color_maps.items():
+                if mult1 == mult2:
+                    full_interstate_colormap.update(
+                        get_default_interstate_colormap_same_mult(mult1, state_colors1)
+                    )
+                else:
+                    full_interstate_colormap.update(
+                        get_default_interstate_colormap_inter_mult(
+                            state_colors1, state_colors2
+                        )
+                    )
+        return self.copy_or_update(
+            state_colors=full_state_colormap,
+            state_combination_colors=full_interstate_colormap,
+            inplace=inplace,
+        )
+
+    def get_state_color(self, id: StateId) -> str:
+        """Function to get a the state color or a default color value
+
+        Args:
+            id (StateId): Id of the state to get the color for
+
+        Returns:
+            str: Hex-str color code
+        """
+        from shnitsel.vis.colormaps import st_grey
+
+        if self.state_colors is not None and id in self.state_colors:
+            return self.state_colors[id]
+        else:
+            return st_grey
+
+    def get_state_combination_color(self, comb: StateCombination) -> str:
+        """Function to get a the state combination color or a default color value
+
+        Args:
+            comb (StateCombination): Id of the state combination to get the color for
+
+        Returns:
+            str: Hex-str color code
+        """
+        from shnitsel.vis.colormaps import st_grey
+
+        if (
+            self.state_combination_colors is not None
+            and comb in self.state_combination_colors
+        ):
+            return self.state_combination_colors[comb]
+        else:
+            return st_grey
 
     # TODO: FIXME: Add print output __str__, __html__ and __repr__

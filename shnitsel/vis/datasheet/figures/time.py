@@ -1,5 +1,6 @@
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure, SubFigure
+import numpy as np
 
 from shnitsel.filtering.state_selection import StateSelection
 
@@ -34,11 +35,13 @@ def plot_time_interstate_error(
     #     '$S_2 - S_1$': 'bottom',
     #     '$S_1 - S_0$': 'top',
     # }
-    for sc, scdata in data.groupby('statecomb'):
+    label_modes = ["top", "bottom"]
+    for i, (sc, scdata) in enumerate(data.groupby('statecomb')):
         if not state_selection.has_state_combination(sc):
             continue
 
-        c = scdata['_color'].item()
+        # c = scdata['_color'].item()
+        color = state_selection.get_state_combination_color(sc)
         scdata = scdata.squeeze('statecomb')
 
         # state_name_from = str(data['state_names'][sc[0] - 1].item())
@@ -47,19 +50,36 @@ def plot_time_interstate_error(
         time_in_fs = convert_time(scdata['time'], time.femto_seconds)
 
         ax.fill_between(
-            time_in_fs, scdata['upper'], scdata['lower'], color=c, alpha=0.3
+            time_in_fs, scdata['upper'], scdata['lower'], color=color, alpha=0.3
         )
-        ax.plot(time_in_fs, scdata['mean'], c=c, lw=0.8)
+        ax.plot(time_in_fs, scdata['mean'], c=color, lw=0.8)
         # va = vas.get(sc, 'baseline')
-        va = 'baseline'
+        # va = 'baseline'
 
+        label_va = label_modes[i % len(label_modes)]
+
+        label_x: float
+        label_y: float
+        if label_va == "bottom":
+            max_index = scdata['upper'].argmax()
+            label_x = float(scdata['time'][max_index])
+            label_y = float(scdata['mean'][max_index])
+        elif label_va == "top":
+            min_index = scdata['lower'].argmin()
+            label_x = float(scdata['time'][min_index])
+            label_y = float(scdata['mean'][min_index])
+        else:
+            label_x = float(scdata['time'][-1])
+            label_y = float(scdata['mean'][-1])
+
+        label_y = max(label_y, 0.0)
         combination_label = state_selection.get_state_combination_tex_label(sc)
         ax.text(
-            float(scdata['time'][-1]),
-            float(scdata['mean'][-1]),
+            label_x,
+            label_y,
             f"${combination_label}$",  # f"${state_name_from} \\to {state_name_to}$",
-            c=c,
-            va=va,
+            c=color,
+            va=label_va,
             ha='right',
         )
 
@@ -88,16 +108,25 @@ def plot_populations_graph(
         if not state_selection.has_state(state):
             continue
 
-        c = sdata['_color'].item()
-        # TODO: FIXME: Check if the state_names coordinate is maintained in a variable array.
+        color = state_selection.get_state_color(state)
+        # c = sdata['_color'].item()
         state_label = state_selection.get_state_tex_label(
             state
         )  # str(sdata['state_names'].item())
 
         time_in_fs = convert_time(sdata['time'], time.femto_seconds)
 
-        ax.plot(time_in_fs, sdata, c=c, lw=0.5)
-        ax.text(float(time_in_fs[-1]), float(sdata[-1]), f"${state_label}$", c=c)
+        ax.plot(time_in_fs, sdata, c=color, lw=0.5)
+
+        max_index = sdata.argmax()
+
+        # ax.text(float(time_in_fs[-1]), float(sdata[-1]), f"${state_label}$", c=c)
+        ax.text(
+            float(time_in_fs[max_index]),
+            float(sdata[max_index]) + 0.5e-1,
+            f"${state_label}$",
+            c=color,
+        )
 
     ax.set_ylabel('Population')
     return ax

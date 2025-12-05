@@ -118,51 +118,55 @@ class DatasheetPage:
 
         # print(self.frames)
 
-        nstates = self.frames.sizes['state']
-        if col_state is not None:
-            assert (ncols := len(col_state)) == nstates, (
-                f"`col_state` has {ncols} colors, "
-                f"but should contain one color for each of the {nstates} states"
-            )
-            self.col_state = col_state
-        elif nstates <= 3:
-            # SHNITSEL-colours
-            self.col_state = ['#4DAD15', '#AD2915', '#7515AD'][:nstates]
-        elif nstates <= 10:
-            cmap = plt.get_cmap('tab10')
-            self.col_state = [mpl.colors.rgb2hex(c) for c in cmap.colors][:nstates]  # type: ignore
-        elif nstates <= 20:
-            cmap = plt.get_cmap('tab20')
-            self.col_state = [mpl.colors.rgb2hex(c) for c in cmap.colors][:nstates]  # type: ignore
-        else:
-            raise ValueError(
-                f"These data have {nstates} states. "
-                "When passing data with more than 10 states, please "
-                "also pass an appropriate colormap to `col_state`."
-            )
+        # nstates = self.frames.sizes['state']
+        # if col_state is not None:
+        #     assert (ncols := len(col_state)) >= nstates, (
+        #         f"`col_state` has {ncols} colors, "
+        #         f"but should contain one color for each of the {nstates} states"
+        #     )
+        #     self.col_state = col_state[:nstates]
+        # elif nstates <= 3:
+        #     # SHNITSEL-colours
+        #     self.col_state = ['#4DAD15', '#AD2915', '#7515AD'][:nstates]
+        # elif nstates <= 10:
+        #     cmap = plt.get_cmap('tab10')
+        #     self.col_state = [mpl.colors.rgb2hex(c) for c in cmap.colors][:nstates]  # type: ignore
+        # elif nstates <= 20:
+        #     cmap = plt.get_cmap('tab20')
+        #     self.col_state = [mpl.colors.rgb2hex(c) for c in cmap.colors][:nstates]  # type: ignore
+        # else:
+        #     raise ValueError(
+        #         f"These data have {nstates} states. "
+        #         "When passing data with more than 10 states, please "
+        #         "also pass an appropriate colormap to `col_state`."
+        #     )
 
-        ncombs = self.frames.sizes['statecomb']
-        if col_inter is not None:
-            assert (ncols := len(col_inter)) == ncombs, (
-                f"`col_inter` has {ncols} colors, "
-                f"but should contain one color for each of the {ncombs} state combinations"
-            )
-            self.col_inter = col_inter
-        elif ncombs <= 3:
-            self.col_inter = col_inter or ['#2c3e50', '#C4A000', '#7E5273'][:ncombs]
-        elif ncombs <= 10:
-            # TODO: choose colours distinct from per_state colours
-            cmap = plt.get_cmap('tab10')
-            self.col_inter = [mpl.colors.rgb2hex(c) for c in cmap.colors][:ncombs]  # type: ignore
-        elif ncombs <= 20:
-            cmap = plt.get_cmap('tab20')
-            self.col_inter = [mpl.colors.rgb2hex(c) for c in cmap.colors][:ncombs]  # type: ignore
-        else:
-            raise ValueError(
-                f"These data have {ncombs} state combinations. "
-                "When passing data with more than 10 state combinations, please "
-                "also pass an appropriate colormap to `col_inter`."
-            )
+        # ncombs = self.frames.sizes['statecomb']
+        # if col_inter is not None:
+        #     assert (ncols := len(col_inter)) == ncombs, (
+        #         f"`col_inter` has {ncols} colors, "
+        #         f"but should contain one color for each of the {ncombs} state combinations"
+        #     )
+        #     self.col_inter = col_inter
+        # elif ncombs <= 3:
+        #     self.col_inter = col_inter or ['#2c3e50', '#C4A000', '#7E5273'][:ncombs]
+        # elif ncombs <= 10:
+        #     # TODO: choose colours distinct from per_state colours
+        #     cmap = plt.get_cmap('tab10')
+        #     self.col_inter = [mpl.colors.rgb2hex(c) for c in cmap.colors][:ncombs]  # type: ignore
+        # elif ncombs <= 20:
+        #     cmap = plt.get_cmap('tab20')
+        #     self.col_inter = [mpl.colors.rgb2hex(c) for c in cmap.colors][:ncombs]  # type: ignore
+        # else:
+        #     print(self.frames.statecomb.values)
+        #     raise ValueError(
+        #         f"These data have {ncombs} state combinations. "
+        #         "When passing data with more than 10 state combinations, please "
+        #         "also pass an appropriate colormap to `col_inter`."
+        #     )
+
+        # Automatically find colors for the states and state combinations
+        self.state_selection.auto_assign_colors()
 
         self.can = {}
 
@@ -198,8 +202,8 @@ class DatasheetPage:
         self.spectra_times = old.spectra_times
         self.state_selection = old.state_selection
         self.feature_selection = old.feature_selection
-        self.col_state = old.col_state
-        self.col_inter = old.col_inter
+        # self.col_state = old.col_state
+        # self.col_inter = old.col_inter
         self.name = old.name
         self.charge = old.charge
         self.structure_skeletal = old.structure_skeletal
@@ -229,7 +233,7 @@ class DatasheetPage:
         """
         start = timer()
         per_state = stats.get_per_state(self.frames)
-        per_state['_color'] = 'state', self.col_state
+        # per_state['_color'] = 'state', self.col_state
         end = timer()
         info(f"cached per_state in {end - start} s")
         return per_state
@@ -244,7 +248,7 @@ class DatasheetPage:
         start = timer()
         # TODO: FIXME: Use state selection for limit on which to calculate
         inter_state = stats.get_inter_state(self.frames)
-        inter_state['_color'] = 'statecomb', self.col_inter
+        # inter_state['_color'] = 'statecomb', self.col_inter
 
         # Calculate fosc if missing and conditions met
         if (
@@ -278,7 +282,7 @@ class DatasheetPage:
         start = timer()
         # TODO: FIXME: Use state selection for limit on which to calculate
         pops = calc_classical_populations(self.frames)
-        pops['_color'] = 'state', self.col_state
+        # pops['_color'] = 'state', self.col_state
         end = timer()
         info(f"cached pops in {end - start} s")
         return pops
@@ -295,7 +299,7 @@ class DatasheetPage:
         res = stats.time_grouped_confidence_interval(
             self.inter_state['energy_interstate']
         )
-        res['_color'] = 'statecomb', self.col_inter
+        # res['_color'] = 'statecomb', self.col_inter
         res.attrs['tex'] = r"$\Delta E$"
         end = timer()
         info(f"cached delta_E in {end - start} s")
@@ -311,7 +315,7 @@ class DatasheetPage:
         start = timer()
         if 'fosc' in self.inter_state:
             res = stats.time_grouped_confidence_interval(self.inter_state['fosc'])
-            res['_color'] = 'statecomb', self.col_inter
+            # res['_color'] = 'statecomb', self.col_inter
             res.attrs['tex'] = r"$f_\mathrm{osc}$"
         else:
             res = None
@@ -568,7 +572,6 @@ class DatasheetPage:
         mol = self.mol_skeletal if self.structure_skeletal else self.mol
         res = plot_structure(
             mol,
-            name=self.name,
             smiles=self.smiles,
             inchi=self.inchi,
             ax=None,
@@ -579,7 +582,7 @@ class DatasheetPage:
         return res
 
     @staticmethod
-    def get_subfigures(
+    def get_subfigures_main_page(
         include_per_state_hist: bool = False, borders: bool = False
     ) -> tuple[Figure, dict[str, SubFigure]]:
         """Helper function to prepare a figure to hold all subfigures in this DatasheetPage
@@ -592,28 +595,71 @@ class DatasheetPage:
             tuple[Figure, dict[str, SubFigure]]: The overall figure and a dict to access individual subfigures by their name.
         """
         nrows = 6 if include_per_state_hist else 5
-        s = 1 if include_per_state_hist else 0
+        top_spacing = 1 if include_per_state_hist else 0
 
         fig, oaxs = plt.subplots(nrows, 3, layout='constrained')
         vscale = 1 if include_per_state_hist else 5 / 6
         fig.set_size_inches(8.27, 11.69 * vscale)  # portrait A4
         if borders:
-            fig.set_facecolor('#ddd')
+            fig.set_facecolor('#0d0d0d')
         gs = oaxs[0, 0].get_subplotspec().get_gridspec()
         for ax in oaxs.ravel():
             ax.remove()
         gridspecs = dict(
             per_state_histograms=gs[0, :],
-            timeplots=gs[s + 2 :, 2],
-            noodle=gs[s + 0 : s + 2, 1:],
-            separated_spectra_and_hists=gs[s + 0 :, 0],
-            nacs_histograms=gs[s + 3 :, 1],
-            structure=gs[s + 2, 1],
+            timeplots=gs[top_spacing + 2 :, 2],
+            noodle=gs[top_spacing + 0 : top_spacing + 2, 1:],
+            separated_spectra_and_hists=gs[top_spacing + 0 :, 0],
+            nacs_histograms=gs[top_spacing + 3 :, 1],
+            structure=gs[top_spacing + 2, 1],
         )
         if not include_per_state_hist:
             del gridspecs['per_state_histograms']
-        sfs = {name: fig.add_subfigure(sgs) for name, sgs in gridspecs.items()}
-        return fig, sfs
+        subfigures = {
+            sub_name: fig.add_subfigure(sub_gridspec)
+            for sub_name, sub_gridspec in gridspecs.items()
+        }
+        return fig, subfigures
+
+    @staticmethod
+    def get_subfigures_triplets_page(
+        include_per_state_hist: bool = False, borders: bool = False
+    ) -> tuple[Figure, dict[str, SubFigure]]:
+        """Helper function to prepare a figure to hold all subfigures in this DatasheetPage
+
+        Args:
+            include_per_state_hist (bool, optional): Flag whether per state histograms will be included. Defaults to False.
+            borders (bool, optional): Flag whether figure borders should be drawn. Defaults to False.
+
+        Returns:
+            tuple[Figure, dict[str, SubFigure]]: The overall figure and a dict to access individual subfigures by their name.
+        """
+        nrows = 6 if include_per_state_hist else 5
+        top_spacing = 1 if include_per_state_hist else 0
+
+        fig, oaxs = plt.subplots(nrows, 3, layout='constrained')
+        vscale = 1 if include_per_state_hist else 5 / 6
+        fig.set_size_inches(8.27, 11.69 * vscale)  # portrait A4
+        if borders:
+            fig.set_facecolor('#0d0d0d')
+        gs = oaxs[0, 0].get_subplotspec().get_gridspec()
+        for ax in oaxs.ravel():
+            ax.remove()
+        gridspecs = dict(
+            per_state_histograms=gs[0, :],
+            timeplots=gs[top_spacing + 2 :, 2],
+            noodle=gs[top_spacing + 0 : top_spacing + 2, 1:],
+            separated_spectra_and_hists=gs[top_spacing + 0 :, 0],
+            nacs_histograms=gs[top_spacing + 3 :, 1],
+            structure=gs[top_spacing + 2, 1],
+        )
+        if not include_per_state_hist:
+            del gridspecs['per_state_histograms']
+        subfigures = {
+            sub_name: fig.add_subfigure(sub_gridspec)
+            for sub_name, sub_gridspec in gridspecs.items()
+        }
+        return fig, subfigures
 
     def plot(
         self,
@@ -664,9 +710,11 @@ class DatasheetPage:
                 bbox=dict(facecolor='0.9', edgecolor='none', pad=3.0),
             )
 
-        fig, sfs = self.get_subfigures(
+        fig, sfs = self.get_subfigures_main_page(
             include_per_state_hist=include_per_state_hist, borders=borders
         )
+
+        fig.suptitle(f'Datasheet:{self.name}', fontsize=16)
 
         # print(self.frames)
 
@@ -726,7 +774,7 @@ class DatasheetPage:
             include_per_state_hist (bool, optional): Flag to include per-state histograms. Defaults to False.
             borders (bool, optional): Whether the figures should have borders. Defaults to False.
         """
-        fig, sfs = self.get_subfigures(
+        fig, sfs = self.get_subfigures_main_page(
             include_per_state_hist=include_per_state_hist, borders=borders
         )
         for sf in sfs.values():

@@ -114,16 +114,14 @@ def plot_dip_trans_histograms(
         if not state_selection.has_state_combination(sc_):
             continue
         # label = f't{i}'
-        sc_label = state_selection.get_state_combination_tex_label(
-            sc_
-        )  # = sclabels[i]
+        sc_label = state_selection.get_state_combination_tex_label(sc_)  # = sclabels[i]
         state_labels = (
             state_selection.get_state_tex_label(sc_[0]),
             state_selection.get_state_tex_label(sc_[1]),
         )
         ax = axs[i]
 
-        color = data['_color'].item()
+        color = state_selection.get_state_combination_color(sc_)
         hist2d_outputs.append(
             single_hist(data, sc_label, state_labels, color=color, ax=ax, cnorm=cnorm)
         )

@@ -13,8 +13,8 @@ from matplotlib.axes import Axes
 
 
 @figaxs_defaults(mosaic=[['ntd'], ['nde']], scale_factors=(1 / 3, 1 / 3))
-@needs(data_vars={'nacs'})
-def plot_nacs_histograms(
+@needs(data_vars={'socs'})
+def plot_socs_histograms(
     inter_state: InterState,
     hop_idxs,
     state_selection: StateSelection,
