@@ -21,6 +21,7 @@ class StateSelection:
     """Class to keep track of a (sub-)selection of states and state transitions for analysis and plotting."""
 
     states: Sequence[StateId]
+    ground_state_id: StateId
     state_types: dict[StateId, int] | None
     state_names: dict[StateId, str] | None
     state_charges: dict[StateId, int] | None
@@ -33,6 +34,7 @@ class StateSelection:
 
     def copy_or_update(
         self,
+        ground_state_id: StateId | None = None,
         states: Sequence[StateId] | None = None,
         state_types: dict[StateId, int] | None = None,
         state_names: dict[StateId, str] | None = None,
@@ -49,6 +51,7 @@ class StateSelection:
         instead of updating the existing instance.
 
         Args:
+            ground_state_id (StateId | None, optional): Potentially new ground_state id. Defaults to None.
             states (Sequence[StateId] | None, optional): Potentially new state ids. Defaults to None.
             state_types (dict[StateId, int] | None, optional): Potentially new state types/multiplicities. Defaults to None.
             state_names (dict[StateId, str] | None, optional): Potentially new state names. Defaults to None.
@@ -64,17 +67,19 @@ class StateSelection:
         """
         if inplace:
             # Update and create
-            if states:
+            if ground_state_id is not None:
+                self.ground_state_id = ground_state_id
+            if states is not None:
                 self.states = states
-            if state_types:
+            if state_types is not None:
                 self.state_types = state_types
-            if state_names:
+            if state_names is not None:
                 self.state_names = state_names
-            if state_charges:
+            if state_charges is not None:
                 self.state_charges = state_charges
-            if state_combinations:
+            if state_combinations is not None:
                 self.state_combinations = state_combinations
-            if state_combination_names:
+            if state_combination_names is not None:
                 self.state_combination_names = state_combination_names
             elif state_names and state_combinations:
                 state_combination_names = {}
@@ -90,24 +95,26 @@ class StateSelection:
                             f"Could not assign name to state combination {comb} because of missing state names for {first} or {second}."
                         )
                 self.state_combination_names = state_combination_names
-            if state_colors:
+            if state_colors is not None:
                 self.state_colors = state_colors
-            if state_combination_colors:
+            if state_combination_colors is not None:
                 self.state_combination_colors = state_combination_colors
 
             return self
         else:
-            if not states:
+            if ground_state_id is None:
+                ground_state_id = self.ground_state_id
+            if states is None:
                 states = self.states
-            if not state_types:
+            if state_types is None:
                 state_types = self.state_types
-            if not state_names:
+            if state_names is None:
                 state_names = self.state_names
-            if not state_charges:
+            if state_charges is None:
                 state_charges = self.state_charges
-            if not state_combinations:
+            if state_combinations is None:
                 state_combinations = self.state_combinations
-            if not state_combination_names:
+            if state_combination_names is None:
                 state_combination_names = self.state_combination_names
             elif state_names and state_combinations:
                 state_combination_names = {}
@@ -122,13 +129,14 @@ class StateSelection:
                         logging.warning(
                             f"Could not assign name to state combination {comb} because of missing state names for {first} or {second}."
                         )
-            if not state_colors:
+            if state_colors is None:
                 state_colors = self.state_colors
-            if not state_combination_colors:
+            if state_combination_colors is None:
                 state_combination_colors = self.state_combination_colors
 
             return type(self)(
                 states=states,
+                ground_state_id=ground_state_id,
                 state_types=state_types,
                 state_names=state_names,
                 state_charges=state_charges,
@@ -159,13 +167,16 @@ class StateSelection:
         )
 
         if 'states' in dataset.coords:
-            states = list(dataset.coords['states'].values)
+            states = list(int(n) for n in dataset.coords['states'].values)
         elif 'state' in dataset.sizes:
-            states = list(np.arange(1, 1 + dataset.sizes['state'], dtype=StateId))
+            states = list(
+                int(n) for n in np.arange(1, 1 + dataset.sizes['state'], dtype=StateId)
+            )
         else:
             raise ValueError(
                 "No sufficient state information on the provided dataset. Cannot initialize state selection."
             )
+        ground_state_id = np.min(states)
 
         if 'state_types' in dataset.coords:
             state_types = {
@@ -222,6 +233,7 @@ class StateSelection:
         # Create an initial state selection
         return cls(
             states=states,
+            ground_state_id=ground_state_id,
             state_types=state_types,
             state_charges=state_charges,
             state_names=state_names,
@@ -340,7 +352,6 @@ class StateSelection:
             for mult in multipl:
                 if isinstance(mult, int):
                     mult_translate.append(mult)
-
                 elif isinstance(mult, str):
                     lower_label = mult.lower()
                     if lower_label.startswith("s"):
@@ -366,7 +377,6 @@ class StateSelection:
                 multiplicity = [multiplicity]
 
             trans_mult = mult_label_transl(multiplicity)
-
             if self.state_types:
                 next_states = []
 
@@ -407,11 +417,13 @@ class StateSelection:
                     "Requested filtering by multiplicities but state multiplicities are unknown. Please set the multiplicities/types first."
                 )
 
-        return self.copy_or_update(
+        updated_selection = self.copy_or_update(
             states=new_states, inplace=inplace
         ).filter_state_combinations(
             min_states_in_selection=min_states_in_selection, inplace=inplace
         )
+
+        return updated_selection
 
     def filter_state_combinations(
         self,
@@ -738,7 +750,7 @@ class StateSelection:
         """
 
         if ground_state_id is None:
-            ground_state_id = np.min(self.states)
+            ground_state_id = self.ground_state_id
 
         new_state_combs = []
         for comb in self.state_combinations:
@@ -763,7 +775,7 @@ class StateSelection:
         """
 
         if ground_state_id is None:
-            ground_state_id = np.min(self.states)
+            ground_state_id = self.ground_state_id
 
         new_state_combs = []
         for comb in self.state_combinations:
