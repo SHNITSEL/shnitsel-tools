@@ -47,7 +47,7 @@ def plot_nacs_histograms(
     if 'nacs' in hop_filter_data:
         if 'nacs_norm' not in hop_filter_data:
             hop_filter_data['nacs_norm'] = keep_norming(hop_filter_data.nacs)
-    print(hop_filter_data)
+    # print(hop_filter_data)
 
     def plot(label, yname, nacs_data):
         ax = axs[label]

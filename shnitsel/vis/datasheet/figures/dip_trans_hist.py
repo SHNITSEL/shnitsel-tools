@@ -65,12 +65,16 @@ def single_hist(
     )
 
     ax.set_ylabel(
-        r"$\|\mathbf{\mu}_{%d,%d}\|_2$" % (state_labels[0], state_labels[1])
-    )  # (sc[0], sc[1]))
+        r"$\|\mathbf{\mu}_{%s,%s}\|_2$" % (state_labels[0], state_labels[1])
+    )  # r"$\|\mathbf{\mu}_{%d,%d}\|_2$" % (sc[0], sc[1]))
     ax.text(
         1.05,
         1.05,
-        f"{sc_label}",  # $S_%d/S_%d$" % (sc[0], sc[1]),
+        "$%s/%s$"
+        % (
+            state_labels[0],
+            state_labels[1],
+        ),  # f"{sc_label}",  # $S_%d/S_%d$" % (sc[0], sc[1]),
         transform=ax.transAxes,
         ha="left",
         va="bottom",
@@ -162,7 +166,7 @@ def plot_spectra(
         if not state_selection.has_state_combination(sc):
             continue
         # special casing for now
-        if i > 0:
+        if i > 0 and (sc[0] == 1 or sc[1] == 1):
             linestyle = linestyles[1]
         else:
             linestyle = linestyles[0]
