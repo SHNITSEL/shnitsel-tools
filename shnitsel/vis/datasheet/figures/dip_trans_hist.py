@@ -114,12 +114,12 @@ def plot_dip_trans_histograms(
         if not state_selection.has_state_combination(sc_):
             continue
         # label = f't{i}'
-        sc_label = state_selection.get_state_combination_name_or_default(
+        sc_label = state_selection.get_state_combination_tex_label(
             sc_
         )  # = sclabels[i]
         state_labels = (
-            state_selection.get_state_name_or_default(sc_[0]),
-            state_selection.get_state_name_or_default(sc_[1]),
+            state_selection.get_state_tex_label(sc_[0]),
+            state_selection.get_state_tex_label(sc_[1]),
         )
         ax = axs[i]
 

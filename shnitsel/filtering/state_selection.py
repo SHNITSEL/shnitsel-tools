@@ -5,6 +5,8 @@ from typing import Iterable, Self, Sequence, Literal
 
 import numpy as np
 import xarray as xr
+
+from shnitsel.data.state_helpers import state_name_to_tex_label
 from ..core.typedefs import (
     StateCombination,
     StateId,
@@ -809,6 +811,34 @@ class StateSelection:
 
         s1 = self.get_state_name_or_default(first)
         s2 = self.get_state_name_or_default(second)
+        return f"{s1} - {s2}"
+
+    def get_state_tex_label(self, id: StateId) -> str:
+        """Function to get a nice tex-printable label with super- and subscripts for the denoted state.
+
+        Args:
+            id (StateId): Id of the state to get the label for
+
+        Returns:
+            str: Tex-label that needs to be enclosed in a math environment to not cause issues.
+        """
+
+        statename = self.get_state_name_or_default(id)
+        return state_name_to_tex_label(statename)
+
+    def get_state_combination_tex_label(self, comb: StateCombination) -> str:
+        """Function to get a nice tex-printable label with super- and subscripts for a state combination in this selection
+
+        Args:
+            comb (StateCombination): Combination identifier to get the label for
+
+        Returns:
+            str: Tex-label that needs to be enclosed in a math environment to not cause issues.
+        """
+        first, second = comb
+
+        s1 = self.get_state_tex_label(first)
+        s2 = self.get_state_tex_label(second)
         return f"{s1} - {s2}"
 
     def combination_info(self) -> Iterable[StateCombInfo]:

@@ -53,7 +53,7 @@ def plot_time_interstate_error(
         # va = vas.get(sc, 'baseline')
         va = 'baseline'
 
-        combination_name = state_selection.get_state_combination_name_or_default(sc)
+        combination_name = state_selection.get_state_combination_tex_label(sc)
         ax.text(
             float(scdata['time'][-1]),
             float(scdata['mean'][-1]),
@@ -90,7 +90,7 @@ def plot_populations_graph(
 
         c = sdata['_color'].item()
         # TODO: FIXME: Check if the state_names coordinate is maintained in a variable array.
-        state_name = state_selection.get_state_name_or_default(
+        state_name = state_selection.get_state_tex_label(
             state
         )  # str(sdata['state_names'].item())
 
