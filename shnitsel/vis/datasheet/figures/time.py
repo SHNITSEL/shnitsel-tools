@@ -136,7 +136,7 @@ def plot_populations_graph(
 def plot_timeplots(
     pops: xr.DataArray,
     delta_E: xr.Dataset,
-    fig: Figure | SubFigure,
+    fig: Figure | SubFigure | None,
     state_selection: StateSelection,
     fosc_time: xr.Dataset | None = None,
     axs: dict[str, Axes] | None = None,

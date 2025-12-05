@@ -493,6 +493,7 @@ class DatasheetPage:
         start = timer()
         res = plot_per_state_histograms(
             per_state=self.per_state,
+            state_selection=self.state_selection,
             fig=fig,
         )
         end = timer()
@@ -555,7 +556,12 @@ class DatasheetPage:
         self, fig: Figure | SubFigure | None = None
     ) -> dict[str, Axes]:
         start = timer()
-        res = plot_nacs_histograms(self.inter_state, self.hops.frame, fig=fig)
+        res = plot_nacs_histograms(
+            self.inter_state,
+            self.hops.frame,
+            fig=fig,
+            state_selection=self.state_selection,
+        )
         end = timer()
         info(f"finished plot_nacs_histograms in {end - start} s")
         return res
