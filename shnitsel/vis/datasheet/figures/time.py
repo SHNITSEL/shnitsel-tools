@@ -53,11 +53,11 @@ def plot_time_interstate_error(
         # va = vas.get(sc, 'baseline')
         va = 'baseline'
 
-        combination_name = state_selection.get_state_combination_tex_label(sc)
+        combination_label = state_selection.get_state_combination_tex_label(sc)
         ax.text(
             float(scdata['time'][-1]),
             float(scdata['mean'][-1]),
-            combination_name,  # f"${state_name_from} \\to {state_name_to}$",
+            f"${combination_label}$",  # f"${state_name_from} \\to {state_name_to}$",
             c=c,
             va=va,
             ha='right',
@@ -90,14 +90,14 @@ def plot_populations_graph(
 
         c = sdata['_color'].item()
         # TODO: FIXME: Check if the state_names coordinate is maintained in a variable array.
-        state_name = state_selection.get_state_tex_label(
+        state_label = state_selection.get_state_tex_label(
             state
         )  # str(sdata['state_names'].item())
 
         time_in_fs = convert_time(sdata['time'], time.femto_seconds)
 
         ax.plot(time_in_fs, sdata, c=c, lw=0.5)
-        ax.text(float(time_in_fs[-1]), float(sdata[-1]), state_name, c=c)
+        ax.text(float(time_in_fs[-1]), float(sdata[-1]), f"${state_label}$", c=c)
 
     ax.set_ylabel('Population')
     return ax
