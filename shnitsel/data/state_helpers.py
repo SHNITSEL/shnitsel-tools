@@ -1,4 +1,6 @@
+from functools import lru_cache
 import logging
+import re
 
 import numpy as np
 import xarray as xr
@@ -7,10 +9,18 @@ from shnitsel.io.shared.variable_flagging import (
     is_variable_assigned,
     mark_variable_assigned,
 )
+from typing import List, Optional
+
+higher_order_state_pattern_re = re.compile(
+    r"^S\[(?P<multiplicity>\d+)\](?P<state_mult_index>\d+)::(?P<magnetic_number>-?\d+)$"
+)
+triplet_state_pattern_re = re.compile(r"^T(?P<state_mult_index>\d+)(?P<suffix>[-\+]?)$")
+doublet_state_pattern_re = re.compile(r"^D(?P<state_mult_index>\d+)(?P<suffix>[-\+])$")
+singlet_state_pattern_re = re.compile(r"^S(?P<state_mult_index>\d+)$")
 
 
 def default_state_type_assigner(dataset: xr.Dataset) -> xr.Dataset:
-    """Function to assign default state types to states.
+    """Function to assign default state types to states independent of the format.
 
     Args:
         dataset (xr.Dataset): The dataset to assign the states to
@@ -51,6 +61,9 @@ def default_state_type_assigner(dataset: xr.Dataset) -> xr.Dataset:
 def default_state_name_assigner(dataset: xr.Dataset) -> xr.Dataset:
     """Function to assign default state names to states.
 
+    State names for Singlets are (S0, S1, S2, S3, S4...) higher-order multiplicities start with index 1 (no suffix for momentum in default naming due to lack of information).
+    Prefixes for singlets, doublets and triplets are `S`, `D`, `T`. Higher-order states are not considered.
+
     Args:
         dataset (xr.Dataset): The dataset to assign the states to
 
@@ -63,7 +76,7 @@ def default_state_name_assigner(dataset: xr.Dataset) -> xr.Dataset:
         return dataset
 
     if is_variable_assigned(dataset.state_types):
-        counters = np.array([0, 0, 0], dtype=int)
+        counters = np.array([0, 1, 1], dtype=int)
         type_prefix = np.array(["S", "D", "T"])
         type_values = dataset.state_types.values
 
@@ -104,12 +117,14 @@ def default_state_name_assigner(dataset: xr.Dataset) -> xr.Dataset:
             if nsinglets > 0:
                 new_name_values[:nsinglets] = [f"S{i}" for i in range(nsinglets)]
             if ndoublets > 0:
+                # We skip label 0 for higher-order states
                 new_name_values[nsinglets : nsinglets + ndoublets] = [
-                    f"D{i}" for i in range(ndoublets)
+                    f"D{i + 1}" for i in range(ndoublets)
                 ]
             if ntriplets > 0:
+                # We skip label 0 for higher-order states
                 new_name_values[nsinglets + ndoublets :] = [
-                    f"T{i}" for i in range(ntriplets)
+                    f"T{i + 1}" for i in range(ntriplets)
                 ]
             dataset = dataset.assign_coords(
                 {"state_names": ("state", new_name_values, dataset.state_names.attrs)}
@@ -118,3 +133,138 @@ def default_state_name_assigner(dataset: xr.Dataset) -> xr.Dataset:
             mark_variable_assigned(dataset.state_names)
 
     return dataset
+
+
+def set_sharc_state_type_and_name_defaults(
+    dataset: xr.Dataset,
+    multiplicity_counts: List[int] | int,
+    multiplicity_charges: Optional[List | int | float] = None,
+) -> xr.Dataset:
+    """Apply default sharc naming scheme to a dataset and set the state order appropriately. This is more specific than the general naming convention. Enumerates spin numbers on top of common plain enumeration of dublets and triplets.
+
+    Can also be used to set the charges per state.
+    State names for Singlets are (S0, S1, S2, S3, S4...) higher-order multiplicities start with index 1 and have a suffix depending on the angular momentum (+,none, -).
+    Prefixes for singlets, doublets and triplets are `S`, `D`, `T`. Higher-order states are named with the pattern `S[<multiplicity>]<label index in multiplicity>::<angular momentum index>`.
+
+    Args:
+        dataset (xr.Dataset): The input dataset to set the states on
+        multiplicity_counts (List[int] | int): The list of amount of states of different multiplicities or the number of singlet states
+        multiplicity_charges (List | int | float, optional): The list of charges of different states or the charge to apply to all states.
+                If not set, no charge will be set for all states
+
+    Returns:
+        xr.Dataset: The dataset with state types, names and charges applied.
+    """
+    if not isinstance(multiplicity_counts, list):
+        multiplicity_counts = [multiplicity_counts]
+
+    max_mult = len(multiplicity_counts)
+
+    if multiplicity_charges is None:
+        multiplicity_charges = [0] * max_mult
+    elif isinstance(multiplicity_charges, list):
+        len_charges = len(multiplicity_charges)
+        if len_charges != max_mult:
+            logging.warning(
+                f"Length of charge and multiplicity arrays differ: {max_mult} vs. {len(multiplicity_charges)}. Padding with zeroes."
+            )
+            if max_mult > len_charges:
+                multiplicity_charges = multiplicity_charges + [0] * (
+                    max_mult - len_charges
+                )
+    else:
+        multiplicity_charges = [multiplicity_charges] * max_mult
+
+    curr_index = 0
+
+    if max_mult >= 1:
+        for i in range(multiplicity_counts[0]):
+            dataset.state_types[curr_index] = 1
+            dataset.state_names[curr_index] = f"S{i}"
+            dataset.state_charges[curr_index] = multiplicity_charges[0]
+            curr_index += 1
+
+    if max_mult >= 2:
+        curr_mult = 2
+        suffix = ["-", "+"]
+        charge = multiplicity_charges[1]
+        for m in range(0, curr_mult):
+            # We skip label 0 for higher-order states
+            for i in range(1, 1 + multiplicity_counts[1]):
+                dataset.state_types[curr_index] = curr_mult
+                dataset.state_names[curr_index] = f"D{i}{suffix[m]}"
+                dataset.state_charges[curr_index] = charge
+                curr_index += 1
+
+    if max_mult >= 3:
+        curr_mult = 3
+        suffix = ["-", "", "+"]
+        charge = multiplicity_charges[2]
+        for m in range(0, curr_mult):
+            # We skip label 0 for higher-order states
+            for i in range(1, 1 + multiplicity_counts[2]):
+                dataset.state_types[curr_index] = curr_mult
+                dataset.state_names[curr_index] = f"T{i}{suffix[m]}"
+                dataset.state_charges[curr_index] = charge
+                curr_index += 1
+
+    if max_mult > 3:
+        for curr_mult in range(4, max_mult + 1):
+            charge = multiplicity_charges[curr_mult - 1]
+            upper_mult = int(curr_mult // 2)
+            lower_mult = -upper_mult
+            no_zero = (curr_mult % 2) == 0
+            for m in range(lower_mult, upper_mult + 1):
+                if m == 0 and no_zero:
+                    # Skip the zero index in states with even multiplicity. E.g. doublets have -1 and +1.
+                    continue
+                # We skip label 0 for higher-order states
+                for i in range(1, 1 + multiplicity_counts[curr_mult - 1]):
+                    dataset.state_types[curr_index] = curr_mult
+                    dataset.state_names[curr_index] = f"S[{curr_mult}]{i}::{m}"
+                    dataset.state_charges[curr_index] = charge
+                    curr_index += 1
+
+    mark_variable_assigned(dataset.state_types)
+    mark_variable_assigned(dataset.state_names)
+    mark_variable_assigned(dataset.state_charges)
+
+    return dataset
+
+
+@lru_cache
+def state_name_to_tex_label(statename: str) -> str:
+    """Function to translate default state naming conventions into a general latex-subcscrip/-superscript label.
+
+    Args:
+        statename (str): Statename as per Shnitsel default convention.
+
+    Returns:
+        str: A LaTeX representation of the state label
+    """
+    singlet_match = singlet_state_pattern_re.match(statename)
+    if singlet_match:
+        singlet_index = singlet_match.group("state_mult_index")
+        return r"S_{" + singlet_index + r"}"
+
+    triplet_match = triplet_state_pattern_re.match(statename)
+    if triplet_match:
+        triplet_index = triplet_match.group("state_mult_index")
+        suffix = triplet_match.group("suffix")
+        return r"T_{" + triplet_index + r"}" + ("^{" + suffix + "}" if suffix else "")
+
+    doublet_match = doublet_state_pattern_re.match(statename)
+    if doublet_match:
+        doublet_index = doublet_match.group("state_mult_index")
+        suffix = doublet_match.group("suffix")
+        return r"D_{" + doublet_index + r"}" + ("^{" + suffix + "}" if suffix else "")
+
+    higher_match = higher_order_state_pattern_re.match(statename)
+    if higher_match:
+        higher_mult = higher_match.group("multiplicity")
+        higher_index = higher_match.group("state_mult_index")
+        higher_m = higher_match.group("magnetic_number")
+        return r"S_{m=" + higher_mult + ",i=" + higher_index + ",j=" + higher_m + r"}"
+
+    logging.info(f"Failed to translate state name to label for state {statename}")
+    return statename
