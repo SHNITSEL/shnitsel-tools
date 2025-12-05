@@ -43,8 +43,8 @@ class Datasheet:
     """
 
     data_source: ShnitselDB | Trajectory
+    datasheet_pages: dict[str, DatasheetPage]
     name: str | None = None
-    datasheet_pages: dict[str, DatasheetPage] = {}
 
     def __init__(
         self,
@@ -84,6 +84,7 @@ class Datasheet:
         """
         base_data: Trajectory | ShnitselDB
         self.name = name
+        self.datasheet_pages = {}
 
         if isinstance(data, Datasheet):
             self._copy_data(old=data)
