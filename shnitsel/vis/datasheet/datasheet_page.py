@@ -692,7 +692,7 @@ class DatasheetPage:
         # structure
         if self.can['structure']:
             ax = self.plot_structure(fig=sfs['structure'])
-            inlabel(ax)
+            outlabel(ax)
         elif consistent_lettering:
             next(letters)
         # nacs_histograms
