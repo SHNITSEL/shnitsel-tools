@@ -522,7 +522,7 @@ class DatasheetPage:
         start = timer()
         res = plot_separated_spectra_and_hists(
             inter_state=self.inter_state,
-            sgroups=self.spectra_groups,
+            spectra_groups=self.spectra_groups,
             fig=fig,
             state_selection=self.state_selection,
         )
@@ -539,6 +539,7 @@ class DatasheetPage:
             spectra_groups=self.spectra_groups,
             fig=fig,
             scmap=scmap,
+            state_selection=self.state_selection,
         )
         end = timer()
         info(
