@@ -36,6 +36,9 @@ def plot_nacs_histograms(
     assert axs is not None, "No axes objects provided."
 
     hop_filter_data = inter_state.sel(frame=hop_idxs)
+
+    nacs_selection =state_selection.same_multiplicity_transitions()
+
     axs['nde'].set_ylabel(r'$\Delta E$ / eV')
     axs['nde'].minorticks_on()
     axs['nde'].set_xlabel(r"$\|\mathrm{NAC}_{i,j}\|_2$")
@@ -58,7 +61,7 @@ def plot_nacs_histograms(
         bins = 100
 
         for i, (sc, data) in enumerate(nacs_data.groupby('statecomb')):
-            if not state_selection.has_state_combination(sc):
+            if not nacs_selection.has_state_combination(sc):
                 continue
 
             ydata = data[yname].squeeze()
@@ -68,7 +71,7 @@ def plot_nacs_histograms(
                 ydata = convert_energy(ydata, to=energy.eV)
 
             ymax = calc_truncation_maximum(ydata)
-            color = state_selection.get_state_combination_color(sc)
+            color = nacs_selection.get_state_combination_color(sc)
             # color = data['_color'].item()
             axx.hist(
                 xdata,
@@ -76,9 +79,15 @@ def plot_nacs_histograms(
                 color=color,
                 bins=bins,
             )
-            axy.hist(
-                ydata, range=(0, ymax), orientation='horizontal', color=color, bins=bins
-            )
+            # Don't bother if we have no data
+            if ymax > 0:
+                axy.hist(
+                    ydata,
+                    range=(0, ymax),
+                    orientation='horizontal',
+                    color=color,
+                    bins=bins,
+                )
 
             ax.scatter(xdata, ydata, color=color, s=0.2, alpha=0.5)
 

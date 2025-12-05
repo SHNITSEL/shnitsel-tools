@@ -249,8 +249,10 @@ def plot_separated_spectra_and_hists(
         raise ValueError(
             "Too few statecombs (expecting at least 2 states => 1 statecomb)"
         )
+    inter_state_sel = inter_state.isel(statecomb=selsc)
+
     hist2d_outputs += plot_dip_trans_histograms(
-        inter_state.isel(statecomb=selsc), axs=selaxs, state_selection=state_selection
+        inter_state_sel, axs=selaxs, state_selection=state_selection
     )
 
     # excited-state spectra and histograms
@@ -269,11 +271,15 @@ def plot_separated_spectra_and_hists(
         )
 
     hists = np.array([tup[0] for tup in hist2d_outputs])
-    hcnorm = plt.Normalize(hists.min(), hists.max())
 
-    quadmeshes = [tup[3] for tup in hist2d_outputs]
-    for quadmesh in quadmeshes:
-        quadmesh.set_norm(hcnorm)
+    if len(hists) > 0:
+        hcnorm = plt.Normalize(hists.min(), hists.max())
+
+        quadmeshes = [tup[3] for tup in hist2d_outputs]
+        for quadmesh in quadmeshes:
+            quadmesh.set_norm(hcnorm)
+        hcscale = mpl.cm.ScalarMappable(norm=hcnorm, cmap=magma_rw)
+        axs['cb_hist'].figure.colorbar(hcscale, cax=axs['cb_hist'], location='bottom')
 
     def ev2nm(delta_E):
         """Helper function to convert delta energy of a transition in eV to a nanometer wavelength
@@ -327,8 +333,6 @@ def plot_separated_spectra_and_hists(
 
             cb_spec.ax.axvline(t, c='white', linewidth=0.5)
 
-    hcscale = mpl.cm.ScalarMappable(norm=hcnorm, cmap=magma_rw)
-    axs['cb_hist'].figure.colorbar(hcscale, cax=axs['cb_hist'], location='bottom')
     axs['cb_hist'].set_xlabel('# data points')
 
     axs['se'].set_title(
