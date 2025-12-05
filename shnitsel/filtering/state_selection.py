@@ -135,9 +135,9 @@ class StateSelection:
         Returns:
             StateSelection: A state selection object initially covering all states (and state combinations) present in the dataset.
         """
-        assert (
-            'state' in dataset.sizes
-        ), "No state information on the provided dataset. Cannot initialize state selection."
+        assert 'state' in dataset.sizes, (
+            "No state information on the provided dataset. Cannot initialize state selection."
+        )
 
         if 'states' in dataset.coords:
             states = list(dataset.coords['states'].values)
@@ -790,7 +790,7 @@ class StateSelection:
             if id in self.state_names:
                 return self.state_names[id]
 
-        return f"state{id-1}"
+        return f"state{id - 1}"
 
     def get_state_combination_name_or_default(self, comb: StateCombination) -> str:
         """Helper method to either get registered state combination name or a default string to identify the state combination.
@@ -821,5 +821,27 @@ class StateSelection:
         for comb in self.state_combinations:
             name = self.get_state_combination_name_or_default(comb)
             yield StateCombInfo(comb, name)
+
+    def has_state(self, id: StateId) -> bool:
+        """Function to check whether a state is in the selection
+
+        Args:
+            id (StateId): The state id to check whether it has been selected
+
+        Returns:
+            bool: True if in the selection, False otherwise.
+        """
+        return id in self.states
+
+    def has_state_combination(self, comb: StateCombination) -> bool:
+        """Function to check whether a state combination is in the selection
+
+        Args:
+            comb (StateCombination): The combination to check whether it has been selected
+
+        Returns:
+            bool: True if in the selection, False otherwise.
+        """
+        return comb in self.state_combinations
 
     # TODO: FIXME: Add print output __str__, __html__ and __repr__
