@@ -4,7 +4,7 @@ import os
 from shnitsel.data.shnitsel_db_format import ShnitselDB
 from shnitsel.data.trajectory_format import Trajectory
 from shnitsel.io import read
-from shnitsel.io.helpers import LoadingParameters
+from shnitsel.io.shared.helpers import LoadingParameters
 from shnitsel.io.sharc.format_reader import SHARCFormatReader
 from shnitsel.io import write_shnitsel_file
 from shnitsel.test_support.trajectory_verification import verify_trajectory_format

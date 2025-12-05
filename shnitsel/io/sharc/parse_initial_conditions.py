@@ -1,5 +1,5 @@
 import pathlib
-from shnitsel.io.helpers import LoadingParameters, make_uniform_path
+from shnitsel.io.shared.helpers import LoadingParameters, make_uniform_path
 from io import TextIOWrapper
 import numpy as np
 import xarray as xr
@@ -9,13 +9,13 @@ import re
 from itertools import product
 from typing import Dict, List, NamedTuple, Any, Tuple
 from tqdm.auto import tqdm
-from shnitsel.io.helpers import (
+from shnitsel.io.shared.helpers import (
     PathOptionsType,
     dip_sep,
     get_triangular,
     ConsistentValue,
-    get_atom_number_from_symbol,
 )
+from shnitsel.data.atom_helpers import get_atom_number_from_symbol
 from shnitsel.io.sharc.qm_helpers import (
     INTERFACE_READERS,
     set_sharc_state_type_and_name_defaults,
@@ -395,7 +395,7 @@ def read_iconds_individual(
                         iconds.atXYZ.attrs["units"] = length.Bohr
                     else:
                         logging.warning(
-                            f"Unsupported input length unit in QM.in: {unit_name}. Unit on the position is assumed to be of unit {default_format_attributes["atXYZ"]["units"]}"
+                            f"Unsupported input length unit in QM.in: {unit_name}. Unit on the position is assumed to be of unit {default_format_attributes['atXYZ']['units']}"
                         )
 
                 mark_variable_assigned(iconds.atXYZ)

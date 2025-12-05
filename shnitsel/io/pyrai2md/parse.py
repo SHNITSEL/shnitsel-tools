@@ -20,12 +20,12 @@ from shnitsel.io.shared.variable_flagging import (
     mark_variable_assigned,
 )
 
-from shnitsel.io.helpers import (
+from shnitsel.io.shared.helpers import (
     LoadingParameters,
     PathOptionsType,
-    get_atom_number_from_symbol,
     make_uniform_path,
 )
+from shnitsel.data.atom_helpers import get_atom_number_from_symbol
 
 _int_pattern = re.compile(r"^[-+]?[0-9]+$")
 _float_pattern = re.compile(r"^[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?$")

@@ -7,13 +7,15 @@ from typing import Callable, Dict, List
 
 from shnitsel.data.shnitsel_db_format import ShnitselDB
 from shnitsel.data.trajectory_format import Trajectory
-from shnitsel.io.helpers import (
+from shnitsel.io.shared.helpers import (
     LoadingParameters,
     PathOptionsType,
-    default_state_name_assigner,
-    default_state_type_assigner,
     make_uniform_path,
     random_trajid_assigner,
+)
+from shnitsel.data.state_helpers import (
+    default_state_name_assigner,
+    default_state_type_assigner,
 )
 
 import xarray as xr

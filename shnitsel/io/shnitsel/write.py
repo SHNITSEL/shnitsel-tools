@@ -1,5 +1,4 @@
 import logging
-import os
 import pathlib
 from typing import Any, Dict, Hashable
 import numpy as np
@@ -9,7 +8,7 @@ import xarray as xr
 import json
 
 from shnitsel.data.shnitsel_db_format import ShnitselDB
-from shnitsel.io.helpers import PathOptionsType, make_uniform_path
+from shnitsel.io.shared.helpers import PathOptionsType, make_uniform_path
 
 
 class NumpyDataEncoder(json.JSONEncoder):

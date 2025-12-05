@@ -2,7 +2,7 @@ from shnitsel.__api_info import API, internal
 from shnitsel.data.trajectory_format import Trajectory
 from shnitsel.data.shnitsel_db_format import ShnitselDB, build_shnitsel_db
 from shnitsel.io.format_reader_base import FormatInformation, FormatReader
-from shnitsel.io.helpers import (
+from shnitsel.io.shared.helpers import (
     KindType,
     LoadingParameters,
     PathOptionsType,
@@ -32,7 +32,6 @@ from typing import (
 )
 from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass
-import re
 import logging
 import os
 import pathlib

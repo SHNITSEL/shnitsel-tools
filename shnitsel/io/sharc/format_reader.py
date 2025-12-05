@@ -5,8 +5,7 @@ import re
 import traceback
 from typing import Dict, List
 
-from shnitsel.data.shnitsel_db_format import ShnitselDB
-from shnitsel.io.helpers import LoadingParameters, PathOptionsType, make_uniform_path
+from shnitsel.io.shared.helpers import LoadingParameters, PathOptionsType, make_uniform_path
 from ..format_reader_base import FormatInformation, FormatReader
 from .parse_trajectory import read_traj
 from .parse_initial_conditions import read_iconds_individual
@@ -172,7 +171,7 @@ class SHARCFormatReader(FormatReader):
             raise FileNotFoundError(message)
 
         # Try and extract a trajectory ID from the path name
-        match_attempt = _sharc_default_pattern_regex.match(path.name)
+        match_attempt = _sharc_default_pattern_regex.match(path_obj.name)
 
         if match_attempt:
             path_based_trajid = match_attempt.group("trajid")
@@ -187,7 +186,7 @@ class SHARCFormatReader(FormatReader):
         path: pathlib.Path,
         format_info: FormatInformation,
         loading_parameters: LoadingParameters | None = None,
-    ) -> xr.Dataset | ShnitselDB:
+    ) -> xr.Dataset:
         """Read a SHARC-style trajcetory from path at `path`. Implements `FormatReader.read_from_path()`
 
         Args:

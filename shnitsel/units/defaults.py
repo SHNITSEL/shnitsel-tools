@@ -1,5 +1,5 @@
 from typing import Dict, Literal
-from ..io.helpers import LoadingParameters
+from ..io.shared.helpers import LoadingParameters
 from .definitions import standard_units_of_formats, unit_dimensions
 
 
@@ -12,7 +12,7 @@ def get_default_input_attributes(
     Used to set descriptions, long names, unit dimensions and unit names.
 
     Args:
-        kind (Literal[&quot;sharc&quot;, &quot;newtonx&quot;, &quot;ase&quot;, &quot;pyrai2md&quot;]): The kind of input format to get default settings for
+        kind (Literal["sharc", "newtonx", "ase", "pyrai2md"]): The kind of input format to get default settings for
         loading_parameters (LoadingParameters | None, optional): User-provided overrides for default setup. Defaults to None.
 
     Returns:

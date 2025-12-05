@@ -3,7 +3,6 @@ import json
 import logging
 import os
 import pathlib
-import traceback
 from typing import Any, Literal
 
 from ase.db import connect
@@ -12,14 +11,14 @@ import pandas as pd
 import xarray as xr
 
 from shnitsel.data.trajectory_format import Trajectory
-from shnitsel.io.helpers import LoadingParameters
+from shnitsel.io.shared.helpers import LoadingParameters
 from shnitsel.io.shared.trajectory_setup import (
     RequiredTrajectorySettings,
     assign_required_settings,
 )
 from shnitsel.io.shared.variable_flagging import mark_variable_assigned
 from shnitsel.units.defaults import get_default_input_attributes
-from shnitsel.io.helpers import get_atom_number_from_symbol
+from shnitsel.data.atom_helpers import get_atom_number_from_symbol
 
 dummy_leading_dim: str = "leading_dim_unknown"
 multi_level_prefix: str = "_MultiIndex_levels_for_"

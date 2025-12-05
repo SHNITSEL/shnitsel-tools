@@ -1,6 +1,5 @@
 from dataclasses import asdict, dataclass
 from itertools import combinations, permutations
-import logging
 import math
 from typing import Dict, List, Literal, Tuple
 
@@ -9,7 +8,7 @@ import xarray as xr
 
 import numpy as np
 
-from shnitsel.io.helpers import LoadingParameters
+from shnitsel.io.shared.helpers import LoadingParameters
 from shnitsel.io.shared.variable_flagging import mark_variable_assigned
 
 

@@ -6,7 +6,7 @@ from typing import Dict, List
 
 from shnitsel.data.shnitsel_db_format import ShnitselDB
 from shnitsel.data.trajectory_format import Trajectory
-from shnitsel.io.helpers import LoadingParameters, PathOptionsType, make_uniform_path
+from shnitsel.io.shared.helpers import LoadingParameters, PathOptionsType, make_uniform_path
 from ..format_reader_base import FormatInformation, FormatReader
 from .parse import read_shnitsel_file
 from shnitsel.units.definitions import standard_shnitsel_units

@@ -8,13 +8,12 @@ import pandas as pd
 import logging
 import os
 import re
-import math
 
-from shnitsel.io.helpers import (
+from shnitsel.io.shared.helpers import (
     PathOptionsType,
-    get_atom_number_from_symbol,
     make_uniform_path,
 )
+from shnitsel.data.atom_helpers import get_atom_number_from_symbol
 from shnitsel.io.sharc.qm_helpers import (
     INTERFACE_READERS,
     set_sharc_state_type_and_name_defaults,
@@ -36,7 +35,7 @@ from shnitsel.units.definitions import (
 )
 
 
-from shnitsel.io.helpers import LoadingParameters
+from shnitsel.io.shared.helpers import LoadingParameters
 
 
 def read_traj(

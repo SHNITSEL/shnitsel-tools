@@ -1,6 +1,6 @@
 from io import TextIOWrapper
 import pathlib
-from typing import Any, Dict, NamedTuple, Tuple
+from typing import Any, NamedTuple, Tuple
 import numpy as np
 from shnitsel.io.shared.trajectory_setup import (
     OptionalTrajectorySettings,
@@ -19,12 +19,12 @@ import os
 import re
 import math
 
-from shnitsel.io.helpers import (
+from shnitsel.io.shared.helpers import (
     LoadingParameters,
     PathOptionsType,
-    get_atom_number_from_symbol,
     make_uniform_path,
 )
+from shnitsel.data.atom_helpers import get_atom_number_from_symbol
 
 from ..xyz import parse_xyz
 

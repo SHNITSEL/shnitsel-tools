@@ -4,10 +4,13 @@ import xarray as xr
 from shnitsel.data.shnitsel_db_format import ShnitselDB
 from shnitsel.data.trajectory_format import Trajectory
 from shnitsel.data.trajectory_format_wrapper import wrap_trajectory
-from shnitsel.io.helpers import LoadingParameters, default_state_name_assigner, default_state_type_assigner
+from shnitsel.io.shared.helpers import LoadingParameters
+from shnitsel.data.state_helpers import (
+    default_state_name_assigner,
+    default_state_type_assigner,
+)
 from shnitsel.io.shared.variable_flagging import (
     is_variable_assigned,
-    mark_variable_assigned,
 )
 from shnitsel.units.conversion import convert_all_units_to_shnitsel_defaults
 

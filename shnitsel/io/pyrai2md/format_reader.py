@@ -7,9 +7,11 @@ import sys
 import traceback
 from typing import Dict, List, Tuple
 
-from shnitsel.data.shnitsel_db_format import ShnitselDB
-from shnitsel.data.trajectory_format import Trajectory
-from shnitsel.io.helpers import LoadingParameters, PathOptionsType, make_uniform_path
+from shnitsel.io.shared.helpers import (
+    LoadingParameters,
+    PathOptionsType,
+    make_uniform_path,
+)
 from ..format_reader_base import FormatInformation, FormatReader
 from .parse import parse_pyrai2md
 
@@ -113,7 +115,7 @@ class PyrAI2mdFormatReader(FormatReader):
         path: pathlib.Path,
         format_info: FormatInformation,
         loading_parameters: LoadingParameters | None = None,
-    ) -> xr.Dataset | ShnitselDB:
+    ) -> xr.Dataset:
         """Read a PyrAI2md-style trajcetory from path at `path`. Implements `FormatReader.read_from_path()`
 
         Args:
