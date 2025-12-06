@@ -5,9 +5,6 @@
     Currently, the first category of function is found under postprocess
 """
 
-from collections.abc import Collection
-from itertools import combinations, product
-from logging import warning
 from typing import Literal, TypeAlias
 
 
@@ -16,10 +13,8 @@ import rdkit.Chem as rc
 from rdkit.Chem import Mol
 import xarray as xr
 
-from shnitsel.io.helpers import get_symbol_from_atom_number
-from .generic import subtract_combinations, norm
+from .generic import norm
 from ..bridges import default_mol
-from .xrhelpers import expand_midx
 from .._contracts import needs
 
 from shnitsel.core.geo.geomatch import flag_bats
