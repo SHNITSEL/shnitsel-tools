@@ -10,7 +10,7 @@ import numpy as np
 from shnitsel.filtering.state_selection import StateSelection
 from shnitsel.vis.datasheet.figures.dip_trans_hist import (
     plot_spectra,
-    single_dip_trans_hist,
+    # single_dip_trans_hist,
 )
 
 from ....core.typedefs import InterState, SpectraDictType
@@ -20,9 +20,6 @@ from .common import centertext, figaxs_defaults
 from .hist import calc_truncation_maximum, create_marginals
 from ...colormaps import magma_rw
 from ....units.conversion import convert_energy
-
-
-
 
 
 def single_trans_hist(
@@ -35,6 +32,7 @@ def single_trans_hist(
     ylabel: str | None = None,
     bins: int = 100,
     ax: Axes | None = None,
+    plot_marginals: bool = True,
     cmap=None,
     cnorm=None,
 ):
@@ -51,6 +49,7 @@ def single_trans_hist(
         color (str): Color for the histogram of this state combination.
         bins (int, optional): Number of bins for the histogram. Defaults to 100.
         ax (Axes, optional): Axes object to plot into. Defaults to None.
+        plot_marginals (bool, optional): Flag to include marginal histograms. Defaults to True, meaning marginal histograms will be included.
         cmap (str, optional): Colormap to use. Defaults to None.
         cnorm (str, optional): Norming method to apply to the colormap. Defaults to None.
 
@@ -66,8 +65,6 @@ def single_trans_hist(
         # print("No SOC plot for missing data")
         # print(interstate.data_vars.keys())
         return None
-
-    axx, axy = create_marginals(ax)
     xdata = interstate[xvariable].squeeze()
     if xvariable == 'energy_interstate':
         # We expect energies in eV for the energy delta plot
@@ -75,13 +72,29 @@ def single_trans_hist(
 
     # We need the normed transition soc
     ydata = interstate[yvariable].squeeze()
+    # print(f"{xdata=}")
+    # print(f"{ydata=}")
 
     xmax = calc_truncation_maximum(xdata)
     ymax = calc_truncation_maximum(ydata)
-    axx.hist(xdata, range=(0, xmax), color=color, bins=bins)
-    axy.hist(ydata, range=(0, ymax), orientation='horizontal', color=color, bins=bins)
+    # Get lower bounds dynamically as well.
+    xmin = -calc_truncation_maximum(-xdata)
+    ymin = -calc_truncation_maximum(-ydata)
+
+    if plot_marginals:
+        axx, axy = create_marginals(ax)
+        axx.hist(xdata, range=(xmin, xmax), color=color, bins=bins)
+        axy.hist(
+            ydata, range=(ymin, ymax), orientation='horizontal', color=color, bins=bins
+        )
+
     hist2d_output = ax.hist2d(
-        xdata, ydata, range=[(0, xmax), (0, ymax)], bins=bins, cmap=cmap, norm=cnorm
+        xdata,
+        ydata,
+        range=[(xmin, xmax), (ymin, ymax)],
+        bins=bins,
+        cmap=cmap,
+        norm=cnorm,
     )
 
     if ylabel is not None:
@@ -109,6 +122,7 @@ def single_trans_hist(
 
     return hist2d_output
 
+
 def single_soc_trans_hist(
     interstate: InterState,
     sc_label: str,
@@ -116,10 +130,13 @@ def single_soc_trans_hist(
     color: str,
     bins: int = 100,
     ax: Axes | None = None,
+    plot_marginals: bool = True,
     cmap=None,
     cnorm=None,
 ):
-    """Function to plot a single histogram of interstate soc data vs. energy gaps.
+    """Function to plot a single histogram of interstate data.
+
+    Used for both delta_E vs. \\mu and delta_E vs SOC plots.
 
     Args:
         interstate (InterState): Inter-state Dataset
@@ -128,6 +145,7 @@ def single_soc_trans_hist(
         color (str): Color for the histogram of this state combination.
         bins (int, optional): Number of bins for the histogram. Defaults to 100.
         ax (Axes, optional): Axes object to plot into. Defaults to None.
+        plot_marginals (bool, optional): Flag to include marginal histograms. Defaults to True, meaning marginal histograms will be included.
         cmap (str, optional): Colormap to use. Defaults to None.
         cnorm (str, optional): Norming method to apply to the colormap. Defaults to None.
 
@@ -146,6 +164,48 @@ def single_soc_trans_hist(
         cmap=cmap,
         cnorm=cnorm,
     )
+
+
+def single_dip_trans_hist(
+    interstate: InterState,
+    sc_label: str,
+    state_labels: tuple[str, str],
+    color: str,
+    bins: int = 100,
+    ax: Axes | None = None,
+    plot_marginals: bool = True,
+    cmap=None,
+    cnorm=None,
+):
+    """Function to plot a single histogram of interstate dip_trans data.
+
+    Args:
+        interstate (InterState): Inter-state Dataset
+        sc_label (str): Label to use for the state combination.
+        state_labels (tuple[str,str]): Labels for the individual states.
+        color (str): Color for the histogram of this state combination.
+        bins (int, optional): Number of bins for the histogram. Defaults to 100.
+        ax (Axes, optional): Axes object to plot into. Defaults to None.
+        plot_marginals (bool, optional): Flag to include marginal histograms. Defaults to True, meaning marginal histograms will be included.
+        cmap (str, optional): Colormap to use. Defaults to None.
+        cnorm (str, optional): Norming method to apply to the colormap. Defaults to None.
+
+    Returns:
+        ?: The result of ax.hist2d will be returned
+    """
+    return single_trans_hist(
+        interstate=interstate,
+        xvariable='energy_interstate',
+        yvariable='dip_trans_norm',
+        ylabel=r"$\|\mathbf{\mu}_{%s,%s}\|_2$",
+        state_labels=state_labels,
+        color=color,
+        bins=bins,
+        ax=ax,
+        cmap=cmap,
+        cnorm=cnorm,
+    )
+
 
 def plot_soc_or_dip_trans_histograms(
     inter_state: InterState,

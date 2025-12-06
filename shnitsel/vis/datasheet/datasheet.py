@@ -167,12 +167,13 @@ class Datasheet:
     def plot(
         self,
         include_per_state_hist: bool = False,
+        include_coupling_page: bool = False,
         borders: bool = False,
         consistent_lettering: bool = True,
         single_key: str | None = None,
         path: str | PathLike | None = None,
         **kwargs,
-    ) -> dict[str, Figure] | Figure:
+    ) -> dict[str, list[Figure]] | list[Figure]:
         """Function to plot datasheets for all trajectory groups/datasets in this Datasheet instance.
 
         Will output the multi-page figure to a file at `path` if provided.
@@ -180,6 +181,7 @@ class Datasheet:
 
         Args:
             include_per_state_hist (bool, optional): Flag to include per-state histograms in the plot. Defaults to False.
+            include_coupling_page (bool, optional): Flag to create a full page with state-coupling plots. Defaults to False.
             borders (bool, optional): A flag whether to draw borders around plots. Defaults to False.
             consistent_lettering (bool, optional): Flag to decide, whether same plots should always have the same letters. Defaults to True.
             single_key (str, optional): Key to a single entry in this set to plot. Keys are specified as paths in the ShnitselDB structure.
@@ -199,47 +201,52 @@ class Datasheet:
                 )
             relevant_keys = [single_key]
 
-        page_figures = {}
+        page_figures: dict[str, list[Figure]] = {}
 
         for key in relevant_keys:
             page = self.datasheet_pages[key]
             page_fig = page.plot(
                 include_per_state_hist=include_per_state_hist,
+                include_coupling_page=include_coupling_page,
                 borders=borders,
                 consistent_lettering=consistent_lettering,
             )
-            page_figures[key] = page_fig
+            page_figures[key] = page_fig if isinstance(page_fig, list) else [page_fig]
 
         if path is not None:
             with PdfPages(path) as pdf:
-                for key, page_fig in page_figures:
+                for key, page_fig in page_figures.items():
                     pdf.attach_note(f"Plot of: {key}")
-                    pdf.savefig(
-                        page_fig
-                    )  # or you can pass a Figure object to pdf.savefig
-            d = pdf.infodict()
-            d['Title'] = (
-                kwargs['title']
-                if 'title' in kwargs
-                else (
-                    self.name if self.name is not None else 'Shnitsel-Tools Datasheet'
+                    for fig in page_fig:
+                        pdf.savefig(fig)
+                d = pdf.infodict()
+                d['Title'] = (
+                    kwargs['title']
+                    if 'title' in kwargs
+                    else (
+                        self.name
+                        if self.name is not None
+                        else 'Shnitsel-Tools Datasheet'
+                    )
                 )
-            )
-            d['Author'] = kwargs['author'] if 'author' in kwargs else 'Shnitsel-Tools'
-            d['Subject'] = (
-                kwargs['subject']
-                if 'subject' in kwargs
-                else 'Visualization of key statistics'
-            )
-            d['Keywords'] = (
-                kwargs['keywords']
-                if 'keywords' in kwargs
-                else 'Datasheet shnitsel shnitsel-tools'
-            )
-            d['CreationDate'] = (
-                datetime.datetime.today()
-            )  # datetime.datetime(2009, 11, 13)
-            d['ModDate'] = datetime.datetime.today()
+                d['Author'] = (
+                    kwargs['author'] if 'author' in kwargs else 'Shnitsel-Tools'
+                )
+                d['Subject'] = (
+                    kwargs['subject']
+                    if 'subject' in kwargs
+                    else 'Visualization of key statistics'
+                )
+                d['Keywords'] = (
+                    kwargs['keywords']
+                    if 'keywords' in kwargs
+                    else 'Datasheet shnitsel shnitsel-tools'
+                )
+                d['CreationDate'] = (
+                    datetime.datetime.today()
+                )  # datetime.datetime(2009, 11, 13)
+                d['ModDate'] = datetime.datetime.today()
+                print(f"Writing pdf with {pdf.get_pagecount()} pages")
 
         if single_key is None:
             return page_figures

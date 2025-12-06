@@ -15,13 +15,21 @@ import shnitsel
 from shnitsel.analyze.populations import calc_classical_populations
 import shnitsel.bridges
 from shnitsel.analyze import stats
-from shnitsel.core.typedefs import AtXYZ, InterState, PerState, SpectraDictType
+from shnitsel.core.typedefs import (
+    AtXYZ,
+    InterState,
+    PerState,
+    SpectraDictType,
+    StateCombination,
+)
 from shnitsel.data.trajectory_format import Trajectory
 from shnitsel.filtering.state_selection import StateSelection
 from shnitsel.vis.datasheet.figures.energy_bands import plot_energy_bands
 from shnitsel.vis.datasheet.figures.soc_trans_hist import (
     plot_separated_spectra_and_soc_dip_hists,
     plot_separated_spectra_and_soc_dip_hists_groundstate,
+    single_dip_trans_hist,
+    single_soc_trans_hist,
 )
 
 try:
@@ -34,6 +42,7 @@ from shnitsel.analyze.spectra import assign_fosc, calc_spectra, get_spectra_grou
 from .figures.common import centertext
 from .figures.per_state_hist import plot_per_state_histograms
 from .figures.time import plot_timeplots
+
 # from .figures.dip_trans_hist import (
 #     plot_separated_spectra_and_hists,
 #     plot_separated_spectra_and_hists_groundstate,
@@ -624,6 +633,96 @@ class DatasheetPage:
         info(f"finished plot_structure in {end - start} s")
         return res
 
+    def plot_coupling_page(
+        self,
+        figures: dict[StateCombination, SubFigure],
+        state_selection: StateSelection,
+    ) -> dict[StateCombination, Axes]:
+        start = timer()
+        mol = self.mol_skeletal if self.structure_skeletal else self.mol
+        interstate = self.inter_state
+        has_dip_trans = 'dip_trans_norm' in interstate.data_vars
+        has_nacs = 'nacs_norm' in interstate.data_vars
+        has_socs = 'socs_norm' in interstate.data_vars
+        res: dict[StateCombination, Axes] = {}
+        for sc in state_selection.state_combinations:
+            ax1 = figures[sc].add_subplot(1, 1, 1)
+            sc_label = state_selection.get_state_combination_tex_label(sc)
+            s1, s2 = sc
+            sc_r = (s2, s1)
+            ax2 = figures[sc_r].add_subplot(1, 1, 1)
+            res[sc] = ax1
+            res[sc_r] = ax2
+
+            s1label = state_selection.get_state_tex_label(s1)
+            s2label = state_selection.get_state_tex_label(s2)
+            sccolor = state_selection.get_state_combination_color(sc)
+            if has_nacs or has_dip_trans:
+                interstate_sc = interstate.sel(statecomb=sc)
+                if has_nacs:
+                    if interstate_sc['nacs_norm'].max() > 1e-9:
+                        single_dip_trans_hist(
+                            interstate_sc,
+                            sc_label,
+                            (s1label, s2label),
+                            sccolor,
+                            ax=ax1,
+                            plot_marginals=False,
+                        )
+                        single_dip_trans_hist(
+                            interstate_sc,
+                            sc_label,
+                            (s2label, s1label),
+                            sccolor,
+                            ax=ax2,
+                            plot_marginals=False,
+                        )
+                        continue
+                if has_dip_trans:
+                    if interstate_sc['dip_trans_norm'].max() > 1e-9:
+                        # We have no
+                        centertext(
+                            f"Permitted Transition {sc_label}", ax1, clearticks="xy"
+                        )
+                        centertext(
+                            f"Permitted Transition {sc_label}", ax2, clearticks="xy"
+                        )
+                        continue
+                if has_socs:
+                    interstate_sc = interstate.sel(statecomb=sc, full_statecomb=sc)
+                    found_soc = False
+                    if interstate_sc['socs_norm'].max() > 1e-9:
+                        single_soc_trans_hist(
+                            interstate_sc,
+                            sc_label,
+                            (s1label, s2label),
+                            sccolor,
+                            ax=ax1,
+                            plot_marginals=False,
+                        )
+                        found_soc = True
+                    interstate_sc = interstate.sel(statecomb=sc, full_statecomb=sc_r)
+                    if interstate_sc['socs_norm'].max() > 1e-9:
+                        single_soc_trans_hist(
+                            interstate_sc,
+                            sc_label,
+                            (s2label, s1label),
+                            sccolor,
+                            ax=ax2,
+                            plot_marginals=False,
+                        )
+                        found_soc = True
+
+                    if found_soc:
+                        continue
+
+                centertext(f"No Permitted Transition {sc_label}", ax1, clearticks="xy")
+                centertext(f"No Permitted Transition {sc_label}", ax2, clearticks="xy")
+
+        end = timer()
+        info(f"finished plot_structure in {end - start} s")
+        return res
+
     @staticmethod
     def get_subfigures_main_page(
         include_per_state_hist: bool = False, borders: bool = False
@@ -704,9 +803,47 @@ class DatasheetPage:
         }
         return fig, subfigures
 
+    @staticmethod
+    def get_subfigures_coupling_page(
+        state_selection: StateSelection, borders: bool = False
+    ) -> tuple[Figure, dict[StateCombination, SubFigure]]:
+        """Helper function to prepare a figure to hold all state interaction figures.
+        Args:
+            n_states (int, optional): Number of states (will be square in the end.)
+            borders (bool, optional): Flag whether figure borders should be drawn. Defaults to False.
+
+        Returns:
+            tuple[Figure, dict[str, SubFigure]]: The overall figure and a dict to access individual subfigures by their name.
+        """
+        n_states: int = len(state_selection.states)
+        nrows = n_states
+        ncols = n_states
+
+        states = state_selection.states
+
+        fig, state_grid = plt.subplots(nrows, ncols, layout='constrained')
+        fig.set_size_inches(
+            11.69 / 6 * ncols,
+            8.27 / 4 * nrows,
+        )  # landscape A4
+        if borders:
+            fig.set_facecolor('#0d0d0d')
+        gs = state_grid[0, 0].get_subplotspec().get_gridspec()
+        gridspecs = {
+            (states[a], states[b]): gs[a, b]
+            for a in range(n_states)
+            for b in range(n_states)
+        }
+        subfigures = {
+            comb_label: fig.add_subfigure(sub_gridspec)
+            for comb_label, sub_gridspec in gridspecs.items()
+        }
+        return fig, subfigures
+
     def plot(
         self,
         include_per_state_hist: bool = False,
+        include_coupling_page: bool = False,
         borders: bool = False,
         consistent_lettering: bool = True,
     ) -> Figure | list[Figure]:
@@ -716,6 +853,7 @@ class DatasheetPage:
 
         Args:
             include_per_state_hist (bool, optional): Flag whether per-state histograms should be included. Defaults to False.
+            include_coupling_page (bool, optional): Flag to create a full page with state-coupling plots. Defaults to False.
             borders (bool, optional): Flag whether the figure should have borders or not. Defaults to False.
             consistent_lettering (bool, optional): Flag whether consistent lettering should be used, i.e. whether the same plot should always have the same label letter. Defaults to True.
 
@@ -846,6 +984,16 @@ class DatasheetPage:
             elif consistent_lettering:
                 next(letters)
 
+            figures.append(fig)
+
+        if include_coupling_page:
+            fig, sfs = self.get_subfigures_coupling_page(
+                state_selection=self.state_selection, borders=borders
+            )
+            fig.suptitle(
+                f'Datasheet:{self.name} [Page: Inter-state Couplings]', fontsize=16
+            )
+            res_coupling_axes = self.plot_coupling_page(sfs, self.state_selection)
             figures.append(fig)
 
         return figures if len(figures) != 1 else figures[0]
