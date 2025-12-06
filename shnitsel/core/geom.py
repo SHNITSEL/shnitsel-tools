@@ -157,18 +157,20 @@ def _fake_identify(mol):
     raise NotImplementedError
 
 
-def _check_matches(matches_or_mol, atXYZ, fn):
+def _check_matches(matches_or_mol, atXYZ):
     if matches_or_mol is None:
         mol = default_mol(atXYZ)
-        matches = fn(mol)
+        matches = flag_bats(mol)[0]
     elif isinstance(matches_or_mol, rc.Mol):
-        matches = fn(mol)
-    elif isinstance(matches_or_mol, list):
+        matches = flag_bats(mol)[0]
+    elif isinstance(matches_or_mol, dict):
         matches = matches_or_mol
     else:
         raise TypeError(f"`matches_or_mol` of wrong type: {type(matches_or_mol)}")
 
-    matches = [t for t in matches if t[0]]  # remove unflagged
+    matches = {
+        k: [t for t in v if t[0]] for k, v in matches.items()
+    }  # remove unflagged
     return matches
 
 
@@ -261,7 +263,7 @@ def get_bond_lengths(
     UserWarning
         If both `matches` and `mol` are specified.
     """
-    matches = _check_matches(matches_or_mol, atXYZ, _fake_identify)
+    matches = _check_matches(matches_or_mol, atXYZ)['bonds']
 
     _, atom_idxs, bond_idxs, bond_types, fragment_objs = zip(*matches)
 
@@ -358,7 +360,7 @@ def get_bond_angles(
     UserWarning
         If both `matches` and `mol` are specified.
     """
-    matches = _check_matches(matches_or_mol, atXYZ, _fake_identify)
+    matches = _check_matches(matches_or_mol, atXYZ)['angles']
 
     _, atom_idxs, bond_idxs, bond_types, fragment_objs = zip(*matches)
 
@@ -473,7 +475,7 @@ def get_bond_torsions(
     -------
         An :py:class:`xarray.DataArray` of bond torsions with dimensions `frame` and `torsion`.
     """
-    matches = _check_matches(matches_or_mol, atXYZ, _fake_identify)
+    matches = _check_matches(matches_or_mol, atXYZ)['dihedrals']
 
     _, atom_idxs, bond_idxs, bond_types, fragment_objs = zip(*matches)
 
@@ -539,12 +541,10 @@ def get_bats(
         matches_or_mol = flag_bats(mol)[0]
 
     d = {
-        'bonds': get_bond_lengths(atXYZ, matches_or_mol=matches_or_mol['bonds']),
-        'angles': get_bond_angles(
-            atXYZ, matches_or_mol=matches_or_mol['angles'], deg=deg
-        ),
+        'bonds': get_bond_lengths(atXYZ, matches_or_mol=matches_or_mol),
+        'angles': get_bond_angles(atXYZ, matches_or_mol=matches_or_mol, deg=deg),
         'dihedrals': get_bond_torsions(
-            atXYZ, matches_or_mol=matches_or_mol['dihedrals'], signed=signed, deg=deg
+            atXYZ, matches_or_mol=matches_or_mol, signed=signed, deg=deg
         ),
     }
 
