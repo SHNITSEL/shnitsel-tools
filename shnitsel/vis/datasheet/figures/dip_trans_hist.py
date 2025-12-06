@@ -18,7 +18,7 @@ from ...colormaps import magma_rw, custom_ylgnr
 from ....units.conversion import convert_energy
 
 
-def single_hist(
+def single_dip_trans_hist(
     interstate: InterState,
     sc_label: str,
     state_labels: tuple[str, str],
@@ -28,7 +28,7 @@ def single_hist(
     cmap=None,
     cnorm=None,
 ):
-    """Function to plot a single histogram of interstate data.
+    """Function to plot a single histogram of interstate dip_trans data.
 
     Args:
         interstate (InterState): Inter-state Dataset
@@ -110,21 +110,27 @@ def plot_dip_trans_histograms(
     assert axs is not None, "Could not create subplot axes."
 
     hist2d_outputs = []
+    selected_scs = 0
     for i, (sc_, data) in enumerate(inter_state.groupby('statecomb')):
         if not state_selection.has_state_combination(sc_):
             continue
+
+        if selected_scs >= len(axs):
+            break
+
         # label = f't{i}'
         sc_label = state_selection.get_state_combination_tex_label(sc_)  # = sclabels[i]
         state_labels = (
             state_selection.get_state_tex_label(sc_[0]),
             state_selection.get_state_tex_label(sc_[1]),
         )
-        ax = axs[i]
+        ax = axs[selected_scs]
 
         color = state_selection.get_state_combination_color(sc_)
         hist2d_outputs.append(
-            single_hist(data, sc_label, state_labels, color=color, ax=ax, cnorm=cnorm)
+            single_dip_trans_hist(data, sc_label, state_labels, color=color, ax=ax, cnorm=cnorm)
         )
+        selected_scs += 1
     return hist2d_outputs
 
 
@@ -238,21 +244,28 @@ def plot_separated_spectra_and_hists(
         ground, ax=axs['sg'], state_selection=state_selection, cnorm=scnorm, cmap=scmap
     )
 
-    # We show at most the first two statecombs
-    if inter_state.sizes['statecomb'] >= 2:
-        selsc = [0, 1]
+    # # We show at most the first two statecombs
+    # if inter_state.sizes['statecomb'] >= 2:
+    #     selsc = [0, 1]
+    #     selaxs = [axs['t1'], axs['t0']]
+    # elif inter_state.sizes['statecomb'] == 1:
+    #     selsc = [0]
+    #     selaxs = [axs['t1']]
+    # else:
+    #     raise ValueError(
+    #         "Too few statecombs (expecting at least 2 states => 1 statecomb)"
+    #     )
+    # inter_state_sel = inter_state.isel(statecomb=selsc)
+
+    if len(state_selection.state_combinations) > 1:
         selaxs = [axs['t1'], axs['t0']]
-    elif inter_state.sizes['statecomb'] == 1:
-        selsc = [0]
-        selaxs = [axs['t1']]
     else:
-        raise ValueError(
-            "Too few statecombs (expecting at least 2 states => 1 statecomb)"
-        )
-    inter_state_sel = inter_state.isel(statecomb=selsc)
+        selaxs = [axs['t1']]
 
     hist2d_outputs += plot_dip_trans_histograms(
-        inter_state_sel, axs=selaxs, state_selection=state_selection
+        inter_state,  # inter_state_sel,
+        axs=selaxs,
+        state_selection=state_selection,
     )
 
     # excited-state spectra and histograms
@@ -265,7 +278,7 @@ def plot_separated_spectra_and_hists(
             cmap=scmap,
         )
         hist2d_outputs += plot_dip_trans_histograms(
-            inter_state.isel(statecomb=[2]),
+            inter_state,  # inter_state.isel(statecomb=[2]),
             axs=[axs['t2']],
             state_selection=state_selection,
         )
