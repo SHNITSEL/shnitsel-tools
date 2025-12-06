@@ -42,6 +42,16 @@ def ddot(a, b):
 def angle_(a, b):
     return np.arccos(ddot(a, b) / (dnorm(a) * dnorm(b)))
 
+def angle_cos_sin_(a, b):
+    """
+    returns the cosine and sine of the angle between two vectors
+    """
+    prod = dnorm(a) * dnorm(b)
+    return (
+        ddot(a, b) / prod,
+        dnorm(dcross(a, b)) / prod,
+    )
+
 
 def normal(a, b, c):
     return dcross(a - b, c - b)
@@ -251,7 +261,7 @@ def get_bond_angles(
     atXYZ: xr.DataArray,
     matches_or_mol: dict | Mol | None = None,
     mol: Mol | None = None,
-    deg: bool = False,
+    ang: Literal[False, 'deg', 'rad'] = False,
 ):
     """Identify triples of bonded atoms (using RDKit) and calculate every bond angle for each
     frame.
@@ -269,8 +279,10 @@ def get_bond_angles(
         angles are identified automatically based on the `mol` argument.
     mol, optional
         An RDKit `Mol` object, which is generated from `atXYZ` if this argument is omitted.
-    deg, optional
-        Whether to return angles in degrees (as opposed to radians), by default False
+    ang, optional
+        If False (the default), returns sines and cosines;
+        if set to 'deg', returns angles in degrees
+        if set to 'rad', returns angles in radians
 
     Returns
     -------
@@ -291,26 +303,25 @@ def get_bond_angles(
 
     r0, r1, r2 = _positions(atXYZ, atom_idxs)
 
-    data = angle_(r0 - r1, r2 - r1)
-    if deg:
-        data *= 180 / np.pi
-
-    return _assign_descriptor_coords(
-        data,
-        atom_idxs,
-        bond_idxs,
-        bond_types,
-        fragment_objs,
-        r"$\theta_{%d,%d,%d}$",
-    )
+    std_args = (atom_idxs, bond_idxs, bond_types, fragment_objs)
+    if ang:
+        data = angle_(r0 - r1, r2 - r1)
+        if ang == 'deg':
+            data *= 180 / np.pi
+        return _assign_descriptor_coords(data, *std_args, r"$\theta_{%d,%d,%d}$")
+    else:
+        cos, sin = angle_cos_sin_(r0 - r1, r2 - r1)
+        cos = _assign_descriptor_coords(cos, *std_args, r"$\cos\theta_{%d,%d,%d}$")
+        sin = _assign_descriptor_coords(sin, *std_args, r"$\sin\theta_{%d,%d,%d}$")
+        return xr.concat([cos, sin], dim='descriptor')
 
 
 @needs(dims={'atom', 'direction'})
 def get_bond_torsions(
     atXYZ: xr.DataArray,
     matches_or_mol: dict | None = None,
-    signed: bool = False,
-    deg: bool = False,
+    signed: bool | None = None,
+    ang: Literal[False, 'deg', 'rad'] = False,
 ):
     """Identify quadruples of bonded atoms (using RDKit) and calculate the corresponding proper bond torsion for each
     frame.
@@ -328,9 +339,12 @@ def get_bond_torsions(
         Alternatively, you may supply an RDKit `Mol` object.
         If this argument is omitted, internal coordinates are automatically which is generated from `atXYZ`.
     signed, optional
-        Whether to distinguish between clockwise and anticlockwise rotation, by default False
-    deg, optional
-        Whether to return angles in degrees (as opposed to radians), by default False
+        Whether to distinguish between clockwise and anticlockwise rotation,
+        when returning angles; by default, do not distinguish.
+    ang, optional
+        If False (the default), returns sines and cosines;
+        if set to 'deg', returns angles in degrees
+        if set to 'rad', returns angles in radians
 
     Returns
     -------
@@ -345,30 +359,39 @@ def get_bond_torsions(
     assert all(len(x) == 3 for x in bond_types)
 
     atom_positions = _positions(atXYZ, atom_idxs)
+    std_args = (atom_idxs, bond_idxs, bond_types, fragment_objs)
 
-    if signed:
-        data = full_dihedral_(*atom_positions)
+    if ang:
+        if signed:
+            data = full_dihedral_(*atom_positions)
+        else:
+            data = dihedral_(*atom_positions)
+        if ang == 'deg':
+            data *= 180 / np.pi
+        return _assign_descriptor_coords(
+            data,
+            *std_args,
+            r"$\varphi_{%d,%d,%d,%d}$",
+        )
     else:
-        data = dihedral_(*atom_positions)
-    if deg:
-        data *= 180 / np.pi
+        if signed is not None:
+            raise ValueError("Can't use `signed` parameter when ang==False")
 
-    return _assign_descriptor_coords(
-        data,
-        atom_idxs,
-        bond_idxs,
-        bond_types,
-        fragment_objs,
-        r"$\varphi_{%d,%d,%d,%d}$",
-    )
+        r0, r1, r2, r3 = atom_positions
+        n012 = normal(r0, r1, r2)
+        n123 = normal(r1, r2, r3)
+        cos, sin = angle_cos_sin_(n012, n123)
+        cos = _assign_descriptor_coords(cos, *std_args, r"$\cos\varphi_{%d,%d,%d,%d}$")
+        sin = _assign_descriptor_coords(sin, *std_args, r"$\sin\varphi_{%d,%d,%d,%d}$")
+        return xr.concat([cos, sin], dim='descriptor')
 
 
 @needs(dims={'atom', 'direction'})
 def get_bats(
     atXYZ: xr.DataArray,
     matches_or_mol: dict | Mol | None = None,
-    signed: bool = False,
-    deg: bool = False,
+    signed: bool | None = None,
+    ang: Literal[False, 'deg', 'rad'] = False,
     pyr=False,
 ):
     """Get bond lengths, angles and torsions.
@@ -382,6 +405,16 @@ def get_bats(
         determined automatically based on the first frame of ``atXYZ``.
         Alternatively, a dictionary containing match information, as produced
         by one of the ``flag_*`` functions.
+    signed, optional
+        Whether to distinguish between clockwise and anticlockwise rotation,
+        when returning angles as opposed to cosine & sine values;
+        by default, do not distinguish.
+        NB. This applies only to the dihedrals, not to the three-center angles.
+        The latter are always unsigned.
+    ang, optional
+        If False (the default), returns sines and cosines;
+        if set to 'deg', returns angles in degrees
+        if set to 'rad', returns angles in radians
     pyr
         Whether to include pyramidalizations from :py:func:`shnitsel.core.geom.get_pyramids`
 
@@ -402,15 +435,15 @@ def get_bats(
 
     d = {
         'bonds': get_bond_lengths(atXYZ, matches_or_mol=matches_or_mol),
-        'angles': get_bond_angles(atXYZ, matches_or_mol=matches_or_mol, deg=deg),
+        'angles': get_bond_angles(atXYZ, matches_or_mol=matches_or_mol, ang=ang),
         'dihedrals': get_bond_torsions(
-            atXYZ, matches_or_mol=matches_or_mol, signed=signed, deg=deg
+            atXYZ, matches_or_mol=matches_or_mol, signed=signed, ang=ang
         ),
     }
 
     if pyr:
         d['pyr'] = get_pyramids(
-            atXYZ, matches_or_mol=matches_or_mol, deg=deg, signed=signed
+            atXYZ, matches_or_mol=matches_or_mol, ang=ang, signed=signed
         )
 
     for k in d:
