@@ -18,9 +18,96 @@ from ....units.definitions import energy
 
 from .common import centertext, figaxs_defaults
 from .hist import calc_truncation_maximum, create_marginals
-from ...colormaps import magma_rw, custom_ylgnr
+from ...colormaps import magma_rw
 from ....units.conversion import convert_energy
 
+
+
+
+
+def single_trans_hist(
+    interstate: InterState,
+    xvariable: str,
+    yvariable: str,
+    state_labels: tuple[str, str],
+    color: str,
+    xlabel: str | None = None,
+    ylabel: str | None = None,
+    bins: int = 100,
+    ax: Axes | None = None,
+    cmap=None,
+    cnorm=None,
+):
+    """Function to plot a single histogram of interstate soc data vs. energy gaps.
+
+    Args:
+        interstate (InterState): Inter-state Dataset
+        xvariable (str): Name of the interstate variable to use for the x-axis.
+        yvariable (str): Name of the interstate variable to use for the y-axis.
+        xlabel (str, optional): Label for the x-axis. Defaults to None.
+        ylabel (str, optional): Label for the y-axis. Defaults to None.
+        sc_label (str): Label to use for the state combination.
+        state_labels (tuple[str,str]): Labels for the individual states.
+        color (str): Color for the histogram of this state combination.
+        bins (int, optional): Number of bins for the histogram. Defaults to 100.
+        ax (Axes, optional): Axes object to plot into. Defaults to None.
+        cmap (str, optional): Colormap to use. Defaults to None.
+        cnorm (str, optional): Norming method to apply to the colormap. Defaults to None.
+
+    Returns:
+        ?: The result of ax.hist2d will be returned. None is returned if data is missing
+    """
+    if ax is None:
+        _, ax = plt.subplots(1, 1)
+    if cmap is None:
+        cmap = magma_rw
+    # TODO: FIXME: Merge with dip_trans_plot and generalize
+    if xvariable not in interstate.data_vars or yvariable not in interstate.data_vars:
+        # print("No SOC plot for missing data")
+        # print(interstate.data_vars.keys())
+        return None
+
+    axx, axy = create_marginals(ax)
+    xdata = interstate[xvariable].squeeze()
+    if xvariable == 'energy_interstate':
+        # We expect energies in eV for the energy delta plot
+        xdata = convert_energy(xdata, to=energy.eV)
+
+    # We need the normed transition soc
+    ydata = interstate[yvariable].squeeze()
+
+    xmax = calc_truncation_maximum(xdata)
+    ymax = calc_truncation_maximum(ydata)
+    axx.hist(xdata, range=(0, xmax), color=color, bins=bins)
+    axy.hist(ydata, range=(0, ymax), orientation='horizontal', color=color, bins=bins)
+    hist2d_output = ax.hist2d(
+        xdata, ydata, range=[(0, xmax), (0, ymax)], bins=bins, cmap=cmap, norm=cnorm
+    )
+
+    if ylabel is not None:
+        ax.set_ylabel(
+            ylabel % (state_labels[0], state_labels[1])
+        )  # r"$\|\mathbf{\mu}_{%d,%d}\|_2$" % (sc[0], sc[1]))
+
+    if xlabel is not None:
+        ax.set_xlabel(xlabel)
+
+    ax.text(
+        1.05,
+        1.05,
+        "$%s/%s$"
+        % (
+            state_labels[0],
+            state_labels[1],
+        ),  # f"{sc_label}",  # $S_%d/S_%d$" % (sc[0], sc[1]),
+        transform=ax.transAxes,
+        ha="left",
+        va="bottom",
+        color=color,
+        #   fontweight='bold',
+    )
+
+    return hist2d_output
 
 def single_soc_trans_hist(
     interstate: InterState,
@@ -47,55 +134,18 @@ def single_soc_trans_hist(
     Returns:
         ?: The result of ax.hist2d will be returned. None is returned if data is missing
     """
-    if ax is None:
-        _, ax = plt.subplots(1, 1)
-    if cmap is None:
-        cmap = magma_rw
-    # TODO: FIXME: Merge with dip_trans_plot and generalize
-    if (
-        'socs_norm' not in interstate.data_vars
-        or 'energy_interstate' not in interstate.data_vars
-    ):
-        # print("No SOC plot for missing data")
-        # print(interstate.data_vars.keys())
-        return None
-
-    axx, axy = create_marginals(ax)
-    # We expect energies in eV for the plot
-    xdata = interstate['energy_interstate'].squeeze()
-    xdata = convert_energy(xdata, to=energy.eV)
-
-    # We need the normed transition soc
-    ydata = interstate['socs_norm'].squeeze()
-
-    xmax = calc_truncation_maximum(xdata)
-    ymax = calc_truncation_maximum(ydata)
-    axx.hist(xdata, range=(0, xmax), color=color, bins=bins)
-    axy.hist(ydata, range=(0, ymax), orientation='horizontal', color=color, bins=bins)
-    hist2d_output = ax.hist2d(
-        xdata, ydata, range=[(0, xmax), (0, ymax)], bins=bins, cmap=cmap, norm=cnorm
-    )
-
-    ax.set_ylabel(
-        r"$\|SOC_{%s,%s}\|_2$" % (state_labels[0], state_labels[1])
-    )  # r"$\|\mathbf{\mu}_{%d,%d}\|_2$" % (sc[0], sc[1]))
-    ax.text(
-        1.05,
-        1.05,
-        "$%s/%s$"
-        % (
-            state_labels[0],
-            state_labels[1],
-        ),  # f"{sc_label}",  # $S_%d/S_%d$" % (sc[0], sc[1]),
-        transform=ax.transAxes,
-        ha="left",
-        va="bottom",
+    return single_trans_hist(
+        interstate=interstate,
+        xvariable='energy_interstate',
+        yvariable='socs_norm',
+        ylabel=r"$\|SOC_{%s,%s}\|_2$",
+        state_labels=state_labels,
         color=color,
-        #   fontweight='bold',
+        bins=bins,
+        ax=ax,
+        cmap=cmap,
+        cnorm=cnorm,
     )
-
-    return hist2d_output
-
 
 def plot_soc_or_dip_trans_histograms(
     inter_state: InterState,
