@@ -115,9 +115,15 @@ def plot_populations_graph(
     Returns:
         Axes: The resulting Axes object after the plot
     """
+    num_states_with_pops = 0
     for state, sdata in pops.groupby('state'):
         if not state_selection.has_state(state):
             continue
+
+        if sdata.max() < 1e-9:
+            # No population data, skip
+            continue
+        num_states_with_pops += 1
 
         color = state_selection.get_state_color(state)
         # c = sdata['_color'].item()
@@ -138,6 +144,11 @@ def plot_populations_graph(
             f"${state_label}$",
             c=color,
         )
+    if num_states_with_pops == 0:
+        centertext(r"No pop data", ax)
+        # axs['ntd'].tick_params(axis='y', labelleft=False)
+        ax.get_yaxis().set_visible(False)
+        ax.get_xaxis().set_visible(False)
 
     ax.set_ylabel('Population')
     return ax
