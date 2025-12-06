@@ -45,6 +45,25 @@ def calc_confidence_interval(
     """
     if np.array(data_array).ndim != 1:
         raise ValueError("This function accepts 1D input only")
+
+    data_mean = np.mean(data_array)
+    if len(data_array) < 3:
+        lower = np.min(data_array)
+        upper = np.max(data_array)
+        return np.array([lower, upper])
+    else:
+        std_error = st.sem(data_array)
+        res_interval = st.t.interval(
+            confidence,
+            len(data_array) - 1,
+            loc=data_mean,
+            scale=std_error,
+        )
+        # print(res_interval)
+        # print(np.stack(res_interval))
+        # raise ValueError("stop")
+        return np.stack(res_interval)
+
     return np.stack(
         st.t.interval(
             confidence,
