@@ -51,7 +51,7 @@ def single_soc_trans_hist(
         _, ax = plt.subplots(1, 1)
     if cmap is None:
         cmap = magma_rw
-
+    # TODO: FIXME: Merge with dip_trans_plot and generalize
     if (
         'socs_norm' not in interstate.data_vars
         or 'energy_interstate' not in interstate.data_vars
@@ -201,6 +201,7 @@ def plot_separated_spectra_and_soc_dip_hists(
     plot_spectra(
         ground, ax=axs['sg'], state_selection=state_selection, cnorm=scnorm, cmap=scmap
     )
+    # TODO: FIXME: Only plot ground state spectra in singlet mode
 
     # # We show at most the first two statecombs
     # if inter_state.sizes['statecomb'] >= 2:
@@ -237,6 +238,7 @@ def plot_separated_spectra_and_soc_dip_hists(
             cnorm=scnorm,
             cmap=scmap,
         )
+        # TODO: FIXME: This plots the same state transition as in the ground state.
         res = plot_soc_or_dip_trans_histograms(
             inter_state,  # inter_state.isel(statecomb=[2]),
             axs=[axs['t2']],
