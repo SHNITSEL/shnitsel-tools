@@ -54,9 +54,9 @@ def plot_time_interstate_error(
 
         time_in_fs = convert_time(scdata['time'], time.femto_seconds)
 
-        ax.fill_between(
-            time_in_fs, scdata['upper'], scdata['lower'], color=color, alpha=0.3
-        )
+        # ax.fill_between(
+        #     time_in_fs, scdata['upper'], scdata['lower'], color=color, alpha=0.3
+        # )
         ax.plot(time_in_fs, scdata['mean'], c=color, lw=0.8)
         # va = vas.get(sc, 'baseline')
         # va = 'baseline'
