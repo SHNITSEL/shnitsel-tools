@@ -52,7 +52,12 @@ def single_soc_trans_hist(
     if cmap is None:
         cmap = magma_rw
 
-    if 'soc_norm' not in interstate:
+    if (
+        'socs_norm' not in interstate.data_vars
+        or 'energy_interstate' not in interstate.data_vars
+    ):
+        # print("No SOC plot for missing data")
+        # print(interstate.data_vars.keys())
         return None
 
     axx, axy = create_marginals(ax)
@@ -61,7 +66,7 @@ def single_soc_trans_hist(
     xdata = convert_energy(xdata, to=energy.eV)
 
     # We need the normed transition soc
-    ydata = interstate['soc_norm'].squeeze()
+    ydata = interstate['socs_norm'].squeeze()
 
     xmax = calc_truncation_maximum(xdata)
     ymax = calc_truncation_maximum(ydata)
@@ -132,15 +137,19 @@ def plot_soc_or_dip_trans_histograms(
             state_selection.get_state_tex_label(sc_[1]),
         )
         ax = axs[selected_scs]
-
+        # print(data)
+        # print(data.dip_trans_norm)
+        # print(data.socs_norm)
         color = state_selection.get_state_combination_color(sc_)
-        if 'dip_trans' in data and data.dip_trans.max() > 1e-9:
+        if 'dip_trans_norm' in data and data.dip_trans_norm.max() > 1e-9:
+            # print("Opting for dip trans norm plot.")
             tmp_res = single_dip_trans_hist(
                 data, sc_label, state_labels, color=color, ax=ax, cnorm=cnorm
             )
             if tmp_res is not None:
                 hist2d_outputs.append(tmp_res)
-        elif 'socs' in data and data.socs.max() > 1e-9:
+        elif 'socs_norm' in data and data.socs_norm.max() > 1e-9:
+            # print("Opting for socs norm plot.")
             tmp_res = single_soc_trans_hist(
                 data, sc_label, state_labels, color=color, ax=ax, cnorm=cnorm
             )
