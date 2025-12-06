@@ -5,10 +5,14 @@
     Currently, the first category of function is found under postprocess
 """
 
+from collections.abc import Collection
 from itertools import combinations, product
+from logging import warning
 from typing import Literal, TypeAlias
 
+
 import numpy as np
+import rdkit.Chem as rc
 from rdkit.Chem import Mol
 import xarray as xr
 
@@ -147,10 +151,87 @@ def identify_bonds(mol: Mol, symbols: bool = True) -> dict:
         return {bond_type_to_symbols(*k): v for k, v in bond_types.items()}
     return bond_types
 
+def _fake_identify(mol):
+    raise NotImplementedError
+
+
+def _check_matches(matches_or_mol, atXYZ, fn):
+    if matches_or_mol is None:
+        mol = default_mol(atXYZ)
+        matches = fn(mol)
+    elif isinstance(matches_or_mol, rc.Mol):
+        matches = fn(mol)
+    elif isinstance(matches_or_mol, list):
+        matches = matches_or_mol
+
+    matches = [t for t in matches if t[0]]  # remove unflagged
+    return matches
+
+
+# def _positions(atXYZ, atom_idxs):
+#     return [atXYZ.sel(atom=list(idxs)).data for idxs in zip(*atom_idxs)]
+
+
+def _positions(atXYZ, atom_idxs):
+    return [
+        atXYZ.sel(atom=list(idxs))
+        .drop(['atom', 'atNames'], errors='raise')
+        .rename(atom='descriptor')
+        for idxs in zip(*atom_idxs)
+    ]
+
+
+def _copy_wrap(
+    data,
+    atXYZ,
+    atom_idxs: list[list[int]],
+    bond_idxs: list[list[int]],
+    bond_types,
+    fragment_objs,
+    tex_pattern,
+):
+    smiles = []
+    smarts = []
+    # without_bonds = []
+    # with_bonds = []
+    for m in fragment_objs:
+        mol = rc.Mol(m)
+        rc.RemoveStereochemistry(mol)
+        smiles.append(rc.MolToSmiles(mol))
+        smarts.append(rc.MolToSmarts(mol))
+    #     without_bonds.append(
+    #         ''.join(
+    #             [get_symbol_from_atom_number(a.GetAtomicNum()) for a in mol.GetAtoms()]
+    #         )
+    #     )
+    coords = xr.Coordinates(
+        {
+            'atom_indices': ('descriptor', np.fromiter(atom_idxs, dtype=object)),
+            'bond_indices': ('descriptor', np.fromiter(bond_idxs, dtype=object)),
+            'bond_orders': ('descriptor', np.fromiter(bond_types, dtype=object)),
+            'fragment_smiles': ('descriptor', smiles),
+            'fragment_smarts': ('descriptor', smarts),
+            # 'descriptor_type': ('descriptor', bt),  # TODO
+            # 'descriptor_type': ('descriptor', without_bonds), # TODO
+            'descriptor_tex': (
+                'descriptor',
+                [tex_pattern % atom for atom in atom_idxs],
+            ),
+        }
+        | {f'atom{i}': ('descriptor', list(x)) for i, x in enumerate(zip(*atom_idxs))}
+    )
+    size = data.shape[atXYZ.get_axis_num('atom')]
+    template = (
+        atXYZ.isel(atom=np.zeros(size, dtype=int), direction=0)
+        .drop(['atom', 'atNames', 'direction'], errors='ignore')
+        .rename(atom='descriptor')
+    )
+    return template.copy(data=data).assign_coords(coords).set_xindex('descriptor_tex')
+
 
 @needs(dims={'atom', 'direction'})
 def get_bond_lengths(
-    atXYZ: xr.DataArray, bond_types=None, mol: Mol | None = None
+    atXYZ: xr.DataArray, matches_or_mol: dict | Mol | None = None
 ) -> xr.DataArray:
     """Identify bonds (using RDKit) and find the length of each bond in each
     frame.
@@ -160,13 +241,12 @@ def get_bond_lengths(
     atXYZ
         An :py:class:`xarray.DataArray` of molecular coordinates, with dimensions
         `frame`, `atom` and `direction`
-    bond_types, optional
+    matches_or_mol, optional
         A dictionary containing types of bonds as keys, and lists of atom index pair
         as values. It may be convenient to use :py:func:`shnitsel.core.geom.identify_bonds`
         to create a dictionary in the correct format, and then customize it. If omitted,
         bonds are identified automatically based on the `mol` argument.
-    mol, optional
-        An RDKit `Mol` object, which is generated from `atXYZ` if this argument is omitted.
+        Otherwise, an RDKit `Mol` object, which is generated from `atXYZ` if this argument is omitted.
 
     Returns
     -------
@@ -175,46 +255,22 @@ def get_bond_lengths(
     Raises
     ------
     UserWarning
-        If both `bond_types` and `mol` are specified.
+        If both `matches` and `mol` are specified.
     """
-    # dists = atXYZ.pipe(subtract_combinations, 'atom', labels=True).pipe(norm)
-    if bond_types is None:
-        if mol is None:
-            mol = default_mol(atXYZ)
-        bond_types = identify_bonds(mol, symbols=True)
-    elif mol is not None:
-        raise UserWarning("bond_types passed, so mol will not be used")
+    matches = _check_matches(matches_or_mol, atXYZ, _fake_identify)
 
-    a0 = []
-    a1 = []
-    bt = []
-    for bond_type, bonds in bond_types.items():
-        for bond in bonds:
-            a0.append(bond[0])
-            a1.append(bond[1])
-            bt.append(bond_type)
+    _, atom_idxs, bond_idxs, bond_types, fragment_objs = zip(*matches)
 
-    atom_indices = np.empty(len(bt), dtype=object)
-    atom_indices[:] = list(zip(a0, a1))
+    assert all(len(x) == 2 for x in atom_idxs)
+    assert all(len(x) == 1 for x in bond_idxs)
+    assert all(len(x) == 1 for x in bond_types)
 
-    sel = atXYZ.sel(atom=a0)
-    return (
-        dnorm(sel.copy(data=atXYZ.sel(atom=a0).data - atXYZ.sel(atom=a1).data))
-        .drop(['atom', 'atNames'], errors='ignore')
-        .rename(atom='descriptor')
-        .assign_coords(
-            {
-                'atom0': ('descriptor', a0),
-                'atom1': ('descriptor', a1),
-                'atom_indices': ('descriptor', atom_indices),
-                'descriptor_type': ('descriptor', bt),
-                'descriptor_tex': (
-                    'descriptor',
-                    [r'$r_{%d,%d}$' % atom for atom in zip(a0, a1)],
-                ),
-            }
-        )
-        .set_xindex('descriptor_tex')
+    r0, r1 = _positions(atXYZ, atom_idxs)
+
+    data = np.linalg.norm(r0 - r1, axis=atXYZ.get_axis_num('direction'))
+
+    return _copy_wrap(
+        data, atXYZ, atom_idxs, bond_idxs, bond_types, fragment_objs, '$r_{%d,%d}$'
     )
 
 
@@ -266,7 +322,7 @@ def identify_angles(mol: Mol) -> xr.Dataset:
 @needs(dims={'atom', 'direction'})
 def get_bond_angles(
     atXYZ: xr.DataArray,
-    angle_types: xr.Dataset | None = None,
+    matches_or_mol: dict | Mol | None = None,
     mol: Mol | None = None,
     deg: bool = False,
 ):
@@ -278,7 +334,7 @@ def get_bond_angles(
     atXYZ
         An :py:class:`xarray.DataArray` of molecular coordinates, with dimensions
         `frame`, `atom` and `direction`
-    angle_types, optional
+    matches, optional
         An :py:class:`xarray.Dataset` containing atom indices, atomic numbers, bond types, angle type
         and angle symbol for each angle to be calculated.
         It may be convenient to use :py:func:`shnitsel.core.geom.identify_angles`
@@ -296,50 +352,31 @@ def get_bond_angles(
     Raises
     ------
     UserWarning
-        If both `angle_types` and `mol` are specified.
+        If both `matches` and `mol` are specified.
     """
-    if angle_types is None:
-        if mol is None:
-            mol = default_mol(atXYZ)
-        angle_types = identify_angles(mol)
-    elif mol is not None:
-        raise UserWarning("angle_types passed, so mol will not be used")
+    matches = _check_matches(matches_or_mol, atXYZ, _fake_identify)
 
-    al = atXYZ.sel(atom=angle_types.at_idx[:, 0])
-    ac = atXYZ.sel(atom=angle_types.at_idx[:, 1])
-    ar = atXYZ.sel(atom=angle_types.at_idx[:, 2])
+    _, atom_idxs, bond_idxs, bond_types, fragment_objs = zip(*matches)
 
-    def f(var, n):
-        xs = var.data
-        # res = np.empty(len(xs), dtype=object)
-        # res[:] = [tuple(x) for x in xs]
-        # return res
-        # return var.data.astype('f,f')
-        dtype = ','.join(['i'] * n)
-        return np.array([tuple(x) for x in xs], dtype=dtype)
+    assert all(len(x) == 3 for x in atom_idxs)
+    assert all(len(x) == 2 for x in bond_idxs)
+    assert all(len(x) == 2 for x in bond_types)
 
-    at_idxs = {f'atom{i}': angle_types['at_idx'].isel(
-        atom=i) for i in range(3)}
-    angles = (
-        angle_(al - ac, ar - ac)
-        .assign_coords(
-            # at_nums=('angle', angle_types['at_num'].astype('i,i,i').data),
-            # bond_types=('angle', angle_types['bond_type'].astype('i,i').data),
-            # at_nums=('angle', f(angle_types['at_num'], 3)),
-            # bond_types=('angle', f(angle_types['bond_type'], 2)),
-            descriptor_type=angle_types['descriptor_type'],
-            descriptor_tex=angle_types['descriptor_tex'],
-            atom_indices=(
-                'descriptor',
-                ndarray_of_tuples(angle_types['at_idx'], 'atom'),
-            ),
-            **at_idxs,
-        )
-        .set_xindex('descriptor_tex')
-    )
+    r0, r1, r2 = _positions(atXYZ, atom_idxs)
+
+    data = angle_(r0 - r1, r2 - r1)
     if deg:
-        angles *= 180 / np.pi
-    return angles
+        data *= 180 / np.pi
+
+    return _copy_wrap(
+        data,
+        atXYZ,
+        atom_idxs,
+        bond_idxs,
+        bond_types,
+        fragment_objs,
+        r"$\theta_{%d,%d,%d}$",
+    )
 
 
 def identify_torsions(mol: Mol) -> xr.Dataset:
@@ -404,8 +441,7 @@ def identify_torsions(mol: Mol) -> xr.Dataset:
 @needs(dims={'atom', 'direction'})
 def get_bond_torsions(
     atXYZ: xr.DataArray,
-    quadruple_types: xr.Dataset | None = None,
-    mol: Mol | None = None,
+    matches_or_mol: dict | None = None,
     signed: bool = False,
     deg: bool = False,
 ):
@@ -417,14 +453,13 @@ def get_bond_torsions(
     atXYZ
         An :py:class:`xarray.DataArray` of molecular coordinates, with dimensions
         `frame`, `atom` and `direction`
-    quadruple_types, optional
-        An :py:class:`xarray.Dataset` containing atom indices, atomic numbers, bond types, torsion type
-        and torsion symbol for each angle to be calculated.
+    matches_or_mol, optional
+        A list containing information for each internal coordinate to be calculated.
         It may be convenient to use :py:func:`shnitsel.core.geom.identify_torsions`
         to create a Dataset in the correct format, and then customize it. If omitted,
         angles are identified automatically based on the `mol` argument.
-    mol, optional
-        An RDKit `Mol` object, which is generated from `atXYZ` if this argument is omitted.
+        Alternatively, you may supply an RDKit `Mol` object.
+        If this argument is omitted, internal coordinates are automatically which is generated from `atXYZ`.
     signed, optional
         Whether to distinguish between clockwise and anticlockwise rotation, by default False
     deg, optional
@@ -433,39 +468,33 @@ def get_bond_torsions(
     Returns
     -------
         An :py:class:`xarray.DataArray` of bond torsions with dimensions `frame` and `torsion`.
-
-    Raises
-    ------
-    UserWarning
-        If both `torsion_types` and `mol` are specified.
     """
-    if quadruple_types is None:
-        if mol is None:
-            mol = default_mol(atXYZ)
-        quadruple_types = identify_torsions(mol)
-    elif mol is not None:
-        raise UserWarning("quadruple_types passed, so mol will not be used")
-    if 'atNames' in atXYZ.coords or 'atNames' in atXYZ:
-        atXYZ = atXYZ.drop_vars('atNames')
-    atom_positions = [atXYZ.sel(atom=quadruple_types.at_idx[:, i])
-                      for i in range(4)]
+    matches = _check_matches(matches_or_mol, atXYZ, _fake_identify)
+
+    _, atom_idxs, bond_idxs, bond_types, fragment_objs = zip(*matches)
+
+    assert all(len(x) == 4 for x in atom_idxs)
+    assert all(len(x) == 3 for x in bond_idxs)
+    assert all(len(x) == 3 for x in bond_types)
+
+    atom_positions = _positions(atXYZ, atom_idxs)
+
     if signed:
-        res = full_dihedral_(*atom_positions)
+        data = full_dihedral_(*atom_positions)
     else:
-        res = dihedral_(*atom_positions)
+        data = dihedral_(*atom_positions)
     if deg:
-        res *= 180 / np.pi
-    at_idxs = {f'atom{i}': quadruple_types['at_idx'].isel(
-        atom=i) for i in range(4)}
-    return res.assign_coords(
-        descriptor_type=quadruple_types['descriptor_type'],
-        descriptor_tex=quadruple_types['descriptor_tex'],
-        atom_indices=(
-            'descriptor',
-            ndarray_of_tuples(quadruple_types['at_idx'], 'atom'),
-        ),
-        **at_idxs,
-    ).set_xindex('descriptor_tex')
+        data *= 180 / np.pi
+
+    return _copy_wrap(
+        data,
+        atXYZ,
+        atom_idxs,
+        bond_idxs,
+        bond_types,
+        fragment_objs,
+        r"$\varphi_{%d,%d,%d,%d}$",
+    )
 
 
 @needs(dims={'atom', 'direction'})
