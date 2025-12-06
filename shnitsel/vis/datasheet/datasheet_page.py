@@ -18,6 +18,11 @@ from shnitsel.analyze import stats
 from shnitsel.core.typedefs import AtXYZ, InterState, PerState, SpectraDictType
 from shnitsel.data.trajectory_format import Trajectory
 from shnitsel.filtering.state_selection import StateSelection
+from shnitsel.vis.datasheet.figures.energy_bands import plot_energy_bands
+from shnitsel.vis.datasheet.figures.soc_trans_hist import (
+    plot_separated_spectra_and_soc_dip_hists,
+    plot_separated_spectra_and_soc_dip_hists_groundstate,
+)
 
 try:
     from typing import Self
@@ -29,10 +34,10 @@ from shnitsel.analyze.spectra import assign_fosc, calc_spectra, get_spectra_grou
 from .figures.common import centertext
 from .figures.per_state_hist import plot_per_state_histograms
 from .figures.time import plot_timeplots
-from .figures.dip_trans_hist import (
-    plot_separated_spectra_and_hists,
-    plot_separated_spectra_and_hists_groundstate,
-)
+# from .figures.dip_trans_hist import (
+#     plot_separated_spectra_and_hists,
+#     plot_separated_spectra_and_hists_groundstate,
+# )
 from .figures.nacs_hist import plot_nacs_histograms
 from ..plot.pca_biplot import plot_noodleplot
 from .figures.structure import plot_structure
@@ -375,7 +380,7 @@ class DatasheetPage:
         return self.spectra_groups[1]
 
     @cached_property
-    def noodle(self) -> xr.DataArray:
+    def pca_data(self) -> xr.DataArray:
         """Noodle plot source data derived from principal component analysis (PCA) on the full data in self.frames using only pairwise distances.
 
         Returns:
@@ -386,7 +391,7 @@ class DatasheetPage:
         start = timer()
         res = pairwise_dists_pca(self.frames.atXYZ)
         end = timer()
-        info(f"cached noodle in {end - start} s")
+        info(f"cached pca_data in {end - start} s")
         return res
 
     @cached_property
@@ -399,7 +404,7 @@ class DatasheetPage:
         from shnitsel.data.multi_indices import mdiff
 
         mask = mdiff(self.frames.astate) != 0
-        return self.noodle[mask]
+        return self.pca_data[mask]
 
     @cached_property
     def structure_atXYZ(self) -> AtXYZ:
@@ -472,7 +477,7 @@ class DatasheetPage:
         self.fosc_time
         self.spectra
         self.spectra_groups
-        self.noodle
+        self.pca_data
         self.hops
         self.structure_atXYZ
         self.mol_skeletal
@@ -527,7 +532,7 @@ class DatasheetPage:
         self, state_selection: StateSelection, fig: Figure | SubFigure | None = None
     ) -> dict[str, Axes]:
         start = timer()
-        res = plot_separated_spectra_and_hists(
+        res = plot_separated_spectra_and_soc_dip_hists(
             inter_state=self.inter_state,
             spectra_groups=self.spectra_groups,
             fig=fig,
@@ -544,7 +549,7 @@ class DatasheetPage:
         scmap=plt.get_cmap('turbo'),
     ) -> dict[str, Axes]:
         start = timer()
-        res = plot_separated_spectra_and_hists_groundstate(
+        res = plot_separated_spectra_and_soc_dip_hists_groundstate(
             inter_state=self.inter_state,
             spectra_groups=self.spectra_groups,
             fig=fig,
@@ -579,9 +584,26 @@ class DatasheetPage:
         state_selection: StateSelection | None = None,
     ) -> Axes:
         start = timer()
-        res = plot_noodleplot(self.noodle, self.hops, fig=fig)
+        res = plot_noodleplot(self.pca_data, self.hops, fig=fig)
         end = timer()
         info(f"finished plot_noodle in {end - start} s")
+        return res
+
+    def plot_energy_bands(
+        self,
+        state_selection: StateSelection,
+        fig: Figure | SubFigure | None = None,
+    ) -> dict[str, Axes]:
+        start = timer()
+        res = plot_energy_bands(
+            self.per_state,
+            self.pca_data,
+            state_selection=state_selection,
+            hops=self.hops,
+            fig=fig,
+        )
+        end = timer()
+        info(f"finished plot_energy_bands in {end - start} s")
         return res
 
     def plot_structure(
@@ -774,8 +796,16 @@ class DatasheetPage:
                 inlabel(ax)
             # noodle
             if self.can['noodle']:
-                ax = self.plot_noodle(state_selection=page_selection, fig=sfs['noodle'])
-                inlabel(ax)
+                if len(multiplicities_handled) == 1:
+                    ax = self.plot_noodle(
+                        state_selection=page_selection, fig=sfs['noodle']
+                    )
+                    inlabel(ax)
+                else:
+                    axs = self.plot_energy_bands(
+                        state_selection=page_selection, fig=sfs['noodle']
+                    )
+                    outlabel(axs['pc1'])
             elif consistent_lettering:
                 next(letters)
             # structure
