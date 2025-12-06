@@ -22,6 +22,8 @@ from ..bridges import default_mol
 from .xrhelpers import expand_midx
 from .._contracts import needs
 
+from shnitsel.core.geo.geomatch import flag_bats
+
 AtXYZ: TypeAlias = xr.DataArray
 
 
@@ -163,6 +165,8 @@ def _check_matches(matches_or_mol, atXYZ, fn):
         matches = fn(mol)
     elif isinstance(matches_or_mol, list):
         matches = matches_or_mol
+    else:
+        raise TypeError(f"`matches_or_mol` of wrong type: {type(matches_or_mol)}")
 
     matches = [t for t in matches if t[0]]  # remove unflagged
     return matches
@@ -500,7 +504,7 @@ def get_bond_torsions(
 @needs(dims={'atom', 'direction'})
 def get_bats(
     atXYZ: xr.DataArray,
-    mol: Mol | None = None,
+    matches_or_mol: dict | Mol | None = None,
     signed: bool = False,
     deg: bool = False,
     pyr=False,
@@ -511,9 +515,11 @@ def get_bats(
     ----------
     atXYZ
         The coordinates to use.
-    mol, optional
+    matches_or_mol, optional
         An rdkit Mol object used to determine connectivity; by default this is
         determined automatically based on the first frame of ``atXYZ``.
+        Alternatively, a dictionary containing match information, as produced
+        by one of the ``flag_*`` functions.
     pyr
         Whether to include pyramidalizations from :py:func:`shnitsel.core.geom.get_pyramids`
 
@@ -528,30 +534,31 @@ def get_bats(
         >>> frames = st.open_frames('/tmp/A03_filtered.nc')
         >>> geom.get_bats(frames['atXYZ'])
     """
-    if mol is None:
+    if matches_or_mol is None:
         mol = default_mol(atXYZ)
+        matches_or_mol = flag_bats(mol)[0]
+
     d = {
-        'bond': get_bond_lengths(atXYZ, mol=mol),
-        'angle': get_bond_angles(atXYZ, mol=mol, deg=deg),
-        'torsion': get_bond_torsions(atXYZ, mol=mol, signed=signed, deg=deg),
+        'bonds': get_bond_lengths(atXYZ, matches_or_mol=matches_or_mol['bonds']),
+        'angles': get_bond_angles(
+            atXYZ, matches_or_mol=matches_or_mol['angles'], deg=deg
+        ),
+        'dihedrals': get_bond_torsions(
+            atXYZ, matches_or_mol=matches_or_mol['dihedrals'], signed=signed, deg=deg
+        ),
     }
 
-    d['bond'] = d['bond'].drop_vars(['atom0', 'atom1'])
-    d['angle'] = d['angle'].drop_vars(['atom0', 'atom1', 'atom2'])
-    d['torsion'] = d['torsion'].drop_vars(['atom0', 'atom1', 'atom2', 'atom3'])
-
     if pyr:
-        d['pyr'] = get_pyramids(atXYZ, mol=mol, deg=deg, signed=signed)
-        if 'atNames' in d['pyr'].coords:
-            d['pyr'] = d['pyr'].drop_vars('atNames')
+        d['pyr'] = get_pyramids(
+            atXYZ, matches_or_mol=matches_or_mol, deg=deg, signed=signed
+        )
 
+    for k in d:
+        d[k] = d[k].drop_vars(
+            ['atom0', 'atom1', 'atom2', 'atom3', 'atNames'], errors='ignore'
+        )
 
-    to_concat = [d['bond'], d['angle'], d['torsion']]
-
-    if pyr:
-        to_concat.append(d['pyr'])
-
-    return xr.concat(to_concat, dim='descriptor')
+    return xr.concat(list(d.values()), dim='descriptor')
 
 
 @needs(dims={'atom', 'direction'})
