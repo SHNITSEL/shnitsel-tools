@@ -133,12 +133,6 @@ def ndarray_of_tuples(da, dim):
     return res
 
 
-def bond_type_to_symbols(e1, e2):
-    s1 = get_symbol_from_atom_number(e1)
-    s2 = get_symbol_from_atom_number(e2)
-    return s1 + s2
-
-
 def _check_matches(matches_or_mol, atXYZ):
     if matches_or_mol is None:
         mol = default_mol(atXYZ)
