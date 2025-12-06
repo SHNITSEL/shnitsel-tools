@@ -161,7 +161,6 @@ def _positions(atXYZ, atom_idxs):
 
 def _assign_descriptor_coords(
     obj,
-    atXYZ,
     atom_idxs: list[list[int]],
     bond_idxs: list[list[int]],
     bond_types,
@@ -243,7 +242,7 @@ def get_bond_lengths(
     data = dnorm(r0 - r1)
 
     return _assign_descriptor_coords(
-        data, atXYZ, atom_idxs, bond_idxs, bond_types, fragment_objs, '$r_{%d,%d}$'
+        data, atom_idxs, bond_idxs, bond_types, fragment_objs, '$r_{%d,%d}$'
     )
 
 
@@ -298,7 +297,6 @@ def get_bond_angles(
 
     return _assign_descriptor_coords(
         data,
-        atXYZ,
         atom_idxs,
         bond_idxs,
         bond_types,
@@ -357,7 +355,6 @@ def get_bond_torsions(
 
     return _assign_descriptor_coords(
         data,
-        atXYZ,
         atom_idxs,
         bond_idxs,
         bond_types,
