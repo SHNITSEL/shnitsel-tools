@@ -167,6 +167,7 @@ def get_inter_state(frames: Frames) -> InterState:
     prop: Hashable
     inter_base_props = ['energy']
     available_inter_base_props = []
+    inter_base_props_to_norm = ['dip_trans', 'nacs', 'socs']
     # TODO: Check that energy is actually the only inter-state property. We already have statecomb for nacs and dip_trans and astate is not state-dependent.
     for prop in inter_base_props:
         if prop in frames:
@@ -191,6 +192,10 @@ def get_inter_state(frames: Frames) -> InterState:
             inter_state[str(prop) + "_interstate"].attrs["long_name"] = (
                 f"Derived inter-state differences of variable `{prop}`"
             )
+
+    for prop in inter_base_props_to_norm:
+        if prop in frames:
+            inter_state[str(prop) + "_norm"] = keep_norming(frames[prop])
 
     # TODO: FIXME: We can't just redefine the statecomb dimension. If it is there, we need to keep it.
     # def state_renamer(lo, hi):
@@ -223,5 +228,5 @@ def get_inter_state(frames: Frames) -> InterState:
         inter_state['energy_interstate'].attrs["long_name"] = (
             "Energy delta between the energy levels of various states derived from `energy`"
         )
-        
+
     return inter_state
