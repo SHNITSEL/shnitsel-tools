@@ -224,12 +224,13 @@ def get_bond_lengths(
         An :py:class:`xarray.DataArray` of molecular coordinates, with dimensions
         `frame`, `atom` and `direction`
     matches_or_mol, optional
-        A dictionary containing types of bonds as keys, and lists of atom index pair
-        as values. It may be convenient to use :py:func:`shnitsel.core.geom.identify_bonds`
-        to create a dictionary in the correct format, and then customize it. If omitted,
-        bonds are identified automatically based on the `mol` argument.
-        Otherwise, an RDKit `Mol` object, which is generated from `atXYZ` if this argument is omitted.
-
+        A list containing information for each internal coordinate to be calculated.
+        It may be convenient to use :py:func:`shnitsel.geo.geomatch.flag_dihedrals`
+        to create a dictionary in the correct format, and then customize it.
+        Alternatively, you may supply an RDKit ``Mol`` object, which is passed to
+        :py:func:`shnitsel.geo.geomatch.flag_bats`.
+        If this argument is omitted altogether, an RDKit ``Mol`` object is generated
+        using :py:func:`shnitsel.bridges.default_mol` and used as above.
     Returns
     -------
         An :py:class:`xarray.DataArray` of bond lengths with dimensions `frame` and `bond`.
@@ -271,12 +272,14 @@ def get_bond_angles(
     atXYZ
         An :py:class:`xarray.DataArray` of molecular coordinates, with dimensions
         `frame`, `atom` and `direction`
-    matches, optional
-        An :py:class:`xarray.Dataset` containing atom indices, atomic numbers, bond types, angle type
-        and angle symbol for each angle to be calculated.
-        It may be convenient to use :py:func:`shnitsel.core.geom.identify_angles`
-        to create a Dataset in the correct format, and then customize it. If omitted,
-        angles are identified automatically based on the `mol` argument.
+    matches_or_mol, optional
+        A list containing information for each internal coordinate to be calculated.
+        It may be convenient to use :py:func:`shnitsel.geo.geomatch.flag_angles`
+        to create a dictionary in the correct format, and then customize it.
+        Alternatively, you may supply an RDKit ``Mol`` object, which is passed to
+        :py:func:`shnitsel.geo.geomatch.flag_bats`.
+        If this argument is omitted altogether, an RDKit ``Mol`` object is generated
+        using :py:func:`shnitsel.bridges.default_mol` and used as above.
     mol, optional
         An RDKit `Mol` object, which is generated from `atXYZ` if this argument is omitted.
     ang, optional
@@ -333,11 +336,12 @@ def get_bond_torsions(
         `frame`, `atom` and `direction`
     matches_or_mol, optional
         A list containing information for each internal coordinate to be calculated.
-        It may be convenient to use :py:func:`shnitsel.core.geom.identify_torsions`
-        to create a Dataset in the correct format, and then customize it. If omitted,
-        angles are identified automatically based on the `mol` argument.
-        Alternatively, you may supply an RDKit `Mol` object.
-        If this argument is omitted, internal coordinates are automatically which is generated from `atXYZ`.
+        It may be convenient to use :py:func:`shnitsel.geo.geomatch.flag_dihedrals`
+        to create a dictionary in the correct format, and then customize it.
+        Alternatively, you may supply an RDKit ``Mol`` object, which is passed to
+        :py:func:`shnitsel.geo.geomatch.flag_bats`.
+        If this argument is omitted altogether, an RDKit ``Mol`` object is generated
+        using :py:func:`shnitsel.bridges.default_mol` and used as above.
     signed, optional
         Whether to distinguish between clockwise and anticlockwise rotation,
         when returning angles; by default, do not distinguish.
