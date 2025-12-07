@@ -701,10 +701,7 @@ class DatasheetPage:
                                 background_color=sccolor,  # "green"
                             )
                             centertext(
-                                "NAC",
-                                ax2,
-                                clearticks="xy",
-                                background_color=sccolor,  # "green"
+                                "NAC", ax2, clearticks="xy", background_color="green"
                             )
                         else:
                             single_dip_trans_hist(
@@ -737,7 +734,7 @@ class DatasheetPage:
                                 r"$\mathbf{\mu}_\mathrm{trans}$",
                                 ax2,
                                 clearticks="xy",
-                                background_color=sccolor,  # "green",
+                                background_color="green",
                             )
                         else:
                             # We have no
@@ -773,10 +770,7 @@ class DatasheetPage:
                     if interstate_sc['socs_norm'].max() > 1e-9:
                         if simple_mode:
                             centertext(
-                                r"$SOC$",
-                                ax2,
-                                clearticks="xy",
-                                background_color=sccolor,  # "brown"
+                                r"$SOC$", ax2, clearticks="xy", background_color="brown"
                             )
                         else:
                             single_soc_trans_hist(
