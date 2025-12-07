@@ -1,16 +1,75 @@
 from collections.abc import Sequence
 from functools import wraps
+import logging
 from typing import Hashable
 
 import matplotlib.pyplot as plt
-from matplotlib.figure import Figure
+from matplotlib.figure import Figure, SubFigure
 from matplotlib.axes import Axes
-from matplotlib.typing import HashableList
+from matplotlib.typing import ColorType, HashableList
 from matplotlib.text import Text
 
 from ...plot.common import figax as figax
 
 symbols = dict(energy=r"$E_i$", force=r"$\mathbf{F}_i$", dip_perm=r"$\mathbf{\mu}_i$")
+
+
+def label_plot_grid(
+    fig: Figure | SubFigure,
+    *,
+    row_headers: list[str] | None = None,
+    col_headers: list[str] | None = None,
+    row_pad: int = 1,
+    col_pad: int = 5,
+    rotate_row_headers: bool = True,
+    **text_kwargs,
+):
+    """Helper function to add labels to rows and columns of a grid of suplots
+
+    Args:
+        fig (Figure | SubFigure): The figure holding the subgrid to label
+        row_headers (list[str], optional): List of labels for rows. Defaults to None.
+        col_headers (list[str], optional): List of labels for columns. Defaults to None.
+        row_pad (int, optional): Padding applied to the rows. Defaults to 1.
+        col_pad (int, optional): Padding applied to the columns. Defaults to 5.
+        rotate_row_headers (bool, optional): Flag to rotate the Row labels by 90 degrees. Defaults to True.
+    """
+    # Based on https://stackoverflow.com/a/25814386
+
+    axes = fig.get_axes()
+
+    for ax in axes:
+        sbs = ax.get_subplotspec()
+        if sbs is None:
+            logging.debug("Could not get the specs for at least one axis in the plot")
+            continue
+
+        # Putting headers on cols
+        if (col_headers is not None) and sbs.is_first_row():
+            ax.annotate(
+                col_headers[sbs.colspan.start],
+                xy=(0.5, 1),
+                xytext=(0, col_pad),
+                xycoords="axes fraction",
+                textcoords="offset points",
+                ha="center",
+                va="baseline",
+                **text_kwargs,
+            )
+
+        # Putting headers on rows
+        if (row_headers is not None) and sbs.is_first_col():
+            ax.annotate(
+                row_headers[sbs.rowspan.start],
+                xy=(0, 0.5),
+                xytext=(-ax.yaxis.labelpad - row_pad, 0),
+                xycoords=ax.yaxis.label,
+                textcoords="offset points",
+                ha="right",
+                va="center",
+                rotation=rotate_row_headers * 90,
+                **text_kwargs,
+            )
 
 
 def figaxs_defaults(
