@@ -66,7 +66,7 @@ def plot_energy_histogram(
         sc_label = state_selection.get_state_combination_tex_label(sc)
 
         xdata = sc_data['energy_interstate'].squeeze()
-        xdata = convert_energy(xdata, to=energy.eV)
+        xdata = np.abs(convert_energy(xdata, to=energy.eV))
 
         xmax = calc_truncation_maximum(xdata)
         xmin = -calc_truncation_maximum(-xdata)
@@ -157,6 +157,7 @@ def single_trans_hist(
     if xvariable == 'energy_interstate':
         # We expect energies in eV for the energy delta plot
         xdata = convert_energy(xdata, to=energy.eV)
+        xdata = np.abs(convert_energy(xdata, to=energy.eV))
 
     # We need the normed transition soc
     ydata = interstate[yvariable].squeeze()
