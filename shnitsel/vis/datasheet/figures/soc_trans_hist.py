@@ -6,6 +6,7 @@ from matplotlib.figure import Figure, SubFigure
 from matplotlib.lines import Line2D
 import matplotlib.pyplot as plt
 import numpy as np
+from scipy.linalg import LinAlgError
 
 from shnitsel.filtering.state_selection import StateSelection
 from shnitsel.vis.datasheet.figures.dip_trans_hist import (
@@ -20,6 +21,91 @@ from .common import centertext, figaxs_defaults
 from .hist import calc_truncation_maximum, create_marginals
 from ...colormaps import magma_rw
 from ....units.conversion import convert_energy
+from scipy.stats import gaussian_kde
+
+
+def plot_energy_histogram(
+    inter_state: InterState,
+    state_selection: StateSelection,
+    ax: Axes | None = None,
+    bins: int = 100,
+    cmap: str | Colormap | None = None,
+    cnorm: Normalize | None = None,
+    mark_peaks: bool = False,
+    rasterized: bool = False,
+) -> Axes:
+    """Create the alternative to spectra plots where the oscillator strength is not available.
+
+    Args:
+        inter_state (InterState): Interstate data to get delta energy histograms from
+        state_selection (StateSelection): State selection object to limit the states included in plotting and to provide state names.
+        ax (Axes, optional): Axis object to plot into. If not provided, will be created.
+        bins (int, optional): Optional number of bins for histogram creation. Defaults to 100.
+        cmap (str | Colormap, optional): Optional specification of a desired colormap. Defaults to None.
+        cnorm (Normalize, optional): Optional specification of a colormap norm method. Defaults to None.
+        mark_peaks (bool, optional): Flag whether peaks should be clearly marked. Defaults to False.
+        rasterized (bool, optional): Flag to control whether the histogram plot should be rasterized to cut down on loading times and file sizes in complex plot environments.
+
+    Returns:
+        Axes: The axes object into which the graph was plotted
+    """
+    if ax is None:
+        _, ax = plt.subplots(1, 1)
+    ax.set_ylabel(r'$\rho_{\Delta E}$')
+    ax.invert_xaxis()
+    # linestyles = {t: ['-', '--', '-.', ':'][i]
+    #               for i, t in enumerate(np.unique(list(zip(*spectra.keys()))[0]))}
+
+    if 'energy_interstate' not in inter_state:
+        centertext(r"No $\Delta E$ data provided.", ax=ax)
+        return ax
+
+    for i, sc in enumerate(state_selection.state_combinations):
+        sc_data = inter_state.sel(statecomb=sc)
+        sc_color = state_selection.get_state_combination_color(sc)
+        sc_label = state_selection.get_state_combination_tex_label(sc)
+
+        xdata = sc_data['energy_interstate'].squeeze()
+        xdata = convert_energy(xdata, to=energy.eV)
+
+        xmax = calc_truncation_maximum(xdata)
+        xmin = -calc_truncation_maximum(-xdata)
+
+        n, x = np.histogram(xdata, range=(xmin, xmax), bins=100, density=True)
+        bin_centers = (x[:-1] + x[1:]) / 2.0
+        try:
+            distr = gaussian_kde(xdata)
+        except LinAlgError as e:
+            logging.debug(f"Caught LinAlg error during histogram creation :{e}")
+            continue
+
+        # ax.fill_between(data['energy'], data, alpha=0.5, color=c)
+        ax.plot(
+            x,
+            distr(x),
+            # linestyle=linestyles[t], c=dcol_inter[sc],
+            # linestyle=linestyle,
+            c=sc_color,
+            linewidth=0.8,
+        )
+        if mark_peaks:
+            try:
+                peak_pos = n.argmax()
+                peak_dE = bin_centers[peak_pos]
+                peak_dens = n[peak_pos]
+
+                ax.text(
+                    peak_dE,
+                    peak_dens,
+                    f"{sc_label}",
+                    fontsize='xx-small',
+                )
+            except Exception as e:
+                logging.warning(f"{e}")
+    _, ymax = ax.get_ylim()
+    ax.set_ylim(0, ymax)
+
+    return ax
 
 
 def single_trans_hist(
@@ -301,6 +387,7 @@ def plot_separated_spectra_and_soc_dip_hists(
     fig: Figure | SubFigure | None = None,
     axs: dict[str, Axes] | None = None,
     cb_spec_vlines: bool = True,
+    current_multiplicity: int | None = None,
 ):
     """Create separate spectra plots for ground and excited states.
 
@@ -311,6 +398,7 @@ def plot_separated_spectra_and_soc_dip_hists(
         fig (Figure| SubFigure): A figure, consumed by the automatic axes generation. Not used by the function itself.
         axs (dict[str,Axes], optional): Axis dictionary object to plot into.
         cb_spec_vlines (bool, optional): Whether to mark spectral lines in the energy spectrum. Defaults to True.
+        current_multiplicity (int, optional): Can denote the current multiplicity to change the way we plot the ground state and/or excited state transitions.
 
     Returns:
         dict[str, Axes]: The axes dict after plotting to it.
@@ -323,24 +411,38 @@ def plot_separated_spectra_and_soc_dip_hists(
     scscale = mpl.cm.ScalarMappable(norm=scnorm, cmap=scmap)
 
     hist2d_outputs = []
-    # ground-state spectra and histograms
-    plot_spectra(
-        ground, ax=axs['sg'], state_selection=state_selection, cnorm=scnorm, cmap=scmap
-    )
-    # TODO: FIXME: Only plot ground state spectra in singlet mode
+    if current_multiplicity is None or current_multiplicity == 1 and len(ground) > 0:
+        # Only plot ground state spectra in singlet mode
+        # ground-state spectra and histograms
+        plot_spectra(
+            ground,
+            ax=axs['sg'],
+            state_selection=state_selection,
+            cnorm=scnorm,
+            cmap=scmap,
+        )
+        # TODO: FIXME: Think about how to make the state transitions identifyable
 
-    # # We show at most the first two statecombs
-    # if inter_state.sizes['statecomb'] >= 2:
-    #     selsc = [0, 1]
-    #     selaxs = [axs['t1'], axs['t0']]
-    # elif inter_state.sizes['statecomb'] == 1:
-    #     selsc = [0]
-    #     selaxs = [axs['t1']]
-    # else:
-    #     raise ValueError(
-    #         "Too few statecombs (expecting at least 2 states => 1 statecomb)"
-    #     )
-    # inter_state_sel = inter_state.isel(statecomb=selsc)
+        # if current_multiplicity == 1:
+        #     legend_lines, legend_labels = zip(
+        #         *[
+        #             (
+        #                 Line2D([0], [0], color='k', linestyle='-', linewidth=0.5),
+        #                 "$S_1/S_0$",
+        #             ),
+        #             (
+        #                 Line2D([0], [0], color='k', linestyle='--', linewidth=0.5),
+        #                 "$S_2/S_0$",
+        #             ),
+        #         ]
+        #     )
+        #     axs['sg'].legend(legend_lines, legend_labels, fontsize='x-small')
+    else:
+        plot_energy_histogram(
+            inter_state=inter_state,
+            state_selection=state_selection.ground_state_transitions(),
+            ax=axs['sg'],
+        )
 
     if len(state_selection.state_combinations) > 1:
         selaxs = [axs['t1'], axs['t0']]
@@ -350,13 +452,13 @@ def plot_separated_spectra_and_soc_dip_hists(
     res = plot_soc_or_dip_trans_histograms(
         inter_state,  # inter_state_sel,
         axs=selaxs,
-        state_selection=state_selection,
+        state_selection=state_selection.ground_state_transitions(),
     )
     if res is not None:
         hist2d_outputs += res
 
     # excited-state spectra and histograms
-    if len(excited) >= 2:
+    if len(excited) >= 1:
         plot_spectra(
             excited,
             ax=axs['se'],
@@ -364,14 +466,22 @@ def plot_separated_spectra_and_soc_dip_hists(
             cnorm=scnorm,
             cmap=scmap,
         )
-        # TODO: FIXME: This plots the same state transition as in the ground state.
-        res = plot_soc_or_dip_trans_histograms(
-            inter_state,  # inter_state.isel(statecomb=[2]),
-            axs=[axs['t2']],
-            state_selection=state_selection,
-        )
-        if res is not None:
-            hist2d_outputs += res
+        if current_multiplicity is None or current_multiplicity == 1:
+            # Plot an excited state transition in the singlet case
+            res = plot_soc_or_dip_trans_histograms(
+                inter_state,  # inter_state.isel(statecomb=[2]),
+                axs=[axs['t2']],
+                state_selection=state_selection.excited_state_transitions(),
+            )
+            if res is not None:
+                hist2d_outputs += res
+        else:
+            # Plot an energy histogram of non-permitted transitions in the higher-order case.
+            plot_energy_histogram(
+                inter_state=inter_state,
+                state_selection=state_selection.excited_state_transitions(),
+                ax=axs['t2'],
+            )
 
     hists = np.array([tup[0] for tup in hist2d_outputs])
 
@@ -442,14 +552,6 @@ def plot_separated_spectra_and_soc_dip_hists(
         r"$\uparrow$ground state" + "\n" + r"$\downarrow$excited state absorption"
     )
     axs['t2'].set_xlabel(r'$\Delta E$ / eV')
-
-    legend_lines, legend_labels = zip(
-        *[
-            (Line2D([0], [0], color='k', linestyle='-', linewidth=0.5), "$S_1/S_0$"),
-            (Line2D([0], [0], color='k', linestyle='--', linewidth=0.5), "$S_2/S_0$"),
-        ]
-    )
-    axs['sg'].legend(legend_lines, legend_labels, fontsize='x-small')
 
     return axs
 
