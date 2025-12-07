@@ -410,6 +410,10 @@ def plot_separated_spectra_and_soc_dip_hists(
     scnorm = plt.Normalize(inter_state.time.min(), inter_state.time.max())
     scmap = plt.get_cmap('turbo')
     scscale = mpl.cm.ScalarMappable(norm=scnorm, cmap=scmap)
+    non_degenerate_selection = state_selection.non_degenerate()
+
+    # print(state_selection.states, state_selection.state_combinations)
+    # print(non_degenerate_selection.states, non_degenerate_selection.state_combinations)
 
     hist2d_outputs = []
     if current_multiplicity is None or current_multiplicity == 1 and len(ground) > 0:
@@ -418,7 +422,7 @@ def plot_separated_spectra_and_soc_dip_hists(
         plot_spectra(
             ground,
             ax=axs['sg'],
-            state_selection=state_selection,
+            state_selection=non_degenerate_selection,
             cnorm=scnorm,
             cmap=scmap,
         )
@@ -441,7 +445,7 @@ def plot_separated_spectra_and_soc_dip_hists(
     else:
         plot_energy_histogram(
             inter_state=inter_state,
-            state_selection=state_selection.ground_state_transitions(),
+            state_selection=non_degenerate_selection.ground_state_transitions(),
             ax=axs['sg'],
         )
 
@@ -463,7 +467,7 @@ def plot_separated_spectra_and_soc_dip_hists(
         plot_spectra(
             excited,
             ax=axs['se'],
-            state_selection=state_selection,
+            state_selection=non_degenerate_selection,
             cnorm=scnorm,
             cmap=scmap,
         )
@@ -480,7 +484,7 @@ def plot_separated_spectra_and_soc_dip_hists(
             # Plot an energy histogram of non-permitted transitions in the higher-order case.
             plot_energy_histogram(
                 inter_state=inter_state,
-                state_selection=state_selection.excited_state_transitions(),
+                state_selection=non_degenerate_selection.excited_state_transitions(),
                 ax=axs['t2'],
             )
 

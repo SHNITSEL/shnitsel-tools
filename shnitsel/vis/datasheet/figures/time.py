@@ -182,10 +182,11 @@ def plot_timeplots(
         state_selection,
         axs['pop'],
     )
-    plot_time_interstate_error(delta_E, state_selection, axs['de'])
+    non_degenerate_selection = state_selection.non_degenerate()
+    plot_time_interstate_error(delta_E, non_degenerate_selection, axs['de'])
     axs['de'].set_ylim(0.0, None)
     if fosc_time is not None:
-        plot_time_interstate_error(fosc_time, state_selection, axs['ft'])
+        plot_time_interstate_error(fosc_time, non_degenerate_selection, axs['ft'])
         axs['ft'].set_ylim(0.0, None)
         lowest_ax = axs['ft']
         higher_axnames = ['de', 'pop']
