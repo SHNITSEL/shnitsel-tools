@@ -6,6 +6,7 @@ from timeit import default_timer as timer
 from matplotlib.backends.backend_pdf import PdfPages
 
 from matplotlib.figure import Figure
+from tqdm import tqdm
 
 from shnitsel.filtering.state_selection import StateSelection
 
@@ -214,8 +215,13 @@ class Datasheet:
             page_figures[key] = page_fig if isinstance(page_fig, list) else [page_fig]
 
         if path is not None:
+            print(
+                "Saving datasheet as pdf. Please be patient, this may take some time."
+            )
             with PdfPages(path) as pdf:
-                for key, page_fig in page_figures.items():
+                for key, page_fig in tqdm(
+                    page_figures.items(), unit="page", desc="Written"
+                ):
                     pdf.attach_note(f"Plot of: {key}")
                     for fig in page_fig:
                         pdf.savefig(fig, dpi=300)
