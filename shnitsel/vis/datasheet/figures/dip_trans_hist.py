@@ -128,7 +128,9 @@ def plot_dip_trans_histograms(
 
         color = state_selection.get_state_combination_color(sc_)
         hist2d_outputs.append(
-            single_dip_trans_hist(data, sc_label, state_labels, color=color, ax=ax, cnorm=cnorm)
+            single_dip_trans_hist(
+                data, sc_label, state_labels, color=color, ax=ax, cnorm=cnorm
+            )
         )
         selected_scs += 1
     return hist2d_outputs
@@ -157,9 +159,9 @@ def plot_spectra(
     """
     if ax is None:
         _, ax = plt.subplots(1, 1)
-    cmap = plt.get_cmap(cmap) if cmap else custom_ylgnr
-    times = [t for (t, sc) in spectra]
-    cnorm = cnorm if cnorm else plt.Normalize(min(times), max(times))
+    # cmap = plt.get_cmap(cmap) if cmap else custom_ylgnr
+    # times = [t for (t, sc) in spectra]
+    # cnorm = cnorm if cnorm else plt.Normalize(min(times), max(times))
     ax.set_ylabel(r'$f_\mathrm{osc}$')
     ax.invert_xaxis()
     # linestyles = {t: ['-', '--', '-.', ':'][i]
@@ -169,13 +171,16 @@ def plot_spectra(
     for i, ((t, sc), data) in enumerate(spectra.items()):
         if not state_selection.has_state_combination(sc):
             continue
+
+        sc_color = state_selection.get_state_combination_color(sc)
+        sc_label = state_selection.get_state_combination_tex_label(sc)
         # special casing for now
         if i > 0 and (sc[0] == 1 or sc[1] == 1):
             linestyle = linestyles[1]
         else:
             linestyle = linestyles[0]
 
-        c = cmap(cnorm(t))
+        # c = cmap(cnorm(t))
         # ax.fill_between(data['energy'], data, alpha=0.5, color=c)
         converted_energy = convert_energy(data['energy_interstate'], to=energy.eV)
         ax.plot(
@@ -183,7 +188,7 @@ def plot_spectra(
             data,
             # linestyle=linestyles[t], c=dcol_inter[sc],
             linestyle=linestyle,
-            c=c,
+            c=sc_color,
             linewidth=0.8,
         )
         if mark_peaks:
@@ -193,7 +198,7 @@ def plot_spectra(
                     float(
                         convert_energy(peak['energy_interstate'], to=energy.eV).values
                     ),
-                    peak,
+                    float(peak),
                     f"{t:.2f}:{sc}",
                     fontsize='xx-small',
                 )
