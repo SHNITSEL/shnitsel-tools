@@ -101,9 +101,9 @@ def rgb2hex(rgb: np.ndarray) -> str:
 
 
 multiplicity_intra_bias = {
-    1: np.array([0.5, 0, 0]),
+    1: np.array([1.0, 1.0, 1.0]),  # np.array([0.5, 0, 0]),
     2: np.array([0, 0.5, 0]),
-    3: np.array([0, 0, 0.5]),
+    3: np.array([1.0, 1.0, 1.0]),  # np.array([0, 0, 0.5]),
 }
 
 
@@ -121,15 +121,20 @@ def get_default_interstate_colormap_same_mult(
     """
 
     mapped_colors = {k: hex2rgb(v) for k, v in colors.items()}
+    min_index = np.min(list(colors.keys()))
+    max_index = np.max(list(colors.keys()))
+
+    index_span = max(1, np.abs(max_index - min_index))
 
     res_map = {}
     for k1 in mapped_colors:
         for k2 in mapped_colors:
+            bias_coeff = (index_span - abs(k2 - k1)) / index_span
             total_intra = (
-                multiplicity_intra_bias[multiplicity]
+                multiplicity_intra_bias[multiplicity] * bias_coeff
                 + mapped_colors[k1]
                 + mapped_colors[k2]
-            ) / 3.0
+            ) / (2.0 + bias_coeff)
             res_map[(k1, k2)] = rgb2hex(total_intra)
     return res_map
 
