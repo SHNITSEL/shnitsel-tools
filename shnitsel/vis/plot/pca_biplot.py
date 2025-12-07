@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from matplotlib.colors import Normalize
+from matplotlib.colors import Colormap, Normalize
 from matplotlib.figure import Figure, SubFigure
 import numpy as np
 import xarray as xr
@@ -17,18 +17,38 @@ from ...rd import highlight_pairs
 
 
 def plot_noodleplot(
-    noodle,
-    hops=None,
+    noodle: xr.DataArray,
+    hops: xr.DataArray | None = None,
     fig: Figure | SubFigure | None = None,
-    ax=None,
-    c=None,
+    ax: Axes | None = None,
+    c: xr.DataArray | None = None,
     colorbar_label: str | None = None,
-    cmap: str | None = None,
-    cnorm: str | Normalize | None = None,
+    cmap: str | Colormap | None = None,
+    cnorm: Normalize | None = None,
     cscale=None,
-    noodle_kws=None,
-    hops_kws=None,
+    noodle_kws: dict | None = None,
+    hops_kws: dict | None = None,
+    rasterized: bool = True,
 ) -> Axes:
+    """Create a `noodle` plot, i.e. a line or scatter plot of PCA-decomposed data.
+
+    Args:
+        noodle (xr.DataArray): PCA decomposed data.
+        hops (xr.DataArray, optional): DataArray holding hopping-point information of the trajectories. Defaults to None.
+        fig (Figure | SubFigure | None, optional): Figure to plot the graph into. Defaults to None.
+        ax (Axes, optional): The axes to plot into. Will be generated from `fig` if not provided. Defaults to None.
+        c (xr.DataArray, optional): The data to use for assigning the color to each individual data point. Defaults to None.
+        colorbar_label (str | None, optional): Label to plot next to the colorbar. If not provided will wither be taken from the `long_name` attribute or `name` attribute of the data or defaults to `t/fs`.
+        cmap (str | Colormap | None, optional): Colormap for plotting the datapoints. Defaults to None.
+        cnorm (Normalize | None, optional): Normalization method to map data to the colormap. Defaults to None.
+        cscale (_type_, optional): The colorbar scale mapping that is used for creating the colorbar gradient. Defaults to None.
+        noodle_kws (dict, optional): Keywords arguments for the noodle/PCA plot. Defaults to None.
+        hops_kws (dict, optional): Keyword arguments for plotting the hopping points. Defaults to None.
+        rasterized (bool, optional): Flag to control whether the plot will be rasterized. Defaults to True.
+
+    Returns:
+        Axes: The Axes after plotting to them
+    """
     fig, ax = figax(fig=fig, ax=ax)
     if c is None:
         c = noodle['time']
@@ -40,8 +60,8 @@ def plot_noodleplot(
         pass
     elif hasattr(c, 'attrs') and 'long_name' in c.attrs:
         colorbar_label = c.attrs['long_name']
-    elif hasattr(c, 'name'):
-        colorbar_label = c.name
+    elif hasattr(c, 'name') and c.name is not None:
+        colorbar_label = str(c.name)
     elif c_is_time:
         colorbar_label = '$t$ / fs'
 
@@ -58,13 +78,19 @@ def plot_noodleplot(
     #     ctraj = c.sel(trajid=trajid)
     noodle_kws = noodle_kws or {}
     noodle_kws = {'alpha': 0.5, 's': 0.2, **noodle_kws}
-    ax.scatter(noodle.isel(PC=0), noodle.isel(PC=1), c=cmap(cnorm(c)), **noodle_kws)
+    ax.scatter(
+        noodle.isel(PC=0),
+        noodle.isel(PC=1),
+        c=cmap(cnorm(c)),
+        rasterized=rasterized,
+        **noodle_kws,
+    )
 
     ax.set_xlabel('PC1')
     ax.set_ylabel('PC2')
     if hops is not None:
         hops_kws = dict(s=0.5, c='limegreen') | (hops_kws or {})
-        ax.scatter(hops.isel(PC=0), hops.isel(PC=1), **hops_kws)
+        ax.scatter(hops.isel(PC=0), hops.isel(PC=1), rasterized=rasterized, **hops_kws)
 
     # TODO facilitate custom colorbar
     fig.colorbar(cscale, ax=ax, label=colorbar_label, pad=0.02)

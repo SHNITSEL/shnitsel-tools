@@ -35,6 +35,7 @@ def single_trans_hist(
     plot_marginals: bool = True,
     cmap=None,
     cnorm=None,
+    rasterized: bool = True,
 ):
     """Function to plot a single histogram of interstate soc data vs. energy gaps.
 
@@ -52,6 +53,7 @@ def single_trans_hist(
         plot_marginals (bool, optional): Flag to include marginal histograms. Defaults to True, meaning marginal histograms will be included.
         cmap (str, optional): Colormap to use. Defaults to None.
         cnorm (str, optional): Norming method to apply to the colormap. Defaults to None.
+        rasterized (bool, optional): Flag to control whether the histogram plot should be rasterized to cut down on loading times and file sizes in complex plot environments.
 
     Returns:
         ?: The result of ax.hist2d will be returned. None is returned if data is missing
@@ -83,9 +85,16 @@ def single_trans_hist(
 
     if plot_marginals:
         axx, axy = create_marginals(ax)
-        axx.hist(xdata, range=(xmin, xmax), color=color, bins=bins)
+        axx.hist(
+            xdata, range=(xmin, xmax), color=color, bins=bins, rasterized=rasterized
+        )
         axy.hist(
-            ydata, range=(ymin, ymax), orientation='horizontal', color=color, bins=bins
+            ydata,
+            range=(ymin, ymax),
+            orientation='horizontal',
+            color=color,
+            bins=bins,
+            rasterized=rasterized,
         )
 
     hist2d_output = ax.hist2d(
@@ -95,6 +104,7 @@ def single_trans_hist(
         bins=bins,
         cmap=cmap,
         norm=cnorm,
+        rasterized=rasterized,
     )
 
     if ylabel is not None:
@@ -133,6 +143,7 @@ def single_soc_trans_hist(
     plot_marginals: bool = True,
     cmap=None,
     cnorm=None,
+    rasterized: bool = True,
 ):
     """Function to plot a single histogram of interstate data.
 
@@ -148,6 +159,7 @@ def single_soc_trans_hist(
         plot_marginals (bool, optional): Flag to include marginal histograms. Defaults to True, meaning marginal histograms will be included.
         cmap (str, optional): Colormap to use. Defaults to None.
         cnorm (str, optional): Norming method to apply to the colormap. Defaults to None.
+        rasterized (bool, optional): Flag to control whether the histogram plot should be rasterized to cut down on loading times and file sizes in complex plot environments.
 
     Returns:
         ?: The result of ax.hist2d will be returned. None is returned if data is missing
@@ -163,6 +175,7 @@ def single_soc_trans_hist(
         ax=ax,
         cmap=cmap,
         cnorm=cnorm,
+        rasterized=rasterized,
     )
 
 
@@ -176,6 +189,7 @@ def single_dip_trans_hist(
     plot_marginals: bool = True,
     cmap=None,
     cnorm=None,
+    rasterized: bool = True,
 ):
     """Function to plot a single histogram of interstate dip_trans data.
 
@@ -189,6 +203,7 @@ def single_dip_trans_hist(
         plot_marginals (bool, optional): Flag to include marginal histograms. Defaults to True, meaning marginal histograms will be included.
         cmap (str, optional): Colormap to use. Defaults to None.
         cnorm (str, optional): Norming method to apply to the colormap. Defaults to None.
+        rasterized (bool, optional): Flag to control whether the histogram plot should be rasterized to cut down on loading times and file sizes in complex plot environments.
 
     Returns:
         ?: The result of ax.hist2d will be returned
@@ -204,6 +219,7 @@ def single_dip_trans_hist(
         ax=ax,
         cmap=cmap,
         cnorm=cnorm,
+        rasterized=rasterized,
     )
 
 
