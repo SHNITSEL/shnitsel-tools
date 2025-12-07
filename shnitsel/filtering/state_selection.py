@@ -26,6 +26,10 @@ class StateSelection:
     state_names: dict[StateId, str] | None
     state_charges: dict[StateId, int] | None
 
+    state_degeneracy_group: dict[StateId, int] | None
+    degeneracy_group_states: dict[int, list[StateId]] | None
+    # state_magnetic_nums: dict[StateId, float] | None
+
     state_combinations: list[StateCombination]
     state_combination_names: dict[StateCombination, str] | None
 
@@ -43,6 +47,8 @@ class StateSelection:
         state_combination_names: dict[StateCombination, str] | None = None,
         state_colors: dict[StateId, str] | None = None,
         state_combination_colors: dict[StateCombination, str] | None = None,
+        state_degeneracy_group: dict[StateId, int] | None = None,
+        degeneracy_group_states: dict[int, list[StateId]] | None = None,
         inplace: bool = False,
     ) -> Self:
         """Function to create a copy with replaced member values.
@@ -55,6 +61,8 @@ class StateSelection:
             states (Sequence[StateId] | None, optional): Potentially new state ids. Defaults to None.
             state_types (dict[StateId, int] | None, optional): Potentially new state types/multiplicities. Defaults to None.
             state_names (dict[StateId, str] | None, optional): Potentially new state names. Defaults to None.
+            state_degeneracy_group (dict[StateId, int] | None, optional): Optional degeneracy group indices for states. Defaults to None.
+            degeneracy_group_states (dict[int, list[StateId]] | None, optional): Optional mapping of degeneracy groups to the states they hold. Defaults to None.
             state_charges (dict[StateId, int] | None, optional): Potentially new state charges. Defaults to None.
             state_combinations (list[StateCombination] | None, optional): Potentially new state combinations. Defaults to None.
             state_combination_names (dict[StateCombination, str] | None, optional): Potentially new names for state combinations. Defaults to None.
@@ -100,6 +108,11 @@ class StateSelection:
             if state_combination_colors is not None:
                 self.state_combination_colors = state_combination_colors
 
+            if state_degeneracy_group is not None:
+                self.state_degeneracy_group = state_degeneracy_group
+            if degeneracy_group_states is not None:
+                self.degeneracy_group_states = degeneracy_group_states
+
             return self
         else:
             if ground_state_id is None:
@@ -133,6 +146,10 @@ class StateSelection:
                 state_colors = self.state_colors
             if state_combination_colors is None:
                 state_combination_colors = self.state_combination_colors
+            if state_degeneracy_group is None:
+                state_degeneracy_group = self.state_degeneracy_group
+            if degeneracy_group_states is None:
+                degeneracy_group_states = self.degeneracy_group_states
 
             return type(self)(
                 states=states,
@@ -144,6 +161,8 @@ class StateSelection:
                 state_combination_names=state_combination_names,
                 state_colors=state_colors,
                 state_combination_colors=state_combination_colors,
+                state_degeneracy_group=state_degeneracy_group,
+                degeneracy_group_states=degeneracy_group_states,
             )
 
     @classmethod
@@ -230,6 +249,25 @@ class StateSelection:
         else:
             state_combination_names = None
 
+        state_degeneracy_group = {}
+        degeneracy_group_states = {}
+        if 'state_degeneracy_group' in dataset.variables:
+            # print("State degeneracy data from dataset")
+            degeneracy_info: list[tuple[StateId, int]] = list(
+                zip(states, dataset.state_degeneracy_group.values)
+            )
+            for state, deg_group in degeneracy_info:
+                state_degeneracy_group[state] = int(deg_group)
+                if int(deg_group) not in degeneracy_group_states:
+                    degeneracy_group_states[int(deg_group)] = []
+                degeneracy_group_states[int(deg_group)].append(state)
+        else:
+            # TODO: FIXME: Get degeneracy, magn number from the energy, nac, soc, dip_trans, etc.
+            state_degeneracy_group = None
+            degeneracy_group_states = None
+
+        # print(state_degeneracy_group, degeneracy_group_states)
+
         # Create an initial state selection
         return cls(
             states=states,
@@ -239,6 +277,8 @@ class StateSelection:
             state_names=state_names,
             state_combinations=state_combinations,
             state_combination_names=state_combination_names,
+            state_degeneracy_group=state_degeneracy_group,
+            degeneracy_group_states=degeneracy_group_states,
         )
 
     def filter_states(
@@ -786,6 +826,64 @@ class StateSelection:
 
         return self.copy_or_update(state_combinations=new_state_combs, inplace=inplace)
 
+    def non_degenerate(self, inplace: bool = False) -> Self:
+        """Helper function to remove all degenerate states and combinations identical except for degeneracy.
+
+        Args:
+            inplace (bool, optional): Flag whether the operation should update the selection in-place. Defaults to False.
+
+        Returns:
+            StateSelection: the updated selection only containing non-degenerate states and non-degenerate-equivalent combinations.
+        """
+        if self.state_degeneracy_group is None:
+            # If we do not have degeneracy data, return self, no change needed.
+            print("Skipping without degeneracy data")
+            return self
+
+        new_states = []
+        new_state_combinations = []
+        new_state_comb_degeneracy_groups_encountered = set()
+        state_group_representative = {}
+
+        for sc in self.state_combinations:
+            deg = self.get_state_combination_degeneracy(sc)
+            if deg in new_state_comb_degeneracy_groups_encountered or deg[0] == deg[1]:
+                # Skip known combinations and internal transitions.
+                continue
+            new_state_comb_degeneracy_groups_encountered.add(deg)
+
+            s1, s2 = sc
+            deg1, deg2 = deg
+
+            if deg1 in state_group_representative:
+                s1 = state_group_representative[deg1]
+            else:
+                state_group_representative[deg1] = s1
+                new_states.append(s1)
+
+            if deg2 in state_group_representative:
+                s2 = state_group_representative[deg2]
+            else:
+                state_group_representative[deg2] = s2
+                new_states.append(s2)
+
+            # TODO: Check order
+            deg_sc = (min(s1, s2), max(s1, s2))
+            new_state_combinations.append(deg_sc)
+
+        for state in self.states:
+            deg = self.get_state_degeneracy(state)
+
+            if deg in state_group_representative:
+                continue
+            else:
+                state_group_representative[deg] = state
+                new_states.append(state)
+
+        return self.copy_or_update(
+            states=new_states, state_combinations=new_state_combinations
+        )
+
     def state_info(self) -> Iterable[StateInfo]:
         """Get an iterator over the states in this selection.
 
@@ -870,14 +968,26 @@ class StateSelection:
         s2 = self.get_state_tex_label(second)
         return f"{s1} - {s2}"
 
-    def combination_info(self) -> Iterable[StateCombInfo]:
+    def combination_info(
+        self, degeneracy_free: bool = False
+    ) -> Iterable[StateCombInfo]:
         """Get an iterator over the state combinations in this selection.
 
+        Args:
+            degeneracy_free (bool, optional): If set to true, combinations with already covered degeneracy-groups will be skipped
         Returns:
             Iterable[StateCombInfo]: An iterator over the available state combination info
         """
+        degen_covered = []
 
         for comb in self.state_combinations:
+            if degeneracy_free:
+                degen_class = self.get_state_combination_degeneracy(comb)
+                if degen_class in degen_covered:
+                    continue
+                else:
+                    degen_covered.append(degen_class)
+
             name = self.get_state_combination_name_or_default(comb)
             yield StateCombInfo(comb, name)
 
@@ -937,11 +1047,20 @@ class StateSelection:
             state_list = list(states)
             state_list.sort()
 
+            if self.state_degeneracy_group is not None:
+                state_deg_group = [self.state_degeneracy_group[s] for s in state_list]
+            else:
+                state_deg_group = None
+
             mult_color_maps[mult] = {
                 state_id: color
                 for state_id, color in zip(
                     state_list,
-                    get_default_state_colormap(len(state_list), multiplicity=mult),
+                    get_default_state_colormap(
+                        len(state_list),
+                        multiplicity=mult,
+                        degeneracy_groups=state_deg_group,
+                    ),
                 )
             }
             full_state_colormap.update(mult_color_maps[mult])
@@ -1000,5 +1119,41 @@ class StateSelection:
             return self.state_combination_colors[comb]
         else:
             return st_grey
+
+    def get_state_combination_degeneracy(
+        self, comb: StateCombination
+    ) -> tuple[int, int]:
+        """Function to get the combined degeneracy classes of the two states.
+
+        Helpful for not plotting too degenerate entries.
+
+        Args:
+            comb (StateCombination): Id of the state combination to get the color for
+
+        Returns:
+            tuple[int, int]: Degeneracy groups of either state
+        """
+
+        return self.get_state_degeneracy(comb[0]), self.get_state_degeneracy(comb[1])
+
+    def get_state_degeneracy(self, state: StateId) -> int:
+        """Function to get the combined degeneracy classes of the two states.
+
+        Helpful for not plotting too degenerate entries.
+
+        Args:
+            comb (StateCombination): Id of the state combination to get the color for
+
+        Returns:
+            str: Hex-str color code
+        """
+
+        if (
+            self.state_degeneracy_group is not None
+            and state in self.state_degeneracy_group
+        ):
+            return self.state_degeneracy_group[state]
+
+        return state
 
     # TODO: FIXME: Add print output __str__, __html__ and __repr__
