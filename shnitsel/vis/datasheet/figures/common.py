@@ -51,7 +51,13 @@ def figaxs_defaults(
     return decorator
 
 
-def centertext(text: str, ax: Axes, clearticks='y') -> Text:
+def centertext(
+    text: str,
+    ax: Axes,
+    clearticks='y',
+    background_color: ColorType | None = None,
+    color: ColorType | None = None,
+) -> Text:
     """Helper method to center the text within the axes.
 
     Optionally removes ticks in the dimensions `x` or `y`.
@@ -60,6 +66,8 @@ def centertext(text: str, ax: Axes, clearticks='y') -> Text:
         text (str): Message to center in the frame
         ax (Axes): Axes to plot the text into
         clearticks (str, optional): String of all dimensions to clear the ticks for (may contain `x` and/or `y`). Defaults to 'y'.
+        background_color (ColorType|None, optional): Color argument to set for the background of the plot
+        color (ColorType|None, optional): Color argument to set for font on the plot
 
     Returns:
         Text: The Text object created by a call to `.text()` on the `ax` object.
@@ -68,4 +76,8 @@ def centertext(text: str, ax: Axes, clearticks='y') -> Text:
         ax.tick_params(axis='x', labelbottom=False)
     if 'y' in clearticks:
         ax.tick_params(axis='y', labelleft=False)
-    return ax.text(0.5, 0.5, text, transform=ax.transAxes, ha='center', va='center')
+    if background_color is not None:
+        ax.set_facecolor(background_color)
+    return ax.text(
+        0.5, 0.5, text, transform=ax.transAxes, ha='center', va='center', color=color
+    )
