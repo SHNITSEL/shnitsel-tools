@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from functools import cached_property
 from matplotlib.axes import Axes
+from tqdm import tqdm
 import xarray as xr
 import numpy as np
 import rdkit.Chem as rdchem
@@ -637,6 +638,7 @@ class DatasheetPage:
         self,
         figures: dict[StateCombination, SubFigure],
         state_selection: StateSelection,
+        simple_mode: bool = False,
     ) -> dict[StateCombination, Axes]:
         start = timer()
         mol = self.mol_skeletal if self.structure_skeletal else self.mol
@@ -644,8 +646,13 @@ class DatasheetPage:
         has_dip_trans = 'dip_trans_norm' in interstate.data_vars
         has_nacs = 'nacs_norm' in interstate.data_vars
         has_socs = 'socs_norm' in interstate.data_vars
+        print(
+            f"Rendering coupling page for {len(state_selection.states)} states with at least {len(state_selection.state_combinations)} relevant state transitions."
+        )
+        if not simple_mode:
+            print("This may take a while during saving or rendering.")
         res: dict[StateCombination, Axes] = {}
-        for sc in state_selection.state_combinations:
+        for sc in tqdm(state_selection.state_combinations):
             ax1 = figures[sc].add_subplot(1, 1, 1)
             sc_label = state_selection.get_state_combination_tex_label(sc)
             s1, s2 = sc
@@ -661,56 +668,74 @@ class DatasheetPage:
                 interstate_sc = interstate.sel(statecomb=sc)
                 if has_nacs:
                     if interstate_sc['nacs_norm'].max() > 1e-9:
-                        single_dip_trans_hist(
-                            interstate_sc,
-                            sc_label,
-                            (s1label, s2label),
-                            sccolor,
-                            ax=ax1,
-                            plot_marginals=False,
-                        )
-                        single_dip_trans_hist(
-                            interstate_sc,
-                            sc_label,
-                            (s2label, s1label),
-                            sccolor,
-                            ax=ax2,
-                            plot_marginals=False,
-                        )
+                        if simple_mode:
+                            centertext("NAC", ax1, clearticks="xy")
+                            centertext("NAC", ax2, clearticks="xy")
+                        else:
+                            single_dip_trans_hist(
+                                interstate_sc,
+                                sc_label,
+                                (s1label, s2label),
+                                sccolor,
+                                ax=ax1,
+                                plot_marginals=False,
+                            )
+                            single_dip_trans_hist(
+                                interstate_sc,
+                                sc_label,
+                                (s2label, s1label),
+                                sccolor,
+                                ax=ax2,
+                                plot_marginals=False,
+                            )
                         continue
                 if has_dip_trans:
                     if interstate_sc['dip_trans_norm'].max() > 1e-9:
-                        # We have no
-                        centertext(
-                            f"Permitted Transition {sc_label}", ax1, clearticks="xy"
-                        )
-                        centertext(
-                            f"Permitted Transition {sc_label}", ax2, clearticks="xy"
-                        )
+                        if simple_mode:
+                            centertext(
+                                r"$\mathbf{\mu}_\mathrm{trans}$", ax1, clearticks="xy"
+                            )
+                            centertext(
+                                r"$\mathbf{\mu}_\mathrm{trans}$", ax2, clearticks="xy"
+                            )
+                        else:
+                            # We have no
+                            centertext(
+                                f"Permitted Transition {sc_label}", ax1, clearticks="xy"
+                            )
+                            centertext(
+                                f"Permitted Transition {sc_label}", ax2, clearticks="xy"
+                            )
                         continue
                 if has_socs:
                     interstate_sc = interstate.sel(statecomb=sc, full_statecomb=sc)
                     found_soc = False
                     if interstate_sc['socs_norm'].max() > 1e-9:
-                        single_soc_trans_hist(
-                            interstate_sc,
-                            sc_label,
-                            (s1label, s2label),
-                            sccolor,
-                            ax=ax1,
-                            plot_marginals=False,
-                        )
+                        if simple_mode:
+                            centertext(r"$SOC$", ax1, clearticks="xy")
+                        else:
+                            single_soc_trans_hist(
+                                interstate_sc,
+                                sc_label,
+                                (s1label, s2label),
+                                sccolor,
+                                ax=ax1,
+                                plot_marginals=False,
+                            )
                         found_soc = True
                     interstate_sc = interstate.sel(statecomb=sc, full_statecomb=sc_r)
                     if interstate_sc['socs_norm'].max() > 1e-9:
-                        single_soc_trans_hist(
-                            interstate_sc,
-                            sc_label,
-                            (s2label, s1label),
-                            sccolor,
-                            ax=ax2,
-                            plot_marginals=False,
-                        )
+                        if simple_mode:
+                            centertext(r"$SOC$", ax2, clearticks="xy")
+                        else:
+                            single_soc_trans_hist(
+                                interstate_sc,
+                                sc_label,
+                                (s2label, s1label),
+                                sccolor,
+                                ax=ax2,
+                                plot_marginals=False,
+                            )
                         found_soc = True
 
                     if found_soc:
@@ -993,7 +1018,9 @@ class DatasheetPage:
             fig.suptitle(
                 f'Datasheet:{self.name} [Page: Inter-state Couplings]', fontsize=16
             )
-            res_coupling_axes = self.plot_coupling_page(sfs, self.state_selection)
+            res_coupling_axes = self.plot_coupling_page(
+                sfs, self.state_selection, simple_mode=True
+            )
             figures.append(fig)
 
         return figures if len(figures) != 1 else figures[0]
