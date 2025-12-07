@@ -218,7 +218,7 @@ class Datasheet:
                 for key, page_fig in page_figures.items():
                     pdf.attach_note(f"Plot of: {key}")
                     for fig in page_fig:
-                        pdf.savefig(fig)
+                        pdf.savefig(fig, dpi=300)
                 d = pdf.infodict()
                 d['Title'] = (
                     kwargs['title']
@@ -229,6 +229,7 @@ class Datasheet:
                         else 'Shnitsel-Tools Datasheet'
                     )
                 )
+                d['Creator'] = 'Shnitsel-Tools package'
                 d['Author'] = (
                     kwargs['author'] if 'author' in kwargs else 'Shnitsel-Tools'
                 )
