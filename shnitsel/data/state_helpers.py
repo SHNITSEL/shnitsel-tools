@@ -58,10 +58,15 @@ def default_state_type_assigner(dataset: xr.Dataset) -> xr.Dataset:
 
         if ndoublets == 0 and ntriplets == 0:
             # Special case if we only have singlets:
-            dataset.state_magnetic_number[:nsinglets] = 0.0
-            dataset.state_degeneracy_group[:nsinglets] = dataset.state_degeneracy_group[:nsinglets]
-            mark_variable_assigned(dataset.state_magnetic_number)
-            mark_variable_assigned(dataset.state_degeneracy_group)
+
+            if not is_variable_assigned(dataset.state_magnetic_number):
+                dataset.state_magnetic_number[:nsinglets] = 0.0
+                mark_variable_assigned(dataset.state_magnetic_number)
+            if not is_variable_assigned(dataset.state_degeneracy_group):
+                dataset.state_degeneracy_group[:nsinglets] = (
+                    dataset.state_degeneracy_group[:nsinglets]
+                )
+                mark_variable_assigned(dataset.state_degeneracy_group)
     return dataset
 
 

@@ -300,6 +300,8 @@ def create_initial_dataset(
                 "statecomb",
                 "state_names",
                 "state_charges",
+                "state_magnetic_number",
+                "state_degeneracy_group",
                 "state_types",
             ]
         ).intersection(template.keys())
