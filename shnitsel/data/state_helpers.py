@@ -55,6 +55,13 @@ def default_state_type_assigner(dataset: xr.Dataset) -> xr.Dataset:
         dataset.state_types.attrs.update(keep_attr)
 
         mark_variable_assigned(dataset.state_types)
+
+        if ndoublets == 0 and ntriplets == 0:
+            # Special case if we only have singlets:
+            dataset.state_magnetic_number[:nsinglets] = 0.0
+            dataset.state_degeneracy_group[:nsinglets] = dataset.state_degeneracy_group[:nsinglets]
+            mark_variable_assigned(dataset.state_magnetic_number)
+            mark_variable_assigned(dataset.state_degeneracy_group)
     return dataset
 
 
@@ -176,17 +183,22 @@ def set_sharc_state_type_and_name_defaults(
         multiplicity_charges = [multiplicity_charges] * max_mult
 
     curr_index = 0
+    degeneracy_index = 0
 
     if max_mult >= 1:
         for i in range(multiplicity_counts[0]):
             dataset.state_types[curr_index] = 1
             dataset.state_names[curr_index] = f"S{i}"
             dataset.state_charges[curr_index] = multiplicity_charges[0]
+            dataset.state_magnetic_number[curr_index] = 0.0  # For singlets
+            dataset.state_degeneracy_group[curr_index] = degeneracy_index + i
             curr_index += 1
+        degeneracy_index += multiplicity_counts[0]
 
     if max_mult >= 2:
         curr_mult = 2
         suffix = ["-", "+"]
+        magnetic_nums = [-0.5, 0.5]
         charge = multiplicity_charges[1]
         for m in range(0, curr_mult):
             # We skip label 0 for higher-order states
@@ -194,11 +206,16 @@ def set_sharc_state_type_and_name_defaults(
                 dataset.state_types[curr_index] = curr_mult
                 dataset.state_names[curr_index] = f"D{i}{suffix[m]}"
                 dataset.state_charges[curr_index] = charge
+                dataset.state_magnetic_number[curr_index] = magnetic_nums[m]
+                dataset.state_degeneracy_group[curr_index] = degeneracy_index + i  #
                 curr_index += 1
+
+        degeneracy_index += multiplicity_counts[1]
 
     if max_mult >= 3:
         curr_mult = 3
         suffix = ["-", "", "+"]
+        magnetic_nums = [-1.0, 0.0, 1.0]
         charge = multiplicity_charges[2]
         for m in range(0, curr_mult):
             # We skip label 0 for higher-order states
@@ -206,28 +223,35 @@ def set_sharc_state_type_and_name_defaults(
                 dataset.state_types[curr_index] = curr_mult
                 dataset.state_names[curr_index] = f"T{i}{suffix[m]}"
                 dataset.state_charges[curr_index] = charge
+                dataset.state_magnetic_number[curr_index] = magnetic_nums[m]
+                dataset.state_degeneracy_group[curr_index] = degeneracy_index + i  #
                 curr_index += 1
+        degeneracy_index += multiplicity_counts[2]
 
     if max_mult > 3:
         for curr_mult in range(4, max_mult + 1):
             charge = multiplicity_charges[curr_mult - 1]
-            upper_mult = int(curr_mult // 2)
-            lower_mult = -upper_mult
-            no_zero = (curr_mult % 2) == 0
-            for m in range(lower_mult, upper_mult + 1):
-                if m == 0 and no_zero:
-                    # Skip the zero index in states with even multiplicity. E.g. doublets have -1 and +1.
-                    continue
+            center_mag_offset = float(curr_mult) / 2.0
+            for m in range(0, curr_mult):
+                mag_num = float(m) - center_mag_offset
+
                 # We skip label 0 for higher-order states
                 for i in range(1, 1 + multiplicity_counts[curr_mult - 1]):
                     dataset.state_types[curr_index] = curr_mult
-                    dataset.state_names[curr_index] = f"S[{curr_mult}]{i}::{m}"
+                    dataset.state_names[curr_index] = (
+                        f"S[{curr_mult}]{i}::{mag_num:.1f}"
+                    )
                     dataset.state_charges[curr_index] = charge
+                    dataset.state_magnetic_number[curr_index] = mag_num
+                    dataset.state_degeneracy_group[curr_index] = degeneracy_index + i  #
                     curr_index += 1
+            degeneracy_index += multiplicity_counts[curr_mult - 1]
 
     mark_variable_assigned(dataset.state_types)
     mark_variable_assigned(dataset.state_names)
     mark_variable_assigned(dataset.state_charges)
+    mark_variable_assigned(dataset.state_magnetic_number)
+    mark_variable_assigned(dataset.state_degeneracy_group)
 
     return dataset
 

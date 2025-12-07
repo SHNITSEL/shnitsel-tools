@@ -71,7 +71,8 @@ def assign_optional_settings(
         if v is not None:
             dataset.attrs[k] = v
 
-def get_statecomb_coordinate(states:xr.DataArray) -> xr.Coordinates:
+
+def get_statecomb_coordinate(states: xr.DataArray) -> xr.Coordinates:
     """Helper function to create a statecombination coordinate if it is missing, based on the states registered.
 
     Args:
@@ -84,6 +85,7 @@ def get_statecomb_coordinate(states:xr.DataArray) -> xr.Coordinates:
         pd.MultiIndex.from_tuples(combinations(states, 2), names=["from", "to"]),
         dim="statecomb",
     )
+
 
 # TODO: FIXME: Consider caching here. May speed up ICONDS in large ICOND datasets
 def create_initial_dataset(
@@ -126,6 +128,8 @@ def create_initial_dataset(
         "socs": ["time", "full_statecomb"],
         "state_names": ["state"],
         "state_types": ["state"],
+        "state_magnetic_number": ["state"],
+        "state_degeneracy_group": ["state"],
         "state_charges": ["state"],
         "astate": ["time"],
         "sdiag": ["time"],
@@ -147,6 +151,8 @@ def create_initial_dataset(
         "socs": np.nan + 0j,
         "state_names": "",
         "state_types": 0,
+        "state_magnetic_number": np.nan,
+        "state_degeneracy_group": 0,
         "state_charges": 0,
         "astate": -1,
         "sdiag": -1,
@@ -171,6 +177,8 @@ def create_initial_dataset(
         "socs": np.complex128,
         "state_names": default_string_type,
         "state_types": np.dtypes.Int8DType,
+        "state_magnetic_number": default_float_type,
+        "state_degeneracy_group": np.dtypes.Int8DType,
         "state_charges": default_float_type,
         "astate": np.dtypes.Int16DType,
         "sdiag": np.dtypes.Int16DType,
