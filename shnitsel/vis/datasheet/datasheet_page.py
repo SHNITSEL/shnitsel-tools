@@ -695,13 +695,16 @@ class DatasheetPage:
                     if interstate_sc['nacs_norm'].max() > 1e-9:
                         if simple_mode:
                             centertext(
-                                "NAC",
+                                "",  # "NAC",
                                 ax1,
                                 clearticks="xy",
                                 background_color=sccolor,  # "green"
                             )
                             centertext(
-                                "NAC", ax2, clearticks="xy", background_color="green"
+                                r"$\checkmark$",  # "NAC",
+                                ax2,
+                                clearticks="xy",
+                                background_color="green",
                             )
                         else:
                             single_dip_trans_hist(
@@ -725,24 +728,30 @@ class DatasheetPage:
                     if interstate_sc['dip_trans_norm'].max() > 1e-9:
                         if simple_mode:
                             centertext(
-                                r"$\mathbf{\mu}_\mathrm{trans}$",
+                                " ",  # r"$\mathbf{\mu}_\mathrm{trans}$",
                                 ax1,
                                 clearticks="xy",
                                 background_color=sccolor,  # "green",
                             )
                             centertext(
-                                r"$\mathbf{\mu}_\mathrm{trans}$",
+                                r"$\checkmark$",
+                                # r"$\mathbf{\mu}_\mathrm{trans}$",
                                 ax2,
                                 clearticks="xy",
                                 background_color="green",
                             )
                         else:
-                            # We have no
+                            # We have no detailed information
                             centertext(
-                                f"Permitted Transition {sc_label}", ax1, clearticks="xy"
+                                r"$\checkmark$",  # f"Permitted Transition {sc_label}",
+                                ax1,
+                                clearticks="xy",
                             )
                             centertext(
-                                f"Permitted Transition {sc_label}", ax2, clearticks="xy"
+                                r"$\checkmark$",
+                                # f"Permitted Transition {sc_label}",
+                                ax2,
+                                clearticks="xy",
                             )
                         continue
                 if has_socs:
@@ -751,7 +760,7 @@ class DatasheetPage:
                     if interstate_sc['socs_norm'].max() > 1e-9:
                         if simple_mode:
                             centertext(
-                                r"$SOC$",
+                                " ",  # r"$SOC$",
                                 ax1,
                                 clearticks="xy",
                                 background_color=sccolor,  # "brown"
@@ -770,7 +779,11 @@ class DatasheetPage:
                     if interstate_sc['socs_norm'].max() > 1e-9:
                         if simple_mode:
                             centertext(
-                                r"$SOC$", ax2, clearticks="xy", background_color="brown"
+                                "X",
+                                # r"$SOC$",
+                                ax2,
+                                clearticks="xy",
+                                background_color="brown",
                             )
                         else:
                             single_soc_trans_hist(
@@ -786,8 +799,16 @@ class DatasheetPage:
                     if found_soc:
                         continue
 
-                centertext(f"No Permitted Transition {sc_label}", ax1, clearticks="xy")
-                centertext(f"No Permitted Transition {sc_label}", ax2, clearticks="xy")
+                centertext(
+                    r"X",  # f"No Permitted Transition {sc_label}",
+                    ax1,
+                    clearticks="xy",
+                )
+                centertext(
+                    r"X",  # f"No Permitted Transition {sc_label}",
+                    ax2,
+                    clearticks="xy",
+                )
         for state in state_selection.states:
             if simple_mode:
                 centertext(
