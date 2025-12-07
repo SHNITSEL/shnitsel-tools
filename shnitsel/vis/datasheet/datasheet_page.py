@@ -40,7 +40,7 @@ except ImportError:
 
 from shnitsel.analyze.spectra import assign_fosc, calc_spectra, get_spectra_groups
 
-from .figures.common import centertext
+from .figures.common import centertext, label_plot_grid
 from .figures.per_state_hist import plot_per_state_histograms
 from .figures.time import plot_timeplots
 
@@ -539,7 +539,10 @@ class DatasheetPage:
         return res
 
     def plot_separated_spectra_and_hists(
-        self, state_selection: StateSelection, fig: Figure | SubFigure | None = None
+        self,
+        state_selection: StateSelection,
+        fig: Figure | SubFigure | None = None,
+        current_multiplicity: int = 1,
     ) -> dict[str, Axes]:
         start = timer()
         res = plot_separated_spectra_and_soc_dip_hists(
@@ -547,6 +550,7 @@ class DatasheetPage:
             spectra_groups=self.spectra_groups,
             fig=fig,
             state_selection=state_selection,
+            current_multiplicity=current_multiplicity,
         )
         end = timer()
         info(f"finished plot_separated_spectra_and_hists in {end - start} s")
@@ -636,28 +640,49 @@ class DatasheetPage:
 
     def plot_coupling_page(
         self,
-        figures: dict[StateCombination, SubFigure],
+        figure: Figure | SubFigure,
+        suplots: dict[StateCombination, Axes],
         state_selection: StateSelection,
         simple_mode: bool = False,
     ) -> dict[StateCombination, Axes]:
+        """Plot coupling and state-info data on an axes grid.
+
+        Args:
+            figure (Figure | SubFigure): Figure this is being plotted into. Used for some after-the fact manipulation like introducing
+            suplots (dict[StateCombination, Axes]): _description_
+            state_selection (StateSelection): _description_
+            simple_mode (bool, optional): _description_. Defaults to False.
+
+        Returns:
+            dict[StateCombination, Axes]: _description_
+        """
         start = timer()
-        mol = self.mol_skeletal if self.structure_skeletal else self.mol
+        # mol = self.mol_skeletal if self.structure_skeletal else self.mol
         interstate = self.inter_state
         has_dip_trans = 'dip_trans_norm' in interstate.data_vars
         has_nacs = 'nacs_norm' in interstate.data_vars
         has_socs = 'socs_norm' in interstate.data_vars
+        num_states = len(state_selection.states)
         print(
-            f"Rendering coupling page for {len(state_selection.states)} states with at least {len(state_selection.state_combinations)} relevant state transitions."
+            f"Rendering coupling page for {num_states} states with at least {len(state_selection.state_combinations)} relevant state transitions."
         )
         if not simple_mode:
             print("This may take a while during saving or rendering.")
+        elif isinstance(figure, Figure):
+            # Make figure smaller for the simple mode figure.
+            figure.set_size_inches(
+                # 11.69 / 6 * ncols,
+                # 8.27 / 4 * nrows,
+                0.5 * num_states,
+                0.5 * num_states,
+            )  # landscape A4
         res: dict[StateCombination, Axes] = {}
         for sc in tqdm(state_selection.state_combinations):
-            ax1 = figures[sc].add_subplot(1, 1, 1)
+            ax1 = suplots[sc]
             sc_label = state_selection.get_state_combination_tex_label(sc)
             s1, s2 = sc
             sc_r = (s2, s1)
-            ax2 = figures[sc_r].add_subplot(1, 1, 1)
+            ax2 = suplots[sc_r]
             res[sc] = ax1
             res[sc_r] = ax2
 
@@ -669,8 +694,18 @@ class DatasheetPage:
                 if has_nacs:
                     if interstate_sc['nacs_norm'].max() > 1e-9:
                         if simple_mode:
-                            centertext("NAC", ax1, clearticks="xy")
-                            centertext("NAC", ax2, clearticks="xy")
+                            centertext(
+                                "NAC",
+                                ax1,
+                                clearticks="xy",
+                                background_color=sccolor,  # "green"
+                            )
+                            centertext(
+                                "NAC",
+                                ax2,
+                                clearticks="xy",
+                                background_color=sccolor,  # "green"
+                            )
                         else:
                             single_dip_trans_hist(
                                 interstate_sc,
@@ -693,10 +728,16 @@ class DatasheetPage:
                     if interstate_sc['dip_trans_norm'].max() > 1e-9:
                         if simple_mode:
                             centertext(
-                                r"$\mathbf{\mu}_\mathrm{trans}$", ax1, clearticks="xy"
+                                r"$\mathbf{\mu}_\mathrm{trans}$",
+                                ax1,
+                                clearticks="xy",
+                                background_color=sccolor,  # "green",
                             )
                             centertext(
-                                r"$\mathbf{\mu}_\mathrm{trans}$", ax2, clearticks="xy"
+                                r"$\mathbf{\mu}_\mathrm{trans}$",
+                                ax2,
+                                clearticks="xy",
+                                background_color=sccolor,  # "green",
                             )
                         else:
                             # We have no
@@ -712,7 +753,12 @@ class DatasheetPage:
                     found_soc = False
                     if interstate_sc['socs_norm'].max() > 1e-9:
                         if simple_mode:
-                            centertext(r"$SOC$", ax1, clearticks="xy")
+                            centertext(
+                                r"$SOC$",
+                                ax1,
+                                clearticks="xy",
+                                background_color=sccolor,  # "brown"
+                            )
                         else:
                             single_soc_trans_hist(
                                 interstate_sc,
@@ -726,7 +772,12 @@ class DatasheetPage:
                     interstate_sc = interstate.sel(statecomb=sc, full_statecomb=sc_r)
                     if interstate_sc['socs_norm'].max() > 1e-9:
                         if simple_mode:
-                            centertext(r"$SOC$", ax2, clearticks="xy")
+                            centertext(
+                                r"$SOC$",
+                                ax2,
+                                clearticks="xy",
+                                background_color=sccolor,  # "brown"
+                            )
                         else:
                             single_soc_trans_hist(
                                 interstate_sc,
@@ -743,9 +794,25 @@ class DatasheetPage:
 
                 centertext(f"No Permitted Transition {sc_label}", ax1, clearticks="xy")
                 centertext(f"No Permitted Transition {sc_label}", ax2, clearticks="xy")
+        for state in state_selection.states:
+            if simple_mode:
+                centertext(
+                    r"",
+                    suplots[(state, state)],
+                    clearticks="xy",
+                    background_color=state_selection.get_state_color(state),  # "brown"
+                )
+            else:
+                suplots[(state, state)].remove()
 
+        if figure is not None:
+            state_labels = [
+                f"${state_selection.get_state_tex_label(s)}$"
+                for s in state_selection.states
+            ]
+            label_plot_grid(figure, row_headers=state_labels, col_headers=state_labels)
         end = timer()
-        info(f"finished plot_structure in {end - start} s")
+        info(f"finished plot_coupling_page in {end - start} s")
         return res
 
     @staticmethod
@@ -831,7 +898,7 @@ class DatasheetPage:
     @staticmethod
     def get_subfigures_coupling_page(
         state_selection: StateSelection, borders: bool = False
-    ) -> tuple[Figure, dict[StateCombination, SubFigure]]:
+    ) -> tuple[Figure, dict[StateCombination, Axes]]:
         """Helper function to prepare a figure to hold all state interaction figures.
         Args:
             n_states (int, optional): Number of states (will be square in the end.)
@@ -848,22 +915,30 @@ class DatasheetPage:
 
         fig, state_grid = plt.subplots(nrows, ncols, layout='constrained')
         fig.set_size_inches(
-            11.69 / 6 * ncols,
-            8.27 / 4 * nrows,
+            # 11.69 / 6 * ncols,
+            # 8.27 / 4 * nrows,
+            2 * ncols,
+            2 * nrows,
         )  # landscape A4
         if borders:
             fig.set_facecolor('#0d0d0d')
-        gs = state_grid[0, 0].get_subplotspec().get_gridspec()
-        gridspecs = {
-            (states[a], states[b]): gs[a, b]
+        # gs = state_grid[0, 0].get_subplotspec().get_gridspec()
+        # gridspecs = {
+        #     (states[a], states[b]): gs[a, b]
+        #     for a in range(n_states)
+        #     for b in range(n_states)
+        # }
+        # subfigures = {
+        #     comb_label: fig.add_subfigure(sub_gridspec)
+        #     for comb_label, sub_gridspec in gridspecs.items()
+        # }
+
+        subplots = {
+            (states[a], states[b]): state_grid[a, b]
             for a in range(n_states)
             for b in range(n_states)
         }
-        subfigures = {
-            comb_label: fig.add_subfigure(sub_gridspec)
-            for comb_label, sub_gridspec in gridspecs.items()
-        }
-        return fig, subfigures
+        return fig, subplots
 
     def plot(
         self,
@@ -948,6 +1023,7 @@ class DatasheetPage:
                 axs = self.plot_separated_spectra_and_hists(
                     state_selection=page_selection,
                     fig=sfs['separated_spectra_and_hists'],
+                    current_multiplicity=mult,
                 )
                 ax = axs['sg']
                 outlabel(ax)
@@ -1019,7 +1095,7 @@ class DatasheetPage:
                 f'Datasheet:{self.name} [Page: Inter-state Couplings]', fontsize=16
             )
             res_coupling_axes = self.plot_coupling_page(
-                sfs, self.state_selection, simple_mode=True
+                fig, sfs, self.state_selection, simple_mode=True
             )
             figures.append(fig)
 
