@@ -18,6 +18,8 @@ custom_ylgnr: Colormap = mpl.colors.LinearSegmentedColormap.from_list(
     'custom', mpl.colormaps['YlGn_r'](np.linspace(0, 0.75, 128))
 )
 
+_cmap_mult_degeneracy: Colormap = mpl.colormaps["Greys"]
+
 default_singlet_state_colormap: Colormap = mpl.colormaps.get_cmap("winter")
 default_doublet_state_colormap: Colormap = mpl.colormaps.get_cmap("cool")
 default_triplet_state_colormap: Colormap = mpl.colormaps.get_cmap("autumn")
@@ -45,38 +47,131 @@ def get_default_singlet_state_colormap(num_singlets: int) -> list:
     return colors
 
 
-def get_default_doublet_state_colormap(num_doublets: int) -> list:
+def get_default_doublet_state_colormap(
+    num_doublets: int,
+    degeneracy_groups: list[int] | None = None,
+) -> list:
     """Get a list of per-state colors for this number of doublets.
 
     Args:
         num_doublets (int): The number of doublets to generate colors for
+        degeneracy_groups (dict[int, int], optional): Degeneracy group indices to make sure different groups have the most distinct colors. If not set, all states will be considered different.s
 
     Returns:
         list: The list of colors for each of these states
     """
-    colors = list(default_doublet_state_colormap(np.linspace(0, 1.0, num=num_doublets)))
-    return colors
+    # colors = list(default_doublet_state_colormap(np.linspace(0, 1.0, num=num_doublets)))
+    return _get_default_degenerate_state_map(
+        num_doublets, default_doublet_state_colormap, degeneracy_groups
+    )
 
 
-def get_default_triplet_state_colormap(num_triplets: int) -> list:
+def get_default_triplet_state_colormap(
+    num_triplets: int,
+    degeneracy_groups: list[int] | None = None,
+) -> list:
     """Get a list of per-state colors for this number of triplets.
 
     Args:
         num_triplets (int): The number of triplets to generate colors for
+        degeneracy_groups (dict[int, int], optional): Degeneracy group indices to make sure different groups have the most distinct colors. If not set, all states will be considered different.
 
     Returns:
         list: The list of colors for each of these states
     """
-    colors = list(default_triplet_state_colormap(np.linspace(0, 1.0, num=num_triplets)))
-    return colors
+    # colors = list(default_triplet_state_colormap(np.linspace(0, 1.0, num=num_triplets)))
+    return _get_default_degenerate_state_map(
+        num_triplets, default_triplet_state_colormap, degeneracy_groups
+    )
 
 
-def get_default_state_colormap(num_states: int, multiplicity: int = 1) -> list[str]:
+# Coefficients and bias colors for small degrees of degeneracy
+color_mix_info: dict[int, list[tuple[float, np.ndarray]]] = {
+    1: [(0.0, np.array([1.0, 1.0, 1.0, 1.0]))],
+    2: [(0.0, np.array([1.0, 1.0, 1.0, 1.0])), (0.3, np.array([1.0, 1.0, 1.0, 1.0]))],
+    3: [
+        (0.0, np.array([1.0, 1.0, 1.0, 1.0])),
+        (0.3, np.array([0.0, 0.0, 0.0, 1.0])),
+        (0.3, np.array([1.0, 1.0, 1.0, 1.0])),
+    ],
+}
+
+
+def _get_default_degenerate_state_map(
+    num_states: int, colormap: Colormap, degeneracy_groups: list[int] | None = None
+) -> list:
+    """Helper function to try and spread colors most strongly between different degeneracy groups.
+
+    Args:
+        num_states (int): _description_
+        colormap (Colormap): _description_
+        degeneracy_groups (list[int] | None, optional): _description_. Defaults to None.
+
+    Returns:
+        list: _description_
+    """
+
+    if degeneracy_groups is not None:
+        assert num_states == len(degeneracy_groups), (
+            f"discrepancy between #states {num_states} and {len(degeneracy_groups)=}"
+        )
+
+        degeneracy_group_set = list(set(degeneracy_groups))
+        degeneracy_group_set.sort()
+        num_deg_groups = len(degeneracy_group_set)
+
+        group_colorlist = list(colormap(np.linspace(0, 1.0, num=num_deg_groups)))
+
+        degeneracy_group_states = {}
+        colorlist_reordered = [None] * num_states
+
+        for index, group in enumerate(degeneracy_groups):
+            if group not in degeneracy_group_states:
+                degeneracy_group_states[group] = []
+            degeneracy_group_states[group].append(index)
+
+        for group, g_color in zip(degeneracy_group_set, group_colorlist):
+            group_states = degeneracy_group_states[group]
+            group_states.sort()
+
+            size_group = len(group_states)
+
+            if size_group in color_mix_info:
+                mix_data = color_mix_info[size_group]
+
+                for index, (weight, offset) in zip(group_states, mix_data):
+                    colorlist_reordered[index] = (g_color + weight * offset) / (
+                        1.0 + weight
+                    )
+            else:
+                for index, color_offset in zip(
+                    group_states,
+                    _cmap_mult_degeneracy(
+                        colormap(np.linspace(0, 1.0, num=size_group))
+                    ),
+                ):
+                    coefficient = 0.3
+                    colorlist_reordered[index] = (
+                        g_color + coefficient * color_offset
+                    ) / (1 + coefficient)
+
+        return colorlist_reordered
+    else:
+        colorlist = list(colormap(np.linspace(0, 1.0, num=num_states)))
+        return colorlist
+
+
+def get_default_state_colormap(
+    num_states: int,
+    multiplicity: int = 1,
+    degeneracy_groups: list[int] | None = None,
+) -> list[str]:
     """Get default state colormap for a number of states of a specific multiplicity
 
     Args:
         num_states (int): Number of states in this multiplicity
         multiplicity (int, optional): The multiplicity to get the colors for. Defaults to 1, i.e. Singlets.
+        degeneracy_groups (list[int], optional): Degeneracy group indices to make sure different groups have the most distinct colors. If not set, all states will be considered different.
 
     Returns:
         list[str]: The string representations of per-state colors
@@ -85,9 +180,13 @@ def get_default_state_colormap(num_states: int, multiplicity: int = 1) -> list[s
     if multiplicity == 1:
         base = get_default_singlet_state_colormap(num_states)
     elif multiplicity == 3:
-        base = get_default_triplet_state_colormap(num_states)
+        base = get_default_triplet_state_colormap(
+            num_states, degeneracy_groups=degeneracy_groups
+        )
     else:
-        base = get_default_doublet_state_colormap(num_states)
+        base = get_default_doublet_state_colormap(
+            num_states, degeneracy_groups=degeneracy_groups
+        )
 
     return [rgb2hex(x) for x in base]
 
