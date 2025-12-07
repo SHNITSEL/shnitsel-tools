@@ -183,6 +183,7 @@ def plot_spectra(
         # c = cmap(cnorm(t))
         # ax.fill_between(data['energy'], data, alpha=0.5, color=c)
         converted_energy = convert_energy(data['energy_interstate'], to=energy.eV)
+        converted_energy = np.abs(converted_energy)
         ax.plot(
             converted_energy,
             data,
