@@ -8,8 +8,13 @@ import rdkit.Chem as rdChem
 
 import matplotlib as mpl
 
-from .common import centertext
+from shnitsel.bridges import to_mol
+from shnitsel.core.typedefs import Frames
+
+from .common import centertext, label_plot_grid
 from ...plot.common import figax, mpl_imshow_png
+
+import xarray as xr
 
 
 def mol_to_png(mol: rdChem.Mol, width: int = 320, height: int = 240) -> bytes:
@@ -113,3 +118,57 @@ def plot_structure(
     ax.set_xlabel(xlabel_string, fontsize='small')
     # axy.tick_params(axis="y", labelleft=False)
     return ax
+
+
+def plot_pca_structure(
+    frames: Frames | xr.Dataset,
+    pca_data: xr.DataArray,
+    fig: Figure | SubFigure | None = None,
+    axs: dict[tuple[int, str], Axes] | None = None,
+) -> dict[tuple[int, str], Axes]:
+    """Function to plot the most extreme pca combinations as structure plots.
+
+    Args:
+        frames (Frames | xr.Dataset): The raw input data to use for extracting the positional data and structure.
+        pca_data (xr.DataArray): PCA decomposition data.
+        fig (Figure | SubFigure, optional): Figure to create axes into. If `axs` are provided, this can be left empty.
+        axs (dict[tuple[int,str],Axes] | None, optional): Axes to plot the extrema to. One row per pca, one column for 'min' or 'max'. Defaults to None.
+
+    Returns:
+        dict[tuple[int,str],Axes]: The axes the extrema have been plotted to.
+    """
+    assert 'pc' in pca_data.sizes, "pca_data argument is no result of PCA."
+    assert 'atXYZ' in frames, "No positional data provided."
+
+    num_pca = pca_data.sizes['pc']
+    if axs is None:
+        if fig is not None:
+            tmp_ax = fig.subplots(num_pca, 2)
+            axs = {}
+            for i, label in enumerate(['min', 'max']):
+                for j in range(num_pca):
+                    axs[(j, label)] = tmp_ax[j, i]
+        else:
+            raise ValueError("Please provide either a figure or axes.")
+
+    pc_labels = []
+    col_labels = ['min', 'max']
+    for j in range(num_pca):
+        pc_data = pca_data.isel(pc=j)
+        argmin_struct = pc_data.argmin()
+        argmax_struct = pc_data.argmax()
+
+        pos_argmin = frames.atXYZ[argmin_struct]
+        pos_argmax = frames.atXYZ[argmax_struct]
+
+        min_ax = axs[(j, 'min')]
+        max_ax = axs[(j, 'max')]
+
+        plot_structure(to_mol(pos_argmin, to2D=False), ax=min_ax)
+        plot_structure(to_mol(pos_argmax, to2D=False), ax=max_ax)
+        pc_labels.append(f"PC{j + 1}")
+
+    if fig is not None:
+        label_plot_grid(fig, row_headers=pc_labels, col_headers=col_labels)
+
+    return axs
