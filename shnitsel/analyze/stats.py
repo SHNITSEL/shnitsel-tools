@@ -156,7 +156,7 @@ def get_per_state(frames: Frames) -> PerState:
     # TODO: FIXME: This needs documentation. And attributes need to be kept.
     # And why create a new dataset instead of amending the original one?
     props_per = {'energy', 'forces', 'dip_perm'}.intersection(frames.keys())
-    per_state = frames[props_per].map(keep_norming, keep_attrs=False)
+    per_state = frames[props_per].map(keep_norming, keep_attrs=True)
     if 'forces' in per_state:
         per_state['forces'] = per_state['forces'].where(per_state['forces'] != 0)
         per_state['forces'].attrs['long_name'] = r'$\mathbf{F}$'
