@@ -14,7 +14,7 @@ import xarray as xr
 
 from shnitsel.__api_info import API, internal
 from shnitsel.data.multi_indices import expand_midx
-from shnitsel.io.helpers import (
+from shnitsel.data.atom_helpers import (
     get_atom_number_from_symbol,
     get_symbol_from_atom_number,
 )
