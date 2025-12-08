@@ -169,6 +169,7 @@ class Datasheet:
         self,
         include_per_state_hist: bool = False,
         include_coupling_page: bool = True,
+        include_pca_page: bool = False,
         borders: bool = False,
         consistent_lettering: bool = True,
         single_key: str | None = None,
@@ -183,6 +184,7 @@ class Datasheet:
         Args:
             include_per_state_hist (bool, optional): Flag to include per-state histograms in the plot. Defaults to False.
             include_coupling_page (bool, optional): Flag to create a full page with state-coupling plots. Defaults to False.
+            include_pca_page (bool, optional): Flag to create a PCA analysis page with details on PCA results. Defaults to True.
             borders (bool, optional): A flag whether to draw borders around plots. Defaults to False.
             consistent_lettering (bool, optional): Flag to decide, whether same plots should always have the same letters. Defaults to True.
             single_key (str, optional): Key to a single entry in this set to plot. Keys are specified as paths in the ShnitselDB structure.
@@ -209,6 +211,7 @@ class Datasheet:
             page_fig = page.plot(
                 include_per_state_hist=include_per_state_hist,
                 include_coupling_page=include_coupling_page,
+                include_pca_page=include_pca_page,
                 borders=borders,
                 consistent_lettering=consistent_lettering,
             )

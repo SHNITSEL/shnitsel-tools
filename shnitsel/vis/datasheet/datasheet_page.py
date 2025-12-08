@@ -62,6 +62,7 @@ class DatasheetPage:
     """
 
     state_selection: StateSelection
+    state_selection_provided: bool = False
     feature_selection: None = None
     spectra_times: list[int | float] | np.ndarray | None = None
     charge: int = 0
@@ -121,8 +122,10 @@ class DatasheetPage:
 
         # Initialize state selection or use provided selection
         if state_selection is not None:
+            self.state_selection_provided = True
             self.state_selection = state_selection
         else:
+            self.state_selection_provided = False
             self.state_selection = StateSelection.init_from_dataset(self.frames)
 
         # Initialize feature selection or use provided selection
@@ -694,14 +697,26 @@ class DatasheetPage:
                 0.5 * num_states,
                 0.5 * num_states,
             )  # landscape A4
+
         res: dict[StateCombination, Axes] = {}
-        for sc in tqdm(state_selection.state_combinations):
+
+        for sc in state_selection.state_combinations:
             ax1 = suplots[sc]
+            res[sc] = ax1
+
+            sccolor = state_selection.get_state_combination_color(sc)
+            centertext(
+                "",  # "NAC",
+                ax1,
+                clearticks="xy",
+                background_color=sccolor,  # "green"
+            )
+
+        for sc in tqdm(state_selection.state_combinations):
             sc_label = state_selection.get_state_combination_tex_label(sc)
             s1, s2 = sc
             sc_r = (s2, s1)
             ax2 = suplots[sc_r]
-            res[sc] = ax1
             res[sc_r] = ax2
 
             s1label = state_selection.get_state_tex_label(s1)
@@ -713,26 +728,12 @@ class DatasheetPage:
                     if interstate_sc['nacs_norm'].max() > 1e-9:
                         if simple_mode:
                             centertext(
-                                "",  # "NAC",
-                                ax1,
-                                clearticks="xy",
-                                background_color=sccolor,  # "green"
-                            )
-                            centertext(
                                 r"$\checkmark$",  # "NAC",
                                 ax2,
                                 clearticks="xy",
                                 background_color="green",
                             )
                         else:
-                            single_dip_trans_hist(
-                                interstate_sc,
-                                sc_label,
-                                (s1label, s2label),
-                                sccolor,
-                                ax=ax1,
-                                plot_marginals=False,
-                            )
                             single_dip_trans_hist(
                                 interstate_sc,
                                 sc_label,
@@ -744,55 +745,17 @@ class DatasheetPage:
                         continue
                 if has_dip_trans:
                     if interstate_sc['dip_trans_norm'].max() > 1e-9:
-                        if simple_mode:
-                            centertext(
-                                " ",  # r"$\mathbf{\mu}_\mathrm{trans}$",
-                                ax1,
-                                clearticks="xy",
-                                background_color=sccolor,  # "green",
-                            )
-                            centertext(
-                                r"$\checkmark$",
-                                # r"$\mathbf{\mu}_\mathrm{trans}$",
-                                ax2,
-                                clearticks="xy",
-                                background_color="green",
-                            )
-                        else:
-                            # We have no detailed information
-                            centertext(
-                                r"$\checkmark$",  # f"Permitted Transition {sc_label}",
-                                ax1,
-                                clearticks="xy",
-                            )
-                            centertext(
-                                r"$\checkmark$",
-                                # f"Permitted Transition {sc_label}",
-                                ax2,
-                                clearticks="xy",
-                            )
+                        centertext(
+                            r"$\checkmark$",
+                            # r"$\mathbf{\mu}_\mathrm{trans}$",
+                            ax2,
+                            clearticks="xy",
+                            background_color="green",
+                        )
                         continue
+                
                 if has_socs:
-                    interstate_sc = interstate.sel(statecomb=sc, full_statecomb=sc)
                     found_soc = False
-                    if interstate_sc['socs_norm'].max() > 1e-9:
-                        if simple_mode:
-                            centertext(
-                                " ",  # r"$SOC$",
-                                ax1,
-                                clearticks="xy",
-                                background_color=sccolor,  # "brown"
-                            )
-                        else:
-                            single_soc_trans_hist(
-                                interstate_sc,
-                                sc_label,
-                                (s1label, s2label),
-                                sccolor,
-                                ax=ax1,
-                                plot_marginals=False,
-                            )
-                        found_soc = True
                     interstate_sc = interstate.sel(statecomb=sc, full_statecomb=sc_r)
                     if interstate_sc['socs_norm'].max() > 1e-9:
                         if simple_mode:
@@ -817,16 +780,12 @@ class DatasheetPage:
                     if found_soc:
                         continue
 
-                centertext(
-                    r"X",  # f"No Permitted Transition {sc_label}",
-                    ax1,
-                    clearticks="xy",
-                )
-                centertext(
-                    r"X",  # f"No Permitted Transition {sc_label}",
-                    ax2,
-                    clearticks="xy",
-                )
+            centertext(
+                r"?",  # f"No Permitted Transition {sc_label}",
+                ax2,
+                clearticks="xy",
+            )
+
         for state in state_selection.states:
             if simple_mode:
                 centertext(
@@ -1022,15 +981,39 @@ class DatasheetPage:
                 bbox=dict(facecolor='0.9', edgecolor='none', pad=3.0),
             )
 
-        multiplicities_handled = []
-
         figures = []
 
-        for mult, mult_name in [(1, "Singlets"), (2, "Doublets"), (3, "Triplets")]:
-            page_selection = self.state_selection.filter_states(
-                multiplicity=mult, min_states_in_selection=1
-            )
+        pages = []
+        if self.state_selection_provided:
+            pages = [(1, self.state_selection, "Selection")]
 
+        pages = pages + [
+            (
+                1,
+                self.state_selection.filter_states(
+                    multiplicity=1, min_states_in_selection=2
+                ),
+                "Singlets",
+            ),
+            (
+                2,
+                self.state_selection.filter_states(
+                    multiplicity=2, min_states_in_selection=1
+                ),
+                "Doublets",
+            ),
+            (
+                3,
+                self.state_selection.filter_states(
+                    multiplicity=3, min_states_in_selection=1
+                ),
+                "Triplets",
+            ),
+        ]
+
+        pages_handled = []
+
+        for page_index, (page_mult, page_selection, page_title) in enumerate(pages):
             if not page_selection.states:
                 continue
 
@@ -1038,14 +1021,14 @@ class DatasheetPage:
             # print(mult, mult_name, page_selection.state_combinations)
             # continue
 
-            multiplicities_handled.append(mult)
+            pages_handled.append(page_index)
 
             fig, sfs = self.get_subfigures_main_page(
                 include_per_state_hist=include_per_state_hist, borders=borders
             )
 
             letters = iter(letter_base)
-            fig.suptitle(f'Datasheet:{self.name} [Page:{mult_name}]', fontsize=16)
+            fig.suptitle(f'Datasheet:{self.name} [Page:{page_title}]', fontsize=16)
 
             # print(self.frames)
 
@@ -1054,7 +1037,7 @@ class DatasheetPage:
                 axs = self.plot_separated_spectra_and_hists(
                     state_selection=page_selection,
                     fig=sfs['separated_spectra_and_hists'],
-                    current_multiplicity=mult,
+                    current_multiplicity=page_mult,
                 )
                 ax = axs['sg']
                 outlabel(ax)
@@ -1066,7 +1049,7 @@ class DatasheetPage:
                 inlabel(ax)
             # noodle
             if self.can['noodle']:
-                if len(multiplicities_handled) == 1:
+                if len(pages_handled) == 1:
                     ax = self.plot_noodle(
                         state_selection=page_selection, fig=sfs['noodle']
                     )
@@ -1080,7 +1063,7 @@ class DatasheetPage:
                 next(letters)
             # structure
             if self.can['structure']:
-                if len(multiplicities_handled) == 1 or not self.can['noodle']:
+                if len(pages_handled) == 1 or not self.can['noodle']:
                     ax = self.plot_structure(
                         state_selection=page_selection, fig=sfs['structure']
                     )
@@ -1107,7 +1090,7 @@ class DatasheetPage:
             if self.can['timeplots']:
                 axs = self.plot_timeplots(
                     state_selection=page_selection.filter_states(
-                        multiplicity=mult, min_states_in_selection=2
+                        multiplicity=page_mult, min_states_in_selection=2
                     ),
                     fig=sfs['timeplots'],
                 )
