@@ -1,5 +1,6 @@
 from logging import warning
-from typing import Literal, Number, TypeAlias
+from numbers import Number
+from typing import Literal, TypeAlias
 
 import numpy as np
 import xarray as xr
