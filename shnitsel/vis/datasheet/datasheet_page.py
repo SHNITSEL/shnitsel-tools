@@ -976,7 +976,8 @@ class DatasheetPage:
     def plot(
         self,
         include_per_state_hist: bool = False,
-        include_coupling_page: bool = False,
+        include_coupling_page: bool = True,
+        include_pca_page: bool = True,
         borders: bool = False,
         consistent_lettering: bool = True,
     ) -> Figure | list[Figure]:
@@ -986,7 +987,8 @@ class DatasheetPage:
 
         Args:
             include_per_state_hist (bool, optional): Flag whether per-state histograms should be included. Defaults to False.
-            include_coupling_page (bool, optional): Flag to create a full page with state-coupling plots. Defaults to False.
+            include_coupling_page (bool, optional): Flag to create a full page with state-coupling plots. Defaults to True.
+            include_pca_page (bool, optional): Flag to create a PCA analysis page with details on PCA results. Defaults to True.
             borders (bool, optional): Flag whether the figure should have borders or not. Defaults to False.
             consistent_lettering (bool, optional): Flag whether consistent lettering should be used, i.e. whether the same plot should always have the same label letter. Defaults to True.
 
@@ -1086,12 +1088,14 @@ class DatasheetPage:
                     ax = self.plot_structure(
                         state_selection=page_selection, fig=sfs['structure']
                     )
+                    outlabel(ax)
                 else:
-                    ax = self.plot_pca_structure(
-                        state_selection=page_selection, fig=sfs['structure']
-                    )
+                    if consistent_lettering:
+                        next(letters)
+                    # ax = self.plot_pca_structure(
+                    #     state_selection=page_selection, fig=sfs['structure']
+                    # )
 
-                outlabel(ax)
             elif consistent_lettering:
                 next(letters)
             # nacs_histograms
@@ -1136,6 +1140,15 @@ class DatasheetPage:
             res_coupling_axes = self.plot_coupling_page(
                 fig, sfs, self.state_selection, simple_mode=True
             )
+            figures.append(fig)
+
+        if include_pca_page:
+            fig = plt.figure(
+                figsize=(8.27, 11.69),
+            )
+
+            fig.suptitle(f'Datasheet:{self.name} [Page: PCA]', fontsize=16)
+            ax = self.plot_pca_structure(state_selection=self.state_selection, fig=fig)
             figures.append(fig)
 
         return figures if len(figures) != 1 else figures[0]

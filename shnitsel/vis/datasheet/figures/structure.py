@@ -137,10 +137,11 @@ def plot_pca_structure(
     Returns:
         dict[tuple[int,str],Axes]: The axes the extrema have been plotted to.
     """
-    assert 'pc' in pca_data.sizes, "pca_data argument is no result of PCA."
+    assert 'PC' in pca_data.sizes, f"pca_data argument is no result of PCA: {pca_data}"
     assert 'atXYZ' in frames, "No positional data provided."
 
-    num_pca = pca_data.sizes['pc']
+    combined_ds = frames.assign(pca_data=pca_data)
+    num_pca = combined_ds.sizes['PC']
     if axs is None:
         if fig is not None:
             tmp_ax = fig.subplots(num_pca, 2)
@@ -154,18 +155,23 @@ def plot_pca_structure(
     pc_labels = []
     col_labels = ['min', 'max']
     for j in range(num_pca):
-        pc_data = pca_data.isel(pc=j)
-        argmin_struct = pc_data.argmin()
-        argmax_struct = pc_data.argmax()
+        single_pc_data = combined_ds.isel(PC=j)
+        min_struct = single_pc_data.pca_data.idxmin(skipna=True)
+        max_struct = single_pc_data.pca_data.idxmax(skipna=True)
 
-        pos_argmin = frames.atXYZ[argmin_struct]
-        pos_argmax = frames.atXYZ[argmax_struct]
+        # print(min_struct, max_struct)s
+
+        pos_argmin = combined_ds.sel({min_struct.name: min_struct.values}).atXYZ
+        pos_argmax = combined_ds.sel({max_struct.name: max_struct.values}).atXYZ
 
         min_ax = axs[(j, 'min')]
         max_ax = axs[(j, 'max')]
 
-        plot_structure(to_mol(pos_argmin, to2D=False), ax=min_ax)
-        plot_structure(to_mol(pos_argmax, to2D=False), ax=max_ax)
+        min_mol = to_mol(pos_argmin, to2D=False)
+        max_mol = to_mol(pos_argmax, to2D=False)
+
+        plot_structure(min_mol, ax=min_ax)
+        plot_structure(max_mol, ax=max_ax)
         pc_labels.append(f"PC{j + 1}")
 
     if fig is not None:
