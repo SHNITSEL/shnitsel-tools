@@ -112,7 +112,9 @@ def default_mol(obj) -> rc.Mol:
     else:
         atXYZ = obj  # We have an atXYZ DataArray
 
-    if 'smiles_map' in obj.attrs:
+    if 'mol' in obj.attrs:
+        return obj.attrs['mol']
+    elif 'smiles_map' in obj.attrs:
         return numbered_smiles_to_mol(obj.attrs['smiles_map'])
     elif 'smiles_map' in atXYZ.attrs:
         return numbered_smiles_to_mol(atXYZ.attrs['smiles_map'])
