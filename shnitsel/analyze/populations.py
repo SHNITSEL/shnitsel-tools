@@ -34,17 +34,37 @@ def calc_classical_populations(frames: Frames) -> xr.DataArray:
     # zero_or_one = int(frames.coords['state'].min())
     lowest_state_id = 1  # TODO: For now, assume lowest state is 1
     assert lowest_state_id in {0, 1}
-    pops = data.groupby('time').map(
-        lambda group: xr.apply_ufunc(
-            lambda values: np.bincount(values, minlength=nstates + lowest_state_id)[
-                lowest_state_id:
-            ],
-            group,
-            input_core_dims=[['frame']],
-            output_core_dims=[['state']],
+    if 'frame' in data.dims:
+        input_core_dims = [['frame']]
+        pops = data.groupby('time').map(
+            lambda group: xr.apply_ufunc(
+                lambda values: np.bincount(values, minlength=nstates + lowest_state_id)[
+                    lowest_state_id:
+                ],
+                group,
+                input_core_dims=input_core_dims,
+                output_core_dims=[['state']],
+            )
         )
+    elif 'time' in data.dims:
+        num_ts = frames.sizes['time']
+        num_state = frames.sizes['state']
+
+        populations = np.zeros((num_ts, num_state), dtype=np.float32)
+        for a in range(frames.sizes['time']):
+            if frames.astate[a] > 0:
+                populations[a][frames.astate[a] - 1] = 1.0
+
+        pops = xr.DataArray(
+            populations, dims=['time', 'state'], coords={'time': data.coords['time']}
+        )
+    else:
+        raise ValueError("Neither time nor frame dimension in dataset.")
+    return (
+        (pops / pops.sum('state'))
+        .assign_coords(state=frames['state'])
+        .assign_attrs({'long_name': "Population of different states over times"})
     )
-    return (pops / pops.sum('state')).assign_coords(state=frames['state'])
 
 
 # Alternative name of the function to ca

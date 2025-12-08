@@ -140,15 +140,25 @@ def time_grouped_confidence_interval(
     Returns:
         xr.Dataset: A new Dataset, where variables 'lower', 'upper' and 'mean' contain the lower and upper bounds of the confidence interval in each time step and mean is the mean at each point in time.
     """
-    return (
-        data_array.groupby('time')
-        .map(
-            lambda x: calc_confidence_interval_in_array_dimensions(
-                x, dim='frame', confidence=confidence
+    if 'frame' in data_array.dims:
+        return (
+            data_array.groupby('time')
+            .map(
+                lambda x: calc_confidence_interval_in_array_dimensions(
+                    x, dim='frame', confidence=confidence
+                )
             )
+            .to_dataset('bound')
         )
-        .to_dataset('bound')
-    )
+    elif 'time' in data_array.dims:
+        return (
+            data_array.groupby('time')
+            .map(lambda x: xr.DataArray(np.array([x, x, x]), dims=['bound']))
+            .assign_coords(dict(bound=['lower', 'upper', 'mean']))
+            .to_dataset('bound')
+        )
+    else:
+        raise ValueError("Data contained neither time nor frame dimension.")
 
 
 @needs(dims={'state'})
