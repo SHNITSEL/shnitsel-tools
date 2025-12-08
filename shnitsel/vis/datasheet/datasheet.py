@@ -168,7 +168,7 @@ class Datasheet:
     def plot(
         self,
         include_per_state_hist: bool = False,
-        include_coupling_page: bool = False,
+        include_coupling_page: bool = True,
         borders: bool = False,
         consistent_lettering: bool = True,
         single_key: str | None = None,
