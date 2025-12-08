@@ -19,6 +19,8 @@ import os
 import re
 import math
 
+from shnitsel.units.definitions import length
+
 from shnitsel.io.shared.helpers import (
     LoadingParameters,
     PathOptionsType,
@@ -107,6 +109,7 @@ def parse_newtonx(
             trajectory.atNums.values = atNums
             mark_variable_assigned(trajectory["atNums"])
             trajectory.atXYZ.values = atXYZ
+            trajectory.atXYZ.attrs['units'] = length.Bohr  # noqa: F821
             mark_variable_assigned(trajectory["atXYZ"])
     else:
         logging.info(
@@ -425,7 +428,6 @@ def parse_dyn_out(f: TextIOWrapper, dataset: xr.Dataset) -> xr.Dataset:
                     tmp_forces_in_au[ts][tmp_astate[ts] - 1][iatom] = [
                         float(n) for n in next(f).strip().split()
                     ]
-
                     tmp_forces_in_au[ts][tmp_astate[ts] - 1][iatom] *= tmp_atMasses[
                         iatom
                     ]
@@ -460,12 +462,12 @@ def parse_dyn_out(f: TextIOWrapper, dataset: xr.Dataset) -> xr.Dataset:
         mark_variable_assigned(dataset["e_kin"])
 
     if has_velocities and not is_variable_assigned(dataset["velocities"]):
-        logging.debug("Assigning velocities from dyn.out")
+        logging.info("Assigning velocities from dyn.out")
         dataset.velocities.values = tmp_velocities_in_au
         mark_variable_assigned(dataset["velocities"])
 
     if has_forces and not is_variable_assigned(dataset["forces"]):
-        logging.debug("Assigning forces from dyn.out")
+        logging.info("Assigning forces from dyn.out")
         dataset.forces.values = tmp_forces_in_au
         mark_variable_assigned(dataset["forces"])
 

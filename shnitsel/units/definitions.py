@@ -260,12 +260,12 @@ standard_units_of_formats = {
         unit_dimensions.velocity: velocity.au,  # TODO: check
     },
     "newtonx": {  # Generally uses atomic units?
-        unit_dimensions.length: length.Angstrom,  # TODO: FIXME: Until 1.3 it was AU. It is angstrom in dyn.xyz but Bohr in dyn.out
+        unit_dimensions.length: length.Bohr,  # TODO: FIXME: Until 1.3 it was AU. It is angstrom in dyn.xyz but Bohr in dyn.out
         unit_dimensions.energy: energy.Hartree,  # Hartree or eV, it depends || energy.Hartree,
         unit_dimensions.force: force.Hartree_per_Bohr,
         unit_dimensions.time: time.femto_seconds,
         unit_dimensions.nacs: nacs.au,
-        unit_dimensions.dipole: dipole.Debye,
+        unit_dimensions.dipole: dipole.au,
         # "dipole_trans": dipole.au,
         unit_dimensions.socs: socs.one_per_cm,
         unit_dimensions.charge: charge.e,
