@@ -1,6 +1,5 @@
 # from ..io.ase import write
 from . import (
-    filter_unphysical as filter_unphysical,
     plot as plot,
     midx as midx,
     populations as populations,
