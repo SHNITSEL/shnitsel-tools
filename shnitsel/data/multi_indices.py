@@ -476,11 +476,15 @@ def mdiff(da: xr.DataArray) -> xr.DataArray:
         initial frame and any frame for which time = 0, to avoid taking differences
         between the last and first frames of successive trajectories.
     """
+    leading_dim = (
+        'frame' if 'frame' in da.dims else ('time' if 'time' in da.dims else da.dims[0])
+    )
     res = xr.apply_ufunc(
         lambda arr: np.diff(arr, prepend=np.array(arr[..., [0]], ndmin=arr.ndim)),
         da,
-        input_core_dims=[['frame']],
-        output_core_dims=[['frame']],
+        input_core_dims=[[leading_dim]],
+        output_core_dims=[[leading_dim]],
     )
-    res[{'frame': res['time'] == 0}] = 0
+    if 'time' in da.dims:
+        res[{leading_dim: res['time'] == 0}] = 0
     return res
