@@ -17,7 +17,7 @@ from .generic import norm
 from ..bridges import default_mol
 from .._contracts import needs
 
-from shnitsel.core.geo.geomatch import flag_bats
+from shnitsel.geo.geomatch import flag_bats
 
 AtXYZ: TypeAlias = xr.DataArray
 
