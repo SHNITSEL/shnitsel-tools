@@ -65,6 +65,7 @@ def generate_class_code(classes: Dict[str, List[Callable]]) -> str:
         'needs': '._contracts',
         'DAManualAccessor': '._accessors',
         'DSManualAccessor': '._accessors',
+        'nan': 'numpy',
     }
     plain_imports = {
         'xarray as xr',
@@ -77,6 +78,7 @@ def generate_class_code(classes: Dict[str, List[Callable]]) -> str:
         'typing',
         'sklearn',
         'rdkit',
+        'numbers',
     }
 
     # Collect imports for all functions
@@ -193,28 +195,28 @@ def generate_class_code(classes: Dict[str, List[Callable]]) -> str:
 
 
 def main():
-    try:
-        import shnitsel as st
-        import shnitsel.units as units
-        from shnitsel.io.ase.write import write_ase_db
-        from shnitsel.core.plot import p3mhelpers
-        from shnitsel.core.plot import select
-        from shnitsel import bridges
-        from shnitsel.core import (
-            convenience,
-            filtration,
-            geom,
-            midx,
-            ml,
-            generic,
-            vmd,
-            spectra,
-            stats,
-        )
-    except ImportError as e:
-        logging.error(
-            f"Import of module for generation of accessor classes failed: {e.msg} \n{repr(e)}. \n Please ensure all modules are available."
-        )
+    # try:
+    import shnitsel as st
+    import shnitsel.units as units
+    from shnitsel.io.ase.write import write_ase_db
+    from shnitsel.core.plot import p3mhelpers
+    from shnitsel.core.plot import select
+    from shnitsel import bridges
+    from shnitsel.core import (
+        convenience,
+        geom,
+        midx,
+        ml,
+        generic,
+        vmd,
+        spectra,
+        stats,
+    )
+    from shnitsel import clean
+    # except ImportError as e:
+    #     logging.error(
+    #         f"Import of module for generation of accessor classes failed: {e.msg} \n{repr(e)}. \n Please ensure all modules are available."
+    #     )
 
     da_funcs = [
         # postprocess
@@ -246,8 +248,6 @@ def main():
         midx.msel,
         midx.sel_trajs,
         midx.sel_trajids,
-        # filtration
-        filtration.last_time_where,
         # geom
         geom.dihedral,
         geom.angle,
@@ -299,9 +299,13 @@ def main():
         # plot
         st.core.spectra.spectra_all_times,
         # filtration
-        filtration.energy_filtranda,
-        filtration.get_cutoffs,
-        filtration.truncate,
+        clean.energy_filtranda,
+        clean.sanity_check,
+        clean.bond_length_filtranda,
+        clean.filter_by_length,
+        clean.omit,
+        clean.truncate,
+        clean.transect,
         # ase
         write_ase_db,
         # ml

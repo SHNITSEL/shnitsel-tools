@@ -1,4 +1,5 @@
 import collections
+import numbers
 import numpy
 import numpy.typing as npt
 import os
@@ -10,12 +11,13 @@ import xarray
 import xarray as xr
 from ._accessors import DAManualAccessor, DSManualAccessor
 from ._contracts import needs
-from numpy import ndarray
-from os import PathLike
+from numpy import nan, ndarray
 from rdkit.Chem.rdchem import Mol
 from shnitsel.bridges import default_mol, smiles_map, to_mol, to_xyz, traj_to_xyz
+from shnitsel.clean.common import omit, transect, truncate
+from shnitsel.clean.filter_energy import energy_filtranda, sanity_check
+from shnitsel.clean.filter_geo import bond_length_filtranda, filter_by_length
 from shnitsel.core.convenience import pairwise_dists_pca, pca_and_hops, validate
-from shnitsel.core.filtration import energy_filtranda, get_cutoffs, last_time_where, truncate
 from shnitsel.core.generic import keep_norming, norm, subtract_combinations
 from shnitsel.core.geom import angle, dihedral, distance, get_bats, get_bond_angles, get_bond_lengths, get_bond_torsions, get_pyramids, kabsch
 from shnitsel.core.midx import assign_levels, expand_midx, flatten_levels, mdiff, mgroupby, msel, sel_trajids, sel_trajs, stack_trajs, unstack_trajs
@@ -64,7 +66,6 @@ class DataArrayAccessor(DAManualAccessor):
         'msel',
         'sel_trajs',
         'sel_trajids',
-        'last_time_where',
         'dihedral',
         'angle',
         'distance',
@@ -199,11 +200,6 @@ class DataArrayAccessor(DAManualAccessor):
         """Wrapper for :py:func:`shnitsel.core.midx.sel_trajids`."""
         return sel_trajids(self._obj, trajids, invert=invert)
 
-    @needs(dims={'frame'}, coords={'time', 'trajid'})
-    def last_time_where(self):
-        """Wrapper for :py:func:`shnitsel.core.filtration.last_time_where`."""
-        return last_time_where(self._obj)
-
     @needs(dims={'atom'})
     def dihedral(self, i: int, j: int, k: int, l: int, deg: bool=False, full: bool=False) -> DataArray:
         """Wrapper for :py:func:`shnitsel.core.geom.dihedral`."""
@@ -220,28 +216,28 @@ class DataArrayAccessor(DAManualAccessor):
         return distance(self._obj, i, j)
 
     @needs(dims={'atom', 'direction'})
-    def get_bond_lengths(self, bond_types=None, mol: rdkit.Chem.rdchem.Mol | None=None) -> DataArray:
+    def get_bond_lengths(self, matches_or_mol: dict | rdkit.Chem.rdchem.Mol | None=None) -> DataArray:
         """Wrapper for :py:func:`shnitsel.core.geom.get_bond_lengths`."""
-        return get_bond_lengths(self._obj, bond_types=bond_types, mol=mol)
+        return get_bond_lengths(self._obj, matches_or_mol=matches_or_mol)
 
     @needs(dims={'atom', 'direction'})
-    def get_bond_angles(self, angle_types: xarray.core.dataset.Dataset | None=None, mol: rdkit.Chem.rdchem.Mol | None=None, deg: bool=False):
+    def get_bond_angles(self, matches_or_mol: dict | rdkit.Chem.rdchem.Mol | None=None, mol: rdkit.Chem.rdchem.Mol | None=None, ang: Literal=False):
         """Wrapper for :py:func:`shnitsel.core.geom.get_bond_angles`."""
-        return get_bond_angles(self._obj, angle_types=angle_types, mol=mol, deg=deg)
+        return get_bond_angles(self._obj, matches_or_mol=matches_or_mol, mol=mol, ang=ang)
 
     @needs(dims={'atom', 'direction'})
-    def get_bond_torsions(self, quadruple_types: xarray.core.dataset.Dataset | None=None, mol: rdkit.Chem.rdchem.Mol | None=None, signed: bool=False, deg: bool=False):
+    def get_bond_torsions(self, matches_or_mol: dict | None=None, signed: bool | None=None, ang: Literal=False):
         """Wrapper for :py:func:`shnitsel.core.geom.get_bond_torsions`."""
-        return get_bond_torsions(self._obj, quadruple_types=quadruple_types, mol=mol, signed=signed, deg=deg)
+        return get_bond_torsions(self._obj, matches_or_mol=matches_or_mol, signed=signed, ang=ang)
 
     def get_pyramids(self, pyramid_idxs: dict[int, list[int]] | None=None, mol: rdkit.Chem.rdchem.Mol | None=None, deg: bool=False, signed=True) -> DataArray:
         """Wrapper for :py:func:`shnitsel.core.geom.get_pyramids`."""
         return get_pyramids(self._obj, pyramid_idxs=pyramid_idxs, mol=mol, deg=deg, signed=signed)
 
     @needs(dims={'atom', 'direction'})
-    def get_bats(self, mol: rdkit.Chem.rdchem.Mol | None=None, signed: bool=False, deg: bool=False, pyr=False):
+    def get_bats(self, matches_or_mol: dict | rdkit.Chem.rdchem.Mol | None=None, signed: bool | None=None, ang: Literal=False, pyr=False):
         """Wrapper for :py:func:`shnitsel.core.geom.get_bats`."""
-        return get_bats(self._obj, mol=mol, signed=signed, deg=deg, pyr=pyr)
+        return get_bats(self._obj, matches_or_mol=matches_or_mol, signed=signed, ang=ang, pyr=pyr)
 
     @needs(dims={'atom', 'direction'})
     def kabsch(self, reference_or_indexers: xarray.core.dataarray.DataArray | dict | None=None, **indexers_kwargs):
@@ -315,8 +311,12 @@ class DatasetAccessor(DSManualAccessor):
         'iconds_to_frames',
         'spectra_all_times',
         'energy_filtranda',
-        'get_cutoffs',
+        'sanity_check',
+        'bond_length_filtranda',
+        'filter_by_length',
+        'omit',
         'truncate',
+        'transect',
         'write_ase_db',
         'pls_ds',
     ]
@@ -390,7 +390,7 @@ class DatasetAccessor(DSManualAccessor):
         """Wrapper for :py:func:`shnitsel.core.midx.stack_trajs`."""
         return stack_trajs(self._obj)
 
-    def write_shnitsel_file(self, savepath: PathLike, complevel: int=9):
+    def write_shnitsel_file(self, savepath: str | os.PathLike | pathlib.Path, complevel: int=9):
         """Wrapper for :py:func:`shnitsel.io.shnitsel.write.write_shnitsel_file`."""
         return write_shnitsel_file(self._obj, savepath, complevel=complevel)
 
@@ -404,25 +404,38 @@ class DatasetAccessor(DSManualAccessor):
         """Wrapper for :py:func:`shnitsel.core.spectra.spectra_all_times`."""
         return spectra_all_times(self._obj)
 
-    @needs(data_vars={'astate', 'energy'})
-    def energy_filtranda(self) -> Dataset:
-        """Wrapper for :py:func:`shnitsel.core.filtration.energy_filtranda`."""
-        return energy_filtranda(self._obj)
+    def energy_filtranda(self, etot_drift: float | None=None, etot_step: float | None=None, epot_step: float | None=None, ekin_step: float | None=None, hop_epot_step: float | None=None, units='eV'):
+        """Wrapper for :py:func:`shnitsel.clean.filter_energy.energy_filtranda`."""
+        return energy_filtranda(self._obj, etot_drift=etot_drift, etot_step=etot_step, epot_step=epot_step, ekin_step=ekin_step, hop_epot_step=hop_epot_step, units=units)
 
-    @needs(dims={'frame'}, coords={'time', 'trajid'})
-    def get_cutoffs(self):
-        """Wrapper for :py:func:`shnitsel.core.filtration.get_cutoffs`."""
-        return get_cutoffs(self._obj)
+    def sanity_check(self, cut: Union='truncate', units='eV', etot_drift: float=nan, etot_step: float=nan, epot_step: float=nan, ekin_step: float=nan, hop_epot_step: float=nan):
+        """Wrapper for :py:func:`shnitsel.clean.filter_energy.sanity_check`."""
+        return sanity_check(self._obj, cut=cut, units=units, etot_drift=etot_drift, etot_step=etot_step, epot_step=epot_step, ekin_step=ekin_step, hop_epot_step=hop_epot_step)
 
-    @needs(dims={'frame'}, coords={'time', 'trajid'})
-    def truncate(self, cutoffs):
-        """Wrapper for :py:func:`shnitsel.core.filtration.truncate`."""
-        return truncate(self._obj, cutoffs)
+    def bond_length_filtranda(self, search_dict):
+        """Wrapper for :py:func:`shnitsel.clean.filter_geo.bond_length_filtranda`."""
+        return bond_length_filtranda(self._obj, search_dict)
 
-    @needs(dims={'frame'})
-    def write_ase_db(self, db_path: str, kind: str | None, keys: Optional=None, preprocess: bool=True):
+    def filter_by_length(self, cut: Union='truncate', search_dict: dict[str, numbers.Number] | None=None):
+        """Wrapper for :py:func:`shnitsel.clean.filter_geo.filter_by_length`."""
+        return filter_by_length(self._obj, cut=cut, search_dict=search_dict)
+
+    def omit(self):
+        """Wrapper for :py:func:`shnitsel.clean.common.omit`."""
+        return omit(self._obj)
+
+    def truncate(self):
+        """Wrapper for :py:func:`shnitsel.clean.common.truncate`."""
+        return truncate(self._obj)
+
+    def transect(self, cutoff: float):
+        """Wrapper for :py:func:`shnitsel.clean.common.transect`."""
+        return transect(self._obj, cutoff)
+
+    @needs(data_vars={'atNames', 'atNums', 'atXYZ', 'energy'})
+    def write_ase_db(self, db_path: str, db_format: Optional, keys_to_write: Optional=None, preprocess: bool=True):
         """Wrapper for :py:func:`shnitsel.io.ase.write.write_ase_db`."""
-        return write_ase_db(self._obj, db_path, kind, keys=keys, preprocess=preprocess)
+        return write_ase_db(self._obj, db_path, db_format, keys_to_write=keys_to_write, preprocess=preprocess)
 
     def pls_ds(self, xname, yname, n_components=2):
         """Wrapper for :py:func:`shnitsel.core.ml.pls_ds`."""
