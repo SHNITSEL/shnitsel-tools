@@ -889,39 +889,35 @@ class DatasheetPage:
         return fig, subfigures
 
     @staticmethod
-    def get_subfigures_triplets_page(
-        include_per_state_hist: bool = False, borders: bool = False
+    def get_subfigures_pca_page(
+        borders: bool = False,
     ) -> tuple[Figure, dict[str, SubFigure]]:
-        """Helper function to prepare a figure to hold all subfigures in this DatasheetPage
+        """Helper function to prepare a figure to hold all subfigures in this DatasheetPage covering all PCA information.
 
         Args:
-            include_per_state_hist (bool, optional): Flag whether per state histograms will be included. Defaults to False.
             borders (bool, optional): Flag whether figure borders should be drawn. Defaults to False.
 
         Returns:
             tuple[Figure, dict[str, SubFigure]]: The overall figure and a dict to access individual subfigures by their name.
         """
-        nrows = 6 if include_per_state_hist else 5
-        top_spacing = 1 if include_per_state_hist else 0
+        nrows = 8
 
-        fig, oaxs = plt.subplots(nrows, 3, layout='constrained')
-        vscale = 1 if include_per_state_hist else 5 / 6
-        fig.set_size_inches(8.27, 11.69 * vscale)  # portrait A4
+        fig, oaxs = plt.subplots(nrows, 4, layout='constrained')
+        fig.set_size_inches(8.27, 11.69)  # portrait A4
+
         if borders:
             fig.set_facecolor('#0d0d0d')
+
         gs = oaxs[0, 0].get_subplotspec().get_gridspec()
+
         for ax in oaxs.ravel():
             ax.remove()
         gridspecs = dict(
-            per_state_histograms=gs[0, :],
-            timeplots=gs[top_spacing + 2 :, 2],
-            noodle=gs[top_spacing + 0 : top_spacing + 2, 1:],
-            separated_spectra_and_hists=gs[top_spacing + 0 :, 0],
-            nacs_histograms=gs[top_spacing + 3 :, 1],
-            structure=gs[top_spacing + 2, 1],
+            pca_plot=gs[:2, :2],
+            pca_extrema_plot=gs[:2, 2:],
+            feature_selection=gs[2:4, :],
+            feature_explanation=gs[4:, :],
         )
-        if not include_per_state_hist:
-            del gridspecs['per_state_histograms']
         subfigures = {
             sub_name: fig.add_subfigure(sub_gridspec)
             for sub_name, sub_gridspec in gridspecs.items()
@@ -977,7 +973,7 @@ class DatasheetPage:
         self,
         include_per_state_hist: bool = False,
         include_coupling_page: bool = True,
-        include_pca_page: bool = True,
+        include_pca_page: bool = False,
         borders: bool = False,
         consistent_lettering: bool = True,
     ) -> Figure | list[Figure]:
@@ -1143,13 +1139,26 @@ class DatasheetPage:
             figures.append(fig)
 
         if include_pca_page:
-            fig = plt.figure(
-                figsize=(8.27, 11.69),
-            )
+            fig, subfigs = self.get_subfigures_pca_page()
 
             fig.suptitle(f'Datasheet:{self.name} [Page: PCA]', fontsize=16)
-            ax = self.plot_pca_structure(state_selection=self.state_selection, fig=fig)
+            ax = self.plot_noodle(
+                state_selection=self.state_selection, fig=subfigs['pca_plot']
+            )
+            ax = self.plot_pca_structure(
+                state_selection=self.state_selection, fig=subfigs['pca_extrema_plot']
+            )
+            ax = subfigs['feature_selection'].subplots(1, 1)
+            centertext("Missing", ax=ax)
+            ax = subfigs['feature_explanation'].subplots(1, 1)
+            centertext("Missing", ax=ax)
             figures.append(fig)
+
+        # TODO: FIXME: Add Spearman's rank correlation coefficient analysis of energy.
+        # TODO: FIXME: Full PCA with internal coordinates?
+        # TODO: FIXME: Explain parts of PCA components?
+        # TODO: FIXME: Electron bond matrix?
+        # TODO: FIXME: State-shift changes in Spearman's analysis? Identify most important parts of molecule that change?
 
         return figures if len(figures) != 1 else figures[0]
 
