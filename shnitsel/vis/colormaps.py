@@ -25,8 +25,32 @@ default_doublet_state_colormap: Colormap = mpl.colormaps.get_cmap("cool")
 default_triplet_state_colormap: Colormap = mpl.colormaps.get_cmap("autumn")
 
 default_lower_singlet_colors = [
-    '#000000'
-]  # ,'#4DAD15', '#AD2915', '#7515AD', '#FF4D00']
+    '#000000',
+    '#2c3e50',
+    '#F6BE00',
+    '#7515AD'
+    # '#2233AA',
+    #     st_yellow,
+    #     st_grey,
+    #     st_violet,
+    # ]  #
+    # '#4DAD15',
+    # '#AD2915',
+    # '#7515AD',
+    # '#FF4D00',
+]
+
+default_lower_singlet_transition_colors = {
+    (1, 2): '#F6BE00',
+    (1, 3): '#2233AA',
+    (2, 3): '#4DAD15',
+}
+
+default_lower_triplet_transition_colors = {
+    (0, 1): '#AD2915',
+    (0, 2): '#FF4D00',
+    (1, 2): '#F67E00',
+}
 
 
 def get_default_singlet_state_colormap(num_singlets: int) -> list:
@@ -42,7 +66,7 @@ def get_default_singlet_state_colormap(num_singlets: int) -> list:
         colors = [hex2rgb(x) for x in default_lower_singlet_colors][:num_singlets]
     else:
         rem_states = num_singlets - len(default_lower_singlet_colors)
-        rem_colors = default_singlet_state_colormap(np.linspace(0, 1.0, num=rem_states))
+        rem_colors = default_singlet_state_colormap(np.linspace(0, 0.85, num=rem_states))
         colors = [hex2rgb(x) for x in default_lower_singlet_colors] + list(rem_colors)
     return colors
 
@@ -235,6 +259,16 @@ def get_default_interstate_colormap_same_mult(
                 + mapped_colors[k2]
             ) / (2.0 + bias_coeff)
             res_map[(k1, k2)] = rgb2hex(total_intra)
+    if multiplicity == 1:
+        for sc, color in default_lower_singlet_transition_colors.items():
+            if sc in res_map:
+                res_map[sc] = color
+    if multiplicity == 3:
+        for sc, color in default_lower_triplet_transition_colors.items():
+            shifted_sc = (min_index+sc[0],min_index+sc[1])
+            if shifted_sc in res_map:
+                res_map[shifted_sc] = color
+
     return res_map
 
 
