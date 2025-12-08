@@ -84,7 +84,23 @@ def figax(
     return fig, ax
 
 
-def extrude(x, y, xmin, xmax, ymin, ymax):
+def extrude(
+    x: float, y: float, xmin: float, xmax: float, ymin: float, ymax: float
+) -> tuple[float, float]:
+    """Calculate the endpoint of extrusion of the point (x,y) from point (0,0) until it intersects either x or y boundary.
+
+    Args:
+        x (float): x coordinate of the base point
+        y (float): y coorindate of the base point
+        xmin (float): Lower x limit
+        xmax (float): Upper x limit
+        ymin (float): Lower y limit
+        ymax (float): Upper y limit
+
+    Returns:
+        tuple[float, float]: The position at the end of the extrusion, where the origin-ray through (x,y) intersects the boundary of the axes.
+    """
+    # TODO: Document
     # for extrusion, flip negative rays into quadrant 1
     if x < 0:
         xlim = -xmin  # positive
