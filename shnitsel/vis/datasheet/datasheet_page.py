@@ -50,7 +50,7 @@ from .figures.time import plot_timeplots
 # )
 from .figures.nacs_hist import plot_nacs_histograms
 from ..plot.pca_biplot import plot_noodleplot
-from .figures.structure import plot_structure
+from .figures.structure import plot_pca_structure, plot_structure
 
 
 @dataclass
@@ -638,6 +638,22 @@ class DatasheetPage:
         info(f"finished plot_structure in {end - start} s")
         return res
 
+    def plot_pca_structure(
+        self,
+        fig: Figure | SubFigure | None = None,
+        state_selection: StateSelection | None = None,
+    ) -> Axes:
+        start = timer()
+        res = plot_pca_structure(
+            self.frames,
+            self.pca_data,
+            axs=None,
+            fig=fig,
+        )
+        end = timer()
+        info(f"finished plot_pca_structure in {end - start} s")
+        return res[(0, 'min')]
+
     def plot_coupling_page(
         self,
         figure: Figure | SubFigure,
@@ -647,14 +663,16 @@ class DatasheetPage:
     ) -> dict[StateCombination, Axes]:
         """Plot coupling and state-info data on an axes grid.
 
+        Either a plot of all state-coupling information or a matrix of plots with color-coded information of
+
         Args:
             figure (Figure | SubFigure): Figure this is being plotted into. Used for some after-the fact manipulation like introducing
-            suplots (dict[StateCombination, Axes]): _description_
-            state_selection (StateSelection): _description_
-            simple_mode (bool, optional): _description_. Defaults to False.
+            suplots (dict[StateCombination, Axes]): Axes to plot the data of individual state combinations into.
+            state_selection (StateSelection): The StateSelection object to limit the combinations to include
+            simple_mode (bool, optional): Flag to determine whether we want full coupling plots (NACs, SOCs, dip_trans) or just color plots. Defaults to False meaning permitted and unpermitted transitions will be color-coded.
 
         Returns:
-            dict[StateCombination, Axes]: _description_
+            dict[StateCombination, Axes]: The dict of axes after plotting to them
         """
         start = timer()
         # mol = self.mol_skeletal if self.structure_skeletal else self.mol
@@ -1064,9 +1082,15 @@ class DatasheetPage:
                 next(letters)
             # structure
             if self.can['structure']:
-                ax = self.plot_structure(
-                    state_selection=page_selection, fig=sfs['structure']
-                )
+                if len(multiplicities_handled) == 1 or not self.can['noodle']:
+                    ax = self.plot_structure(
+                        state_selection=page_selection, fig=sfs['structure']
+                    )
+                else:
+                    ax = self.plot_pca_structure(
+                        state_selection=page_selection, fig=sfs['structure']
+                    )
+
                 outlabel(ax)
             elif consistent_lettering:
                 next(letters)
