@@ -61,7 +61,7 @@ def plot_energy_bands(
     # fig, ax = figax(fig=fig, ax=ax)
     band_kws = band_kws or {}
     # band_kws = {'alpha': 0.5, 's': 0.2, **band_kws}
-    band_kws = {'alpha': 0.5, **band_kws}
+    band_kws = {'alpha': 0.2, **band_kws}
 
     state_names = []
     state_colors = []
@@ -120,7 +120,7 @@ def plot_energy_bands(
             )
 
             pc_ax.plot(pc_centers, pc_bounds[:, 1], c=state_color)
-            pc_ax.set_xlabel('PC1')
+            pc_ax.set_xlabel(f'PC{pc_id + 1}')
             pc_ax.set_ylabel(r'$E_{i}/eV$')
 
     num_states = len(state_names)
