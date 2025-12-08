@@ -620,12 +620,9 @@ def parse_nx_log_data(
                 tmp_energy[istate] = float(next(f).strip())
             step_has_energy = True
 
-    dataset = dataset.assign_coords(
-        {
-            "astate": ("time", tmp_astate, dataset["astate"].attrs),
-        }
-    )
-    mark_variable_assigned(dataset["astate"])
+    if not is_variable_assigned(dataset.astate):
+        dataset["astate"].values = tmp_astate
+        mark_variable_assigned(dataset["astate"])
 
     if full_has_forces and not is_variable_assigned(dataset.forces):
         logging.debug("Assigning forces from nx.log")
