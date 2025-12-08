@@ -6,7 +6,7 @@ import numpy as np
 import xarray as xr
 
 from shnitsel.core.midx import mdiff
-from shnitsel.core.filtration2 import cutoffs_from_dataset, omit, truncate, transect
+from shnitsel.clean.common import dispatch_cut
 from shnitsel.units.conversion import convert_energy
 
 _default_energy_thresholds_eV = {
@@ -75,7 +75,7 @@ def energy_filtranda(
 
 def sanity_check(
     frames,
-    cut: Literal['truncate', 'omit'] | Number = 'truncate',
+    cut: Literal['truncate', 'omit', False] | Number = 'truncate',
     *,
     units='eV',
     etot_drift: float = np.nan,
@@ -93,15 +93,4 @@ def sanity_check(
         'units': units,
     }
     frames = frames.assign(filtranda=energy_filtranda(frames, **settings))
-    if not cut:
-        return frames.assign(good_upto=cutoffs_from_dataset(frames))
-    elif cut == 'truncate':
-        return truncate(frames)
-    elif cut == 'omit':
-        return omit(frames)
-    elif isinstance(cut, Number):
-        return transect(frames, cut)
-    else:
-        raise ValueError(
-            f"`cut` should be one of {'truncate', 'omit'}, or a number, not {cut}"
-        )
+    return dispatch_cut(frames, cut)

@@ -1,4 +1,5 @@
 from numbers import Number
+from typing import Literal
 
 import numpy as np
 import xarray as xr
@@ -6,7 +7,7 @@ import xarray as xr
 from shnitsel.core.geom import get_bond_lengths
 from shnitsel.geo.geomatch import flag_bats_multiple
 from shnitsel.bridges import default_mol
-from shnitsel.core.filtration2 import omit, truncate, transect
+from shnitsel.clean.common import dispatch_cut
 
 
 def lengths_for_searches(atXYZ, searches):
@@ -36,16 +37,12 @@ def bond_length_filtranda(frames, search_dict):
 
 def filter_by_length(
     frames,
-    search_dict,
-    cut=False,
+    cut: Literal['truncate', 'omit', False] | Number = 'truncate',
+    search_dict: dict[str, Number] | None = None,
 ):
+    if search_dict is None:
+        search_dict = {'[#6,#7][H]': 2.0}
     frames = frames.assign(
         filtranda=bond_length_filtranda(frames, search_dict=search_dict)
     )
-    if cut == 'truncate':
-        return truncate(frames)
-    elif cut == 'omit':
-        return omit(frames)
-    else:
-        assert isinstance(cut, Number)
-        return transect(frames, cut)
+    return dispatch_cut(frames, cut)

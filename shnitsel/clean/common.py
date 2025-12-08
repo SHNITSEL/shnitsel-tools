@@ -1,5 +1,5 @@
 from logging import warning
-from typing import TypeAlias
+from typing import Literal, Number, TypeAlias
 
 import numpy as np
 import xarray as xr
@@ -186,6 +186,24 @@ def transect(ds, cutoff: float):
         ds.coords['is_frame'].all('time')
     )
     return ds.isel({'trajid': traj_selection})
+
+
+def dispatch_cut(
+    frames,
+    cut: Literal['truncate', 'omit', False] | Number = 'truncate',
+):
+    if not cut:
+        return frames.assign(good_upto=cutoffs_from_dataset(frames))
+    elif cut == 'truncate':
+        return truncate(frames)
+    elif cut == 'omit':
+        return omit(frames)
+    elif isinstance(cut, Number):
+        return transect(frames, cut)
+    else:
+        raise ValueError(
+            "`cut` should be one of {'truncate', 'omit'}, or a number, " f"not {cut}"
+        )
 
 
 ###########################################
