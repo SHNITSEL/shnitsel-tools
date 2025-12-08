@@ -72,8 +72,14 @@ def parse_newtonx(
     )
 
     nxlog_path = path_obj / "RESULTS" / "nx.log"
-    if nxlog_path.is_file():
-        with open(nxlog_path) as f:
+    moldynlog_path = path_obj / "moldyn.log"
+    if nxlog_path.is_file() or moldynlog_path.is_file():
+        # Switch to one existing file
+        if nxlog_path.is_file():
+            used_nx_path = nxlog_path
+        else:
+            used_nx_path = moldynlog_path
+        with open(used_nx_path) as f:
             # Read several datasets into trajectory and get first indicator of actual performed steps
             actual_steps, trajectory = parse_nx_log_data(
                 f, trajectory, newtonx_res, default_format_attributes
@@ -284,6 +290,7 @@ def parse_en_data(
     # print(default_attributes["time"])
 
     if not is_variable_assigned(dataset["time"]):
+        logging.debug("Assigning time from en.dat")
         dataset = dataset.assign_coords(
             {
                 "time": (
@@ -295,9 +302,11 @@ def parse_en_data(
         )
         mark_variable_assigned(dataset["time"])
     if not is_variable_assigned(dataset["energy"]):
+        logging.debug("Assigning energy from en.dat")
         dataset["energy"].values = en_states
         mark_variable_assigned(dataset["energy"])
     if not is_variable_assigned(dataset["e_kin"]):
+        logging.debug("Assigning e_kin from en.dat")
         dataset["e_kin"].values = e_kin
         mark_variable_assigned(dataset["e_kin"])
     return dataset
@@ -328,6 +337,7 @@ def parse_dyn_out(f: TextIOWrapper, dataset: xr.Dataset) -> xr.Dataset:
         )
     )
     tmp_velocities_in_au = np.zeros((ntimesteps, natoms, 3))
+
     tmp_e_pot = np.zeros(
         (
             ntimesteps,
@@ -336,12 +346,19 @@ def parse_dyn_out(f: TextIOWrapper, dataset: xr.Dataset) -> xr.Dataset:
     )
 
     tmp_atNames = []
+    tmp_atMasses = []
     has_atNames = False
+
+    tmp_astate = np.full((ntimesteps,), -1)
+
+    tmp_forces_in_au = np.zeros((ntimesteps, nstates, natoms, 3))
 
     has_positions = False
     has_velocities = False
+    has_forces = False
     has_ekin = False
     has_epot = False
+    has_astate = False
 
     # See page 101, section 16.3 of newtonX documentation for order of output values.
     # parse actual data
@@ -360,6 +377,18 @@ def parse_dyn_out(f: TextIOWrapper, dataset: xr.Dataset) -> xr.Dataset:
             parts = stripline.split()
             # Figure out current time step
             ts = int(parts[1].strip())
+
+            state_prefix = "on state "
+            prefix_offset = stripline.find(state_prefix)
+            if prefix_offset > 0:
+                state_parts = stripline[prefix_offset + len(state_prefix) :].split()
+                astate = int(state_parts[0])
+                has_astate = True
+            else:
+                astate = -1
+
+            tmp_astate[ts] = astate
+
             # logging.debug(f"Starting ts {ts}")
 
         elif stripline.find("geometry:") > 0:
@@ -368,8 +397,12 @@ def parse_dyn_out(f: TextIOWrapper, dataset: xr.Dataset) -> xr.Dataset:
                 line_parts = next(f).strip().split()
                 atName = line_parts[0]
                 tmp_pos_in_bohr[ts][iatom] = [float(n) for n in line_parts[2:-1]]
+                tmp_mass = float(line_parts[-1])
+
                 if not has_atNames:
                     tmp_atNames.append(atName)
+                    tmp_atMasses.append(tmp_mass)
+
             has_atNames = True
         elif stripline.find("velocity:") > 0:
             has_velocities = True
@@ -377,6 +410,26 @@ def parse_dyn_out(f: TextIOWrapper, dataset: xr.Dataset) -> xr.Dataset:
                 tmp_velocities_in_au[ts][iatom] = [
                     float(n) for n in next(f).strip().split()
                 ]
+        elif stripline.find("acceleration:") > 0:
+            if not has_atNames:
+                logging.error(
+                    "Found acceleration data before finding atom mass information. Input may be corrupted."
+                )
+            if not tmp_astate[ts] > 0:
+                logging.error(
+                    "Found acceleration data before finding active state information. Input may be corrupted."
+                )
+            else:
+                has_forces = True
+                for iatom in range(natoms):
+                    tmp_forces_in_au[ts][tmp_astate[ts] - 1][iatom] = [
+                        float(n) for n in next(f).strip().split()
+                    ]
+
+                    tmp_forces_in_au[ts][tmp_astate[ts] - 1][iatom] *= tmp_atMasses[
+                        iatom
+                    ]
+
         elif stripline.startswith("Time") and stripline.find("Ekin:") > 0:
             #     Time    Etot         Ekin       Epot E0,      E1, ...
             # %       0.50   -232.354045      0.055764   -232.578726   -232.409809   -232.393353
@@ -389,21 +442,38 @@ def parse_dyn_out(f: TextIOWrapper, dataset: xr.Dataset) -> xr.Dataset:
             has_ekin = True
             has_epot = True
 
-    if has_epot:
-        logging.info("Currently, the E_pot from dyn.out is unused")
-        pass
+    if has_astate and not is_variable_assigned(dataset["astate"]):
+        # logging.info("Currently, the E_pot from dyn.out is unused")
+        logging.debug("Assigning astate from dyn.out")
+        dataset.astate.values = tmp_astate
+        mark_variable_assigned(dataset["astate"])
+
+    if has_epot and not is_variable_assigned(dataset["energy"]):
+        # logging.info("Currently, the E_pot from dyn.out is unused")
+        logging.debug("Assigning energy from dyn.out")
+        dataset.energy.values = tmp_e_pot
+        mark_variable_assigned(dataset["energy"])
+
     if has_ekin and not is_variable_assigned(dataset["e_kin"]):
+        logging.debug("Assigning e_kin from dyn.out")
         dataset.e_kin.values = tmp_e_kin
         mark_variable_assigned(dataset["e_kin"])
 
     if has_velocities and not is_variable_assigned(dataset["velocities"]):
+        logging.debug("Assigning velocities from dyn.out")
         dataset.velocities.values = tmp_velocities_in_au
         mark_variable_assigned(dataset["velocities"])
+
+    if has_forces and not is_variable_assigned(dataset["forces"]):
+        logging.debug("Assigning forces from dyn.out")
+        dataset.forces.values = tmp_forces_in_au
+        mark_variable_assigned(dataset["forces"])
 
     if has_positions and not is_variable_assigned(dataset["atXYZ"]):
         # If no other option to set positions has been used, use this source
         from shnitsel.units.definitions import length
 
+        logging.debug("Assigning positions from dyn.out")
         dataset["atXYZ"].values = tmp_pos_in_bohr
         dataset["atXYZ"].attrs["unit"] = length.Bohr
         mark_variable_assigned(dataset["atXYZ"])
@@ -412,6 +482,7 @@ def parse_dyn_out(f: TextIOWrapper, dataset: xr.Dataset) -> xr.Dataset:
         tmp_atNums = [get_atom_number_from_symbol(sym) for sym in tmp_atNames]
         dataset["atNames"].values = tmp_atNames
         dataset["atNums"].values = tmp_atNums
+        logging.debug("Assigning atom names and types from dyn.out")
         mark_variable_assigned(dataset["atNames"])
         mark_variable_assigned(dataset["atNums"])
 
@@ -465,6 +536,15 @@ def parse_nx_log_data(
     )
     tmp_full_nacs = np.zeros((ntimesteps, nstatecomb, natoms, 3))
 
+    full_has_energy = False
+    full_has_forces = False
+    full_has_nacs = False
+
+    step_has_energy = False
+    step_has_forces = False
+    step_has_nacs = False
+    step_has_nacs_norm = False
+
     # See page 101, section 16.3 of newtonX documentation for order of output values.
     # parse actual data
     for line in f:
@@ -491,19 +571,33 @@ def parse_nx_log_data(
             tmp_astate[ts] = t_astate
             tmp_times[ts] = t_time
             # Assign this to only the active state
-            tmp_full_forces[ts][t_astate - 1] = tmp_forces
-            tmp_full_energy[ts] = tmp_energy
-            tmp_full_nacs[ts] = tmp_nacs
+            if step_has_forces:
+                tmp_full_forces[ts][t_astate - 1] = tmp_forces
+                full_has_forces = True
+            if step_has_energy:
+                tmp_full_energy[ts] = tmp_energy
+                full_has_energy = True
+            if step_has_nacs:
+                tmp_full_nacs[ts] = tmp_nacs
+                full_has_nacs = True
+
+            step_has_energy = False
+            step_has_forces = False
+            step_has_nacs = False
 
             actual_max_ts = max(actual_max_ts, ts)
             # logging.debug(f"finished ts {ts}")
 
-        elif stripline.startswith("Gradient vectors"):
+        elif stripline.lower().startswith("gradient vectors"):
+            step_has_forces = True
             for iatom in range(natoms):
                 tmp_forces[iatom] = [float(n) for n in next(f).strip().split()]
 
-        elif stripline.startswith("Nonadiabatic coupling vectors"):
-            # TODO: FIXME: Are we sure that all NACS are in identical order in all formats?
+        elif stripline.lower().startswith("nonadiabatic coupling vectors"):
+            # NOTE: The label for full entries is nonadiabatic coupling vectors
+            # There also exist entries for nonadiabatic coupling terms that are the normed full vectors across all atoms.
+
+            step_has_nacs = True
             for icomb in range(math.comb(nstates, 2)):
                 # Order is: V(from, to),iatom, dir
                 # Increase steps from rightmost dimension to leftmost.
@@ -512,10 +606,17 @@ def parse_nx_log_data(
                 # Each block of natoms represents successive state combinations
                 for iatom in range(natoms):
                     tmp_nacs[icomb, iatom] = [float(n) for n in next(f).strip().split()]
-
-        elif stripline.startswith("Energy ="):
+        elif stripline.lower().startswith("nonadiabatic coupling terms"):
+            # TODO: FIXME: consider allowing to load nacs_norm directly from input instead.
+            if not step_has_nacs_norm:
+                step_has_nacs_norm = True
+                logging.warning(
+                    "We currently do not support reading pre-normalized NACs terms (i.e. non-vectors) in our NewtonX input."
+                )
+        elif stripline.lower().startswith("energy ="):
             for istate in range(nstates):
                 tmp_energy[istate] = float(next(f).strip())
+            step_has_energy = True
 
     dataset = dataset.assign_coords(
         {
@@ -524,17 +625,26 @@ def parse_nx_log_data(
     )
     mark_variable_assigned(dataset["astate"])
 
-    dataset.forces.values = tmp_full_forces
-    mark_variable_assigned(dataset["forces"])
-    dataset.energy.values = tmp_full_energy
-    mark_variable_assigned(dataset["energy"])
-    dataset.nacs.values = tmp_full_nacs
-    mark_variable_assigned(dataset["nacs"])
+    if full_has_forces and not is_variable_assigned(dataset.forces):
+        logging.debug("Assigning forces from nx.log")
+        dataset.forces.values = tmp_full_forces
+        mark_variable_assigned(dataset["forces"])
+    if full_has_energy and not is_variable_assigned(dataset.energy):
+        logging.debug("Assigning energy from nx.log")
+        dataset.energy.values = tmp_full_energy
+        mark_variable_assigned(dataset["energy"])
+    if full_has_nacs and not is_variable_assigned(dataset.nacs):
+        logging.debug("Assigning nacs from nx.log")
+        dataset.nacs.values = tmp_full_nacs
+        mark_variable_assigned(dataset["nacs"])
+
     if not is_variable_assigned(dataset["time"]):
         dataset = dataset.assign_coords(
             {"time": ("time", tmp_times, default_attributes["time"])}
         )
         mark_variable_assigned(dataset["time"])
+
+    logging.debug("Finish reading NewtonX log.")
 
     return actual_max_ts + 1, dataset  # , dataset
 
