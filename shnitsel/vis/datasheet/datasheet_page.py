@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from functools import cached_property
 from matplotlib.axes import Axes
+from sklearn.decomposition import PCA as sk_PCA
 from tqdm import tqdm
 import xarray as xr
 import numpy as np
@@ -32,6 +33,7 @@ from shnitsel.vis.datasheet.figures.soc_trans_hist import (
     single_dip_trans_hist,
     single_soc_trans_hist,
 )
+from shnitsel.vis.colormaps import st_grey
 
 try:
     from typing import Self
@@ -116,9 +118,13 @@ class DatasheetPage:
             warning("No 'time' variable found. Have ICONDs been passed as frames?")
         elif self.frames is not None:
             max_time = self.frames.coords['time'].max().item()
-            self.spectra_times = [max_time * i / 40 for i in range(5)]
-            self.spectra_times += [max_time * i / 20 for i in range(5)]
-            self.spectra_times += [max_time * i / 3 for i in range(4)]
+            # self.spectra_times = [max_time * i / 40 for i in range(5)]
+            # self.spectra_times += [max_time * i / 20 for i in range(5)]
+            # self.spectra_times += [max_time * i / 3 for i in range(4)]
+            self.spectra_times = [max_time * 1 / 20]
+            self.spectra_times += [max_time * 1 / 10]
+            self.spectra_times += [max_time * 1 / 5]
+            self.spectra_times += [max_time * 1 / 3]
 
         # Initialize state selection or use provided selection
         if state_selection is not None:
@@ -393,8 +399,8 @@ class DatasheetPage:
         return self.spectra_groups[1]
 
     @cached_property
-    def pca_data(self) -> xr.DataArray:
-        """Noodle plot source data derived from principal component analysis (PCA) on the full data in self.frames using only pairwise distances.
+    def pca_full_data(self) -> tuple[xr.DataArray, sk_PCA]:
+        """Get full PCA result with PCA detailed info.
 
         Returns:
             xr.DataArray: The pairwise distance PCA results
@@ -402,9 +408,43 @@ class DatasheetPage:
         from shnitsel.analyze.pca import pairwise_dists_pca
 
         start = timer()
-        res = pairwise_dists_pca(self.frames.atXYZ)
+        res, pca_info = pairwise_dists_pca(self.frames.atXYZ, return_pca_object=True)
         end = timer()
         info(f"cached pca_data in {end - start} s")
+        return res, pca_info
+
+    @cached_property
+    def pca_data(self) -> xr.DataArray:
+        """Noodle plot source data derived from principal component analysis (PCA) on the full data in self.frames using only pairwise distances.
+
+        Returns:
+            xr.DataArray: The pairwise distance PCA results
+        """
+        return self.pca_full_data[0]
+
+    @cached_property
+    def pca_info(self) -> sk_PCA:
+        """Detailed PCA decomposition information
+
+        Returns:
+            sk_PCA: The sklearn.decomposition.PCA object containing all PCA information.
+        """
+        return self.pca_full_data[1]
+
+    @cached_property
+    def pca_explanation(self) -> dict[str, str]:
+        """Provide an explanation for the components of the PCA components.
+
+        Returns:
+            dict[str, str]: Result of the explanation process.
+        """
+        res: dict[str, str] = {}
+
+        pca_raw = self.pca_info
+
+        for component in pca_raw.components_:
+            print(component)
+
         return res
 
     @cached_property
@@ -633,7 +673,7 @@ class DatasheetPage:
         res = plot_structure(
             mol,
             smiles=self.smiles,
-            inchi=self.inchi,
+            # inchi=self.inchi,
             ax=None,
             fig=fig,
         )
@@ -753,7 +793,7 @@ class DatasheetPage:
                             background_color="green",
                         )
                         continue
-                
+
                 if has_socs:
                     found_soc = False
                     interstate_sc = interstate.sel(statecomb=sc, full_statecomb=sc_r)
@@ -884,6 +924,45 @@ class DatasheetPage:
         return fig, subfigures
 
     @staticmethod
+    def get_subfigures_meta_page(
+        borders: bool = False,
+    ) -> tuple[Figure, dict[str, SubFigure]]:
+        """Helper function to prepare a figure to hold all subfigures in this DatasheetPage covering all Meta information.
+
+        Args:
+            borders (bool, optional): Flag whether figure borders should be drawn. Defaults to False.
+
+        Returns:
+            tuple[Figure, dict[str, SubFigure]]: The overall figure and a dict to access individual subfigures by their name.
+        """
+        nrows = 3
+
+        fig, oaxs = plt.subplots(nrows, 2, layout='constrained')
+        fig.set_size_inches(8.27, 11.69)  # portrait A4
+
+        if borders:
+            fig.set_facecolor('#0d0d0d')
+
+        gs = oaxs[0, 0].get_subplotspec().get_gridspec()
+
+        for ax in oaxs.ravel():
+            ax.remove()
+
+        gridspecs = dict(
+            structure_plot=gs[0, 0],
+            length_plot=gs[0, 1],
+            metadata_a=gs[1, :],
+            # metadata_b=gs[1, 1],
+            variables_a=gs[2, :],
+            # variables_b=gs[2, 1],
+        )
+        subfigures = {
+            sub_name: fig.add_subfigure(sub_gridspec)
+            for sub_name, sub_gridspec in gridspecs.items()
+        }
+        return fig, subfigures
+
+    @staticmethod
     def get_subfigures_coupling_page(
         state_selection: StateSelection, borders: bool = False
     ) -> tuple[Figure, dict[StateCombination, Axes]]:
@@ -933,6 +1012,7 @@ class DatasheetPage:
         include_per_state_hist: bool = False,
         include_coupling_page: bool = True,
         include_pca_page: bool = False,
+        include_meta_page: bool = False,
         borders: bool = False,
         consistent_lettering: bool = True,
     ) -> Figure | list[Figure]:
@@ -943,7 +1023,8 @@ class DatasheetPage:
         Args:
             include_per_state_hist (bool, optional): Flag whether per-state histograms should be included. Defaults to False.
             include_coupling_page (bool, optional): Flag to create a full page with state-coupling plots. Defaults to True.
-            include_pca_page (bool, optional): Flag to create a PCA analysis page with details on PCA results. Defaults to True.
+            include_pca_page (bool, optional): Flag to create a PCA analysis page with details on PCA results. Defaults to False.
+            include_meta_page (bool, optional): Flag to add a page with meta-information about the trajectory data. Defaults to False
             borders (bool, optional): Flag whether the figure should have borders or not. Defaults to False.
             consistent_lettering (bool, optional): Flag whether consistent lettering should be used, i.e. whether the same plot should always have the same label letter. Defaults to True.
 
@@ -1135,6 +1216,188 @@ class DatasheetPage:
             centertext("Missing", ax=ax)
             ax = subfigs['feature_explanation'].subplots(1, 1)
             centertext("Missing", ax=ax)
+            figures.append(fig)
+            self.pca_explanation
+
+        if include_meta_page:
+            letters = iter(letter_base)
+            fig, subfigs = self.get_subfigures_meta_page()
+            fig.suptitle(f'Datasheet:{self.name} [Page: Overview]', fontsize=16)
+
+            ax = plot_structure(
+                self.mol,
+                ax=None,
+                fig=subfigs['structure_plot'],
+            )
+            outlabel(ax)
+
+            metainfo = []
+            if 'trajid' in self.frames.sizes:
+                num_trajs = self.frames.sizes['trajid']
+                trajectory_ids = list(set(self.frames['trajid'].values))
+            else:
+                traj_var_name = None
+                if 'trajid' in self.frames:
+                    traj_var_name = 'trajid'
+                elif 'trajid_' in self.frames:
+                    traj_var_name = 'trajid'
+
+                if traj_var_name is not None:
+                    trajectory_ids = list(set(self.frames[traj_var_name].values))
+
+                    num_trajs = len(trajectory_ids)
+                else:
+                    num_trajs = 1
+                    trajectory_ids = ['1']
+
+            time_unit = 'unknown'
+            if 'time' in self.frames:
+                time_unit = self.frames.time.attrs['units']
+            # metainfo.append(('$t$ unit', time_unit))
+
+            def var_or_attr(ds, name, default=None):
+                if name in self.frames:
+                    return self.frames[name].values
+                elif name in self.frames.attrs:
+                    return self.frames.attrs[name]
+                else:
+                    return default
+
+            t_max = np.max(var_or_attr(self.frames, 't_max', -1))
+            metainfo.append(('Source software', self.frames.attrs['input_format']))
+            metainfo.append(
+                ('Source software version', self.frames.attrs['input_format_version'])
+            )
+            metainfo.append(('Data type (dyn/stat)', self.frames.attrs['input_type']))
+            metainfo.append(
+                ('Basis set', self.frames.attrs.get('theory_basis_set', 'unknown'))
+            )
+            metainfo.append(
+                ('EST level', self.frames.attrs.get('est_level', 'unknown'))
+            )
+            metainfo.append(('Compound [smile]', self.smiles))
+            metainfo.append(('Compound [InChI]', self.inchi))
+
+            metainfo.append(('Number of trajectories', str(num_trajs)))
+            metainfo.append(
+                ('Maximum $t$', np.max(var_or_attr(self.frames, 't_max', -1)))
+            )
+            metainfo.append(
+                (
+                    'Timestep $\\Delta t$',
+                    np.max(var_or_attr(self.frames, 'delta_t', -1)),
+                )
+            )
+            metainfo.append(('$t$ unit', time_unit))
+            metainfo.append(
+                (
+                    'Forces in set',
+                    (
+                        'all'
+                        if self.frames.attrs['has_forces'] == True
+                        else self.frames.attrs['has_forces']
+                    ),
+                )
+            )
+            metainfo.append(
+                ('Num Singlets', self.frames.attrs.get('num_singlets', '?'))
+            )
+
+            if self.frames.attrs.get('num_doublets', -1) > 0:
+                metainfo.append(('Num Doublets', self.frames.attrs['num_doublets']))
+
+            metainfo.append(
+                ('Num Triplets', self.frames.attrs.get('num_triplets', '?'))
+            )
+
+            var_meta_info: list[tuple[str, tuple[str, str, str, str, str]]] = []
+            for varname, val in self.frames.data_vars.items():
+                unit = '-'
+                orig_unit = '-'
+                min_val = '-'
+                max_val = '-'
+                mean_val = '-'
+
+                if 'units' in val.attrs:
+                    unit = str(val.attrs['units'])
+                if 'original_units' in val.attrs:
+                    orig_unit = str(val.attrs['original_units'])
+
+                var_meta_info.append(
+                    (varname, (unit, orig_unit, min_val, max_val, mean_val))
+                )
+            for varname, val in self.frames.coords.items():
+                unit = '-'
+                orig_unit = '-'
+                min_val = '-'
+                max_val = '-'
+                mean_val = '-'
+
+                if 'units' in val.attrs:
+                    unit = str(val.attrs['units'])
+                else:
+                    continue
+                if 'original_units' in val.attrs:
+                    orig_unit = str(val.attrs['original_units'])
+
+                var_meta_info.append(
+                    (str(varname), (unit, orig_unit, min_val, max_val, mean_val))
+                )
+
+            ax = subfigs['length_plot'].add_subplot(1, 1, 1)
+            if num_trajs > 1:
+                ax.set_ylabel('Trajectory (sorted by length)')
+                ax.set_xlabel(f'Traj. length (t / {time_unit})')
+                ax.set_ylim((0, num_trajs - 1))
+                ax.set_xlim((0, t_max))
+                from matplotlib.ticker import MaxNLocator
+
+                ax.yaxis.set_major_locator(MaxNLocator(integer=True))
+
+                cutoff_times = []
+                if 'trajid_' in self.frames and 'time' in self.frames:
+                    for id, traj_data in self.frames.groupby('trajid_'):
+                        t_max_present = traj_data['time'].max()
+                        cutoff_times.append(t_max_present)
+                cutoff_times.sort()
+                index = list(range(num_trajs))
+                ax.plot(cutoff_times, index)
+
+                ax.fill_between(
+                    [0] + cutoff_times + [t_max],
+                    [0] + index + [num_trajs - 1],
+                    [num_trajs - 1]
+                    + [num_trajs - 1] * len(cutoff_times)
+                    + [num_trajs - 1],
+                    color=st_grey,
+                )
+
+            else:
+                centertext("Not enough data", ax, clearticks='xy')
+            outlabel(ax)
+            ax = subfigs['metadata_a'].add_subplot(1, 1, 1)
+            ax.axis('off')
+            meta_table = ax.table(
+                [[k, str(v)] for k, v in metainfo],
+                colLabels=['Attribute', 'Value'],
+                loc='center',
+            )
+            meta_table.auto_set_font_size(False)
+            meta_table.set_fontsize(12)
+            # centertext("Metadata", ax, clearticks='xy')
+            outlabel(ax)
+            # Variables and units
+            ax = subfigs['variables_a'].add_subplot(1, 1, 1)
+            ax.axis('off')
+            var_table = ax.table(
+                [[k, *v] for k, v in var_meta_info],
+                colLabels=['Variable', 'Unit', 'Orig unit', 'max', 'min', 'mean'],
+                loc='center',
+            )
+            var_table.auto_set_font_size(False)
+            var_table.set_fontsize(12)
+            # centertext("Metadata", ax, clearticks='xy')
+            outlabel(ax)
             figures.append(fig)
 
         # TODO: FIXME: Add Spearman's rank correlation coefficient analysis of energy.

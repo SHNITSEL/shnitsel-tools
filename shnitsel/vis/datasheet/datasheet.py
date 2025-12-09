@@ -104,20 +104,18 @@ class Datasheet:
                 # TODO: FIXME: Still need to deal with the appropriate grouping of ShnitselDB entries.
 
                 grouped_data = group_subtree_by_metadata(base_data)
-                assert grouped_data is not None and isinstance(
-                    grouped_data, ShnitselDB
-                ), (
-                    "Grouping of the provided ShnitselDB did not yield any result. Please make sure your database is well formed and contains data."
-                )
+                assert (
+                    grouped_data is not None and isinstance(grouped_data, ShnitselDB)
+                ), "Grouping of the provided ShnitselDB did not yield any result. Please make sure your database is well formed and contains data."
 
                 tree_res_concat = aggregate_xr_over_levels(
                     grouped_data,
                     lambda x: concat_subtree(x, True),
                     "group",
                 )
-                assert tree_res_concat is not None, (
-                    "Aggregation of ShnitselDB yielded None. Please provide a database with data."
-                )
+                assert (
+                    tree_res_concat is not None
+                ), "Aggregation of ShnitselDB yielded None. Please provide a database with data."
 
                 datasheet_groups: list[tuple[str, Trajectory]] = (
                     get_trajectories_with_path(tree_res_concat)
@@ -170,6 +168,7 @@ class Datasheet:
         include_per_state_hist: bool = False,
         include_coupling_page: bool = True,
         include_pca_page: bool = False,
+        include_meta_page: bool = False,
         borders: bool = False,
         consistent_lettering: bool = True,
         single_key: str | None = None,
@@ -185,6 +184,7 @@ class Datasheet:
             include_per_state_hist (bool, optional): Flag to include per-state histograms in the plot. Defaults to False.
             include_coupling_page (bool, optional): Flag to create a full page with state-coupling plots. Defaults to False.
             include_pca_page (bool, optional): Flag to create a PCA analysis page with details on PCA results. Defaults to True.
+            include_meta_page (bool, optional): Flag to add a page with meta-information about the trajectory data. Defaults to False
             borders (bool, optional): A flag whether to draw borders around plots. Defaults to False.
             consistent_lettering (bool, optional): Flag to decide, whether same plots should always have the same letters. Defaults to True.
             single_key (str, optional): Key to a single entry in this set to plot. Keys are specified as paths in the ShnitselDB structure.
@@ -212,6 +212,7 @@ class Datasheet:
                 include_per_state_hist=include_per_state_hist,
                 include_coupling_page=include_coupling_page,
                 include_pca_page=include_pca_page,
+                include_meta_page=include_meta_page,
                 borders=borders,
                 consistent_lettering=consistent_lettering,
             )
