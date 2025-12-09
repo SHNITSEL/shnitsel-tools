@@ -68,22 +68,20 @@ def flag_nonredundant(mol, include_h=True):
     angles = []
     dihedrals = []
     runs = {}
-    expectation = 0
+    min_run_len = 0
     for i in order:
         if len(runs) == 0:
             logger.info(f'Atom {i}: Nothing to do')
             runs[i] = [i]
             continue
 
-        run_lens = [
-            ((j := neighbor.GetIdx()), len(runs.get(j, [])))
+        neigh_runs = (
+            runs.get(neighbor.GetIdx(), [])
             for neighbor in mol.GetAtomWithIdx(i).GetNeighbors()
-        ]
-        j, rl = max(run_lens, key=lambda tup: tup[1])
-        assert rl + 1 >= expectation
+        )
+        runs[i] = run = max(neigh_runs, key=lambda x: len(x)) + [i]
 
-        run = runs[j] + [i]
-        runs[i] = run
+        assert len(run) >= min_run_len
 
         if len(run) > 4:
             logger.info(f"Atom {i}: Using run ({f(run[:-4])}) {f(run[-4:])}")
@@ -96,9 +94,9 @@ def flag_nonredundant(mol, include_h=True):
                 logger.info(f"Overwriting run for {k} with {f(new_run)}")
                 runs[k] = new_run
 
-        if expectation < 4 and len(run) > expectation:
-            expectation = len(run)
-            logger.info(f'{expectation=}')
+        if min_run_len < 4 and len(run) > min_run_len:
+            min_run_len = len(run)
+            logger.info(f'{min_run_len=}')
 
         if len(run) >= 2:
             bonds.append((1, tuple(run[-2:])))
@@ -106,7 +104,6 @@ def flag_nonredundant(mol, include_h=True):
             angles.append((1, tuple(run[-3:])))
         if len(run) >= 4:
             dihedrals.append((1, tuple(run[-4:])))
-    # for run in runs.values():
 
     return {
         'bonds': get_bond_info(mol, bonds),
