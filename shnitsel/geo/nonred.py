@@ -33,18 +33,19 @@ def get_smiles_order_ignoring_h(mol: rc.Mol) -> list[int]:
     return [mol_no_hs.GetAtomWithIdx(i).GetIntProp('original_index') for i in order]
 
 
-# def runs_for_order(mol, order):
 
-
-def flag_nonredundant(mol, include_h=True):
+def flag_nonredundant(mol: rc.Mol, include_h: bool = True):
     """
     Compute a non-redundant set of bonds, angles, and dihedrals
-    sufficient to locate the non-hydrogen atoms of the input.
+    sufficient to uniquely determine the atoms of the input,
+    given a fixed centre and whole-molecular orientation.
 
     Parameters
     ----------
     mol : rdkit.Chem.rdchem.Mol
         Molecule under study.
+    include_h : bool
+        Whether to include internal coordinates for hydrogen atoms
 
     Returns
     -------
