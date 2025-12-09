@@ -72,6 +72,7 @@ include = ["shnitsel*"]
 
 [tool.ruff]
 include = ["shnitsel/**/*.py"]
+extend-exclude = ["shnitsel/_generated_accessors.py"]
 
 [tool.ruff.format]
 quote-style = "preserve"
