@@ -13,30 +13,46 @@ from shnitsel.core.typedefs import AtXYZ
 
 
 @needs(coords_or_vars={'atXYZ', 'astate'})
-def pca_and_hops(frames: xr.Dataset) -> tuple[xr.DataArray, xr.DataArray]:
+def pca_and_hops(
+    frames: xr.Dataset, n_components: int = 2, return_pca_object: bool = False
+) -> tuple[xr.DataArray | tuple[xr.DataArray, sk_PCA], xr.DataArray]:
     """Get PCA points and info on which of them represent hops
 
     Parameters
     ----------
     frames
         A Dataset containing 'atXYZ' and 'astate' variables
+    n_components, optional
+        The number of principle components to return, by default 2
+    return_pca_object, optional
+        Whether to return the scikit-learn `PCA` object as well as the
+        transformed data, by default False
+
 
     Returns
     -------
     pca_res
-        The PCA-reduced pairwise interatomic distances
+        The PCA-reduced pairwise interatomic distances together with the sklearn.PCA object if `return_pca_object=True`.
     hops_pca_coords
         `pca_res` filtered by hops, to facilitate marking hops when plotting
 
     """
-    pca_res = pairwise_dists_pca(frames['atXYZ'])
+    pca_res = pairwise_dists_pca(
+        frames['atXYZ'], n_components=n_components, return_pca_object=return_pca_object
+    )
     mask = mdiff(frames['astate']) != 0
-    hops_pca_coords = pca_res[mask]
+    if isinstance(pca_res, tuple):
+        hops_pca_coords = pca_res[0][mask]
+    else:
+        hops_pca_coords = pca_res[mask]
+
     return pca_res, hops_pca_coords
 
 
 @needs(dims={'atom'})
-def pairwise_dists_pca(atXYZ: AtXYZ, **kwargs) -> xr.DataArray:
+def pairwise_dists_pca(
+    atXYZ: AtXYZ, n_components: int = 2, return_pca_object: bool = False, **kwargs
+) -> xr.DataArray | tuple[xr.DataArray, sk_PCA]:
     """PCA-reduced pairwise interatomic distances
 
     Parameters
@@ -44,19 +60,35 @@ def pairwise_dists_pca(atXYZ: AtXYZ, **kwargs) -> xr.DataArray:
     atXYZ
         A DataArray containing the atomic positions;
         must have a dimension called 'atom'
+    n_components, optional
+        The number of principle components to return, by default 2
+    return_pca_object, optional
+        Whether to return the scikit-learn `PCA` object as well as the
+        transformed data, by default False
+
 
     Returns
     -------
         A DataArray with the same dimensions as `atXYZ`, except for the 'atom'
         dimension, which is replaced by a dimension 'PC' containing the principal
         components (by default 2)
+        If return_pca_object=True, the result will be a tuple that holds the sklearn.PCA object as second entry
     """
     res = (
         atXYZ.pipe(subtract_combinations, 'atom')
         .pipe(norm)
-        .pipe(pca, 'atomcomb', **kwargs)
+        .pipe(
+            pca,
+            'atomcomb',
+            **{
+                'n_components': n_components,
+                'return_pca_object': return_pca_object,
+                **kwargs,
+            },
+        )
     )
-    assert not isinstance(res, tuple)  # typing
+    if not return_pca_object:
+        assert not isinstance(res, tuple)  # typing
     return res
 
 
