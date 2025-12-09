@@ -33,7 +33,10 @@ def get_smiles_order_ignoring_h(mol: rc.Mol) -> list[int]:
     return [mol_no_hs.GetAtomWithIdx(i).GetIntProp('original_index') for i in order]
 
 
-def flag_nonredundant(mol):
+# def runs_for_order(mol, order):
+
+
+def flag_nonredundant(mol, include_h=True):
     """
     Compute a non-redundant set of bonds, angles, and dihedrals
     sufficient to locate the non-hydrogen atoms of the input.
@@ -52,37 +55,58 @@ def flag_nonredundant(mol):
             'dihedrals':  [...]
         }
     """
+
+    def f(s):
+        return ' '.join(str(x) for x in s)
+
     logger = logging.getLogger('flag_nonredundant')
     order = get_smiles_order_ignoring_h(mol)
+    if include_h:
+        order.extend(set(range(mol.GetNumAtoms())).difference(order))
+
     bonds = []
     angles = []
     dihedrals = []
     runs = {}
+    expectation = 0
     for i in order:
-        logger.info(f'Working on atom {i}')
         if len(runs) == 0:
-            logger.info('Nothing to do')
+            logger.info(f'Atom {i}: Nothing to do')
             runs[i] = [i]
             continue
+
         run_lens = [
             ((j := neighbor.GetIdx()), len(runs.get(j, [])))
             for neighbor in mol.GetAtomWithIdx(i).GetNeighbors()
         ]
-        j = max(run_lens, key=lambda tup: tup[1])[0]
-        logger.info(f'Maximum run len was {len(runs[j])} starting back from atom {j}')
+        j, rl = max(run_lens, key=lambda tup: tup[1])
+        assert rl + 1 >= expectation
+
         run = runs[j] + [i]
-        if len(run) >= 2:
-            logger.info(f'Add bond: {run[-2:]!r}')
-            bonds.append((1, tuple(run[-2:])))
-        if len(run) >= 3:
-            logger.info(f'Add angle: {run[-3:]!r}')
-            angles.append((1, tuple(run[-3:])))
-        if len(run) >= 4:
-            logger.info(f'Add dihedral: {run[-4:]!r}')
-            dihedrals.append((1, tuple(run[-4:])))
         runs[i] = run
 
-    # TODO: deal with the hydrogens here
+        if len(run) > 4:
+            logger.info(f"Atom {i}: Using run ({f(run[:-4])}) {f(run[-4:])}")
+        else:
+            logger.info(f"Atom {i}: Using run {f(run)}")
+
+        for n, k in enumerate(run[:-1]):
+            if len(runs.get(k, [])) < 4 <= len(run) - n:
+                new_run = run[n:][::-1]
+                logger.info(f"Overwriting run for {k} with {f(new_run)}")
+                runs[k] = new_run
+
+        if expectation < 4 and len(run) > expectation:
+            expectation = len(run)
+            logger.info(f'{expectation=}')
+
+        if len(run) >= 2:
+            bonds.append((1, tuple(run[-2:])))
+        if len(run) >= 3:
+            angles.append((1, tuple(run[-3:])))
+        if len(run) >= 4:
+            dihedrals.append((1, tuple(run[-4:])))
+    # for run in runs.values():
 
     return {
         'bonds': get_bond_info(mol, bonds),
