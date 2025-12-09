@@ -140,6 +140,7 @@ def plot_spectra(
     spectra: SpectraDictType,
     state_selection: StateSelection,
     ax: Axes | None = None,
+    lim_num_sc: int = -1,
     cmap: str | Colormap | None = None,
     cnorm: str | Normalize | None = None,
     mark_peaks: bool = False,
@@ -147,8 +148,9 @@ def plot_spectra(
     """Create the spectra plot of the system denoted by the results in spectra.
 
     Args:
-        spectra (SpectraDictType): The spectra (t, state combination) -> fosc data to plot
+        spectra (SpectraDictType): The spectra (t, state combination) -> fosc data to plot. t is expected in fs.
         ax (Axes, optional): Axis object to plot into. If not provided, will be created.
+        lim_num_sc (int, optional): Maximum number of state combinations to consider for the plot.
         state_selection (StateSelection): State selection object to limit the states included in plotting and to provide state names.
         cmap (str | Colormap, optional): Optional specification of a desired colormap. Defaults to None.
         cnorm (str | Normalize, optional): Optional specification of a colormap norm method. Defaults to None.
@@ -167,18 +169,32 @@ def plot_spectra(
     # linestyles = {t: ['-', '--', '-.', ':'][i]
     #               for i, t in enumerate(np.unique(list(zip(*spectra.keys()))[0]))}
 
-    linestyles = ['-', '--']
+    times = list(set([tup[0] for tup in spectra]))
+    times.sort()
+
+    linestyles = ['solid', 'dashed', 'dashdot', 'dotted']
+
+    times_styles = {t: linestyles[i % len(linestyles)] for i, t in enumerate(times)}
+    sc_count = {}
     for i, ((t, sc), data) in enumerate(spectra.items()):
         if not state_selection.has_state_combination(sc):
             continue
 
+        if data.isnull().all():
+            continue
+
+        if sc not in sc_count:
+            if lim_num_sc > 0 and len(sc_count) >= lim_num_sc:
+                continue
+            sc_count[sc] = 0
+
+        # curr_count = sc_count[sc]
+        sc_count[sc] += 1
+
         sc_color = state_selection.get_state_combination_color(sc)
-        sc_label = state_selection.get_state_combination_tex_label(sc)
+        # sc_label = state_selection.get_state_combination_tex_label(sc)
         # special casing for now
-        if i > 0 and (sc[0] == 1 or sc[1] == 1):
-            linestyle = linestyles[1]
-        else:
-            linestyle = linestyles[0]
+        linestyle = times_styles[t]
 
         # c = cmap(cnorm(t))
         # ax.fill_between(data['energy'], data, alpha=0.5, color=c)
@@ -205,8 +221,21 @@ def plot_spectra(
                 )
             except Exception as e:
                 logging.warning(f"{e}")
+
+    handles = []
+    labels = []
+    for t, style in times_styles.items():
+        handles.append(Line2D([0], [0], color='k', ls=style))
+        labels.append(f'$t={t:.1f}\\,fs$')
     _, ymax = ax.get_ylim()
     ax.set_ylim(0, ymax)
+    ax.legend(
+        handles=handles,
+        labels=labels,
+        loc='center left',
+        bbox_to_anchor=(1.1, 0.5),
+        prop={'size': 6},
+    )
 
     return ax
 
@@ -235,7 +264,7 @@ def plot_separated_spectra_and_hists(
         cb_spec_vlines (bool, optional): Whether to mark spectral lines in the energy spectrum. Defaults to True.
 
     Returns:
-        dict[str, Axes]: The axes dict after plotting to it.
+        dict[str, Axes]: The axes dict loc='upper right', bbox_to_anchor=(1.1, 1.1))after plotting to it.
     """
     assert axs is not None, "Could not acquire axes for plotting"
     ground, excited = spectra_groups

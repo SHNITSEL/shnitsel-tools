@@ -377,9 +377,9 @@ def plot_soc_or_dip_trans_histograms(
 
 
 @figaxs_defaults(
-    mosaic=[['sg'], ['t0'], ['t1'], ['se'], ['t2'], ['cb_spec'], ['cb_hist']],
+    mosaic=[['sg'], ['t0'], ['t1'], ['se'], ['t2'], ['cb_hist']],
     scale_factors=(1 / 3, 4 / 5),
-    height_ratios=([1] * 5) + ([0.1] * 2),
+    height_ratios=([1] * 5) + ([0.1] * 1),
 )
 def plot_separated_spectra_and_soc_dip_hists(
     inter_state: InterState,
@@ -406,10 +406,9 @@ def plot_separated_spectra_and_soc_dip_hists(
     """
     assert axs is not None, "Could not acquire axes for plotting"
     ground, excited = spectra_groups
-    times = [tup[0] for lst in spectra_groups for tup in lst]
     scnorm = plt.Normalize(inter_state.time.min(), inter_state.time.max())
     scmap = plt.get_cmap('turbo')
-    scscale = mpl.cm.ScalarMappable(norm=scnorm, cmap=scmap)
+    # scscale = mpl.cm.ScalarMappable(norm=scnorm, cmap=scmap)
     non_degenerate_selection = state_selection.non_degenerate()
 
     # print(state_selection.states, state_selection.state_combinations)
@@ -422,6 +421,7 @@ def plot_separated_spectra_and_soc_dip_hists(
         plot_spectra(
             ground,
             ax=axs['sg'],
+            lim_num_sc=2,
             state_selection=non_degenerate_selection,
             cnorm=scnorm,
             cmap=scmap,
@@ -467,6 +467,7 @@ def plot_separated_spectra_and_soc_dip_hists(
         plot_spectra(
             excited,
             ax=axs['se'],
+            lim_num_sc=1,
             state_selection=non_degenerate_selection,
             cnorm=scnorm,
             cmap=scmap,
@@ -530,26 +531,28 @@ def plot_separated_spectra_and_soc_dip_hists(
         l.set_verticalalignment('bottom')
     secax.set_xlabel(r'$\lambda$ / nm')
 
-    for lax in ['cb_spec', 'cb_hist']:
-        axs[lax].get_yaxis().set_visible(False)
+    # for lax in ['cb_spec', 'cb_hist']:
+    #     axs[lax].get_yaxis().set_visible(False)
+    
+    axs['cb_hist'].get_yaxis().set_visible(False)
 
-    cb_spec = axs['cb_spec'].figure.colorbar(
-        scscale,
-        cax=axs['cb_spec'],
-        location='bottom',
-        extend='both',
-        extendrect=True,
-    )
-    axs['cb_spec'].set_xlabel('time / fs')
-    if cb_spec_vlines:
-        for t in times:
-            lo, hi = scscale.get_clim()  # lines at these points don't show
-            if t == lo:
-                t += t / 100  # so we shift them slightly
-            elif t == hi:
-                t -= t / 100
+    # cb_spec = axs['cb_spec'].figure.colorbar(
+    #     scscale,
+    #     cax=axs['cb_spec'],
+    #     location='bottom',
+    #     extend='both',
+    #     extendrect=True,
+    # )
+    # axs['cb_spec'].set_xlabel('time / fs')
+    # if cb_spec_vlines:
+    #     for t in times:
+    #         lo, hi = scscale.get_clim()  # lines at these points don't show
+    #         if t == lo:
+    #             t += t / 100  # so we shift them slightly
+    #         elif t == hi:
+    #             t -= t / 100
 
-            cb_spec.ax.axvline(t, c='white', linewidth=0.5)
+    #         cb_spec.ax.axvline(t, c='white', linewidth=0.5)
 
     axs['cb_hist'].set_xlabel('# data points')
 
