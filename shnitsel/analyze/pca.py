@@ -10,6 +10,7 @@ from sklearn.preprocessing import MinMaxScaler
 from sklearn.pipeline import Pipeline
 
 from shnitsel.core.typedefs import AtXYZ
+from shnitsel.filtering.structure_selection import StructureSelection
 
 
 @needs(coords_or_vars={'atXYZ', 'astate'})
@@ -74,6 +75,55 @@ def pairwise_dists_pca(
         components (by default 2)
         If return_pca_object=True, the result will be a tuple that holds the sklearn.PCA object as second entry
     """
+    res = (
+        atXYZ.pipe(subtract_combinations, 'atom')
+        .pipe(norm)
+        .pipe(
+            pca,
+            'atomcomb',
+            **{
+                'n_components': n_components,
+                'return_pca_object': return_pca_object,
+                **kwargs,
+            },
+        )
+    )
+    if not return_pca_object:
+        assert not isinstance(res, tuple)  # typing
+    return res
+
+
+def pca_with_features(
+    atXYZ: AtXYZ,
+    features: StructureSelection,
+    n_components: int = 2,
+    return_pca_object: bool = False,
+    **kwargs,
+) -> xr.DataArray | tuple[xr.DataArray, sk_PCA]:
+    """PCA-reduced pairwise interatomic distances
+
+    Parameters
+    ----------
+    atXYZ (AtXYZ)
+        A DataArray containing the atomic positions;
+        must have a dimension called 'atom'
+    features (StructureSelection)
+        The structural feature selection to perform the 
+    n_components, optional
+        The number of principle components to return, by default 2
+    return_pca_object, optional
+        Whether to return the scikit-learn `PCA` object as well as the
+        transformed data, by default False
+
+
+    Returns
+    -------
+        A DataArray with the same dimensions as `atXYZ`, except for the 'atom'
+        dimension, which is replaced by a dimension 'PC' containing the principal
+        components (by default 2)
+        If return_pca_object=True, the result will be a tuple that holds the sklearn.PCA object as second entry
+    """
+    # TODO: FIXME: Implement feature-dependent PCA
     res = (
         atXYZ.pipe(subtract_combinations, 'atom')
         .pipe(norm)
