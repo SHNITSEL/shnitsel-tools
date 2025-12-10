@@ -1,4 +1,5 @@
 from matplotlib.figure import Figure, SubFigure
+import numpy as np
 from shnitsel._contracts import needs
 from shnitsel.analyze.generic import keep_norming
 from shnitsel.core.typedefs import InterState
@@ -39,7 +40,7 @@ def plot_nacs_histograms(
 
     nacs_selection =state_selection.same_multiplicity_transitions()
 
-    axs['nde'].set_ylabel(r'$\Delta E$ / eV')
+    axs['nde'].set_ylabel(r'$|\Delta E|$ / eV')
     axs['nde'].minorticks_on()
     axs['nde'].set_xlabel(r"$\|\mathrm{NAC}_{i,j}\|_2$")
     axs['ntd'].tick_params(axis="x", labelbottom=False)
@@ -64,7 +65,7 @@ def plot_nacs_histograms(
             if not nacs_selection.has_state_combination(sc):
                 continue
 
-            ydata = data[yname].squeeze()
+            ydata = np.abs(data[yname].squeeze())
             xdata = data['nacs_norm'].squeeze()
             # xmax = trunc_max(xdata)
             if yname == 'energy_interstate':
