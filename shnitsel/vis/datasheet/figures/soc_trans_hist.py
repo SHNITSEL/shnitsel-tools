@@ -570,8 +570,7 @@ def plot_separated_spectra_and_soc_dip_hists(
             [x - 0.4, x + 0.4], [1, 1], color='k', ls=times_styles[time]
         )
 
-
-    if len(x_ticks) >0:
+    if len(x_ticks) > 0:
         axs['legend_spec'].get_yaxis().set_visible(False)
         # axs['legend_spec'].set_yticks([], [])
         axs['legend_spec'].set_xticks(x_ticks, x_labels)
