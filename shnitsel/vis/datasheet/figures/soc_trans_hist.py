@@ -507,7 +507,7 @@ def plot_separated_spectra_and_soc_dip_hists(
         plot_energy_histogram(
             inter_state=inter_state,
             state_selection=non_degenerate_selection.excited_state_transitions(),
-            ax=axs['sg'],
+            ax=axs['se'],
         )
         centertext(r"No $\mathbf{\mu}_{ij}$ or $SOC$ data", axs['t2'], clearticks='xy')
 
