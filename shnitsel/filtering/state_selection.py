@@ -252,6 +252,7 @@ class StateSelection:
         state_degeneracy_group = {}
         degeneracy_group_states = {}
         if 'state_degeneracy_group' in dataset.variables:
+            # print('In ds:', dataset['state_degeneracy_group'])
             # print("State degeneracy data from dataset")
             degeneracy_info: list[tuple[StateId, int]] = list(
                 zip(states, dataset.state_degeneracy_group.values)
@@ -268,6 +269,8 @@ class StateSelection:
 
         # print(state_degeneracy_group, degeneracy_group_states)
 
+        # print('Init:', state_degeneracy_group)
+        # print('Init:', degeneracy_group_states)
         # Create an initial state selection
         return cls(
             states=states,
@@ -837,7 +840,7 @@ class StateSelection:
         """
         if self.state_degeneracy_group is None:
             # If we do not have degeneracy data, return self, no change needed.
-            print("Skipping without degeneracy data")
+            logging.warning("Skipping without degeneracy data")
             return self
 
         new_states = []
@@ -881,7 +884,9 @@ class StateSelection:
                 new_states.append(state)
 
         return self.copy_or_update(
-            states=new_states, state_combinations=new_state_combinations
+            states=new_states,
+            state_combinations=new_state_combinations,
+            inplace=inplace,
         )
 
     def state_info(self) -> Iterable[StateInfo]:
