@@ -1033,7 +1033,7 @@ class DatasheetPage:
         hist_axs = self.plot_per_state_histograms(
             self.state_selection, subfigs['per_state_histograms'], shape=(3, 1)
         )
-        print(hist_axs.keys())
+        # print(hist_axs.keys())
         outlabel(hist_axs['energy'], next(letter_it))
 
         return fig, subfigs
