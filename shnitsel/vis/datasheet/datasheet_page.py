@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from functools import cached_property
+from typing import Iterator
 from matplotlib.axes import Axes
 from sklearn.decomposition import PCA as sk_PCA
 from tqdm import tqdm
@@ -34,6 +35,7 @@ from shnitsel.vis.datasheet.figures.soc_trans_hist import (
     single_soc_trans_hist,
 )
 from shnitsel.vis.colormaps import st_grey
+from shnitsel.vis.plot.common import inlabel, outlabel
 
 try:
     from typing import Self
@@ -538,12 +540,16 @@ class DatasheetPage:
         self.inchi
 
     def plot_per_state_histograms(
-        self, state_selection: StateSelection, fig: Figure | SubFigure | None = None
+        self,
+        state_selection: StateSelection,
+        fig: Figure | SubFigure | None = None,
+        shape: tuple[int, int] | None = None,
     ) -> dict[str, Axes]:
         """Plot histograms of forces, energies and permanent dipoles for each selected state.
 
         Args:
             fig (Figure | SubFigure | None, optional): Figure to plot the graphs to. Defaults to None.
+            shape (tuple[int,int], optional): The shape (rows, cols) that the sub-plots should take. Defaults to one row and 3 columns.
 
         Returns:
             Axes: _description_
@@ -553,6 +559,7 @@ class DatasheetPage:
             per_state=self.per_state,
             state_selection=state_selection,
             fig=fig,
+            shape=shape,
         )
         end = timer()
         info(f"finished plot_per_state_histograms in {end - start} s")
@@ -847,6 +854,181 @@ class DatasheetPage:
         info(f"finished plot_coupling_page in {end - start} s")
         return res
 
+    def render_meta_page(
+        self,
+    ) -> tuple[Figure, dict[str, SubFigure]]:
+        """Helper function to output the entire `meta` overview page to a Shnitsel Tools datasheet.
+
+        Returns:
+            tuple[Figure, dict[str, SubFigure]]: The pair of the entire figure and a dict of the subfigures involved in the meta-overview page.
+        """
+        letter_base = "abcdefghijk"
+        letter_it = iter(letter_base)
+        fig, subfigs = self.get_subfigures_meta_page()
+        fig.suptitle(f'Datasheet:{self.name} [Page: Overview]', fontsize=16)
+
+        ax = plot_structure(
+            self.mol,
+            ax=None,
+            fig=subfigs['structure_plot'],
+        )
+        outlabel(ax, next(letter_it))
+
+        metainfo = []
+        if 'trajid' in self.frames.sizes:
+            num_trajs = self.frames.sizes['trajid']
+            trajectory_ids = list(set(self.frames['trajid'].values))
+        else:
+            traj_var_name = None
+            if 'trajid' in self.frames:
+                traj_var_name = 'trajid'
+            elif 'trajid_' in self.frames:
+                traj_var_name = 'trajid'
+
+            if traj_var_name is not None:
+                trajectory_ids = list(set(self.frames[traj_var_name].values))
+
+                num_trajs = len(trajectory_ids)
+            else:
+                num_trajs = 1
+                trajectory_ids = ['1']
+
+        time_unit = 'unknown'
+        if 'time' in self.frames:
+            time_unit = self.frames.time.attrs['units']
+        # metainfo.append(('$t$ unit', time_unit))
+
+        def var_or_attr(ds, name, default=None):
+            if name in self.frames:
+                return self.frames[name].values
+            elif name in self.frames.attrs:
+                return self.frames.attrs[name]
+            else:
+                return default
+
+        t_max = np.max(var_or_attr(self.frames, 't_max', -1))
+        metainfo.append(('Source software', self.frames.attrs['input_format']))
+        metainfo.append(
+            ('Source software version', self.frames.attrs['input_format_version'])
+        )
+        metainfo.append(('Data type (dyn/stat)', self.frames.attrs['input_type']))
+        metainfo.append(
+            ('Basis set', self.frames.attrs.get('theory_basis_set', 'unknown'))
+        )
+        metainfo.append(('EST level', self.frames.attrs.get('est_level', 'unknown')))
+        metainfo.append(('Compound [smile]', self.smiles))
+        metainfo.append(('Compound [InChI]', self.inchi))
+
+        metainfo.append(('Number of trajectories', str(num_trajs)))
+        metainfo.append(('Maximum $t$', np.max(var_or_attr(self.frames, 't_max', -1))))
+        metainfo.append(
+            (
+                'Timestep $\\Delta t$',
+                np.max(var_or_attr(self.frames, 'delta_t', -1)),
+            )
+        )
+        metainfo.append(('$t$ unit', time_unit))
+        metainfo.append(
+            (
+                'Forces in set',
+                (
+                    'all'
+                    if self.frames.attrs['has_forces'] == True
+                    else self.frames.attrs['has_forces']
+                ),
+            )
+        )
+        metainfo.append(('Num Singlets', self.frames.attrs.get('num_singlets', '?')))
+
+        if self.frames.attrs.get('num_doublets', -1) > 0:
+            metainfo.append(('Num Doublets', self.frames.attrs['num_doublets']))
+
+        metainfo.append(('Num Triplets', self.frames.attrs.get('num_triplets', '?')))
+
+        var_meta_info: list[tuple[str, tuple[str, str]]] = []
+        for varname, val in self.frames.data_vars.items():
+            unit = '-'
+            orig_unit = '-'
+
+            if 'units' in val.attrs:
+                unit = str(val.attrs['units'])
+            if 'original_units' in val.attrs:
+                orig_unit = str(val.attrs['original_units'])
+
+            var_meta_info.append((varname, (unit, orig_unit)))
+        for varname, val in self.frames.coords.items():
+            unit = '-'
+            orig_unit = '-'
+
+            if 'units' in val.attrs:
+                unit = str(val.attrs['units'])
+            else:
+                continue
+            if 'original_units' in val.attrs:
+                orig_unit = str(val.attrs['original_units'])
+
+            var_meta_info.append((str(varname), (unit, orig_unit)))
+
+        ax = subfigs['length_plot'].add_subplot(1, 1, 1)
+        if num_trajs > 1:
+            ax.set_ylabel('Trajectory (sorted by length)')
+            ax.set_xlabel(f'Traj. length (t / {time_unit})')
+            ax.set_ylim((0, num_trajs - 1))
+            ax.set_xlim((0, t_max))
+            from matplotlib.ticker import MaxNLocator
+
+            ax.yaxis.set_major_locator(MaxNLocator(integer=True))
+
+            cutoff_times = []
+            if 'trajid_' in self.frames and 'time' in self.frames:
+                for id, traj_data in self.frames.groupby('trajid_'):
+                    t_max_present = traj_data['time'].max()
+                    cutoff_times.append(t_max_present)
+            cutoff_times.sort()
+            index = list(range(num_trajs))
+            ax.plot(cutoff_times, index)
+
+            ax.fill_between(
+                [0] + cutoff_times + [t_max],
+                [0] + index + [num_trajs - 1],
+                [num_trajs - 1] + [num_trajs - 1] * len(cutoff_times) + [num_trajs - 1],
+                color=st_grey,
+            )
+
+        else:
+            centertext("Not enough data", ax, clearticks='xy')
+        outlabel(ax, next(letter_it))
+        ax = subfigs['metadata_a'].add_subplot(1, 1, 1)
+        ax.axis('off')
+        meta_table = ax.table(
+            [[k, str(v)] for k, v in metainfo],
+            colLabels=['Attribute', 'Value'],
+            loc='center',
+        )
+        meta_table.auto_set_font_size(False)
+        meta_table.set_fontsize(12)
+        # centertext("Metadata", ax, clearticks='xy')
+        outlabel(ax, next(letter_it))
+        # Variables and units
+        ax = subfigs['variables_a'].add_subplot(1, 1, 1)
+        ax.axis('off')
+        var_table = ax.table(
+            [[k, *(v)] for k, v in var_meta_info],
+            colLabels=['Variable', 'Unit', 'Orig unit'],
+            loc='center',
+        )
+        var_table.auto_set_font_size(False)
+        var_table.set_fontsize(12)
+        # centertext("Metadata", ax, clearticks='xy')
+        outlabel(ax, next(letter_it))
+        hist_axs = self.plot_per_state_histograms(
+            self.state_selection, subfigs['per_state_histograms'], shape=(3, 1)
+        )
+        print(hist_axs.keys())
+        outlabel(hist_axs['energy'], next(letter_it))
+
+        return fig, subfigs
+
     @staticmethod
     def get_subfigures_main_page(
         include_per_state_hist: bool = False, borders: bool = False
@@ -937,7 +1119,7 @@ class DatasheetPage:
         """
         nrows = 3
 
-        fig, oaxs = plt.subplots(nrows, 2, layout='constrained')
+        fig, oaxs = plt.subplots(nrows, 6, layout='constrained')
         fig.set_size_inches(8.27, 11.69)  # portrait A4
 
         if borders:
@@ -949,12 +1131,13 @@ class DatasheetPage:
             ax.remove()
 
         gridspecs = dict(
-            structure_plot=gs[0, 0],
-            length_plot=gs[0, 1],
-            metadata_a=gs[1, :],
+            structure_plot=gs[0, :3],
+            length_plot=gs[0, 3:],
+            metadata_a=gs[1, :4],
             # metadata_b=gs[1, 1],
-            variables_a=gs[2, :],
+            variables_a=gs[2, :4],
             # variables_b=gs[2, 1],
+            per_state_histograms=gs[1:, 4:],
         )
         subfigures = {
             sub_name: fig.add_subfigure(sub_gridspec)
@@ -1033,35 +1216,6 @@ class DatasheetPage:
         """
         letter_base = 'abcdef'
 
-        def outlabel(ax):
-            nonlocal letters
-            fixedtrans = mpl.transforms.ScaledTranslation(
-                -20 / 72, +7 / 72, ax.figure.dpi_scale_trans
-            )
-            transform = ax.transAxes + fixedtrans
-            return ax.text(
-                0.0,
-                1.0,
-                next(letters) + ")",
-                transform=transform,
-                va='bottom',
-                fontweight='bold',
-                bbox=dict(facecolor='0.9', edgecolor='none', pad=3.0),
-            )
-
-        def inlabel(ax):
-            nonlocal letters
-            return ax.annotate(
-                next(letters) + ")",
-                xy=(0, 1),
-                xycoords='axes fraction',
-                xytext=(+0.5, -0.5),
-                textcoords='offset fontsize',
-                va='top',
-                fontweight='bold',
-                bbox=dict(facecolor='0.9', edgecolor='none', pad=3.0),
-            )
-
         figures = []
 
         pages = []
@@ -1108,7 +1262,7 @@ class DatasheetPage:
                 include_per_state_hist=include_per_state_hist, borders=borders
             )
 
-            letters = iter(letter_base)
+            letter_it = iter(letter_base)
             fig.suptitle(f'Datasheet:{self.name} [Page:{page_title}]', fontsize=16)
 
             # print(self.frames)
@@ -1121,52 +1275,52 @@ class DatasheetPage:
                     current_multiplicity=page_mult,
                 )
                 ax = axs['sg']
-                outlabel(ax)
+                outlabel(ax, next(letter_it))
             else:
                 ax = sfs['separated_spectra_and_hists'].subplots(1, 1)
                 centertext(r"No $\mathbf{\mu}_{ij}$ data", ax=ax)
                 ax.get_yaxis().set_visible(False)
                 ax.get_xaxis().set_visible(False)
-                inlabel(ax)
+                inlabel(ax, next(letter_it))
             # noodle
             if self.can['noodle']:
                 if len(pages_handled) == 1:
                     ax = self.plot_noodle(
                         state_selection=page_selection, fig=sfs['noodle']
                     )
-                    inlabel(ax)
+                    inlabel(ax, next(letter_it))
                 else:
                     axs = self.plot_energy_bands(
                         state_selection=page_selection, fig=sfs['noodle']
                     )
-                    outlabel(axs['pc1'])
+                    outlabel(axs['pc1'], next(letter_it))
             elif consistent_lettering:
-                next(letters)
+                next(letter_it, next(letter_it))
             # structure
             if self.can['structure']:
                 if len(pages_handled) == 1 or not self.can['noodle']:
                     ax = self.plot_structure(
                         state_selection=page_selection, fig=sfs['structure']
                     )
-                    outlabel(ax)
+                    outlabel(ax, next(letter_it))
                 else:
                     if consistent_lettering:
-                        next(letters)
+                        next(letter_it)
                     # ax = self.plot_pca_structure(
                     #     state_selection=page_selection, fig=sfs['structure']
                     # )
 
             elif consistent_lettering:
-                next(letters)
+                next(letter_it)
             # nacs_histograms
             if self.can['nacs_histograms']:
                 axs = self.plot_nacs_histograms(
                     state_selection=page_selection, fig=sfs['nacs_histograms']
                 )
                 ax = axs.get('ntd', axs['nde'])
-                outlabel(ax)
+                outlabel(ax, next(letter_it))
             elif consistent_lettering:
-                next(letters)
+                next(letter_it)
             # time plots
             if self.can['timeplots']:
                 axs = self.plot_timeplots(
@@ -1176,17 +1330,17 @@ class DatasheetPage:
                     fig=sfs['timeplots'],
                 )
                 ax = axs['pop']
-                outlabel(ax)
+                outlabel(ax, next(letter_it))
             elif consistent_lettering:
-                next(letters)
+                next(letter_it)
             if include_per_state_hist:
                 axs = self.plot_per_state_histograms(
                     state_selection=page_selection, fig=sfs['per_state_histograms']
                 )
                 ax = axs['energy']
-                outlabel(ax)
+                outlabel(ax, next(letter_it))
             elif consistent_lettering:
-                next(letters)
+                next(letter_it)
 
             figures.append(fig)
 
@@ -1220,184 +1374,7 @@ class DatasheetPage:
             self.pca_explanation
 
         if include_meta_page:
-            letters = iter(letter_base)
-            fig, subfigs = self.get_subfigures_meta_page()
-            fig.suptitle(f'Datasheet:{self.name} [Page: Overview]', fontsize=16)
-
-            ax = plot_structure(
-                self.mol,
-                ax=None,
-                fig=subfigs['structure_plot'],
-            )
-            outlabel(ax)
-
-            metainfo = []
-            if 'trajid' in self.frames.sizes:
-                num_trajs = self.frames.sizes['trajid']
-                trajectory_ids = list(set(self.frames['trajid'].values))
-            else:
-                traj_var_name = None
-                if 'trajid' in self.frames:
-                    traj_var_name = 'trajid'
-                elif 'trajid_' in self.frames:
-                    traj_var_name = 'trajid'
-
-                if traj_var_name is not None:
-                    trajectory_ids = list(set(self.frames[traj_var_name].values))
-
-                    num_trajs = len(trajectory_ids)
-                else:
-                    num_trajs = 1
-                    trajectory_ids = ['1']
-
-            time_unit = 'unknown'
-            if 'time' in self.frames:
-                time_unit = self.frames.time.attrs['units']
-            # metainfo.append(('$t$ unit', time_unit))
-
-            def var_or_attr(ds, name, default=None):
-                if name in self.frames:
-                    return self.frames[name].values
-                elif name in self.frames.attrs:
-                    return self.frames.attrs[name]
-                else:
-                    return default
-
-            t_max = np.max(var_or_attr(self.frames, 't_max', -1))
-            metainfo.append(('Source software', self.frames.attrs['input_format']))
-            metainfo.append(
-                ('Source software version', self.frames.attrs['input_format_version'])
-            )
-            metainfo.append(('Data type (dyn/stat)', self.frames.attrs['input_type']))
-            metainfo.append(
-                ('Basis set', self.frames.attrs.get('theory_basis_set', 'unknown'))
-            )
-            metainfo.append(
-                ('EST level', self.frames.attrs.get('est_level', 'unknown'))
-            )
-            metainfo.append(('Compound [smile]', self.smiles))
-            metainfo.append(('Compound [InChI]', self.inchi))
-
-            metainfo.append(('Number of trajectories', str(num_trajs)))
-            metainfo.append(
-                ('Maximum $t$', np.max(var_or_attr(self.frames, 't_max', -1)))
-            )
-            metainfo.append(
-                (
-                    'Timestep $\\Delta t$',
-                    np.max(var_or_attr(self.frames, 'delta_t', -1)),
-                )
-            )
-            metainfo.append(('$t$ unit', time_unit))
-            metainfo.append(
-                (
-                    'Forces in set',
-                    (
-                        'all'
-                        if self.frames.attrs['has_forces'] == True
-                        else self.frames.attrs['has_forces']
-                    ),
-                )
-            )
-            metainfo.append(
-                ('Num Singlets', self.frames.attrs.get('num_singlets', '?'))
-            )
-
-            if self.frames.attrs.get('num_doublets', -1) > 0:
-                metainfo.append(('Num Doublets', self.frames.attrs['num_doublets']))
-
-            metainfo.append(
-                ('Num Triplets', self.frames.attrs.get('num_triplets', '?'))
-            )
-
-            var_meta_info: list[tuple[str, tuple[str, str, str, str, str]]] = []
-            for varname, val in self.frames.data_vars.items():
-                unit = '-'
-                orig_unit = '-'
-                min_val = '-'
-                max_val = '-'
-                mean_val = '-'
-
-                if 'units' in val.attrs:
-                    unit = str(val.attrs['units'])
-                if 'original_units' in val.attrs:
-                    orig_unit = str(val.attrs['original_units'])
-
-                var_meta_info.append(
-                    (varname, (unit, orig_unit, min_val, max_val, mean_val))
-                )
-            for varname, val in self.frames.coords.items():
-                unit = '-'
-                orig_unit = '-'
-                min_val = '-'
-                max_val = '-'
-                mean_val = '-'
-
-                if 'units' in val.attrs:
-                    unit = str(val.attrs['units'])
-                else:
-                    continue
-                if 'original_units' in val.attrs:
-                    orig_unit = str(val.attrs['original_units'])
-
-                var_meta_info.append(
-                    (str(varname), (unit, orig_unit, min_val, max_val, mean_val))
-                )
-
-            ax = subfigs['length_plot'].add_subplot(1, 1, 1)
-            if num_trajs > 1:
-                ax.set_ylabel('Trajectory (sorted by length)')
-                ax.set_xlabel(f'Traj. length (t / {time_unit})')
-                ax.set_ylim((0, num_trajs - 1))
-                ax.set_xlim((0, t_max))
-                from matplotlib.ticker import MaxNLocator
-
-                ax.yaxis.set_major_locator(MaxNLocator(integer=True))
-
-                cutoff_times = []
-                if 'trajid_' in self.frames and 'time' in self.frames:
-                    for id, traj_data in self.frames.groupby('trajid_'):
-                        t_max_present = traj_data['time'].max()
-                        cutoff_times.append(t_max_present)
-                cutoff_times.sort()
-                index = list(range(num_trajs))
-                ax.plot(cutoff_times, index)
-
-                ax.fill_between(
-                    [0] + cutoff_times + [t_max],
-                    [0] + index + [num_trajs - 1],
-                    [num_trajs - 1]
-                    + [num_trajs - 1] * len(cutoff_times)
-                    + [num_trajs - 1],
-                    color=st_grey,
-                )
-
-            else:
-                centertext("Not enough data", ax, clearticks='xy')
-            outlabel(ax)
-            ax = subfigs['metadata_a'].add_subplot(1, 1, 1)
-            ax.axis('off')
-            meta_table = ax.table(
-                [[k, str(v)] for k, v in metainfo],
-                colLabels=['Attribute', 'Value'],
-                loc='center',
-            )
-            meta_table.auto_set_font_size(False)
-            meta_table.set_fontsize(12)
-            # centertext("Metadata", ax, clearticks='xy')
-            outlabel(ax)
-            # Variables and units
-            ax = subfigs['variables_a'].add_subplot(1, 1, 1)
-            ax.axis('off')
-            var_table = ax.table(
-                [[k, *v] for k, v in var_meta_info],
-                colLabels=['Variable', 'Unit', 'Orig unit', 'max', 'min', 'mean'],
-                loc='center',
-            )
-            var_table.auto_set_font_size(False)
-            var_table.set_fontsize(12)
-            # centertext("Metadata", ax, clearticks='xy')
-            outlabel(ax)
+            fig, subfigs = self.render_meta_page()
             figures.append(fig)
 
         # TODO: FIXME: Add Spearman's rank correlation coefficient analysis of energy.

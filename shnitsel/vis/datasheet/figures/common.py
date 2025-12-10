@@ -2,7 +2,6 @@ from collections.abc import Sequence
 from functools import wraps
 import logging
 from typing import Hashable
-
 import matplotlib.pyplot as plt
 from matplotlib.figure import Figure, SubFigure
 from matplotlib.axes import Axes
@@ -10,8 +9,6 @@ from matplotlib.typing import ColorType, HashableList
 from matplotlib.text import Text
 
 from ...plot.common import figax as figax
-
-symbols = dict(energy=r"$E_i$", force=r"$\mathbf{F}_i$", dip_perm=r"$\mathbf{\mu}_i$")
 
 
 def label_plot_grid(
