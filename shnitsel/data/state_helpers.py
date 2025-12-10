@@ -64,7 +64,7 @@ def default_state_type_assigner(dataset: xr.Dataset) -> xr.Dataset:
                 mark_variable_assigned(dataset.state_magnetic_number)
             if not is_variable_assigned(dataset.state_degeneracy_group):
                 dataset.state_degeneracy_group[:nsinglets] = (
-                    dataset.state_degeneracy_group[:nsinglets]
+                    dataset.state[:nsinglets]
                 )
                 mark_variable_assigned(dataset.state_degeneracy_group)
     return dataset
