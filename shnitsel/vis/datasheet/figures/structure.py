@@ -107,7 +107,7 @@ def plot_structure(
     xlabel_string = ""
     # Add smiles to label if provided
     if smiles is not None:
-        xlabel_string = f"SMILES={smiles}"
+        xlabel_string = f"SMILES: '{smiles}'"
 
     # Add InChI to label if provided
     if inchi is not None:
