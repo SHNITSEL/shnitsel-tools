@@ -382,7 +382,7 @@ def plot_soc_or_dip_trans_histograms(
 @figaxs_defaults(
     mosaic=[['sg'], ['t0'], ['t1'], ['se'], ['t2'], ['legend_spec'], ['cb_hist']],
     scale_factors=(1 / 3, 4 / 5),
-    height_ratios=([1] * 5) + ([0.1] * 2),
+    height_ratios=([1] * 5) + ([0.2] * 1) + ([0.1] * 1),
 )
 def plot_separated_spectra_and_soc_dip_hists(
     inter_state: InterState,
@@ -521,6 +521,8 @@ def plot_separated_spectra_and_soc_dip_hists(
             quadmesh.set_norm(hcnorm)
         hcscale = mpl.cm.ScalarMappable(norm=hcnorm, cmap=magma_rw)
         axs['cb_hist'].figure.colorbar(hcscale, cax=axs['cb_hist'], location='bottom')
+    else:
+        axs['cb_hist'].set_axis_off()
 
     def ev2nm(delta_E):
         """Helper function to convert delta energy of a transition in eV to a nanometer wavelength
@@ -544,7 +546,6 @@ def plot_separated_spectra_and_soc_dip_hists(
     for ax in list(axs.values()):
         ax.tick_params(axis="x", labelbottom=False)
     axs['t2'].tick_params(axis="x", labelbottom=True)
-
     secax = axs['sg'].secondary_xaxis('top', functions=(ev2nm, ev2nm))
     secax.set_xticks([50, 75, 100, 125, 150, 200, 300, 500, 1000])
     secax.tick_params(axis='x', rotation=45, labelsize='small')
@@ -564,7 +565,7 @@ def plot_separated_spectra_and_soc_dip_hists(
     x_labels = []
     for x, time in zip(x_pos, times):
         x_ticks.append(x)
-        x_labels.append(time)
+        x_labels.append(f"{time:.1f}")
 
         axs['legend_spec'].plot(
             [x - 0.4, x + 0.4], [1, 1], color='k', ls=times_styles[time]
@@ -573,15 +574,17 @@ def plot_separated_spectra_and_soc_dip_hists(
     if len(x_ticks) > 0:
         axs['legend_spec'].get_yaxis().set_visible(False)
         # axs['legend_spec'].set_yticks([], [])
-        axs['legend_spec'].set_xticks(x_ticks, x_labels)
         axs['legend_spec'].set_xlabel(f'$t$/{time_unit}')
         axs['legend_spec'].set_xlim((-0.5, len(times) - 0.5))
         axs['legend_spec'].spines['top'].set_visible(False)
         axs['legend_spec'].spines['right'].set_visible(False)
         axs['legend_spec'].spines['bottom'].set_visible(False)
         axs['legend_spec'].spines['left'].set_visible(False)
+        axs['legend_spec'].set_xticks(x_ticks, x_labels)
+        # axs['legend_spec'].get_xaxis().set_visible(True)
     else:
         axs['legend_spec'].set_axis_off()
+
 
     # cb_spec = axs['cb_spec'].figure.colorbar(
     #     scscale,
@@ -603,6 +606,9 @@ def plot_separated_spectra_and_soc_dip_hists(
 
     axs['cb_hist'].get_yaxis().set_visible(False)
     axs['cb_hist'].set_xlabel('# data points')
+
+    axs['legend_spec'].tick_params(axis="x", labelbottom=True)
+    axs['cb_hist'].tick_params(axis="x", labelbottom=True)
 
     axs['se'].set_title(
         r"$\uparrow$ground state" + "\n" + r"$\downarrow$excited state absorption"
