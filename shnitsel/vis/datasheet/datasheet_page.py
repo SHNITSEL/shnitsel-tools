@@ -204,7 +204,9 @@ class DatasheetPage:
             return all(k in self.frames for k in ks)
 
         self.can['per_state_histograms'] = check('energy', 'forces', 'dip_trans')
-        self.can['separated_spectra_and_hists'] = check('dip_trans', 'time')
+        self.can['separated_spectra_and_hists'] = (
+            'energy' in self.frames
+        )  # check('dip_trans', 'time')
         self.can['noodle'] = check('atXYZ', 'state', 'time')
         self.can['structure'] = ('smiles_map' in self.frames.attrs) or check('atXYZ')
         self.can['nacs_histograms'] = check('nacs') and (
@@ -358,7 +360,10 @@ class DatasheetPage:
         """
         start = timer()
         # TODO: FIXME: Use state selection for limit on which to calculate
-        res = calc_spectra(self.inter_state, times=self.spectra_times)
+        if 'dip_trans' in self.frames:
+            res = calc_spectra(self.inter_state, times=self.spectra_times)
+        else:
+            res = {}
         end = timer()
         info(f"cached spectra in {end - start} s")
         return res
@@ -377,7 +382,11 @@ class DatasheetPage:
         """
         start = timer()
         # TODO: FIXME: Use state selection for split
-        res = get_spectra_groups(self.spectra)
+        if 'dip_trans' in self.frames:
+            res = get_spectra_groups(self.spectra)
+        else:
+            res = ({}, {})
+
         end = timer()
         info(f"cached spectra_groups in {end - start} s")
         return res

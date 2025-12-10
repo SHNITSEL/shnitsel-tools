@@ -229,13 +229,13 @@ def plot_spectra(
         labels.append(f'$t={t:.1f}\\,fs$')
     _, ymax = ax.get_ylim()
     ax.set_ylim(0, ymax)
-    ax.legend(
-        handles=handles,
-        labels=labels,
-        loc='center left',
-        bbox_to_anchor=(1.1, 0.5),
-        prop={'size': 6},
-    )
+    # ax.legend(
+    #     handles=handles,
+    #     labels=labels,
+    #     loc='center left',
+    #     bbox_to_anchor=(1.1, 0.5),
+    #     prop={'size': 6},
+    # )
 
     return ax
 

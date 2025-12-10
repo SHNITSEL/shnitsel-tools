@@ -369,17 +369,20 @@ def plot_soc_or_dip_trans_histograms(
             if tmp_res is not None:
                 hist2d_outputs.append(tmp_res)
         else:
-            centertext(r"No $\mu$ or $SOC$ data", ax)
+            centertext(r"No $\mathbf{\mu}_{ij}$ or $SOC$ data", ax, clearticks='xy')
             continue
 
         selected_scs += 1
+    for s in range(selected_scs, len(axs)):
+        centertext(r"No $\mathbf{\mu}_{ij}$ or $SOC$ data", axs[s], clearticks='xy')
+
     return hist2d_outputs
 
 
 @figaxs_defaults(
-    mosaic=[['sg'], ['t0'], ['t1'], ['se'], ['t2'], ['cb_hist']],
+    mosaic=[['sg'], ['t0'], ['t1'], ['se'], ['t2'], ['legend_spec'], ['cb_hist']],
     scale_factors=(1 / 3, 4 / 5),
-    height_ratios=([1] * 5) + ([0.1] * 1),
+    height_ratios=([1] * 5) + ([0.1] * 2),
 )
 def plot_separated_spectra_and_soc_dip_hists(
     inter_state: InterState,
@@ -414,6 +417,17 @@ def plot_separated_spectra_and_soc_dip_hists(
     # print(state_selection.states, state_selection.state_combinations)
     # print(non_degenerate_selection.states, non_degenerate_selection.state_combinations)
 
+    time_unit = inter_state.time.attrs.get('units', 'fs')
+
+    times = list(set([tup[0] for tup in ground]))
+    times.sort()
+
+    linestyles = ['solid', 'dashed', 'dashdot', 'dotted']
+
+    times_styles = {t: linestyles[i % len(linestyles)] for i, t in enumerate(times)}
+
+    selection_ground_states = state_selection.ground_state_transitions()
+
     hist2d_outputs = []
     if current_multiplicity is None or current_multiplicity == 1 and len(ground) > 0:
         # Only plot ground state spectra in singlet mode
@@ -445,19 +459,20 @@ def plot_separated_spectra_and_soc_dip_hists(
     else:
         plot_energy_histogram(
             inter_state=inter_state,
-            state_selection=non_degenerate_selection.ground_state_transitions(),
+            state_selection=selection_ground_states,
             ax=axs['sg'],
         )
 
-    if len(state_selection.state_combinations) > 1:
+    if len(selection_ground_states.state_combinations) > 1:
         selaxs = [axs['t1'], axs['t0']]
     else:
         selaxs = [axs['t1']]
+        centertext(r"No $\mathbf{\mu}_{ij}$ or $SOC$ data", axs['t0'], clearticks='xy')
 
     res = plot_soc_or_dip_trans_histograms(
         inter_state,  # inter_state_sel,
         axs=selaxs,
-        state_selection=state_selection.ground_state_transitions(),
+        state_selection=selection_ground_states,
     )
     if res is not None:
         hist2d_outputs += res
@@ -488,6 +503,13 @@ def plot_separated_spectra_and_soc_dip_hists(
                 state_selection=non_degenerate_selection.excited_state_transitions(),
                 ax=axs['t2'],
             )
+    else:
+        plot_energy_histogram(
+            inter_state=inter_state,
+            state_selection=non_degenerate_selection.excited_state_transitions(),
+            ax=axs['sg'],
+        )
+        centertext(r"No $\mathbf{\mu}_{ij}$ or $SOC$ data", axs['t2'], clearticks='xy')
 
     hists = np.array([tup[0] for tup in hist2d_outputs])
 
@@ -531,10 +553,36 @@ def plot_separated_spectra_and_soc_dip_hists(
         l.set_verticalalignment('bottom')
     secax.set_xlabel(r'$\lambda$ / nm')
 
-    # for lax in ['cb_spec', 'cb_hist']:
+    # for lax in ['legend_spec', 'cb_hist']:
     #     axs[lax].get_yaxis().set_visible(False)
-    
-    axs['cb_hist'].get_yaxis().set_visible(False)
+
+    # axs['cb_hist'].get_yaxis().set_visible(False)
+
+    x_pos = list(range(0, len(times)))
+
+    x_ticks = []
+    x_labels = []
+    for x, time in zip(x_pos, times):
+        x_ticks.append(x)
+        x_labels.append(time)
+
+        axs['legend_spec'].plot(
+            [x - 0.4, x + 0.4], [1, 1], color='k', ls=times_styles[time]
+        )
+
+
+    if len(x_ticks) >0:
+        axs['legend_spec'].get_yaxis().set_visible(False)
+        # axs['legend_spec'].set_yticks([], [])
+        axs['legend_spec'].set_xticks(x_ticks, x_labels)
+        axs['legend_spec'].set_xlabel(f'$t$/{time_unit}')
+        axs['legend_spec'].set_xlim((-0.5, len(times) - 0.5))
+        axs['legend_spec'].spines['top'].set_visible(False)
+        axs['legend_spec'].spines['right'].set_visible(False)
+        axs['legend_spec'].spines['bottom'].set_visible(False)
+        axs['legend_spec'].spines['left'].set_visible(False)
+    else:
+        axs['legend_spec'].set_axis_off()
 
     # cb_spec = axs['cb_spec'].figure.colorbar(
     #     scscale,
@@ -554,6 +602,7 @@ def plot_separated_spectra_and_soc_dip_hists(
 
     #         cb_spec.ax.axvline(t, c='white', linewidth=0.5)
 
+    axs['cb_hist'].get_yaxis().set_visible(False)
     axs['cb_hist'].set_xlabel('# data points')
 
     axs['se'].set_title(
