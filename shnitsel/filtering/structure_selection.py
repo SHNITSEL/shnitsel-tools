@@ -3,9 +3,16 @@ from typing import Self, TypeAlias
 import xarray as xr
 
 
+AtomDescriptor: TypeAlias = int
 BondDescriptor: TypeAlias = tuple[int, int]
 AngleDescriptor: TypeAlias = tuple[int, int, int]
 DihedralDescriptor: TypeAlias = tuple[int, int, int, int]
+
+FeatureDescriptor: TypeAlias = (
+    AtomDescriptor | BondDescriptor | AngleDescriptor | DihedralDescriptor
+)
+
+FeatureList: TypeAlias = list[FeatureDescriptor]
 
 ActiveFlag: TypeAlias = bool
 
@@ -14,12 +21,14 @@ ActiveFlag: TypeAlias = bool
 class StructureSelection:
     """Class to keep track of a (sub-)selection of structural features."""
 
+    atoms: list[tuple[ActiveFlag, AtomDescriptor]]
     bonds: list[tuple[ActiveFlag, BondDescriptor]]
     angles: list[tuple[ActiveFlag, AngleDescriptor]]
     dihedrals: list[tuple[ActiveFlag, DihedralDescriptor]]
 
     def copy_or_update(
         self,
+        atoms: list[tuple[ActiveFlag, AtomDescriptor]] | None = None,
         bonds: list[tuple[ActiveFlag, BondDescriptor]] | None = None,
         angles: list[tuple[ActiveFlag, AngleDescriptor]] | None = None,
         dihedrals: list[tuple[ActiveFlag, DihedralDescriptor]] | None = None,
@@ -31,6 +40,7 @@ class StructureSelection:
         instead of updating the existing instance.
 
         Args:
+            atoms (list[tuple[ActiveFlag, AtomDescriptor]], optional): The list of new atom flags. Defaults to None.
             bonds (list[tuple[ActiveFlag, BondDescriptor]], optional): The list of new Bond flags. Defaults to None.
             angles (list[tuple[ActiveFlag, AngleDescriptor]] | None, optional): List of angles and a flag whether they are currently part of the selection. Defaults to None.
             dihedrals (list[tuple[ActiveFlag, DihedralDescriptor]] | None, optional): List of dihedral index tuples and a flag whether they are currently a part of the selection. Defaults to None.
@@ -41,6 +51,8 @@ class StructureSelection:
         """
         if inplace:
             # Update and create
+            if atoms is not None:
+                self.atoms = atoms
             if bonds is not None:
                 self.bonds = bonds
             if angles is not None:
@@ -50,6 +62,8 @@ class StructureSelection:
 
             return self
         else:
+            if atoms is None:
+                atoms = self.atoms
             if bonds is None:
                 bonds = self.bonds
             if angles is None:
@@ -58,6 +72,7 @@ class StructureSelection:
                 dihedrals = self.dihedrals
 
             return type(self)(
+                atoms=atoms,
                 bonds=bonds,
                 angles=angles,
                 dihedrals=dihedrals,
@@ -79,12 +94,14 @@ class StructureSelection:
         """
         # TODO: FIXME: Implement actual feature selection with geomatch
 
+        atoms = list()
         bonds = list()
         angles = list()
         dihedrals = list()
 
         # Create an initial state selection
         return cls(
+            atoms=atoms,
             bonds=bonds,
             angles=angles,
             dihedrals=dihedrals,
