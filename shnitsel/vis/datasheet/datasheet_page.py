@@ -929,6 +929,10 @@ class DatasheetPage:
         # metainfo.append(('Compound [InChI]', format_inchi(self.inchi)))
 
         metainfo.append(('Number of trajectories', str(num_trajs)))
+        if 'frame' in self.frames.sizes:
+            metainfo.append(('Number of frames', str(self.frames.sizes['frame'])))
+        elif 'time' in self.frames.sizes:
+            metainfo.append(('Number of frames', str(self.frames.sizes['time'])))
         metainfo.append(('Maximum $t$', np.max(var_or_attr(self.frames, 't_max', -1))))
         metainfo.append(
             (
