@@ -8,6 +8,15 @@ from shnitsel.core.geom import get_bond_lengths
 from shnitsel.geo.geomatch import flag_bats_multiple
 from shnitsel.bridges import default_mol
 from shnitsel.clean.common import dispatch_cut
+from shnitsel.units.conversion import convert_length
+
+_default_bond_length_thresholds_angstrom = {'[#6,#7][H]': 2.0, '[*]~[*]': 3.0}
+
+
+def _dict_to_thresholds(keys: list[str], d: dict, units: str) -> xr.DataArray:
+    data = [d.get(c, np.nan) for c in keys]
+    res = xr.DataArray(list(data), coords={'criterion': keys}, attrs={'units': units})
+    return res.astype(float)
 
 
 def lengths_for_searches(atXYZ, searches):
@@ -25,13 +34,27 @@ def lengths_for_searches(atXYZ, searches):
     return bonds
 
 
-def bond_length_filtranda(frames, search_dict):
-    bonds = lengths_for_searches(frames['atXYZ'], list(search_dict))
+def bond_length_filtranda(
+    frames, search_dict: dict[str, Number] | None = None, units='angstrom'
+):
+    if search_dict is None:
+        search_dict = {}
+    criteria = list(search_dict | _default_bond_length_thresholds_angstrom)
+    default_thresholds = _dict_to_thresholds(
+        criteria, _default_bond_length_thresholds_angstrom, units='angstrom'
+    )
+    default_thresholds = convert_length(default_thresholds, to=units)
+    user_thresholds = _dict_to_thresholds(criteria, search_dict, units=units)
+    thresholds = user_thresholds.where(~np.isnan(user_thresholds), default_thresholds)
+
+    bonds = lengths_for_searches(
+        frames['atXYZ'], list(thresholds.coords['criterion'].data)
+    )
     return (
         bonds.groupby('bond_search')
         .max()
         .rename({'bond_search': 'criterion'})
-        .assign_coords({'thresholds': ('criterion', list(search_dict.values()))})
+        .assign_coords({'thresholds': thresholds})
     )
 
 
@@ -40,8 +63,7 @@ def filter_by_length(
     cut: Literal['truncate', 'omit', False] | Number = 'truncate',
     search_dict: dict[str, Number] | None = None,
 ):
-    if search_dict is None:
-        search_dict = {'[#6,#7][H]': 2.0}
+
     frames = frames.assign(
         filtranda=bond_length_filtranda(frames, search_dict=search_dict)
     )
