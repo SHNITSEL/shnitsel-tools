@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 
-from shnitsel.core.filtration2 import (
+from shnitsel.clean import (
     cum_max_quantiles,
     true_upto,
     cum_mask_from_dataset,

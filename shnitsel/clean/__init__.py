@@ -10,4 +10,7 @@ from .common import (
     omit as omit,
     truncate as truncate,
     transect as transect,
+    cum_max_quantiles as cum_max_quantiles,
+    true_upto as true_upto,
+    cum_mask_from_dataset as cum_mask_from_dataset,
 )
