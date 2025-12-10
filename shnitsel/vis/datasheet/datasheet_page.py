@@ -54,7 +54,7 @@ from .figures.time import plot_timeplots
 # )
 from .figures.nacs_hist import plot_nacs_histograms
 from ..plot.pca_biplot import plot_noodleplot
-from .figures.structure import plot_pca_structure, plot_structure
+from .figures.structure import format_inchi, plot_pca_structure, plot_structure
 
 
 @dataclass
@@ -917,7 +917,7 @@ class DatasheetPage:
         )
         metainfo.append(('EST level', self.frames.attrs.get('est_level', 'unknown')))
         metainfo.append(('Compound [smile]', self.smiles))
-        metainfo.append(('Compound [InChI]', self.inchi))
+        # metainfo.append(('Compound [InChI]', format_inchi(self.inchi)))
 
         metainfo.append(('Number of trajectories', str(num_trajs)))
         metainfo.append(('Maximum $t$', np.max(var_or_attr(self.frames, 't_max', -1))))
