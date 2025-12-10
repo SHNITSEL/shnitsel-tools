@@ -12,7 +12,7 @@ from shnitsel.bridges import to_mol
 from shnitsel.core.typedefs import Frames
 
 from .common import centertext, label_plot_grid
-from ...plot.common import figax, mpl_imshow_png
+from ...plot.common import figax, mpl_imshow_png, mpl_svg_into_axes
 
 import xarray as xr
 
@@ -30,6 +30,28 @@ def mol_to_png(mol: rdChem.Mol, width: int = 320, height: int = 240) -> bytes:
     """
 
     d = rdDraw.rdMolDraw2D.MolDraw2DCairo(width, height)
+
+    d.drawOptions().setBackgroundColour((1, 1, 1, 0))
+    d.drawOptions().padding = 0.05
+
+    d.DrawMolecule(mol)
+    d.FinishDrawing()
+    return d.GetDrawingText()
+
+
+def mol_to_svg(mol: rdChem.Mol, width: int = 320, height: int = 240) -> str:
+    """Helper function to plot an rdkit.Mol object as a 2D structural representation using vector graphics
+
+    Args:
+        mol (rdChem.Mol): RDKit representation of the molecule to plot
+        width (int, optional): Width of the canvas to plot to. Defaults to 320.
+        height (int, optional): Height of the canvas to plot to. Defaults to 240.
+
+    Returns:
+        bytes: The drawn structure of the `mol` molecule in 2D as a sequence of bytes.
+    """
+
+    d = rdDraw.rdMolDraw2D.MolDraw2DSVG(width, height)
 
     d.drawOptions().setBackgroundColour((1, 1, 1, 0))
     d.drawOptions().padding = 0.05
@@ -87,7 +109,9 @@ def plot_structure(
     """
     fig, ax = figax(fig, ax)
     try:
-        png = mol_to_png(mol)
+        # png = mol_to_png(mol)
+        svg = mol_to_svg(mol)
+        # print(svg)
     except ImportError as err:
         error(
             "ImportError from rdkit.Chem.Draw while "
@@ -96,7 +120,8 @@ def plot_structure(
         centertext("ImportError while attempting\nto plot structure", ax)
         return ax
 
-    mpl_imshow_png(ax, png)
+    # mpl_imshow_png(ax, png)
+    mpl_svg_into_axes(ax, svg)
 
     if len(name) > 0:
         ax.set_title(name)
@@ -168,12 +193,14 @@ def plot_pca_structure(
         min_ax = axs[(j, 'min')]
         max_ax = axs[(j, 'max')]
 
-        min_mol = to_mol(pos_argmin, to2D=False)
-        max_mol = to_mol(pos_argmax, to2D=False)
+        min_mol = to_mol(pos_argmin, to2D=True)
+        max_mol = to_mol(pos_argmax, to2D=True)
 
         plot_structure(min_mol, ax=min_ax)
         plot_structure(max_mol, ax=max_ax)
         pc_labels.append(f"PC{j + 1}")
+        min_ax.get_yaxis().set_visible(True)
+        min_ax.set_yticks([])
 
     if fig is not None:
         label_plot_grid(fig, row_headers=pc_labels, col_headers=col_labels)
