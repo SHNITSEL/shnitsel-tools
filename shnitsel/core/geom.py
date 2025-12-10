@@ -447,7 +447,7 @@ def get_bats(
 
     for k in d:
         d[k] = d[k].drop_vars(
-            ['atom0', 'atom1', 'atom2', 'atom3', 'atNames'], errors='ignore'
+            ['atom0', 'atom1', 'atom2', 'atom3', 'atNames', 'atNums'], errors='ignore'
         )
 
     return xr.concat(list(d.values()), dim='descriptor')
