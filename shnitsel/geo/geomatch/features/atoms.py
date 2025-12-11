@@ -63,6 +63,7 @@ def __get_atoms_by_indices(match_indices_list: list[tuple], d_atoms: dict) -> di
     dict
         Updated atoms dictionary with flags updated based on the substructure matches.
     """
+    flattened_match_indices = flatten
     updated_atoms = []
     for flag, (idx, symbol) in d_atoms['atoms']:
         atom_active = any(idx in match for match in match_indices_list)
@@ -159,12 +160,6 @@ def flag_atoms(mol: Mol, smarts: str = None, t_idxs: tuple = (), draw=False) -> 
                 )
                 t_idxs_list = [tuple(intersection)]
                 d_flag = __get_atoms_by_indices(t_idxs_list, d_all_atoms)
-
-    if draw:
-        img = __get_highlight_molimg(mol, d_flag)
-        return d_flag, img
-    else:
-        return d_flags_by_indices(t_idxs_list, d_all_atoms)
         else:
             # flatten all matched indices into a set
             matched_atoms = set()
@@ -194,4 +189,5 @@ def flag_atoms(mol: Mol, smarts: str = None, t_idxs: tuple = (), draw=False) -> 
         return d_flag, img
     else:
         return d_flag
+
 
