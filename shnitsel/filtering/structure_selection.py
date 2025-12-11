@@ -1,5 +1,6 @@
 from dataclasses import dataclass
-from typing import Literal, Self, TypeAlias
+import logging
+from typing import Literal, Self, Sequence, TypeAlias
 import rdkit
 import xarray as xr
 
@@ -344,3 +345,91 @@ class StructureSelection:
             dihedrals_selected=dihedrals_selected,
             dihedrals_types=dihedrals_types,
         )
+
+    def select_atoms(
+        self,
+        selection: str
+        | Sequence[str]
+        | AtomDescriptor
+        | Sequence[AtomDescriptor]
+        | None = None,
+        inplace: bool = False,
+    ) -> Self:
+        return self.copy_or_update(inplace=inplace)
+
+    def select_bonds(
+        self,
+        selection: str
+        | Sequence[str]
+        | BondDescriptor
+        | Sequence[BondDescriptor]
+        | None = None,
+        inplace: bool = False,
+    ) -> Self:
+        return self.copy_or_update(inplace=inplace)
+
+    def select_angles(
+        self,
+        selection: str
+        | Sequence[str]
+        | AngleDescriptor
+        | Sequence[AngleDescriptor]
+        | None = None,
+        inplace: bool = False,
+    ) -> Self:
+        return self.copy_or_update(inplace=inplace)
+
+    def select_dihedrals(
+        self,
+        selection: str
+        | Sequence[str]
+        | DihedralDescriptor
+        | Sequence[DihedralDescriptor]
+        | None = None,
+        inplace: bool = False,
+    ) -> Self:
+        return self.copy_or_update(inplace=inplace)
+
+    def select_bats(
+        self,
+        selection: str
+        | Sequence[str]
+        | DihedralDescriptor
+        | Sequence[DihedralDescriptor]
+        | None = None,
+        inplace: bool = False,
+    ) -> Self:
+        return self.copy_or_update(inplace=inplace)
+
+    @staticmethod
+    def __match_pattern(mol: Mol, smarts: str) -> list[Sequence[AtomDescriptor]] | None:
+        """
+        Find all substructure matches of a SMARTS pattern in a molecule.
+
+        Parameters
+        ----------
+        mol : rdkit.Chem.rdchem.Mol
+            RDKit molecule object.
+        smarts : str
+            SMARTS pattern to search for.
+
+        Returns
+        -------
+        list of Sequence of AtomDescriptor
+            Each Entry contains all atom indices corresponding to one match of the SMARTS pattern.
+            Returns an empty list if no match is found.
+        None
+            if the provided SMARTS string was invalid.
+        """
+        pattern = rdkit.Chem.MolFromSmarts(smarts)
+
+        if pattern is None:
+            # TODO: FIXME: Raise ValueError instead?
+            logging.info(
+                f"Invalid SMARTS '{smarts}'. Falling back to full reference molecule."
+            )
+            matches = None
+        else:
+            matches = list(mol.GetSubstructMatches(pattern))
+
+        return matches
