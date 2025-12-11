@@ -297,9 +297,13 @@ def main():
         # plot
         spectra.spectra_all_times,
         # filtration
-        filtration.energy_filtranda,
-        filtration.get_cutoffs,
-        filtration.truncate,
+        clean.energy_filtranda,
+        clean.sanity_check,
+        clean.bond_length_filtranda,
+        clean.filter_by_length,
+        clean.omit,
+        clean.truncate,
+        clean.transect,
         # ase
         write_ase_db,
         # ml

@@ -1,10 +1,17 @@
 import matplotlib.pyplot as plt
 
-from shnitsel.core.filtration2 import (
+from shnitsel.clean import (
     cum_max_quantiles,
     true_upto,
     cum_mask_from_dataset,
 )
+
+
+shnitsel_blue = (44 / 255, 62 / 255, 80 / 255)  # '#2c3e50'
+shnitsel_yellow = '#C4A000'
+shnitsel_magenta = '#7E5273'
+text_color = '#fff'
+text_backgroundcolor = (0, 0, 0, 0.2)
 
 
 def check_thresholds(ds_or_da, quantiles=None):
@@ -35,7 +42,7 @@ def check_thresholds(ds_or_da, quantiles=None):
     for (title, data), ax in zip(quantiles.groupby('criterion'), axs[:, 1]):
         if 'thresholds' in data.coords:
             threshold = data.coords['thresholds'].item()
-            ax.axhline(threshold, c='r')
+            ax.axhline(threshold, c=shnitsel_yellow)
 
         for qval, qdata in data.groupby('quantile'):
             qdata = qdata.squeeze(['criterion', 'quantile'])
@@ -46,24 +53,15 @@ def check_thresholds(ds_or_da, quantiles=None):
             ax.text(qdata['time'][-1], qdata[-1], f"{qval*100} %", va='center', c='k')
 
             t_icept = qdata['intercept'].item()
-            ax.vlines(t_icept, 0, threshold, color='r', ls=':')
+            ax.vlines(t_icept, 0, threshold, color=shnitsel_yellow, ls=':')
             ax.text(
                 t_icept,
                 threshold,
-                f" <{t_icept}",
-                ha='center',
-                va='bottom',
-                c='r',
-                rotation='vertical',
-                fontsize=6,
-            )
-            ax.text(
-                t_icept,
-                threshold,
-                f"{qval*100} %",
+                f"{qval*100} % <{t_icept}",
                 ha='right',
-                va='top',
-                c='r',
+                va='center',
+                c=text_color,
+                backgroundcolor=text_backgroundcolor,
                 rotation='vertical',
                 fontsize=6,
             )
@@ -77,19 +75,28 @@ def check_thresholds(ds_or_da, quantiles=None):
             density=True,
             cumulative=True,
             orientation='horizontal',
-            color='b',
+            color=shnitsel_blue,
         )
         if 'thresholds' in data.coords:
             threshold = data.coords['thresholds'].item()
-            ax.axhline(threshold, c='r')
-            ax.text(0.5, threshold, str(threshold), ha='center', va='bottom', c='r')
+            ax.axhline(threshold, c=shnitsel_yellow)
+            ax.text(
+                0.5,
+                threshold,
+                str(threshold),
+                ha='center',
+                va='bottom',
+                c=text_color,
+                backgroundcolor=text_backgroundcolor,
+            )
             ax.text(
                 0.5,
                 threshold,
                 f"{data.coords['proportion'].item()*100} %",
                 ha='center',
                 va='top',
-                c='r',
+                c=text_color,
+                backgroundcolor=text_backgroundcolor,
             )
 
     axs[-1, 0].set_xlabel('cumulative density\nof per-traj maxima')

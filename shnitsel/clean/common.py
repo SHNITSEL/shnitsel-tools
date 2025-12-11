@@ -5,6 +5,7 @@ from typing import Literal, TypeAlias
 import numpy as np
 import xarray as xr
 
+<<<<<<<< HEAD:shnitsel/clean/filtration2.py
 from shnitsel.core.typedefs import Frames,Stacked, Unstacked
 from shnitsel.data.multi_indices import sel_trajs, stack_trajs, unstack_trajs
 from shnitsel.data.trajectory_format import Trajectory
@@ -17,6 +18,12 @@ _default_energy_thresholds_eV = {
     'ekin_step': 0.7,
     'hop_epot_step': 1.0,
 }
+========
+from shnitsel.core.midx import sel_trajs, stack_trajs, unstack_trajs
+
+Stacked: TypeAlias = xr.Dataset | xr.DataArray
+Unstacked: TypeAlias = xr.Dataset | xr.DataArray
+>>>>>>>> refactor-postprocess:shnitsel/clean/common.py
 
 
 def is_stacked(obj):
@@ -197,22 +204,11 @@ def transect(ds: Trajectory|Frames, cutoff: float):
     return ds.isel({'trajid': traj_selection})
 
 
-#########################
-# Convenience functions #
-#########################
-
-
-
-def energy_filtranda(
+def dispatch_cut(
     frames,
-    *,
-    etot_drift: float | None = None,
-    etot_step: float | None = None,
-    epot_step: float | None = None,
-    ekin_step: float | None = None,
-    hop_epot_step: float | None = None,
-    units='eV',
+    cut: Literal['truncate', 'omit', False] | Number = 'truncate',
 ):
+<<<<<<<< HEAD:shnitsel/clean/filtration2.py
     res = xr.Dataset()
     is_hop = mdiff(frames['astate']) != 0
     e_pot = frames.energy.sel(state=frames.astate).drop_vars('state')
@@ -278,6 +274,8 @@ def sanity_check(
         'units': units,
     }
     frames = frames.assign(filtranda=energy_filtranda(frames, **settings))
+========
+>>>>>>>> refactor-postprocess:shnitsel/clean/common.py
     if not cut:
         return frames.assign(good_upto=cutoffs_from_dataset(frames))
     elif cut == 'truncate':
@@ -288,14 +286,8 @@ def sanity_check(
         return transect(frames, cut)
     else:
         raise ValueError(
-            f"`cut` should be one of {'truncate', 'omit'}, or a number, not {cut}"
+            "`cut` should be one of {'truncate', 'omit'}, or a number, " f"not {cut}"
         )
-
-
-def filter_cleavages(
-    atom_pair_identifiers: list,
-    atom_pair_thresholds: dict,
-): ...
 
 
 ###########################################
