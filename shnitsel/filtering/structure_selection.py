@@ -956,6 +956,17 @@ class StructureSelection:
         width=300,
         height=300,
     ) -> SVG:
+        """Helper function to allow visualization of the structure represented in this selection.
+
+        Args:
+            flag_level (Literal[1, 2, 3, 4], optional): Currently unused. Defaults to 2.
+            highlight_color (tuple[float, float, float] | str, optional): Color to use for highlights of the active parts. Defaults to st_yellow.
+            width (int, optional): Width of the figure. Defaults to 300.
+            height (int, optional): Height of the figure. Defaults to 300.
+
+        Returns:
+            SVG: _description_
+        """
         from rdkit.Chem.Draw import rdMolDraw2D
 
         if isinstance(highlight_color, str):
@@ -969,7 +980,7 @@ class StructureSelection:
         drawer.drawOptions().clearBackground = False
 
         active_bonds = self.__get_active_bonds()
-        active_atoms = self.__get_active_bonds()
+        active_atoms = self.__get_active_atoms()
 
         if len(active_bonds) == 0:
             active_bonds = None
