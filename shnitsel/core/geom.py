@@ -157,7 +157,7 @@ def _check_matches(matches_or_mol, atXYZ, fn=flag_bats):
 def _positions(atXYZ, atom_idxs):
     return [
         atXYZ.sel(atom=list(idxs))
-        .drop(['atom', 'atNames'], errors='raise')
+        .drop(['atom', 'atNames', 'atNums'], errors='raise')
         .rename(atom='descriptor')
         for idxs in zip(*atom_idxs)
     ]
@@ -210,6 +210,15 @@ def _assign_descriptor_coords(
     return obj.assign_coords(coords).set_xindex('descriptor_tex')
 
 
+def _empty_results(atXYZ):
+    data = (
+        atXYZ.drop(['atom', 'atNames', 'atNums'], errors='raise')
+        .isel(atom=[], direction=0, drop=True)
+        .rename({'atom': 'descriptor'})
+    )
+    return _assign_descriptor_coords(data, [], [], [], [], '')
+
+
 @needs(dims={'atom', 'direction'})
 def get_bond_lengths(
     atXYZ: xr.DataArray, matches_or_mol: dict | Mol | None = None
@@ -240,6 +249,8 @@ def get_bond_lengths(
         If both `matches` and `mol` are specified.
     """
     matches = _check_matches(matches_or_mol, atXYZ)['bonds']
+    if len(matches) == 0:
+        return _empty_results(atXYZ)
 
     _, atom_idxs, bond_idxs, bond_types, fragment_objs = zip(*matches)
 
@@ -296,6 +307,8 @@ def get_bond_angles(
         If both `matches` and `mol` are specified.
     """
     matches = _check_matches(matches_or_mol, atXYZ)['angles']
+    if len(matches) == 0:
+        return _empty_results(atXYZ)
 
     _, atom_idxs, bond_idxs, bond_types, fragment_objs = zip(*matches)
 
@@ -354,6 +367,8 @@ def get_bond_torsions(
         An :py:class:`xarray.DataArray` of bond torsions with dimensions `frame` and `torsion`.
     """
     matches = _check_matches(matches_or_mol, atXYZ)['dihedrals']
+    if len(matches) == 0:
+        return _empty_results(atXYZ)
 
     _, atom_idxs, bond_idxs, bond_types, fragment_objs = zip(*matches)
 
