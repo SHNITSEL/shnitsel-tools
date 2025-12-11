@@ -7,6 +7,8 @@ import xarray as xr
 from rdkit.Chem.rdchem import Mol
 
 from shnitsel.bridges import to_mol
+from shnitsel.vis.colormaps import hex2rgb, st_yellow
+from IPython.display import SVG
 
 
 AtomDescriptor: TypeAlias = int
@@ -946,3 +948,74 @@ class StructureSelection:
                 yield from StructureSelection._flatten(item)
         else:
             yield obj
+
+    def draw(
+        self,
+        flag_level: Literal[1, 2, 3, 4] = 2,
+        highlight_color: tuple[float, float, float] | str = st_yellow,
+        width=300,
+        height=300,
+    ) -> SVG:
+        from rdkit.Chem.Draw import rdMolDraw2D
+
+        if isinstance(highlight_color, str):
+            highlight_color = tuple(*hex2rgb(highlight_color))
+
+        # draw molecule with highlights
+        drawer = rdMolDraw2D.MolDraw2DSVG(width, height)
+        drawer.drawOptions().fillHighlights = True
+        drawer.drawOptions().addAtomIndices = True
+        drawer.drawOptions().setHighlightColour(highlight_color)
+        drawer.drawOptions().clearBackground = False
+
+        active_bonds = self.__get_active_bonds()
+        active_atoms = self.__get_active_bonds()
+
+        if len(active_bonds) == 0:
+            active_bonds = None
+        rdMolDraw2D.PrepareAndDrawMolecule(
+            drawer,
+            self.mol,
+            highlightAtoms=active_atoms,
+            highlightBonds=active_bonds,
+        )
+        # drawer.DrawMolecule(mol)
+        drawer.FinishDrawing()
+        img_text = drawer.GetDrawingText()
+        img = SVG(img_text)
+
+        return img
+
+    def __get_active_atoms(
+        self, flag_level: Literal[1, 2, 3, 4] = 1
+    ) -> list[AtomDescriptor]:
+        if flag_level == 1:
+            return list(self.atoms_selected)
+        elif flag_level == 2:
+            return list(set([at for bon in self.bonds_selected for at in bon]))
+        elif flag_level == 3:
+            return list(set([at for an in self.angles_selected for at in an]))
+        elif flag_level == 4:
+            return list(set([at for dih in self.dihedrals_selected for at in dih]))
+
+        return []
+
+    def __get_active_bonds(
+        self, flag_level: Literal[1, 2, 3, 4] = 2
+    ) -> list[BondDescriptor]:
+        if flag_level == 1:
+            return []
+        elif flag_level == 2:
+            return list(self.bonds_selected)
+
+        base_set = self.angles_selected if flag_level == 3 else self.dihedrals_selected
+
+        bond_set = set()
+
+        for tup in base_set:
+            for a in tup:
+                for b in tup:
+                    if a != b:
+                        bond_set.add((a, b))
+
+        return list(bond_set)
