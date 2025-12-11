@@ -164,14 +164,14 @@ def _positions(atXYZ, atom_idxs):
 
 
 def _assign_descriptor_coords(
-    obj,
+    obj: xr.DataArray,
     atom_idxs: list[list[int]],
     bond_idxs: list[list[int]],
     bond_types,
     fragment_objs,
     tex_pattern,
     per_atom_coords=True,
-):
+) -> xr.DataArray:
     smiles = []
     smarts = []
     # without_bonds = []
@@ -273,7 +273,7 @@ def get_bond_angles(
     matches_or_mol: dict | Mol | None = None,
     mol: Mol | None = None,
     ang: Literal[False, 'deg', 'rad'] = False,
-):
+) -> xr.DataArray:
     """Identify triples of bonded atoms (using RDKit) and calculate every bond angle for each
     frame.
 
@@ -337,7 +337,7 @@ def get_bond_torsions(
     matches_or_mol: dict | None = None,
     signed: bool | None = None,
     ang: Literal[False, 'deg', 'rad'] = False,
-):
+) -> xr.DataArray:
     """Identify quadruples of bonded atoms (using RDKit) and calculate the corresponding proper bond torsion for each
     frame.
 
@@ -411,7 +411,7 @@ def get_bats(
     signed: bool | None = None,
     ang: Literal[False, 'deg', 'rad'] = False,
     pyr=False,
-):
+) -> xr.DataArray:
     """Get bond lengths, angles and torsions.
 
     Parameters
@@ -478,7 +478,7 @@ def get_bla_chromophor(
     matches_or_mol: dict | Mol | None = None,
     mol: Mol | None = None,
     ang: Literal[False, 'deg', 'rad'] = False,
-):
+) -> xr.DataArray:
     """Identify triples of bonded atoms (using RDKit) and calculate every bond angle for each
     frame.
 
