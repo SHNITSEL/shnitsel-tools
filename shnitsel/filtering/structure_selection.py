@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 import logging
-from typing import Literal, Self, Sequence, TypeAlias
+from typing import Iterator, Literal, Self, Sequence, TypeAlias
 import rdkit
 import xarray as xr
 
@@ -348,14 +348,72 @@ class StructureSelection:
 
     def select_atoms(
         self,
-        selection: str
+        smarts_or_selection: str
         | Sequence[str]
         | AtomDescriptor
         | Sequence[AtomDescriptor]
         | None = None,
         inplace: bool = False,
     ) -> Self:
-        return self.copy_or_update(inplace=inplace)
+        selection_list: Sequence
+        if isinstance(smarts_or_selection, str) or isinstance(
+            smarts_or_selection, AtomDescriptor
+        ):
+            selection_list = [smarts_or_selection]
+        elif smarts_or_selection is None:
+            selection_list = list(self.atoms.copy())
+        else:
+            selection_list = smarts_or_selection
+
+        idx_set = []
+
+        for entry in selection_list:
+            if isinstance(entry, str):
+                # Handle SMARTS parameter.
+                if self.mol is None:
+                    raise ValueError(
+                        "No Molecule set in selection. Cannot match SMARTS."
+                    )
+                else:
+                    matches = self.__match_pattern(self.mol, entry)
+
+                    idx_set.extend(self._flatten(matches))
+            else:
+                # Handle atom descriptor
+                idx_set.append(entry)
+
+        return self.select_atoms_idx(idx_set, inplace=inplace)
+
+    def select_atoms_idx(
+        self,
+        selection: AtomDescriptor | Sequence[AtomDescriptor] | None = None,
+        extend_selection: bool = False,
+        inplace: bool = False,
+    ) -> Self:
+        """Function to update the selection of atoms by specifying atom indices directly.
+
+        Args:
+            selection (AtomDescriptor | Sequence[AtomDescriptor] | None, optional): Either a single atom selector or a sequence of atom selectors. Defaults to None, which means that all available atoms will be considered.
+            extend_selection (bool, optional): If set to True, the selection will be extended by the atoms denoted by `selection`. Otherwise, the new selection will be the intersection between the old selection and `selection`. Defaults to False.
+            inplace (bool, optional): Whether to update this selection in-place. Defaults to False.
+
+        Returns:
+            StructureSelection: The updated selection.
+        """
+        if isinstance(selection, AtomDescriptor):
+            selection_set = {selection}
+        elif selection is None:
+            selection_set = self.atoms.copy()
+        else:
+            selection_set = set(selection)
+
+        get_only_available = self.atoms.intersection(selection_set)
+        if extend_selection:
+            new_selection = self.atoms_selected.union(get_only_available)
+        else:
+            new_selection = self.atoms_selected.intersection(get_only_available)
+
+        return self.copy_or_update(atoms_selected=new_selection, inplace=inplace)
 
     def select_bonds(
         self,
@@ -363,10 +421,151 @@ class StructureSelection:
         | Sequence[str]
         | BondDescriptor
         | Sequence[BondDescriptor]
+        | Sequence[AtomDescriptor]
+        | Sequence[Sequence[AtomDescriptor]]
         | None = None,
         inplace: bool = False,
     ) -> Self:
-        return self.copy_or_update(inplace=inplace)
+        """Restrict the current selection of bonds by either specifying a SMARTS string (or sequence thereof) to specify substructures of
+        the molecule to consider bonds in, or by providing one or more bond desciptor tuples or by providing a list of atoms that can be
+        passed to the atom-based selection in `self.select_bonds_by_atoms()`.
+
+        Args:
+            selection (str | Sequence[str] | BondDescriptor | Sequence[BondDescriptor] | Sequence[AtomDescriptor] | Sequence[Sequence[AtomDescriptor]] | None, optional): The criterion or criteria by which to retain bonds in the selection. Defaults to None meaning that all bonds will be added back into the selection.
+            inplace (bool, optional): Whether to update the selection in-place or return an updated copy. Defaults to False.
+
+        Raises:
+            ValueError: If no `self.mol` object is set and a SMARTS match is attempted
+
+        Returns:
+            Self: The updated selection object.
+        """
+        new_selection = set()
+        if isinstance(selection, str) or isinstance(selection, tuple):
+            selection_list = [selection]
+        elif selection is None:
+            new_selection = self.bonds.copy()
+            selection_list = []
+        else:
+            selection_list = selection
+
+        for entry in selection_list:
+            if isinstance(entry, str):
+                # Found smarts match:
+                if self.mol is None:
+                    raise ValueError(
+                        "No Molecule set in selection. Cannot match SMARTS."
+                    )
+
+                matches = self.__match_pattern(self.mol, entry)
+                new_selection.update(self._new_bond_selection_from_atoms(matches))
+            elif isinstance(entry, AtomDescriptor):
+                # We have an atom selection list or list thereof. Consume it and stop iteration.
+                new_selection.update(
+                    self._new_bond_selection_from_atoms(selection_list)
+                )
+                break
+            elif isinstance(entry, tuple):
+                new_selection.add(entry)
+            else:
+                # We have a sequence of sequences of atoms:
+                try:
+                    if isinstance(entry[0], AtomDescriptor):
+                        new_selection.update(self._new_bond_selection_from_atoms(entry))
+                except:
+                    pass
+
+        return self.copy_or_update(bonds_selected=new_selection, inplace=inplace)
+
+    def select_bonds_idx(
+        self,
+        selection: BondDescriptor | Sequence[BondDescriptor],
+        inplace: bool = False,
+    ) -> Self:
+        """Helper function to select bonds by specifying the explicit Bond descriptors/tuples.
+
+        Restricts the selection further to this set.
+
+        Args:
+            selection (BondDescriptor | Sequence[BondDescriptor]): Either an individual bond selector or a sequence of bonds to select.
+            inplace (bool, optional): Whether the selection should be updated in-place. Defaults to False.
+
+        Returns:
+            StructureSelection: The updated selections
+        """
+        new_selection = set()
+
+        if isinstance(selection, tuple):
+            if selection in self.bonds_selected:
+                new_selection.add(selection)
+        else:
+            new_selection = self.bonds_selected.intersection(selection)
+
+        return self.copy_or_update(bonds_selected=new_selection, inplace=inplace)
+
+    def select_bonds_by_atoms(
+        self,
+        atoms: Sequence[AtomDescriptor]
+        | Sequence[Sequence[AtomDescriptor]]
+        | None = None,
+        inplace: bool = False,
+    ) -> Self:
+        """Helper function to select bonds by specifying a subset of atoms to consider for bonds between them.
+
+        Allows provision of a single list of atoms or multiple such lists and will iterate over them as needed.
+
+        Args:
+            atoms (Sequence[AtomDescriptor] | Sequence[Sequence[AtomDescriptor]] | None, optional): Either a single set of atoms to keep bonds between or multiple sets within which the bonds should be kept. Defaults to None.
+            inplace (bool, optional): Whether the selection should be updated in-place. Defaults to False.
+
+        Returns:
+            StructureSelection: The updated selections
+        """
+        new_selection = self._new_bond_selection_from_atoms(atoms)
+
+        return self.copy_or_update(bonds_selected=new_selection, inplace=inplace)
+
+    def _new_bond_selection_from_atoms(
+        self,
+        atoms: Sequence[AtomDescriptor]
+        | Sequence[Sequence[AtomDescriptor]]
+        | None = None,
+        consider_all: bool = False,
+    ) -> set[BondDescriptor]:
+        """Internal helper to get bond selection instead of directly updating the selection
+
+        Args:
+            atoms (Sequence[AtomDescriptor] | Sequence[Sequence[AtomDescriptor]] | None, optional):  Either a single set of atoms to keep bonds between or multiple sets within which the bonds should be kept. Defaults to None.
+            consider_all (bool, optional): Whether to use the entire set of features in the whole molecule as basis or just the selected set. Defaults to using only the currently selected set.
+        Returns:
+            set[BondDescriptor]: The set of bond descriptors in current selection fully covered by these atoms
+        """
+
+        basis_set = self.bonds if consider_all else self.bonds_selected
+        new_selection: set[BondDescriptor]
+        if atoms is None:
+            new_selection = self.bonds.copy()
+        else:
+            new_selection = set()
+
+            for entry in atoms:
+                filter_set = None
+                # Flag to allow for breaking out of the loop if the atoms array should have been used as filter instead.
+                break_after = False
+                if isinstance(entry, AtomDescriptor):
+                    # atoms is a sequence of atoms to select from
+                    filter_set = atoms
+                    break_after = True
+                else:
+                    filter_set = entry
+
+                for bond in basis_set:
+                    if bond[0] in filter_set and bond[1] in filter_set:
+                        new_selection.add(bond)
+
+                if break_after:
+                    break
+        return new_selection
 
     def select_angles(
         self,
@@ -374,10 +573,122 @@ class StructureSelection:
         | Sequence[str]
         | AngleDescriptor
         | Sequence[AngleDescriptor]
+        | Sequence[AtomDescriptor]
+        | Sequence[Sequence[AtomDescriptor]]
         | None = None,
         inplace: bool = False,
     ) -> Self:
-        return self.copy_or_update(inplace=inplace)
+        """Function to restrict the angles selection by providing either providing SMARTS strings or explicit angles descriptors
+        or sets of atoms between which to retain angles.
+
+        Args:
+            selection (str | Sequence[str] | AngleDescriptor | Sequence[AngleDescriptor] | Sequence[AtomDescriptor] | Sequence[Sequence[AtomDescriptor]] | None, optional): The criterion or criteria by which to retain angles in the selection. Defaults to None meaning that all angles will be added back into the selection.
+            inplace (bool, optional): Whether the selection should be updated in-place. Defaults to False.
+
+        Returns:
+            Self: The updated selection
+        """
+        new_selection = set()
+        if isinstance(selection, str) or isinstance(selection, tuple):
+            selection_list = [selection]
+        elif selection is None:
+            new_selection = self.angles.copy()
+            selection_list = []
+        else:
+            selection_list = selection
+
+        for entry in selection_list:
+            if isinstance(entry, str):
+                # Found smarts match:
+                matches = self.__match_pattern(self.mol, entry)
+                new_selection.update(self._new_angle_selection_from_atoms(matches))
+            elif isinstance(entry, AtomDescriptor):
+                # We have an atom selection list or list thereof. Consume it and stop iteration.
+                new_selection.update(
+                    self._new_angle_selection_from_atoms(selection_list)
+                )
+                break
+            elif isinstance(entry, tuple):
+                new_selection.add(entry)
+            else:
+                # We have a sequence of sequences of atoms:
+                try:
+                    if isinstance(entry[0], AtomDescriptor):
+                        new_selection.update(
+                            self._new_angle_selection_from_atoms(entry)
+                        )
+                except:
+                    pass
+
+        return self.copy_or_update(angles_selected=new_selection, inplace=inplace)
+
+    def select_angles_by_atoms(
+        self,
+        atoms: Sequence[AtomDescriptor]
+        | Sequence[Sequence[AtomDescriptor]]
+        | None = None,
+        inplace: bool = False,
+    ) -> Self:
+        """Helper function to select angles by specifying a subset of atoms to consider angles between.
+
+        Allows provision of a single list of atoms or multiple such lists and will iterate over them as needed.
+
+        Args:
+            atoms (Sequence[AtomDescriptor] | Sequence[Sequence[AtomDescriptor]] | None, optional): Either a single set of atoms to keep angles between or multiple sets within which the bonds should be kept. Defaults to None.
+            inplace (bool, optional): Whether the selection should be updated in-place. Defaults to False.
+
+        Returns:
+            StructureSelection: The updated selection.
+        """
+        new_selection = self._new_angle_selection_from_atoms(atoms)
+
+        return self.copy_or_update(angles_selected=new_selection, inplace=inplace)
+
+    def _new_angle_selection_from_atoms(
+        self,
+        atoms: Sequence[AtomDescriptor]
+        | Sequence[Sequence[AtomDescriptor]]
+        | None = None,
+        consider_all: bool = False,
+    ) -> set[AngleDescriptor]:
+        """Internal helper to get angle selection instead of directly updating the selection
+
+        Args:
+            atoms (Sequence[AtomDescriptor] | Sequence[Sequence[AtomDescriptor]] | None, optional): Either a single set of atoms to keep angles between or multiple sets within which the bonds should be kept. Defaults to None.
+            consider_all (bool, optional): Whether to use the entire set of features in the whole molecule as basis or just the selected set. Defaults to using only the currently selected set.
+        Returns:
+            set[AngleDescriptor]: The set of agnle descriptors in current selection fully covered by these `atoms`.
+        """
+
+        basis_set = self.angles if consider_all else self.angles_selected
+        new_selection: set[AngleDescriptor]
+        if atoms is None:
+            new_selection = self.angles.copy()
+        else:
+            new_selection = set()
+
+            for entry in atoms:
+                filter_set = None
+                # Flag to allow for breaking out of the loop if the atoms array should have been used as filter instead.
+                break_after = False
+                if isinstance(entry, AtomDescriptor):
+                    # atoms is a sequence of atoms to select from
+                    filter_set = atoms
+                    break_after = True
+                else:
+                    filter_set = entry
+
+                for angle in basis_set:
+                    if (
+                        angle[0] in filter_set
+                        and angle[1] in filter_set
+                        and angle[2] in filter_set
+                    ):
+                        new_selection.add(angle)
+
+                if break_after:
+                    break
+        return new_selection
 
     def select_dihedrals(
         self,
@@ -385,30 +696,209 @@ class StructureSelection:
         | Sequence[str]
         | DihedralDescriptor
         | Sequence[DihedralDescriptor]
+        | Sequence[AtomDescriptor]
+        | Sequence[Sequence[AtomDescriptor]]
         | None = None,
         inplace: bool = False,
     ) -> Self:
-        return self.copy_or_update(inplace=inplace)
+        """Function to restrict the dihedral selection by providing either providing SMARTS strings or explicit dihedral descriptors or sets of atoms between which to retain dihedrals.
+
+        Args:
+            selection (str | Sequence[str] | DihedralDescriptor | Sequence[DihedralDescriptor] | Sequence[AtomDescriptor] | Sequence[Sequence[AtomDescriptor]] | None, optional): The criterion or criteria by which to retain dihedrals in the selection. Defaults to None meaning that all dihedrals will be added back into the selection.
+            inplace (bool, optional): Whether the selection should be updated in-place. Defaults to False.
+
+        Returns:
+            Self: The updated selection
+        """
+        new_selection = set()
+        if isinstance(selection, str) or isinstance(selection, tuple):
+            selection_list = [selection]
+        elif selection is None:
+            new_selection = self.dihedrals.copy()
+            selection_list = []
+        else:
+            selection_list = selection
+
+        for entry in selection_list:
+            if isinstance(entry, str):
+                # Found smarts match:
+                matches = self.__match_pattern(self.mol, entry)
+                new_selection.update(self._new_dihedral_selection_from_atoms(matches))
+            elif isinstance(entry, AtomDescriptor):
+                # We have an atom selection list or list thereof. Consume it and stop iteration.
+                new_selection.update(
+                    self._new_dihedral_selection_from_atoms(selection_list)
+                )
+                break
+            elif isinstance(entry, tuple):
+                new_selection.add(entry)
+            else:
+                # We have a sequence of sequences of atoms:
+                try:
+                    if isinstance(entry[0], AtomDescriptor):
+                        new_selection.update(
+                            self._new_dihedral_selection_from_atoms(entry)
+                        )
+                except:
+                    pass
+
+        return self.copy_or_update(dihedrals_selected=new_selection, inplace=inplace)
+
+    def _new_dihedral_selection_from_atoms(
+        self,
+        atoms: Sequence[AtomDescriptor]
+        | Sequence[Sequence[AtomDescriptor]]
+        | None = None,
+        consider_all: bool = False,
+    ) -> set[DihedralDescriptor]:
+        """Internal helper to get dihedral selection instead of directly updating the selection
+
+        Args:
+            atoms (Sequence[AtomDescriptor] | Sequence[Sequence[AtomDescriptor]] | None, optional): Either a single set of atoms to keep dihedrals between or multiple sets within which the dihedrals should be kept. Defaults to None.
+            consider_all (bool, optional): Whether to use the entire set of features in the whole molecule as basis or just the selected set. Defaults to using only the currently selected set.
+        Returns:
+            set[DihedralDescriptor]: The set of dihedral descriptors in current selection fully covered by these atoms
+        """
+        basis_set = self.dihedrals if consider_all else self.dihedrals_selected
+        new_selection: set[DihedralDescriptor]
+        if atoms is None:
+            new_selection = self.dihedrals.copy()
+        else:
+            new_selection = set()
+
+            for entry in atoms:
+                filter_set = None
+                # Flag to allow for breaking out of the loop if the atoms array should have been used as filter instead.
+                break_after = False
+                if isinstance(entry, AtomDescriptor):
+                    # atoms is a sequence of atoms to select from
+                    filter_set = atoms
+                    break_after = True
+                else:
+                    filter_set = entry
+
+                for dihedral in basis_set:
+                    if all(x in filter_set for x in dihedral):
+                        new_selection.add(dihedral)
+
+                if break_after:
+                    break
+        return new_selection
 
     def select_bats(
         self,
-        selection: str
-        | Sequence[str]
-        | DihedralDescriptor
-        | Sequence[DihedralDescriptor]
-        | None = None,
+        smarts: str | Sequence[str] | None = None,
+        idxs: FeatureDescriptor | Sequence[FeatureDescriptor] | None = None,
+        mode: Literal['intersect', 'ext', 'sub'] = 'intersect',
         inplace: bool = False,
     ) -> Self:
-        return self.copy_or_update(inplace=inplace)
+        """Update entire selection on this molecule to a subset of available atoms, bonds, angles or dihedrals.
+
+        Updates can be requested by providing smarts strings or by providing specific ids of features, where the feature type will be
+        determined based on the length of the tuple.
+
+
+        Args:
+            smarts (str | Sequence[str] | None, optional): One or more smarts to identify subsets of the molecule and the features therein. Defaults to None.
+            idxs (FeatureDescriptor | Sequence[FeatureDescriptor] | None, optional): Either a single tuple or a sequence of tuples to use for the update. Will be assigned based on the length of the tuple. Defaults to None.
+            mode (Literal[&#39;intersect&#39;, &#39;ext&#39;, &#39;sub&#39;], optional): The mode for the update. The new selection can either be the intersection of the current selection and the features covered by the new update set, it can be extended to contain the new update set ('ext') or the new update set can be removed from the current selection (`sub`). Defaults to 'intersect'.
+            inplace (bool, optional): Whether the selection should be updated in-place. Defaults to False.
+
+        Returns:
+            Self: the updated selection
+        """
+        new_atoms_selection = set()
+        new_bonds_selection = set()
+        new_angles_selection = set()
+        new_dihedrals_selection = set()
+
+        consider_all_flag = mode == 'ext'
+
+        if smarts is None and idxs is None:
+            logging.warning("No selection criteria provided.")
+            return self
+
+        if smarts is not None:
+            if isinstance(smarts, str):
+                smarts = [smarts]
+            for smarts_string in smarts:
+                matches = self.__match_pattern(self.mol, smarts_string)
+
+                # TODO: FIXME: Propagate the extension mode further down.
+                # currently, we do not add bonds back if they are not in the selection.
+                # TODO: FIXME: We should add a flag to iterate over the entire set of features instead of just the selected set.
+
+                new_atoms_selection.update(self._flatten(matches))
+                new_bonds_selection.update(
+                    self._new_bond_selection_from_atoms(
+                        matches, consider_all=consider_all_flag
+                    )
+                )
+                new_angles_selection.update(
+                    self._new_angle_selection_from_atoms(
+                        matches, consider_all=consider_all_flag
+                    )
+                )
+                new_dihedrals_selection.update(
+                    self._new_dihedral_selection_from_atoms(
+                        matches, consider_all=consider_all_flag
+                    )
+                )
+
+        if idxs is not None:
+            if isinstance(idxs, AtomDescriptor) or isinstance(idxs, tuple):
+                idxs = [idxs]
+
+            for idx in idxs:
+                if isinstance(idx, AtomDescriptor):
+                    new_atoms_selection.add(idx)
+                else:
+                    tuple_len = len(idx)
+                    if tuple_len == 2:
+                        new_bonds_selection.add(idx)
+                    elif tuple_len == 3:
+                        new_angles_selection.add(idx)
+                    elif tuple_len == 4:
+                        new_dihedrals_selection.add(idx)
+
+        if mode == 'intersect':
+            new_atoms_selection = new_atoms_selection.intersection(self.atoms_selected)
+            new_bonds_selection = new_bonds_selection.intersection(self.bonds_selected)
+            new_angles_selection = new_angles_selection.intersection(
+                self.angles_selected
+            )
+            new_dihedrals_selection = new_dihedrals_selection.intersection(
+                self.dihedrals_selected
+            )
+        elif mode == 'ext':
+            new_atoms_selection.update(self.atoms_selected)
+            new_bonds_selection.update(self.bonds_selected)
+            new_angles_selection.update(self.angles_selected)
+            new_dihedrals_selection.update(self.dihedrals_selected)
+        elif mode == 'sub':
+            new_atoms_selection.difference_update(self.atoms_selected)
+            new_bonds_selection.difference_update(self.bonds_selected)
+            new_angles_selection.difference_update(self.angles_selected)
+            new_dihedrals_selection.difference_update(self.dihedrals_selected)
+
+        return self.copy_or_update(
+            atoms_selected=new_atoms_selection,
+            bonds_selected=new_bonds_selection,
+            angles_selected=new_angles_selection,
+            dihedrals_selected=new_dihedrals_selection,
+            inplace=inplace,
+        )
 
     @staticmethod
-    def __match_pattern(mol: Mol, smarts: str) -> list[Sequence[AtomDescriptor]] | None:
+    def __match_pattern(
+        mol: Mol | None, smarts: str
+    ) -> list[Sequence[AtomDescriptor]] | None:
         """
         Find all substructure matches of a SMARTS pattern in a molecule.
 
         Parameters
         ----------
-        mol : rdkit.Chem.rdchem.Mol
+        mol : rdkit.Chem.rdchem.Mol|None
             RDKit molecule object.
         smarts : str
             SMARTS pattern to search for.
@@ -420,7 +910,14 @@ class StructureSelection:
             Returns an empty list if no match is found.
         None
             if the provided SMARTS string was invalid.
+
+        Raises:
+        -------
+        ValueError: If no `mol` object is provided. Cannot match if not molecule object provided.
         """
+        if mol is None:
+            raise ValueError("No Molecule set in selection. Cannot match SMARTS.")
+
         pattern = rdkit.Chem.MolFromSmarts(smarts)
 
         if pattern is None:
@@ -433,3 +930,19 @@ class StructureSelection:
             matches = list(mol.GetSubstructMatches(pattern))
 
         return matches
+
+    @staticmethod
+    def _flatten(obj) -> Iterator:
+        """Helper functiont to flatten nested lists
+
+        Args:
+            obj (list|Any): A potentially nested set of lists.
+
+        Yields:
+            Iterator[Any]: The iterator to iterate over all entries in the flattened list.
+        """
+        if isinstance(obj, list):
+            for item in obj:
+                yield from StructureSelection._flatten(item)
+        else:
+            yield obj
