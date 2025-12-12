@@ -3,7 +3,6 @@
 from typing import Literal
 
 import numpy as np
-import xarray as xr
 from rdkit import Chem as rc
 
 from shnitsel._contracts import needs
@@ -117,6 +116,8 @@ def default_mol(obj) -> rc.Mol:
 
     if 'mol' in obj.attrs:
         return rc.Mol(obj.attrs['mol'])
+    elif 'mol' in atXYZ.attrs:
+        return rc.Mol(obj.attrs['mol'])
     elif 'smiles_map' in obj.attrs:
         return numbered_smiles_to_mol(obj.attrs['smiles_map'])
     elif 'smiles_map' in atXYZ.attrs:
@@ -129,7 +130,7 @@ def default_mol(obj) -> rc.Mol:
         raise ValueError(
             "Failed to get default mol, please set a smiles map. "
             "For example, if the compound has charge c and frame i contains a representative geometry, use "
-            "frames.attrs['smiles_map'] = frames.atXYZ.isel(frame=i).sh.get_smiles_map(charge=c)"
+            "frames.attrs['smiles_map'] = frames.atXYZ.isel(frame=i).st.get_smiles_map(charge=c)"
         )
 
 
