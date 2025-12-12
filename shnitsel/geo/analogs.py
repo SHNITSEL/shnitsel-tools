@@ -1,6 +1,7 @@
 from functools import reduce
-from itertools import chain
+from itertools import chain, combinations
 from operator import and_
+from typing import Iterable
 
 import numpy as np
 import rdkit.Chem as rc
@@ -11,9 +12,8 @@ from shnitsel.bridges import default_mol, set_atom_props
 from shnitsel.clean.common import is_stacked  # TODO: move
 
 
-def atom_path_to_bond_path(mol, atoms):
-    from itertools import combinations
-
+def _find_atom_pairs(mol, atoms):
+    # TODO: Might we need this elsewhere?
     res = []
     for i, j in combinations(atoms, 2):
         bond = mol.GetBondBetweenAtoms(i, j)
@@ -22,12 +22,34 @@ def atom_path_to_bond_path(mol, atoms):
     return res
 
 
-def substruct_match_to_submol(mol, substruct_match):
-    bond_path = atom_path_to_bond_path(mol, substruct_match)
+def _substruct_match_to_submol(mol, substruct_match):
+    bond_path = _find_atom_pairs(mol, substruct_match)
     return rc.PathToSubmol(mol, bond_path)
 
 
-def list_analogs(ensembles, smarts='', vis=False):
+def list_analogs(
+    ensembles: Iterable[xr.DataArray], smarts: str = '', vis: bool = False
+) -> Iterable[xr.DataArray]:
+    """Extract a common moiety from a selection of ensembles
+
+    Parameters
+    ----------
+    ensembles
+        An ``Iterable`` of ``xr.DataArray``s, each containing the geometries of an ensemble of
+        trajectories for a different compound; they
+    smarts, optional
+        A SMARTS-string indicating the moiety to cut out of each compound;
+        in each case, the match returned by :py:func:`rdkit.Chem.Mol.GetSubstrucMatch`
+        (not necessarily the only possible match) will be used;
+        if no SMARTS is provided, a minimal common submol will be extracted using
+        ``rdFMCS.FindMCS``
+    vis, optional
+        Whether to display a visual indication of the match
+
+    Returns
+    -------
+       An ``Iterable`` of ``xr.DataArray``s
+    """
     if vis:
         from IPython import display
 
@@ -44,7 +66,7 @@ def list_analogs(ensembles, smarts='', vis=False):
         set_atom_props(mol, molAtomMapNumber=True)
         idxs = list(mol.GetSubstructMatch(search))
 
-        res_mol = substruct_match_to_submol(mol, idxs)
+        res_mol = _substruct_match_to_submol(mol, idxs)
         set_atom_props(res_mol, atomNote=True)
         # The following ensures that atoms will be stored in canonical order
         # this is as opposed to using the substructure match directly
@@ -63,7 +85,7 @@ def list_analogs(ensembles, smarts='', vis=False):
     return results
 
 
-def combine_compounds_unstacked(compounds, names=None):
+def _combine_compounds_unstacked(compounds, names=None):
     coord_names = [set(x.coords) for x in compounds]
     coords_shared = reduce(and_, coord_names)
     compounds = [
@@ -86,7 +108,7 @@ def combine_compounds_unstacked(compounds, names=None):
     return xr.concat(compounds, dim='trajid')
 
 
-def combine_compounds_stacked(compounds, names=None):
+def _combine_compounds_stacked(compounds, names=None):
     concat_dim = 'frame'
 
     coord_names = [set(x.coords) for x in compounds]
@@ -130,12 +152,54 @@ def combine_compounds_stacked(compounds, names=None):
     return res
 
 
-def combine_analogs(ensembles, smarts='', names=None, vis=False):
+def combine_analogs(
+    ensembles: Iterable[xr.DataArray],
+    smarts: str = '',
+    names: Iterable[str] | None = None,
+    vis: bool = False,
+) -> xr.DataArray:
+    """Combine ensembles for different compounds by finding the
+    moieties they have in common
+
+    Parameters
+    ----------
+    ensembles
+        An ``Iterable`` of ``xr.DataArray``s, each containing the geometries of an ensemble of
+        trajectories for a different compound; these trajectories should all
+        be in the same format, i.e.:
+
+            - all stacked (with 'frames' dimension indexed by'trajid' and 'time' MultiIndex levels)
+            - all unstacked (with independent 'trajid' and 'time' dimensions)
+
+    smarts, optional
+        A SMARTS-string indicating the moiety to cut out of each compound;
+        in each case, the match returned by :py:func:`rdkit.Chem.Mol.GetSubstrucMatch`
+        (not necessarily the only possible match) will be used;
+        if no SMARTS is provided, a minimal common submol will be extracted using
+        ``rdFMCS.FindMCS``
+    names, optional
+        An ``Iterable`` of ``Hashable`` to identify the compounds;
+        these values will end up in the ``compound`` coordinate, by default None
+    vis, optional
+        Whether to display a visual indication of the match, by default False
+
+    Returns
+    -------
+        An xr.Dataset of trajectories, with a MultiIndex level identifying each
+        trajectory by its compound name (or index, if no names were provided)
+        and trajid
+
+    Raises
+    ------
+    ValueError
+        If the ensembles provided are in a mixture of formats (i.e. some have trajectories
+        stacked, others unstacked)
+    """
     analogs = list_analogs(ensembles, smarts=smarts, vis=False)
     if all(is_stacked(x) for x in analogs):
-        res = combine_compounds_stacked(analogs, names=names)
+        res = _combine_compounds_stacked(analogs, names=names)
     elif not any(is_stacked(x) for x in analogs):
-        res = combine_compounds_unstacked(analogs, names=names)
+        res = _combine_compounds_unstacked(analogs, names=names)
     else:
         raise ValueError("Inconsistent formats")
     # del res.attrs['mol']
