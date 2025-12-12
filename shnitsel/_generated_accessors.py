@@ -398,7 +398,7 @@ class DatasetAccessor(DSManualAccessor):
         """Wrapper for :py:func:`shnitsel.data.multi_indices.stack_trajs`."""
         return stack_trajs(self._obj)
 
-    def write_shnitsel_file(self, savepath: str | os.PathLike | pathlib._local.Path, complevel: int=9):
+    def write_shnitsel_file(self, savepath: str | os.PathLike, complevel: int=9):
         """Wrapper for :py:func:`shnitsel.io.shnitsel.write.write_shnitsel_file`."""
         return write_shnitsel_file(self._obj, savepath, complevel=complevel)
 
