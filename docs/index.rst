@@ -108,5 +108,4 @@ Reference
    top-level
    accessors/ds_accessors
    accessors/da_accessors
-   priority
    api/index
