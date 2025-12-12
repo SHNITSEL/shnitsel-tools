@@ -28,6 +28,32 @@ def energy_filtranda(
     hop_epot_step: float | None = None,
     units='eV',
 ):
+    """Derive energetic filtration targets from an xr.Dataset
+
+    Parameters
+    ----------
+    frames
+        A xr.Dataset with ``astate``, ``energy``, and ideally ``e_kin`` variables
+    etot_drift, optional
+        Threshold for drift of total energy over an entire trajectory, by default 0.2 eV
+    etot_step, optional
+        Threshold for difference in total energy from one frame to the next, ignoring hops
+        , by default 0.1 eV
+    epot_step, optional
+        Threshold for difference in potential energy from one frame to the next, ignoring hops, by default 0.7 eV
+    ekin_step, optional
+        Threshold for difference in kinetic energy from one frame to the next, ignoring hops, by default 0.7 eV
+    hop_epot_step, optional
+        Threshold for difference in potential energy across hops, by default 1.0 eV
+    units, optional
+        Units in which custom thresholds are given, and to which defaults and data will be converted, by default 'eV'
+
+    Returns
+    -------
+        An xr.DataArray of filtration targets stacked along the ``criterion`` dimension;
+        criteria comprise epot_step and hop_epot_step, as well as
+        etot_drift, etot_step and ekin_step if the input contains an e_kin variable
+    """
     res = xr.Dataset()
     is_hop = mdiff(frames['astate']) != 0
     e_pot = frames.energy.sel(state=frames.astate).drop_vars('state')
@@ -86,6 +112,56 @@ def sanity_check(
     plot_thresholds: bool | Sequence[float] = False,
     plot_populations: bool | Literal['independent', 'intersections'] = False,
 ):
+    """Filter trajectories according to energy to exclude unphysical (insane) behaviour
+
+    Parameters
+    ----------
+    frames
+        A xr.Dataset with ``astate``, ``energy``, and ideally ``e_kin`` variables
+    cut, optional
+        Specifies the manner in which to remove data;
+
+            - if 'omit', drop trajectories unless all frames meet criteria (:py:func:`shnitsel.clean.omit`)
+            - if 'truncate', cut each trajectory off just before the first frame that doesn't meet criteria
+              (:py:func:`shnitsel.clean.truncate`)
+            - if a number, interpret this number as a time, and cut all trajectories off at this time,
+              discarding those which violate criteria before reaching the given limit,
+              (:py:func:`shnitsel.clean.transect`)
+            - if ``False``, merely annotate the data;
+        see :py:func:`shnitsel.clean.dispatch_cut`.
+    units, optional
+        Units in which custom thresholds are given, and to which defaults and data will be converted, by default 'eV'
+    etot_drift, optional
+        Threshold for drift of total energy over an entire trajectory, by default 0.2 eV
+    etot_step, optional
+        Threshold for difference in total energy from one frame to the next, ignoring hops
+        , by default 0.1 eV
+    epot_step, optional
+        Threshold for difference in potential energy from one frame to the next, ignoring hops, by default 0.7 eV
+    ekin_step, optional
+        Threshold for difference in kinetic energy from one frame to the next, ignoring hops, by default 0.7 eV
+    hop_epot_step, optional
+        Threshold for difference in potential energy across hops, by default 1.0 eV
+    plot_thresholds
+        See :py:func:`shnitsel.vis.plot.filtration.check_thresholds`.
+
+        - If ``True``, will plot using ``check_thresholds`` with
+        default quantiles
+        - If a ``Sequence``, will plot using ``check_thresholds``
+        with specified quantiles
+        - If ``False``, will not plot threshold plot
+    plot_populations
+        See :py:func:`shnitsel.vis.plot.filtration.validity_populations`.
+
+        - If ``True`` or ``'intersections'``, will plot populations of
+        trajectories satisfying intersecting conditions
+        - If ``'independent'``, will plot populations of
+        trajectories satisfying conditions taken independently
+        - If ``False``, will not plot populations plot
+    Returns
+    -------
+        The sanitized xr.Dataset
+    """
     settings = {
         'etot_drift': etot_drift,
         'etot_step': etot_step,

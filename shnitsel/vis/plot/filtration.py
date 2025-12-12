@@ -15,6 +15,22 @@ text_backgroundcolor = (0, 0, 0, 0.2)
 
 
 def check_thresholds(ds_or_da, quantiles=None):
+    """Display graphs illustrating
+        1. how many trajectories meet each criterion throughout, and
+        2. quantiles of cumulative maxima over time for each criterion, indicating at what times a given
+           proportion has failed the criterion
+
+    Parameters
+    ----------
+    ds_or_da
+        Data to plot
+    quantiles, optional
+        quantiles to display and mark on the right-hand graph, by default None
+
+    Returns
+    -------
+        The matplotlib ``Axes`` object of the plots
+    """
     if hasattr(ds_or_da, 'data_vars'):
         filtranda = ds_or_da['filtranda'].copy()
     else:
@@ -105,6 +121,23 @@ def check_thresholds(ds_or_da, quantiles=None):
 
 
 def validity_populations(ds_or_da, intersections=True):
+    """Display two plots showing
+    1. how many trajectories meet criteria (or combinations thereof) up to a given time
+    2. how many frames would remain if the ensemble were transected at a given time
+    (see :py:func:`shnitsel.clean.transect`)
+
+    Parameters
+    ----------
+    ds_or_da
+        Data to plot
+    intersections, optional
+        whether to plot intersections of criteria (how many trajectories still meet criterion 1 AND criterion 2)
+        or to consider criteria independently
+
+    Returns
+    -------
+        The matplotlib ``Axes`` object of the plots
+    """
     if hasattr(ds_or_da, 'data_vars'):
         filtranda = ds_or_da['filtranda'].copy()
     else:
