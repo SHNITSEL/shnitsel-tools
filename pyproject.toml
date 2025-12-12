@@ -33,6 +33,7 @@ dependencies = [
   "py3dmol>=2.0.4",
   "tqdm>=4.66.2",
   "pyparsing>=3.2.5",
+  "tox-uv>=1.29.0",
 ]
 
 [project.optional-dependencies]
