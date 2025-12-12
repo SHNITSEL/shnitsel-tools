@@ -1,12 +1,12 @@
 from logging import warning
 from numbers import Number
-from typing import Literal
+from typing import Literal, Sequence
 
 import numpy as np
 import xarray as xr
 
 from shnitsel.data.multi_indices import mdiff
-from shnitsel.clean.common import dispatch_cut
+from shnitsel.clean.common import dispatch_cut, dispatch_plots
 from shnitsel.units.conversion import convert_energy
 
 _default_energy_thresholds_eV = {
@@ -83,6 +83,8 @@ def sanity_check(
     epot_step: float = np.nan,
     ekin_step: float = np.nan,
     hop_epot_step: float = np.nan,
+    plot_thresholds: bool | Sequence[float] = False,
+    plot_populations: bool | Literal['independent', 'intersections'] = False,
 ):
     settings = {
         'etot_drift': etot_drift,
@@ -92,5 +94,7 @@ def sanity_check(
         'hop_epot_step': hop_epot_step,
         'units': units,
     }
-    frames = frames.assign(filtranda=energy_filtranda(frames, **settings))
+    filtranda = energy_filtranda(frames, **settings)
+    dispatch_plots(filtranda, plot_thresholds, plot_populations)
+    frames = frames.assign(filtranda=filtranda)
     return dispatch_cut(frames, cut)
