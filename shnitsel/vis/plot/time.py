@@ -9,8 +9,8 @@ import pandas as pd
 import xarray as xr
 
 from shnitsel._contracts import needs
-from shnitsel.core.plot.common import figax
-from shnitsel.core.stats import time_grouped_ci
+from shnitsel.vis.plot.common import figax
+from shnitsel.analyze.stats import time_grouped_confidence_interval
 
 def set_axes(data, ax=None):
     _, ax = figax(ax=ax)
@@ -61,13 +61,13 @@ def plot_ci(data, ax=None):
         coord_name = 'statecomb_names'
     else:
         # TODO FIXME The expand_dims and squeeze steps shouldn't be necessary
-        ci = time_grouped_ci(data.expand_dims('state')).squeeze('state')
+        ci = time_grouped_confidence_interval(data.expand_dims('state')).squeeze('state')
         ax.fill_between('time', 'upper', 'lower', data=ci, alpha=0.3)
         line2d = ax.plot('time', 'mean', data=ci, lw=0.8)
         return set_axes(data, ax)
         
 
-    ci = time_grouped_ci(data)
+    ci = time_grouped_confidence_interval(data)
     for _, sdata in ci.groupby(dim):
         sdata = sdata.squeeze(dim)
         ax.fill_between('time', 'upper', 'lower', data=sdata, alpha=0.3)
