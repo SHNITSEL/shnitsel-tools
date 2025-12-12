@@ -5,7 +5,7 @@ from typing import Literal
 import numpy as np
 import xarray as xr
 
-from shnitsel.core.midx import mdiff
+from shnitsel.data.multi_indices import mdiff
 from shnitsel.clean.common import dispatch_cut
 from shnitsel.units.conversion import convert_energy
 
