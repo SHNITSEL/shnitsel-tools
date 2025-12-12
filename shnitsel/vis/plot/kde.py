@@ -5,7 +5,7 @@ from scipy import stats
 import matplotlib.pyplot as plt
 
 from shnitsel.analyze.pca import pca_and_hops
-from shnitsel.geo.geom import distance, angle, dihedral
+from shnitsel.geo.geocalc import distance, angle, dihedral
 from . import pca_biplot as pb
 from .common import figax
 from shnitsel.bridges import to_mol

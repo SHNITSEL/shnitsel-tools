@@ -6,7 +6,7 @@ import xarray as xr
 
 from shnitsel._contracts import needs
 from shnitsel.bridges import default_mol
-from shnitsel.core.geom import get_bats
+from shnitsel.geo.geocalc import get_bats
 from shnitsel.geo import geomatch
 
 

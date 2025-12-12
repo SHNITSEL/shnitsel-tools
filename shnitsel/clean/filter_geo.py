@@ -4,7 +4,7 @@ from typing import Literal
 import numpy as np
 import xarray as xr
 
-from shnitsel.core.geom import get_bond_lengths
+from shnitsel.geo.geocalc import get_bond_lengths
 from shnitsel.geo.geomatch import flag_bats_multiple
 from shnitsel.bridges import default_mol
 from shnitsel.clean.common import dispatch_cut
