@@ -7,8 +7,9 @@ import xarray as xr
 from shnitsel.geo.geocalc import get_bond_lengths
 from shnitsel.geo.geomatch import flag_bats_multiple
 from shnitsel.bridges import default_mol
-from shnitsel.clean.common import dispatch_cut, dispatch_plots
+from shnitsel.clean.common import dispatch_cut
 from shnitsel.units.conversion import convert_length
+from shnitsel.clean.dispatch_plots import dispatch_plots
 
 _default_bond_length_thresholds_angstrom = {'[#6,#7][H]': 2.0, '[*]~[*]': 3.0}
 

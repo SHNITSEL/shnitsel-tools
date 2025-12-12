@@ -6,7 +6,8 @@ import numpy as np
 import xarray as xr
 
 from shnitsel.data.multi_indices import mdiff
-from shnitsel.clean.common import dispatch_cut, dispatch_plots
+from shnitsel.clean.common import dispatch_cut
+from shnitsel.clean.dispatch_plots import dispatch_plots
 from shnitsel.units.conversion import convert_energy
 
 _default_energy_thresholds_eV = {
