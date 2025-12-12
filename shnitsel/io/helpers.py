@@ -15,7 +15,13 @@ from shnitsel.io.shared.variable_flagging import (
 
 KindType = Literal['sharc', 'nx', 'newtonx', 'pyrai2md', 'shnitsel']
 
-PathOptionsType = str | os.PathLike | pathlib.Path
+# TODO: The `pathlib.Path` part of the Union gets mangled to `pathlib._local.Path`
+# in the `write_shnitsel_file()` accessor when generating using
+# Python 3.13; unfortunately, `pathlib._local.Path` doesn't appear to exist for
+# earlier Python versions and causes an error on `import shnitsel.xarray`.
+# Given that `isinstance(pathlib.Path(), os.PathLike)`, the truncated type alias
+# might be adequate; if so, please remove this notice.
+PathOptionsType = str | os.PathLike
 
 
 @dataclass
