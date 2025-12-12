@@ -4,14 +4,14 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "shnitsel-tools"
-version = "0.0.1"
+version = "0.0.2.dev1"
 authors = [
   { name = "Theodor Everley Röhrkasten", email = "theodor.roehrkasten@fau.de" },
   { name = "Kevin Höllring", email = "kevin.hoellring@fau.de" },
   { name = "Carolin Müller", email = "carolin.cpc.mueller@fau.de" },
 ]
 
-description = "Collect, manage, process, analyze & visualize surface hopping data"
+description = "Collect, manage, process, analyse & visualize surface hopping data"
 readme = "README.md"
 requires-python = ">=3.11"
 classifiers = [
