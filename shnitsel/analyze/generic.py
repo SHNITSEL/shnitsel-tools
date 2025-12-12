@@ -175,6 +175,22 @@ def replace_total(
 
 
 def relativize(da: xr.DataArray, **sel) -> xr.DataArray:
+    """Subtract the minimum of an xr.DataArray from all the array's elements
+
+    Parameters
+    ----------
+    da
+        The xr.DataArray from which to subtract the minimum
+    **sel
+        If keyword parameters are present, the reference minimum is picked
+    from those elements that remain after running :py:meth:`xarray.DataArray.sel`
+    using the keyword parameters as arguments.
+
+
+    Returns
+    -------
+        The result of subtraction, with ``attrs`` intact.
+    """
     res = da - da.sel(**sel).min()
     res.attrs = da.attrs
     return res

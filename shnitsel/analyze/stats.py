@@ -134,7 +134,21 @@ def time_grouped_confidence_interval(
 
 @needs(dims={'state'})
 def get_per_state(frames: Frames) -> PerState:
-    # TODO: FIXME: This needs documentation. And attributes need to be kept.
+    """Isolate the standard per-state properties (energy, forces, permanent dipoles)
+    from an xr.Dataset, and take their norm over all array dimensions other than 'state'
+    so that the resulting variables can be easily plotted against another.
+
+    Parameters
+    ----------
+    frames
+        An xr.Dataset object containing at least 'energy', 'forces' and 'dip_perm' variables
+
+    Returns
+    -------
+    PerState
+        An xr.Dataset object containing only 'energy', 'forces' and 'dip_perm' variables
+    """
+    # TODO: FIXME: Attributes need to be kept.
     # And why create a new dataset instead of amending the original one?
     props_per = {'energy', 'forces', 'dip_perm'}.intersection(frames.keys())
     per_state = frames[props_per].map(keep_norming, keep_attrs=False)
