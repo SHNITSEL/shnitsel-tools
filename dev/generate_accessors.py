@@ -2,9 +2,6 @@ import inspect
 import logging
 from typing import Callable, Dict, List
 
-from shnitsel.data import multi_indices
-from shnitsel.geo import geom
-
 
 def generate_class_code(classes: Dict[str, List[Callable]]) -> str:
     """
@@ -67,7 +64,8 @@ def generate_class_code(classes: Dict[str, List[Callable]]) -> str:
         'needs': '._contracts',
         'DAManualAccessor': '._accessors',
         'DSManualAccessor': '._accessors',
-        'DatasetOrArray': 'shnitsel.core.midx',
+        'DatasetOrArray': 'shnitsel.core.typedefs',
+        'nan': 'numpy',
     }
     plain_imports = {
         'xarray as xr',
@@ -75,6 +73,7 @@ def generate_class_code(classes: Dict[str, List[Callable]]) -> str:
         'collections',
         'numpy',
         'numpy.typing as npt',
+        'numbers',
         'os',
         'pathlib',
         'typing',
@@ -200,15 +199,17 @@ def generate_class_code(classes: Dict[str, List[Callable]]) -> str:
 def main():
     try:
         import shnitsel as st
-        import shnitsel.units as units
+        from shnitsel import bridges
+        from shnitsel import clean
+        from shnitsel import units
+        from shnitsel.analyze import generic, spectra, stats, pca, lda, pls, populations
+        from shnitsel.data import multi_indices
+        import shnitsel.data.helpers as data_helpers
+        from shnitsel.geo import geocalc
         from shnitsel.io.ase.write import write_ase_db
         from shnitsel.vis.plot import p3mhelpers
         from shnitsel.vis.plot import select
-        from shnitsel import bridges
-        from shnitsel.analyze import generic, spectra, stats, pca, lda, pls, populations
-        from shnitsel.clean import filtration
         from shnitsel.vis import vmd
-        import shnitsel.data.helpers as data_helpers
 
     except ImportError as e:
         logging.error(
@@ -246,18 +247,18 @@ def main():
         multi_indices.msel,
         multi_indices.sel_trajs,
         multi_indices.sel_trajids,
-        # filtration
-        filtration.last_time_where,
+        # clean
+        clean.true_upto,
         # geom
-        geom.dihedral,
-        geom.angle,
-        geom.distance,
-        geom.get_bond_lengths,
-        geom.get_bond_angles,
-        geom.get_bond_torsions,
-        geom.get_pyramids,
-        geom.get_bats,
-        geom.kabsch,
+        geocalc.dihedral,
+        geocalc.angle,
+        geocalc.distance,
+        geocalc.get_bond_lengths,
+        geocalc.get_bond_angles,
+        geocalc.get_bond_torsions,
+        geocalc.get_pyramids,
+        geocalc.get_bats,
+        geocalc.kabsch,
         # select
         select.FrameSelector,
         select.TrajSelector,
