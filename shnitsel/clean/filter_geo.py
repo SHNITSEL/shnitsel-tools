@@ -48,7 +48,8 @@ def bond_length_filtranda(
     thresholds = user_thresholds.where(~np.isnan(user_thresholds), default_thresholds)
 
     bonds = lengths_for_searches(
-        frames['atXYZ'], list(thresholds.coords['criterion'].data)
+        convert_length(frames['atXYZ'], to=units),
+        list(thresholds.coords['criterion'].data),
     )
     return (
         bonds.groupby('bond_search')
