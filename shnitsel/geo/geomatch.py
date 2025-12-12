@@ -774,11 +774,10 @@ def __get_all_dihedrals(mol: Mol) -> dict:
             for l in neighbors_k:
                 dihedrals.append((1, (i, j, k, l)))
 
-        # also handle reversed central bond direction (k–j)
-        # giving quadruples (i, k, j, l)
-        for i in neighbors_k:
-            for l in neighbors_j:
-                dihedrals.append((1, (i, k, j, l)))
+        ### to handle reversed central bond direction (k-j) uncomment lines:
+        #for i in neighbors_k:
+        #    for l in neighbors_j:
+        #        dihedrals.append((1, (i, k, j, l)))
 
     return {'dihedrals': dihedrals}
 
