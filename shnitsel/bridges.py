@@ -14,6 +14,25 @@ from .units.definitions import length
 
 @needs(dims={'atom', 'direction'}, coords_or_vars={'atNames'}, not_dims={'frame'})
 def to_xyz(da: AtXYZ, comment='#') -> str:
+    """Convert an xr.DataArray of molecular geometry to an XYZ string
+
+    Parameters
+    ----------
+    da
+        A molecular geometry -- should have dimensions 'atom' and 'direction'
+    comment, optional
+        The comment line for the XYZ, by default '#'
+
+    Returns
+    -------
+        The XYZ data as a string
+
+    Notes
+    -----
+        The units of the outputs will be the same as the array;
+        consider converting to angstrom first, as most tools will expect this.
+    """
+    # TODO: Add parameter to set output unit?
     atXYZ = da.transpose('atom', 'direction').values
     atNames = da.atNames.values
     sxyz = np.char.mod('% 23.15f', atXYZ)
@@ -25,6 +44,24 @@ def to_xyz(da: AtXYZ, comment='#') -> str:
 
 @needs(dims={'atom', 'direction'}, groupable={'time'}, coords_or_vars={'atNames'})
 def traj_to_xyz(traj_atXYZ: AtXYZ) -> str:
+    """Convert an entire trajectory's worth of geometries to an XYZ string
+
+    Parameters
+    ----------
+    traj_atXYZ
+        Molecular geometries -- should have dimensions 'atom' and 'direction'; should
+        also be groupable by 'time' (i.e. either have a 'time' dimension or
+        a 'time' coordinate)
+
+    Returns
+    -------
+        The XYZ data as a string, with time indicated in the comment line of each frame
+
+    Notes
+    -----
+        The units of the outputs will be the same as the array;
+        consider converting to angstrom first, as most tools will expect this.
+    """
     atXYZ = traj_atXYZ.transpose(..., 'atom', 'direction').values
     if atXYZ.ndim == 2:
         atXYZ = atXYZ[None, :, :]
@@ -100,6 +137,19 @@ def to_mol(
 
 
 def numbered_smiles_to_mol(smiles: str) -> rc.Mol:
+    """Convert a numbered SMILES-string to a analogically-numbered Mol object
+
+    Parameters
+    ----------
+    smiles
+        A SMILES string in which each atom is associated with a mapping index,
+        e.g. '[H:3][C:1]#[C:0][H:2]'
+
+    Returns
+    -------
+        An :py:func:`rdkit.Chem.Mol` object with atom indices numbered according
+        to the indices from the SMILES-string
+    """
     mol = rc.MolFromSmiles(smiles, sanitize=False)  # sanitizing would strip hydrogens
     map_new_to_old = [-1 for i in range(mol.GetNumAtoms())]
     for atom in mol.GetAtoms():
@@ -109,6 +159,30 @@ def numbered_smiles_to_mol(smiles: str) -> rc.Mol:
 
 
 def default_mol(obj) -> rc.Mol:
+    """Try many ways to get a representative Mol object for an ensemble:
+
+        1. Use the ``mol`` attr (of either obj or obj['atXYZ']) directly
+        2. Feed the ``smiles_map`` attr (of either ``obj`` or ``obj['atXYZ']``) to
+        :py:func:`shnitsel.bridges.default_mol`
+        3. Take the geometry from the first frame of the molecule and the charge specified in the
+        ``charge`` attr (charge=0 assumed if not specified) and feed these to
+        :py:func:`shnitsel.bridges.to_mol`
+
+    Parameters
+    ----------
+    obj
+        An 'atXYZ' xr.DataArray with molecular geometries
+        or an xr.Dataset containing the above as one of its variables
+
+    Returns
+    -------
+        An rdkit.Chem.Mol object
+
+    Raises
+    ------
+    ValueError
+        If the final approach fails
+    """
     if 'atXYZ' in obj:  # We have a frames Dataset
         atXYZ = obj['atXYZ']
     else:
@@ -129,12 +203,29 @@ def default_mol(obj) -> rc.Mol:
     except (KeyError, ValueError):
         raise ValueError(
             "Failed to get default mol, please set a smiles map. "
-            "For example, if the compound has charge c and frame i contains a representative geometry, use "
+            "For example, if the compound has charge c and frame i "
+            "contains a representative geometry, use "
             "frames.attrs['smiles_map'] = frames.atXYZ.isel(frame=i).st.get_smiles_map(charge=c)"
         )
 
 
 @needs(dims={'atom', 'direction'}, coords_or_vars={'atNames'}, not_dims={'frame'})
 def smiles_map(atXYZ_frame, charge=0, covFactor=1.5) -> str:
+    """Convert a geometry to a SMILES-string, retaining atom order
+
+    Parameters
+    ----------
+    atXYZ_frame
+        An xr.DataArray of molecular geometry
+    charge, optional
+        The charge of the molcule, by default 0
+    covFactor, optional
+        Scales the distance at which atoms are considered bonded, by default 1.5
+
+    Returns
+    -------
+        A SMILES-string in which the mapping number indicates the order in which the
+        atoms appeared in the input matrix, e.g. '[H:3][C:1]#[C:0][H:2]'
+    """
     mol = to_mol(atXYZ_frame, charge=charge, covFactor=covFactor, to2D=True)
     return mol_to_numbered_smiles(mol)
