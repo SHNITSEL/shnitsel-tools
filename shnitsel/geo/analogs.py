@@ -6,7 +6,7 @@ import numpy as np
 import rdkit.Chem as rc
 import xarray as xr
 
-from shnitsel.core.midx import expand_midx
+from shnitsel.data.multi_indices import expand_midx
 from shnitsel.bridges import default_mol, set_atom_props
 from shnitsel.clean.common import is_stacked  # TODO: move
 
@@ -102,6 +102,8 @@ def combine_compounds_stacked(compounds, names=None):
         for x, name in zip(compounds, names)
     ]
 
+    # TODO: Should we set `coords` param? to what?
+    # Current code displays a `FutureWarning` for xarray==2025.11.0
     res = xr.concat(compounds, dim=concat_dim)
 
     trajid_only = xr.concat(
