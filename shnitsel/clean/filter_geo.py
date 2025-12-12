@@ -1,5 +1,5 @@
 from numbers import Number
-from typing import Literal
+from typing import Literal, Sequence
 
 import numpy as np
 import xarray as xr
@@ -7,7 +7,7 @@ import xarray as xr
 from shnitsel.geo.geocalc import get_bond_lengths
 from shnitsel.geo.geomatch import flag_bats_multiple
 from shnitsel.bridges import default_mol
-from shnitsel.clean.common import dispatch_cut
+from shnitsel.clean.common import dispatch_cut, dispatch_plots
 from shnitsel.units.conversion import convert_length
 
 _default_bond_length_thresholds_angstrom = {'[#6,#7][H]': 2.0, '[*]~[*]': 3.0}
@@ -48,7 +48,8 @@ def bond_length_filtranda(
     thresholds = user_thresholds.where(~np.isnan(user_thresholds), default_thresholds)
 
     bonds = lengths_for_searches(
-        frames['atXYZ'], list(thresholds.coords['criterion'].data)
+        convert_length(frames['atXYZ'], to=units),
+        list(thresholds.coords['criterion'].data),
     )
     return (
         bonds.groupby('bond_search')
@@ -62,9 +63,10 @@ def filter_by_length(
     frames,
     cut: Literal['truncate', 'omit', False] | Number = 'truncate',
     search_dict: dict[str, Number] | None = None,
+    plot_thresholds: bool | Sequence[float] = False,
+    plot_populations: bool | Literal['independent', 'intersections'] = False,
 ):
-
-    frames = frames.assign(
-        filtranda=bond_length_filtranda(frames, search_dict=search_dict)
-    )
+    filtranda = bond_length_filtranda(frames, search_dict=search_dict)
+    frames = frames.assign(filtranda=filtranda)
+    dispatch_plots(filtranda, plot_thresholds, plot_populations)
     return dispatch_cut(frames, cut)

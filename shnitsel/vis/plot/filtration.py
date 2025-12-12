@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from shnitsel.clean import (
     cum_max_quantiles,
     true_upto,
-    cum_mask_from_dataset,
+    cum_mask_from_filtranda,
 )
 
 
@@ -104,8 +104,12 @@ def check_thresholds(ds_or_da, quantiles=None):
     return axs
 
 
-def validity_populations(ds, intersections=True):
-    mask = cum_mask_from_dataset(ds)
+def validity_populations(ds_or_da, intersections=True):
+    if hasattr(ds_or_da, 'data_vars'):
+        filtranda = ds_or_da['filtranda'].copy()
+    else:
+        filtranda = ds_or_da.copy()
+    mask = cum_mask_from_filtranda(filtranda)
     if 'thresholds' in mask.coords:
         mask = mask.drop('thresholds')
     if 'good_throughout' in mask.coords:
@@ -134,6 +138,6 @@ def validity_populations(ds, intersections=True):
     else:
         axs[0].legend()
     axs[0].set_ylabel('# trajectories')
-    axs[1].set_ylabel('# frames if transected now')
+    axs[1].set_ylabel('# frames if transected at time')
     axs[1].set_xlabel('time / fs')
     return axs
