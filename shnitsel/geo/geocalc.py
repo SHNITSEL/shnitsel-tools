@@ -5,7 +5,7 @@
     Currently, the first category of function is found under postprocess
 """
 
-from typing import Literal
+from typing import Literal, Iterable
 
 
 import numpy as np
@@ -248,7 +248,7 @@ def distance(atXYZ: AtXYZ, i: int, j: int) -> xr.DataArray:
     return result
 
 
-def ndarray_of_tuples(da, dim):
+def _ndarray_of_tuples(da, dim):
     da = da.transpose(..., dim)
     res = np.empty(len(da), dtype=object)
     list_of_tuples = [tuple(int(i) for i in x.data) for x in da]
@@ -665,6 +665,40 @@ def get_bla_chromophor(
 
 @needs(dims={'atom', 'direction'})
 def identify_pyramids(mol: Mol) -> dict[int, list[int]]:
+    """Identify atoms with three bonds (using RDKit), specifically chain-internal atoms with
+    a single carbon, and chain-terminal atoms with two carbons.
+
+    Each 'pyramid' consists of four atoms. Three of these (the "plane" atoms) are consecutive, and the fourth (the "bending" atom)
+    is bonded to the middle atom of the plane atoms. The pyramidalization is the the angle between the plane of the plane atoms
+    and the bond from the middle plane atom to the bending atom.
+
+    Two sorts of pyramids are currently handled: terminal and chain-internal.
+
+    - Terminal pyramids are those where the central atom is bonded to two hydrogens and a single non-hydrogen;
+      for these, the central atom and the **hydrogens** constitute the plane and the non-hydrogen becomes the bending atom.
+    - Chain-internal pyramids are those where the central atom is bonded to non-hydrogens and a single hydrogen;
+      for these, the central atom and the **non-hydrogens** constitute the plane and the hydrogen becomes the bending atom.
+
+
+    Parameters
+    ----------
+    mol
+        An RDKit Mol object
+
+    Returns
+    -------
+    dict
+        {
+            x1: (a1, b1, c1),
+            x2: (a2, b2, c2),
+            ...
+        }
+    where
+
+        - a, b, c are indices of contiguous atoms used to determine the plane
+        - x is the index of an atom bonded to atom b, considered to be bending
+        above and beneath the plane
+    """
     res = {}
     for a in mol.GetAtoms():
         bonds = a.GetBonds()
@@ -820,8 +854,27 @@ def center_geoms(atXYZ: AtXYZ, by_mass: Literal[False] = False) -> AtXYZ:
     return atXYZ - atXYZ.mean('atom')
 
 
-def rotational_procrustes_(A, B, weight=None):
-    # TODO: FIXME: Document
+def rotational_procrustes_(
+    A: np.ndarray, B: np.ndarray, weight: Iterable[float] | None = None
+) -> np.ndarray:
+    """Rotationally align the geometrie(s) in A to the single geometry in B.
+
+    Parameters
+    ----------
+    A
+        The geometries to process with shape
+        ``(n_geometries, n_points, n_coordinates)``
+    B
+        The reference geometry with shape
+        ``(n_points, n_coordinates)``
+    weight, optional
+        How much importance should be given to the alignment of
+        each point, by default equal importance
+
+    Returns
+    -------
+        An array with the same shape as A
+    """
     from scipy.linalg import svd
 
     if weight is not None:
@@ -843,8 +896,35 @@ def rotational_procrustes_(A, B, weight=None):
     return A @ R
 
 
-def rotational_procrustes(A, B, dim0='atom', dim1='direction', weight=None):
-    # TODO: FIXME: Document
+def rotational_procrustes(
+    A: xr.DataArray,
+    B: xr.DataArray,
+    dim0: str = 'atom',
+    dim1: str = 'direction',
+    weight: Iterable[float] | None = None,
+) -> xr.DataArray:
+    """Rotationally align the geometrie(s) in A to the single geometry in B.
+
+    Parameters
+    ----------
+    A
+        The geometries to process
+    B
+        The reference geometry
+    dim0, optional
+        The name of the dimension over points to be rotated;
+        must be present in ``A`` and ``B`; by default 'atom'
+    dim1, optional
+        The name of the dimension over the coordinates of the aforementioned
+        points; must be present in ``A`` and ``B`; by default 'direction'
+    weight, optional
+        How much importance should be given to the alignment of
+        each point (atom), by default equal importance
+
+    Returns
+    -------
+        An xr.DataArray with the same shape as ``A``
+    """
     return xr.apply_ufunc(
         rotational_procrustes_,
         A,
@@ -857,9 +937,35 @@ def rotational_procrustes(A, B, dim0='atom', dim1='direction', weight=None):
 
 @needs(dims={'atom', 'direction'})
 def kabsch(
-    atXYZ, reference_or_indexers: xr.DataArray | dict | None = None, **indexers_kwargs
-):
-    # TODO: FIXME: Document
+    atXYZ: xr.DataArray,
+    reference_or_indexers: xr.DataArray | dict | None = None,
+    **indexers_kwargs,
+) -> xr.DataArray:
+    """Rotationally align the molecular geometries in ``atXYZ`` to a single molecular geometry
+
+    Parameters
+    ----------
+    atXYZ
+        The geometries to process (with dims 'atom', 'direction')
+
+    reference_or_indexers, optional
+        Either a reference geometry (with dims 'atom', 'direction')
+        or an indexer dictionary which will be passed to ``atXYZ.sel()``
+
+    **indexer_kwargs
+        The keyword-argument form of the indexer to be passed to ``atXYZ.sel()``
+
+    Returns
+    -------
+        The aligned geometries
+
+    Raises
+    ------
+    ValueError
+        If nothing is done to indicate a reference geometry, i.e.
+        neither reference_or_indexers nor indexer_kwargs are passed
+    """
+
     if isinstance(reference_or_indexers, xr.DataArray):
         reference = reference_or_indexers
     elif isinstance(reference_or_indexers, dict):
@@ -871,7 +977,8 @@ def kabsch(
     else:
         raise ValueError("Please specify a reference geometry")
 
-    # atXYZ = center_geoms(atXYZ)
-    # reference = center_geoms(reference)
+    # TODO: is it ever necessary to center the molecule?
+    # If so, should this always be done using the physical center-of-mass,
+    # or is it ever appropriate to use the unweighted mean of points?
 
     return rotational_procrustes(atXYZ, reference)
