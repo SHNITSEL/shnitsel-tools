@@ -171,6 +171,11 @@ result_images
 # VS Code
 .vscode/
 
+# Devenv
+.devenv*
+devenv.*
+.envrc
+
 # Files produced by tests
 tutorials/test_data/newtonx/test_I01_v2.6.nc
 tutorials/test_data/newtonx/test_R02_a_v2.2.nc
