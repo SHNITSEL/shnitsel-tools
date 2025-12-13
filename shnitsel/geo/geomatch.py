@@ -12,8 +12,8 @@ try:
     # can warn on attempted `draw=True`
     from rdkit.Chem import Draw
     from rdkit.Chem.Draw import rdMolDraw2D
-except ImportError:
-    warning(repr(ImportError))
+except ImportError as err:
+    warning(err.msg)
 from IPython.display import SVG
 
 st_yellow = (196/255, 160/255, 0/255)
