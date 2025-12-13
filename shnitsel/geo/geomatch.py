@@ -1,15 +1,19 @@
-import sys, os
 import logging
 from logging import warning, info
-
-import pandas as pd
-import numpy as np
 
 import rdkit
 from rdkit import Chem
 from rdkit.Chem.rdchem import Mol
-from rdkit.Chem import Draw
-from rdkit.Chem.Draw import rdMolDraw2D
+try:
+    # These fail on systems missing libXrender
+    # and are only required for graphical use
+    # anyway
+    # TODO: set variable so geomatch functions
+    # can warn on attempted `draw=True`
+    from rdkit.Chem import Draw
+    from rdkit.Chem.Draw import rdMolDraw2D
+except ImportError:
+    warning(repr(ImportError))
 from IPython.display import SVG
 
 st_yellow = (196/255, 160/255, 0/255)
