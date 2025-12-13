@@ -76,7 +76,10 @@ def angle_(
     Returns:
         xr.DataArray | xr.Variable: The resulting array of the angle calculation still retaining all other dimensions except `direction`.
     """
-    return np.arccos(ddot(a, b) / (dnorm(a) * dnorm(b)))
+    
+    cos_theta = ddot(a, b) / (dnorm(a) * dnorm(b))
+    cos_theta = np.clip(cos_theta, -1.0, 1.0)
+    return np.arccos(cos_theta)
 
 def angle_cos_sin_(a, b):
     """
@@ -128,6 +131,7 @@ def dihedral_(
     """
     abc = normal(a, b, c)
     bcd = normal(b, c, d)
+
     return angle_(abc, bcd)
 
 
