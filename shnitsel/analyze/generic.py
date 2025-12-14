@@ -6,7 +6,7 @@ import numpy as np
 import xarray as xr
 
 from shnitsel.data.multi_indices import midx_combs
-
+from shnitsel.core.typedefs import AtXYZ
 
 from ..core.typedefs import DimName
 
@@ -194,3 +194,29 @@ def relativize(da: xr.DataArray, **sel) -> xr.DataArray:
     res = da - da.sel(**sel).min()
     res.attrs = da.attrs
     return res
+
+
+def calc_norm_pairwise_dists(atXYZ: AtXYZ, **kwargs) -> xr.DataArray:
+    """
+    Compute pairwise distances and normalize them
+
+    Parameters
+    ----------
+    atXYZ
+        A DataArray containing the atomic positions;
+        must have a dimension called 'atom'
+
+    Returns
+    -------
+        A DataArray with the same dimensions as `atXYZ` but transposed
+    """
+    res = (
+        atXYZ.pipe(subtract_combinations, 'atom')
+        .pipe(norm)
+    )
+
+    assert not isinstance(res, tuple)
+    return res
+
+
+
