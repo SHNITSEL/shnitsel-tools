@@ -2,7 +2,7 @@ from shnitsel import _state
 from shnitsel._contracts import needs
 import xarray as xr
 
-from shnitsel.analyze.generic import norm, subtract_combinations
+from shnitsel.analyze.generic import norm, center, subtract_combinations
 from shnitsel.data.multi_indices import mdiff
 from sklearn.decomposition import PCA as sk_PCA
 
@@ -53,6 +53,7 @@ def pairwise_dists_pca(atXYZ: AtXYZ, **kwargs) -> xr.DataArray:
     """
     res = (
         atXYZ.pipe(subtract_combinations, 'atom')
+        .pipe(center)
         .pipe(norm)
         .pipe(pca, 'atomcomb', **kwargs)
     )
