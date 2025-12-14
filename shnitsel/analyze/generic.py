@@ -1,6 +1,6 @@
 import itertools
 import logging
-from typing import Collection
+from typing import Collection, Union
 
 import numpy as np
 import xarray as xr
@@ -38,6 +38,39 @@ def norm(
         keep_attrs=keep_attrs,
     )
     return res
+
+
+def center(
+    da: xr.DataArray,
+    dim: DimName = 'frame',
+    keep_attrs: Union[bool, str, None] = None) -> xr.DataArray:
+    """
+    Subtract the mean of a DataArray along a specified dimension.
+
+    Parameters
+    ----------
+    da : DataArray
+        Input array to be centered.
+    dim : str, optional
+        Dimension along which to compute the mean, by default 'frame'.
+    keep_attrs : bool or str or None, optional
+        How to handle attributes; passed to xr.apply_ufunc, by default None.
+
+    Returns
+    -------
+    DataArray
+        Centered DataArray with the same dimensions as input.
+    """
+    mean_da = da.mean(dim=dim)
+    centered_da = xr.apply_ufunc(
+        lambda x, m: x - m,
+        da,
+        mean_da,
+        input_core_dims=[[], []],
+        keep_attrs=keep_attrs,
+        vectorize=True,
+    )
+    return centered_da
 
 
 # @needs(dims={'statecomb'}, coords={'statecomb'})
@@ -196,27 +229,38 @@ def relativize(da: xr.DataArray, **sel) -> xr.DataArray:
     return res
 
 
-def calc_norm_pairwise_dists(atXYZ: AtXYZ, **kwargs) -> xr.DataArray:
+def get_standardized_pairwise_dists(
+        atXYZ: AtXYZ, 
+        mean: bool = True, 
+        **kwargs) -> xr.DataArray:
     """
-    Compute pairwise distances and normalize them
+    Compute pairwise distances and standardize it by removing the mean 
+    and L2-normalization (if your features are vectors and you want magnitudes only, 
+    to lose directional info)
 
     Parameters
     ----------
     atXYZ
         A DataArray containing the atomic positions;
         must have a dimension called 'atom'
+    mean : bool, optional
+        If True, subtract the mean (centering), by default True
 
     Returns
     -------
         A DataArray with the same dimensions as `atXYZ` but transposed
     """
-    res = (
-        atXYZ.pipe(subtract_combinations, 'atom')
-        .pipe(norm)
-    )
+
+    res = atXYZ.pipe(subtract_combinations, 'atom')
+
+    if mean:
+        res = res.pipe(center)
+    
+    res = res.pipe(norm, **kwargs)
 
     assert not isinstance(res, tuple)
     return res
+
 
 
 
