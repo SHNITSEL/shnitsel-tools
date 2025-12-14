@@ -3,6 +3,7 @@ from shnitsel._contracts import needs
 import xarray as xr
 
 from shnitsel.analyze.generic import norm, center, subtract_combinations
+from shnitsel.analyze.generic import get_standardized_pairwise_dists
 from shnitsel.data.multi_indices import mdiff
 from sklearn.decomposition import PCA as sk_PCA
 
@@ -13,13 +14,15 @@ from shnitsel.core.typedefs import AtXYZ
 
 
 @needs(coords_or_vars={'atXYZ', 'astate'})
-def pca_and_hops(frames: xr.Dataset) -> tuple[xr.DataArray, xr.DataArray]:
+def pca_and_hops(frames: xr.Dataset, mean: bool) -> tuple[xr.DataArray, xr.DataArray]:
     """Get PCA points and info on which of them represent hops
 
     Parameters
     ----------
     frames
         A Dataset containing 'atXYZ' and 'astate' variables
+    mean
+        mean center data before pca if true
 
     Returns
     -------
@@ -29,14 +32,14 @@ def pca_and_hops(frames: xr.Dataset) -> tuple[xr.DataArray, xr.DataArray]:
         `pca_res` filtered by hops, to facilitate marking hops when plotting
 
     """
-    pca_res = pairwise_dists_pca(frames['atXYZ'])
+    pca_res = pairwise_dists_pca(frames['atXYZ'], mean)
     mask = mdiff(frames['astate']) != 0
     hops_pca_coords = pca_res[mask]
     return pca_res, hops_pca_coords
 
 
 @needs(dims={'atom'})
-def pairwise_dists_pca(atXYZ: AtXYZ, **kwargs) -> xr.DataArray:
+def pairwise_dists_pca(atXYZ: AtXYZ, mean: bool = False, return_pca_object=False, **kwargs) -> xr.DataArray:
     """PCA-reduced pairwise interatomic distances
 
     Parameters
@@ -51,14 +54,16 @@ def pairwise_dists_pca(atXYZ: AtXYZ, **kwargs) -> xr.DataArray:
         dimension, which is replaced by a dimension 'PC' containing the principal
         components (by default 2)
     """
-    res = (
-        atXYZ.pipe(subtract_combinations, 'atom')
-        .pipe(center)
-        .pipe(norm)
-        .pipe(pca, 'atomcomb', **kwargs)
-    )
+
+    descr = get_standardized_pairwise_dists(atXYZ, mean=mean)
+    res, pca_obj = pca(descr, 'atomcomb', return_pca_object=True, **kwargs)
+
     assert not isinstance(res, tuple)  # typing
-    return res
+
+    if return_pca_object:
+        return res, pca_obj
+    else:
+        return res
 
 
 def pca(
@@ -106,11 +111,9 @@ def pca(
         accessor_object.pca_object = pipeline
 
     if return_pca_object:
-        # Return only PCA part of pipeline for backward-compatibility
         return (pca_res, pipeline)
     else:
         return pca_res
-
 
 # Alternative names
 principal_component_analysis = pca

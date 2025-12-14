@@ -75,7 +75,8 @@ def biplot_kde(
     levels: int | list[float] | None = None,
     scatter_color: Literal['time', 'geo'] = 'time',
     fill: bool = True,
-    nbins=4
+    nbins=4,
+    mean=False
 ):
     """\
     Generates a biplot that visualizes PCA projections and kernel density estimates (KDE) 
@@ -157,9 +158,9 @@ def biplot_kde(
     structaxs = structsf.subplot_mosaic('ab\ncd')
 
     # prepare data
-    noodle, hops = pca_and_hops(frames)
+    noodle, hops = pca_and_hops(frames, mean=mean)
     kde_data = fit_and_eval_kdes(noodle, geo_prop, geo_filter, fineness=100)
-    d = pb.pick_clusters(frames, nbins=nbins)
+    d = pb.pick_clusters(frames, nbins=nbins, mean=mean)
     loadings, clusters, picks = d['loadings'], d['clusters'], d['picks']
     mol = to_mol(frames['atXYZ'].isel(frame=0), atomLabel=True)
 
