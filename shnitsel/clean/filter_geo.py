@@ -20,9 +20,13 @@ def _dict_to_thresholds(keys: list[str], d: dict, units: str) -> xr.DataArray:
     return res.astype(float)
 
 
-def _lengths_for_searches(atXYZ, searches):
-    mol = default_mol(atXYZ)
+def _lengths_for_searches(atXYZ, mol, searches):
+    
+    if not mol:
+        mol = default_mol(atXYZ)
+
     matches = flag_bats_multiple(mol, searches)
+
     bonds = xr.concat(
         [
             (x := get_bond_lengths(atXYZ, v)).assign_coords(
@@ -36,8 +40,8 @@ def _lengths_for_searches(atXYZ, searches):
 
 
 def bond_length_filtranda(
-    frames, search_dict: dict[str, Number] | None = None, units='angstrom'
-):
+    frames, mol, search_dict: dict[str, Number] | None = None, units='angstrom'
+    ):
     """Derive bond length filtration targets from an xr.Dataset
 
     Parameters
@@ -62,18 +66,26 @@ def bond_length_filtranda(
     """
     if search_dict is None:
         search_dict = {}
-    criteria = list(search_dict | _default_bond_length_thresholds_angstrom)
-    default_thresholds = _dict_to_thresholds(
-        criteria, _default_bond_length_thresholds_angstrom, units='angstrom'
-    )
-    default_thresholds = convert_length(default_thresholds, to=units)
-    user_thresholds = _dict_to_thresholds(criteria, search_dict, units=units)
-    thresholds = user_thresholds.where(~np.isnan(user_thresholds), default_thresholds)
+        criteria = list(_default_bond_length_thresholds_angstrom)
+        default_thresholds = _dict_to_thresholds(
+                criteria, _default_bond_length_thresholds_angstrom, units='angstrom'
+                )
+        default_thresholds = convert_length(default_thresholds, to=units)
+        thresholds = default_thresholds
+    else:
+        criteria = list(search_dict.keys())
+        user_thresholds = _dict_to_thresholds(criteria, search_dict, units=units)
+        thresholds = user_thresholds
+        #user_thresholds.where(~np.isnan(user_thresholds), default_thresholds)
+
+    convert_coords = convert_length(frames['atXYZ'], to=units)
 
     bonds = _lengths_for_searches(
-        convert_length(frames['atXYZ'], to=units),
+        convert_coords,
+        mol,
         list(thresholds.coords['criterion'].data),
     )
+
     return (
         bonds.groupby('bond_search')
         .max()
@@ -84,6 +96,7 @@ def bond_length_filtranda(
 
 def filter_by_length(
     frames,
+    mol,
     cut: Literal['truncate', 'omit', False] | Number = 'truncate',
     search_dict: dict[str, Number] | None = None,
     units: str = 'angstrom',
@@ -97,6 +110,8 @@ def filter_by_length(
     frames
         A xr.Dataset with an ``atXYZ`` variable (NB. this function takes an xr.Dataset as
         opposed to an xr.DataArray for consistency with :py:func:`shnitsel.clean.sanity_check`)
+    mol
+        An rdkit mol object, if not provided it will be generated from the XYZ coordinates in the data
     cut, optional
         Specifies the manner in which to remove data;
 
@@ -136,7 +151,10 @@ def filter_by_length(
     -------
         The filtered Dataset
     """
-    filtranda = bond_length_filtranda(frames, search_dict=search_dict, units=units)
+    filtranda = bond_length_filtranda(frames, mol, search_dict=search_dict, units=units)
     frames = frames.assign(filtranda=filtranda)
     dispatch_plots(filtranda, plot_thresholds, plot_populations)
+
     return dispatch_cut(frames, cut)
+
+
