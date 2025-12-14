@@ -231,7 +231,6 @@ def relativize(da: xr.DataArray, **sel) -> xr.DataArray:
 
 def get_standardized_pairwise_dists(
         atXYZ: AtXYZ, 
-        mean: bool = True, 
         **kwargs) -> xr.DataArray:
     """
     Compute pairwise distances and standardize it by removing the mean 
@@ -243,20 +242,17 @@ def get_standardized_pairwise_dists(
     atXYZ
         A DataArray containing the atomic positions;
         must have a dimension called 'atom'
-    mean : bool, optional
-        If True, subtract the mean (centering), by default True
 
     Returns
     -------
         A DataArray with the same dimensions as `atXYZ` but transposed
     """
 
-    res = atXYZ.pipe(subtract_combinations, 'atom')
-
-    if mean:
-        res = res.pipe(center)
-    
-    res = res.pipe(norm, **kwargs)
+    res = (
+        atXYZ.pipe(subtract_combinations, 'atom')
+        .pipe(center)
+        .pipe(norm)
+    )
 
     assert not isinstance(res, tuple)
     return res
