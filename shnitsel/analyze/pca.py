@@ -107,7 +107,7 @@ def pca(
 
     if return_pca_object:
         # Return only PCA part of pipeline for backward-compatibility
-        return (pca_res, pipeline[-1])
+        return (pca_res, pipeline)
     else:
         return pca_res
 
