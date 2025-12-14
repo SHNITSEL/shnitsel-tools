@@ -75,6 +75,7 @@ def biplot_kde(
     levels: int | list[float] | None = None,
     scatter_color: Literal['time', 'geo'] = 'time',
     fill: bool = True,
+    nbins=4
 ):
     """\
     Generates a biplot that visualizes PCA projections and kernel density estimates (KDE) 
@@ -103,6 +104,8 @@ def biplot_kde(
     fill
         Whether to plot filled contours (``fill=True``, uses ``ax.contourf``)
         or just contour lines (``fill=False``, uses ``ax.contour``).
+    nbins
+        number of bins to be visualized, must be an integer between 1 and 4
 
     Returns
     -------
@@ -156,7 +159,7 @@ def biplot_kde(
     # prepare data
     noodle, hops = pca_and_hops(frames)
     kde_data = fit_and_eval_kdes(noodle, geo_prop, geo_filter, fineness=100)
-    d = pb.pick_clusters(frames, nbins=4)
+    d = pb.pick_clusters(frames, nbins=nbins)
     loadings, clusters, picks = d['loadings'], d['clusters'], d['picks']
     mol = to_mol(frames['atXYZ'].isel(frame=0), atomLabel=True)
 
