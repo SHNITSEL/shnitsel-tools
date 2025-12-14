@@ -279,7 +279,7 @@ def _check_matches(matches_or_mol, atXYZ, fn=flag_bats):
 def _positions(atXYZ, atom_idxs):
     return [
         atXYZ.sel(atom=list(idxs))
-        .drop(['atom', 'atNames', 'atNums'], errors='raise')
+        .drop(['atom', 'atNames', 'atNums'], errors='ignore')
         .rename(atom='descriptor')
         for idxs in zip(*atom_idxs)
     ]
