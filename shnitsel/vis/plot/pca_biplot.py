@@ -274,6 +274,9 @@ def plot_clusters3(loadings, clusters, ax=None, labels=None, axs=None, mol=None)
     if labels is None:
         labels = list('abcdefghijklmnopqrstuvwxyz')
 
+    for mol_ax in axs.values():
+        mol_ax.axis('off')
+
     for i, cluster in enumerate(clusters):
         acs = loadings.isel(atomcomb=cluster)
         x, y = acs.mean(dim='atomcomb')
