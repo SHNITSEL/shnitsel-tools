@@ -120,12 +120,13 @@ def plot_shaded(data, ax):
         raise ImportError('plot_shaded requires the optional datashader dependency') from err
     try:
         import colorcet
-        cmap = colorcet.fire
+
+        cmap = colorcet.bjy
     except ImportError:
         warning("colorcet package not installed; falling back on viridis cmap")
         cmap = plt.get_cmap('viridis')
-    with plt.style.context("dark_background"):
-        _, ax = figax(ax=ax)
+
+    _, ax = figax(ax=ax)
 
     x = []
     y = []
@@ -138,12 +139,11 @@ def plot_shaded(data, ax):
     })
     cvs = ds.Canvas(plot_height=2000, plot_width=2000)
     agg = cvs.line(df, x='x', y='y', agg=ds.count(), line_width=5, axis=1)
-    img = ds.tf.shade(agg, how='eq_hist', cmap=cmap)
+    img = ds.tf.shade(agg, how='log', cmap=cmap)
     arr = np.array(img.to_pil())
     x0, x1 = agg.coords['x'].values[[0,-1]]
-    y0, y1 = agg.coords['y'].values[[0,-1]]
-    with plt.style.context('dark_background'):
-        ax.imshow(arr, extent=[x0, x1, y0, y1], aspect='auto')
+    y0, y1 = agg.coords['y'].values[[0, -1]]
+    ax.imshow(arr, extent=[x0, x1, y0, y1], aspect='auto')
     return set_axes(data, ax)
 
 @needs(coords={"time"})
