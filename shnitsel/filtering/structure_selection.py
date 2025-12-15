@@ -971,7 +971,7 @@ class StructureSelection:
         from rdkit.Chem.Draw import rdMolDraw2D
 
         if isinstance(highlight_color, str):
-            highlight_color = tuple(*hex2rgb(highlight_color))
+            highlight_color = tuple(hex2rgb(highlight_color))
 
         # draw molecule with highlights
         drawer = rdMolDraw2D.MolDraw2DSVG(width, height)
@@ -985,6 +985,14 @@ class StructureSelection:
 
         if len(active_bonds) == 0:
             active_bonds = None
+        else:
+            active_bonds = self.__bond_descriptor_to_mol_index(active_bonds)
+
+        # print(f"{drawer=}")
+        # print(f"{self.mol=}")
+        # print(f"{active_atoms=}")
+        # print(f"{active_bonds=}")
+
         rdMolDraw2D.PrepareAndDrawMolecule(
             drawer,
             self.mol,
@@ -1001,6 +1009,20 @@ class StructureSelection:
     def __get_active_atoms(
         self, flag_level: Literal[1, 2, 3, 4] = 1
     ) -> list[AtomDescriptor]:
+        """Helper function to get the list of atoms involved in the selection at feature level `flag_level`.
+
+        Available levels are:
+        - 1: atoms selected
+        - 2: bonds selected
+        - 3: angles selected
+        - 4: dihedrals selected
+
+        Args:
+            flag_level (Literal[1, 2, 3, 4], optional): The level of selection that should be used for finding all involved bonds. Defaults to 1.
+
+        Returns:
+            list[AtomDescriptor]: The list of atom indices involved in the selection at the desired feature level.s
+        """
         if flag_level == 1:
             return list(self.atoms_selected)
         elif flag_level == 2:
@@ -1015,6 +1037,14 @@ class StructureSelection:
     def __get_active_bonds(
         self, flag_level: Literal[1, 2, 3, 4] = 2
     ) -> list[BondDescriptor]:
+        """Get the list of active bonds at a certain level of selection, i.e. in bonds, in angles or in dihedrals.
+
+        Args:
+            flag_level (Literal[1, 2, 3, 4], optional): The level of selection that should be used for finding all involved bonds. Needs to be at least 2 (`bonds`) to yield any bonds. Defaults to 2.
+
+        Returns:
+            list[BondDescriptor]: The list of involved bond descriptors at that feature level.
+        """
         if flag_level == 1:
             return []
         elif flag_level == 2:
@@ -1028,6 +1058,30 @@ class StructureSelection:
             for a in tup:
                 for b in tup:
                     if a != b:
-                        bond_set.add((a, b))
+                        bond_set.add((int(a), int(b)))
 
         return list(bond_set)
+
+    def __bond_descriptor_to_mol_index(
+        self, bond_descriptors: list[BondDescriptor]
+    ) -> list[int]:
+        """Helper function to translate a list of Bond descriptors into RDKit bond indices.
+
+        Args:
+            bond_descriptors (list[BondDescriptor]): The list of BondDescriptor tuples that we want to translate into RDKit mol internal bond indices.
+
+        Returns:
+            list[int]: The mapped list of RDKit self.mol internal bond indices.
+
+        Raise:
+            AssertionError: if self.mol is None, no mapping can be performed.
+        """
+        res: list[int] = []
+        assert self.mol is not None, (
+            'No molecule set for this selection. Cannot resolve bond ids.'
+        )
+        for entry in bond_descriptors:
+            bond = self.mol.GetBondBetweenAtoms(entry[0], entry[1])
+            res.append(bond.GetIdx())
+
+        return res
