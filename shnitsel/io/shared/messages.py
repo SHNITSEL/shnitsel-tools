@@ -1,19 +1,23 @@
 import logging
 import logging.handlers
 import multiprocessing
+from multiprocessing import Queue
+
+from pyparsing import Any
+
 
 logging.LogRecord
 
 
 def setup_queue_handler(
-    queue: multiprocessing.Queue | None, logger_name: str = 'multiprocessing_logger'
+    queue: Any | None, logger_name: str = 'multiprocessing_logger'
 ) -> tuple[
-    multiprocessing.Queue,
+    Any,
     logging.handlers.QueueHandler,
     logging.Logger,
     list[logging.Handler],
 ]:
-    """Helper function to register a queue handler with a multiprocessing.Queue to collect all messages during a multi-process execution environment.
+    """Helper function to register a queue handler with a `multiprocessing.Queue` to collect all messages during a multi-process execution environment.
 
     Returns the queue (which is created if not provided), the QueueHandler and the Logger object specified.
     Can be used for cleanup in `collect_and_clean_queue_handler()`.
@@ -26,7 +30,7 @@ def setup_queue_handler(
         tuple[multiprocessing.Queue, logging.handlers.QueueHandler, logging.Logger, list[logging.Handler]]: The tuple of Queue, QueueHandler and Logger that has been registered with each other. Finally the original set of handlers registered with the logger that should be restored afterwards
     """
     if queue is None:
-        queue = multiprocessing.Queue(-1)
+        queue = Queue(-1)
     handler = logging.handlers.QueueHandler(queue)
 
     mp_logger = logging.getLogger(logger_name)
@@ -43,7 +47,7 @@ def setup_queue_handler(
 
 
 def collect_and_clean_queue_handler(
-    queue: multiprocessing.Queue,
+    queue: Any,
     handler: logging.handlers.QueueHandler | None = None,
     logger: logging.Logger | None = None,
     original_handlers: list[logging.Handler] | None = None,
@@ -108,16 +112,19 @@ def handle_records(records: list[logging.LogRecord], logger: logging.Logger | No
         records (list[logging.LogRecord]): The list of collected log records to be handled and compressed.
         logger (logging.Logger | None): The logger to handle the collected records with. Defaults to the root logger if not provided.
     """
+    # print("Handling collected records... " + str(len(records)))
     if logger is None:
         logger = logging.getLogger()
 
     if logger.getEffectiveLevel() == logging.DEBUG:
+        # print("Printing all messages...")
         # If we are debugging, output all messages
         for record in records:
             # Get the logger specified by the record and process the log message
             logger.handle(record)
     else:
         # Attempt to combine messages
+        # print("Combining messages...")
 
         # Maps log level and message string to the number of encounters
         num_encounters: dict[tuple[int, str], int] = {}
@@ -130,6 +137,7 @@ def handle_records(records: list[logging.LogRecord], logger: logging.Logger | No
                 retained_severe_list.append(record)
             else:
                 collision_key: tuple[int, str] = (record.levelno, record.msg)
+                # print(f"{collision_key=}")
                 if collision_key in num_encounters:
                     num_encounters[collision_key] += 1
                 else:
@@ -143,7 +151,7 @@ def handle_records(records: list[logging.LogRecord], logger: logging.Logger | No
             logger.info("Collected the following log messages:")
             for collision_key in retained_key_list:
                 record = reduced_record_map[collision_key]
-                if num_encounters[collision_key] > 0:
+                if num_encounters[collision_key] > 1:
                     record.msg = f"{num_encounters[collision_key]} times: " + record.msg
 
                 logger.handle(record)
