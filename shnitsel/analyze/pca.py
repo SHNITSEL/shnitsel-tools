@@ -2,7 +2,6 @@ from shnitsel import _state
 from shnitsel._contracts import needs
 import xarray as xr
 
-from shnitsel.analyze.generic import norm, center, subtract_combinations
 from shnitsel.analyze.generic import get_standardized_pairwise_dists
 from shnitsel.data.multi_indices import mdiff
 from sklearn.decomposition import PCA as sk_PCA

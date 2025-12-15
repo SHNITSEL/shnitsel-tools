@@ -9,9 +9,8 @@ from matplotlib.axes import Axes
 
 from scipy import stats
 
-from shnitsel.analyze.generic import norm, subtract_combinations
 from shnitsel.analyze.generic import get_standardized_pairwise_dists
-from shnitsel.analyze.pca import pca, pairwise_dists_pca
+from shnitsel.analyze.pca import pca
 
 from .common import figax, extrude, mpl_imshow_png
 from ...rd import highlight_pairs
