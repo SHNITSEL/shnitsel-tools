@@ -1,5 +1,5 @@
 from functools import reduce
-from itertools import chain, combinations
+from itertools import combinations
 from operator import and_
 from typing import Any, Iterable
 
