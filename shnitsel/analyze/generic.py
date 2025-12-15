@@ -61,15 +61,9 @@ def center(
     DataArray
         Centered DataArray with the same dimensions as input.
     """
-    mean_da = da.mean(dim=dim)
-    centered_da = xr.apply_ufunc(
-        lambda x, m: x - m,
-        da,
-        mean_da,
-        input_core_dims=[[], []],
-        keep_attrs=keep_attrs,
-        vectorize=True,
-    )
+    with xr.set_options(keep_attrs=True):
+        mean_da = da.mean(dim=dim)
+        centered_da = da - mean_da
     return centered_da
 
 
@@ -255,12 +249,10 @@ def pwdists(atXYZ: AtXYZ, mean: bool = False) -> xr.DataArray:
 
     res = (atXYZ.pipe(subtract_combinations, 'atom', labels=True))
 
+    res = norm(res)
     if mean:
         res = center(res)
 
-    res = norm(res)
-
-    assert not isinstance(res, tuple)
     return res
 
 get_standardized_pairwise_dists = pwdists
