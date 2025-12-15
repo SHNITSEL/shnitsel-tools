@@ -43,6 +43,7 @@ dependencies = [
 vis = [
   "bokeh>=3.5",
   "datashader",
+  "seaborn"
 ]
 
 dev = [
