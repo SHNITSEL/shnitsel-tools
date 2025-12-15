@@ -33,6 +33,10 @@ dependencies = [
   "py3dmol>=2.0.4",    # TODO: make optional?
   "tqdm>=4.66.2",
   "pyparsing>=3.2.5",
+  # To enable direct loading of remote resources:
+  "fsspec",
+  "requests",
+  "aiohttp"
 ]
 
 [project.optional-dependencies]
