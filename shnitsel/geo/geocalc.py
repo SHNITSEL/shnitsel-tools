@@ -196,6 +196,9 @@ def dihedral(
     result: xr.DataArray = full_dihedral_(a, b, c, d) if full else dihedral_(a, b, c, d)
     if deg:
         result = result * 180 / np.pi
+        result.attrs['units'] = '°'
+    else:
+        result.attrs['units'] = 'rad'
     result.name = 'dihedral'
     result.attrs['long_name'] = r"$\varphi_{%d,%d,%d,%d}$" % (i, j, k, l)
     return result
@@ -226,6 +229,9 @@ def angle(atXYZ: AtXYZ, i: int, j: int, k: int, *, deg: bool = False) -> xr.Data
     result: xr.DataArray = angle_(ab, cb)
     if deg:
         result = result * 180 / np.pi
+        result.attrs['units'] = '°'
+    else:
+        result.attrs['units'] = 'rad'
     result.name = 'angle'
     result.attrs['long_name'] = r"$\theta_{%d,%d,%d}$" % (i, j, k)
     return result
@@ -246,7 +252,8 @@ def distance(atXYZ: AtXYZ, i: int, j: int) -> xr.DataArray:
     """
     a = atXYZ.isel(atom=i)
     b = atXYZ.isel(atom=j)
-    result: xr.DataArray = dnorm(a - b)
+    with xr.set_options(keep_attrs=True):
+        result: xr.DataArray = dnorm(a - b)
     result.name = 'distance'
     result.attrs['long_name'] = r"$\|\mathbf{r}_{%d,%d}\|$" % (i, j)
     return result

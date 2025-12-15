@@ -15,7 +15,7 @@ from shnitsel.analyze.stats import time_grouped_confidence_interval
 def set_axes(data, ax=None):
     _, ax = figax(ax=ax)
 
-    ylabel = data.name or ''
+    ylabel = data.attrs.get('long_name', data.name or '')
     if (yunits := data.attrs.get('units')):
         ylabel += f' / {yunits}'
     ax.set_ylabel(ylabel)
