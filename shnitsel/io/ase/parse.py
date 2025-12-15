@@ -110,7 +110,9 @@ def shapes_from_metadata(
 
         if db_format is None:
             db_format = meta_format
-            logging.info(f"Automatically detected format: {db_format}")
+            logging.info(
+                "Automatically detected format: %(db_format)", {'db_format': db_format}
+            )
 
         if meta_format != db_format:
             raise ValueError(
@@ -486,9 +488,14 @@ def apply_dataset_meta_from_db_metadata(
             dim_length = dimdict["length"] if "length" in dimdict else -1
             if dim_length >= 0:
                 if dim_length != dataset.sizes[dimname]:
-                    msg = f"Size of dimension {dimname} in dataset parsed from ASE database has length inconsistent with metadata of ASE file. Was {dataset.sizes[dimname]} but metadata specifies {dim_length}"
-                    logging.error(msg)
-                    raise ValueError(msg)
+                    msg = "Size of dimension %(dimname)s in dataset parsed from ASE database has length inconsistent with metadata of ASE file. Was %(ds_dim_size)d but metadata specifies %(dim_spec)d"
+                    params = {
+                        'dimname': dimname,
+                        'ds_dim_size': dataset.sizes[dimname],
+                        'dim_spec': dim_length,
+                    }
+                    logging.error(msg, params)
+                    raise ValueError(msg % params)
 
     if "est_level" not in dataset.attrs:
         if 'ReferenceMethod' in db_meta:
@@ -632,7 +639,10 @@ def read_ase(
                     (ase_default_attrs[k] if k in ase_default_attrs else None),
                 )
         else:
-            logging.warning(f"Dropping data entry {k} due to missing shape information")
+            logging.warning(
+                "Dropping data entry %(key)s due to missing shape information",
+                {'key': k},
+            )
 
         # atXYZ = np.stack([row.positions for row in db.select()])
         # data_vars['atXYZ'] = ['frame', 'atom', 'direction'], atXYZ
@@ -684,7 +694,8 @@ def read_ase(
             frames = frames.squeeze('tmp')
         else:
             logging.warning(
-                f"Input of type `spainn` did not yield a `tmp` dimension, indicating missing energy. Input file {db_path} may be malformed."
+                "Input of type `spainn` did not yield a `tmp` dimension, indicating missing energy. Input file %(path)s may be malformed.",
+                {'path': db_path},
             )
 
     # Deal with us not identifying the leading dimension from metadata alone.

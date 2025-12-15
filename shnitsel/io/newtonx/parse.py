@@ -97,7 +97,8 @@ def parse_newtonx(
                 )
     else:
         logging.warning(
-            f"Missing {nxlog_path} for input of comprehensive settings, newtonx version and observables like forces and NACs."
+            "Missing %(path)s for input of comprehensive settings, newtonx version and observables like forces and NACs.",
+            {'path': nxlog_path},
         )
 
     dyn_xyz_path = path_obj / "RESULTS" / "dyn.xyz"
@@ -113,7 +114,8 @@ def parse_newtonx(
             mark_variable_assigned(trajectory["atXYZ"])
     else:
         logging.info(
-            f"Did not find {dyn_xyz_path} for position, atom names and types input."
+            "Did not find %(path)s for position, atom names and types input.",
+            {'path': dyn_xyz_path},
         )
 
     en_dat_path = path_obj / "RESULTS" / "en.dat"
@@ -126,12 +128,14 @@ def parse_newtonx(
 
         except FileNotFoundError:
             logging.warning(
-                f"Could not read {en_dat_path} for E_kin, times and E_pot<state> input."
+                "Could not read %(path)s for E_kin, times and E_pot<state> input.",
+                {'path': en_dat_path},
             )
             pass
     else:
         logging.info(
-            f"Did not find {en_dat_path} for E_kin, times and E_pot<state> input."
+            "Did not find %(path)s for E_kin, times and E_pot<state> input.",
+            {'path': en_dat_path},
         )
 
     dyn_out_path = path_obj / "RESULTS" / "dyn.out"
@@ -139,7 +143,10 @@ def parse_newtonx(
         with open(dyn_out_path) as f:
             trajectory = parse_dyn_out(f, trajectory)
     else:
-        logging.info(f"Did not find {dyn_out_path} for E_kin and velocities input.")
+        logging.info(
+            "Did not find %(path)s for E_kin and velocities input.",
+            {'path': dyn_out_path},
+        )
         pass
 
     if not is_variable_assigned(trajectory["time"]):
@@ -224,7 +231,7 @@ def parse_settings_from_nx_log(
                 real_tmax = max(real_tmax, float(splitline[7]))
                 completed = False
 
-    logging.debug(f"found real_tmax: {real_tmax}")
+    logging.debug("found real_tmax: %(tmax)f", {'tmax': real_tmax})
     f.seek(0)
 
     # skip to settings
@@ -613,7 +620,7 @@ def parse_nx_log_data(
             if not step_has_nacs_norm:
                 step_has_nacs_norm = True
                 logging.warning(
-                    "We currently do not support reading pre-normalized NACs terms (i.e. non-vectors) in our NewtonX input."
+                    "We currently do not support reading pre-normalized/scalarized NACs terms (i.e. non-vectors) in our NewtonX input."
                 )
         elif stripline.lower().startswith("energy ="):
             for istate in range(nstates):
@@ -784,7 +791,8 @@ def parse_nx_misc_input_settings(
             extracted_newtonx_version = newtonx_res.newtonx_version
     else:
         logging.warning(
-            f"The NewtonX log file at {results_path_log} is missing. Key settings, gradients, NACs, etc. will not be extracted."
+            "The NewtonX log file at %(path)s is missing. Key settings, gradients, NACs, etc. will not be extracted.",
+            {'path': results_path_log},
         )
 
     return res, NewtonXSettingsResult(

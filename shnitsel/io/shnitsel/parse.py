@@ -61,9 +61,15 @@ def read_shnitsel_file(
                 frames = xr.open_dataset(path)
             except ValueError as dt_err:
                 datatree_info = sys.exc_info()
-                message = f"Failed to load file as either Dataset or DataTree: {ds_err} \n{dataset_info}\n {dt_err}\n {datatree_info}"
-                logging.error(message)
-                raise ValueError(message)
+                message = "Failed to load file as either Dataset or DataTree: %(ds_err)s \n %(ds_info)s \n %(dt_err)s \n %(dt_info)s"
+                params = {
+                    'ds_err': ds_err,
+                    'ds_info': dataset_info,
+                    'dt_err': dt_err,
+                    'dt_info': datatree_info,
+                }
+                logging.error(message, params)
+                raise ValueError(message % params)
 
     if "__shnitsel_format_version" in frames.attrs:
         shnitsel_format_version = frames.attrs["__shnitsel_format_version"]
@@ -75,12 +81,13 @@ def read_shnitsel_file(
         return __SHNITSEL_READERS[shnitsel_format_version](frames, loading_parameters)
     else:
         message = (
-            f"Attempting to load a shnitsel file with unknown format {shnitsel_format_version}. \n"
+            "Attempting to load a shnitsel file with unknown format %(format_version)s. \n"
             "This file might have been created with a later version of the `shnitsel-tools` package. \n"
             "Please update the `shnitsel-tools` package and attempt to read the file again."
         )
-        logging.error(message)
-        raise ValueError(message)
+        params = {'format_version': {shnitsel_format_version}}
+        logging.error(message, params)
+        raise ValueError(message % params)
 
 
 def _parse_shnitsel_file_v1_0(
@@ -165,8 +172,10 @@ def _decode_shnitsel_v1_1_dataset(dataset: xr.Dataset) -> xr.Dataset:
                         value_d = np.array(entries, dtype=dtype_descr)
                 return value_d
             except TypeError as e:
+                params = {'e': e, 'traceback': traceback.format_exc()}
                 logging.debug(
-                    f"Encountered error during json decode: {e} {traceback.format_exc()}"
+                    "Encountered error during json decode: %(e)s \n %(traceback)s",
+                    params,
                 )
                 return value
 
@@ -235,8 +244,10 @@ def decode_attrs(obj):
                         value_d = np.array(entries, dtype=dtype_descr)
                 return value_d
             except TypeError as e:
+                params = {'e': e, 'traceback': traceback.format_exc()}
                 logging.debug(
-                    f"Encountered error during json decode: {e} {traceback.format_exc()}"
+                    "Encountered error during json decode: %(e)s \n %(traceback)s",
+                    params,
                 )
                 return value
 

@@ -104,7 +104,10 @@ def read_traj(
             state_multiplicities = state_mult_array
         if "charge" in settings:
             charge_settings = settings["charge"]
-            logging.debug(f"Found charge info in output data: {charge_settings}")
+            logging.debug(
+                "Found charge info in output data: %(charge_settings)s",
+                {'charge_settings': charge_settings},
+            )
             state_charges = [int(x.strip()) for x in charge_settings.split()]
 
         misc_settings["input"] = settings
@@ -131,7 +134,10 @@ def read_traj(
             state_multiplicities = state_mult_array
         if "charge" in settings:
             charge_settings = settings["charge"]
-            logging.debug(f"Found charge info in output data: {charge_settings}")
+            logging.debug(
+                "Found charge info in output data: %(charge_settings)s",
+                {'charge_settings': charge_settings},
+            )
             state_charges = [int(x.strip()) for x in charge_settings.split()]
         misc_settings["output.dat"] = settings
 
@@ -319,7 +325,10 @@ def read_traj(
                         charges = res_dict["charge"]
 
                     if charges is not None:
-                        logging.info(f"Found charge data from the {int_name} interface")
+                        logging.info(
+                            "Found charge data from the %(int_name)s interface",
+                            {'int_name': int_name},
+                        )
                         break
             else:
                 # Assume we are uncharged if no charge data found.
@@ -483,7 +492,7 @@ def parse_trajout_dat(
 
     expect_socs = False
     if "spinorbit" in settings or "nospinorbit" not in settings:
-        logging.info("Expecting socs in SHARC")
+        logging.info("Expecting SOCs in SHARC")
         expect_socs = True
 
     # Read atomic numbers and names from file
@@ -578,7 +587,9 @@ def parse_trajout_dat(
         if line.startswith("! 0 Step"):
             ts = int(next(f).strip())
             if ts != 0:
-                logging.warning("Initial timestep's index is not 0")
+                logging.warning(
+                    "Initial timestep's index is not 0 but %(ts)d", {'ts': ts}
+                )
             max_ts = max(max_ts, ts)
             break
 
@@ -590,7 +601,10 @@ def parse_trajout_dat(
             # update `ts` to current timestep #
             new_ts = int(next(f).strip())
             if new_ts != (ts or 0) + 1:
-                logging.warning(f"Non-consecutive timesteps: {ts} -> {new_ts}")
+                logging.warning(
+                    "Non-consecutive timesteps: %(ts)d -> %(next_ts)d",
+                    {'ts': ts, 'new_ts': new_ts},
+                )
             ts = new_ts
             max_ts = max(max_ts, ts)
             # logging.debug(f"timestep = {ts}")

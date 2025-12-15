@@ -12,6 +12,11 @@ import traceback
 from shnitsel.io.newtonx.format_reader import NewtonXFormatReader
 from shnitsel.io.pyrai2md.format_reader import PyrAI2mdFormatReader
 from shnitsel.io.sharc.format_reader import SHARCFormatReader
+from shnitsel.io.shared.messages import (
+    collect_and_clean_queue_handler,
+    handle_records,
+    setup_queue_handler,
+)
 from shnitsel.io.shnitsel.format_reader import ShnitselFormatReader
 from tqdm.contrib.logging import logging_redirect_tqdm
 from tqdm.auto import tqdm
@@ -204,7 +209,7 @@ def read(
         if res is not None:
             return res
 
-        logging.info(f"Could not read `{path}` directly as a trajectory.")
+        logging.debug(f"Could not read `{path}` directly as a trajectory.")
     except Exception as e:
         # Keep error in case the multiple reading also fails
         combined_error = (
@@ -214,7 +219,7 @@ def read(
         )
 
     if multiple:
-        logging.info(
+        logging.debug(
             f"Attempt to read `{path}` as a directory containing multiple trajectories."
         )
 
@@ -307,6 +312,9 @@ def read_folder_multi(
             logging.error(message)
             return None
 
+    if base_loading_parameters is None:
+        base_loading_parameters = LoadingParameters()
+
     relevant_kinds = [kind] if kind is not None else list(READERS.keys())
 
     # The kinds for which we had matches
@@ -380,7 +388,11 @@ def read_folder_multi(
             return None
     elif len(fitting_kinds) > 1:
         available_formats = list(READERS.keys())
-        message = f"Detected subdirectories or files of different input formats in {path} with no input format specified. Detected formats are: {fitting_kinds}. Please ensure only one format matches subdirectories in the path or denote a specific format out of {available_formats}."
+        message = (
+            f"Detected subdirectories or files of different input formats in {path} with no input format specified. \n"
+            f"Detected formats are: {fitting_kinds}. \n"
+            f"Please ensure only one format matches subdirectories in the path or denote a specific format out of {available_formats}."
+        )
         logging.error(message)
         if error_reporting == "raise":
             raise ValueError(message)
@@ -400,7 +412,7 @@ def read_folder_multi(
         input_paths, input_readers, input_format_info, input_loading_params = zip(
             *input_set_params
         )
-
+        log_messages: list[logging.LogRecord] = []
         res_trajectories = []
         if parallel:
             with ProcessPoolExecutor(max_workers=os.cpu_count()) as executor:
@@ -414,8 +426,11 @@ def read_folder_multi(
                     ),
                     total=len(input_set_params),
                 ):
-                    if result is not None and result.data is not None:
-                        res_trajectories.append(result.data)
+                    if result is not None:
+                        if result.data is not None:
+                            res_trajectories.append(result.data)
+                        if result.log_records is not None:
+                            log_messages += result.log_records
                     else:
                         logging.debug(
                             f"Reading of at least one trajectory failed. Reading routine returned value {result}."
@@ -423,14 +438,22 @@ def read_folder_multi(
         else:
             for params in tqdm(input_set_params, total=len(input_set_params)):
                 result = _per_traj(*params)
-                if result is not None and result.data is not None:
-                    res_trajectories.append(result.data)
+                if result is not None:
+                    if result.data is not None:
+                        res_trajectories.append(result.data)
+                    if result.log_records is not None:
+                        log_messages += result.log_records
                 else:
                     logging.debug(f"Failed to read trajectory from {params[1]}.")
 
+        # Output collected logging messages from child processes
+        handle_records(log_messages, None)
+
         # TODO: FIXME: Check if trajid is actually set?
         res_trajectories.sort(
-            key=lambda x: x.attrs["trajid"] if "trajid" in x.attrs else 0
+            key=lambda x: x.attrs["trajid"]
+            if "trajid" in x.attrs
+            else np.random.randint(0, high=100000)
         )
         return res_trajectories
 
@@ -441,7 +464,14 @@ def read_single(
     kind: KindType | None,
     error_reporting: Literal["log", "raise"] = "log",
     base_loading_parameters: LoadingParameters | None = None,
-) -> Trajectory | None:
+) -> Trajectory | ShnitselDB | None:
+    queue, handler, logger, original_handlers = setup_queue_handler(None, 'root')
+
+    if base_loading_parameters is None:
+        base_loading_parameters = LoadingParameters()
+        base_loading_parameters.error_reporting = error_reporting
+        base_loading_parameters.logger = logger
+
     try:
         res_format = identify_or_check_input_kind(path, kind)
         if res_format is not None:
@@ -457,7 +487,21 @@ def read_single(
                 f"Caught exception while reading single trajectory input from `{path}`: \n{e}"
             )
         else:
-            raise e
+            records = collect_and_clean_queue_handler(
+                queue,
+                handler,
+                logger,
+                original_handlers=original_handlers,
+                doCollect=True,
+            )
+            if records is not None:
+                handle_records(records)
+            raise
+    records = collect_and_clean_queue_handler(
+        queue, handler, logger, original_handlers=original_handlers, doCollect=True
+    )
+    if records is not None:
+        handle_records(records)
     return None
 
 
@@ -565,8 +609,9 @@ Trajid: TypeAlias = int
 @dataclass
 class Trajres:
     path: pathlib.Path
-    misc_error: Tuple[Exception, Any] | Iterable[Tuple[Exception, Any]] | None
-    data: Trajectory | None
+    misc_error: tuple[Exception, Any] | Iterable[tuple[Exception, Any]] | None
+    data: Trajectory | ShnitselDB | None
+    log_records: list[logging.LogRecord] | None
 
 
 # TODO: FIXME: add ASE support
@@ -597,34 +642,38 @@ def _per_traj(
     Returns:
         Trajres|None: Either the successfully loaded trajectory in a wrapper, or the wrapper containing error information
     """
+    queue, handler, logger, original_handlers = setup_queue_handler(None, 'root')
+    base_loading_parameters.logger = logger
 
     try:
         ds = reader.read_trajectory(trajdir, format_info, base_loading_parameters)
-        if ds is None:
-            return Trajres(
-                path=trajdir,
-                misc_error=None,
-                data=None,
-            )
 
-        if not ds.attrs["completed"]:
+        if ds is not None and not ds.attrs.get("completed", False):
             logging.info(f"Trajectory at path {trajdir} did not complete")
 
-        return Trajres(path=trajdir, misc_error=None, data=ds)
+        records = collect_and_clean_queue_handler(
+            queue, handler, logger, original_handlers=original_handlers, doCollect=True
+        )
+
+        return Trajres(path=trajdir, misc_error=None, data=ds, log_records=records)
 
     except Exception as err:
         # This is fairly common and will be reported at the end
-        logging.info(
+        logging.exception(
             f"Reading of trajectory from path {trajdir} failed:\n"
             + str(err)
             + f"Trace:{traceback.format_exc()}"
             + f"\nSkipping {trajdir}."
         )
 
+        records = collect_and_clean_queue_handler(
+            queue, handler, logger, original_handlers=original_handlers, doCollect=True
+        )
         return Trajres(
             path=trajdir,
             misc_error=[(err, traceback.format_exc())],
             data=None,
+            log_records=records,
         )
 
 

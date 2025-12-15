@@ -197,7 +197,13 @@ def dims_from_QM_log(log: TextIOWrapper) -> Tuple[int, int, int, int, int]:
 
                     if multiplicity >= 4:
                         logging.warning(
-                            f"Found state of above triplet multiplicity: {state_id} (full state descriptor: {(multiplicity, n_mult, unknown)}). Will be ignored."
+                            "Found state of above triplet multiplicity: %(state_id)d (full state descriptor: {(%(multiplicity)d, %(n_mult)d, %(unknown)f)}). \n State will be ignored.",
+                            {
+                                'state_id': state_id,
+                                'multiplicity': multiplicity,
+                                'n_mult': n_mult,
+                                'unknown': unknown,
+                            },
                         )
                     else:
                         states_count[multiplicity - 1] += 1
@@ -370,9 +376,10 @@ def read_iconds_individual(
     except FileNotFoundError:
         # This should be an error. We probably cannot recover from this and action needs to be taken
         logging.info(
-            f"""no `QM.log` file found in {path}. 
+            """no `QM.log` file found in %(path)s. 
             This is mainly used to determine geometry.\n
-            Attempting to read from `QM.in` instead """
+            Attempting to read from `QM.in` instead """,
+            {'path': path},
             # Eventually, user-inputs will be accepted as an alternative.
             # See https://github.com/SHNITSEL/db-workflow/issues/3"""
         )
@@ -395,13 +402,20 @@ def read_iconds_individual(
                         iconds.atXYZ.attrs["units"] = length.Bohr
                     else:
                         logging.warning(
-                            f"Unsupported input length unit in QM.in: {unit_name}. Unit on the position is assumed to be of unit {default_format_attributes['atXYZ']['units']}"
+                            "Unsupported input length/distance unit in QM.in: %(unit)s. Unit on the position is assumed to be of unit %(assumed_unit)s",
+                            {
+                                'unit': unit_name,
+                                'assumed_unit': default_format_attributes['atXYZ'][
+                                    'units'
+                                ],
+                            },
                         )
 
                 mark_variable_assigned(iconds.atXYZ)
         except FileNotFoundError:
             logging.warning(
-                f"No positional information found in {path}/QM.in nor in {path}/QM.log, the loaded trajectory does not contain positional data 'atXYZ'."
+                "No positional information found in %(path)s/QM.in nor in %(path)s/QM.log, the loaded trajectory does not contain positional data 'atXYZ'.",
+                {'path': path},
             )
 
     # iconds.attrs["delta_t"] = 0.0
@@ -758,7 +772,9 @@ def _read_dim_or_transition_identification_line(f: TextIOWrapper, main_version: 
         line = f.read()
         match = _transition_identification_re.match(line)
         if match:
-            logging.debug("Matched transition id line:", match.groups())
+            logging.debug(
+                "Matched transition id line: %(groups)s", {'groups': match.groups()}
+            )
 
 
 def parse_QM_out(

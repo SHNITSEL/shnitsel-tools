@@ -79,11 +79,12 @@ class PyrAI2mdFormatReader(FormatReader):
         )
         if (n := len(md_energies_paths)) != 1:
             message = (
-                f"Path `{path}` does not constitute a PyrAI2md style output directory: Expected to find a single file ending with '.md.energies' "
-                f"but found {n} files: {md_energies_paths}"
+                "Path `%(path)s` does not constitute a PyrAI2md style output directory: Expected to find a single file ending with '.md.energies' "
+                "but found %(n)d files: %(md_energies_paths)s"
             )
-            logging.debug(message)
-            raise FileNotFoundError(message)
+            params = {'path': path, 'n': n, 'md_energies_paths': md_energies_paths}
+            logging.debug(message, params)
+            raise FileNotFoundError(message % params)
 
         energy_file_path = path_obj / md_energies_paths[0]
 
@@ -93,11 +94,12 @@ class PyrAI2mdFormatReader(FormatReader):
         )
         if (n := len(md_energies_paths)) != 1:
             message = (
-                "Path `{path}` does not constitute a PyrAI2md style output directory: Expected to find a single file ending with '.log' "
-                f"but found {n} files: {log_paths}"
+                "Path `%(path)s` does not constitute a PyrAI2md style output directory: Expected to find a single file ending with '.log' "
+                "but found %(n)d files: %(log_paths)s"
             )
-            logging.debug(message)
-            raise FileNotFoundError(message)
+            params = {'path': path, 'n': n, 'log_paths': log_paths}
+            logging.debug(message, params)
+            raise FileNotFoundError(message % params)
 
         log_file_path = path_obj / log_paths[0]
 
@@ -136,8 +138,10 @@ class PyrAI2mdFormatReader(FormatReader):
         except FileNotFoundError as fnf_e:
             raise fnf_e
         except ValueError as v_e:
-            message = f"Attempt at reading PyrAI2md trajectory from path `{path}` failed because of original error: {v_e}.\n Trace: \n {traceback.format_exc()}"
-            logging.error(message)
+            message = "Attempt at reading PyRAI2md trajectory from path `%(path)s` failed because of original error: %(v_e)s.\n Trace: \n %(v_e)s"
+            logging.error(
+                message, {'path': path, 'v_e': v_e, 'tb': traceback.format_exc()}
+            )
             raise FileNotFoundError(message)
 
         return loaded_dataset

@@ -6,7 +6,11 @@ from typing import Dict, List
 
 from shnitsel.data.shnitsel_db_format import ShnitselDB
 from shnitsel.data.trajectory_format import Trajectory
-from shnitsel.io.shared.helpers import LoadingParameters, PathOptionsType, make_uniform_path
+from shnitsel.io.shared.helpers import (
+    LoadingParameters,
+    PathOptionsType,
+    make_uniform_path,
+)
 from ..format_reader_base import FormatInformation, FormatReader
 from .parse import read_shnitsel_file
 from shnitsel.units.definitions import standard_shnitsel_units
@@ -64,14 +68,14 @@ class ShnitselFormatReader(FormatReader):
         )
 
         if not path_obj.exists() or not path_obj.is_file():
-            message = f"Path `{path}` does not constitute a Shnitsel style trajectory file. Does not exist or is not a file."
-            logging.debug(message)
+            message = "Path `%(path)s` does not constitute a Shnitsel style trajectory file. Does not exist or is not a file."
+            logging.debug(message, {'path': path})
             raise FileNotFoundError(message)
 
         if not path_obj.suffix.endswith(".nc"):
-            message = f"Path `{path}` is not a NetCdf file (extension `.nc`)"
+            message = "Path `%(path)s`` is not a NetCdf file (extension `.nc`)"
 
-            logging.debug(message)
+            logging.debug(message, {'path': path})
             raise FileNotFoundError(message)
 
         return ShnitselFormatInformation("shnitsel", "0.1", None, path_obj)
@@ -103,8 +107,10 @@ class ShnitselFormatReader(FormatReader):
         except FileNotFoundError as fnf_e:
             raise fnf_e
         except ValueError as v_e:
-            message = f"Attempt at reading shnitsel file from path `{path}` failed because of original error: {v_e}.\n Trace: \n {traceback.format_exc()}"
-            logging.error(message)
+            message = "Attempt at reading shnitsel file from path `%(path)s` failed because of original error: %(v_e)s.\n Trace: \n %(v_e)s"
+            logging.error(
+                message, {'path': path, 'v_e': v_e, 'tb': traceback.format_exc()}
+            )
             raise FileNotFoundError(message)
 
         return loaded_dataset  # type: ignore # We know that the result of read_shnitsel_file is meant to be a ShnitselDB or single Trajectory

@@ -239,7 +239,8 @@ def read_pyrai2md_settings_from_log(f: TextIOWrapper) -> Dict[str, Any]:
 
             except Exception as e:
                 logging.debug(
-                    f"Encountered error while parsing pyrai2md settings array: {e}"
+                    "Encountered error while parsing pyrai2md settings array: %(e)s",
+                    {'e': e},
                 )
                 return None
 
@@ -288,13 +289,15 @@ def read_pyrai2md_settings_from_log(f: TextIOWrapper) -> Dict[str, Any]:
 
                 if len(parts) == 1:
                     logging.debug(
-                        f"No value set for setting {current_section}.{parts[0]}"
+                        "No value set for setting %(section)s.%(setting)s",
+                        {'section': current_section, 'setting': parts[0]},
                     )
                 elif len(parts) >= 2:
                     key = parts[0]
                     if not _setting_name_pattern.match(key):
                         logging.debug(
-                            f"Skipping key {key} because it did not conform to usual naming conventions"
+                            "Skipping key %(key)s because it did not conform to usual naming conventions",
+                            {'key': key},
                         )
                         continue
 
@@ -310,7 +313,7 @@ def read_pyrai2md_settings_from_log(f: TextIOWrapper) -> Dict[str, Any]:
                         else:
                             settings["global"][key] = decode_setting_string(parts[1])
 
-    logging.debug(f"Parsed pyrai2md settings: {settings}")
+    logging.debug("Parsed pyrai2md settings: %(settings)s", {'settings': settings})
     return settings
 
 
@@ -415,9 +418,9 @@ def parse_observables_from_log(
         (si, sj): idx
         for idx, (si, sj) in enumerate(trajectory_in.full_statecomb.values)
     }
-    logging.debug(state_comb_order)
-    logging.debug(state_comb_dict)
-    logging.debug(idx_table_socs)
+    # logging.debug(state_comb_order)
+    # logging.debug(state_comb_dict)
+    # logging.debug(idx_table_socs)
 
     # TODO: FIXME: Read variable units from the file and compare to expected values or override.
     ts_idx = -1
@@ -574,7 +577,10 @@ def parse_observables_from_log(
                 assert nextline.startswith("---")
 
             else:
-                logging.warning(f"Malformed NAC line in PyRAI2md trajectory: {line}")
+                logging.warning(
+                    "Malformed NAC line in PyRAI2md trajectory: %(line)s",
+                    {'line': line},
+                )
 
         # soc_info = ''
         #         for n, pair in enumerate(self.traj.soc_coupling):
@@ -612,7 +618,13 @@ def parse_observables_from_log(
 
                     if "compute_missing" in match.groupdict():
                         logging.info(
-                            f"Soc missing for {from_state} -> {to_state} (mults: {from_state_mult} -> {to_state_mult})"
+                            "Soc missing for %(from_state)d -> %(to_state)d (mults: %(from_state_mult)d -> %(to_state_mult)d)",
+                            {
+                                'from_state': from_state,
+                                'to_state': to_state,
+                                'from_state_mult': from_state_mult,
+                                'to_state_mult': to_state_mult,
+                            },
                         )
                     else:
                         socs[ts_idx, idx_table_socs[(from_state, to_state)]] = (

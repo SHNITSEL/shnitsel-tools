@@ -6,7 +6,11 @@ import traceback
 from typing import Dict, List
 
 from shnitsel.data.shnitsel_db_format import ShnitselDB
-from shnitsel.io.shared.helpers import LoadingParameters, PathOptionsType, make_uniform_path
+from shnitsel.io.shared.helpers import (
+    LoadingParameters,
+    PathOptionsType,
+    make_uniform_path,
+)
 from ..format_reader_base import FormatInformation, FormatReader
 from .parse import parse_newtonx
 
@@ -89,9 +93,10 @@ class NewtonXFormatReader(FormatReader):
         file_not_found_miss = None
         for file in [nx_log_path, nx_dynxyz_path, nx_dynout_path, nx_endat_path]:
             if not file.is_file():
-                message = f"Input directory is missing {file}"
-                logging.debug(message)
-                file_not_found_miss = FileNotFoundError(message)
+                message = "Input directory is missing %(file)s"
+                params = {'file': file}
+                logging.debug(message, params)
+                file_not_found_miss = FileNotFoundError(message % params)
             else:
                 num_hits += 1
 
@@ -108,7 +113,7 @@ class NewtonXFormatReader(FormatReader):
         if match_attempt:
             path_based_trajid = match_attempt.group("trajid")
             format_information.trajid = int(path_based_trajid)
-            logging.info(f"Assigning id {path_based_trajid} to trajectory")
+            logging.info("Assigning id %(id)d to trajectory", {'id': path_based_trajid})
         else:
             format_information.trajid = base_format_info.trajid
 
@@ -140,9 +145,11 @@ class NewtonXFormatReader(FormatReader):
         except FileNotFoundError:
             raise
         except ValueError as v_e:
-            message = f"Attempt at reading NewtonX trajectory from path `{path}` failed because of original error: {v_e}.\n Trace: \n {traceback.format_exc()}"
-            logging.error(message)
-            raise FileNotFoundError(message)
+            message = "Attempt at reading NewtonX trajectory from path `%(path)s` failed because of original error: %(v_e)s.\n Trace: \n %(v_e)s"
+            logging.error(
+                message, {'path': path, 'v_e': v_e, 'tb': traceback.format_exc()}
+            )
+            raise
 
         return loaded_dataset
 

@@ -5,7 +5,11 @@ import re
 import traceback
 from typing import Dict, List
 
-from shnitsel.io.shared.helpers import LoadingParameters, PathOptionsType, make_uniform_path
+from shnitsel.io.shared.helpers import (
+    LoadingParameters,
+    PathOptionsType,
+    make_uniform_path,
+)
 from ..format_reader_base import FormatInformation, FormatReader
 from .parse_trajectory import read_traj
 from .parse_initial_conditions import read_iconds_individual
@@ -91,16 +95,22 @@ class SHARCFormatReader(FormatReader):
         )
 
         if not path_obj.exists() or not path_obj.is_dir():
-            message = f"Path `{path}` does not constitute a SHARC style output directory: Does not exist or is not a directory."
-            logging.debug(message)
-            raise FileNotFoundError(message)
+            message = "Path `%(path)s` does not constitute a SHARC style output directory: Does not exist or is not a directory."
+            logging.debug(
+                message,
+                {'path': path},
+            )
+            raise FileNotFoundError(message % {'path': path})
 
         dontanalyze_file_path = path_obj / "DONT_ANALYZE"
 
         if dontanalyze_file_path.exists() and dontanalyze_file_path.is_file():
-            message = f"The path {path} does contain a `DONT_ANALYZE` file and will therefore be skipped. Please remove that file if you want the directory to be read."
-            logging.warning(message)
-            raise FileNotFoundError(message)
+            message = "The path `%(path)s` does contain a `DONT_ANALYZE` file and will therefore be skipped. Please remove that file if you want the directory to be read."
+            logging.warning(
+                message,
+                {'path': path},
+            )
+            raise FileNotFoundError(message % {'path': path})
 
         # Check if dynamic SHARC format satisfied
         is_dynamic = False
@@ -112,16 +122,17 @@ class SHARCFormatReader(FormatReader):
 
             for file in [input_file_path, input_dat_path, input_xyz_path]:
                 if not file.is_file():
-                    message = f"Input directory `{path}` is missing {file}"
+                    message = "Input directory `%(path)s` is missing `%(file)s`"
 
-                    logging.debug(message)
-                    raise FileNotFoundError(message)
+                    logging.debug(message, {'path': path, 'file': file})
+                    raise FileNotFoundError(message % {'path': path, 'file': file})
             is_dynamic = True
             format_information = SHARCDynamicFormatInformation(
                 "sharc", "unkown", None, path_obj
             )
             logging.debug(
-                f"Input directory `{path}` fulfils data requirements of dynamic SHARC trajectory"
+                "Input directory `%(path)s` fulfils data requirements of dynamic SHARC trajectory",
+                {'path': path},
             )
         except Exception as e:
             dynamic_check_error = e
@@ -137,9 +148,9 @@ class SHARCFormatReader(FormatReader):
             if not qm_out_path.is_file() or (
                 not qm_log_path.is_file() and not qm_in_path.is_file()
             ):
-                message = f"Input directory `{path}` is missing `QM.out` or both `QM.log` and `QM.in`"
-                logging.debug(message)
-                raise FileNotFoundError(message)
+                message = "Input directory `%(path)s` is missing `QM.out` or both `QM.log` and `QM.in`"
+                logging.debug(message, {'path': path})
+                raise FileNotFoundError(message % {'path': path})
 
             # list_of_initial_condition_paths = list_iconds(path_obj)
             is_static = True
@@ -150,25 +161,28 @@ class SHARCFormatReader(FormatReader):
                 path_obj,  # , list_of_initial_condition_paths
             )
             logging.debug(
-                f"Input directory `{path}` fulfils data requirements of SHARC Initial Conditions"
+                "Input directory `%(path)s` fulfils data requirements of SHARC Initial Conditions",
+                {'path': path},
             )
         except Exception as e:
             static_check_error = e
 
         if is_dynamic and is_static:
             message = (
-                f"Input directory {path} contains both static initial conditions and dynamic trajectory data of type SHARC."
-                f"Please only point to a directory containing exactly one of the two kinds of data"
+                "Input directory `%(path)s` contains both static initial conditions and dynamic trajectory data of type SHARC."
+                "Please only point to a directory containing exactly one of the two kinds of data"
             )
-            logging.debug(message)
-            raise ValueError(message)
+            logging.debug(message,
+                {'path': path})
+            raise ValueError(message % {'path': path})
         if format_information is None:
             message = (
-                f"Input directory {path} contains neither static initial conditions nor dynamic trajectory data of type SHARC."
-                f"Please point to a directory containing exactly one of the two kinds of data"
+                "Input directory `%(path)s` contains neither static initial conditions nor dynamic trajectory data of type SHARC."
+                "Please point to a directory containing exactly one of the two kinds of data"
             )
-            logging.debug(message)
-            raise FileNotFoundError(message)
+            logging.debug(message,
+                {'path': path})
+            raise FileNotFoundError(message % {'path': path})
 
         # Try and extract a trajectory ID from the path name
         match_attempt = _sharc_default_pattern_regex.match(path_obj.name)
@@ -225,8 +239,10 @@ class SHARCFormatReader(FormatReader):
         except FileNotFoundError as fnf_e:
             raise fnf_e
         except ValueError as v_e:
-            message = f"Attempt at reading SHARC trajectory from path `{path}` failed because of original error: {v_e}.\n Trace: \n {traceback.format_exc()}"
-            logging.error(message)
+            message = "Attempt at reading SHARC trajectory from path `%(path)s` failed because of original error: %(v_e)s.\n Trace: \n %(v_e)s"
+            logging.error(
+                message, {'path': path, 'v_e': v_e, 'tb': traceback.format_exc()}
+            )
             raise FileNotFoundError(message)
 
         return loaded_dataset
