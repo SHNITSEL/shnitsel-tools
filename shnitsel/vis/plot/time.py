@@ -150,8 +150,38 @@ def plot_shaded(data, ax):
 def timeplot(
     data: xr.DataArray,
     ax: plt.Axes | None = None,
-    trajs: Literal['ci', 'shade', 'conv', None] = None
+    trajs: Literal['ci', 'shade', 'conv', None] = None,
+    sep: bool = False,
 ):
+    if {'state', 'statecomb'}.issubset(data.dims):
+        raise ValueError(
+            "`data` should not have both 'state' and 'statecomb' dimensions"
+        )
+    state_dim = (
+        'state'
+        if 'state' in data.dims
+        else 'statecomb'
+        if 'statecomb' in data.dims
+        else ''
+    )
+
+    if trajs in {'shade', 'conv'} and state_dim:
+        sep = True
+
+    if sep:
+        if ax is not None:
+            raise ValueError("Plotting multiple plots, so `ax` arg can not be used")
+        nplots = data.sizes[state_dim]
+        fig, axs = plt.subplots(1, nplots, layout='constrained', sharex=True)
+        fig.set_size_inches(4 * nplots, 1.1414 * 4)
+        res = []
+        coord_name = state_dim + '_names'
+        for (_, sdata), ax in zip(data.groupby(state_dim), axs):
+            ax.set_title(sdata.coords[coord_name].item())
+            sdata = sdata.squeeze(state_dim)
+            res.append(timeplot(sdata, ax=ax, trajs=trajs, sep=False))
+        return res
+
     if 'trajid' not in data.coords:
         assert trajs is None
         return plot_single(data, ax)
