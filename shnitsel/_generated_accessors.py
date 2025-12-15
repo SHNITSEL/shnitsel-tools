@@ -13,7 +13,7 @@ from ._accessors import DAManualAccessor, DSManualAccessor
 from ._contracts import needs
 from numpy import nan, ndarray
 from rdkit.Chem.rdchem import Mol
-from shnitsel.analyze.generic import keep_norming, norm, subtract_combinations
+from shnitsel.analyze.generic import keep_norming, norm, pwdists, subtract_combinations
 from shnitsel.analyze.lda import lda
 from shnitsel.analyze.pca import pairwise_dists_pca, pca, pca_and_hops
 from shnitsel.analyze.pls import pls, pls_ds
@@ -45,6 +45,7 @@ class DataArrayAccessor(DAManualAccessor):
         'norm',
         'subtract_combinations',
         'keep_norming',
+        'pwdists',
         'calc_confidence_interval',
         'time_grouped_confidence_interval',
         'to_xyz',
@@ -102,6 +103,10 @@ class DataArrayAccessor(DAManualAccessor):
         """Wrapper for :py:func:`shnitsel.analyze.generic.keep_norming`."""
         return keep_norming(self._obj, exclude=exclude)
 
+    def pwdists(self, mean: bool=False, **kwargs) -> DataArray:
+        """Wrapper for :py:func:`shnitsel.analyze.generic.pwdists`."""
+        return pwdists(self._obj, mean=mean, **kwargs)
+
     def calc_confidence_interval(self, confidence: float=0.95) -> ndarray:
         """Wrapper for :py:func:`shnitsel.analyze.stats.calc_confidence_interval`."""
         return calc_confidence_interval(self._obj, confidence=confidence)
@@ -136,9 +141,9 @@ class DataArrayAccessor(DAManualAccessor):
         return default_mol(self._obj)
 
     @needs(dims={'atom'})
-    def pairwise_dists_pca(self, **kwargs) -> DataArray:
+    def pairwise_dists_pca(self, mean: bool=False, return_pca_object=False, **kwargs) -> DataArray:
         """Wrapper for :py:func:`shnitsel.analyze.pca.pairwise_dists_pca`."""
-        return pairwise_dists_pca(self._obj, **kwargs)
+        return pairwise_dists_pca(self._obj, mean=mean, return_pca_object=return_pca_object, **kwargs)
 
     def convert_energy(self, to: str, convert_from: str | None=None):
         """Wrapper for :py:func:`shnitsel.units.conversion.convert_energy`."""
@@ -247,7 +252,7 @@ class DataArrayAccessor(DAManualAccessor):
         return get_bats(self._obj, matches_or_mol=matches_or_mol, signed=signed, ang=ang, pyr=pyr)
 
     @needs(dims={'atom', 'direction'})
-    def kabsch(self, reference_or_indexers: xarray.core.dataarray.DataArray | dict | None=None, **indexers_kwargs):
+    def kabsch(self, reference_or_indexers: xarray.core.dataarray.DataArray | dict | None=None, **indexers_kwargs) -> DataArray:
         """Wrapper for :py:func:`shnitsel.geo.geocalc.kabsch`."""
         return kabsch(self._obj, reference_or_indexers=reference_or_indexers, **indexers_kwargs)
 
@@ -279,9 +284,9 @@ class DataArrayAccessor(DAManualAccessor):
         """Wrapper for :py:func:`shnitsel.vis.plot.p3mhelpers.trajs3Dgrid`."""
         return trajs3Dgrid(self._obj, trajids=trajids, loop=loop)
 
-    def traj_vmd(self, groupby='trajid', scale=0.5):
+    def traj_vmd(self, groupby='trajid'):
         """Wrapper for :py:func:`shnitsel.vis.vmd.traj_vmd`."""
-        return traj_vmd(self._obj, groupby=groupby, scale=scale)
+        return traj_vmd(self._obj, groupby=groupby)
 
     def pca(self, dim: str, n_components: int=2, return_pca_object: bool=False) -> tuple[xarray.core.dataarray.DataArray, sklearn.decomposition._pca.PCA] | xarray.core.dataarray.DataArray:
         """Wrapper for :py:func:`shnitsel.analyze.pca.pca`."""
@@ -328,9 +333,9 @@ class DatasetAccessor(DSManualAccessor):
     ]
 
     @needs(coords_or_vars={'astate', 'atXYZ'})
-    def pca_and_hops(self) -> tuple:
+    def pca_and_hops(self, mean: bool) -> tuple:
         """Wrapper for :py:func:`shnitsel.analyze.pca.pca_and_hops`."""
-        return pca_and_hops(self._obj)
+        return pca_and_hops(self._obj, mean)
 
     def validate(self) -> ndarray:
         """Wrapper for :py:func:`shnitsel.data.helpers.validate`."""
@@ -411,17 +416,17 @@ class DatasetAccessor(DSManualAccessor):
         """Wrapper for :py:func:`shnitsel.clean.filter_energy.energy_filtranda`."""
         return energy_filtranda(self._obj, etot_drift=etot_drift, etot_step=etot_step, epot_step=epot_step, ekin_step=ekin_step, hop_epot_step=hop_epot_step, units=units)
 
-    def sanity_check(self, cut: Union='truncate', units='eV', etot_drift: float=nan, etot_step: float=nan, epot_step: float=nan, ekin_step: float=nan, hop_epot_step: float=nan):
+    def sanity_check(self, cut: Union='truncate', units='eV', etot_drift: float=nan, etot_step: float=nan, epot_step: float=nan, ekin_step: float=nan, hop_epot_step: float=nan, plot_thresholds: Union=False, plot_populations: Union=False):
         """Wrapper for :py:func:`shnitsel.clean.filter_energy.sanity_check`."""
-        return sanity_check(self._obj, cut=cut, units=units, etot_drift=etot_drift, etot_step=etot_step, epot_step=epot_step, ekin_step=ekin_step, hop_epot_step=hop_epot_step)
+        return sanity_check(self._obj, cut=cut, units=units, etot_drift=etot_drift, etot_step=etot_step, epot_step=epot_step, ekin_step=ekin_step, hop_epot_step=hop_epot_step, plot_thresholds=plot_thresholds, plot_populations=plot_populations)
 
-    def bond_length_filtranda(self, search_dict: dict[str, numbers.Number] | None=None, units='angstrom'):
+    def bond_length_filtranda(self, mol, search_dict: dict[str, numbers.Number] | None=None, units='angstrom'):
         """Wrapper for :py:func:`shnitsel.clean.filter_geo.bond_length_filtranda`."""
-        return bond_length_filtranda(self._obj, search_dict=search_dict, units=units)
+        return bond_length_filtranda(self._obj, mol, search_dict=search_dict, units=units)
 
-    def filter_by_length(self, cut: Union='truncate', search_dict: dict[str, numbers.Number] | None=None):
+    def filter_by_length(self, mol, cut: Union='truncate', search_dict: dict[str, numbers.Number] | None=None, units: str='angstrom', plot_thresholds: Union=False, plot_populations: Union=False):
         """Wrapper for :py:func:`shnitsel.clean.filter_geo.filter_by_length`."""
-        return filter_by_length(self._obj, cut=cut, search_dict=search_dict)
+        return filter_by_length(self._obj, mol, cut=cut, search_dict=search_dict, units=units, plot_thresholds=plot_thresholds, plot_populations=plot_populations)
 
     def omit(self):
         """Wrapper for :py:func:`shnitsel.clean.common.omit`."""

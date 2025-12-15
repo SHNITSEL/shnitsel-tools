@@ -109,6 +109,11 @@ def subtract_combinations(
     dims = [combination_dimension_name, dim]
 
     if combination_dimension_name in da:
+        # TODO FIXME I don't understand this; if `da` already has a `{dim}comb`
+        # dimension, then `xrmat` and `da` will have two dimensions in common
+        # and the matrix multiplication will produce strange results or fail.
+        # So if anything, shouldn't we raise an exception in that case?
+
         # Don't recalculate the combinations, just take whichever have already been set.
         logging.info(
             f"Dimension {combination_dimension_name} already exists, reusing existing entries."
@@ -122,7 +127,7 @@ def subtract_combinations(
             comb_indices.append((index_from, index_to))
     else:
         logging.info(f"Dimension {combination_dimension_name} is being generated.")
-        da = da.assign_coords()
+        da = da.assign_coords()  # TODO FIXME What does this do?
         comb_indices = list(itertools.combinations(range(n), 2))
         coordinates = {combination_dimension_name: midx(da, dim), dim: dim_index}
 
@@ -229,10 +234,7 @@ def relativize(da: xr.DataArray, **sel) -> xr.DataArray:
     return res
 
 
-def get_standardized_pairwise_dists(
-        atXYZ: AtXYZ,
-        mean: bool = False,
-        **kwargs) -> xr.DataArray:
+def pwdists(atXYZ: AtXYZ, mean: bool = False) -> xr.DataArray:
     """
     Compute pairwise distances and standardize it by removing the mean 
     and L2-normalization (if your features are vectors and you want magnitudes only, 
@@ -261,6 +263,4 @@ def get_standardized_pairwise_dists(
     assert not isinstance(res, tuple)
     return res
 
-
-
-
+get_standardized_pairwise_dists = pwdists

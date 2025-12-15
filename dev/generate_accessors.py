@@ -25,10 +25,11 @@ def main():
         raise
 
     da_funcs = [
-        # postprocess
+        # analyze
         generic.norm,
         generic.subtract_combinations,
         generic.keep_norming,
+        generic.pwdists,
         stats.calc_confidence_interval,
         stats.time_grouped_confidence_interval,
         bridges.to_xyz,
