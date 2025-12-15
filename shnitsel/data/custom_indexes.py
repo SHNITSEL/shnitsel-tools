@@ -31,25 +31,17 @@ class VectorizableMultiIndex(PandasMultiIndex):
             indexer = self.index.get_locs(
                 [label_arrays.get(k, slice(None)) for k in self.index.names]
             )
-            # print(indexer)
             new_index = type(self)(self.index[indexer], self.dim)
             variables = new_index.create_variables()
             return IndexSelResult(
                 dim_indexers={self.dim: indexer},
                 indexes={d: new_index for d in [self.dim] + self.index.names},
                 variables=variables,
-                # drop_indexes=list(scalar_coord_values),
-                # drop_coords=drop_coords,
-                # rename_dims=dims_dict,
             )
         else:
             tmp = super().sel(labels, method, tolerance)
-            # print(tmp)
-            # tmp.drop_indexes = []
-            # tmp.indexes = []
-            # tmp.variables = []
+
             return tmp
-            # return super().sel(labels, method, tolerance)
 
     def __repr__(self):
         return f"VectorizableMultiIndex({self.index!r})"
@@ -78,6 +70,8 @@ class MajMinIndex(Index):
 
     """
 
+    # TODO: Finish docstring
+
     def __init__(self, full_midx, sparse_idxs):
         # I think the call signature of __init__
         # is not constrained by xarray
@@ -99,22 +93,16 @@ class MajMinIndex(Index):
             else:
                 full[k] = v
 
-        # full_midx = PandasMultiIndex.from_variables(full, **kws)
         full_midx = VectorizableMultiIndex.from_variables(full, **kws)
 
         sparse_idxs = {
             k: PandasIndex.from_variables({k: v}, **kws) for k, v in sparse.items()
         }
 
-        # print(kws)
-        # print(full_midx)
-        # print(sparse_idxs)
 
         return cls(full_midx, sparse_idxs)
 
     def create_variables(self, variables):
-        # print(f'called create_variables({variables})')
-        print('called create_variables')
         idx_variables = {}
 
         for index in self._sparse_idxs.values():
@@ -123,8 +111,6 @@ class MajMinIndex(Index):
         return idx_variables
 
     def sel(self, labels):
-        print('called sel')
-        print(labels)
         results = []
 
         # transform boolean masks into label-based indexers
@@ -132,11 +118,8 @@ class MajMinIndex(Index):
         for k, indexer in labels.items():
             arr = np.asarray(indexer)
             if np.issubdtype(arr.dtype, np.bool_):
-                print("Found bool index")
-                print(self._sparse_idxs[k + '_'].sel({k: indexer}))
                 labels[k] = self._sparse_idxs[k + '_'].to_pandas_index().values[arr]
 
-        # res_sparse_idxs = {}
         new_sparse_idxs = {}
         for k, index in self._sparse_idxs.items():
             if k[:-1] in labels:
@@ -154,11 +137,9 @@ class MajMinIndex(Index):
 
         res = merge_sel_results(results)
 
-        new_index = type(
-            self
-        )(
+        new_index = type(self)(
             full_midx=new_full_midx,
-            sparse_idxs=new_sparse_idxs,  # {k: v.indexes[k] for k, v in res_sparse_idxs.items()}
+            sparse_idxs=new_sparse_idxs,
         )
         indexes = {
             d: new_index
@@ -167,10 +148,4 @@ class MajMinIndex(Index):
             + list(self._sparse_idxs)
         }  # TODO: tidy
         res.indexes = indexes
-
-        # res.drop_indexes = []
-        # res.drop_coords = []
-
-        # print(res.dim_indexers)
-        # print(res)
         return res
