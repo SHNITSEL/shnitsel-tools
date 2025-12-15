@@ -103,9 +103,9 @@ class DataArrayAccessor(DAManualAccessor):
         """Wrapper for :py:func:`shnitsel.analyze.generic.keep_norming`."""
         return keep_norming(self._obj, exclude=exclude)
 
-    def pwdists(self, mean: bool=False, **kwargs) -> DataArray:
+    def pwdists(self, mean: bool=False) -> DataArray:
         """Wrapper for :py:func:`shnitsel.analyze.generic.pwdists`."""
-        return pwdists(self._obj, mean=mean, **kwargs)
+        return pwdists(self._obj, mean=mean)
 
     def calc_confidence_interval(self, confidence: float=0.95) -> ndarray:
         """Wrapper for :py:func:`shnitsel.analyze.stats.calc_confidence_interval`."""
@@ -420,13 +420,13 @@ class DatasetAccessor(DSManualAccessor):
         """Wrapper for :py:func:`shnitsel.clean.filter_energy.sanity_check`."""
         return sanity_check(self._obj, cut=cut, units=units, etot_drift=etot_drift, etot_step=etot_step, epot_step=epot_step, ekin_step=ekin_step, hop_epot_step=hop_epot_step, plot_thresholds=plot_thresholds, plot_populations=plot_populations)
 
-    def bond_length_filtranda(self, mol, search_dict: dict[str, numbers.Number] | None=None, units='angstrom'):
+    def bond_length_filtranda(self, search_dict: dict[str, numbers.Number] | None=None, units='angstrom', mol: rdkit.Chem.rdchem.Mol | None=None):
         """Wrapper for :py:func:`shnitsel.clean.filter_geo.bond_length_filtranda`."""
-        return bond_length_filtranda(self._obj, mol, search_dict=search_dict, units=units)
+        return bond_length_filtranda(self._obj, search_dict=search_dict, units=units, mol=mol)
 
-    def filter_by_length(self, mol, cut: Union='truncate', search_dict: dict[str, numbers.Number] | None=None, units: str='angstrom', plot_thresholds: Union=False, plot_populations: Union=False):
+    def filter_by_length(self, cut: Union='truncate', search_dict: dict[str, numbers.Number] | None=None, units: str='angstrom', plot_thresholds: Union=False, plot_populations: Union=False, mol: rdkit.Chem.rdchem.Mol | None=None):
         """Wrapper for :py:func:`shnitsel.clean.filter_geo.filter_by_length`."""
-        return filter_by_length(self._obj, mol, cut=cut, search_dict=search_dict, units=units, plot_thresholds=plot_thresholds, plot_populations=plot_populations)
+        return filter_by_length(self._obj, cut=cut, search_dict=search_dict, units=units, plot_thresholds=plot_thresholds, plot_populations=plot_populations, mol=mol)
 
     def omit(self):
         """Wrapper for :py:func:`shnitsel.clean.common.omit`."""
