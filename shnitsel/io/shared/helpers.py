@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import logging
 import os
 import pathlib
 from typing import Callable, Dict, List, Literal, Tuple
@@ -7,6 +8,7 @@ import xarray as xr
 import random
 
 from shnitsel.__api_info import internal
+
 KindType = Literal['sharc', 'nx', 'newtonx', 'pyrai2md', 'shnitsel']
 
 PathOptionsType = str | os.PathLike | pathlib.Path
@@ -27,6 +29,9 @@ class LoadingParameters:
 
     # List of the names of states or a function to label them or None and let the trajectory loader make an educated guess
     state_names: List[str] | Callable[[xr.Dataset], xr.Dataset] | None = None
+
+    # Logger to use for log outputs
+    logger: logging.Logger | None = None
 
 
 @internal()
