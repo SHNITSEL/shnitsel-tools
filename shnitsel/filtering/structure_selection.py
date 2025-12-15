@@ -198,9 +198,10 @@ class StructureSelection:
         """
         filtered_dataset = dataset.squeeze()
 
-        if 'frame' in filtered_dataset or 'time' in filtered_dataset:
+        if 'frame' in filtered_dataset.dims or 'time' in filtered_dataset.dims:
             raise ValueError(
-                "The dataset should not contain frame or data but represent a single frame of data."
+                "The dataset should not contain frame or data but represent a single frame of data. \n"
+                f"Had dimensions : {filtered_dataset.dims}"
             )
 
         # TODO: FIXME: Consider the charges needing to be set from the dataset settings.s
@@ -248,13 +249,13 @@ class StructureSelection:
         dihedrals_selected = set()
         dihedrals_types = dict()
 
-        are_atoms_selected = 'atom' in default_selection
+        are_atoms_selected = 'atoms' in default_selection
         are_bonds_selected = 'bonds' in default_selection
         are_angles_selected = 'angles' in default_selection
         are_dihedrals_selected = 'dihedrals' in default_selection
 
         for atom in mol.GetAtoms():
-            atomid = (atom.GetIdx(),)
+            atomid = atom.GetIdx()
             atom_type = atom.GetSymbol()
             atoms.add(atomid)
             atoms_types[atomid] = atom_type
@@ -263,7 +264,7 @@ class StructureSelection:
             atoms_selected.update(atoms)
 
         for bond in mol.GetBonds():
-            beginIdx = (bond.GetBeginAtomIdx(),)
+            beginIdx = bond.GetBeginAtomIdx()
             endIdx = bond.GetEndAtomIdx()
             bond_type = bond.GetBondTypeAsDouble()
             bondId = (beginIdx, endIdx)
