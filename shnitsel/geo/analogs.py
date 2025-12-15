@@ -150,6 +150,7 @@ def _combine_compounds_stacked(compounds, names=None, concat_kws=None):
         compounds, dim=concat_dim, **({'combine_attrs': 'drop_conflicts'} | concat_kws)
     )
     res = res.assign_coords(per_compound)
+    res = res.assign_coords(compound_=names)
 
     if any('time_' in x.dims for x in compounds):
         time_only = xr.concat(
@@ -158,6 +159,8 @@ def _combine_compounds_stacked(compounds, names=None, concat_kws=None):
             **concat_kws,
         )
         res = res.assign(time_only)
+
+    # TODO: consider using MajMinIndex
     return res
 
 
@@ -215,7 +218,9 @@ def combine_analogs(
         res = _combine_compounds_unstacked(analogs, names=names, concat_kws=concat_kws)
     else:
         raise ValueError("Inconsistent formats")
-    # if 'mol' in res.attrs:
-    #     del res.attrs['mol']
+
     mols = [x.attrs['mol'] for x in analogs]
-    return res.assign_attrs(mols=mols).assign_coords(mol=('compound_', mols))
+    res = res.assign_attrs(
+        mol=mols[0],  # TODO: Try replacing with search pattern object
+    ).assign_coords(mols=('compound_', mols))
+    return res
