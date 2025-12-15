@@ -162,6 +162,11 @@ def sanity_check(
     Returns
     -------
         The sanitized xr.Dataset
+
+    Notes
+    -----
+    The resulting object has a ``filtranda`` data_var, representing the values by which the data were filtered.
+    If the input has a ``filtranda`` data_var, it is overwritten.
     """
     settings = {
         'etot_drift': etot_drift,
@@ -173,5 +178,7 @@ def sanity_check(
     }
     filtranda = energy_filtranda(frames, **settings)
     dispatch_plots(filtranda, plot_thresholds, plot_populations)
-    frames = frames.assign(filtranda=filtranda)
+    frames = frames.drop_dims(['criterion'], errors='ignore').assign(
+        filtranda=filtranda
+    )
     return dispatch_cut(frames, cut)

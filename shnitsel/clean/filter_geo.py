@@ -1,5 +1,6 @@
 from numbers import Number
 from typing import Literal, Sequence
+import logging
 
 import numpy as np
 import xarray as xr
@@ -25,7 +26,9 @@ def _lengths_for_searches(atXYZ, searches, mol=None):
     if mol is None:
         mol = default_mol(atXYZ)
 
+    logging.disable(logging.INFO)
     matches = flag_bats_multiple(mol, searches)
+    logging.disable(logging.NOTSET)
 
     bonds = xr.concat(
         [
@@ -156,11 +159,18 @@ def filter_by_length(
     Returns
     -------
         The filtered Dataset
+
+    Notes
+    -----
+    The resulting object has a ``filtranda`` data_var, representing the values by which the data were filtered.
+    If the input has a ``filtranda`` data_var, it is overwritten.
     """
     filtranda = bond_length_filtranda(
         frames, search_dict=search_dict, units=units, mol=mol
     )
-    frames = frames.assign(filtranda=filtranda)
+    frames = frames.drop_dims(['criterion'], errors='ignore').assign(
+        filtranda=filtranda
+    )
     dispatch_plots(filtranda, plot_thresholds, plot_populations)
 
     return dispatch_cut(frames, cut)
