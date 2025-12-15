@@ -495,13 +495,13 @@ def read_single(
                 doCollect=True,
             )
             if records is not None:
-                handle_records(records)
+                handle_records(records, None)
             raise
     records = collect_and_clean_queue_handler(
         queue, handler, logger, original_handlers=original_handlers, doCollect=True
     )
     if records is not None:
-        handle_records(records)
+        handle_records(records, None)
     return None
 
 
