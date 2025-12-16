@@ -596,7 +596,7 @@ def identify_or_check_input_kind(
             #     f"The path `{path}` is not of the denoted format {kind_hint}."
             # )
         else:
-            logging.warning(
+            logging.info(
                 f"The path `{path}` didn't satisfy the conditions of any of the known formats. Available options are: {list(READERS.keys())} but none matched the specific path."
             )
 
