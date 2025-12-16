@@ -117,14 +117,14 @@ class DataArrayAccessor(DAManualAccessor):
         return time_grouped_confidence_interval(self._obj, confidence=confidence)
 
     @needs(dims={'atom', 'direction'}, coords_or_vars={'atNames'}, not_dims={'frame'})
-    def to_xyz(self, comment='#') -> str:
+    def to_xyz(self, comment='#', units='angstrom') -> str:
         """Wrapper for :py:func:`shnitsel.bridges.to_xyz`."""
-        return to_xyz(self._obj, comment=comment)
+        return to_xyz(self._obj, comment=comment, units=units)
 
     @needs(dims={'atom', 'direction'}, groupable={'time'}, coords_or_vars={'atNames'})
-    def traj_to_xyz(self) -> str:
+    def traj_to_xyz(self, units='angstrom') -> str:
         """Wrapper for :py:func:`shnitsel.bridges.traj_to_xyz`."""
-        return traj_to_xyz(self._obj)
+        return traj_to_xyz(self._obj, units=units)
 
     @needs(dims={'atom', 'direction'}, coords_or_vars={'atNames'}, not_dims={'frame'})
     def to_mol(self, charge: int | None=None, covFactor: float=1.2, to2D: bool=True, molAtomMapNumber: Union=None, atomNote: Union=None, atomLabel: Union=None) -> Mol:
