@@ -23,16 +23,20 @@ def _find_atom_pairs(mol, atoms):
 
 
 def _substruct_match_to_submol(mol, substruct_match):
+    # Store consistent atom order before extracting
     patt_map = [-1] * mol.GetNumAtoms()
     for patt_idx, mol_idx in enumerate(substruct_match):
         patt_map[mol_idx] = patt_idx
     mol = set_atom_props(rc.Mol(mol), patt_idx=patt_map)
+
+    # Extract submol
     bond_path = _find_atom_pairs(mol, substruct_match)
     res = rc.PathToSubmol(mol, bond_path)
+
+    # Renumber atoms using stored order
     res_map = [-1] * res.GetNumAtoms()
     for a in res.GetAtoms():
         res_map[a.GetIntProp('patt_idx')] = a.GetIdx()
-    # [a.GetIntProp('patt_idx') for a in res.GetAtoms()]
     res = rc.RenumberAtoms(res, res_map)
     return res
 
@@ -79,37 +83,19 @@ def list_analogs(
         set_atom_props(res_mol, atomNote=True)
 
         if vis:
-            # atomLabels = {
-            #     mol_idx: f"P{patt_idx}" for patt_idx, mol_idx in enumerate(idxs)
-            # }
             atom_labels = [''] * mol.GetNumAtoms()
             for patt_idx, mol_idx in enumerate(idxs):
-                atom_labels[mol_idx] = f"{mol_idx}:{patt_idx}"  # patt_idx
-            vis_orig = rc.Mol(mol)  # avoid overwriting
+                atom_labels[mol_idx] = f"{mol_idx}:{patt_idx}"
+            vis_orig = rc.Mol(mol)  # avoid mutating original
             set_atom_props(vis_orig, atomNote=atom_labels)
-            # display(mol_to_vis)
 
             atom_labels = [
                 f"{mol_idx}:{patt_idx}" for patt_idx, mol_idx in enumerate(idxs)
             ]
-            vis_patt = rc.Mol(search)  # avoid overwriting
+            vis_patt = rc.Mol(search)  # avoid mutating original
             set_atom_props(vis_patt, atomNote=atom_labels)
-            # display(mol_to_vis)
-            # img = rc.Draw.MolToImage(
-            #     mol_to_vis,
-            #     highlightAtoms=idxs,
-            # )
-            # display(img)
 
             mol_grid.append([vis_orig, vis_patt, res_mol])
-        # The following ensures that analogical atoms will be stored at
-        # the same index
-        # this is as opposed to using the substructure match directly
-        # MISUNDERSTOOD! BUT WHY?
-        # idxs = [a.GetIntProp('original_index') for a in res_mol.GetAtoms()]
-
-        # if vis:
-        #     display(res_mol)
 
         range_ = range(len(idxs))
         results.append(
