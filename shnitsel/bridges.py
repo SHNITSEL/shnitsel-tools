@@ -1,5 +1,6 @@
 """This submodule contains functions used to interface with other packages and programs, especially RDKit."""
 
+from logging import warning
 from typing import Literal
 
 import numpy as np
@@ -13,15 +14,17 @@ from .units.definitions import length
 
 
 @needs(dims={'atom', 'direction'}, coords_or_vars={'atNames'}, not_dims={'frame'})
-def to_xyz(da: AtXYZ, comment='#') -> str:
+def to_xyz(da: AtXYZ, comment='#', units='angstrom') -> str:
     """Convert an xr.DataArray of molecular geometry to an XYZ string
 
     Parameters
     ----------
     da
         A molecular geometry -- should have dimensions 'atom' and 'direction'
-    comment, optional
+    comment
         The comment line for the XYZ, by default '#'
+    units
+        The units to which to convert before creating the XYZ string
 
     Returns
     -------
@@ -32,7 +35,13 @@ def to_xyz(da: AtXYZ, comment='#') -> str:
         The units of the outputs will be the same as the array;
         consider converting to angstrom first, as most tools will expect this.
     """
-    # TODO: Add parameter to set output unit?
+    if 'units' not in da.attrs:
+        warning(
+            "da.attrs['units'] is not set, "
+            "the output will contain unconverted values"
+        )
+    else:
+        da = convert_length(da, to=units)
     atXYZ = da.transpose('atom', 'direction').values
     atNames = da.atNames.values
     sxyz = np.char.mod('% 23.15f', atXYZ)
@@ -43,7 +52,7 @@ def to_xyz(da: AtXYZ, comment='#') -> str:
 
 
 @needs(dims={'atom', 'direction'}, groupable={'time'}, coords_or_vars={'atNames'})
-def traj_to_xyz(traj_atXYZ: AtXYZ) -> str:
+def traj_to_xyz(traj_atXYZ: AtXYZ, units='angstrom') -> str:
     """Convert an entire trajectory's worth of geometries to an XYZ string
 
     Parameters
@@ -52,6 +61,8 @@ def traj_to_xyz(traj_atXYZ: AtXYZ) -> str:
         Molecular geometries -- should have dimensions 'atom' and 'direction'; should
         also be groupable by 'time' (i.e. either have a 'time' dimension or
         a 'time' coordinate)
+    units
+        The units to which to convert before creating the XYZ string
 
     Returns
     -------
@@ -62,6 +73,14 @@ def traj_to_xyz(traj_atXYZ: AtXYZ) -> str:
         The units of the outputs will be the same as the array;
         consider converting to angstrom first, as most tools will expect this.
     """
+    if 'units' not in traj_atXYZ.attrs:
+        warning(
+            "da.attrs['units'] is not set, "
+            "the output will contain unconverted values"
+        )
+    else:
+        traj_atXYZ = convert_length(traj_atXYZ, to=units)
+
     atXYZ = traj_atXYZ.transpose(..., 'atom', 'direction').values
     if atXYZ.ndim == 2:
         atXYZ = atXYZ[None, :, :]
