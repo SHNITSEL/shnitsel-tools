@@ -323,3 +323,100 @@ def create_initial_dataset(
     res_dataset = res_dataset.set_coords(isolated_keys)
 
     return res_dataset, default_format_attributes
+
+
+def fill_missing_dataset_variables(ds: xr.Dataset) -> xr.Dataset:
+    """Helper function to fill in missing variables in datasets that we need for initialization.
+
+    Args:
+        ds (xr.Dataset): The dataset to complete with state variables and atom variables
+
+    Returns:
+        xr.Dataset: The completed dataset with default variables applied.
+    """
+    from shnitsel.units.defaults import get_default_input_attributes
+
+    template = {
+        "state_names": ["state"],
+        "state_types": ["state"],
+        "state_magnetic_number": ["state"],
+        "state_degeneracy_group": ["state"],
+        "state_charges": ["state"],
+        "atNames": ["atom"],
+        "atNums": ["atom"],
+    }
+
+    template_default_values = {
+        "state_names": "",
+        "state_types": 0,
+        "state_magnetic_number": np.nan,
+        "state_degeneracy_group": 0,
+        "state_charges": 0,
+        "atNames": "",
+        "atNums": -1,
+    }
+
+    default_float_type = np.dtypes.Float32DType
+    default_string_type = 'U8'
+
+    template_default_dtypes = {
+        "state_names": default_string_type,
+        "state_types": np.dtypes.Int8DType,
+        "state_magnetic_number": default_float_type,
+        "state_degeneracy_group": np.dtypes.Int8DType,
+        "state_charges": default_float_type,
+        "atNames": default_string_type,
+        "atNums": np.dtypes.Int8DType,
+    }
+
+    num_states = ds.sizes['state'] if 'state' in ds.sizes else 0
+    num_atoms = ds.sizes['atom'] if 'atom' in ds.sizes else 0
+
+    dim_lengths = {
+        "state": num_states,
+        "atom": num_atoms,
+    }
+
+    isolated_keys = list(
+        set(
+            [
+                "atNames",
+                "atNums",
+                "state_names",
+                "state_charges",
+                "state_magnetic_number",
+                "state_degeneracy_group",
+                "state_types",
+            ]
+        ).intersection(template.keys())
+    )
+
+    default_format_attributes = get_default_input_attributes('shnitsel', None)
+
+    var_data = {
+        varname: (
+            dims,
+            (
+                np.full(
+                    [dim_lengths[d] for d in dims],
+                    fill_value=template_default_values[varname],
+                    dtype=template_default_dtypes[varname],
+                )
+            ),
+            (
+                default_format_attributes[varname]
+                if varname in default_format_attributes
+                else {}
+            ),
+        )
+        for varname, dims in template.items()
+        if varname not in ds
+    }
+    if len(var_data) == 0:
+        return ds
+
+    res_dataset = ds.assign(var_data)
+
+    res_dataset = res_dataset.set_coords(isolated_keys)
+
+    return res_dataset
