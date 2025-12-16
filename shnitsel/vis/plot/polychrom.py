@@ -34,7 +34,8 @@ def pca_line_plot(
         shadow_labels = {1: 'S$_0$', 2: 'S$_1$', 3: 'S$_2$'}
     if shadow_cmap is None:
         shadow_cmap = mpl.colors.LinearSegmentedColormap.from_list(
-            None, plt.cm.Pastel1(range(0,3)), 2)
+            None, plt.cm.Pastel1(range(0, 3)), 3
+        )
 
     x = pca_res[:, 0]
     y = pca_res[:, 1]
