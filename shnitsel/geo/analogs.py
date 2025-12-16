@@ -23,8 +23,18 @@ def _find_atom_pairs(mol, atoms):
 
 
 def _substruct_match_to_submol(mol, substruct_match):
+    patt_map = [-1] * mol.GetNumAtoms()
+    for patt_idx, mol_idx in enumerate(substruct_match):
+        patt_map[mol_idx] = patt_idx
+    mol = set_atom_props(rc.Mol(mol), patt_idx=patt_map)
     bond_path = _find_atom_pairs(mol, substruct_match)
-    return rc.PathToSubmol(mol, bond_path)
+    res = rc.PathToSubmol(mol, bond_path)
+    res_map = [-1] * res.GetNumAtoms()
+    for a in res.GetAtoms():
+        res_map[a.GetIntProp('patt_idx')] = a.GetIdx()
+    # [a.GetIntProp('patt_idx') for a in res.GetAtoms()]
+    res = rc.RenumberAtoms(res, res_map)
+    return res
 
 
 def list_analogs(
@@ -51,7 +61,7 @@ def list_analogs(
        An ``Iterable`` of ``xr.DataArray``s
     """
     if vis:
-        from IPython import display
+        from IPython.display import display
 
     mols = [default_mol(x) for x in ensembles]
     if not smarts:
@@ -62,18 +72,44 @@ def list_analogs(
     search = rc.MolFromSmarts(smarts)
 
     results = []
+    mol_grid = []
     for compound, mol in zip(ensembles, mols):
-        set_atom_props(mol, molAtomMapNumber=True)
         idxs = list(mol.GetSubstructMatch(search))
-
         res_mol = _substruct_match_to_submol(mol, idxs)
         set_atom_props(res_mol, atomNote=True)
-        # The following ensures that atoms will be stored in canonical order
-        # this is as opposed to using the substructure match directly
-        idxs = [a.GetAtomMapNum() for a in res_mol.GetAtoms()]
 
         if vis:
-            display(res_mol)
+            # atomLabels = {
+            #     mol_idx: f"P{patt_idx}" for patt_idx, mol_idx in enumerate(idxs)
+            # }
+            atom_labels = [''] * mol.GetNumAtoms()
+            for patt_idx, mol_idx in enumerate(idxs):
+                atom_labels[mol_idx] = f"{mol_idx}:{patt_idx}"  # patt_idx
+            vis_orig = rc.Mol(mol)  # avoid overwriting
+            set_atom_props(vis_orig, atomNote=atom_labels)
+            # display(mol_to_vis)
+
+            atom_labels = [
+                f"{mol_idx}:{patt_idx}" for patt_idx, mol_idx in enumerate(idxs)
+            ]
+            vis_patt = rc.Mol(search)  # avoid overwriting
+            set_atom_props(vis_patt, atomNote=atom_labels)
+            # display(mol_to_vis)
+            # img = rc.Draw.MolToImage(
+            #     mol_to_vis,
+            #     highlightAtoms=idxs,
+            # )
+            # display(img)
+
+            mol_grid.append([vis_orig, vis_patt, res_mol])
+        # The following ensures that analogical atoms will be stored at
+        # the same index
+        # this is as opposed to using the substructure match directly
+        # MISUNDERSTOOD! BUT WHY?
+        # idxs = [a.GetIntProp('original_index') for a in res_mol.GetAtoms()]
+
+        # if vis:
+        #     display(res_mol)
 
         range_ = range(len(idxs))
         results.append(
@@ -81,8 +117,10 @@ def list_analogs(
             .assign_coords(atom=range_)
             .sortby('atom')
             .assign_attrs(mol=res_mol)
-            # .drop_vars(['atNames', 'atNums'], errors='ignore') # TODO
         )
+    if vis:
+        display(rc.Draw.MolsMatrixToGridImage(mol_grid))
+
     return results
 
 
@@ -211,7 +249,7 @@ def combine_analogs(
         If the ensembles provided are in a mixture of formats (i.e. some have trajectories
         stacked, others unstacked)
     """
-    analogs = list_analogs(ensembles, smarts=smarts, vis=False)
+    analogs = list_analogs(ensembles, smarts=smarts, vis=vis)
     if all(is_stacked(x) for x in analogs):
         res = _combine_compounds_stacked(analogs, names=names, concat_kws=concat_kws)
     elif not any(is_stacked(x) for x in analogs):
