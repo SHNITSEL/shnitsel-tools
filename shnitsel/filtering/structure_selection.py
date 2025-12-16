@@ -980,8 +980,8 @@ class StructureSelection:
         drawer.drawOptions().setHighlightColour(highlight_color)
         drawer.drawOptions().clearBackground = False
 
-        active_bonds = self.__get_active_bonds()
-        active_atoms = self.__get_active_atoms()
+        active_bonds = self.__get_active_bonds(flag_level=flag_level)
+        active_atoms = self.__get_active_atoms(flag_level=flag_level)
 
         if len(active_bonds) == 0:
             active_bonds = None
