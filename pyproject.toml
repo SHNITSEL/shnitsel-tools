@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "shnitsel-tools"
-version = "0.0.2.dev1"
+version = "0.0.2.dev2"
 authors = [
   { name = "Theodor Everley Röhrkasten", email = "theodor.roehrkasten@fau.de" },
   { name = "Kevin Höllring", email = "kevin.hoellring@fau.de" },
