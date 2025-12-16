@@ -8,6 +8,7 @@ import xarray as xr
 import random
 
 from shnitsel.__api_info import internal
+from shnitsel.core.typedefs import StateTypeSpecifier
 
 KindType = Literal['sharc', 'nx', 'newtonx', 'pyrai2md', 'shnitsel']
 
@@ -25,7 +26,7 @@ class LoadingParameters:
     trajectory_id: Dict[str, int] | Callable[[pathlib.Path], int] | None = None
 
     # Optionally provide a list of state types/multiplicities or a function to assign them to a dataset
-    state_types: List[int] | Callable[[xr.Dataset], xr.Dataset] | None = None
+    state_types: StateTypeSpecifier | List[StateTypeSpecifier] | Callable[[xr.Dataset], xr.Dataset] | None = None
 
     # List of the names of states or a function to label them or None and let the trajectory loader make an educated guess
     state_names: List[str] | Callable[[xr.Dataset], xr.Dataset] | None = None

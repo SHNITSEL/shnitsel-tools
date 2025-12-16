@@ -36,3 +36,8 @@ class StateInfo(NamedTuple):
 class StateCombInfo(NamedTuple):
     ids: StateCombination
     name: str
+
+
+StateTypeSpecifier = (
+    Literal['s', 'S', 'd', 'D', 't', 'T', 'singlet', 'doublet', 'triplet'] | int
+)
