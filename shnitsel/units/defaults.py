@@ -4,7 +4,7 @@ from .definitions import standard_units_of_formats, unit_dimensions
 
 
 def get_default_input_attributes(
-    kind: Literal["sharc", "newtonx", "ase", "pyrai2md"],
+    kind: Literal["sharc", "newtonx", "ase", "pyrai2md", "shnitsel"],
     loading_parameters: LoadingParameters | None = None,
 ) -> Dict[str, Dict[str, str]]:
     """Function to get the default attribute setup to read input from a certain file format.

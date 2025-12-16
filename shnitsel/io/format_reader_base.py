@@ -5,6 +5,7 @@ import pathlib
 import re
 from typing import Callable, Dict, List
 
+from shnitsel.core.typedefs import StateTypeSpecifier
 from shnitsel.data.shnitsel_db_format import ShnitselDB
 from shnitsel.data.trajectory_format import Trajectory
 from shnitsel.io.shared.helpers import (
@@ -24,6 +25,7 @@ from shnitsel.io.shared.trajectory_finalization import finalize_loaded_trajector
 from shnitsel.io.shared.trajectory_setup import (
     OptionalTrajectorySettings,
     assign_optional_settings,
+    fill_missing_dataset_variables,
 )
 from shnitsel.io.shared.variable_flagging import mark_variable_assigned
 
@@ -302,16 +304,68 @@ class FormatReader(ABC):
                 #     get_state_name_callable = default_state_name_assigner
             state_types_override = base_loading_parameters.state_types
             if state_types_override is not None:
+
+                def state_specifier_to_int(label: StateTypeSpecifier) -> int:
+                    """Helper function to translate state type specifiers from string to
+                    int representation as needed.
+
+                    Args:
+                        label (StateTypeSpecifier): Either the str or int multiplicity of the state
+
+                    Returns:
+                        int: The integer representation of the multiplicity
+                    """
+                    if isinstance(label, int):
+                        return label
+                    elif isinstance(label, str):
+                        label_low = label.lower()
+
+                        if label_low.startswith('s'):
+                            return 1
+                        elif label_low.startswith('d'):
+                            return 2
+                        elif label_low.startswith('t'):
+                            return 3
+
+                    logging.error(
+                        "Encountered invalid state type specifier: %(label)s",
+                        {'label': label},
+                    )
+                    return -1
+
                 if callable(state_types_override):
                     get_state_types_callable = state_types_override
+                elif isinstance(state_types_override, str) or isinstance(
+                    state_types_override, int
+                ):
+
+                    def tmp_state_assigner_all(dataset: xr.Dataset) -> xr.Dataset:
+                        dataset = fill_missing_dataset_variables(dataset)
+                        dataset.state_types.values[:] = state_specifier_to_int(
+                            state_types_override
+                        )
+                        mark_variable_assigned(dataset.state_types)
+                        return dataset
+
+                    get_state_types_callable = tmp_state_assigner_all
                 elif isinstance(state_types_override, list):
 
                     def tmp_state_assigner(dataset: xr.Dataset) -> xr.Dataset:
+                        dataset = fill_missing_dataset_variables(dataset)
+                        assert (
+                            'state' not in dataset.sizes
+                            or len(state_types_override) == dataset.sizes['state']
+                        ), (
+                            "Length of provided state type list did not match length of state array in loaded dataset."
+                        )
                         dataset = dataset.assign_coords(
                             {
                                 "state_types": (
                                     "state",
-                                    state_types_override,
+                                    [
+                                        state_specifier_to_int(x)
+                                        for x in state_types_override
+                                    ],
                                     dataset.state_types.attrs,
                                 )
                             }

@@ -1,4 +1,5 @@
 from shnitsel.__api_info import API, internal
+from shnitsel.core.typedefs import StateTypeSpecifier
 from shnitsel.data.trajectory_format import Trajectory
 from shnitsel.data.shnitsel_db_format import ShnitselDB, build_shnitsel_db
 from shnitsel.io.format_reader_base import FormatInformation, FormatReader
@@ -53,7 +54,7 @@ def read(
     parallel: bool = True,
     error_reporting: Literal["log", "raise"] = "log",
     input_units: Dict[str, str] | None = None,
-    input_state_types: List[int] | Callable[[xr.Dataset], xr.Dataset] | None = None,
+    input_state_types: StateTypeSpecifier | List[StateTypeSpecifier] | Callable[[xr.Dataset], xr.Dataset] | None = None,
     input_state_names: List[str] | Callable[[xr.Dataset], xr.Dataset] | None = None,
     input_trajectory_id_maps: Dict[str, int]
     | Callable[[pathlib.Path], int]
