@@ -21,23 +21,31 @@ The package leverages [Xarray](https://xarray.dev/) to benefit from efficient mu
 `shnitsel-tools` is normally used interactively via Jupyter Notebook on a local machine.
 However, some users might find it convenient to convert trajectories to NetCDF
 on-cluster, as the NetCDF file will likely download faster than the raw text files.
-Either way the following should work as usual, ideally in a virtual (e.g. `conda`) environment:
-  
+Either way the following should work as usual, ideally in a fresh virtual (e.g. `conda`) environment:
+
+<!-- TODO: remove --pre once full release out -->
   ```bash
-  pip install shnitsel-tools
+  pip install shnitsel-tools[vis]
   ```
+
+For more detailed installation instructions, see [here](#detailed-installation-instructions)
 
 ## Usage
 
-The package is organized into top-level functions for reading data,
-accessor methods available on `xr.Dataset` and `xr.DataArray` objects, plotting routines found in the `shnitsel.plot` namespace,
-and functions taking an RDKit `Mol` object as their principal argument under `shnitsel.rd`.
-The adventurous may find something useful under `shnitsel.core`, though this should be considered internal and therefore subject to change.
+For documentation including an API reference, please see https://shnitsel.github.io/tools/docs/_build/index.html.
+
+`shnitsel-tools` mostly exposes data as Xarray (`xr`) objects, so familiarity with that library is beneficial.
+Xarray is somewhat like Pandas for higher-dimensional data, or like Numpy with labels and other metadata.
+- [Overview of data structures](https://tutorial.xarray.dev/intermediate/datastructures-intermediate.html)
+- [Official quick overview](https://docs.xarray.dev/en/stable/getting-started-guide/quick-overview.html)
+- [Xarray in 45 minutes](https://tutorial.xarray.dev/overview/xarray-in-45-min.html) for a more detailed introduction
 
 ### Tutorials
 For a quick start, see the [tutorials](https://github.com/SHNITSEL/shnitsel-tools/blob/main/tutorials) directory,
 which contains Jupyter Notebooks showing the workflow for parsing, writing and loading SHNITSEL databases as well as how to postprocess and visualize the respective data.
 
+<!--
+TODO: Adapt to new tutorials!
 #### Collection & storage
 - [parsing trajcetory and initial condition data obtained by SHARC](https://github.com/SHNITSEL/shnitsel-tools/blob/main/tutorials/0_1_sharc2hdf5.ipynb)
 - [parsing trajectory data produced with Newton-X](https://github.com/SHNITSEL/shnitsel-tools/blob/main/tutorials/0_2_nx2hdf5.ipynb)
@@ -55,51 +63,112 @@ analysis of homologous/isoelectronic molecules, from filtration via dimensional 
 ## Tree
 
 ```bash
-shnitsel
-├── core
-│   ├── ase.py
-│   ├── datasheet
-│   │   ├── colormaps.py
-│   │   ├── common.py
-│   │   ├── dip_trans_hist.py
-│   │   ├── hist.py
-│   │   ├── __init__.py
-│   │   ├── nacs_hist.py
-│   │   ├── oop.py
-│   │   ├── per_state_hist.py
-│   │   ├── structure.py
-│   │   └── time.py
-│   ├── filter_unphysical.py
-│   ├── filtration.py
-│   ├── indexes.py
-│   ├── __init__.py
-│   ├── parse
-│   │   ├── common.py
-│   │   ├── __init__.py
-│   │   ├── nx.py
-│   │   ├── pyrai2md.py
-│   │   ├── sharc_icond.py
-│   │   ├── sharc_traj.py
-│   │   └── xyz.py
-│   ├── plot
-│   │   ├── __init__.py
-│   │   ├── kde.py
-│   │   ├── p3mhelpers.py
-│   │   ├── pca_biplot.py
-│   │   ├── polychrom.py
-│   │   ├── select.py
-│   │   └── spectra3d.py
-│   ├── postprocess.py
-│   ├── spectra.py
-│   └── xrhelpers.py
-├── __init__.py
-├── plot
-│   └── __init__.py
-├── rd.py
-└── xarray.py
+# TODO: regenerate directory tree
+```
+-->
+
+## Detailed installation instructions
+
+### Optional dependencies
+In the following, the `[vis]` suffix causes optional plotting dependencies to be
+installed. If you are using `shnitsel-tools` on an HPC, you can omit it.
+
+If you would like to contribute to `shnitsel-tools`, you may find the development
+dependencies useful. These can be obtained by adding `[dev]` at the end of the
+package name.
+
+To install all optional dependencies, please add `[vis,dev]` after the package name.
+
+### Using conda
+Before anything else, please run:
+```bash
+conda create -n shnitsel python==3.12 pip
+conda activate shnitsel
 ```
 
-## Development
+#### For tutorials or development
+If you would like to work through the tutorials, please use the following commands
+while the conda environment is active:
+<!-- TODO: remove git-switch command once full release version comes out -->
+```bash
+git clone 'https://github.com/SHNITSEL/shnitsel-tools.git'
+cd shnitsel-tools
+git switch develop
+pip install .[vis]
+```
+
+If you would like changes you make to the code in the `shnitsel-tools` directory
+to be reflected in your environment, please add the `-e` flag ("editable mode") to the
+final line of the above block:
+```bash
+# Same commands as before, and then:
+pip install -e .[vis]  # or .[vis,dev] to include development tools
+```
+
+#### For ordinary use
+If you would just like to use the package, it is unnecessary to clone the repository.
+Instead, it should suffice to run the following command with the conda environment active:
+
+<!-- TODO: remove --pre once full release version comes out -->
+```bash
+pip install --pre shnitsel-tools[vis]
+```
+
+### Using uv
+
+This tool, available at  https://docs.astral.sh/uv/, is typically faster and
+more light-weight than `pip` and `conda`.
+Unlike `conda`, it creates traditional Python virtual environments, which are
+stored in the folder in which the command is run and activated by sourcing
+a shell-script.
+
+```bash
+git clone 'https://github.com/SHNITSEL/shnitsel-tools.git'
+cd shnitsel-tools
+
+uv pip install -e .[dev]  # install shnitsel in editable mode
+```
+
+#### For tutorials or development
+If you would like to work through the tutorials, please use the following commands:
+<!-- TODO: remove git-switch command once full release version comes out -->
+```bash
+git clone 'https://github.com/SHNITSEL/shnitsel-tools.git'
+cd shnitsel-tools
+git switch develop
+uv venv --python 3.12  # create an environment under ./.venv
+source .venv/bin/activate  # activate the new environment
+uv pip install .[vis]
+```
+
+If you would like changes you make to the code in the `shnitsel-tools` directory
+to be reflected in your environment, please add the `-e` flag ("editable mode") to the
+final line of the above block:
+```bash
+# Same commands as before, and then:
+uv pip install -e .[vis]  # or .[vis,dev] to include development tools
+```
+
+#### For command-line only use
+The following will ensure the command-line programs provided are always available,
+without requiring environments to be activated first.
+```bash
+uv tool install --pre shnitsel-tools
+```
+
+#### For ordinary use
+If you would just like to use the package, it is unnecessary to clone the repository.
+Instead, it should suffice to run the following commands:
+
+<!-- TODO: remove --pre once full release version comes out -->
+```bash
+uv venv --python 3.12 shnitsel  # creates a directory here called ./shnitsel
+source shnitsel/bin/activate  # activate the new environment
+uv pip install --pre shnitsel-tools[vis]
+```
+
+<!--
+### For developers
   
   We recommend installation using the `uv` tool, available at https://docs.astral.sh/uv/.
   Please clone this repo and run the following in the `shnitsel-tools` directory:
@@ -118,6 +187,8 @@ shnitsel
   If you would like to contribute your changes,
   please [fork](https://github.com/SHNITSEL/shnitsel-tools/fork) this repo,
   and make a pull request.
+
+-->
 
 ## Further Information
 
