@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from itertools import combinations
 import logging
 from typing import Iterator, Literal, Self, Sequence, TypeAlias
 import rdkit
@@ -15,14 +16,36 @@ AtomDescriptor: TypeAlias = int
 BondDescriptor: TypeAlias = tuple[int, int]
 AngleDescriptor: TypeAlias = tuple[int, int, int]
 DihedralDescriptor: TypeAlias = tuple[int, int, int, int]
+PyramidsDescriptor: TypeAlias = tuple[
+    int, tuple[int, int, int]
+]  # Center of the pyramid is the separate int
 
 FeatureDescriptor: TypeAlias = (
-    AtomDescriptor | BondDescriptor | AngleDescriptor | DihedralDescriptor
+    AtomDescriptor
+    | BondDescriptor
+    | AngleDescriptor
+    | DihedralDescriptor
+    | PyramidsDescriptor
 )
 
 FeatureList: TypeAlias = list[FeatureDescriptor]
 
 ActiveFlag: TypeAlias = bool
+
+FeatureLevelOptions: TypeAlias = Literal[
+    'atoms', 1, 'bonds', 2, 'angles', 3, 'dihedrals', 4, 'pyramids', 5
+]
+FeatureLevelType: TypeAlias = Literal[
+    'atoms', 'bonds', 'angles', 'dihedrals', 'pyramids'
+]
+
+FEATURE_LEVELS: list[FeatureLevelType] = [
+    'atoms',
+    'bonds',
+    'angles',
+    'dihedrals',
+    'pyramids',
+]
 
 
 @dataclass
@@ -47,6 +70,10 @@ class StructureSelection:
     dihedrals_types: dict[DihedralDescriptor, bool]
     dihedrals_selected: set[DihedralDescriptor]
 
+    pyramids: set[PyramidsDescriptor]
+    pyramids_types: dict[PyramidsDescriptor, bool]
+    pyramids_selected: set[PyramidsDescriptor]
+
     def copy_or_update(
         self,
         mol: Mol | None = None,
@@ -62,6 +89,9 @@ class StructureSelection:
         dihedrals: set[DihedralDescriptor] | None = None,
         dihedrals_selected: set[DihedralDescriptor] | None = None,
         dihedrals_types: dict[DihedralDescriptor, bool] | None = None,
+        pyramids: set[PyramidsDescriptor] | None = None,
+        pyramids_selected: set[PyramidsDescriptor] | None = None,
+        pyramids_types: dict[PyramidsDescriptor, bool] | None = None,
         inplace: bool = False,
     ) -> Self:
         """Function to create a copy with replaced member values.
@@ -84,6 +114,9 @@ class StructureSelection:
             dihedrals (set[DihedralDescriptor] | None, optional): Set of all indices of dihedrals in the structure. Defaults to None.
             dihedrals_selected (set[DihedralDescriptor] | None, optional): Set of selected indices of dihedrals. Defaults to None.
             dihedrals_types (dict[DihedralDescriptor, bool] | None, optional): Dict with metadata about dihedrals. Defaults to None.
+            pyramids (set[PyramidsDescriptor] | None, optional): Set of all indices of pyramids in the structure. Defaults to None.
+            pyramids_selected (set[PyramidsDescriptor] | None, optional): Set of selected indices of pyramids. Defaults to None.
+            pyramids_types (dict[PyramidsDescriptor, bool] | None, optional): Dict with metadata about pyramids. Defaults to None.
             inplace (bool, optional): Flag to allow for in-place updates instead of returning a new cop. Defaults to False.
 
         Returns:
@@ -122,6 +155,13 @@ class StructureSelection:
             if dihedrals_types is not None:
                 self.dihedrals_types = dihedrals_types
 
+            if pyramids is not None:
+                self.pyramids = pyramids
+            if pyramids_selected is not None:
+                self.pyramids_selected = pyramids_selected
+            if pyramids_types is not None:
+                self.pyramids_types = pyramids_types
+
             return self
         else:
             if mol is None:
@@ -155,6 +195,13 @@ class StructureSelection:
             if dihedrals_types is None:
                 dihedrals_types = self.dihedrals_types
 
+            if pyramids is None:
+                pyramids = self.pyramids
+            if pyramids_selected is None:
+                pyramids_selected = self.pyramids_selected
+            if pyramids_types is None:
+                pyramids_types = self.pyramids_types
+
             return type(self)(
                 mol=mol,
                 atoms=atoms,
@@ -169,13 +216,16 @@ class StructureSelection:
                 dihedrals=dihedrals,
                 dihedrals_selected=dihedrals_selected,
                 dihedrals_types=dihedrals_types,
+                pyramids=pyramids,
+                pyramids_selected=pyramids_selected,
+                pyramids_types=pyramids_types,
             )
 
     @classmethod
     def init_from_dataset(
         cls: type[Self],
         dataset: xr.Dataset,
-        default_selection: list[Literal['atoms', 'bonds', 'angles', 'dihedrals']] = [
+        default_selection: list[FeatureLevelOptions] = [
             'atoms',
             'bonds',
         ],
@@ -189,7 +239,7 @@ class StructureSelection:
                 Must have at least `atXYZ` variable and a `atom` dimension.
                 Ideally, an `atom` coordinate for feature selection is also provided.
                 Should only represent a single frame of data.
-            default_selection (list[Literal['atoms', 'bonds', 'angles', 'dihedrals']], optional): List of features to activate as selected by default. Defaults to [ 'atoms', 'bonds', ].
+            default_selection (list[FeatureLevelOptions], optional): List of features to activate as selected by default. Defaults to [ 'atoms', 'bonds', ].
             to2D (bool, optional): Flag to control whether a mol representation is converted to a 2d projection before use for visualization.
 
         Raises:
@@ -218,7 +268,7 @@ class StructureSelection:
     def init_from_mol(
         cls: type[Self],
         mol: Mol,
-        default_selection: list[Literal['atoms', 'bonds', 'angles', 'dihedrals']] = [
+        default_selection: list[FeatureLevelOptions] = [
             'atoms',
             'bonds',
         ],
@@ -228,7 +278,7 @@ class StructureSelection:
         Args:
             cls (type[StructureSelection]): The type of this StructureSelection so that we can create instances of it.
             mol (rdkit.rdchem.Mol): The RDKit Mol object to extract all initial structural information out of
-            default_selection (list[Literal['atoms', 'bonds', 'angles', 'dihedrals']], optional): List of features to activate as selected by default. Defaults to [ 'atoms', 'bonds', ].
+            default_selection (list[FeatureLevelOptions], optional): List of features to activate as selected by default. Defaults to [ 'atoms', 'bonds', ].
 
         Raises:
             ValueError: If no structural information could be extracted from the dataset.
@@ -250,11 +300,19 @@ class StructureSelection:
         dihedrals = set()
         dihedrals_selected = set()
         dihedrals_types = dict()
+        pyramids: set[PyramidsDescriptor] = set()
+        pyramids_selected: set[PyramidsDescriptor] = set()
+        pyramids_types = dict()
+
+        default_selection = [
+            StructureSelection._to_feature_level_str(x) for x in default_selection
+        ]
 
         are_atoms_selected = 'atoms' in default_selection
         are_bonds_selected = 'bonds' in default_selection
         are_angles_selected = 'angles' in default_selection
         are_dihedrals_selected = 'dihedrals' in default_selection
+        are_pyramids_selected = 'pyramids' in default_selection
 
         for atom in mol.GetAtoms():
             atomid = atom.GetIdx()
@@ -334,6 +392,23 @@ class StructureSelection:
         if are_dihedrals_selected:
             dihedrals_selected.update(dihedrals)
 
+        for atom in mol.GetAtoms():
+            i = atom.GetIdx()
+
+            # get all neighbors of atom i
+            neighbors = [nbr.GetIdx() for nbr in atom.GetNeighbors()]
+
+            # a pyramid requires exactly (or at least) 3 bonded neighbors
+            if len(neighbors) < 3:
+                continue
+
+            # choose all unique triplets of neighbors
+            for j, k, l in combinations(neighbors, 3):
+                pyramids.add((i, (j, k, l)))
+
+        if are_pyramids_selected:
+            pyramids_selected.update(pyramids)
+
         # Create an initial state selection
         return cls(
             mol=mol,
@@ -349,6 +424,9 @@ class StructureSelection:
             dihedrals=dihedrals,
             dihedrals_selected=dihedrals_selected,
             dihedrals_types=dihedrals_types,
+            pyramids=pyramids,
+            pyramids_selected=pyramids_selected,
+            pyramids_types=pyramids_types,
         )
 
     def select_atoms(
@@ -790,6 +868,102 @@ class StructureSelection:
                     break
         return new_selection
 
+    def select_pyramids(
+        self,
+        selection: str
+        | Sequence[str]
+        | PyramidsDescriptor
+        | Sequence[PyramidsDescriptor]
+        | Sequence[AtomDescriptor]
+        | Sequence[Sequence[AtomDescriptor]]
+        | None = None,
+        inplace: bool = False,
+    ) -> Self:
+        """Function to restrict the pyramid selection by providing either SMARTS strings or explicit pyramids descriptors or sets of atoms between which to retain pyramids.
+
+        Args:
+            selection (str | Sequence[str] | PyramidsDescriptor | Sequence[PyramidsDescriptor] | Sequence[AtomDescriptor] | Sequence[Sequence[AtomDescriptor]] | None, optional): The criterion or criteria by which to retain pyramids in the selection. Defaults to None meaning that all pyramids will be added back into the selection.
+            inplace (bool, optional): Whether the selection should be updated in-place. Defaults to False.
+
+        Returns:
+            Self: The updated selection
+        """
+        new_selection = set()
+        if isinstance(selection, str) or isinstance(selection, tuple):
+            selection_list = [selection]
+        elif selection is None:
+            new_selection = self.pyramids.copy()
+            selection_list = []
+        else:
+            selection_list = selection
+
+        for entry in selection_list:
+            if isinstance(entry, str):
+                # Found smarts match:
+                matches = self.__match_pattern(self.mol, entry)
+                new_selection.update(self._new_pyramid_selection_from_atoms(matches))
+            elif isinstance(entry, AtomDescriptor):
+                # We have an atom selection list or list thereof. Consume it and stop iteration.
+                new_selection.update(
+                    self._new_pyramid_selection_from_atoms(selection_list)
+                )
+                break
+            elif isinstance(entry, tuple):
+                new_selection.add(entry)
+            else:
+                # We have a sequence of sequences of atoms:
+                try:
+                    if isinstance(entry[0], AtomDescriptor):
+                        new_selection.update(
+                            self._new_pyramid_selection_from_atoms(entry)
+                        )
+                except:
+                    pass
+
+        return self.copy_or_update(pyramids_selected=new_selection, inplace=inplace)
+
+    def _new_pyramid_selection_from_atoms(
+        self,
+        atoms: Sequence[AtomDescriptor]
+        | Sequence[Sequence[AtomDescriptor]]
+        | None = None,
+        consider_all: bool = False,
+    ) -> set[PyramidsDescriptor]:
+        """Internal helper to get pyramids selection instead of directly updating the selection
+
+        Args:
+            atoms (Sequence[AtomDescriptor] | Sequence[Sequence[AtomDescriptor]] | None, optional): Either a single set of atoms to keep pyramids between or multiple sets within which the pyramids should be kept. Defaults to None.
+            consider_all (bool, optional): Whether to use the entire set of features in the whole molecule as basis or just the selected set. Defaults to using only the currently selected set.
+        Returns:
+            set[Pyramid]: The set of dihedral descriptors in current selection fully covered by these atoms
+        """
+        basis_set = self.pyramids if consider_all else self.pyramids_selected
+        new_selection: set[PyramidsDescriptor]
+        if atoms is None:
+            new_selection = self.pyramids.copy()
+        else:
+            new_selection = set()
+
+            for entry in atoms:
+                filter_set: Sequence[AtomDescriptor]
+                # Flag to allow for breaking out of the loop if the atoms array should have been used as filter instead.
+                break_after = False
+                if isinstance(entry, tuple):
+                    # atoms is a sequence of atoms to select from
+                    filter_set = atoms
+                    break_after = True
+                else:
+                    filter_set = entry
+
+                for pyramid in basis_set:
+                    x, (sides) = pyramid
+                    if x in filter_set and all(x in filter_set for x in sides):
+                        new_selection.add(pyramid)
+
+                if break_after:
+                    break
+        return new_selection
+
     def select_bats(
         self,
         smarts: str | Sequence[str] | None = None,
@@ -806,7 +980,7 @@ class StructureSelection:
         Args:
             smarts (str | Sequence[str] | None, optional): One or more smarts to identify subsets of the molecule and the features therein. Defaults to None.
             idxs (FeatureDescriptor | Sequence[FeatureDescriptor] | None, optional): Either a single tuple or a sequence of tuples to use for the update. Will be assigned based on the length of the tuple. Defaults to None.
-            mode (Literal[&#39;intersect&#39;, &#39;ext&#39;, &#39;sub&#39;], optional): The mode for the update. The new selection can either be the intersection of the current selection and the features covered by the new update set, it can be extended to contain the new update set ('ext') or the new update set can be removed from the current selection (`sub`). Defaults to 'intersect'.
+            mode (Literal['intersect', 'ext', 'sub'], optional): The mode for the update. The new selection can either be the intersection of the current selection and the features covered by the new update set, it can be extended to contain the new update set ('ext') or the new update set can be removed from the current selection (`sub`). Defaults to 'intersect'.
             inplace (bool, optional): Whether the selection should be updated in-place. Defaults to False.
 
         Returns:
@@ -816,6 +990,7 @@ class StructureSelection:
         new_bonds_selection = set()
         new_angles_selection = set()
         new_dihedrals_selection = set()
+        new_pyramids_selection = set()
 
         consider_all_flag = mode == 'ext'
 
@@ -849,6 +1024,11 @@ class StructureSelection:
                         matches, consider_all=consider_all_flag
                     )
                 )
+                new_pyramids_selection.update(
+                    self._new_pyramid_selection_from_atoms(
+                        matches, consider_all=consider_all_flag
+                    )
+                )
 
         if idxs is not None:
             if isinstance(idxs, AtomDescriptor) or isinstance(idxs, tuple):
@@ -860,7 +1040,10 @@ class StructureSelection:
                 else:
                     tuple_len = len(idx)
                     if tuple_len == 2:
-                        new_bonds_selection.add(idx)
+                        if isinstance(idx[1], tuple):
+                            new_pyramids_selection.add(idx)
+                        else:
+                            new_bonds_selection.add(idx)
                     elif tuple_len == 3:
                         new_angles_selection.add(idx)
                     elif tuple_len == 4:
@@ -875,22 +1058,28 @@ class StructureSelection:
             new_dihedrals_selection = new_dihedrals_selection.intersection(
                 self.dihedrals_selected
             )
+            new_pyramids_selection = new_pyramids_selection.intersection(
+                self.pyramids_selected
+            )
         elif mode == 'ext':
             new_atoms_selection.update(self.atoms_selected)
             new_bonds_selection.update(self.bonds_selected)
             new_angles_selection.update(self.angles_selected)
             new_dihedrals_selection.update(self.dihedrals_selected)
+            new_pyramids_selection.difference_update(self.pyramids_selected)
         elif mode == 'sub':
             new_atoms_selection.difference_update(self.atoms_selected)
             new_bonds_selection.difference_update(self.bonds_selected)
             new_angles_selection.difference_update(self.angles_selected)
             new_dihedrals_selection.difference_update(self.dihedrals_selected)
+            new_pyramids_selection.difference_update(self.pyramids_selected)
 
         return self.copy_or_update(
             atoms_selected=new_atoms_selection,
             bonds_selected=new_bonds_selection,
             angles_selected=new_angles_selection,
             dihedrals_selected=new_dihedrals_selection,
+            pyramids_selected=new_pyramids_selection,
             inplace=inplace,
         )
 
@@ -1009,15 +1198,16 @@ class StructureSelection:
         return img
 
     def __get_active_atoms(
-        self, flag_level: Literal[1, 2, 3, 4] = 1
+        self, flag_level: FeatureLevelOptions = 'atoms'
     ) -> list[AtomDescriptor]:
         """Helper function to get the list of atoms involved in the selection at feature level `flag_level`.
 
         Available levels are:
-        - 1: atoms selected
-        - 2: bonds selected
-        - 3: angles selected
-        - 4: dihedrals selected
+        - 1 | 'atoms': atoms selected
+        - 2 | 'bonds': bonds selected
+        - 3 | 'angles': angles selected
+        - 4 | 'dihedrals': dihedrals selected
+        - 5 | 'pyramids': pyramids selected
 
         Args:
             flag_level (Literal[1, 2, 3, 4], optional): The level of selection that should be used for finding all involved bonds. Defaults to 1.
@@ -1025,21 +1215,23 @@ class StructureSelection:
         Returns:
             list[AtomDescriptor]: The list of atom indices involved in the selection at the desired feature level.s
         """
-        if flag_level == 1:
+        if flag_level == 1 or flag_level == 'atoms':
             return list(self.atoms_selected)
-        elif flag_level == 2:
+        elif flag_level == 2 or flag_level == 'bonds':
             return list(set([at for bon in self.bonds_selected for at in bon]))
-        elif flag_level == 3:
+        elif flag_level == 3 or flag_level == 'angles':
             return list(set([at for an in self.angles_selected for at in an]))
-        elif flag_level == 4:
+        elif flag_level == 4 or flag_level == 'dihedrals':
             return list(set([at for dih in self.dihedrals_selected for at in dih]))
+        elif flag_level == 5 or flag_level == 'pyramids':
+            return list(set([at for dih in self.pyramids_selected for at in dih]))
 
         return []
 
     def __get_active_bonds(
-        self, flag_level: Literal[1, 2, 3, 4] = 2
+        self, flag_level: FeatureLevelOptions = 'bonds'
     ) -> list[BondDescriptor]:
-        """Get the list of active bonds at a certain level of selection, i.e. in bonds, in angles or in dihedrals.
+        """Get the list of active bonds at a certain level of selection, i.e. in bonds, in angles, in dihedrals, or in pyramids.
 
         Args:
             flag_level (Literal[1, 2, 3, 4], optional): The level of selection that should be used for finding all involved bonds. Needs to be at least 2 (`bonds`) to yield any bonds. Defaults to 2.
@@ -1047,24 +1239,29 @@ class StructureSelection:
         Returns:
             list[BondDescriptor]: The list of involved bond descriptors at that feature level.
         """
-        if flag_level == 1:
+        if flag_level == 1 or flag_level == 'atoms':
             return []
-        elif flag_level == 2:
+        elif flag_level == 2 or flag_level == 'bonds':
             return list(self.bonds_selected)
 
-        base_set = self.angles_selected if flag_level == 3 else self.dihedrals_selected
+        if flag_level == 3 or flag_level == 'angles':
+            base_set = self.angles_selected
+        elif flag_level == 4 or flag_level == 'dihedrals':
+            base_set = self.dihedrals_selected
+        else:
+            base_set = self.pyramids_selected
 
         bond_set = set()
 
         for tup in base_set:
-            for i in range(len(tup)-1):
-                a = tup[i]
-                b = tup[i+1]
-                bond_set.add((int(a), int(b)))
-            # for a in tup:
-            #     for b in tup:
-            #         if a != b:
-            #             bond_set.add((int(a), int(b)))
+            # for i in range(len(tup) - 1):
+            #     a = tup[i]
+            #     b = tup[i + 1]
+            #     bond_set.add((int(a), int(b)))
+            for a in tup:
+                for b in tup:
+                    if a != b and (a, b) in self.bonds:
+                        bond_set.add((int(a), int(b)))
 
         return list(bond_set)
 
@@ -1091,3 +1288,21 @@ class StructureSelection:
             res.append(bond.GetIdx())
 
         return res
+
+    @staticmethod
+    def _to_feature_level_str(ft: FeatureLevelOptions) -> FeatureLevelType:
+        if isinstance(ft, str):
+            assert (
+                ft in FEATURE_LEVELS
+            ), f"Unknown feature level: {ft} supported are only {FEATURE_LEVELS}"
+            return ft
+        elif isinstance(ft, int):
+            ft_offset = max(ft - 1, 0)
+            assert ft_offset < len(
+                FEATURE_LEVELS
+            ), f"Unknown feature level: {ft} supported are only 1-{len(FEATURE_LEVELS)}"
+            return FEATURE_LEVELS[ft_offset]
+        else:
+            raise ValueError(
+                f"Unknown feature level {ft}. Type was {type(ft)} supported are only int or str"
+            )
