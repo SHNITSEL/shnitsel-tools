@@ -1057,10 +1057,14 @@ class StructureSelection:
         bond_set = set()
 
         for tup in base_set:
-            for a in tup:
-                for b in tup:
-                    if a != b:
-                        bond_set.add((int(a), int(b)))
+            for i in range(len(tup)-1):
+                a = tup[i]
+                b = tup[i+1]
+                bond_set.add((int(a), int(b)))
+            # for a in tup:
+            #     for b in tup:
+            #         if a != b:
+            #             bond_set.add((int(a), int(b)))
 
         return list(bond_set)
 
