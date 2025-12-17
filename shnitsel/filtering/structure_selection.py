@@ -179,6 +179,7 @@ class StructureSelection:
             'atoms',
             'bonds',
         ],
+        to2D: bool = True,
     ) -> Self:
         """Alternative constructor that creates an initial StructureSelection object from a dataset using the entire structural information in it.
 
@@ -189,6 +190,7 @@ class StructureSelection:
                 Ideally, an `atom` coordinate for feature selection is also provided.
                 Should only represent a single frame of data.
             default_selection (list[Literal['atoms', 'bonds', 'angles', 'dihedrals']], optional): List of features to activate as selected by default. Defaults to [ 'atoms', 'bonds', ].
+            to2D (bool, optional): Flag to control whether a mol representation is converted to a 2d projection before use for visualization.
 
         Raises:
             ValueError: If no structural information could be extracted from the dataset
@@ -207,7 +209,7 @@ class StructureSelection:
         # TODO: FIXME: Consider the charges needing to be set from the dataset settings.s
         mol = to_mol(
             filtered_dataset.atXYZ,
-            to2D=False,
+            to2D=to2D,
         )
         # Create an initial state selection
         return cls.init_from_mol(mol, default_selection=default_selection)
@@ -1077,9 +1079,9 @@ class StructureSelection:
             AssertionError: if self.mol is None, no mapping can be performed.
         """
         res: list[int] = []
-        assert self.mol is not None, (
-            'No molecule set for this selection. Cannot resolve bond ids.'
-        )
+        assert (
+            self.mol is not None
+        ), 'No molecule set for this selection. Cannot resolve bond ids.'
         for entry in bond_descriptors:
             bond = self.mol.GetBondBetweenAtoms(entry[0], entry[1])
             res.append(bond.GetIdx())
