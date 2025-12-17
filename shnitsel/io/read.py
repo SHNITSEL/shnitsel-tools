@@ -1,4 +1,4 @@
-from shnitsel.__api_info import API, internal
+from shnitsel.core._api_info import API, internal
 from shnitsel.core.typedefs import StateTypeSpecifier
 from shnitsel.data.shnitsel_db.combiner_methods import (
     concat_trajs,

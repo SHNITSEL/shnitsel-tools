@@ -5,7 +5,7 @@ from typing import Dict, List, Literal, TypeVar
 import xarray as xr
 import numpy as np
 
-from shnitsel.__api_info import internal
+from shnitsel.core._api_info import internal
 from shnitsel._contracts import needs
 from shnitsel.analyze.generic import relativize
 from shnitsel.data.multi_indices import sel_trajs

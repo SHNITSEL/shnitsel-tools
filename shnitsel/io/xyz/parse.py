@@ -2,7 +2,7 @@ from io import TextIOWrapper
 from typing import List, Tuple
 import numpy as np
 
-from shnitsel.__api_info import internal
+from shnitsel.core._api_info import internal
 from shnitsel.data.atom_helpers import get_atom_number_from_symbol
 
 

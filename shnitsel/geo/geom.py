@@ -12,7 +12,7 @@ import numpy as np
 from rdkit.Chem import Mol
 import xarray as xr
 
-from shnitsel.__api_info import API, internal
+from shnitsel.core._api_info import API, internal
 from shnitsel.data.multi_indices import expand_midx
 from shnitsel.data.atom_helpers import (
     get_atom_number_from_symbol,

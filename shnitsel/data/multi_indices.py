@@ -11,7 +11,7 @@ import xarray as xr
 import numpy as np
 import pandas as pd
 
-from shnitsel.__api_info import internal
+from shnitsel.core._api_info import internal
 
 from .._contracts import needs
 

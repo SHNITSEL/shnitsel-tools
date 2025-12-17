@@ -5,7 +5,7 @@ from typing import Iterable
 import numpy as np
 import xarray as xr
 
-from shnitsel.__api_info import internal
+from shnitsel.core._api_info import internal
 from shnitsel.units.definitions import energy, dipole
 
 from shnitsel.core.typedefs import InterState, DimName, SpectraDictType

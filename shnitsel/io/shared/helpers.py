@@ -7,7 +7,7 @@ import numpy as np
 import xarray as xr
 import random
 
-from shnitsel.__api_info import internal
+from shnitsel.core._api_info import internal
 from shnitsel.core.typedefs import StateTypeSpecifier
 
 KindType = Literal['sharc', 'nx', 'newtonx', 'pyrai2md', 'shnitsel']
