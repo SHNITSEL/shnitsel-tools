@@ -541,7 +541,8 @@ class StructureSelection:
                     )
 
                 matches = self.__match_pattern(self.mol, entry)
-                new_selection.update(self._new_bond_selection_from_atoms(matches))
+                from_matches = self._new_bond_selection_from_atoms(matches)
+                new_selection.update(from_matches)
             elif isinstance(entry, AtomDescriptor):
                 # We have an atom selection list or list thereof. Consume it and stop iteration.
                 new_selection.update(
@@ -1143,7 +1144,7 @@ class StructureSelection:
 
     def draw(
         self,
-        flag_level: Literal[1, 2, 3, 4] = 2,
+        flag_level: FeatureLevelOptions = 'bonds',
         highlight_color: tuple[float, float, float] | str = st_yellow,
         width=300,
         height=300,
@@ -1151,7 +1152,7 @@ class StructureSelection:
         """Helper function to allow visualization of the structure represented in this selection.
 
         Args:
-            flag_level (Literal[1, 2, 3, 4], optional): Currently unused. Defaults to 2.
+            flag_level (FeatureLevelOptions, optional): Currently unused. Defaults to 'bonds'.
             highlight_color (tuple[float, float, float] | str, optional): Color to use for highlights of the active parts. Defaults to st_yellow.
             width (int, optional): Width of the figure. Defaults to 300.
             height (int, optional): Height of the figure. Defaults to 300.
@@ -1224,7 +1225,12 @@ class StructureSelection:
         elif flag_level == 4 or flag_level == 'dihedrals':
             return list(set([at for dih in self.dihedrals_selected for at in dih]))
         elif flag_level == 5 or flag_level == 'pyramids':
-            return list(set([at for dih in self.pyramids_selected for at in dih]))
+            return list(
+                set(
+                    [at for (x, sides) in self.pyramids_selected for at in sides]
+                    + [x for (x, sides) in self.pyramids_selected]
+                )
+            )
 
         return []
 
@@ -1234,7 +1240,7 @@ class StructureSelection:
         """Get the list of active bonds at a certain level of selection, i.e. in bonds, in angles, in dihedrals, or in pyramids.
 
         Args:
-            flag_level (Literal[1, 2, 3, 4], optional): The level of selection that should be used for finding all involved bonds. Needs to be at least 2 (`bonds`) to yield any bonds. Defaults to 2.
+            flag_level (FeatureLevelOptions, optional): The level of selection that should be used for finding all involved bonds. Needs to be at least 2 (`bonds`) to yield any bonds. Defaults to 2.
 
         Returns:
             list[BondDescriptor]: The list of involved bond descriptors at that feature level.
@@ -1249,7 +1255,12 @@ class StructureSelection:
         elif flag_level == 4 or flag_level == 'dihedrals':
             base_set = self.dihedrals_selected
         else:
-            base_set = self.pyramids_selected
+            bond_set = set()
+            for x, sides in self.pyramids_selected:
+                bond_set.add((x, sides[0]))
+                bond_set.add((x, sides[1]))
+                bond_set.add((x, sides[2]))
+            return list(bond_set)
 
         bond_set = set()
 
