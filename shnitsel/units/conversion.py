@@ -3,6 +3,7 @@ from typing import Callable, Dict
 from pandas import MultiIndex
 import xarray as xr
 import shnitsel.units.definitions as definitions
+from shnitsel.data.multi_indices import assign_levels
 
 
 class Converter:
@@ -221,8 +222,6 @@ def convert_all_units_to_shnitsel_defaults(data: xr.Dataset) -> xr.Dataset:
                 if coord_name in data.indexes:
                     coord_index = data.indexes[coord_name]
                     if isinstance(coord_index, MultiIndex):
-                        from shnitsel.core.xrhelpers import assign_levels
-
                         tmp = assign_levels(tmp, {str(coord_name): conv_res})
                         continue
 

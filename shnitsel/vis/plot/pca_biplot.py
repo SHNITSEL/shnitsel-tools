@@ -1,4 +1,5 @@
-from dataclasses import dataclass
+from typing import Iterable
+
 from matplotlib.colors import Normalize
 from matplotlib.figure import Figure, SubFigure
 import numpy as np
@@ -8,6 +9,7 @@ import matplotlib as mpl
 from matplotlib.axes import Axes
 
 from scipy import stats
+from sklearn.cluster import KMeans
 
 from shnitsel.analyze.generic import get_standardized_pairwise_dists
 from shnitsel.analyze.pca import pca
@@ -313,54 +315,46 @@ def get_mask(angles, theta1, theta2, seam=180):
     return mask
 
 
-def circbins(angles, nbins=4, center=0):
-    @dataclass
-    class Sweeper:
-        inner: int = 0
-        outer: int = 0
+def circbins(
+    angles, nbins=4, center=0
+) -> tuple[list[Iterable[int]], list[tuple[float, float]]]:
+    """Bin angular data by clustering unit-circle projections
 
-    ppbin = len(angles) / nbins
+    Parameters
+    ----------
+    angles
+        Angles in degrees
+    nbins, optional
+        Number of bins to return, by default 4
+    center, optional
+        No longer used, by default 0
 
-    sweepers = [Sweeper(), Sweeper()]  # anticlockwise; clockwise
-    bins = []
-    edges = []
-    # first bin spreads evenly clockw and anticw
-    while sweepers[0].outer + sweepers[1].outer < 180:
-        sweepers[0].outer += 5
-        sweepers[1].outer -= 5
-        idxs = np.nonzero(
-            get_mask(angles, center - sweepers[0].outer, center - sweepers[1].outer)
-        )[0]
-        if len(idxs) >= ppbin:
-            sweepers[0].inner = sweepers[0].outer
-            sweepers[1].inner = sweepers[1].outer
-            edges += [center + sweepers[0].inner, center + sweepers[1].inner]
-            bins.append(idxs)
-            break
+    Returns
+    -------
+    bins
+        Indices of angles belonging to each bin
+    edges
+        Tuple giving a pair of boundary angles for each bin;
+        the order of the bins corresponds to the order used in ``bins``
+    """
 
-    # intermediate bins
-    for ibin in range(1, nbins - 1):
-        way = ibin % 2
-        cur = sweepers[way]  # sweepers[0] increases, sweepers[1] decreases
-        sgn = [1, -1][way]  # bins 1,3,5 clockw; bins 2,4,6 anti
-        print(f"sweeping {['anti', 'clock'][way]} from {cur.inner}°")
-        while sweepers[0].outer - sweepers[1].outer < 360:
-            cur.outer += sgn * 10
-            idxs = np.nonzero(get_mask(angles, center + cur.outer, center + cur.inner))[
-                0
-            ]
-            if len(idxs) >= ppbin:
-                print(f"swept to {cur.outer}°")
-                cur.inner = cur.outer
-                bins.append(idxs)
-                edges.append(center + cur.inner)
-                break
+    def proj(x):
+        "project angles in degrees onto unit circle"
+        x = x * np.pi / 180
+        return np.c_[np.cos(x), np.sin(x)]
 
-    # last bin
-    all_indices = range(len(angles))
-    already_binned = np.concatenate(bins)
-    bins.append(np.array([i for i in all_indices if i not in already_binned]))
+    kmeans = KMeans(n_clusters=nbins)
 
+    labels = kmeans.fit_predict(proj(angles))
+
+    space = np.linspace(0, 360, num=10)
+    sample = kmeans.predict(proj(space))
+    mask = np.diff(sample) != 0
+    mask = np.concat([mask, [sample[-1] == sample[0]]])
+    edgeps = space[mask]
+    edges = list(zip(edgeps, np.roll(edgeps, -1)))
+    label_at_edge = sample[mask][:-1]
+    bins = [np.flatnonzero(labels == label) for label in label_at_edge]
     return bins, edges
 
 

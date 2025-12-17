@@ -1131,7 +1131,7 @@ def flag_bats(
     mol: Mol,
     smarts: str = None,
     t_idxs: tuple = (),
-    draw=False) -> dict:
+    draw=False) -> tuple[dict,Any]:
     """
     Compute and flag bonds, angles, and dihedrals in a single call,
     automatically determining which interactions can be filtered
