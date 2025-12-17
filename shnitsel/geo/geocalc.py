@@ -22,6 +22,7 @@ from ..core.typedefs import AtXYZ
 
 from shnitsel.geo.geomatch import flag_bats, flag_bla_chromophor
 
+
 def dnorm(a: xr.DataArray | xr.Variable) -> xr.DataArray | xr.Variable:
     """Calculate the norm along the `direction` dimension. All other dimensions are maintaned
 
@@ -76,10 +77,11 @@ def angle_(
     Returns:
         xr.DataArray | xr.Variable: The resulting array of the angle calculation still retaining all other dimensions except `direction`.
     """
-    
+
     cos_theta = ddot(a, b) / (dnorm(a) * dnorm(b))
     cos_theta = np.clip(cos_theta, -1.0, 1.0)
     return np.arccos(cos_theta)
+
 
 def angle_cos_sin_(a, b):
     """
@@ -267,12 +269,12 @@ def _ndarray_of_tuples(da, dim):
     return res
 
 
-def _check_matches(matches_or_mol, atXYZ, fn=flag_bats):
+def _check_matches(matches_or_mol: rc.Mol | dict | None, atXYZ, fn=flag_bats):
     if matches_or_mol is None:
         mol = default_mol(atXYZ)
-        matches = fn(mol)[0]
+        matches, _ = fn(mol)
     elif isinstance(matches_or_mol, rc.Mol):
-        matches = fn(mol)[0]
+        matches, _ = fn(mol)
     elif isinstance(matches_or_mol, dict):
         matches = matches_or_mol
     else:
@@ -749,7 +751,7 @@ def pyramid_(
 ) -> xr.DataArray:
     """Method to calculate the pyramidalization angle of a quadruple of atoms.
 
-    The result will be \\pi/2 minus the angle between the normal of ABC and the vector BX.
+    The result will be $\\pi/2$ minus the angle between the normal of ABC and the vector BX.
     (I.e.: the pyramidalization at atom b)
 
     Args:
