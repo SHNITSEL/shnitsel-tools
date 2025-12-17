@@ -1,5 +1,6 @@
 import logging
 from logging import warning, info
+from itertools import combinations
 
 import rdkit
 from rdkit import Chem
@@ -52,9 +53,11 @@ def __match_pattern(mol: Mol, smarts: str) -> list[tuple]:
 
     return matches
 
+
 def __get_bond_info(
         mol: Mol,
-        flagged_tuples
+        flagged_tuples,
+        pyramids=False
         ):
     """
     Extend flagged tuple of bonds, angles or dihedrals by a tuple of bond indices and
@@ -68,6 +71,8 @@ def __get_bond_info(
     flagged_tuples : list of tuples
         Each entry: (flag, atom_tuple)
         Example: [(1, (0,1,2,3)), (0, (1,2,3,4))]
+    pyramids: Bool
+        if true check all pairs of atoms for bonds, otherwise only sequences
 
     Returns
     -------
@@ -89,8 +94,12 @@ def __get_bond_info(
         l_flags.append(flag)
         l_atom_idxs.append(t)
         
-        # consecutive pairs (divide angles, torsions back to bonds
-        atom_pairs = [(t[i], t[i+1]) for i in range(len(t)-1)]
+        if pyramids:
+            # all atom pairs
+            atom_pairs = combinations(t, 2)
+        else:
+            # consecutive pairs (divide angles, torsions back to bonds
+            atom_pairs = [(t[i], t[i+1]) for i in range(len(t)-1)]
         
         inner_bond_idxs = []
         inner_bond_types = []
@@ -144,7 +153,7 @@ def __collect_tuples(d_flag):
         (flag, atom_tuple, bond_tuple, bondtype_tuple, Mol)
     """
 
-    hierarchy = ["dihedrals", "angles", "bonds"]
+    hierarchy = ["dihedrals", "angles", "bonds", "pyramids"]
     for key in hierarchy:
         if key in d_flag:
             tuples = d_flag[key]
@@ -180,7 +189,7 @@ def __get_highlight_molimg(
     mol : RDKit Mol
         Molecule object.
     d_flag : dictionary
-        keys: 'atoms', 'bonds', 'angles' or 'dihedrals'
+        keys: 'atoms', 'bonds', 'angles', 'dihedrals' or 'pyramids'
         values: list of tuples
         Each entry: (flag, atom_tuple, bond_tuple, bondtype_tuple, Mol)
         Example: [(1, (0,1), (0), (1.0)), (0, (1,2), (1), (2.0))]
@@ -730,6 +739,215 @@ def flag_angles(
 
 
 # -------------------------------------------------------------------
+# -- Pyramidalization specific functions ----------------------------
+# -------------------------------------------------------------------
+
+def __get_all_pyramids(mol: Mol) -> dict:
+    """
+    Return all pyramids in the molecule as a dictionary with flags.
+
+    Pyramid quadruples are of the form (i, j, k, l) where:
+        i–j, i–k, and i–l are all bonds.
+
+    All pyramids are initially flagged as active (1).
+
+    Parameters
+    ----------
+    mol : rdkit.Chem.rdchem.Mol
+        RDKit molecule object.
+
+    Returns
+    -------
+    dict
+        Dictionary with key 'pyramids' mapping to a list of:
+        (flag, (i, j, k, l))
+    """
+
+    pyramids = []
+
+    for atom in mol.GetAtoms():
+        i = atom.GetIdx()
+
+        # get all neighbors of atom i
+        neighbors = [nbr.GetIdx() for nbr in atom.GetNeighbors()]
+
+        # a pyramid requires exactly (or at least) 3 bonded neighbors
+        if len(neighbors) < 3:
+            continue
+
+        # choose all unique triplets of neighbors
+        for j, k, l in combinations(neighbors, 3):
+            pyramids.append((1, (i, j, k, l)))
+
+    return {'pyramids': pyramids}
+
+
+def __get_pyramids_by_indices(
+        match_list: list[tuple],
+        d_pyramids: dict) -> dict:
+    """
+    Flag pyramids as active (1) if the central atom i and its
+    three bonded neighbors (j, k, l) all belong to the same match pattern.
+
+    Parameters
+    ----------
+    match_list : list of tuples
+        pattern matched by SMARTS or indices
+    d_pyramids : dict
+        Output of __get_all_pyramids().
+
+    Returns
+    -------
+    dict
+        Updated pyramid dictionary with flags.
+    """
+
+    updated = []
+
+    for flag, (i, j, k, l) in d_pyramids['pyramids']:
+        active = any(
+            (i in match and j in match and k in match and l in match)
+            for match in match_list
+        )
+        updated.append((1 if active else 0, (i, j, k, l)))
+
+    return {'pyramids': updated}
+
+
+def flag_pyramids(
+        mol: Mol,
+        smarts: str = None,
+        t_idxs: tuple = (),
+        draw=False) -> dict:
+    """
+    Flag pyramids in a molecule based on SMARTS and/or atom indices.
+
+    A pyramid is defined as a central atom bonded to at least three neighbors.
+
+    Modes
+    -----
+    1) No SMARTS + no t_idxs: return all pyramids active
+    2) SMARTS only: pyramids part of SMARTS matches are active
+    3) t_idxs only: pyramids fully inside t_idxs are active
+    4) SMARTS + t_idxs: Find intersection behavior:
+            - No SMARTS match: return t_idxs only.
+            - No overlap: return t_idxs only.
+            - Overlap: return only intersecting pyramids.
+
+    Parameters
+    ----------
+    mol : RDKit Mol
+        Molecule under study.
+    smarts : str, optional
+        SMARTS pattern.
+    t_idxs : tuple, optional
+        Atom index tuple for filtering.
+
+    Returns
+    -------
+    dict
+        {'pyramids': [(flag, (i,j,k,l)), ...]}
+    """
+
+    out_atoms = flag_atoms(mol=mol, smarts=smarts, t_idxs=t_idxs, draw=False)['atoms']
+
+    d_all = __get_all_pyramids(mol)
+
+    # CASE 1: no filtering
+    if not smarts and not t_idxs:
+        d_flag = d_all
+
+    # CASE 2: SMARTS only
+    if smarts and not t_idxs:
+        matches = __match_pattern(mol, smarts)
+
+        if not matches:
+            info(
+                f"SMARTS pattern '{smarts}' not found. "
+                "Returning all pyramids active."
+            )
+            d_flag = d_all
+        else:
+            # ---- pyramid validity check ----
+            valid_matches = []
+            for match in matches:
+                for idx in match:
+                    atom = mol.GetAtomWithIdx(idx)
+                    if atom.GetDegree() >= 3:
+                        valid_matches.append(match)
+                        break
+
+            if not valid_matches:
+                info(
+                    f"SMARTS pattern '{smarts}' does not describe a pyramid "
+                    "(no atom bonded to at least 3 partners). Returning all pyramids."
+                )
+                d_flag = d_all
+            else:
+                d_flag = __get_pyramids_by_indices(valid_matches, d_all)
+
+    # CASE 3: t_idxs only
+    if not smarts and t_idxs:
+        d_flag = __get_pyramids_by_indices([t_idxs], d_all)
+
+    # CASE 4: SMARTS and t_idxs
+    if smarts and t_idxs:
+        matches = __match_pattern(mol, smarts)
+        t_set = set(t_idxs)
+
+        if not matches:
+            info(
+                f"SMARTS '{smarts}' not found. "
+                "Returning pyramids for t_idxs only."
+            )
+            d_flag = __get_pyramids_by_indices([t_idxs], d_all)
+        else:
+            # ---- pyramid validity check ----
+            valid_matches = []
+            for match in matches:
+                for idx in match:
+                    atom = mol.GetAtomWithIdx(idx)
+                    if atom.GetDegree() >= 3:
+                        valid_matches.append(match)
+                        break
+
+            if not valid_matches:
+                info(
+                    f"SMARTS '{smarts}' does not describe a pyramid. "
+                    "Returning pyramids for t_idxs only."
+                )
+                d_flag = __get_pyramids_by_indices([t_idxs], d_all)
+            else:
+                matched_atoms = set().union(*valid_matches)
+                inter = matched_atoms & t_set
+
+                if not inter:
+                    info(
+                        "No overlap between SMARTS match and t_idxs. "
+                        f"Returning pyramids for atom indices {t_idxs} only."
+                    )
+                    d_flag = __get_pyramids_by_indices([t_idxs], d_all)
+                else:
+                    info(
+                        "Partial overlap between SMARTS and t_idxs. "
+                        f"Using atoms {sorted(inter)} for pyramid filtering."
+                    )
+                    d_flag = __get_pyramids_by_indices([tuple(inter)], d_all)
+
+    d_flag_binfo = {}
+    d_flag_binfo['atoms'] = out_atoms
+    d_flag_binfo['pyramids'] = __get_bond_info(
+        mol, d_flag['pyramids'], True
+    )
+
+    if draw:
+        img = __get_highlight_molimg(mol, d_flag_binfo)
+        return d_flag_binfo, img
+    else:
+        return d_flag_binfo
+
+
+# -------------------------------------------------------------------
 # -- Torsion specific functions -------------------------------------
 # -------------------------------------------------------------------
 
@@ -913,7 +1131,7 @@ def flag_bats(
     mol: Mol,
     smarts: str = None,
     t_idxs: tuple = (),
-    draw=False) -> tuple[dict,Any]:
+    draw=False) -> tuple[dict, int]:
     """
     Compute and flag bonds, angles, and dihedrals in a single call,
     automatically determining which interactions can be filtered
