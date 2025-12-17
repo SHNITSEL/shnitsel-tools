@@ -32,12 +32,10 @@ FeatureList: TypeAlias = list[FeatureDescriptor]
 
 ActiveFlag: TypeAlias = bool
 
-FeatureLevelOptions: TypeAlias = Literal[
-    'atoms', 1, 'bonds', 2, 'angles', 3, 'dihedrals', 4, 'pyramids', 5
-]
 FeatureLevelType: TypeAlias = Literal[
     'atoms', 'bonds', 'angles', 'dihedrals', 'pyramids'
 ]
+FeatureLevelOptions: TypeAlias = FeatureLevelType | Literal[1, 2, 3, 4, 5]
 
 FEATURE_LEVELS: list[FeatureLevelType] = [
     'atoms',
@@ -427,6 +425,38 @@ class StructureSelection:
             pyramids=pyramids,
             pyramids_selected=pyramids_selected,
             pyramids_types=pyramids_types,
+        )
+
+    def select_all(
+        self,
+        feature_level: FeatureLevelOptions
+        | Sequence[FeatureLevelOptions] = FEATURE_LEVELS,
+        inplace: bool = False,
+    ) -> Self:
+        """Helper function to set all entries of a certain feature level to selected.
+
+        By default marks all features as selected.
+
+        Args:
+            feature_level (FeatureLevelOptions | Sequence[FeatureLevelOptions], optional): The set of feature levels to mark as within the selection. Defaults to all FEATURE_LEVELS.
+            inplace (bool, optional): Whether to update the selection in-place. Defaults to False.
+
+        Returns:
+            Self: The updated selection
+        """
+        if isinstance(feature_level, str) or not isinstance(feature_level, Sequence):
+            feature_level = [feature_level]
+
+        feature_levels = [self._to_feature_level_str(x) for x in feature_level]
+        return self.copy_or_update(
+            atoms_selected=self.atoms if 'atoms' in feature_levels else None,
+            bonds_selected=self.bonds if 'bonds' in feature_levels else None,
+            angles_selected=self.angles if 'angles' in feature_levels else None,
+            dihedrals_selected=self.dihedrals
+            if 'dihedrals' in feature_levels
+            else None,
+            pyramids_selected=self.pyramids if 'pyramids' in feature_levels else None,
+            inplace=inplace,
         )
 
     def select_atoms(
