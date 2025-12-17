@@ -10,9 +10,14 @@ import random
 from shnitsel.core._api_info import internal
 from shnitsel.core.typedefs import StateTypeSpecifier
 
-KindType = Literal['sharc', 'nx', 'newtonx', 'pyrai2md', 'shnitsel']
-
-PathOptionsType = str | os.PathLike | pathlib.Path
+# TODO: The `pathlib.Path` part of the Union gets mangled to `pathlib._local.Path`
+# in the `write_shnitsel_file()` accessor when generating using
+# Python 3.13; unfortunately, `pathlib._local.Path` doesn't appear to exist for
+# earlier Python versions and causes an error on `import shnitsel.xarray`.
+# Given that `isinstance(pathlib.Path(), os.PathLike)`, the truncated type alias
+# might be adequate; if so, please remove this notice.
+# PathOptionsType = str | os.PathLike | pathlib.Path
+PathOptionsType = str | os.PathLike
 
 
 @dataclass
@@ -26,7 +31,12 @@ class LoadingParameters:
     trajectory_id: Dict[str, int] | Callable[[pathlib.Path], int] | None = None
 
     # Optionally provide a list of state types/multiplicities or a function to assign them to a dataset
-    state_types: StateTypeSpecifier | List[StateTypeSpecifier] | Callable[[xr.Dataset], xr.Dataset] | None = None
+    state_types: (
+        StateTypeSpecifier
+        | List[StateTypeSpecifier]
+        | Callable[[xr.Dataset], xr.Dataset]
+        | None
+    ) = None
 
     # List of the names of states or a function to label them or None and let the trajectory loader make an educated guess
     state_names: List[str] | Callable[[xr.Dataset], xr.Dataset] | None = None

@@ -9,7 +9,7 @@ from matplotlib.axes import Axes
 
 from scipy import stats
 
-from shnitsel.analyze.generic import norm, subtract_combinations
+from shnitsel.analyze.generic import get_standardized_pairwise_dists
 from shnitsel.analyze.pca import pca
 
 from .common import figax, extrude, mpl_imshow_png
@@ -124,14 +124,16 @@ def plot_noodleplot_lines(
     return ax
 
 
-def get_loadings(frames):
-    atXYZ = subtract_combinations(frames['atXYZ'], 'atom', labels=True)
-    atXYZ = norm(atXYZ)
-    _, pca_obj = pca(atXYZ, 'atomcomb', return_pca_object=True)
+def get_loadings(frames, mean=False):
+    
+    atXYZ = frames['atXYZ']
+    descr = get_standardized_pairwise_dists(atXYZ, mean=mean)
+    _, pca_obj = pca(descr, 'atomcomb', return_pca_object=True)
+
     return xr.DataArray(
-        data=pca_obj.components_,
+        data=pca_obj[-1].components_,
         dims=['PC', 'atomcomb'],
-        coords=dict(atomcomb=atXYZ.atomcomb),
+        coords=dict(atomcomb=descr.atomcomb),
         attrs={'natoms': frames.sizes['atom']},
     )
 
@@ -297,6 +299,9 @@ def plot_clusters3(loadings, clusters, ax=None, labels=None, axs=None, mol=None)
     if labels is None:
         labels = list('abcdefghijklmnopqrstuvwxyz')
 
+    for mol_ax in axs.values():
+        mol_ax.axis('off')
+
     for i, cluster in enumerate(clusters):
         acs = loadings.isel(atomcomb=cluster)
         x, y = acs.mean(dim='atomcomb')
@@ -404,8 +409,8 @@ def plot_bin_edges(angles, radii, bins, edges, picks, ax, labels):
     ax.set_rlabel_position(200)
 
 
-def pick_clusters(frames, nbins):
-    loadings = get_loadings(frames)
+def pick_clusters(frames, nbins, mean=False):
+    loadings = get_loadings(frames, mean)
     clusters = cluster_loadings(loadings)
     points = get_clusters_coords(loadings, clusters)
 

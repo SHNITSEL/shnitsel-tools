@@ -4,14 +4,14 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "shnitsel-tools"
-version = "0.0.1"
+version = "0.0.2.dev2"
 authors = [
   { name = "Theodor Everley Röhrkasten", email = "theodor.roehrkasten@fau.de" },
   { name = "Kevin Höllring", email = "kevin.hoellring@fau.de" },
   { name = "Carolin Müller", email = "carolin.cpc.mueller@fau.de" },
 ]
 
-description = "Collect, manage, process, analyze & visualize surface hopping data"
+description = "Collect, manage, process, analyse & visualize surface hopping data"
 readme = "README.md"
 requires-python = ">=3.11"
 classifiers = [
@@ -29,27 +29,38 @@ dependencies = [
   "pandas>=2.2",
   "h5netcdf>=1.7.0",
   "scikit-learn>=1.5",
-  "jupyter>=1.0.0",
-  "py3dmol>=2.0.4",
+  "jupyter>=1.0.0",    # TODO: make optional?
+  "py3dmol>=2.0.4",    # TODO: make optional?
   "tqdm>=4.66.2",
   "pyparsing>=3.2.5",
   "svgpathtools>=1.7.2",
+  # To enable direct loading of remote resources:
+  "fsspec",
+  "requests",
+  "aiohttp"
 ]
 
 [project.optional-dependencies]
-extras = ["plotly>=5.22.0", "seaborn>=0.13.1", "bokeh>=3.5"]
+vis = [
+  "bokeh>=3.5",
+  "datashader",
+  "seaborn"
+]
 
 dev = [
   "pytest>=5.2",
   "pytest-cov>=4.1.0",
   "hypothesis>=6",         # ==6.127.3
   "tox>=4.10.0",
+  "tox-uv>=1.29.0",
   "pre-commit>=2.20.0",
   "ruff==0.4.1",
   "mypy>=1.9.0",
   "pandas-stubs",
   "scipy-stubs",
   "types-tqdm",
+  "build",
+  "grayskull",
 
   # Sphinx and its extensions for building documentation
   "sphinx",
@@ -69,6 +80,7 @@ include = ["shnitsel*"]
 
 [tool.ruff]
 include = ["shnitsel/**/*.py"]
+extend-exclude = ["shnitsel/_generated_accessors.py"]
 
 [tool.ruff.format]
 quote-style = "preserve"

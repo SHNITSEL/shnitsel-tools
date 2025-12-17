@@ -5,10 +5,10 @@ from scipy import stats
 import matplotlib.pyplot as plt
 
 from shnitsel.analyze.pca import pca_and_hops
-from shnitsel.geo.geom import distance, angle, dihedral
+from shnitsel.geo.geocalc import distance, angle, dihedral
 from . import pca_biplot as pb
 from .common import figax
-from shnitsel.bridges import to_mol
+from shnitsel.bridges import default_mol, set_atom_props
 
 
 def fit_kdes(noodle, geo_prop, geo_filter):
@@ -75,6 +75,8 @@ def biplot_kde(
     levels: int | list[float] | None = None,
     scatter_color: Literal['time', 'geo'] = 'time',
     fill: bool = True,
+    nbins=4,
+    mean=False
 ):
     """\
     Generates a biplot that visualizes PCA projections and kernel density estimates (KDE) 
@@ -103,6 +105,8 @@ def biplot_kde(
     fill
         Whether to plot filled contours (``fill=True``, uses ``ax.contourf``)
         or just contour lines (``fill=False``, uses ``ax.contour``).
+    nbins
+        number of bins to be visualized, must be an integer between 1 and 4
 
     Returns
     -------
@@ -154,11 +158,12 @@ def biplot_kde(
     structaxs = structsf.subplot_mosaic('ab\ncd')
 
     # prepare data
-    noodle, hops = pca_and_hops(frames)
+    noodle, hops = pca_and_hops(frames, mean=mean)
     kde_data = fit_and_eval_kdes(noodle, geo_prop, geo_filter, fineness=100)
-    d = pb.pick_clusters(frames, nbins=4)
+    d = pb.pick_clusters(frames, nbins=nbins, mean=mean)
     loadings, clusters, picks = d['loadings'], d['clusters'], d['picks']
-    mol = to_mol(frames['atXYZ'].isel(frame=0), atomLabel=True)
+    mol = default_mol(frames)
+    mol = set_atom_props(mol, atomLabel=True, atomNote=[''] * mol.GetNumAtoms())
 
     if scatter_color == 'time':
         noodleplot_c = None

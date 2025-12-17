@@ -1,12 +1,12 @@
 import itertools
 import logging
-from typing import Collection
+from typing import Collection, Union
 
 import numpy as np
 import xarray as xr
 
 from shnitsel.data.multi_indices import midx_combs
-
+from shnitsel.core.typedefs import AtXYZ
 
 from ..core.typedefs import DimName
 
@@ -38,6 +38,33 @@ def norm(
         keep_attrs=keep_attrs,
     )
     return res
+
+
+def center(
+    da: xr.DataArray,
+    dim: DimName = 'frame',
+    keep_attrs: Union[bool, str, None] = None) -> xr.DataArray:
+    """
+    Subtract the mean of a DataArray along a specified dimension.
+
+    Parameters
+    ----------
+    da : DataArray
+        Input array to be centered.
+    dim : str, optional
+        Dimension along which to compute the mean, by default 'frame'.
+    keep_attrs : bool or str or None, optional
+        How to handle attributes; passed to xr.apply_ufunc, by default None.
+
+    Returns
+    -------
+    DataArray
+        Centered DataArray with the same dimensions as input.
+    """
+    with xr.set_options(keep_attrs=True):
+        mean_da = da.mean(dim=dim)
+        centered_da = da - mean_da
+    return centered_da
 
 
 # @needs(dims={'statecomb'}, coords={'statecomb'})
@@ -76,6 +103,11 @@ def subtract_combinations(
     dims = [combination_dimension_name, dim]
 
     if combination_dimension_name in da:
+        # TODO FIXME I don't understand this; if `da` already has a `{dim}comb`
+        # dimension, then `xrmat` and `da` will have two dimensions in common
+        # and the matrix multiplication will produce strange results or fail.
+        # So if anything, shouldn't we raise an exception in that case?
+
         # Don't recalculate the combinations, just take whichever have already been set.
         logging.info(
             f"Dimension {combination_dimension_name} already exists, reusing existing entries."
@@ -89,7 +121,7 @@ def subtract_combinations(
             comb_indices.append((index_from, index_to))
     else:
         logging.info(f"Dimension {combination_dimension_name} is being generated.")
-        da = da.assign_coords()
+        da = da.assign_coords()  # TODO FIXME What does this do?
         comb_indices = list(itertools.combinations(range(n), 2))
         coordinates = {combination_dimension_name: midx(da, dim), dim: dim_index}
 
@@ -175,6 +207,52 @@ def replace_total(
 
 
 def relativize(da: xr.DataArray, **sel) -> xr.DataArray:
+    """Subtract the minimum of an xr.DataArray from all the array's elements
+
+    Parameters
+    ----------
+    da
+        The xr.DataArray from which to subtract the minimum
+    **sel
+        If keyword parameters are present, the reference minimum is picked
+    from those elements that remain after running :py:meth:`xarray.DataArray.sel`
+    using the keyword parameters as arguments.
+
+
+    Returns
+    -------
+        The result of subtraction, with ``attrs`` intact.
+    """
     res = da - da.sel(**sel).min()
     res.attrs = da.attrs
     return res
+
+
+def pwdists(atXYZ: AtXYZ, mean: bool = False) -> xr.DataArray:
+    """
+    Compute pairwise distances and standardize it by removing the mean 
+    and L2-normalization (if your features are vectors and you want magnitudes only, 
+    to lose directional info)
+
+    Parameters
+    ----------
+    atXYZ
+        A DataArray containing the atomic positions;
+        must have a dimension called 'atom'
+    mean
+        subtract mean if true to center data
+
+    Returns
+    -------
+        A DataArray with the same dimensions as `atXYZ` but transposed
+    """
+
+    res = (atXYZ.pipe(subtract_combinations, 'atom', labels=True))
+
+    res = norm(res)
+    if mean:
+        res = center(res)
+
+    return res
+
+get_standardized_pairwise_dists = pwdists

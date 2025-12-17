@@ -9,13 +9,13 @@ import pandas as pd
 import xarray as xr
 
 from shnitsel._contracts import needs
-from shnitsel.core.plot.common import figax
-from shnitsel.core.stats import time_grouped_ci
+from shnitsel.vis.plot.common import figax
+from shnitsel.analyze.stats import time_grouped_confidence_interval
 
 def set_axes(data, ax=None):
     _, ax = figax(ax=ax)
 
-    ylabel = data.name or ''
+    ylabel = data.attrs.get('long_name', data.name or '')
     if (yunits := data.attrs.get('units')):
         ylabel += f' / {yunits}'
     ax.set_ylabel(ylabel)
@@ -61,13 +61,13 @@ def plot_ci(data, ax=None):
         coord_name = 'statecomb_names'
     else:
         # TODO FIXME The expand_dims and squeeze steps shouldn't be necessary
-        ci = time_grouped_ci(data.expand_dims('state')).squeeze('state')
+        ci = time_grouped_confidence_interval(data.expand_dims('state')).squeeze('state')
         ax.fill_between('time', 'upper', 'lower', data=ci, alpha=0.3)
         line2d = ax.plot('time', 'mean', data=ci, lw=0.8)
         return set_axes(data, ax)
         
 
-    ci = time_grouped_ci(data)
+    ci = time_grouped_confidence_interval(data)
     for _, sdata in ci.groupby(dim):
         sdata = sdata.squeeze(dim)
         ax.fill_between('time', 'upper', 'lower', data=sdata, alpha=0.3)
@@ -120,12 +120,13 @@ def plot_shaded(data, ax):
         raise ImportError('plot_shaded requires the optional datashader dependency') from err
     try:
         import colorcet
-        cmap = colorcet.fire
+
+        cmap = colorcet.bjy
     except ImportError:
         warning("colorcet package not installed; falling back on viridis cmap")
         cmap = plt.get_cmap('viridis')
-    with plt.style.context("dark_background"):
-        _, ax = figax(ax=ax)
+
+    _, ax = figax(ax=ax)
 
     x = []
     y = []
@@ -138,20 +139,49 @@ def plot_shaded(data, ax):
     })
     cvs = ds.Canvas(plot_height=2000, plot_width=2000)
     agg = cvs.line(df, x='x', y='y', agg=ds.count(), line_width=5, axis=1)
-    img = ds.tf.shade(agg, how='eq_hist', cmap=cmap)
+    img = ds.tf.shade(agg, how='log', cmap=cmap)
     arr = np.array(img.to_pil())
     x0, x1 = agg.coords['x'].values[[0,-1]]
-    y0, y1 = agg.coords['y'].values[[0,-1]]
-    with plt.style.context('dark_background'):
-        ax.imshow(arr, extent=[x0, x1, y0, y1], aspect='auto')
+    y0, y1 = agg.coords['y'].values[[0, -1]]
+    ax.imshow(arr, extent=[x0, x1, y0, y1], aspect='auto')
     return set_axes(data, ax)
 
 @needs(coords={"time"})
 def timeplot(
     data: xr.DataArray,
     ax: plt.Axes | None = None,
-    trajs: Literal['ci', 'shade', 'conv', None] = None
+    trajs: Literal['ci', 'shade', 'conv', None] = None,
+    sep: bool = False,
 ):
+    if {'state', 'statecomb'}.issubset(data.dims):
+        raise ValueError(
+            "`data` should not have both 'state' and 'statecomb' dimensions"
+        )
+    state_dim = (
+        'state'
+        if 'state' in data.dims
+        else 'statecomb'
+        if 'statecomb' in data.dims
+        else ''
+    )
+
+    if trajs in {'shade', 'conv'} and state_dim:
+        sep = True
+
+    if sep:
+        if ax is not None:
+            raise ValueError("Plotting multiple plots, so `ax` arg can not be used")
+        nplots = data.sizes[state_dim]
+        fig, axs = plt.subplots(1, nplots, layout='constrained', sharex=True)
+        fig.set_size_inches(4 * nplots, 1.1414 * 4)
+        res = []
+        coord_name = state_dim + '_names'
+        for (_, sdata), ax in zip(data.groupby(state_dim), axs):
+            ax.set_title(sdata.coords[coord_name].item())
+            sdata = sdata.squeeze(state_dim)
+            res.append(timeplot(sdata, ax=ax, trajs=trajs, sep=False))
+        return res
+
     if 'trajid' not in data.coords:
         assert trajs is None
         return plot_single(data, ax)

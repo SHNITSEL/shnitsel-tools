@@ -1,1 +1,3 @@
-*.ipynb filter=strip-notebook-output
+# This removes Jupyter Notebook outputs from the committed version of the file
+# the filter it uses (with the actual command) is defined in the repo's .git/config
+# *.ipynb filter=strip-notebook-output

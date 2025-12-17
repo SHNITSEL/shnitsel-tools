@@ -11,15 +11,23 @@ _tcl_script_path = os.path.join(
 )
 
 
-def traj_vmd(atXYZ, groupby='trajid', scale=0.5):
-    with tempfile.TemporaryDirectory() as d:
-        # settings_path = os.path.join(d, "settings.tcl")
-        # with open(settings_path, 'w') as f:
-        #     print("running settings file", file=f)
-        #     print(f"set shnitsel_scale {scale}", file=f)
-        #     print("echo shnitsel_scale=$shnitsel_scale", file=f)
+def traj_vmd(atXYZ, groupby='trajid'):
+    """Open geometries in the VMD viewer, if installed
 
+    Parameters
+    ----------
+    atXYZ
+        The geometries to transmit
+    groupby, optional
+        A set of frames will be grouped into a VMD molecule if
+        they have the same value in this coordinate, by default this is 'trajid'
+        so that each trajectory
+    """
+    # See git history of this file for an attempt to communicate
+    # settings to VMD via a generated file
+    with tempfile.TemporaryDirectory() as d:
         paths = []
+        # TODO: Why not use `.groupby` and then `.squeeze`?
         trajids = np.unique(atXYZ.coords[groupby].values)
         for trajid in trajids:
             traj = atXYZ.sel(trajid=trajid)
@@ -27,8 +35,4 @@ def traj_vmd(atXYZ, groupby='trajid', scale=0.5):
             with open(path, 'w') as f:
                 print(traj_to_xyz(traj), file=f)
             paths.append(path)
-        subprocess.call(
-            # ['vmd', '-e', settings_path, '-e', _tcl_script_path, '-m'] + paths
-            ['vmd', '-e', _tcl_script_path, '-m'] + paths
-            # ['vmd', '-e', settings_path, '-m'] + paths
-        )
+        subprocess.call(['vmd', '-e', _tcl_script_path, '-m'] + paths)

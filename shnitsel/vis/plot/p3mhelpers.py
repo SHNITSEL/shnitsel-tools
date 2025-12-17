@@ -17,7 +17,6 @@ def frame3D(atXYZ_frame: str | xr.DataArray):
 
     view.setStyle({'stick': {'showNonBonded': True}})
     view.zoomTo()
-    view.show()
     return view
 
 
@@ -43,7 +42,6 @@ def frames3Dgrid(atXYZ: xr.DataArray):
 
     view.setStyle({'stick': {'showNonBonded': True}})
     view.zoomTo()
-    view.show()
     return view
 
 
@@ -57,7 +55,6 @@ def traj3D(traj: str | xr.DataArray):
     view.setStyle({'stick': {'showNonBonded': True}})
     view.zoomTo()
     view.animate({'loop': "forward"})
-    view.show()
     return view
 
 
@@ -92,5 +89,4 @@ def trajs3Dgrid(
     view.setStyle({'stick': {'showNonBonded': True}})
     view.zoomTo()
     view.animate({'loop': loop})
-    view.show()
     return view

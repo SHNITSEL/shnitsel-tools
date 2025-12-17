@@ -17,13 +17,14 @@ def load_frames(path):
 
 @pytest.fixture
 def frames():
-    frames = load_frames('/c/st-refactor/h24-oldstyle.nc')
+    frames = load_frames('/nc/st-refactor/h24-oldstyle.nc')
     frames['energy'] = frames['energy'].st.convert_energy('eV')
     frames['e_kin'] = frames['e_kin'].st.convert_energy('eV')
     return frames
 
 def test_filtranda(frames):
-    return F.energy_filtranda(frames)
+    F.energy_filtranda(frames)
+
 
 @pytest.fixture
 def filtranda(frames):
@@ -34,8 +35,8 @@ def ds_filtranda(frames, filtranda):
     return frames.assign(filtranda=filtranda)
 
 def test_cutoffs_from_filtranda(filtranda):
-    return F.cutoffs_from_filtranda(filtranda)
+    F.cutoffs_from_filtranda(filtranda)
+
 
 def test_cum_mask_from_filtranda(filtranda):
-    return F.cum_mask_from_filtranda(filtranda)
-
+    F.cum_mask_from_filtranda(filtranda)

@@ -221,7 +221,7 @@ def convert_all_units_to_shnitsel_defaults(data: xr.Dataset) -> xr.Dataset:
                 if coord_name in data.indexes:
                     coord_index = data.indexes[coord_name]
                     if isinstance(coord_index, MultiIndex):
-                        from shnitsel.core.xrhelpers import assign_levels
+                        from shnitsel.data.multi_indices import assign_levels
 
                         tmp = assign_levels(tmp, {str(coord_name): conv_res})
                         continue

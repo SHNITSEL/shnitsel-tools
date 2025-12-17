@@ -8,9 +8,8 @@ from shnitsel.data.shnitsel_db.combiner_methods import (
 from shnitsel.data.trajectory_format import Trajectory
 from shnitsel.data.shnitsel_db_format import ShnitselDB, build_shnitsel_db
 from shnitsel.io.format_reader_base import FormatInformation, FormatReader
-from shnitsel.io.format_registry import get_available_io_handlers
+from shnitsel.io.format_registry import get_available_io_handlers, FormatIdentifierType
 from shnitsel.io.shared.helpers import (
-    KindType,
     LoadingParameters,
     PathOptionsType,
     make_uniform_path,
@@ -50,7 +49,7 @@ import pathlib
 @API()
 def read(
     path: PathOptionsType,
-    kind: KindType | None = None,
+    kind: FormatIdentifierType | None = None,
     sub_pattern: str | None = None,
     multiple: bool = True,
     concat_method: Literal["layers", "list", "frames", "db"] = "db",
@@ -115,7 +114,7 @@ def read(
         Depending on the kind of trajectory to be loaded should denote the path of the trajectory file (``kind='shnitsel'`` or ``kind='ase'`) or a directory containing the files of the respective file format.
         Alternatively, if ``multiple=True`, this can also denote a directory containing multiple sub-directories with the actual Trajectories.
         In that case, the `concat_method` parameter should be set to specify how the .
-    kind (Literal['sharc', 'nx', 'newtonx', 'pyrai2md', 'shnitsel'] | None, optional):
+    kind (FormatIdentifierType | None, optional):
         The kind of trajectory, i.e. whether it was produced by SHARC, Newton-X, PyRAI2MD or Shnitsel-Tools.
         If None is provided, the function will make a best-guess effort to identify which kind of trajectory has been provided.
     sub_pattern (str|None, optional):
@@ -276,7 +275,7 @@ def read(
 @internal()
 def read_folder_multi(
     path: PathOptionsType,
-    kind: KindType | None = None,
+    kind: FormatIdentifierType | None = None,
     sub_pattern: str | None = None,
     parallel: bool = True,
     error_reporting: Literal["log", "raise"] = "log",
@@ -293,7 +292,7 @@ def read_folder_multi(
 
     Args:
         path (PathOptionsType): The path pointing to the directory where multiple trajectories may be located in the subdirectory
-        kind (KindType | None,optional): The key indicating the input format.
+        kind (FormatIdentifierType | None,optional): The key indicating the input format.
         sub_pattern (str | None, optional): The pattern provided to "glob" to identify relevant entries in the `path` subtree. Defaults to None.
         parallel (bool, optional): A flag to enable parallel loading of trajectories. Only faster if postprocessing of read data takes up significant amounts of time. Defaults to True.
         error_reporting (Literal[&quot;log&quot;, &quot;raise&quot;], optional): Whether to raise or to log resulting errors. If errors are raised, they may also be logged. 'raise' conflicts with ``parallel=True`` setting. Defaults to "log".
@@ -468,7 +467,7 @@ def read_folder_multi(
 @internal()
 def read_single(
     path: PathOptionsType,
-    kind: KindType | None,
+    kind: FormatIdentifierType | None,
     error_reporting: Literal["log", "raise"] = "log",
     base_loading_parameters: LoadingParameters | None = None,
 ) -> Trajectory | ShnitselDB | None:
@@ -516,7 +515,7 @@ def read_single(
 @internal()
 def identify_or_check_input_kind(
     path: PathOptionsType,
-    kind_hint: KindType | None,
+    kind_hint: FormatIdentifierType | None,
 ) -> FormatInformation | None:
     """Function to identify/guess which kind of input type the current path has if no kind was provided.
     If a kind_hint is provided, it will verify, if the path actually is of that kind
