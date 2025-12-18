@@ -8,7 +8,22 @@ from matplotlib.axes import Axes
 from matplotlib.figure import Figure, SubFigure
 
 
-def outlabel(ax, letter):
+def outlabel(ax: Axes, letter: str):
+    """Adds a label just outside the top left
+    corner of a plot
+
+    Parameters
+    ----------
+    ax
+        The ``Axes`` object to annotate
+    letter
+        The label to be added
+
+    Returns
+    -------
+        The :py:class:`matplotlib.text.Text` instance created
+    """
+
     fixedtrans = mpl.transforms.ScaledTranslation(
         -20 / 72, +7 / 72, ax.figure.dpi_scale_trans
     )
@@ -25,6 +40,20 @@ def outlabel(ax, letter):
 
 
 def inlabel(ax, letter):
+    """Adds a label just inside the top left
+    corner of a plot
+
+    Parameters
+    ----------
+    ax
+        The ``Axes`` object to annotate
+    letter
+        The label to be added
+
+    Returns
+    -------
+        The :py:class:`matplotlib.text.Text` instance created
+    """
     return ax.annotate(
         letter,
         xy=(1, 1),
@@ -58,6 +87,21 @@ def figax(
 
 
 def extrude(x, y, xmin, xmax, ymin, ymax):
+    """Continue a ray from the origin to (x, y) so that
+    it comes close to the given bounds
+
+    Parameters
+    ----------
+    x, y
+        Coordinates of the vector to extrapolate
+    xmin, xmax, ymin, ymax
+        Bounds of the rectangle to the edge of which the
+        ray should be extended
+
+    Returns
+    -------
+        A pair of coordinates
+    """
     # for extrusion, flip negative rays into quadrant 1
     if x < 0:
         xlim = -xmin # positive
@@ -82,6 +126,19 @@ def extrude(x, y, xmin, xmax, ymin, ymax):
 
 
 def mpl_imshow_png(ax, png, **imshow_kws):
+    """Display PNG data in a matplotlib plot
+
+    Parameters
+    ----------
+    ax
+        The plot into which to plot
+    png
+        The data of the image to plot
+
+    Returns
+    -------
+        ``AxesImage``, as returned by ``ax.imshow``
+    """
     buffer = io.BytesIO()
     buffer.write(png)
     buffer.seek(0)
