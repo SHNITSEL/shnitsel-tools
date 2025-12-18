@@ -83,6 +83,35 @@ def flatten_levels(
     position: int = 0,
     renamer: Callable | None = None,
 ) -> DatasetOrArray:
+    """Flatten specified levels of a MultiIndex into tuples occupying
+    a single MultiIndex level
+
+    Parameters
+    ----------
+    obj
+        A Dataset or DataArray with at least one MultiIndex
+    idx_name
+        The name of the MultiIndex
+    levels
+        Which levels to flatten
+    new_name, optional
+        The name of the single resulting index, by default None
+    position, optional
+        The position of the resulting level in the MultiIndex, by default 0
+    renamer, optional
+        A Callable to compute the values in the new level as a
+        function of the values in the original separate levels, by default None
+
+    Returns
+    -------
+        An object differing from ``obj`` only in the flattening of specified levels
+
+    Raises
+    ------
+    ValueError
+        If the specified index is associated with more than one dimension
+        (this should not be possible for a MultiIndex anyway)
+    """
     dims = obj.coords[idx_name].dims
     if len(dims) != 1:
         raise ValueError(
@@ -111,6 +140,23 @@ def flatten_levels(
 def expand_midx(
     obj: DatasetOrArray, midx_name: str, level_name: str, value
 ) -> DatasetOrArray:
+    """Add an outer level to an existing MultiIndex in ``obj``
+
+    Parameters
+    ----------
+    obj
+        A Dataset or DataArray with at least one MultiIndex
+    midx_name
+        The name of the MultiIndex
+    level_name
+        The name of the new level
+    value
+        Values with to populate the new level
+
+    Returns
+    -------
+        An object differing from ``obj`` only in the addition of the MultiIndex level
+    """
     midx = obj.indexes[midx_name]
     to_drop = [midx.name] + midx.names
     df = midx.to_frame()
@@ -219,7 +265,25 @@ def mgroupby(
     return flatten_levels(obj, midx, levels, new_name=new_name).groupby(new_name)
 
 
-def msel(obj: xr.Dataset | xr.DataArray, **kwargs) -> xr.Dataset | xr.DataArray:
+def msel(obj: DatasetOrArray, **kwargs) -> DatasetOrArray:
+    """Add data values along a coordinate, chosen based on coordinate values
+
+    Parameters
+    ----------
+    obj
+        A Dataset or DataArray with at least one coordinate containing all
+        the values given by the ``kwargs`` parameter name
+
+    Returns
+    -------
+        The coordinate (presumably unique) from ``obj`` that contains all the parameter
+        names in ``kwargs``
+
+    Raises
+    ------
+    ValueError
+        If no coordinate in ``obj`` contains all the parameter names in ``kwargs``
+    """
     tuples = list(zip(*kwargs.items()))
     ks, vs = list(tuples[0]), list(tuples[1])
     # Find correct index and levels
@@ -242,10 +306,10 @@ def msel(obj: xr.Dataset | xr.DataArray, **kwargs) -> xr.Dataset | xr.DataArray:
 
 @needs(dims={'frame'}, coords_or_vars={'trajid'})
 def sel_trajs(
-    frames: xr.Dataset | xr.DataArray,
+    frames: DatasetOrArray,
     trajids_or_mask: Sequence[int] | Sequence[bool],
     invert=False,
-) -> xr.Dataset | xr.DataArray:
+) -> DatasetOrArray:
     """Select trajectories using a list of trajectories IDs or a boolean mask
 
     Parameters
@@ -296,8 +360,30 @@ def sel_trajs(
 
 
 @needs(dims={'frame'}, coords_or_vars={'trajid'})
-def sel_trajids(frames: xr.Dataset, trajids: npt.ArrayLike, invert=False) -> xr.Dataset:
-    "Will not generally return trajectories in order given"
+def sel_trajids(
+    frames: DatasetOrArray, trajids: npt.ArrayLike, invert=False
+) -> DatasetOrArray:
+    """Select trajectories using a list of trajectories IDs or a boolean mask;
+    note that the trajectories may not be returned in the order specified.
+
+    Parameters
+    ----------
+    frames
+        The :py:class:`xr.Dataset` from which a selection is to be drawn
+    trajids
+        A sequences of integers representing trajectory IDs to be included,
+    invert
+        Whether to invert the selection, i.e. return those trajectories not specified, by default False
+
+    Returns
+    -------
+        A new :py:class:`xr.Dataset` containing only the specified trajectories
+
+    Raises
+    ------
+    KeyError
+        If some of the supplied trajectory IDs are not present in the ``trajid`` coordinate
+    """
     trajids = np.atleast_1d(trajids)
     # check that all trajids are valid, as Dataset.sel() would
     if not invert and not (np.isin(trajids, frames['trajid'])).all():
@@ -390,7 +476,7 @@ def unstack_trajs(frames: DatasetOrArray) -> DatasetOrArray:
 
 
 @internal()
-def stack_trajs(unstacked: xr.Dataset | xr.DataArray) -> xr.Dataset | xr.DataArray:
+def stack_trajs(unstacked: DatasetOrArray) -> DatasetOrArray:
     """Stack the ``trajid`` and ``time`` dims of an unstacked Dataset
     into a MultiIndex along a new dimension called ``frame``.
     Wraps the :py:meth:`xarray.Dataset.stack` method.
