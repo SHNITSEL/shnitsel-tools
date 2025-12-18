@@ -223,7 +223,7 @@ class StructureSelection:
     def init_from_dataset(
         cls: type[Self],
         dataset: xr.Dataset,
-        default_selection: list[FeatureLevelOptions] = [
+        default_selection: Sequence[FeatureLevelOptions] = [
             'atoms',
             'bonds',
         ],
@@ -237,7 +237,7 @@ class StructureSelection:
                 Must have at least `atXYZ` variable and a `atom` dimension.
                 Ideally, an `atom` coordinate for feature selection is also provided.
                 Should only represent a single frame of data.
-            default_selection (list[FeatureLevelOptions], optional): List of features to activate as selected by default. Defaults to [ 'atoms', 'bonds', ].
+            default_selection (Sequence[FeatureLevelOptions], optional): List of features to activate as selected by default. Defaults to [ 'atoms', 'bonds', ].
             to2D (bool, optional): Flag to control whether a mol representation is converted to a 2d projection before use for visualization.
 
         Raises:
@@ -266,7 +266,7 @@ class StructureSelection:
     def init_from_mol(
         cls: type[Self],
         mol: Mol,
-        default_selection: list[FeatureLevelOptions] = [
+        default_selection: Sequence[FeatureLevelOptions] = [
             'atoms',
             'bonds',
         ],
@@ -276,7 +276,7 @@ class StructureSelection:
         Args:
             cls (type[StructureSelection]): The type of this StructureSelection so that we can create instances of it.
             mol (rdkit.rdchem.Mol): The RDKit Mol object to extract all initial structural information out of
-            default_selection (list[FeatureLevelOptions], optional): List of features to activate as selected by default. Defaults to [ 'atoms', 'bonds', ].
+            default_selection (Sequence[FeatureLevelOptions], optional): List of features to activate as selected by default. Defaults to [ 'atoms', 'bonds', ].
 
         Raises:
             ValueError: If no structural information could be extracted from the dataset.
