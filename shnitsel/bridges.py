@@ -11,6 +11,7 @@ from shnitsel.rd import set_atom_props, mol_to_numbered_smiles
 from .core.typedefs import AtXYZ
 from .units.conversion import convert_length
 from .units.definitions import length
+import xarray as xr
 
 
 @needs(dims={'atom', 'direction'}, coords_or_vars={'atNames'}, not_dims={'frame'})
@@ -177,7 +178,7 @@ def numbered_smiles_to_mol(smiles: str) -> rc.Mol:
     return rc.RenumberAtoms(mol, map_new_to_old)
 
 
-def default_mol(obj) -> rc.Mol:
+def construct_default_mol(obj: xr.Dataset | xr.DataArray | rc.Mol) -> rc.Mol:
     """Try many ways to get a representative Mol object for an ensemble:
 
         1. Use the ``mol`` attr (of either obj or obj['atXYZ']) directly
@@ -192,6 +193,7 @@ def default_mol(obj) -> rc.Mol:
     obj
         An 'atXYZ' xr.DataArray with molecular geometries
         or an xr.Dataset containing the above as one of its variables
+        or an rc.Mol object that will just be returned.
 
     Returns
     -------
@@ -202,14 +204,26 @@ def default_mol(obj) -> rc.Mol:
     ValueError
         If the final approach fails
     """
-    if 'atXYZ' in obj:  # We have a frames Dataset
-        atXYZ = obj['atXYZ']
+
+    if isinstance(obj, xr.Dataset):
+        # TODO: FIXME: Make these internal attributes with double underscores so they don't get written out.
+        if 'mol' in obj.attrs:
+            return rc.Mol(obj.attrs['mol'])
+        elif 'atXYZ' in obj:  # We have a frames Dataset
+            atXYZ = obj['atXYZ']
+        else:
+            raise ValueError("Not enough information to construct molecule from object")
     else:
         atXYZ = obj  # We have an atXYZ DataArray
 
-    if 'mol' in obj.attrs:
-        return rc.Mol(obj.attrs['mol'])
-    elif 'mol' in atXYZ.attrs:
+    charge = None
+    if 'state_charges' in obj.coords:
+        charge = obj.state_charges[0].item()
+    if charge is None:
+        charge = obj.attrs.get('charge', 0)
+
+    # TODO: FIXME: Make these internal attributes with double underscores so they don't get written out.
+    if 'mol' in atXYZ.attrs:
         return rc.Mol(obj.attrs['mol'])
     elif 'smiles_map' in obj.attrs:
         return numbered_smiles_to_mol(obj.attrs['smiles_map'])
@@ -217,7 +231,6 @@ def default_mol(obj) -> rc.Mol:
         return numbered_smiles_to_mol(atXYZ.attrs['smiles_map'])
 
     try:
-        charge = obj.attrs.get('charge', 0)
         return to_mol(atXYZ.isel(frame=0), charge=charge)
     except (KeyError, ValueError):
         raise ValueError(
