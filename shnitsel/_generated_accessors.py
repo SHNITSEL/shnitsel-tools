@@ -14,6 +14,7 @@ from ._contracts import needs
 from numpy import nan, ndarray
 from rdkit.Chem.rdchem import Mol
 from shnitsel.analyze.generic import keep_norming, norm, pwdists, subtract_combinations
+from shnitsel.analyze.hops import assign_hop_time, focus_hops, hops
 from shnitsel.analyze.lda import lda
 from shnitsel.analyze.pca import pairwise_dists_pca, pca, pca_and_hops
 from shnitsel.analyze.pls import pls, pls_ds
@@ -330,6 +331,9 @@ class DatasetAccessor(DSManualAccessor):
         'transect',
         'write_ase_db',
         'pls_ds',
+        'hops',
+        'focus_hops',
+        'assign_hop_time',
     ]
 
     @needs(coords_or_vars={'astate', 'atXYZ'})
@@ -448,4 +452,16 @@ class DatasetAccessor(DSManualAccessor):
     def pls_ds(self, xname: str, yname: str, n_components: int=2, common_dim: str | None=None) -> Dataset:
         """Wrapper for :py:func:`shnitsel.analyze.pls.pls_ds`."""
         return pls_ds(self._obj, xname, yname, n_components=n_components, common_dim=common_dim)
+
+    def hops(self, hop_types: list[tuple[int, int]] | None=None):
+        """Wrapper for :py:func:`shnitsel.analyze.hops.hops`."""
+        return hops(self._obj, hop_types=hop_types)
+
+    def focus_hops(self, hop_types: list[tuple[int, int]] | None=None, window: slice | None=None):
+        """Wrapper for :py:func:`shnitsel.analyze.hops.focus_hops`."""
+        return focus_hops(self._obj, hop_types=hop_types, window=window)
+
+    def assign_hop_time(self, hop_types: list[tuple[int, int]] | None=None, which: str='last'):
+        """Wrapper for :py:func:`shnitsel.analyze.hops.assign_hop_time`."""
+        return assign_hop_time(self._obj, hop_types=hop_types, which=which)
 
