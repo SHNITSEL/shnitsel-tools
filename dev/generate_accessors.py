@@ -9,7 +9,16 @@ def main():
         from shnitsel import bridges
         from shnitsel import clean
         from shnitsel import units
-        from shnitsel.analyze import generic, spectra, stats, pca, lda, pls, populations
+        from shnitsel.analyze import (
+            generic,
+            spectra,
+            stats,
+            pca,
+            lda,
+            pls,
+            populations,
+            hops,
+        )
         from shnitsel.data import multi_indices
         import shnitsel.data.helpers as data_helpers
         from shnitsel.geo import geocalc
@@ -117,6 +126,10 @@ def main():
         write_ase_db,
         # ml
         pls.pls_ds,
+        # hops
+        hops.hops,
+        hops.focus_hops,
+        hops.assign_hop_time,
     ]
 
     code = generate_class_code(
