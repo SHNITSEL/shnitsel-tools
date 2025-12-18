@@ -12,7 +12,32 @@ import numpy as np
 # to maintain the order in the `atom` index
 
 
-def set_atom_props(mol, inplace=False, **kws):
+def set_atom_props(
+    mol: rc.Mol, inplace: bool = False, **kws: list | True
+) -> rc.Mol | None:
+    """Set properties on atoms of an ``rdkit.Chem.Mol`` object
+
+    Parameters
+    ----------
+    mol
+        The ``Mol`` object
+    inplace, optional
+        Whether to alter ``mol``; , by default False (returns a copy)
+    **kws
+        A mapping where parameter names represent the name of a property
+        and the arguments are either a list of values the atoms should be
+        set to, or simply ``True``, in which case the atom indices as
+        assigned by RDKit will be used as values.
+
+    Returns
+    -------
+        A copy of the ``Mol`` object, if ``inplace=False``, otherwise ``None``
+
+    Raises
+    ------
+    ValueError
+        _description_
+    """
     if not inplace:
         mol = rc.Mol(mol)
     natoms = mol.GetNumAtoms()
@@ -33,13 +58,43 @@ def set_atom_props(mol, inplace=False, **kws):
 
 
 def mol_to_numbered_smiles(mol: rc.Mol) -> str:
+    """Generate a SMILES string containing mapping numbers
+    corresponding to the atom indices in the mol object
+
+    Parameters
+    ----------
+    mol
+        An ``rdkit.Chem.Mol`` object
+
+    Returns
+    -------
+        A SMILES string
+
+    Notes
+    -----
+        This is intended as a way to store the connectivity
+        and order of a matrix of coordinates
+    """
     mol = rc.Mol(mol)
     for atom in mol.GetAtoms():
         atom.SetProp("molAtomMapNumber", str(atom.GetIdx()))
     return rc.MolToSmiles(mol)
 
 
-def highlight_pairs(mol, pairs):
+def highlight_pairs(mol: rc.Mol, pairs: list[tuple[int, int]]):
+    """Highlight specified pairs of atoms in an image of an ``rdkit.Chem.Mol`` object
+
+    Parameters
+    ----------
+    mol
+        The ``Mol`` object
+    pairs
+        A list of pairs of atom indices
+
+    Returns
+    -------
+        Raw PNG data
+    """
     d = rdkit.Chem.Draw.rdMolDraw2D.MolDraw2DCairo(320, 240)
     # colors = iter(mpl.colormaps['tab10'](range(10)))
     colors = iter(mpl.colormaps['rainbow'](np.linspace(0, 1, len(pairs))))
