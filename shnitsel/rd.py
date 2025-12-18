@@ -12,7 +12,9 @@ import numpy as np
 # to maintain the order in the `atom` index
 
 
-def set_atom_props(mol, **kws):
+def set_atom_props(mol, inplace=False, **kws):
+    if not inplace:
+        mol = rc.Mol(mol)
     natoms = mol.GetNumAtoms()
     for prop, vals in kws.items():
         if vals is None:
@@ -26,10 +28,12 @@ def set_atom_props(mol, **kws):
 
         for atom, val in zip(mol.GetAtoms(), vals):
             atom.SetProp(prop, str(val))
-    return mol
+    if not inplace:
+        return mol
 
 
 def mol_to_numbered_smiles(mol: rc.Mol) -> str:
+    mol = rc.Mol(mol)
     for atom in mol.GetAtoms():
         atom.SetProp("molAtomMapNumber", str(atom.GetIdx()))
     return rc.MolToSmiles(mol)
