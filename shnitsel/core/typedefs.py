@@ -17,6 +17,8 @@ Unstacked: TypeAlias = xr.Dataset | xr.DataArray
 
 DatasetOrArray = TypeVar("DatasetOrArray", bound=xr.Dataset | xr.DataArray)
 
+DataArrayOrVar = TypeVar("DataArrayOrVar", bound=xr.Variable | xr.DataArray)
+
 # Types for selecting and managing states and state combinations
 StateId: TypeAlias = int
 StateCombination: TypeAlias = tuple[StateId, StateId]
