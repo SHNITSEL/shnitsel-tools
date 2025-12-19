@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from itertools import combinations
 import logging
 from typing import Iterator, Literal, Self, Sequence, TypeAlias
+import numpy as np
 import rdkit
 import xarray as xr
 
@@ -45,7 +46,9 @@ FEATURE_LEVELS: list[FeatureLevelType] = [
     'pyramids',
 ]
 
-FeatureTypeLabel: TypeAlias = Literal['pyr', 'pos', 'dist', 'angle', 'dih', 'cos', 'sin']
+FeatureTypeLabel: TypeAlias = Literal[
+    'pyr', 'pos', 'dist', 'angle', 'dih', 'cos', 'sin'
+]
 
 
 @dataclass
@@ -314,6 +317,7 @@ class StructureSelection:
         are_dihedrals_selected = 'dihedrals' in default_selection
         are_pyramids_selected = 'pyramids' in default_selection
 
+        # ATOMS/POSITIONS
         for atom in mol.GetAtoms():
             atomid = atom.GetIdx()
             atom_type = atom.GetSymbol()
@@ -323,17 +327,20 @@ class StructureSelection:
         if are_atoms_selected:
             atoms_selected.update(atoms)
 
+        # BONDS
         for bond in mol.GetBonds():
             beginIdx = bond.GetBeginAtomIdx()
             endIdx = bond.GetEndAtomIdx()
-            bond_type = bond.GetBondTypeAsDouble()
-            bondId = (beginIdx, endIdx)
-            bonds.add(bondId)
-            bonds_types[bondId] = bond_type
+            bondId = StructureSelection.canonicalize_bond((beginIdx, endIdx))
+            if bondId not in bonds:
+                bonds.add(bondId)
+                bond_type = bond.GetBondTypeAsDouble()
+                bonds_types[bondId] = bond_type
 
         if are_bonds_selected:
             bonds_selected.update(bonds)
 
+        # ANGLES
         for bond_j in mol.GetBonds():
             j = bond_j.GetBeginAtomIdx()
             k = bond_j.GetEndAtomIdx()
@@ -347,7 +354,7 @@ class StructureSelection:
 
             # angles are (i, j, k)
             for i in neighbors_j:
-                angles.add((i, j, k))
+                angles.add(StructureSelection.canonicalize_angle((i, j, k)))
 
             # also angles (k, j, i) by symmetry
             neighbors_k = [
@@ -356,11 +363,12 @@ class StructureSelection:
                 if nbr.GetIdx() != j
             ]
             for i in neighbors_k:
-                angles.add((i, k, j))
+                angles.add(StructureSelection.canonicalize_angle((i, k, j)))
 
         if are_angles_selected:
             angles_selected.update(angles)
 
+        # DIHEDRALS
         for bond_jk in mol.GetBonds():
             j = bond_jk.GetBeginAtomIdx()
             k = bond_jk.GetEndAtomIdx()
@@ -385,6 +393,7 @@ class StructureSelection:
                     # TODO: FIXME: check if we want to exclude potential i=l
                     dihedrals.add((i, j, k, l))
 
+                    # TODO: FIXME: Should we only keep one here? Canonical direction maybe?
                     # also handle reversed central bond direction (k–j)
                     # giving quadruples (i, k, j, l)
                     dihedrals.add((l, k, j, i))
@@ -392,19 +401,20 @@ class StructureSelection:
         if are_dihedrals_selected:
             dihedrals_selected.update(dihedrals)
 
+        # PYRAMIDS
         for atom in mol.GetAtoms():
             i = atom.GetIdx()
 
             # get all neighbors of atom i
             neighbors = [nbr.GetIdx() for nbr in atom.GetNeighbors()]
 
-            # a pyramid requires exactly (or at least) 3 bonded neighbors
-            if len(neighbors) < 3:
+            # a pyramid requires exactly 3 bonded neighbors. More neighbors is not relevant for bending
+            if len(neighbors) != 3:
                 continue
 
             # choose all unique triplets of neighbors
-            for j, k, l in combinations(neighbors, 3):
-                pyramids.add((i, (j, k, l)))
+
+            pyramids.add(StructureSelection.canonicalize_pyramid((i, tuple(neighbors))))
 
         if are_pyramids_selected:
             pyramids_selected.update(pyramids)
@@ -427,6 +437,38 @@ class StructureSelection:
             pyramids=pyramids,
             pyramids_selected=pyramids_selected,
             pyramids_types=pyramids_types,
+        )
+
+    def only(
+        self,
+        feature_level: FeatureLevelOptions | Sequence[FeatureLevelOptions] | None,
+        inplace: bool = False,
+    ) -> Self:
+        """Only retain the selected features of the specified feature levels.
+
+        E.g. selection.only('bonds') yields a selection where only bonds are selected as according to the previous selection.
+        All selections for features not in `feature_level` will be set to an empty selection.
+
+        Args:
+            feature_level (FeatureLevelOptions | Sequence[FeatureLevelOptions] | None): The desired feature levels to retain in the resulting selection. If set to `None`, all selections will be cleared.
+            inplace (bool, optional): Whether to update the selection in-place. Defaults to False.
+
+        Returns:
+            Self: The selection where only the chosen feature levels are still active.
+        """
+        if feature_level is None:
+            feature_level = []
+        elif isinstance(feature_level, str) or not isinstance(feature_level, Sequence):
+            feature_level = [feature_level]
+        feature_levels = [self._to_feature_level_str(x) for x in feature_level]
+
+        return self.copy_or_update(
+            atoms_selected=None if 'atoms' in feature_levels else set(),
+            bonds_selected=None if 'bonds' in feature_levels else set(),
+            angles_selected=None if 'angles' in feature_levels else set(),
+            dihedrals_selected=None if 'dihedrals' in feature_levels else set(),
+            pyramids_selected=None if 'pyramids' in feature_levels else set(),
+            inplace=inplace,
         )
 
     def select_all(
@@ -470,6 +512,18 @@ class StructureSelection:
         | None = None,
         inplace: bool = False,
     ) -> Self:
+        """Select all atoms covered either by the smarts string(s) provided in `smarts_or_selection` or by either a single or multiple atom ids.
+
+        Args:
+            smarts_or_selection (str | Sequence[str] | AtomDescriptor | Sequence[AtomDescriptor] | None, optional): Either one or multiple smart strings or a single or sequence of atom ids. Defaults to None meaning all atoms will be selected.
+            inplace (bool, optional): Whether to update the selection in-place. Defaults to False.
+
+        Raises:
+            ValueError: If `self.mol` is not set and SMARTS matching is attempted.
+
+        Returns:
+            Self: The updated selection
+        """
         selection_list: Sequence
         if isinstance(smarts_or_selection, str) or isinstance(
             smarts_or_selection, AtomDescriptor
@@ -536,17 +590,15 @@ class StructureSelection:
         | Sequence[str]
         | BondDescriptor
         | Sequence[BondDescriptor]
-        | Sequence[AtomDescriptor]
-        | Sequence[Sequence[AtomDescriptor]]
         | None = None,
         inplace: bool = False,
     ) -> Self:
         """Restrict the current selection of bonds by either specifying a SMARTS string (or sequence thereof) to specify substructures of
-        the molecule to consider bonds in, or by providing one or more bond desciptor tuples or by providing a list of atoms that can be
-        passed to the atom-based selection in `self.select_bonds_by_atoms()`.
+        the molecule to consider bonds in, or by providing one or more bond desciptor tuples.
 
         Args:
-            selection (str | Sequence[str] | BondDescriptor | Sequence[BondDescriptor] | Sequence[AtomDescriptor] | Sequence[Sequence[AtomDescriptor]] | None, optional): The criterion or criteria by which to retain bonds in the selection. Defaults to None meaning that all bonds will be added back into the selection.
+            selection (str | Sequence[str] | BondDescriptor | Sequence[BondDescriptor] | None, optional): The criterion or 
+            criteria by which to retain bonds in the selection. Defaults to None meaning that all bonds will be added back into the selection.
             inplace (bool, optional): Whether to update the selection in-place or return an updated copy. Defaults to False.
 
         Raises:
@@ -575,21 +627,11 @@ class StructureSelection:
                 matches = self.__match_pattern(self.mol, entry)
                 from_matches = self._new_bond_selection_from_atoms(matches)
                 new_selection.update(from_matches)
-            elif isinstance(entry, AtomDescriptor):
-                # We have an atom selection list or list thereof. Consume it and stop iteration.
-                new_selection.update(
-                    self._new_bond_selection_from_atoms(selection_list)
-                )
-                break
             elif isinstance(entry, tuple):
+                assert len(entry) == 2, f"Got invalid bonds descriptor {entry}"
                 new_selection.add(entry)
             else:
-                # We have a sequence of sequences of atoms:
-                try:
-                    if isinstance(entry[0], AtomDescriptor):
-                        new_selection.update(self._new_bond_selection_from_atoms(entry))
-                except:
-                    pass
+                raise ValueError(f"Invalid entry {entry} in call to select_bonds().")
 
         return self.copy_or_update(bonds_selected=new_selection, inplace=inplace)
 
@@ -689,16 +731,14 @@ class StructureSelection:
         | Sequence[str]
         | AngleDescriptor
         | Sequence[AngleDescriptor]
-        | Sequence[AtomDescriptor]
-        | Sequence[Sequence[AtomDescriptor]]
         | None = None,
         inplace: bool = False,
     ) -> Self:
-        """Function to restrict the angles selection by providing either providing SMARTS strings or explicit angles descriptors
-        or sets of atoms between which to retain angles.
+        """Function to restrict the angles selection by providing either providing SMARTS strings or explicit angles descriptors to retain.
 
         Args:
-            selection (str | Sequence[str] | AngleDescriptor | Sequence[AngleDescriptor] | Sequence[AtomDescriptor] | Sequence[Sequence[AtomDescriptor]] | None, optional): The criterion or criteria by which to retain angles in the selection. Defaults to None meaning that all angles will be added back into the selection.
+            selection (str | Sequence[str] | AngleDescriptor | Sequence[AngleDescriptor] | None, optional): The criterion or 
+            criteria by which to retain angles in the selection. Defaults to None meaning that all angles will be added back into the selection.
             inplace (bool, optional): Whether the selection should be updated in-place. Defaults to False.
 
         Returns:
@@ -718,23 +758,11 @@ class StructureSelection:
                 # Found smarts match:
                 matches = self.__match_pattern(self.mol, entry)
                 new_selection.update(self._new_angle_selection_from_atoms(matches))
-            elif isinstance(entry, AtomDescriptor):
-                # We have an atom selection list or list thereof. Consume it and stop iteration.
-                new_selection.update(
-                    self._new_angle_selection_from_atoms(selection_list)
-                )
-                break
             elif isinstance(entry, tuple):
+                assert len(entry) == 3, f"Got invalid angles descriptor {entry}"
                 new_selection.add(entry)
             else:
-                # We have a sequence of sequences of atoms:
-                try:
-                    if isinstance(entry[0], AtomDescriptor):
-                        new_selection.update(
-                            self._new_angle_selection_from_atoms(entry)
-                        )
-                except:
-                    pass
+                raise ValueError(f"Invalid entry {entry} in call to select_angles().")
 
         return self.copy_or_update(angles_selected=new_selection, inplace=inplace)
 
@@ -812,15 +840,17 @@ class StructureSelection:
         | Sequence[str]
         | DihedralDescriptor
         | Sequence[DihedralDescriptor]
-        | Sequence[AtomDescriptor]
-        | Sequence[Sequence[AtomDescriptor]]
         | None = None,
         inplace: bool = False,
     ) -> Self:
-        """Function to restrict the dihedral selection by providing either providing SMARTS strings or explicit dihedral descriptors or sets of atoms between which to retain dihedrals.
+        """Function to restrict the dihedral selection by providing either providing SMARTS strings or explicit dihedral descriptors to retain.
 
         Args:
-            selection (str | Sequence[str] | DihedralDescriptor | Sequence[DihedralDescriptor] | Sequence[AtomDescriptor] | Sequence[Sequence[AtomDescriptor]] | None, optional): The criterion or criteria by which to retain dihedrals in the selection. Defaults to None meaning that all dihedrals will be added back into the selection.
+            selection (str | Sequence[str] | DihedralDescriptor | Sequence[DihedralDescriptor] 
+                assert len(entry) == 4, f"Got invalid Dihedrals descriptor {entry}"
+                new_selection.add(entry)
+            else:
+                raise ValueError(f"Invalid entry {entry} in call to select_dihedrals().")| Sequence[AtomDescriptor] | Sequence[Sequence[AtomDescriptor]] | None, optional): The criterion or criteria by which to retain dihedrals in the selection. Defaults to None meaning that all dihedrals will be added back into the selection.
             inplace (bool, optional): Whether the selection should be updated in-place. Defaults to False.
 
         Returns:
@@ -840,23 +870,35 @@ class StructureSelection:
                 # Found smarts match:
                 matches = self.__match_pattern(self.mol, entry)
                 new_selection.update(self._new_dihedral_selection_from_atoms(matches))
-            elif isinstance(entry, AtomDescriptor):
-                # We have an atom selection list or list thereof. Consume it and stop iteration.
-                new_selection.update(
-                    self._new_dihedral_selection_from_atoms(selection_list)
-                )
-                break
             elif isinstance(entry, tuple):
+                assert len(entry) == 4, f"Got invalid Dihedrals descriptor {entry}"
                 new_selection.add(entry)
             else:
-                # We have a sequence of sequences of atoms:
-                try:
-                    if isinstance(entry[0], AtomDescriptor):
-                        new_selection.update(
-                            self._new_dihedral_selection_from_atoms(entry)
-                        )
-                except:
-                    pass
+                raise ValueError(f"Invalid entry {entry} in call to select_dihedrals().")
+
+        return self.copy_or_update(dihedrals_selected=new_selection, inplace=inplace)
+
+    def select_dihedrals_by_atoms(
+        self,
+        atoms: Sequence[AtomDescriptor]
+        | Sequence[Sequence[AtomDescriptor]]
+        | None = None,
+        inplace: bool = False,
+    ) -> Self:
+        """Helper function to select dihedrals by specifying a subset of atoms to consider dihedrals between.
+
+        Allows provision of a single list of atoms or multiple such lists and will iterate over them as needed.
+
+        Args:
+            atoms (Sequence[AtomDescriptor] | Sequence[Sequence[AtomDescriptor]] | None, optional): Either a single
+                set of atoms to keep angles between or multiple sets within which the bonds should be kept.
+                Defaults to None.
+            inplace (bool, optional): Whether the selection should be updated in-place. Defaults to False.
+
+        Returns:
+            StructureSelection: The updated selection.
+        """
+        new_selection = self._new_dihedral_selection_from_atoms(atoms)
 
         return self.copy_or_update(dihedrals_selected=new_selection, inplace=inplace)
 
@@ -894,6 +936,7 @@ class StructureSelection:
                     filter_set = entry
 
                 for dihedral in basis_set:
+                raise ValueError(f"Invalid entry {entry} in call to set_pyramids.")
                     if all(x in filter_set for x in dihedral):
                         new_selection.add(dihedral)
 
@@ -907,21 +950,23 @@ class StructureSelection:
         | Sequence[str]
         | PyramidsDescriptor
         | Sequence[PyramidsDescriptor]
-        | Sequence[AtomDescriptor]
-        | Sequence[Sequence[AtomDescriptor]]
         | None = None,
         inplace: bool = False,
     ) -> Self:
         """Function to restrict the pyramid selection by providing either SMARTS strings or explicit pyramids descriptors or sets of atoms between which to retain pyramids.
 
         Args:
-            selection (str | Sequence[str] | PyramidsDescriptor | Sequence[PyramidsDescriptor] | Sequence[AtomDescriptor] | Sequence[Sequence[AtomDescriptor]] | None, optional): The criterion or criteria by which to retain pyramids in the selection. Defaults to None meaning that all pyramids will be added back into the selection.
+            selection (str | Sequence[str] | PyramidsDescriptor | Sequence[PyramidsDescriptor]  | None, optional): The criterion or
+                criteria by which to retain pyramids in the selection. Defaults to None meaning that all pyramids will be added back into the selection.
             inplace (bool, optional): Whether the selection should be updated in-place. Defaults to False.
+
+        Raises:
+            ValueError: If an invalid selector is provided.
 
         Returns:
             Self: The updated selection
         """
-        new_selection = set()
+        new_selection: set[PyramidsDescriptor] = set()
         if isinstance(selection, str) or isinstance(selection, tuple):
             selection_list = [selection]
         elif selection is None:
@@ -935,23 +980,36 @@ class StructureSelection:
                 # Found smarts match:
                 matches = self.__match_pattern(self.mol, entry)
                 new_selection.update(self._new_pyramid_selection_from_atoms(matches))
-            elif isinstance(entry, AtomDescriptor):
-                # We have an atom selection list or list thereof. Consume it and stop iteration.
-                new_selection.update(
-                    self._new_pyramid_selection_from_atoms(selection_list)
-                )
-                break
             elif isinstance(entry, tuple):
+                assert len(entry) == 2, f"Got invalid Pyramids descriptor {entry}"
+                assert len(entry[1]) == 3, f"Got invalid Pyramids descriptor {entry}"
                 new_selection.add(entry)
             else:
-                # We have a sequence of sequences of atoms:
-                try:
-                    if isinstance(entry[0], AtomDescriptor):
-                        new_selection.update(
-                            self._new_pyramid_selection_from_atoms(entry)
-                        )
-                except:
-                    pass
+                raise ValueError(f"Invalid entry {entry} in call to select_pyramids.")
+
+        return self.copy_or_update(pyramids_selected=new_selection, inplace=inplace)
+
+    def select_pyramids_by_atoms(
+        self,
+        atoms: Sequence[AtomDescriptor]
+        | Sequence[Sequence[AtomDescriptor]]
+        | None = None,
+        inplace: bool = False,
+    ) -> Self:
+        """Helper function to select pyramids by specifying a subset of atoms to consider pyramids between.
+
+        Allows provision of a single list of atoms or multiple such lists and will iterate over them as needed.
+
+        Args:
+            atoms (Sequence[AtomDescriptor] | Sequence[Sequence[AtomDescriptor]] | None, optional): Either a single
+                set of atoms to keep angles between or multiple sets within which the bonds should be kept.
+                Defaults to None.
+            inplace (bool, optional): Whether the selection should be updated in-place. Defaults to False.
+
+        Returns:
+            StructureSelection: The updated selection.
+        """
+        new_selection = self._new_pyramid_selection_from_atoms(atoms)
 
         return self.copy_or_update(pyramids_selected=new_selection, inplace=inplace)
 
@@ -1000,6 +1058,7 @@ class StructureSelection:
     def select_bats(
         self,
         smarts: str | Sequence[str] | None = None,
+        subgraph_selection: Sequence[AtomDescriptor] | None = None,
         idxs: FeatureDescriptor | Sequence[FeatureDescriptor] | None = None,
         mode: Literal['intersect', 'ext', 'sub'] = 'intersect',
         inplace: bool = False,
@@ -1012,8 +1071,13 @@ class StructureSelection:
 
         Args:
             smarts (str | Sequence[str] | None, optional): One or more smarts to identify subsets of the molecule and the features therein. Defaults to None.
-            idxs (FeatureDescriptor | Sequence[FeatureDescriptor] | None, optional): Either a single tuple or a sequence of tuples to use for the update. Will be assigned based on the length of the tuple. Defaults to None.
-            mode (Literal['intersect', 'ext', 'sub'], optional): The mode for the update. The new selection can either be the intersection of the current selection and the features covered by the new update set, it can be extended to contain the new update set ('ext') or the new update set can be removed from the current selection (`sub`). Defaults to 'intersect'.
+            subgraph_selection (Sequence[AtomDescriptor], optional): Only allow for results within the subgraph over these atoms to be retained.
+                If not provided, no filtering will be performed. Can be used to select by the result of a SMARTS pattern match.
+            idxs (FeatureDescriptor | Sequence[FeatureDescriptor] | None, optional): Either a single tuple or a sequence of tuples to use for the update.
+                Will be assigned based on the length of the tuple. Defaults to None.
+            mode (Literal['intersect', 'ext', 'sub'], optional): The mode for the update. The new selection can either be the intersection of the current
+                selection and the features covered by the new update set, it can be extended to contain the new update set ('ext') or the new update set can
+                be removed from the current selection (`sub`). Defaults to 'intersect'.
             inplace (bool, optional): Whether the selection should be updated in-place. Defaults to False.
 
         Returns:
@@ -1107,7 +1171,7 @@ class StructureSelection:
             new_dihedrals_selection.difference_update(self.dihedrals_selected)
             new_pyramids_selection.difference_update(self.pyramids_selected)
 
-        return self.copy_or_update(
+        res = self.copy_or_update(
             atoms_selected=new_atoms_selection,
             bonds_selected=new_bonds_selection,
             angles_selected=new_angles_selection,
@@ -1115,6 +1179,17 @@ class StructureSelection:
             pyramids_selected=new_pyramids_selection,
             inplace=inplace,
         )
+
+        if subgraph_selection:
+            res = (
+                res.select_atoms_idx(subgraph_selection, inplace=inplace)
+                .select_bonds_by_atoms(subgraph_selection, inplace=inplace)
+                .select_angles_by_atoms(subgraph_selection, inplace=inplace)
+                .select_dihedrals_by_atoms(subgraph_selection, inplace=inplace)
+                .select_pyramids_by_atoms(subgraph_selection, inplace=inplace)
+            )
+
+        return res
 
     @staticmethod
     def __match_pattern(
@@ -1332,6 +1407,156 @@ class StructureSelection:
 
         return res
 
+    def select_BLA_chromophor(
+        self,
+        BLA_smarts: str | None = None,
+        num_double_bonds: int | None = None,
+        allowed_chain_elements: str = "#6,#7,#8,#15,#16",
+        max_considered_BLA_double_bonds: int = 50,
+        inplace: bool = False,
+    ) -> Self:
+        """Select the (maximum length) BLA chromophor in the system.
+
+        You can provide a SMARTS to match the BLA chromophor directly, specify the number of double bonds in the chromophor
+        and the allowed elements in the BLA chain via `allowed_chain_elements`, which will be integrated directly into the SMARTS string
+        or the function will automatically try to detect the maximum BLA system size.
+
+        This function assumes the BLA chromophor to be unique.
+        If the maximum chromophor is not unique, an error will be raised.
+        In that case, you can get all the matches by building the BLA SMARTS with `__build_conjugated_smarts()` and
+        yield the entire chromophore match with `select_bats()` for that SMARTS.
+
+        Args:
+            BLA_smarts (str | None, optional): The SMARTS string to match the maximum chromophor to. Defaults to None.
+            num_double_bonds (int | None, optional): The number of double bonds in the maximum size chromophor to construct a SMARTS string if not provided. Defaults to None.
+            allowed_chain_elements (str, optional): Allowed elements along the chromophor chain. Defaults to "#6,#7,#8,#15,#16".
+            max_considered_BLA_double_bonds (int, optional): Maximum number of double bonds in a BLA chromophor if automatic maximum size detection is performed. Defaults to 50.
+            inplace (bool, optional): Whether to update the selection in-place. Defaults to False.
+
+        Raises:
+            ValueError: If the maximum BLA is not unique.
+
+        Returns:
+            StructureSelection: The updated selection constrained to the unique BLA chromophor of maximum length
+        """
+        if BLA_smarts is None and num_double_bonds is not None:
+            logging.info(
+                "Building SMARTS from number of double bonds for BLA detection"
+            )
+            BLA_smarts = self.__build_conjugated_smarts(
+                num_double_bonds=num_double_bonds,
+                allowed_chain_elements=allowed_chain_elements,
+            )
+        elif BLA_smarts is not None:
+            logging.info("Using provided SMARTS for BLA detection")
+
+        if BLA_smarts is not None:
+            return self.select_bonds(BLA_smarts, inplace=inplace)
+        else:
+            assert (
+                self.mol is not None
+            ), "No Mol set for the selection. Cannot match patterns."
+
+            logging.info("Attempting to find maximum chromophor length")
+            last_BLA: str | None = None
+            last_n: int | None = None
+            last_match: list[AtomDescriptor] | None = None
+            non_unique = False
+            for curr_n in range(1, max_considered_BLA_double_bonds + 1):
+                BLA_smarts = self.__build_conjugated_smarts(
+                    num_double_bonds=curr_n,
+                    allowed_chain_elements=allowed_chain_elements,
+                )
+
+                matches = self.__match_pattern(self.mol, BLA_smarts)
+
+                contained_matches: list[Sequence[AtomDescriptor]] = []
+
+                if matches:
+                    for match in matches:
+                        if self.atoms_selected.issuperset(match):
+                            contained_matches.append(match)
+                    if len(contained_matches) == 0:
+                        # No matches in selection anymore
+                        break
+
+                    # Found at least one contained match
+                    if len(contained_matches) == 1:
+                        non_unique = False
+                        last_match = list(contained_matches[0])
+                    else:
+                        non_unique = True
+                        last_match = None
+
+                    last_BLA = BLA_smarts
+                    last_n = curr_n
+                else:
+                    # Did not find a match, previous option of double bonds would be best.
+                    break
+
+            if last_n is None:
+                logging.error(
+                    "Did not find any BLA cromophor. No double bond in selected atoms in the system."
+                )
+                raise ValueError(
+                    "No BLA in selection. No double bond in selected atoms in the system."
+                )
+            else:
+                assert last_n is not None
+                assert last_BLA is not None
+
+                logging.info(
+                    "Found longest BLA double bond count: %d with BLA SMARTS: %s",
+                    last_n,
+                    last_BLA,
+                )
+
+                if non_unique:
+                    logging.error(
+                        "There appear to be multiple chromophores of equal double-bond-count length %d in the system. "
+                        "We currently do not support selection for multiple maximum-length chromophores. "
+                        "Please limit the selection to a subset of bonds to make the BLA unique before attempting to match the maximum BLA again.",
+                        last_n,
+                    )
+                    raise ValueError(
+                        "Maximum BLA not unique in selection. Maximum detected number of alternating double bonds: %d but not unique."
+                        % (last_n)
+                    )
+
+                assert last_match is not None, 'An error occurred while attempting to retrieve the matched subgraph of the BLA chromophor.'
+
+                return self.select_bats(subgraph_selection=last_match)
+
+    @staticmethod
+    def __build_conjugated_smarts(
+        num_double_bonds: int, allowed_chain_elements: str = "#6,#7,#8,#15,#16"
+    ) -> str:
+        """
+        Build a SMARTS pattern for a linear conjugated system with `n_double`
+        alternating double bonds.
+
+        Example (n_double=2):
+        [#6,#7]=[#6,#7]-[#6,#7]=[#6,#7]
+
+        Parameters
+        ----------
+        num_double_bonds : int
+            Number of C=C-like double bonds. Must be positive, i.e. at least 1.
+        allowed_chain_elements : str
+            SMARTS atomic specification, i.e. comma-separated list of element descriptors (default: C,N,O,P,S represented as '#6,#7,#8,#15,#16').
+
+        Returns
+        -------
+        str
+            SMARTS string encoding the conjugated system.
+        """
+
+        if num_double_bonds < 1:
+            raise ValueError("num_double_bonds must be >= 1")
+
+        unit = f"[{allowed_chain_elements}]=[{allowed_chain_elements}]"
+        return "-".join([unit] * num_double_bonds)
+
     @staticmethod
     def _to_feature_level_str(ft: FeatureLevelOptions) -> FeatureLevelType:
         if isinstance(ft, str):
@@ -1349,3 +1574,28 @@ class StructureSelection:
             raise ValueError(
                 f"Unknown feature level {ft}. Type was {type(ft)} supported are only int or str"
             )
+
+    @staticmethod
+    def canonicalize_bond(bond: BondDescriptor) -> BondDescriptor:
+        return (np.min(bond), np.max(bond))
+
+    @staticmethod
+    def canonicalize_angle(angle: AngleDescriptor) -> AngleDescriptor:
+        if angle[2] < angle[0]:
+            return (angle[2], angle[1], angle[0])
+        return angle
+
+    @staticmethod
+    def canonicalize_dihedral(dihedral: DihedralDescriptor) -> DihedralDescriptor:
+        if dihedral[-1] < dihedral[0]:
+            return (dihedral[-1], dihedral[-2], dihedral[1], dihedral[0])
+        return dihedral
+
+    @staticmethod
+    def canonicalize_pyramid(pyramid: PyramidsDescriptor) -> PyramidsDescriptor:
+        plane = pyramid[1]
+        center = pyramid[0]
+
+        plane_sorted: tuple[int, int, int] = tuple(sorted(plane))  # type: ignore # we only sort a tuple of length 3
+
+        return (center, plane_sorted)
