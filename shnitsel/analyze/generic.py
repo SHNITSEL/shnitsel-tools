@@ -8,12 +8,12 @@ import xarray as xr
 from shnitsel.data.multi_indices import midx_combs
 from shnitsel.core.typedefs import AtXYZ
 
-from ..core.typedefs import DimName
+from ..core.typedefs import DataArrayOrVar, DimName
 
 
 def norm(
-    da: xr.DataArray, dim: DimName = 'direction', keep_attrs: bool | str | None = None
-) -> xr.DataArray:
+    da: DataArrayOrVar, dim: DimName = 'direction', keep_attrs: bool | str | None = None
+) -> DataArrayOrVar:
     """Calculate the 2-norm of a DataArray, reducing/squeezing the dimension with name `dim`
 
     Parameters
@@ -29,7 +29,7 @@ def norm(
     -------
         A DataArray with dimension *dim* reduced
     """
-    res: xr.DataArray = xr.apply_ufunc(
+    res: DataArrayOrVar = xr.apply_ufunc(
         np.linalg.norm,
         da,
         input_core_dims=[[dim]],
@@ -41,9 +41,8 @@ def norm(
 
 
 def center(
-    da: xr.DataArray,
-    dim: DimName = 'frame',
-    keep_attrs: Union[bool, str, None] = None) -> xr.DataArray:
+    da: xr.DataArray, dim: DimName = 'frame', keep_attrs: Union[bool, str, None] = None
+) -> xr.DataArray:
     """
     Subtract the mean of a DataArray along a specified dimension.
 
@@ -230,8 +229,8 @@ def relativize(da: xr.DataArray, **sel) -> xr.DataArray:
 
 def pwdists(atXYZ: AtXYZ, mean: bool = False) -> xr.DataArray:
     """
-    Compute pairwise distances and standardize it by removing the mean 
-    and L2-normalization (if your features are vectors and you want magnitudes only, 
+    Compute pairwise distances and standardize it by removing the mean
+    and L2-normalization (if your features are vectors and you want magnitudes only,
     to lose directional info)
 
     Parameters
@@ -247,12 +246,13 @@ def pwdists(atXYZ: AtXYZ, mean: bool = False) -> xr.DataArray:
         A DataArray with the same dimensions as `atXYZ` but transposed
     """
 
-    res = (atXYZ.pipe(subtract_combinations, 'atom', labels=True))
+    res = atXYZ.pipe(subtract_combinations, 'atom', labels=True)
 
     res = norm(res)
     if mean:
         res = center(res)
 
     return res
+
 
 get_standardized_pairwise_dists = pwdists
