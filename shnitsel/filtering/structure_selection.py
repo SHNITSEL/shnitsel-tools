@@ -392,7 +392,9 @@ class StructureSelection:
             for i in neighbors_j:
                 for l in neighbors_k:
                     # TODO: FIXME: check if we want to exclude potential i=l
-                    dihedrals.add(StructureSelection.canonicalize_dihedral((i, j, k, l)))
+                    dihedrals.add(
+                        StructureSelection.canonicalize_dihedral((i, j, k, l))
+                    )
 
                     # TODO: FIXME: Should we only keep one here? Canonical direction maybe?
                     # also handle reversed central bond direction (k–j)
@@ -1272,6 +1274,7 @@ class StructureSelection:
         Returns:
             SVG: _description_
         """
+        # TODO: FIXME: Use different colors for different feature levels.
         from rdkit.Chem.Draw import rdMolDraw2D
 
         if isinstance(highlight_color, str):
@@ -1403,9 +1406,9 @@ class StructureSelection:
             AssertionError: if self.mol is None, no mapping can be performed.
         """
         res: list[int] = []
-        assert (
-            self.mol is not None
-        ), 'No molecule set for this selection. Cannot resolve bond ids.'
+        assert self.mol is not None, (
+            'No molecule set for this selection. Cannot resolve bond ids.'
+        )
         for entry in bond_descriptors:
             bond = self.mol.GetBondBetweenAtoms(int(entry[0]), int(entry[1]))
             res.append(bond.GetIdx())
@@ -1456,9 +1459,9 @@ class StructureSelection:
         elif BLA_smarts is not None:
             logging.info("Using provided SMARTS for BLA detection")
 
-        assert (
-            self.mol is not None
-        ), "No Mol set for the selection. Cannot match patterns."
+        assert self.mol is not None, (
+            "No Mol set for the selection. Cannot match patterns."
+        )
 
         # Remove aromatic regions if present
         has_aromatic_bonds = any(bond.GetIsAromatic() for bond in self.mol.GetBonds())
@@ -1541,9 +1544,9 @@ class StructureSelection:
                         % (last_n)
                     )
 
-                assert (
-                    last_match is not None
-                ), 'An error occurred while attempting to retrieve the matched subgraph of the BLA chromophor.'
+                assert last_match is not None, (
+                    'An error occurred while attempting to retrieve the matched subgraph of the BLA chromophor.'
+                )
 
                 return self.copy_or_update(mol=new_mol, inplace=inplace).select_bats(
                     last_BLA, inplace=inplace
@@ -1582,15 +1585,15 @@ class StructureSelection:
     @staticmethod
     def _to_feature_level_str(ft: FeatureLevelOptions) -> FeatureLevelType:
         if isinstance(ft, str):
-            assert (
-                ft in FEATURE_LEVELS
-            ), f"Unknown feature level: {ft} supported are only {FEATURE_LEVELS}"
+            assert ft in FEATURE_LEVELS, (
+                f"Unknown feature level: {ft} supported are only {FEATURE_LEVELS}"
+            )
             return ft
         elif isinstance(ft, int):
             ft_offset = max(ft - 1, 0)
-            assert ft_offset < len(
-                FEATURE_LEVELS
-            ), f"Unknown feature level: {ft} supported are only 1-{len(FEATURE_LEVELS)}"
+            assert ft_offset < len(FEATURE_LEVELS), (
+                f"Unknown feature level: {ft} supported are only 1-{len(FEATURE_LEVELS)}"
+            )
             return FEATURE_LEVELS[ft_offset]
         else:
             raise ValueError(
