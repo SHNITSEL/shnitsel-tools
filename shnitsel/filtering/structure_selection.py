@@ -7,6 +7,7 @@ import rdkit
 import xarray as xr
 
 from rdkit.Chem.rdchem import Mol
+from rdkit import Chem
 
 from shnitsel.bridges import to_mol
 from shnitsel.vis.colormaps import hex2rgb, st_yellow
@@ -544,9 +545,12 @@ class StructureSelection:
                         "No Molecule set in selection. Cannot match SMARTS."
                     )
                 else:
+                    # TODO: FIXME: Check if selection in current selection before applying
+                    # TODO: FIXME: Warning if only intersection provided.
                     matches = self.__match_pattern(self.mol, entry)
 
                     idx_set.extend(self._flatten(matches))
+
             else:
                 # Handle atom descriptor
                 idx_set.append(entry)
@@ -597,7 +601,7 @@ class StructureSelection:
         the molecule to consider bonds in, or by providing one or more bond desciptor tuples.
 
         Args:
-            selection (str | Sequence[str] | BondDescriptor | Sequence[BondDescriptor] | None, optional): The criterion or 
+            selection (str | Sequence[str] | BondDescriptor | Sequence[BondDescriptor] | None, optional): The criterion or
             criteria by which to retain bonds in the selection. Defaults to None meaning that all bonds will be added back into the selection.
             inplace (bool, optional): Whether to update the selection in-place or return an updated copy. Defaults to False.
 
@@ -737,7 +741,7 @@ class StructureSelection:
         """Function to restrict the angles selection by providing either providing SMARTS strings or explicit angles descriptors to retain.
 
         Args:
-            selection (str | Sequence[str] | AngleDescriptor | Sequence[AngleDescriptor] | None, optional): The criterion or 
+            selection (str | Sequence[str] | AngleDescriptor | Sequence[AngleDescriptor] | None, optional): The criterion or
             criteria by which to retain angles in the selection. Defaults to None meaning that all angles will be added back into the selection.
             inplace (bool, optional): Whether the selection should be updated in-place. Defaults to False.
 
@@ -846,7 +850,7 @@ class StructureSelection:
         """Function to restrict the dihedral selection by providing either providing SMARTS strings or explicit dihedral descriptors to retain.
 
         Args:
-            selection (str | Sequence[str] | DihedralDescriptor | Sequence[DihedralDescriptor] 
+            selection (str | Sequence[str] | DihedralDescriptor | Sequence[DihedralDescriptor]
                 assert len(entry) == 4, f"Got invalid Dihedrals descriptor {entry}"
                 new_selection.add(entry)
             else:
@@ -874,7 +878,9 @@ class StructureSelection:
                 assert len(entry) == 4, f"Got invalid Dihedrals descriptor {entry}"
                 new_selection.add(entry)
             else:
-                raise ValueError(f"Invalid entry {entry} in call to select_dihedrals().")
+                raise ValueError(
+                    f"Invalid entry {entry} in call to select_dihedrals()."
+                )
 
         return self.copy_or_update(dihedrals_selected=new_selection, inplace=inplace)
 
@@ -936,7 +942,6 @@ class StructureSelection:
                     filter_set = entry
 
                 for dihedral in basis_set:
-                raise ValueError(f"Invalid entry {entry} in call to set_pyramids.")
                     if all(x in filter_set for x in dihedral):
                         new_selection.add(dihedral)
 
@@ -1243,7 +1248,7 @@ class StructureSelection:
         Yields:
             Iterator[Any]: The iterator to iterate over all entries in the flattened list.
         """
-        if isinstance(obj, list):
+        if isinstance(obj, Sequence):
             for item in obj:
                 yield from StructureSelection._flatten(item)
         else:
@@ -1324,18 +1329,18 @@ class StructureSelection:
             list[AtomDescriptor]: The list of atom indices involved in the selection at the desired feature level.s
         """
         if flag_level == 1 or flag_level == 'atoms':
-            return list(self.atoms_selected)
+            return list(set([int(at) for at in self.atoms_selected]))
         elif flag_level == 2 or flag_level == 'bonds':
-            return list(set([at for bon in self.bonds_selected for at in bon]))
+            return list(set([int(at) for bon in self.bonds_selected for at in bon]))
         elif flag_level == 3 or flag_level == 'angles':
-            return list(set([at for an in self.angles_selected for at in an]))
+            return list(set([int(at) for an in self.angles_selected for at in an]))
         elif flag_level == 4 or flag_level == 'dihedrals':
-            return list(set([at for dih in self.dihedrals_selected for at in dih]))
+            return list(set([int(at) for dih in self.dihedrals_selected for at in dih]))
         elif flag_level == 5 or flag_level == 'pyramids':
             return list(
                 set(
-                    [at for (x, sides) in self.pyramids_selected for at in sides]
-                    + [x for (x, sides) in self.pyramids_selected]
+                    [int(at) for (x, sides) in self.pyramids_selected for at in sides]
+                    + [int(x) for (x, sides) in self.pyramids_selected]
                 )
             )
 
@@ -1402,7 +1407,7 @@ class StructureSelection:
             self.mol is not None
         ), 'No molecule set for this selection. Cannot resolve bond ids.'
         for entry in bond_descriptors:
-            bond = self.mol.GetBondBetweenAtoms(entry[0], entry[1])
+            bond = self.mol.GetBondBetweenAtoms(int(entry[0]), int(entry[1]))
             res.append(bond.GetIdx())
 
         return res
@@ -1439,6 +1444,7 @@ class StructureSelection:
         Returns:
             StructureSelection: The updated selection constrained to the unique BLA chromophor of maximum length
         """
+        # TODO: FIXME: Kekulize mol before match.
         if BLA_smarts is None and num_double_bonds is not None:
             logging.info(
                 "Building SMARTS from number of double bonds for BLA detection"
@@ -1450,13 +1456,18 @@ class StructureSelection:
         elif BLA_smarts is not None:
             logging.info("Using provided SMARTS for BLA detection")
 
+        assert (
+            self.mol is not None
+        ), "No Mol set for the selection. Cannot match patterns."
+
+        has_aromatic_bonds = any(bond.GetIsAromatic() for bond in self.mol.GetBonds())
+        if has_aromatic_bonds:
+            logging.info("Molecule has been kekulized.")
+            Chem.Kekulize(self.mol, clearAromaticFlags=True)
+
         if BLA_smarts is not None:
             return self.select_bonds(BLA_smarts, inplace=inplace)
         else:
-            assert (
-                self.mol is not None
-            ), "No Mol set for the selection. Cannot match patterns."
-
             logging.info("Attempting to find maximum chromophor length")
             last_BLA: str | None = None
             last_n: int | None = None
@@ -1523,9 +1534,11 @@ class StructureSelection:
                         % (last_n)
                     )
 
-                assert last_match is not None, 'An error occurred while attempting to retrieve the matched subgraph of the BLA chromophor.'
+                assert (
+                    last_match is not None
+                ), 'An error occurred while attempting to retrieve the matched subgraph of the BLA chromophor.'
 
-                return self.select_bats(subgraph_selection=last_match)
+                return self.select_bats(last_BLA)  # subgraph_selection=last_match)
 
     @staticmethod
     def __build_conjugated_smarts(
@@ -1599,3 +1612,19 @@ class StructureSelection:
         plane_sorted: tuple[int, int, int] = tuple(sorted(plane))  # type: ignore # we only sort a tuple of length 3
 
         return (center, plane_sorted)
+
+    def get_bond_type(self, bond: BondDescriptor) -> float:
+        """Helper function to get the bond type between two atoms
+
+        Args:
+            bond (BondDescriptor): The bond descriptor
+
+        Returns:
+            float: The bond type as a float
+
+        """
+        assert self.mol is not None, "Molecule not set, cannot discern bond type."
+
+        return self.mol.GetBondBetweenAtoms(
+            int(bond[0]), int(bond[1])
+        ).GetBondTypeAsDouble()
