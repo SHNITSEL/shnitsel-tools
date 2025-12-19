@@ -9,7 +9,7 @@ import xarray as xr
 from rdkit.Chem.rdchem import Mol
 from rdkit import Chem
 
-from shnitsel.bridges import to_mol
+from shnitsel.bridges import construct_default_mol, to_mol
 from shnitsel.vis.colormaps import hex2rgb, st_yellow
 from IPython.display import SVG
 
@@ -228,7 +228,7 @@ class StructureSelection:
     @classmethod
     def init_from_dataset(
         cls: type[Self],
-        dataset: xr.Dataset,
+        frame: xr.Dataset,
         default_selection: Sequence[FeatureLevelOptions] = [
             'atoms',
             'bonds',
@@ -239,10 +239,10 @@ class StructureSelection:
 
         Args:
             cls (type[StructureSelection]): The type of this StructureSelection so that we can create instances of it.
-            dataset (xr.Dataset): The dataset to extract the structure information out of.
+            frame (xr.Dataset): The dataset (single frame) to extract the structure information out of.
                 Must have at least `atXYZ` variable and a `atom` dimension.
                 Ideally, an `atom` coordinate for feature selection is also provided.
-                Should only represent a single frame of data.
+                Should only represent a single frame of data (i.e. no 'frame' dimension or of zero-size).
             default_selection (Sequence[FeatureLevelOptions], optional): List of features to activate as selected by default. Defaults to [ 'atoms', 'bonds', ].
             to2D (bool, optional): Flag to control whether a mol representation is converted to a 2d projection before use for visualization.
 
@@ -252,7 +252,7 @@ class StructureSelection:
         Returns:
             StructureSelection: A structure selection object initially covering all atoms and structural features.
         """
-        filtered_dataset = dataset.squeeze()
+        filtered_dataset = frame.squeeze()
 
         if 'frame' in filtered_dataset.dims or 'time' in filtered_dataset.dims:
             raise ValueError(
@@ -261,7 +261,7 @@ class StructureSelection:
             )
 
         # TODO: FIXME: Consider the charges needing to be set from the dataset settings.s
-        mol = to_mol(
+        mol = construct_default_mol(
             filtered_dataset.atXYZ,
             to2D=to2D,
         )

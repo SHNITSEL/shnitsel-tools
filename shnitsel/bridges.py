@@ -179,7 +179,7 @@ def numbered_smiles_to_mol(smiles: str) -> rc.Mol:
     return rc.RenumberAtoms(mol, map_new_to_old)
 
 
-def construct_default_mol(obj: xr.Dataset | xr.DataArray | rc.Mol) -> rc.Mol:
+def construct_default_mol(obj: xr.Dataset | xr.DataArray | rc.Mol, to2D:bool=True) -> rc.Mol:
     """Try many ways to get a representative Mol object for an ensemble:
 
         1. Use the ``mol`` attr (of either obj or obj['atXYZ']) directly
@@ -195,6 +195,8 @@ def construct_default_mol(obj: xr.Dataset | xr.DataArray | rc.Mol) -> rc.Mol:
         An 'atXYZ' xr.DataArray with molecular geometries
         or an xr.Dataset containing the above as one of its variables
         or an rc.Mol object that will just be returned.
+    to2D
+        Discard 3D information and generate 2D conformer (useful for displaying), by default True
 
     Returns
     -------
@@ -232,7 +234,7 @@ def construct_default_mol(obj: xr.Dataset | xr.DataArray | rc.Mol) -> rc.Mol:
         return numbered_smiles_to_mol(atXYZ.attrs['smiles_map'])
 
     try:
-        return to_mol(atXYZ.isel(frame=0), charge=charge)
+        return to_mol(atXYZ.isel(frame=0), charge=charge, to2D=to2D)
     except (KeyError, ValueError) as e:
         logging.error(e)
         raise ValueError(
