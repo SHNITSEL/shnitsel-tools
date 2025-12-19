@@ -139,3 +139,72 @@ def get_pyramidalization(
         pyr_res = np.abs(pyr_res)
 
     return pyr_res
+
+# Old code for reference
+# @needs(dims={'atom', 'direction'})
+# def identify_pyramids(mol: Mol) -> dict[int, list[int]]:
+#     """Identify atoms with three bonds (using RDKit), specifically chain-internal atoms with
+#     a single carbon, and chain-terminal atoms with two carbons.
+
+#     Each 'pyramid' consists of four atoms. Three of these (the "plane" atoms) are consecutive, and the fourth (the "bending" atom)
+#     is bonded to the middle atom of the plane atoms. The pyramidalization is the the angle between the plane of the plane atoms
+#     and the bond from the middle plane atom to the bending atom.
+
+#     Two sorts of pyramids are currently handled: terminal and chain-internal.
+
+#     - Terminal pyramids are those where the central atom is bonded to two hydrogens and a single non-hydrogen;
+#       for these, the central atom and the **hydrogens** constitute the plane and the non-hydrogen becomes the bending atom.
+#     - Chain-internal pyramids are those where the central atom is bonded to non-hydrogens and a single hydrogen;
+#       for these, the central atom and the **non-hydrogens** constitute the plane and the hydrogen becomes the bending atom.
+
+
+#     Parameters
+#     ----------
+#     mol
+#         An RDKit Mol object
+
+#     Returns
+#     -------
+#     dict
+#         {
+#             x1: (a1, b1, c1),
+#             x2: (a2, b2, c2),
+#             ...
+#         }
+#     where
+
+#         - a, b, c are indices of contiguous atoms used to determine the plane
+#         - x is the index of an atom bonded to atom b, considered to be bending
+#         above and beneath the plane
+#     """
+#     res = {}
+#     for a in mol.GetAtoms():
+#         bonds = a.GetBonds()
+#         if len(bonds) != 3:
+#             continue
+
+#         current_idx = a.GetIdx()
+#         hydrogens = []
+#         non_hydrogens = []
+#         for b in bonds:
+#             a1, a2 = b.GetBeginAtom(), b.GetEndAtom()
+#             if a1.GetIdx() == current_idx:
+#                 other = a2
+#             else:
+#                 assert a2.GetIdx() == current_idx
+#                 other = a1
+#             if other.GetAtomicNum() == 1:
+#                 hydrogens.append(other.GetIdx())
+#             else:
+#                 non_hydrogens.append(other.GetIdx())
+#         if len(hydrogens) == 2:  # Terminal double bond
+#             assert len(non_hydrogens) == 1
+#             plane_idxs = [hydrogens[0], current_idx, hydrogens[1]]
+#             bending_idx = non_hydrogens[0]
+#         else:  # Chain-internal double bond
+#             assert len(hydrogens) == 1
+#             assert len(non_hydrogens) == 2
+#             plane_idxs = [non_hydrogens[0], current_idx, non_hydrogens[1]]
+#             bending_idx = hydrogens[0]
+#         res[bending_idx] = plane_idxs
+#     return res
