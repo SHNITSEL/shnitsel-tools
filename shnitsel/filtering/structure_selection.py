@@ -392,12 +392,12 @@ class StructureSelection:
             for i in neighbors_j:
                 for l in neighbors_k:
                     # TODO: FIXME: check if we want to exclude potential i=l
-                    dihedrals.add((i, j, k, l))
+                    dihedrals.add(StructureSelection.canonicalize_dihedral((i, j, k, l)))
 
                     # TODO: FIXME: Should we only keep one here? Canonical direction maybe?
                     # also handle reversed central bond direction (k–j)
                     # giving quadruples (i, k, j, l)
-                    dihedrals.add((l, k, j, i))
+                    # dihedrals.add((l, k, j, i))
 
         if are_dihedrals_selected:
             dihedrals_selected.update(dihedrals)
