@@ -1,6 +1,7 @@
 """This submodule contains functions used to interface with other packages and programs, especially RDKit."""
 
 from logging import warning
+import logging
 from typing import Literal
 
 import numpy as np
@@ -232,7 +233,8 @@ def construct_default_mol(obj: xr.Dataset | xr.DataArray | rc.Mol) -> rc.Mol:
 
     try:
         return to_mol(atXYZ.isel(frame=0), charge=charge)
-    except (KeyError, ValueError):
+    except (KeyError, ValueError) as e:
+        logging.error(e)
         raise ValueError(
             "Failed to get default mol, please set a smiles map. "
             "For example, if the compound has charge c and frame i "
