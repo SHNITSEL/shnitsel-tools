@@ -70,14 +70,15 @@ def get_max_chromophor_BLA(
     single_idxs: list[BondDescriptor] = []
     double_idxs: list[BondDescriptor] = []
     for bond_id in BLA_selection.bonds_selected:
-        # TODO: FIXME: We can get issues here with aromatic bonds, which are neither single or double-bonded.
-        if BLA_selection.bonds_types[bond_id] > 1.1:
+        bond_type = BLA_selection.get_bond_type(bond_id)
+        # We eliminate the aromatic bonds by Kekulizing the atom in BLA selection.
+        if bond_type > 1.1:
             double_idxs.append(bond_id)
         else:
             single_idxs.append(bond_id)
 
-    single_bond_lengths = bond_lengths.sel(descriptor=single_idxs)
-    double_bond_lengths = bond_lengths.sel(descriptor=double_idxs)
+    single_bond_lengths = bond_lengths.sel(feature_indices=single_idxs)
+    double_bond_lengths = bond_lengths.sel(feature_indices=double_idxs)
 
     BLA_res = single_bond_lengths.mean('descriptor') - double_bond_lengths.mean(
         'descriptor'
