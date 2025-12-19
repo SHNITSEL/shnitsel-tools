@@ -29,6 +29,7 @@ from .geocalc_.distances import get_distances
 from .geocalc_.angles import get_angles
 from .geocalc_.dihedrals import get_dihedrals
 from .geocalc_.pyramids import get_pyramidalization
+from .geocalc_.bla_chromophor import get_max_chromophor_BLA
 
 
 @API()
