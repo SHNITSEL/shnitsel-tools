@@ -1,69 +1,100 @@
+from shnitsel._contracts import needs
+import xarray as xr
+
+from shnitsel.core.typedefs import AtXYZ
+from shnitsel.filtering.structure_selection import BondDescriptor, StructureSelection
+from shnitsel.geo.geocalc_.distances import get_distances
+from shnitsel.geo.geocalc_.helpers import (
+    _empty_descriptor_results,
+    _get_default_selection,
+)
+
 
 @needs(dims={'atom', 'direction'})
-def get_bla_chromophor(
-    atXYZ: xr.DataArray,
-    matches_or_mol: dict | Mol | None = None,
-    mol: Mol | None = None,
-    ang: Literal[False, 'deg', 'rad'] = False,
+def get_max_chromophor_BLA(
+    atXYZ: AtXYZ,
+    structure_selection: StructureSelection | None = None,
+    SMARTS: str | None = None,
+    num_double_bonds: int | None = None,
+    allowed_chain_elements: str = "#6,#7,#8,#15,#16",
+    max_considered_BLA_double_bonds: int = 50,
 ) -> xr.DataArray:
-    """Identify triples of bonded atoms (using RDKit) and calculate every bond angle for each
-    frame.
+    """Calculate bond length alternation value (BLA) for the maximum chromophor
+    in the provided `structure_selection` or the maximum chromophor in the structure
+    represented by `atXYZ`.
 
     Parameters
     ----------
     atXYZ
         An :py:class:`xarray.DataArray` of molecular coordinates, with dimensions
-        `frame`, `atom` and `direction`
-    matches_or_mol, optional
-        A list containing information for each internal coordinate to be calculated.
-        It may be convenient to use :py:func:`shnitsel.geo.geomatch.flag_angles`
-        to create a dictionary in the correct format, and then customize it.
-        Alternatively, you may supply an RDKit ``Mol`` object, which is passed to
-        :py:func:`shnitsel.geo.geomatch.flag_bats`.
-        If this argument is omitted altogether, an RDKit ``Mol`` object is generated
-        using :py:func:`shnitsel.bridges.default_mol` and used as above.
+        at least`atom` and `direction`
+    structure_selection, optional
+        Object encapsulating feature selection on the structure whose positional information is provided in `atXYZ`.
+        If this argument is omitted altogether, a default selection for all bonds and atoms within the structure is created.
+    SMARTS, optional
+        SMARTS string to match for the maximum chromophor.
+    num_double_bonds, optional
+        The specified number of double bonds for the maximum chromophor.
+    allowed_chain_elements, str
+        SMARTS atomic specification, i.e. comma-separated list of element descriptors (default: C,N,O,P,S represented as '#6,#7,#8,#15,#16').
+    max_considered_BLA_double_bonds, optional
+        Maximum number of double bonds in a BLA chromophor if automatic maximum size detection is performed. Defaults to 50.
 
     Returns
     -------
-        An :py:class:`xarray.DataArray` of bond angles with dimensions `frame` and `angle`.
+        An :py:class:`xarray.DataArray` of the BLA for the maximum-length chromophor (alternating double bonds)
 
     Raises
-    ------
-    UserWarning
-        If both `matches` and `mol` are specified.
+    -------
+    ValueError
+        If the maximum chromophor within the provided selection or the entire molecule is not unique.
+
     """
-    matches = _check_matches(matches_or_mol, atXYZ, fn=flag_bla_chromophor)['bonds']
 
-    _, atom_idxs, bond_idxs, bond_types, fragment_objs = zip(*matches)
-
-    assert all(len(x) == 2 for x in atom_idxs)
-    assert all(len(x) == 1 for x in bond_idxs)
-    assert all(len(x) == 1 for x in bond_types)
-
-    single_idxs = []
-    double_idxs = []
-    for _, idxs, _, btype, _ in matches:
-        if btype[0] == 1:
-            single_idxs.append(idxs)
-        else:
-            double_idxs.append(idxs)
-
-    sr0, sr1 = _positions(atXYZ, single_idxs)
-    dr0, dr1 = _positions(atXYZ, double_idxs)
-
-    data = dnorm(sr0 - sr1).mean('descriptor') - dnorm(dr0 - dr1).mean('descriptor')
-    data = data.expand_dims('descriptor')
-
-    # joined_atom_idxs = tuple(reduce(lambda x, y: set(x).union(y), atom_idxs))
-    joined_atom_idxs = tuple(set(sum(bond_idxs, ())))
-    format_str = 'BLA$_{' + ','.join(['%d'] * len(joined_atom_idxs)) + '}$'
-    return _assign_descriptor_coords(
-        data,
-        # *std_args,
-        [joined_atom_idxs],
-        [sum(bond_idxs, ())],
-        [sum(bond_types, ())],
-        [rc.Mol()],
-        format_str,
-        per_atom_coords=False,
+    structure_selection = _get_default_selection(
+        structure_selection, atXYZ=atXYZ, default_levels=['atoms', 'bonds']
     )
+
+    BLA_selection = structure_selection.select_BLA_chromophor(
+        BLA_smarts=SMARTS,
+        num_double_bonds=num_double_bonds,
+        allowed_chain_elements=allowed_chain_elements,
+        max_considered_BLA_double_bonds=max_considered_BLA_double_bonds,
+    )
+
+    if len(BLA_selection.bonds_selected) == 0:
+        return _empty_descriptor_results(atXYZ)
+
+    bond_lengths = get_distances(atXYZ, BLA_selection)
+
+    single_idxs: list[BondDescriptor] = []
+    double_idxs: list[BondDescriptor] = []
+    for bond_id in BLA_selection.bonds_selected:
+        # TODO: FIXME: We can get issues here with aromatic bonds, which are neither single or double-bonded.
+        if BLA_selection.bonds_types[bond_id] > 1.1:
+            double_idxs.append(bond_id)
+        else:
+            single_idxs.append(bond_id)
+
+    single_bond_lengths = bond_lengths.sel(descriptor=single_idxs)
+    double_bond_lengths = bond_lengths.sel(descriptor=double_idxs)
+
+    BLA_res = single_bond_lengths.mean('descriptor') - double_bond_lengths.mean(
+        'descriptor'
+    )
+    return BLA_res
+    # data = data.expand_dims('descriptor')
+
+    # # joined_atom_idxs = tuple(reduce(lambda x, y: set(x).union(y), atom_idxs))
+    # joined_atom_idxs = tuple(set(sum(bond_idxs, ())))
+    # format_str = 'BLA$_{' + ','.join(['%d'] * len(joined_atom_idxs)) + '}$'
+    # return _assign_descriptor_coords(
+    #     data,
+    #     # *std_args,
+    #     [joined_atom_idxs],
+    #     [sum(bond_idxs, ())],
+    #     [sum(bond_types, ())],
+    #     [rc.Mol()],
+    #     format_str,
+    #     per_atom_coords=False,
+    # )
