@@ -1,5 +1,6 @@
 """This module contains functions that accept an RDKit.Chem.Mol object;
 but *not* necessarily functions that *return* a Mol object."""
+from typing import Literal
 
 import rdkit.Chem as rc
 import rdkit.Chem.rdDetermineBonds  # noqa: F401
@@ -13,7 +14,7 @@ import numpy as np
 
 
 def set_atom_props(
-    mol: rc.Mol, inplace: bool = False, **kws: list | True
+    mol: rc.Mol, inplace: bool = False, **kws: list | Literal[True]
 ) -> rc.Mol | None:
     """Set properties on atoms of an ``rdkit.Chem.Mol`` object
 
