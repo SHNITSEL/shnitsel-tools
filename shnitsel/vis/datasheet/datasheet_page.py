@@ -1,22 +1,19 @@
 from dataclasses import dataclass
 from functools import cached_property
-from typing import Iterator
 from matplotlib.axes import Axes
 from sklearn.decomposition import PCA as sk_PCA
 from tqdm import tqdm
 import xarray as xr
 import numpy as np
 import rdkit.Chem as rdchem
-import matplotlib as mpl
 import matplotlib.pyplot as plt
 from logging import info, warning
 from timeit import default_timer as timer
 
 from matplotlib.figure import Figure, SubFigure
 
-import shnitsel
 from shnitsel.analyze.populations import calc_classical_populations
-import shnitsel.bridges
+from shnitsel.bridges import construct_default_mol
 from shnitsel.analyze import stats
 from shnitsel.core.typedefs import (
     AtXYZ,
@@ -489,17 +486,17 @@ class DatasheetPage:
         Returns:
             rdkit.Chem.Mol: Molecule object representing the structure in the first frame
         """
-        # TODO: FIXME: Shouldn't this be a private attribute prefixed with `__` ?
-        if 'smiles_map' in self.frames['atXYZ'].attrs:
-            mol = shnitsel.bridges.numbered_smiles_to_mol(
-                self.frames['atXYZ'].attrs['smiles_map']
-            )
-            for atom in mol.GetAtoms():
-                atom.ClearProp("molAtomMapNumber")
-                atom.SetProp("atomNote", str(atom.GetIdx()))
-            return mol
-        else:
-            return shnitsel.bridges.to_mol(self.structure_atXYZ, charge=self.charge)
+        # # TODO: FIXME: Shouldn't this be a private attribute prefixed with `__` ?
+        # if 'smiles_map' in self.frames['atXYZ'].attrs:
+        #     mol = numbered_smiles_to_mol(
+        #         self.frames['atXYZ'].attrs['smiles_map']
+        #     )
+        #     for atom in mol.GetAtoms():
+        #         atom.ClearProp("molAtomMapNumber")
+        #         atom.SetProp("atomNote", str(atom.GetIdx()))
+        #     return mol
+        # else:
+        return construct_default_mol(self.frames)
 
     @cached_property
     def mol_skeletal(self) -> rdchem.Mol:
