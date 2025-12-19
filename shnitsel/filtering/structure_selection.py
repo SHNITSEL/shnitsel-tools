@@ -45,6 +45,8 @@ FEATURE_LEVELS: list[FeatureLevelType] = [
     'pyramids',
 ]
 
+FeatureTypeLabel: TypeAlias = Literal['pyr', 'pos', 'dist', 'angle', 'dih']
+
 
 @dataclass
 class StructureSelection:
