@@ -99,14 +99,25 @@ def get_bats(
             get_distances(atXYZ, structure_selection=structure_selection)
         )
     if len(structure_selection.angles_selected) > 0:
-        feature_data.append(get_angles(atXYZ, structure_selection=structure_selection))
+        feature_data.append(
+            get_angles(
+                atXYZ, structure_selection=structure_selection, deg=deg, signed=signed
+            )
+        )
     if len(structure_selection.dihedrals_selected) > 0:
         feature_data.append(
-            get_dihedrals(atXYZ, structure_selection=structure_selection)
+            get_dihedrals(
+                atXYZ,
+                structure_selection=structure_selection,
+                deg=deg if isinstance(deg, bool) else True,
+                signed=signed,
+            )
         )
     if len(structure_selection.pyramids_selected) > 0:
         feature_data.append(
-            get_pyramidalization(atXYZ, structure_selection=structure_selection)
+            get_pyramidalization(
+                atXYZ, structure_selection=structure_selection, signed=signed
+            )
         )
 
     if len(feature_data) > 0:
