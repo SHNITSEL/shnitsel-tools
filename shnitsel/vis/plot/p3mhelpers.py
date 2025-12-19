@@ -10,6 +10,17 @@ from shnitsel._contracts import needs
 
 @needs(coords_or_vars={'atNames'}, dims={'atom', 'direction'}, not_dims={'frame'})
 def frame3D(atXYZ_frame: str | xr.DataArray):
+    """Display a single geometry using py3Dmol
+
+    Parameters
+    ----------
+    atXYZ_frame
+        The geometry to display
+
+    Returns
+    -------
+        The View object created
+    """
     if isinstance(atXYZ_frame, xr.DataArray):
         atXYZ_frame = to_xyz(atXYZ_frame)
     view = py3Dmol.view()
@@ -22,6 +33,17 @@ def frame3D(atXYZ_frame: str | xr.DataArray):
 
 @needs(groupable={'frame'}, dims={'atom', 'direction'}, coords_or_vars={'atNames'})
 def frames3Dgrid(atXYZ: xr.DataArray):
+    """Display several geometries stacked along a ``frame`` dimension using py3Dmol
+
+    Parameters
+    ----------
+    atXYZ
+        The geometry to display
+
+    Returns
+    -------
+        The View object created
+    """
     n = ceil(sqrt(atXYZ.sizes['frame']))
     view = py3Dmol.view(viewergrid=(n, n), width=1000, height=800, linked=True)
 
@@ -47,6 +69,17 @@ def frames3Dgrid(atXYZ: xr.DataArray):
 
 @needs(groupable={'time'}, dims={'atom', 'direction'}, coords_or_vars={'atNames'})
 def traj3D(traj: str | xr.DataArray):
+    """Display a trajectory using py3Dmol
+
+    Parameters
+    ----------
+    traj
+        The trajectory geometries to display
+
+    Returns
+    -------
+        The View object created
+    """
     if isinstance(traj, xr.DataArray):
         traj = traj_to_xyz(traj)
     view = py3Dmol.view()
@@ -65,8 +98,24 @@ def traj3D(traj: str | xr.DataArray):
     coords_or_vars={'atNames'},
 )
 def trajs3Dgrid(
-    atXYZ: xr.DataArray, trajids: list[int | str] | None = None, loop='forward'
+    atXYZ: xr.DataArray, trajids: list[int | str] | None = None, loop: str = 'forward'
 ):
+    """Display a trajectory using py3Dmol
+
+    Parameters
+    ----------
+    traj
+        The trajectory geometries to display
+    trajids
+        If given, only show these trajectories
+    loop
+        Passed to ``py3Dmol``'s ``view.animate``. Accepted values include
+        'forward', 'backward', 'backAndForth'.
+
+    Returns
+    -------
+        The View object created
+    """
     if trajids is None:
         trajids = np.unique(atXYZ.coords['trajid'].values)
 

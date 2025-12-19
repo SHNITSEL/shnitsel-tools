@@ -27,7 +27,7 @@ def _substruct_match_to_submol(mol, substruct_match):
     patt_map = [-1] * mol.GetNumAtoms()
     for patt_idx, mol_idx in enumerate(substruct_match):
         patt_map[mol_idx] = patt_idx
-    mol = set_atom_props(rc.Mol(mol), patt_idx=patt_map)
+    mol = set_atom_props(mol, patt_idx=patt_map)
 
     # Extract submol
     bond_path = _find_atom_pairs(mol, substruct_match)
@@ -80,20 +80,20 @@ def list_analogs(
     for compound, mol in zip(ensembles, mols):
         idxs = list(mol.GetSubstructMatch(search))
         res_mol = _substruct_match_to_submol(mol, idxs)
-        set_atom_props(res_mol, atomNote=True)
+        set_atom_props(res_mol, inplace=True, atomNote=True)
 
         if vis:
             atom_labels = [''] * mol.GetNumAtoms()
             for patt_idx, mol_idx in enumerate(idxs):
                 atom_labels[mol_idx] = f"{mol_idx}:{patt_idx}"
             vis_orig = rc.Mol(mol)  # avoid mutating original
-            set_atom_props(vis_orig, atomNote=atom_labels)
+            set_atom_props(vis_orig, inplace=True, atomNote=atom_labels)
 
             atom_labels = [
                 f"{mol_idx}:{patt_idx}" for patt_idx, mol_idx in enumerate(idxs)
             ]
             vis_patt = rc.Mol(search)  # avoid mutating original
-            set_atom_props(vis_patt, atomNote=atom_labels)
+            set_atom_props(vis_patt, inplace=True, atomNote=atom_labels)
 
             mol_grid.append([vis_orig, vis_patt, res_mol])
 

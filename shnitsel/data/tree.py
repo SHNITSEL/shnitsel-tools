@@ -1,9 +1,14 @@
 from itertools import chain
+from logging import info
 
 import xarray as xr
 
 
 class InconsistentAttributeError(ValueError):
+    pass
+
+
+class MultipleCompoundsError(ValueError):
     pass
 
 
@@ -19,10 +24,14 @@ def tree_to_frames(tree, allow_inconsistent: set | None = None) -> xr.Dataset:
     Parameters
     ----------
     tree
-        The DataTree to transform
+        The py:class:`xarray.DataTree` to transform: a node which is either
+
+            - at the CompoundGroup level, with TrajectoryData children
+            - at the ShnitselDBRoot level, containing a single CompoundGroup
+
     allow_inconsistent, optional
         A list specifying attributes that should *not* be checked
-        for consistency, whereas they normally would be. By default None
+        for consistency, whereas they normally would be.
 
     Returns
     -------
@@ -43,10 +52,31 @@ def tree_to_frames(tree, allow_inconsistent: set | None = None) -> xr.Dataset:
         Note that suppression only works for Dataset-level attributes; inconsistency
         amongst Variable-level attributes always raises.
 
+    MultipleCompoundsError
+        If ``tree`` is at the ShnitselDBRoot level and has multiple children.
+
+
     Examples
     --------
     >>> frames = tree_to_frames(dt['/unknown'], allow_inconsistent={'delta_t'})
     """
+    # TODO: Is there a guarantee that the tree structure follows the hierarchy
+    # ShnitselDBRoot -> CompoundGroup -> TrajectoryData?
+    # Would it be better to check whether the children of `tree` have the 'trajid' attr set?
+    if tree.attrs['DataTree_Level'] == 'ShnitselDBRoot':
+        compound_names = list(tree.children)
+        if len(compound_names) == 1:
+            target = compound_names[0]
+            info(f"Converting the only CompoundGroup, named '{target}'")
+            tree = tree.children[target]
+        else:
+            raise ValueError(
+                "'tree' contains trajectories for multiple CompoundGroups, namely "
+                f"{compound_names}. Please extract a single CompoundGroup first, "
+                "e.g. instead of `tree_to_frames(dt)`, try "
+                f"`tree_to_frames(dt['{compound_names[0]}'])`."
+            )
+
     per_traj_dim_name = 'trajid_'
     exclude_attrs = {
         'DataTree_Level',
