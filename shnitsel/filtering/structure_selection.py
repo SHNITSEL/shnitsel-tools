@@ -45,7 +45,7 @@ FEATURE_LEVELS: list[FeatureLevelType] = [
     'pyramids',
 ]
 
-FeatureTypeLabel: TypeAlias = Literal['pyr', 'pos', 'dist', 'angle', 'dih']
+FeatureTypeLabel: TypeAlias = Literal['pyr', 'pos', 'dist', 'angle', 'dih', 'cos', 'sin']
 
 
 @dataclass
