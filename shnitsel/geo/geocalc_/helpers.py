@@ -93,7 +93,11 @@ def _assign_descriptor_coords(
         }
     )
 
-    return obj.assign_coords(coords)  # .set_xindex('descriptor')
+    return (
+        obj.assign_coords(coords)
+        .set_xindex('feature_indices')
+        .set_xindex('descriptor_type')
+    )  # .set_xindex('descriptor')
 
 
 def _remove_atom_coords(da: xr.DataArray) -> xr.DataArray:
