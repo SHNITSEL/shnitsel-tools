@@ -179,7 +179,9 @@ def numbered_smiles_to_mol(smiles: str) -> rc.Mol:
     return rc.RenumberAtoms(mol, map_new_to_old)
 
 
-def construct_default_mol(obj: xr.Dataset | xr.DataArray | rc.Mol, to2D:bool=True) -> rc.Mol:
+def construct_default_mol(
+    obj: xr.Dataset | xr.DataArray | rc.Mol, to2D: bool = True
+) -> rc.Mol:
     """Try many ways to get a representative Mol object for an ensemble:
 
         1. Use the ``mol`` attr (of either obj or obj['atXYZ']) directly
@@ -219,11 +221,14 @@ def construct_default_mol(obj: xr.Dataset | xr.DataArray | rc.Mol, to2D:bool=Tru
     else:
         atXYZ = obj  # We have an atXYZ DataArray
 
-    charge = None
-    if 'state_charges' in obj.coords:
-        charge = obj.state_charges[0].item()
+    charge: int | None = None
+    if charge is None and 'charge' in obj.attrs:
+        charge = int(obj.attrs.get('charge', 0))
+    if charge is None and 'state_charges' in obj.coords:
+        charge = int(obj.state_charges[0].item())
     if charge is None:
-        charge = obj.attrs.get('charge', 0)
+        logging.info("Assuming molecular charge as 0")
+        charge = 0
 
     # TODO: FIXME: Make these internal attributes with double underscores so they don't get written out.
     if 'mol' in atXYZ.attrs:
@@ -234,7 +239,9 @@ def construct_default_mol(obj: xr.Dataset | xr.DataArray | rc.Mol, to2D:bool=Tru
         return numbered_smiles_to_mol(atXYZ.attrs['smiles_map'])
 
     try:
-        return to_mol(atXYZ.isel(frame=0), charge=charge, to2D=to2D)
+        if charge != 0:
+            print(f"Creating molecule with {charge=}")
+        return to_mol(atXYZ, charge=charge, to2D=to2D)
     except (KeyError, ValueError) as e:
         logging.error(e)
         raise ValueError(
