@@ -1460,13 +1460,19 @@ class StructureSelection:
             self.mol is not None
         ), "No Mol set for the selection. Cannot match patterns."
 
+        # Remove aromatic regions if present
         has_aromatic_bonds = any(bond.GetIsAromatic() for bond in self.mol.GetBonds())
+        new_mol = self.mol
+
         if has_aromatic_bonds:
             logging.info("Molecule has been kekulized.")
-            Chem.Kekulize(self.mol, clearAromaticFlags=True)
+            new_mol = Mol(new_mol)
+            Chem.Kekulize(new_mol, clearAromaticFlags=True)
 
         if BLA_smarts is not None:
-            return self.select_bonds(BLA_smarts, inplace=inplace)
+            return self.copy_or_update(mol=new_mol, inplace=inplace).select_bonds(
+                BLA_smarts, inplace=inplace
+            )
         else:
             logging.info("Attempting to find maximum chromophor length")
             last_BLA: str | None = None
@@ -1479,7 +1485,7 @@ class StructureSelection:
                     allowed_chain_elements=allowed_chain_elements,
                 )
 
-                matches = self.__match_pattern(self.mol, BLA_smarts)
+                matches = self.__match_pattern(new_mol, BLA_smarts)
 
                 contained_matches: list[Sequence[AtomDescriptor]] = []
 
@@ -1509,6 +1515,7 @@ class StructureSelection:
                 logging.error(
                     "Did not find any BLA cromophor. No double bond in selected atoms in the system."
                 )
+
                 raise ValueError(
                     "No BLA in selection. No double bond in selected atoms in the system."
                 )
@@ -1538,7 +1545,9 @@ class StructureSelection:
                     last_match is not None
                 ), 'An error occurred while attempting to retrieve the matched subgraph of the BLA chromophor.'
 
-                return self.select_bats(last_BLA)  # subgraph_selection=last_match)
+                return self.copy_or_update(mol=new_mol, inplace=inplace).select_bats(
+                    last_BLA, inplace=inplace
+                )  # subgraph_selection=last_match)
 
     @staticmethod
     def __build_conjugated_smarts(
