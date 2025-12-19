@@ -4,7 +4,7 @@ from shnitsel.core.typedefs import AtXYZ
 
 import xarray as xr
 
-from shnitsel.filtering.structure_selection import StructureSelection
+from shnitsel.filtering.structure_selection import FeatureTypeLabel, StructureSelection
 from .helpers import _assign_descriptor_coords, _empty_descriptor_results, _get_default_selection
 
 from .algebra import dnorm
@@ -50,7 +50,7 @@ def get_distances(
         If this argument is omitted altogether, a default selection for all bonds within the structure is created.
     Returns
     -------
-        An :py:class:`xarray.DataArray` of bond lengths/distances with dimensions `frame` and `bond`.
+        An :py:class:`xarray.DataArray` of bond lengths/distances with dimension `descriptor` to index the distances along.
 
     Raises
     ------
@@ -75,7 +75,7 @@ def get_distances(
 
     descriptor_tex = [r'$|\vec{r}_{%d,%d}|$' % (a, b) for a, b in bond_indices]
     descriptor_name = [r'dist(%d,%d)' % (a, b) for a, b in bond_indices]
-    descriptor_type = ['dist'] * len(descriptor_tex)
+    descriptor_type: list[FeatureTypeLabel] = ['dist'] * len(descriptor_tex)
 
     return _assign_descriptor_coords(
         distance_res,

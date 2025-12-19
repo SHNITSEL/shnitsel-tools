@@ -5,7 +5,7 @@ import xarray as xr
 import numpy as np
 
 from shnitsel.core.typedefs import AtXYZ, DataArrayOrVar
-from shnitsel.filtering.structure_selection import StructureSelection
+from shnitsel.filtering.structure_selection import FeatureTypeLabel, StructureSelection
 from shnitsel.geo.geocalc_.algebra import angle_, dcross, ddot, normal
 from shnitsel.geo.geocalc_.helpers import (
     _assign_descriptor_coords,
@@ -34,7 +34,7 @@ def dihedral_(
         full (bool, optional): Flag to enforce calculation of the full dihedral in the range (-pi,pi)
 
     Returns:
-        xr.DataArray | xr.Variable: The array of dihedral angels between the four input arrays.
+        xr.DataArray | xr.Variable: The array of dihedral angels between the four input indices.
     """
     a = atXYZ.sel(atom=a_index)
     b = atXYZ.sel(atom=b_index)
@@ -125,7 +125,7 @@ def get_dihedrals(
 
     Returns
     -------
-        An :py:class:`xarray.DataArray` of bond torsions with dimensions `frame` and `torsion`.
+        An :py:class:`xarray.DataArray` of bond torsions with dimension `descriptor` to index the dihedrals along.
     """
 
     structure_selection = _get_default_selection(
@@ -153,7 +153,7 @@ def get_dihedrals(
         descriptor_name = [
             r'dih(%d,%d,%d,%d)' % (a, b, c, d) for a, b, c, d in dihedral_indices
         ]
-        descriptor_type = ['dih'] * len(descriptor_tex)
+        descriptor_type: list[FeatureTypeLabel] = ['dih'] * len(descriptor_tex)
 
         return _assign_descriptor_coords(
             dihedral_res,

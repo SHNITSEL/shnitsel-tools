@@ -4,7 +4,7 @@ import numpy as np
 from shnitsel._contracts import needs
 from shnitsel.core._api_info import API
 from shnitsel.core.typedefs import AtXYZ
-from shnitsel.filtering.structure_selection import StructureSelection
+from shnitsel.filtering.structure_selection import FeatureTypeLabel, StructureSelection
 from shnitsel.geo.geocalc_.algebra import normal, angle_, normalize
 
 from shnitsel.geo.geocalc_.helpers import (
@@ -113,7 +113,7 @@ def get_pyramidalization(
     descriptor_name = [
         r'pyr(%d,(%d,%d,%d))' % (x, a, b, c) for x, (a, b, c) in pyramid_descriptors
     ]
-    descriptor_type = ['pyr'] * len(descriptor_tex)
+    descriptor_type: list[FeatureTypeLabel] = ['pyr'] * len(descriptor_tex)
 
     pyr_angles_extended = [arr.expand_dims('descriptor') for arr in pyr_angles]
 
@@ -139,6 +139,7 @@ def get_pyramidalization(
         pyr_res = np.abs(pyr_res)
 
     return pyr_res
+
 
 # Old code for reference
 # @needs(dims={'atom', 'direction'})
@@ -204,7 +205,7 @@ def get_pyramidalization(
 #         else:  # Chain-internal double bond
 #             assert len(hydrogens) == 1
 #             assert len(non_hydrogens) == 2
-#             plane_idxs = [non_hydrogens[0], current_idx, non_hydrogens[1]]
+#             plane_idxs = [non_hyd: list[FeatureTypeLabel]rogens[0], current_idx, non_hydrogens[1]]
 #             bending_idx = hydrogens[0]
 #         res[bending_idx] = plane_idxs
 #     return res

@@ -4,7 +4,7 @@ from shnitsel.core._api_info import API
 import xarray as xr
 
 from shnitsel.core.typedefs import AtXYZ
-from shnitsel.filtering.structure_selection import StructureSelection
+from shnitsel.filtering.structure_selection import FeatureTypeLabel, StructureSelection
 from shnitsel.geo.geocalc_.algebra import angle_, angle_cos_sin_
 import numpy as np
 
@@ -86,8 +86,7 @@ def get_angles(
     deg: bool | Literal['trig'] = True,
     signed: bool = True,
 ) -> xr.DataArray:
-    """Identify triples of bonded atoms (using RDKit) and calculate every bond angle for each
-    frame.
+    """Identify triples of bonded atoms (using RDKit) and calculate bond angles for each frame.
 
     Parameters
     ----------
@@ -106,12 +105,8 @@ def get_angles(
 
     Returns
     -------
-        An :py:class:`xarray.DataArray` of bond angles with dimensions `frame` and `angle`.
+        An :py:class:`xarray.DataArray` of bond angles with dimension `descriptor` to index the angles along.
 
-    Raises
-    ------
-    UserWarning
-        If both `matches` and `mol` are specified.
     """
     structure_selection = _get_default_selection(
         structure_selection, atXYZ=atXYZ, default_levels=['angles']
@@ -136,7 +131,7 @@ def get_angles(
             r"$\theta_{%d,%d,%d}$" % (a, b, c) for a, b, c in angle_indices
         ]
         descriptor_name = [r'angle(%d,%d,%d)' % (a, b, c) for a, b, c in angle_indices]
-        descriptor_type = ['angle'] * len(descriptor_tex)
+        descriptor_type: list[FeatureTypeLabel] = ['angle'] * len(descriptor_tex)
 
         return _assign_descriptor_coords(
             angle_res,
@@ -172,7 +167,9 @@ def get_angles(
             r'cos(%d,%d,%d)' % (a, b, c) for a, b, c in angle_indices
         ] + [r'sin(%d,%d,%d)' % (a, b, c) for a, b, c in angle_indices]
 
-        descriptor_type = ['cos'] * len(descriptor_tex) + ['sin'] * len(descriptor_tex)
+        descriptor_type: Sequence[FeatureTypeLabel] = ['cos'] * len(descriptor_tex) + [
+            'sin'
+        ] * len(descriptor_tex)  # pyright: ignore[reportAssignmentType] # Is allowed string, but not generally advertised
 
         angle_res: xr.DataArray = xr.concat(all_res, dim='descriptor')  # type: ignore
         return _assign_descriptor_coords(
