@@ -5,26 +5,24 @@
     Currently, the first category of function is found under postprocess
 """
 
-from typing import Literal, Iterable, Sequence
+import logging
+from typing import Literal, Sequence
 
 
-import numpy as np
-import rdkit.Chem as rc
-from rdkit.Chem import Mol
 import xarray as xr
 
-from shnitsel.core._api_info import API, internal
+from shnitsel.core._api_info import API
 from shnitsel.filtering.structure_selection import (
     FeatureLevelType,
     StructureSelection,
 )
-from ..analyze.generic import norm
-from ..bridges import construct_default_mol
+from shnitsel.geo.geocalc_.helpers import (
+    _empty_descriptor_results,
+    _get_default_selection,
+)
 from .._contracts import needs
 
 from ..core.typedefs import AtXYZ
-
-from shnitsel.geo.geomatch import flag_bats, flag_bla_chromophor
 
 from .geocalc_.positions import get_positions
 from .geocalc_.distances import get_distances
@@ -87,26 +85,34 @@ def get_bats(
         >>> geom.get_bats(frames['atXYZ'])
     """
     # TODO: FIXME: Example is not up to date
-    if matches_or_mol is None:
-        mol = default_mol(atXYZ)
-        matches_or_mol = flag_bats(mol)[0]
+    structure_selection = _get_default_selection(
+        structure_selection, atXYZ=atXYZ, default_levels=default_features
+    )
 
-    d = {
-        'bonds': get_bond_lengths(atXYZ, matches_or_mol=matches_or_mol),
-        'angles': get_bond_angles(atXYZ, matches_or_mol=matches_or_mol, ang=ang),
-        'dihedrals': get_bond_torsions(
-            atXYZ, matches_or_mol=matches_or_mol, signed=signed, ang=ang
-        ),
-    }
-
-    if pyr:
-        d['pyr'] = get_pyramids(
-            atXYZ, matches_or_mol=matches_or_mol, ang=ang, signed=signed
+    feature_data: list[xr.DataArray] = []
+    if len(structure_selection.atoms_selected) > 0:
+        feature_data.append(
+            get_positions(atXYZ, structure_selection=structure_selection)
+        )
+    if len(structure_selection.bonds_selected) > 0:
+        feature_data.append(
+            get_distances(atXYZ, structure_selection=structure_selection)
+        )
+    if len(structure_selection.angles_selected) > 0:
+        feature_data.append(get_angles(atXYZ, structure_selection=structure_selection))
+    if len(structure_selection.dihedrals_selected) > 0:
+        feature_data.append(
+            get_dihedrals(atXYZ, structure_selection=structure_selection)
+        )
+    if len(structure_selection.pyramids_selected) > 0:
+        feature_data.append(
+            get_pyramidalization(atXYZ, structure_selection=structure_selection)
         )
 
-    for k in d:
-        d[k] = d[k].drop_vars(
-            ['atom0', 'atom1', 'atom2', 'atom3', 'atNames', 'atNums'], errors='ignore'
+    if len(feature_data) > 0:
+        return xr.concat(feature_data, dim='descriptor')
+    else:
+        logging.warning(
+            "No feature data could be calculated. Did you provide an empty selection?"
         )
-
-    return xr.concat(list(d.values()), dim='descriptor')
+        return _empty_descriptor_results(atXYZ)
