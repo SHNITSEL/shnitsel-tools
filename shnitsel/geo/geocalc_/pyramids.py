@@ -41,10 +41,10 @@ def pyramidalization_angle_(
     # NOTE: According to https://doi.org/10.1063/5.0008368 this should yield a unique angle independent of the permutation of a,b,c if the distances are normalized first.
     # This should give the p-orbital-aligned perpendicular normal.
 
-    x: xr.DataArray = atXYZ.sel(atom=x_index)
-    a: xr.DataArray = atXYZ.sel(atom=a_index)
-    b: xr.DataArray = atXYZ.sel(atom=b_index)
-    c: xr.DataArray = atXYZ.sel(atom=c_index)
+    x: xr.DataArray = atXYZ.sel(atom=x_index, drop=True)
+    a: xr.DataArray = atXYZ.sel(atom=a_index, drop=True)
+    b: xr.DataArray = atXYZ.sel(atom=b_index, drop=True)
+    c: xr.DataArray = atXYZ.sel(atom=c_index, drop=True)
 
     da_norm = normalize(a - x)
     db_norm = normalize(b - x)
@@ -108,7 +108,7 @@ def get_pyramidalization(
     ]
 
     descriptor_tex = [
-        r'$\chi_{%d,%d}^{%d,%d}$' % (b, x, a, c) for x, (a, b, c) in pyramid_descriptors
+        r'\chi_{%d,%d}^{%d,%d}' % (b, x, a, c) for x, (a, b, c) in pyramid_descriptors
     ]
     descriptor_name = [
         r'pyr(%d,(%d,%d,%d))' % (x, a, b, c) for x, (a, b, c) in pyramid_descriptors

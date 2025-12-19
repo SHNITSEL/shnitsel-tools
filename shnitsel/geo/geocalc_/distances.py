@@ -23,8 +23,8 @@ def distance(atXYZ: AtXYZ, i: int, j: int) -> xr.DataArray:
     Returns:
         xr.DataArray: The resulting array holding the pairwise distance between i and j.
     """
-    a = atXYZ.isel(atom=i)
-    b = atXYZ.isel(atom=j)
+    a = atXYZ.isel(atom=i, drop=True)
+    b = atXYZ.isel(atom=j, drop=True)
     with xr.set_options(keep_attrs=True):
         result: xr.DataArray = dnorm(a - b)
     # result.name = 'distance'
@@ -67,13 +67,13 @@ def get_distances(
         return _empty_descriptor_results(atXYZ)
     
     distance_arrs = [
-        distance(atXYZ, a, b).squeeze('atom', drop=True).expand_dims('descriptor')
+        distance(atXYZ, a, b).expand_dims('descriptor')
         for a, b in bond_indices
     ]
 
     distance_res = xr.concat(distance_arrs, dim='descriptor')
 
-    descriptor_tex = [r'$|\vec{r}_{%d,%d}|$' % (a, b) for a, b in bond_indices]
+    descriptor_tex = [r'|\vec{r}_{%d,%d}|' % (a, b) for a, b in bond_indices]
     descriptor_name = [r'dist(%d,%d)' % (a, b) for a, b in bond_indices]
     descriptor_type: list[FeatureTypeLabel] = ['dist'] * len(descriptor_tex)
 

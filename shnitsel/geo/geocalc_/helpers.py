@@ -1,5 +1,7 @@
 from typing import Literal, Sequence, TypeAlias
 
+import numpy as np
+
 from shnitsel.core.typedefs import AtXYZ
 from shnitsel.filtering.structure_selection import (
     FeatureDescriptor,
@@ -79,13 +81,36 @@ def _assign_descriptor_coords(
     Returns:
         xr.DataArray: The resulting DataArray with the new coordinates assigned.
     """
+
+    feature_descriptors_np = np.empty((len(feature_descriptors),), dtype='O')
+    feature_descriptors_np[:] = feature_descriptors
     coords = xr.Coordinates(
         {
             'descriptor': ('descriptor', feature_name),
             'descriptor_tex': ('descriptor', feature_tex_label),
             'descriptor_type': ('descriptor', feature_type),
-            'feature_indices': ('descriptor', feature_descriptors),
+            'feature_indices': ('descriptor', feature_descriptors_np),
         }
     )
 
-    return obj.assign_coords(coords).set_xindex('descriptor')
+    return obj.assign_coords(coords)  # .set_xindex('descriptor')
+
+
+def _remove_atom_coords(da: xr.DataArray) -> xr.DataArray:
+    """Helper function to remove all standard atom-related coordinates.
+
+    Args:
+        da (xr.DataArray): The data array to clean of all the atom-related coordinates.
+
+    Returns:
+        xr.DataArray: The cleaned array.
+    """
+
+    if 'atom' in da.dims:
+        da = da.squeeze('atom', drop=True)
+
+    atom_keys = ['atNames', 'atNums', 'atom']
+
+    atom_keys = set(da.coords.keys()).intersection(atom_keys)
+
+    return da.reset_coords(atom_keys, drop=True)

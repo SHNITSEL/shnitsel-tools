@@ -36,10 +36,10 @@ def dihedral_(
     Returns:
         xr.DataArray | xr.Variable: The array of dihedral angels between the four input indices.
     """
-    a = atXYZ.sel(atom=a_index)
-    b = atXYZ.sel(atom=b_index)
-    c = atXYZ.sel(atom=c_index)
-    d = atXYZ.sel(atom=d_index)
+    a = atXYZ.sel(atom=a_index, drop=True)
+    b = atXYZ.sel(atom=b_index, drop=True)
+    c = atXYZ.sel(atom=c_index, drop=True)
+    d = atXYZ.sel(atom=d_index, drop=True)
     abc_normal = normal(a, b, c)
     bcd_normal = normal(b, c, d)
     if full:
@@ -88,7 +88,7 @@ def dihedral(
     else:
         result.attrs['units'] = 'rad'
     result.name = 'dihedral'
-    result.attrs['long_name'] = r"$\varphi_{%d,%d,%d,%d}$" % (
+    result.attrs['long_name'] = r"\varphi_{%d,%d,%d,%d}" % (
         a_index,
         b_index,
         c_index,
@@ -140,7 +140,6 @@ def get_dihedrals(
     if isinstance(deg, bool):
         dihedral_arrs = [
             dihedral(atXYZ, a, b, c, d, deg=deg, full=signed)
-            .squeeze('atom', drop=True)
             .expand_dims('descriptor')
             for a, b, c, d in dihedral_indices
         ]
@@ -148,7 +147,7 @@ def get_dihedrals(
         dihedral_res = xr.concat(dihedral_arrs, dim='descriptor')
 
         descriptor_tex = [
-            r"$\varphi_{%d,%d,%d,%d}$" % (a, b, c, d) for a, b, c, d in dihedral_indices
+            r"\varphi_{%d,%d,%d,%d}" % (a, b, c, d) for a, b, c, d in dihedral_indices
         ]
         descriptor_name = [
             r'dih(%d,%d,%d,%d)' % (a, b, c, d) for a, b, c, d in dihedral_indices

@@ -39,9 +39,7 @@ def get_positions(
     if len(position_indices) == 0:
         return _empty_descriptor_results(atXYZ)
 
-    positions_arrs = [
-        atXYZ.sel(atom=a).squeeze('atom', drop=True) for a in position_indices
-    ]
+    positions_arrs = [atXYZ.sel(atom=a, drop=True) for a in position_indices]
     coordinates_x: list[xr.DataArray]
     coordinates_y: list[xr.DataArray]
     coordinates_z: list[xr.DataArray]
@@ -51,9 +49,9 @@ def get_positions(
         for a in zip(
             *[
                 (
-                    arr.sel(direction='x').squeeze('direction', drop=True),
-                    arr.sel(direction='y').squeeze('direction', drop=True),
-                    arr.sel(direction='z').squeeze('direction', drop=True),
+                    arr.sel(direction='x', drop=True),
+                    arr.sel(direction='y', drop=True),
+                    arr.sel(direction='z', drop=True),
                 )
                 for arr in positions_arrs
             ]
@@ -65,20 +63,20 @@ def get_positions(
     )
 
     descriptor_tex = (
-        [r'$x_{%d}' % (a) for a in position_indices]
-        + [r'$y_{%d}' % (a) for a in position_indices]
-        + [r'$z_{%d}' % (a) for a in position_indices]
+        [r'x_{%d}' % (a) for a in position_indices]
+        + [r'y_{%d}' % (a) for a in position_indices]
+        + [r'z_{%d}' % (a) for a in position_indices]
     )
     descriptor_name = (
         [r'pos_x(%d)' % (a) for a in position_indices]
         + [r'pos_y(%d)' % (a) for a in position_indices]
         + [r'pos_z(%d)' % (a) for a in position_indices]
     )
-    descriptor_type: list[FeatureTypeLabel] = ['pos'] * (len(descriptor_tex) * 3)
+    descriptor_type: list[FeatureTypeLabel] = ['pos'] * len(descriptor_tex)
 
     return _assign_descriptor_coords(
         coordinates_res,
-        feature_descriptors=position_indices,
+        feature_descriptors=position_indices * 3,
         feature_type=descriptor_type,
         feature_tex_label=descriptor_tex,
         feature_name=descriptor_name,

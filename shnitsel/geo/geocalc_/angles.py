@@ -36,9 +36,9 @@ def angle(
     Returns:
         xr.DataArray: The resulting angles between the denoted atoms.
     """
-    a = atXYZ.isel(atom=a_index)
-    b = atXYZ.isel(atom=b_index)
-    c = atXYZ.isel(atom=c_index)
+    a = atXYZ.isel(atom=a_index, drop=True)
+    b = atXYZ.isel(atom=b_index, drop=True)
+    c = atXYZ.isel(atom=c_index, drop=True)
     ab = a - b
     cb = c - b
     result: xr.DataArray = angle_(ab, cb)
@@ -48,7 +48,7 @@ def angle(
     else:
         result.attrs['units'] = 'rad'
     result.name = 'angle'
-    result.attrs['long_name'] = r"$\theta_{%d,%d,%d}$" % (a_index, b_index, c_index)
+    result.attrs['long_name'] = r"\theta_{%d,%d,%d}" % (a_index, b_index, c_index)
     return result
 
 
@@ -119,16 +119,14 @@ def get_angles(
 
     if isinstance(deg, bool):
         angle_arrs = [
-            angle(atXYZ, a, b, c, deg=deg)
-            .squeeze('atom', drop=True)
-            .expand_dims('descriptor')
+            angle(atXYZ, a, b, c, deg=deg).expand_dims('descriptor')
             for a, b, c in angle_indices
         ]
 
         angle_res = xr.concat(angle_arrs, dim='descriptor')
 
         descriptor_tex = [
-            r"$\theta_{%d,%d,%d}$" % (a, b, c) for a, b, c in angle_indices
+            r"\theta_{%d,%d,%d}" % (a, b, c) for a, b, c in angle_indices
         ]
         descriptor_name = [r'angle(%d,%d,%d)' % (a, b, c) for a, b, c in angle_indices]
         descriptor_type: list[FeatureTypeLabel] = ['angle'] * len(descriptor_tex)
@@ -160,8 +158,8 @@ def get_angles(
             all_res = [np.abs(x) for x in all_res]
 
         descriptor_tex = [
-            r"$\cos\theta_{%d,%d,%d}$" % (a, b, c) for a, b, c in angle_indices
-        ] + [r"$\sin\theta_{%d,%d,%d}$" % (a, b, c) for a, b, c in angle_indices]
+            r"\cos\theta_{%d,%d,%d}" % (a, b, c) for a, b, c in angle_indices
+        ] + [r"\sin\theta_{%d,%d,%d}" % (a, b, c) for a, b, c in angle_indices]
 
         descriptor_name = [
             r'cos(%d,%d,%d)' % (a, b, c) for a, b, c in angle_indices
