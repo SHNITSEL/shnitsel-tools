@@ -262,7 +262,7 @@ class StructureSelection:
 
         # TODO: FIXME: Consider the charges needing to be set from the dataset settings.s
         mol = construct_default_mol(
-            filtered_dataset.atXYZ,
+            filtered_dataset,
             to2D=to2D,
         )
         # Create an initial state selection
