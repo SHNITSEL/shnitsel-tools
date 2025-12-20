@@ -1,4 +1,4 @@
-from logging import warning
+from logging import warning, info
 from numbers import Number
 from typing import Literal
 
@@ -156,11 +156,22 @@ def assign_cutoffs(ds):
 # They can use the functions above to get the info they need
 
 
+def _log_omit(before, after):
+    kept = set(after.trajid.values.tolist())
+    omitted = set(before.trajid.values.tolist()).difference(kept)
+    info(
+        f"Kept {len(kept)} trajectories, IDs: {kept}; \n"
+        f"Dropped {len(omitted)} trajectories, IDs: {omitted}"
+    )
+
+
 def omit(ds:Trajectory):
     cutoffs = cutoffs_from_dataset(ds)
     good_throughout = cutoffs['good_throughout']
     selection = good_throughout.all('criterion')
-    return sel_trajs(ds, selection)
+    res = sel_trajs(ds, selection)
+    _log_omit(before=ds, after=res)
+    return res
 
 
 def truncate(ds:Trajectory):
@@ -168,16 +179,24 @@ def truncate(ds:Trajectory):
         cutoffs = cutoffs_from_dataset(ds).min('criterion')
         sel = cutoffs.sel(trajid=ds.coords['trajid'])
         stacked_mask = ds.coords['time'].data < sel.data
-        return ds.isel(frame=stacked_mask)
+        res = ds.isel(frame=stacked_mask)
+        nbefore = ds.sizes['frame']
+        nafter = res.sizes['frame']
     else:
         unstacked_mask = cum_mask_from_dataset(ds).all('criterion')
-        return ds.assign_coords(is_frame=ds.coords['is_frame'] & unstacked_mask)
+        res = ds.assign_coords(is_frame=ds.coords['is_frame'] & unstacked_mask)
+        nbefore = ds.coords['is_frame'].sum().item()
+        nafter = res.coords['is_frame'].sum().item()
+    info(f"Kept {nafter} frames; dropped {nbefore - nafter}")
+    return res
 
 
 def transect(ds: Trajectory|Frames, cutoff: float):
     if is_stacked(ds):
         ds = unstack_trajs(ds)
+    nbefore = ds.coords['is_frame'].sum().item()
     ds = ds.loc[{'time': slice(float(cutoff))}]
+    nafter1 = ds.coords['is_frame'].sum().item()
     good_upto = cutoffs_from_dataset(ds)
     traj_selection = (
         (good_upto >= cutoff).all('criterion')
@@ -185,7 +204,18 @@ def transect(ds: Trajectory|Frames, cutoff: float):
         # the following must be calculated after time-slicing.
         ds.coords['is_frame'].all('time')
     )
-    return ds.isel({'trajid': traj_selection})
+    res = ds.isel({'trajid': traj_selection})
+    trajs_dropped = set(ds['trajid'].values.tolist()).difference(
+        res['trajid'].values.tolist()
+    )
+    nafter2 = res.coords['is_frame'].sum().item()
+    info(
+        f"Kept {nbefore} frames; dropped {nafter1} frames past cutoff;\n"
+        f"dropped {len(trajs_dropped)} trajectories "
+        f"({nafter1 - nafter2} additional frames) "
+        f"that did not reach the cutoff, IDs: {trajs_dropped}"
+    )
+    return res
 
 
 def dispatch_cut(
