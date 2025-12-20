@@ -96,21 +96,21 @@ def check_thresholds(ds_or_da, quantiles=None):
         if 'thresholds' in data.coords:
             threshold = data.coords['thresholds'].item()
             ax.axhline(threshold, c=shnitsel_yellow)
+            # ax.text(
+            #     0.5,
+            #     threshold,
+            #     str(threshold),
+            #     ha='center',
+            #     va='bottom',
+            #     c=text_color,
+            #     backgroundcolor=text_backgroundcolor,
+            # )
             ax.text(
                 0.5,
                 threshold,
-                str(threshold),
+                f"{threshold}\n{data.coords['proportion'].item() * 100:.0f} %",
                 ha='center',
-                va='bottom',
-                c=text_color,
-                backgroundcolor=text_backgroundcolor,
-            )
-            ax.text(
-                0.5,
-                threshold,
-                f"{data.coords['proportion'].item()*100} %",
-                ha='center',
-                va='top',
+                va='center',
                 c=text_color,
                 backgroundcolor=text_backgroundcolor,
             )
