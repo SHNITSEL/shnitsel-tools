@@ -13,7 +13,7 @@ import rdkit.Chem as rc
 from rdkit.Chem import Mol
 import xarray as xr
 
-from shnitsel.__api_info import API, internal
+from shnitsel._api_info import API, internal
 from ..analyze.generic import norm
 from ..bridges import default_mol
 from .._contracts import needs

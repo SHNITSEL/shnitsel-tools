@@ -7,7 +7,7 @@ import numpy as np
 import xarray as xr
 import random
 
-from shnitsel.__api_info import internal
+from shnitsel._api_info import internal
 from shnitsel.io.shared.variable_flagging import (
     is_variable_assigned,
     mark_variable_assigned,

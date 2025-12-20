@@ -7,7 +7,7 @@ import numpy.typing as npt
 import scipy.stats as st
 import xarray as xr
 
-from shnitsel.__api_info import internal
+from shnitsel._api_info import internal
 from shnitsel.io.shared.trajectory_setup import get_statecomb_coordinate
 from shnitsel.units.definitions import energy
 from shnitsel.units.conversion import convert_energy

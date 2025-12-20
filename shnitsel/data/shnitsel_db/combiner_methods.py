@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Set, Tuple
 
 import numpy as np
 
-from shnitsel.__api_info import API, internal
+from shnitsel._api_info import API, internal
 from shnitsel.data.shnitsel_db_format import ShnitselDB, build_shnitsel_db
 from shnitsel.data.trajectory_format import Trajectory
 import xarray as xr
