@@ -3,7 +3,7 @@ import logging
 import rdkit.Chem as rc
 
 from shnitsel.bridges import set_atom_props
-from shnitsel.geo.geomatch import __get_bond_info as get_bond_info
+from shnitsel.geo.geomatch import _get_bond_info as get_bond_info
 
 
 def get_smiles_order_ignoring_h(mol: rc.Mol) -> list[int]:
