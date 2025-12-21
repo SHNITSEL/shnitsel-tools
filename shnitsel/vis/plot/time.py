@@ -12,7 +12,7 @@ from shnitsel._contracts import needs
 from shnitsel.vis.plot.common import figax
 from shnitsel.analyze.stats import time_grouped_confidence_interval
 
-def set_axes(data, ax=None):
+def _set_axes(data, ax=None):
     _, ax = figax(ax=ax)
 
     ylabel = data.attrs.get('long_name', data.name or '')
@@ -46,7 +46,7 @@ def plot_single(data, ax=None):
             sdata.coords[coord_name].item(),
             va='center',
             c=line2d[0].get_color())
-    return set_axes(data, ax)
+    return _set_axes(data, ax)
 
 def plot_ci(data, ax=None):
     _, ax = figax(ax=ax)
@@ -64,7 +64,7 @@ def plot_ci(data, ax=None):
         ci = time_grouped_confidence_interval(data.expand_dims('state')).squeeze('state')
         ax.fill_between('time', 'upper', 'lower', data=ci, alpha=0.3)
         line2d = ax.plot('time', 'mean', data=ci, lw=0.8)
-        return set_axes(data, ax)
+        return _set_axes(data, ax)
         
 
     ci = time_grouped_confidence_interval(data)
@@ -79,7 +79,7 @@ def plot_ci(data, ax=None):
             va='center',
             c=line2d[0].get_color()
         )
-    return set_axes(data, ax)
+    return _set_axes(data, ax)
 
 def plot_many(data, ax=None):
     _, ax = figax(ax=ax)
@@ -99,7 +99,7 @@ def plot_many(data, ax=None):
         groupby = [(None, data)]
         for _, traj in data.groupby('trajid'):
             ax.plot(traj['time'], traj, lw=0.5, c='k')
-        return set_axes(data, ax)
+        return _set_axes(data, ax)
     
     colors = iter(plt.get_cmap('tab10').colors)
     for _, sdata in groupby:
@@ -110,7 +110,7 @@ def plot_many(data, ax=None):
             ax.plot(traj['time'], traj, lw=0.5, label=label, c=c)
     # TODO: legend
     # TODO: option/default of separate plot per state(comb)
-    return set_axes(data, ax)
+    return _set_axes(data, ax)
 
 def plot_shaded(data, ax):
     # TODO: automatically make separate plot per state(comb)
@@ -144,7 +144,7 @@ def plot_shaded(data, ax):
     x0, x1 = agg.coords['x'].values[[0,-1]]
     y0, y1 = agg.coords['y'].values[[0, -1]]
     ax.imshow(arr, extent=[x0, x1, y0, y1], aspect='auto')
-    return set_axes(data, ax)
+    return _set_axes(data, ax)
 
 @needs(coords={"time"})
 def timeplot(
