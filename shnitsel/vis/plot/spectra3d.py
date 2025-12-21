@@ -2,7 +2,8 @@ import xarray as xr
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 
-def inlabel(s, ax, ha='center', va='center'):
+# TODO: Use plot.common.inlabel instead?
+def _inlabel(s, ax, ha='center', va='center'):
     return ax.text(
         0.05,
         0.95,
@@ -67,7 +68,7 @@ def ski_plots(spectra: xr.DataArray) -> mpl.figure.Figure:
             linestyle='--',
         )
 
-        inlabel(sc, ax)
+        _inlabel(sc, ax)
         ax.set_ylabel(r'$f_\mathrm{osc}$')
     ax.set_xlabel(r'$E$ / eV')
     return fig
