@@ -299,22 +299,6 @@ def plot_clusters3(loadings, clusters, ax=None, labels=None, axs=None, mol=None)
 # New stuff for angle binning!
 
 
-def get_mask(angles, theta1, theta2, seam=180):
-    if not theta1 <= theta2:
-        theta1, theta2 = theta2, theta1
-    if theta1 < seam and theta2 < seam:
-        mask = (angles > theta1) & (angles < theta2)
-    elif theta1 < seam and theta2 > seam:
-        mask = (angles > theta1) | (angles < theta2 - 360)
-    elif theta1 > seam and theta2 > seam:
-        mask = (angles > theta1 - 360) & (angles < theta2 - 360)
-    else:
-        print(theta1, theta2)
-        mask = []
-        raise ValueError()
-    return mask
-
-
 def circbins(
     angles, nbins=4, center=0
 ) -> tuple[list[Iterable[int]], list[tuple[float, float]]]:
