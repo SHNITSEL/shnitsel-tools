@@ -26,6 +26,25 @@ def _set_axes(data, ax=None):
     return ax
 
 def plot_single(data, ax=None):
+    """Plot some property of a single trajectory over time
+
+    Parameters
+    ----------
+    data
+        Data to plot
+    ax
+        A matplotlib ``Axes`` onto which to plot;
+        if not provided, one will be created.
+
+    Returns
+    -------
+        The ``Axes`` object used
+
+    Raises
+    ------
+    ValueError
+        If ``data`` has both 'state' and 'statecomb' dimensions.
+    """
     if 'state' in data.dims and 'statecomb' in data.dims:
         raise ValueError("data shouldn't have both `state` and `statecomb` dimensions")
     if 'state' in data.dims:
@@ -49,6 +68,25 @@ def plot_single(data, ax=None):
     return _set_axes(data, ax)
 
 def plot_ci(data, ax=None):
+    """Plot some property of trajectories over time, aggregated as means and confidence intervals
+
+    Parameters
+    ----------
+    data
+        Data to plot
+    ax
+        A matplotlib ``Axes`` onto which to plot;
+        if not provided, one will be created.
+
+    Returns
+    -------
+        The ``Axes`` object used
+
+    Raises
+    ------
+    ValueError
+        If ``data`` has both 'state' and 'statecomb' dimensions.
+    """
     _, ax = figax(ax=ax)
 
     if 'state' in data.dims and 'statecomb' in data.dims:
@@ -82,6 +120,26 @@ def plot_ci(data, ax=None):
     return _set_axes(data, ax)
 
 def plot_many(data, ax=None):
+    """Plot some property of trajectories over time as thin lines;
+    state or statecomb is indicated by colour
+
+    Parameters
+    ----------
+    data
+        Data to plot
+    ax
+        A matplotlib ``Axes`` onto which to plot;
+        if not provided, one will be created.
+
+    Returns
+    -------
+        The ``Axes`` object used
+
+    Raises
+    ------
+    ValueError
+        If ``data`` has both 'state' and 'statecomb' dimensions.
+    """
     _, ax = figax(ax=ax)
 
     if 'state' in data.dims and 'statecomb' in data.dims:
@@ -109,11 +167,29 @@ def plot_many(data, ax=None):
         for _, traj in sdata.groupby('trajid'):
             ax.plot(traj['time'], traj, lw=0.5, label=label, c=c)
     # TODO: legend
-    # TODO: option/default of separate plot per state(comb)
     return _set_axes(data, ax)
 
 def plot_shaded(data, ax):
-    # TODO: automatically make separate plot per state(comb)
+    """Plot some property of trajectories over time, aggregated by using colour
+    to show how many overlap at a given point
+
+    Parameters
+    ----------
+    data
+        Data to plot
+    ax
+        A matplotlib ``Axes`` onto which to plot;
+        if not provided, one will be created.
+
+    Returns
+    -------
+        The ``Axes`` object used.
+
+    Raises
+    ------
+    ImportError
+        If the ``datashader`` library is not installed.
+    """
     try:
         import datashader as ds
     except ImportError as err:
@@ -153,6 +229,46 @@ def timeplot(
     trajs: Literal['ci', 'shade', 'conv', None] = None,
     sep: bool = False,
 ):
+    """Plot some property of one or many trajectories over time,
+    possibly aggregating over trajectories, and distinguishing
+    different states/statecombs if applicable.
+
+    Parameters
+    ----------
+    data
+        Data to plot
+    ax
+        A matplotlib ``Axes`` onto which to plot;
+        if not provided, one will be created.
+    trajs
+        How to aggregate trajectories, if at all:
+            - ``None`` (default): do not aggregate
+            - 'ci': aggregate by confidence interval
+            - 'shade': use colour to represent overlap
+                density using the datashader library
+                (to produce what is sometimes called
+                a hairplot)
+    sep
+        Whether to plot different states/statecombs
+        separately; this will be done regardless when
+        using ``trajs='shade'``.
+
+
+    Returns
+    -------
+        The ``Axes`` object used
+
+    Raises
+    ------
+    ValueError
+
+        - If ``data`` has both 'state' and 'statecomb' dimensions.
+        - If ``ax`` is passed when multiple ``Axes`` will be required
+            as states/statecombs are to be plotted separately.
+        - If ``trajs`` is set to a value other than ``None``, 'ci' or 'shade'
+    NotImplementedError
+        If ``trajs='conv'`` is used
+    """
     if {'state', 'statecomb'}.issubset(data.dims):
         raise ValueError(
             "`data` should not have both 'state' and 'statecomb' dimensions"
