@@ -21,29 +21,57 @@ import xarray as xr
 class FrameSelector:
     selected_frame_indices: list[int] = []
 
-    def __init__(self, df_or_da, xname=None, yname=None, title="", allowed_ws_origin=None, webgl=True):
+    def __init__(
+        self,
+        data,
+        data_var=None,
+        *,
+        dim=None,
+        xname=None,
+        yname=None,
+        title="",
+        allowed_ws_origin=None,
+        webgl=True,
+    ):
         if not _bokeh_package_available:
             logging.error(f"ERROR: Package <bokeh> was not found in the current environment. Please install the missing package to use the {self.__class__.__name__} class.")
 
         output_notebook()
 
-        if isinstance(df_or_da, pd.DataFrame):
-            df = df_or_da
-            da = None
-        elif isinstance(df_or_da, xr.DataArray):
-            da = df_or_da
-            if len(da.dims) == 2:
-                df = da.to_pandas()
-            else:
+        if isinstance(data, pd.DataFrame):
+            df = data
+            xr_obj = None
+            if dim is not None:
+                raise TypeError("`dim` should not be set when `data` is a DataFrame")
+
+        elif isinstance(data, xr.DataArray):
+            xr_obj = data
+            if dim is None:
+                dim = xr_obj.dims[0]
+
+            if len(xr_obj.dims) != 2:
                 raise ValueError(
                     "When the first argument to FrameSelector is an "
                     "xarray.DataArray, it should have 2 dimensions, "
-                    f"rather than {len(da.dims)} dimensions (namely {da.dims})."
+                    f"rather than {len(xr_obj.dims)} dimensions (namely {xr_obj.dims})."
                 )
+            df = xr_obj.transpose(dim, ...).to_pandas()
+
+        elif isinstance(data, xr.Dataset):
+            if data_var is None:
+                raise TypeError(
+                    "If 'data' is an xarray.Dataset, please indicate which data_var to use"
+                )
+            xr_obj = data
+            if dim is None:
+                dim = xr_obj[data_var].dims[0]
+            df = xr_obj[data_var].to_pandas()
+
         else:
             raise TypeError(
                 "The first argument to FrameSelector should be a "
-                "pandas.DataFrame or a 2-dimensional xarray.DataArray"
+                "pandas.DataFrame, a 2-dimensional xarray.DataArray "
+                "or an xarray.Dataset containing such a DataArray."
             )
 
         # Column names must be strings
@@ -61,7 +89,9 @@ class FrameSelector:
         yname = str(yname)
 
         self.df = df
-        self.da = da
+        self.xr_obj = xr_obj
+        self.dim = dim
+
         self.xname = xname
         self.yname = yname
         self.title = title
@@ -104,10 +134,10 @@ class FrameSelector:
 
     @property
     def selection(self):
-        if self.da is None:
+        if self.xr_obj is None:
             return None
         else:
-            return self.da[self.selected_frame_indices, :]
+            return self.xr_obj[{self.dim: self.selected_frame_indices}]
 
 
 class TrajSelector(FrameSelector):
