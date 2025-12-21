@@ -195,17 +195,17 @@ class DataArrayAccessor(DAManualAccessor):
         """Wrapper for :py:func:`shnitsel.data.multi_indices.mgroupby`."""
         return mgroupby(self._obj, levels)
 
-    def msel(self, **kwargs) -> xr.Dataset | xr.DataArray:
+    def msel(self, **kwargs) -> DatasetOrArray:
         """Wrapper for :py:func:`shnitsel.data.multi_indices.msel`."""
         return msel(self._obj, **kwargs)
 
     @needs(dims={'frame'}, coords_or_vars={'trajid'})
-    def sel_trajs(self, trajids_or_mask: Sequence[int] | Sequence[bool], invert=False) -> xr.Dataset | xr.DataArray:
+    def sel_trajs(self, trajids_or_mask: Sequence[int] | Sequence[bool], invert=False) -> DatasetOrArray:
         """Wrapper for :py:func:`shnitsel.data.multi_indices.sel_trajs`."""
         return sel_trajs(self._obj, trajids_or_mask, invert=invert)
 
     @needs(dims={'frame'}, coords_or_vars={'trajid'})
-    def sel_trajids(self, trajids: npt.ArrayLike, invert=False) -> xr.Dataset:
+    def sel_trajids(self, trajids: npt.ArrayLike, invert=False) -> DatasetOrArray:
         """Wrapper for :py:func:`shnitsel.data.multi_indices.sel_trajids`."""
         return sel_trajids(self._obj, trajids, invert=invert)
 
@@ -257,13 +257,13 @@ class DataArrayAccessor(DAManualAccessor):
         """Wrapper for :py:func:`shnitsel.geo.geocalc.kabsch`."""
         return kabsch(self._obj, reference_or_indexers=reference_or_indexers, **indexers_kwargs)
 
-    def FrameSelector(self, xname=None, yname=None, title='', allowed_ws_origin=None, webgl=True):
+    def FrameSelector(self, data_var=None, dim=None, xname=None, yname=None, title='', allowed_ws_origin=None, webgl=True):
         """Wrapper for :py:func:`shnitsel.vis.plot.select.FrameSelector`."""
-        return FrameSelector(self._obj, xname=xname, yname=yname, title=title, allowed_ws_origin=allowed_ws_origin, webgl=webgl)
+        return FrameSelector(self._obj, data_var=data_var, dim=dim, xname=xname, yname=yname, title=title, allowed_ws_origin=allowed_ws_origin, webgl=webgl)
 
-    def TrajSelector(self, xname=None, yname=None, title='', allowed_ws_origin=None, webgl=True):
+    def TrajSelector(self, data_var=None, dim=None, xname=None, yname=None, title='', allowed_ws_origin=None, webgl=True):
         """Wrapper for :py:func:`shnitsel.vis.plot.select.TrajSelector`."""
-        return TrajSelector(self._obj, xname=xname, yname=yname, title=title, allowed_ws_origin=allowed_ws_origin, webgl=webgl)
+        return TrajSelector(self._obj, data_var=data_var, dim=dim, xname=xname, yname=yname, title=title, allowed_ws_origin=allowed_ws_origin, webgl=webgl)
 
     @needs(dims={'atom', 'direction'}, coords_or_vars={'atNames'}, not_dims={'frame'})
     def frame3D(self):
@@ -281,7 +281,7 @@ class DataArrayAccessor(DAManualAccessor):
         return traj3D(self._obj)
 
     @needs(dims={'atom', 'direction'}, coords={'trajid'}, groupable={'time'}, coords_or_vars={'atNames'})
-    def trajs3Dgrid(self, trajids: list[int | str] | None=None, loop='forward'):
+    def trajs3Dgrid(self, trajids: list[int | str] | None=None, loop: str='forward'):
         """Wrapper for :py:func:`shnitsel.vis.plot.p3mhelpers.trajs3Dgrid`."""
         return trajs3Dgrid(self._obj, trajids=trajids, loop=loop)
 
@@ -334,6 +334,8 @@ class DatasetAccessor(DSManualAccessor):
         'hops',
         'focus_hops',
         'assign_hop_time',
+        'FrameSelector',
+        'TrajSelector',
     ]
 
     @needs(coords_or_vars={'astate', 'atXYZ'})
@@ -390,12 +392,12 @@ class DatasetAccessor(DSManualAccessor):
         """Wrapper for :py:func:`shnitsel.data.multi_indices.mgroupby`."""
         return mgroupby(self._obj, levels)
 
-    def msel(self, **kwargs) -> xr.Dataset | xr.DataArray:
+    def msel(self, **kwargs) -> DatasetOrArray:
         """Wrapper for :py:func:`shnitsel.data.multi_indices.msel`."""
         return msel(self._obj, **kwargs)
 
     @needs(dims={'frame'}, coords_or_vars={'trajid'})
-    def sel_trajs(self, trajids_or_mask: Sequence[int] | Sequence[bool], invert=False) -> xr.Dataset | xr.DataArray:
+    def sel_trajs(self, trajids_or_mask: Sequence[int] | Sequence[bool], invert=False) -> DatasetOrArray:
         """Wrapper for :py:func:`shnitsel.data.multi_indices.sel_trajs`."""
         return sel_trajs(self._obj, trajids_or_mask, invert=invert)
 
@@ -403,7 +405,7 @@ class DatasetAccessor(DSManualAccessor):
         """Wrapper for :py:func:`shnitsel.data.multi_indices.unstack_trajs`."""
         return unstack_trajs(self._obj)
 
-    def stack_trajs(self) -> xr.Dataset | xr.DataArray:
+    def stack_trajs(self) -> DatasetOrArray:
         """Wrapper for :py:func:`shnitsel.data.multi_indices.stack_trajs`."""
         return stack_trajs(self._obj)
 
@@ -461,7 +463,15 @@ class DatasetAccessor(DSManualAccessor):
         """Wrapper for :py:func:`shnitsel.analyze.hops.focus_hops`."""
         return focus_hops(self._obj, hop_types=hop_types, window=window)
 
-    def assign_hop_time(self, hop_types: list[tuple[int, int]] | None=None, which: str='last'):
+    def assign_hop_time(self, hop_types: list[tuple[int, int]] | None=None, which: Literal='last'):
         """Wrapper for :py:func:`shnitsel.analyze.hops.assign_hop_time`."""
         return assign_hop_time(self._obj, hop_types=hop_types, which=which)
+
+    def FrameSelector(self, data_var=None, dim=None, xname=None, yname=None, title='', allowed_ws_origin=None, webgl=True):
+        """Wrapper for :py:func:`shnitsel.vis.plot.select.FrameSelector`."""
+        return FrameSelector(self._obj, data_var=data_var, dim=dim, xname=xname, yname=yname, title=title, allowed_ws_origin=allowed_ws_origin, webgl=webgl)
+
+    def TrajSelector(self, data_var=None, dim=None, xname=None, yname=None, title='', allowed_ws_origin=None, webgl=True):
+        """Wrapper for :py:func:`shnitsel.vis.plot.select.TrajSelector`."""
+        return TrajSelector(self._obj, data_var=data_var, dim=dim, xname=xname, yname=yname, title=title, allowed_ws_origin=allowed_ws_origin, webgl=webgl)
 

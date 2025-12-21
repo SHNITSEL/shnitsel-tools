@@ -130,6 +130,9 @@ def main():
         hops.hops,
         hops.focus_hops,
         hops.assign_hop_time,
+        # select
+        select.FrameSelector,
+        select.TrajSelector,
     ]
 
     code = generate_class_code(
