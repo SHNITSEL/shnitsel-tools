@@ -15,7 +15,11 @@ try:
     from rdkit.Chem.Draw import rdMolDraw2D
 except ImportError as err:
     warning(err.msg)
-from IPython.display import SVG
+
+from shnitsel._state import HAS_IPYTHON
+
+if HAS_IPYTHON:
+    from IPython.display import SVG
 
 st_yellow = (196/255, 160/255, 0/255)
 

@@ -1,12 +1,14 @@
 from math import sqrt, ceil
 
 import numpy as np
-import py3Dmol
 import xarray as xr
 
 from shnitsel.bridges import to_xyz, traj_to_xyz
 from shnitsel._contracts import needs
+from shnitsel._state import HAS_IPYTHON
 
+if HAS_IPYTHON:
+    import py3Dmol
 
 @needs(coords_or_vars={'atNames'}, dims={'atom', 'direction'}, not_dims={'frame'})
 def frame3D(atXYZ_frame: str | xr.DataArray):
