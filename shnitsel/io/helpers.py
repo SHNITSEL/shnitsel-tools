@@ -104,7 +104,7 @@ class ConsistentValue[T]:
         self._val = new_val
 
 
-__atnum2symbol__ = {
+_atnum2symbol = {
     1: "H",
     2: "He",
     3: "Li",
@@ -225,15 +225,15 @@ __atnum2symbol__ = {
     118: "Og",
 }
 
-__symbol2atnum__ = {v: k for k, v in __atnum2symbol__.items()}
+_symbol2atnum = {v: k for k, v in _atnum2symbol.items()}
 
 
 def get_atom_number_from_symbol(symbol: str) -> int:
-    return __symbol2atnum__[symbol]
+    return _symbol2atnum[symbol]
 
 
 def get_symbol_from_atom_number(number: int) -> str:
-    return __atnum2symbol__[number]
+    return _atnum2symbol[number]
 
 
 def get_triangular(original_array):

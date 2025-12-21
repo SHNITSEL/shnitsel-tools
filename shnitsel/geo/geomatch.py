@@ -277,7 +277,7 @@ def _get_atoms_by_indices(match_indices_list: list[tuple], d_atoms: dict) -> dic
     match_indices_list : list of tuples
         Each tuple contains atom indices (e.g. obtained form substructure match).
     d_bonds : dict
-        Dictionary of all bonds in the molecule (output of `__get_all_bonds`).
+        Dictionary of all bonds in the molecule (output of `_get_all_bonds`).
 
     Returns
     -------
@@ -427,7 +427,7 @@ def _get_bonds_by_indices(match_indices_list: list[tuple], d_bonds: dict) -> dic
     match_indices_list : list of tuples
         Each tuple contains atom indices (e.g. obtained form substructure match).
     d_bonds : dict
-        Dictionary of all bonds in the molecule (output of `__get_all_bonds`).
+        Dictionary of all bonds in the molecule (output of `_get_all_bonds`).
 
     Returns
     -------
@@ -609,7 +609,7 @@ def _get_angles_by_indices(match_list: list[tuple], d_angles: dict) -> dict:
     match_list : list of tuples
         Each tuple contains atom indices of a SMARTS match.
     d_angles : dict
-        Angle dictionary from __get_all_angles().
+        Angle dictionary from _get_all_angles().
 
     Returns
     -------
@@ -778,7 +778,7 @@ def _get_pyramids_by_indices(match_list: list[tuple], d_pyramids: dict) -> dict:
     match_list : list of tuples
         pattern matched by SMARTS or indices
     d_pyramids : dict
-        Output of __get_all_pyramids().
+        Output of _get_all_pyramids().
 
     Returns
     -------
@@ -994,9 +994,9 @@ def _get_dihedrals_by_indices(match_list: list[tuple], d_dihedrals: dict) -> dic
     Parameters
     ----------
     match_list : list of tuples
-        SMARTS matches from __match_pattern.
+        SMARTS matches from _match_pattern.
     d_dihedrals : dict
-        Output of __get_all_dihedrals().
+        Output of _get_all_dihedrals().
 
     Returns
     -------
@@ -1355,7 +1355,7 @@ def flag_bats_multiple(
 
 def _get_img_multiple_mols(
     mol: Mol, d_multi_flag: dict, l_patterns: list, l_levels: list
-) -> SVG:
+) -> 'SVG':
     """
     Generate a single SVG image containing multiple copies of a molecule,
     each highlighted according to supplied atom/bond pattern levels.
@@ -1370,10 +1370,10 @@ def _get_img_multiple_mols(
         Each entry: {'bonds': [(0, (5, 0, 1), (6, 0), (1.0, 2.0), rdkit.Chem.rdchem.Mol object)]}
 
         Each entry contains information on the atom indexes (2nd) and bond indexes (3rd)
-        element needed by the helper functions `__get_color_atoms()` and `__get_color_bonds()` 
+        element needed by the helper functions `_get_color_atoms()` and `_get_color_bonds()`
         to extract the atoms and bonds to be highlighted.
     l_patterns : Iterable
-        A list of patterns (smarts or tuples of atom indices) indexing into `d_multi_flag`.  
+        A list of patterns (smarts or tuples of atom indices) indexing into `d_multi_flag`.
     l_levels : Iterable
         List of highlight “levels” corresponding to `l_patterns`.
         Each level is passed to the highlight extraction helpers to control
@@ -1382,9 +1382,9 @@ def _get_img_multiple_mols(
     Returns
     -------
     PIL.Image.Image or IPython.display.SVG
-        A grid image produced by `rdkit.Chem.Draw.MolsToGridImage`, 
-        containing all molecule renderings arranged in a single row. 
-        Each copy of the molecule is highlighted with its own atom and bond sets determined 
+        A grid image produced by `rdkit.Chem.Draw.MolsToGridImage`,
+        containing all molecule renderings arranged in a single row.
+        Each copy of the molecule is highlighted with its own atom and bond sets determined
         by the input patterns (smarts or atom indices).
     """
 
