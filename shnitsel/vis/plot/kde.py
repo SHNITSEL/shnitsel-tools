@@ -12,6 +12,30 @@ from shnitsel.bridges import default_mol, set_atom_props
 
 
 def fit_kdes(noodle, geo_prop, geo_filter):
+    """Fit multiple subsets of data using kernel density esimation
+
+    Parameters
+    ----------
+    noodle
+        Data to fit
+    geo_prop
+        Data by which to filter ``noodle`` into different subsets to be
+        fitted independently
+    geo_filter
+        A list of ``(minimum, maximum)`` pairs, to which ``geo_prop`` will
+        be compared; one KDE will be fitted for the data falling in the
+        range defined by each pair.
+
+    Returns
+    -------
+        A list of kernels; one for each pair in ``geo_filter``.
+
+    Raises
+    ------
+    ValueError
+        If any of the ``geo_filter`` ranges is such that no points from
+        ``geo_prop`` fall within it
+    """
     kernels = []
     for p1, p2 in geo_filter:
         mask = (p1 < geo_prop) & (geo_prop < p2)
@@ -23,6 +47,23 @@ def fit_kdes(noodle, geo_prop, geo_filter):
 
 
 def eval_kdes(kernels: list, xx, yy):
+    """Evaluate each of a list of kernels over the same meshgrid
+
+    Parameters
+    ----------
+    kernels
+        A list of kernel density estimate objects (from scikit-learn)
+    xx
+        The meshgrid values for x
+    yy
+        The meshgrid values for y (shape must much ``xx``)
+
+    Returns
+    -------
+        A list of arrays of the same shape as ``xx`` and ``yy``;
+        each representing the height each fitted kernel assigns
+        to the corresponding x, y coordinate from ``xx`` and ``yy``.
+    """
     xys = np.c_[xx.ravel(), yy.ravel()].T
     Zs = []
     for k in kernels:
@@ -33,6 +74,22 @@ def eval_kdes(kernels: list, xx, yy):
 
 
 def get_xx_yy(noodle, fineness=500, extension=0.1):
+    """Produce a meshgrid over the range of the data
+
+    Parameters
+    ----------
+    noodle
+        The data from which to derive a range
+    fineness
+        The fineness of the grid, by default 500
+    extension
+        How far to extend beyond the range,
+        as a fraction of the mean-extremum difference, by default 0.1
+
+    Returns
+    -------
+        Two numpy NDArrays, as returned by np.meshgrid
+    """
     means = noodle.mean(dim='frame').values
     mins = noodle.min(dim='frame').values
     mins -= (means - mins) * extension
@@ -44,6 +101,33 @@ def get_xx_yy(noodle, fineness=500, extension=0.1):
 
 
 def fit_and_eval_kdes(noodle, geo_prop, geo_filter, fineness=500, extension=0.1):
+    """Get kernel density estimates and a range-appropriate meshgrid for data
+
+    Parameters
+    ----------
+    noodle
+        Data to fit
+    geo_prop
+        Data by which to filter ``noodle`` into different subsets to be
+        fitted independently
+    geo_filter
+        A  list of ``(minimum, maximum)`` pairs, to which ``geo_prop`` will
+        be compared; one KDE will be fitted for the data falling in the
+        range defined by each pair.
+    fineness, optional
+        The finess of the meshgrid, by default 500
+    extension, optional
+        How far to extend the meshgrid beyond the range of the data,
+        as a fraction of the mean-extremum difference, by default 0.1
+
+    Returns
+    -------
+    xx, yy
+        Meshgrid values
+    Zs
+        The KDE-interpolated height corresponding to x and y values in
+        xx and yy respectively
+    """
     noodle = noodle.transpose('frame', 'PC')  # required order for the following 3 lines
 
     xx, yy = get_xx_yy(noodle, fineness=fineness, extension=extension)
@@ -52,6 +136,33 @@ def fit_and_eval_kdes(noodle, geo_prop, geo_filter, fineness=500, extension=0.1)
 
 
 def plot_kdes(xx, yy, Zs, colors=None, levels=None, fill=True, fig=None, ax=None):
+    """Plot contours of kernel density estimates
+
+    Parameters
+    ----------
+    xx
+        An array of x values
+    yy
+        An array of y values (must have the same shape as ``xx``)
+    Zs
+        A list of arrays of z values (each array must have the same
+        shape as ``xx`` and ``yy``)
+    colors
+        A set of colours accepted by matplotlib (e.g. a colormap)
+    levels
+        Determines the number and positions of the contour lines / regions.
+        (Passed to ``matplotlib.pyplot.contour``)
+    fill
+        Whether to fill in the outlined contours
+        (i.e. whether to use ``matplotlib.pyplot.contour`` or
+        ``matplotlib.pyplot.contourf``).
+    fig
+        A matplotlib ``Figure`` object into which to draw
+        (if not provided, a new one will be created)
+    ax
+        A matplotlib ``Axes`` object into which to draw
+        (if not provided, a new one will be created)
+    """
     fig, ax = figax(fig=fig, ax=ax)
     if colors is None:
         if len(Zs) == 2:
