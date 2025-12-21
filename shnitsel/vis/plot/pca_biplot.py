@@ -1,4 +1,4 @@
-from typing import Iterable
+from typing import Any, Callable, Iterable
 
 from matplotlib.colors import Normalize
 from matplotlib.figure import Figure, SubFigure
@@ -19,18 +19,53 @@ from ...rd import highlight_pairs
 
 
 def plot_noodleplot(
-    noodle,
+    noodle: np.NDArray | xr.DataArray,
     hops=None,
     fig: Figure | SubFigure | None = None,
-    ax=None,
-    c=None,
+    ax: Axes | None = None,
+    c: np.NDArray | xr.DataArray = None,
     colorbar_label: str | None = None,
     cmap: str | None = None,
     cnorm: str | Normalize | None = None,
-    cscale=None,
-    noodle_kws=None,
-    hops_kws=None,
+    cscale: mpl.cm.ScalarMappable = None,
+    noodle_kws: dict[str, Any] = None,
+    hops_kws: dict[str, Any] = None,
 ) -> Axes:
+    """Plot a matplotlib scatter-plot with specialized defaults
+
+    Parameters
+    ----------
+    noodle
+        Data to plot as a quanititatively colour-coded scatter-plot
+    hops
+        The coordinates of projections representing hopping points, by default None
+    fig
+        The :py:class:`matplotlib.pyplot.figure.Figure` object onto which to plot
+        (If not provided, one will be created.)
+    ax
+        The :py:class:`matplotlib.pyplot.axes.Axes` object onto which to plot
+        (If not provided, one will be created.)
+    c
+        Data according to which to colour the main scatter-plot
+    colorbar_label
+        Label to describe the colorbar
+    cmap, optional
+        A :py:class:`matplotlib.colors.Colormap` used to colour the main scatter-plot
+    cnorm, optional
+        A :py:class:`matplotlib.colors.Normalize` object applied to
+        the values in ``c`` before passing to ``cmap``.
+        If not provided, linear normalization is used.
+    cscale, optional
+        A :py:class:`matplotlib.cm.ScalarMappable`
+    noodle_kws, optional
+        Keyword arguments for the main scatter-plot
+    hops_kws, optional
+        Keyword arguments for the hopping-point scatter-plot
+
+    Returns
+    -------
+        The :py:class:matplotlib.axes.Axes` instance used
+    """
     fig, ax = figax(fig=fig, ax=ax)
     if c is None:
         c = noodle['time']
@@ -81,27 +116,26 @@ def plot_noodleplot(
 
 
 # TODO: finish later!
-def plot_noodleplot_lines(
-    noodle,  # hops,
-    ax=None,
-    cmap=None,
-    cnorm=None,
-    cscale=None,
-):
-    fig, ax = figax(ax=ax)
-    points = noodle.values
-    # One traj per line
-    for trajid, traj in noodle.groupby('trajid'):
-        segments = np.concatenate([points[:-1], points[1:]], axis=1)
-        lc = mpl.collections.LineCollection([[0, 0]])
+# def plot_noodleplot_lines(
+#     noodle,  # hops,
+#     ax=None,
+#     cmap=None,
+#     cnorm=None,
+#     cscale=None,
+# ):
+#     fig, ax = figax(ax=ax)
+#     points = noodle.values
+#     # One traj per line
+#     for trajid, traj in noodle.groupby('trajid'):
+#         segments = np.concatenate([points[:-1], points[1:]], axis=1)
+#         lc = mpl.collections.LineCollection([[0, 0]])
 
-    segments
-    lc
-    return ax
+#     segments
+#     lc
+#     return ax
 
 
 def get_loadings(frames, mean=False):
-    
     atXYZ = frames['atXYZ']
     descr = get_standardized_pairwise_dists(atXYZ, mean=mean)
     _, pca_obj = pca(descr, 'atomcomb', return_pca_object=True)
@@ -123,11 +157,26 @@ def plot_loadings(ax, loadings):
         ax.text(pc1, pc2, f"{a1},{a2}")
 
 
-def cluster_general(decider, n):
+def cluster_general(decider: Callable[[int, int], bool], n: int) -> list[list[int]]:
+    """Cluster indices iteratively according to a provided function.
+
+    Parameters
+    ----------
+    decider
+        A function to decide whether two points can potentially share
+        a cluster.
+    n
+        The number of indices to cluster.
+
+    Returns
+    -------
+        A list of clusters, where each cluster is represented as a
+        list of indices.
+    """
     clustered = np.full((n,), False)
     clusters = []
     # for each item, if it has not been clustered,
-    # put those later item which have not yet been clustered
+    # put those later items which have not yet been clustered
     # in a cluster with it
     for i in range(n):
         if clustered[i]:
@@ -146,7 +195,25 @@ def cluster_general(decider, n):
     return clusters
 
 
-def cluster_loadings(loadings: xr.DataArray, cutoff=0.05):
+def cluster_loadings(loadings: xr.DataArray, cutoff: float = 0.05) -> list[list[int]]:
+    """Cluster loadings iteratively based on proximity on the
+    principal component manifold
+
+    Parameters
+    ----------
+    loadings
+        A DataArray of loadings
+    cutoff, optional
+        An upper bound on the possible distances between a point
+        in a cluster and other points, within which they will still
+        be assigned to the smae cluster, by default 0.05
+
+    Returns
+    -------
+        A list of clusters, where each cluster is represented as a
+        list of indices corresponding to ``loadings``.
+    """
+
     def dist(i, j, l):
         pc1, pc2 = l.isel(atomcomb=j).values - l.isel(atomcomb=i).values
         return (pc1**2 + pc2**2) ** 0.5
@@ -159,7 +226,30 @@ def cluster_loadings(loadings: xr.DataArray, cutoff=0.05):
     return cluster_general(decider, n)
 
 
-def plot_clusters(loadings, clusters, ax=None, labels=None):
+def plot_clusters(
+    loadings: xr.DataArray,
+    clusters: list[list[int]],
+    ax: Axes | None = None,
+    labels: list[str] | None = None,
+):
+    """Plot clusters of PCA loadings
+
+    Parameters
+    ----------
+    loadings
+        A DataArray of PCA loadings including an 'atomcomb' dimension;
+        as produced by :py:func:`shnitsel.vis.plot.pca_biplot.get_loadings`.
+    clusters
+        A list of clusters, where each cluster is represented as a
+        list of indices corresponding to ``loadings``; as produced
+        by :py:func:`shnitsel.vis.plot.pca_biplot.get_clusters`.
+    ax
+        The :py:class:`matplotlib.pyplot.axes.Axes` object onto which to plot
+        (If not provided, one will be created.)
+    labels
+        Labels for the loadings; if not provided, loadings will be labelled
+        according to indices of the atoms to which they relate.
+    """
     fig, ax = figax(ax=ax)
     for i, cluster in enumerate(clusters):
         acs = loadings.isel(atomcomb=cluster)
@@ -357,6 +447,34 @@ def plot_bin_edges(angles, radii, bins, edges, picks, ax, labels):
 
 
 def pick_clusters(frames, nbins, mean=False):
+    """Calculate pairwise-distance PCA, cluster the loadings
+    and pick a representative subset of the clusters.
+
+    Parameters
+    ----------
+    frames
+        An :py:class:`xarray.Dataset` with an 'atXYZ' variable
+        having an 'atom' dimension
+    nbins
+        The number of bins to use when binning clusters of
+        loadings according to the angle they make to the x-axis
+        on the projection manifold
+
+    Returns
+    -------
+        A dictionary with the following key-value pairs:
+
+            - loadings: the loadings of the PCA
+            - clusters: a list of clusters, where each cluster is represented as a
+        list of indices corresponding to ``loadings``; as produced
+        by :py:func:`shnitsel.vis.plot.pca_biplot.get_clusters`.
+            - picks:
+            - angles:
+            - center:
+            - radii:
+            - bins:
+            - edges:
+    """
     loadings = get_loadings(frames, mean)
     clusters = cluster_loadings(loadings)
     points = get_clusters_coords(loadings, clusters)
