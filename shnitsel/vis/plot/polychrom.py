@@ -13,6 +13,44 @@ def pca_line_plot(
   shadow_cmap=None,
   snips=None
 ):
+    """Draw multicoloured lines, and optionally
+    larger "shadow" lines behind them
+
+    Parameters
+    ----------
+    pca_res
+        Data to plot the main line
+    hue
+        Data according to which to select colour
+    shadow
+        Data according to which to select the colours
+        of the shadow
+    hue_label
+        Labels to describe different colours of the main line
+    hue_cmap
+        A colormap for the main line
+    hue_qualitative
+        Whether the colours of the main line are qualitative,
+        by default False
+    shadow_labels
+        Labels to describe different colours of the main line
+    shadow_cmap
+        A colormap for the main line
+    snips
+        Indices indicating which points should *not* be connected;
+        for instance, the end of one trajectory should probably
+        not be connected to the next.
+
+    Returns
+    -------
+    fig
+        The matplotlib ``Figure`` object used for plotting
+    ax
+        The matplotlib ``Axes`` object used for plotting
+    legend
+        The object returned by ``matplotlib.pyplot.legend``
+        for the main line
+    """
     LineCollection = mpl.collections.LineCollection
     mpatches = mpl.patches
 
