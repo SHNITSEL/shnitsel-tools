@@ -182,18 +182,8 @@ def get_clusters_coords(loadings, atomcomb_clusters):
     )
 
 
-def calc_dist(point):
-    x, y = point
-    return (x**2 + y**2) ** 0.5
-
-
-def calc_angle(point):
-    x, y = point
-    return float(np.degrees(np.arctan2(x, y)))
-
-
 def separate_angles(points, min_angle=10):
-    angles = [calc_angle(point) for point in points]
+    angles = [float(np.degrees(np.arctan2(x, y))) for x, y in points]
 
     def decider(i, j):
         nonlocal angles
@@ -203,6 +193,11 @@ def separate_angles(points, min_angle=10):
 
     angle_clusters = cluster_general(decider, len(angles))
     scalefactors = {}
+
+    def calc_dist(point):
+        x, y = point
+        return (x**2 + y**2) ** 0.5
+
     for angle_cluster in angle_clusters:
         if len(angle_cluster) < 2:
             continue
