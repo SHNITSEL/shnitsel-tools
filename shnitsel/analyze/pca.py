@@ -1,6 +1,5 @@
-from typing import overload
+from typing import Literal, overload
 
-from matplotlib.pylab import Literal
 from shnitsel import _state
 from shnitsel._contracts import needs
 import xarray as xr
