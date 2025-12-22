@@ -23,7 +23,6 @@ However, some users might find it convenient to convert trajectories to NetCDF
 on-cluster, as the NetCDF file will likely download faster than the raw text files.
 Either way the following should work as usual, ideally in a fresh virtual (e.g. `conda`) environment:
 
-<!-- TODO: remove --pre once full release out -->
   ```bash
   pip install shnitsel-tools[vis]
   ```
@@ -31,7 +30,7 @@ Either way the following should work as usual, ideally in a fresh virtual (e.g. 
 For more detailed installation instructions, see [here](#detailed-installation-instructions)
 
 ## Usage
-
+<!-- TODO: Make documentation more visible -->
 For documentation including an API reference, please see https://shnitsel.github.io/tools/docs/_build/index.html.
 
 `shnitsel-tools` mostly exposes data as Xarray (`xr`) objects, so familiarity with that library is beneficial.
@@ -59,13 +58,13 @@ TODO: Adapt to new tutorials!
 ### Workflow walkthrough
 Four [notebooks](https://github.com/SHNITSEL/shnitsel-tools/tree/main/tutorials/walkthrough) demonstrate a workflow for the comparative
 analysis of homologous/isoelectronic molecules, from filtration via dimensional reduction and clustering to kinetics.
+-->
 
 ## Tree
 
 ```bash
 # TODO: regenerate directory tree
 ```
--->
 
 ## Detailed installation instructions
 
@@ -79,92 +78,61 @@ package name.
 
 To install all optional dependencies, please add `[vis,dev]` after the package name.
 
-### Using conda
-Before anything else, please run:
-```bash
-conda create -n shnitsel python==3.12 pip
-conda activate shnitsel
-```
+### Installation using conda
 
 #### For tutorials or development
-If you would like to work through the tutorials, please use the following commands
-while the conda environment is active:
-<!-- TODO: remove git-switch command once full release version comes out -->
+If you would like to work through the tutorials or modify the code, please use the following commands:
+
 ```bash
 git clone 'https://github.com/SHNITSEL/shnitsel-tools.git'
 cd shnitsel-tools
-git switch develop
-pip install .[vis]
-```
-
-If you would like changes you make to the code in the `shnitsel-tools` directory
-to be reflected in your environment, please add the `-e` flag ("editable mode") to the
-final line of the above block:
-```bash
-# Same commands as before, and then:
-pip install -e .[vis]  # or .[vis,dev] to include development tools
+conda create -n shnitsel python==3.12 pip
+conda activate shnitsel
+pip install -e .[vis,dev]
 ```
 
 #### For ordinary use
 If you would just like to use the package, it is unnecessary to clone the repository.
 Instead, it should suffice to run the following command with the conda environment active:
 
-<!-- TODO: remove --pre once full release version comes out -->
 ```bash
-pip install --pre shnitsel-tools[vis]
+conda create -n shnitsel python==3.12 pip
+conda activate shnitsel
+pip install shnitsel-tools[vis]
 ```
 
-### Using uv
+### Instalation using uv
+This tool is typically faster and more light-weight than `pip` and `conda`.
+Unlike `conda`, it creates traditional Python virtual environments, which are stored in the folder in which the command is run and activated by sourcing
+a shell-script. It can be installed by following the instructions at https://docs.astral.sh/uv/.
 
-This tool, available at  https://docs.astral.sh/uv/, is typically faster and
-more light-weight than `pip` and `conda`.
-Unlike `conda`, it creates traditional Python virtual environments, which are
-stored in the folder in which the command is run and activated by sourcing
-a shell-script.
 
-```bash
-git clone 'https://github.com/SHNITSEL/shnitsel-tools.git'
-cd shnitsel-tools
-
-uv pip install -e .[dev]  # install shnitsel in editable mode
-```
-
-#### For tutorials or development
-If you would like to work through the tutorials, please use the following commands:
-<!-- TODO: remove git-switch command once full release version comes out -->
-```bash
-git clone 'https://github.com/SHNITSEL/shnitsel-tools.git'
-cd shnitsel-tools
-git switch develop
-uv venv --python 3.12  # create an environment under ./.venv
-source .venv/bin/activate  # activate the new environment
-uv pip install .[vis]
-```
-
-If you would like changes you make to the code in the `shnitsel-tools` directory
-to be reflected in your environment, please add the `-e` flag ("editable mode") to the
-final line of the above block:
-```bash
-# Same commands as before, and then:
-uv pip install -e .[vis]  # or .[vis,dev] to include development tools
-```
-
-#### For command-line only use
+#### For use on HPC
 The following will ensure the command-line programs provided are always available,
 without requiring environments to be activated first.
 ```bash
-uv tool install --pre shnitsel-tools
+uv tool install shnitsel-tools
+```
+
+#### For tutorials or development
+If you would like to work through the tutorials or modify the code, please use the following commands:
+
+```bash
+git clone 'https://github.com/SHNITSEL/shnitsel-tools.git'
+cd shnitsel-tools
+uv venv --python 3.12  # create an environment under ./.venv
+source .venv/bin/activate  # activate the new environment
+uv pip install -e .[vis,dev]
 ```
 
 #### For ordinary use
 If you would just like to use the package, it is unnecessary to clone the repository.
 Instead, it should suffice to run the following commands:
 
-<!-- TODO: remove --pre once full release version comes out -->
 ```bash
-uv venv --python 3.12 shnitsel  # creates a directory here called ./shnitsel
+uv venv --python 3.12 shnitsel  # create a directory here named ./shnitsel
 source shnitsel/bin/activate  # activate the new environment
-uv pip install --pre shnitsel-tools[vis]
+uv pip install shnitsel-tools[vis]
 ```
 
 <!--

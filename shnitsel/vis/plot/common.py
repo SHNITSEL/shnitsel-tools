@@ -14,15 +14,20 @@ from svgpathtools import Document, Path, Line, CubicBezier, QuadraticBezier, Arc
 
 
 def outlabel(ax: Axes, label: str) -> Text:
-    """Helper function to put a label besides the graph in `ax` (outside the axes).
+    """Adds a label just outside the top left corner of a plot (outside the axes).
 
-    Args:
-        ax (Axes): The axes object to put the label next to.
-        label (str): The label text to add.
+    Parameters
+    ----------
+    ax : Axes
+        The ``Axes`` object to annotate
+    label : str
+        The label to be added
 
-    Returns:
-        Text: The created mpl.Text object.
+    Returns
+    -------
+        The :py:class:`matplotlib.text.Text` instance created
     """
+
     fixedtrans = mpl.transforms.ScaledTranslation(
         -20 / 72, +7 / 72, ax.figure.dpi_scale_trans
     )
@@ -41,12 +46,16 @@ def outlabel(ax: Axes, label: str) -> Text:
 def inlabel(ax: Axes, label: str) -> Annotation:
     """Helper function to add a text label inside of the axes to `ax`.
 
-    Args:
-        ax (Axes): The axes object to put the label into.
-        label (str): The label text to add.
+    Parameters
+    ----------
+    ax : Axes
+        The ``Axes`` object to annotate
+    label : str
+        The label to be added
 
-    Returns:
-        Annotation: The resulting mpl.Annotation object representing the inserted label.
+    Returns
+    -------
+        The :py:class:`matplotlib.text.Annotation` instance created representing the inserted label.
     """
     return ax.annotate(
         label,
@@ -92,18 +101,18 @@ def extrude(
 ) -> tuple[float, float]:
     """Calculate the endpoint of extrusion of the point (x,y) from point (0,0) until it intersects either x or y boundary.
 
-    Args:
-        x (float): x coordinate of the base point
-        y (float): y coorindate of the base point
-        xmin (float): Lower x limit
-        xmax (float): Upper x limit
-        ymin (float): Lower y limit
-        ymax (float): Upper y limit
+    Parameters
+    ----------
+    x, y : float
+        Coordinates of the vector to extrapolate
+    xmin, xmax, ymin, ymax : float
+        Bounds of the rectangle to the edge of which the
+        ray should be extended
 
-    Returns:
+    Returns
+    -------
         tuple[float, float]: The position at the end of the extrusion, where the origin-ray through (x,y) intersects the boundary of the axes.
     """
-    # TODO: Document
     # for extrusion, flip negative rays into quadrant 1
     if x < 0:
         xlim = -xmin  # positive
@@ -132,12 +141,16 @@ def mpl_imshow_png(ax: Axes, png: bytes, **imshow_kws) -> AxesImage:
 
     Removes axes labels from `ax`.
 
-    Args:
-        ax (Axes): The axes to plot the encoded image to.
-        png (bytes): The bytestream of the encoded image.
+    Parameters
+    ----------
+    ax : Axes
+        The ``Axes`` object into which to plot
+    png : bytes
+        The bytestream data of the image to plot
 
-    Returns:
-        AxesImage: The image plotted to the axes `ax`.
+    Returns
+    -------
+        ``AxesImage``, as returned by ``ax.imshow``
     """
     buffer = io.BytesIO()
     buffer.write(png)
@@ -148,6 +161,24 @@ def mpl_imshow_png(ax: Axes, png: bytes, **imshow_kws) -> AxesImage:
 
 
 def mpl_svg_into_axes(ax: Axes, svg_string: str, chord_length: float = 1e-2) -> Axes:
+    """Helper function to plot an SVG image represented by its str representation into
+    provided `Axes`.
+
+    Used to plot SVG graphics into a set of axes instead of a pixelated PNG.
+
+    Parameters
+    ----------
+    ax : Axes
+        The ``Axes`` object into which to plot
+    svg_string : str
+        The bytestream data of the image to plot
+    chord_length,optional : float
+        Length of cords of bezier curves to be drawn. Defaults to 1e-2.
+
+    Returns
+    -------
+        ``Axes``, after the plotting of
+    """
     doc = Document.from_svg_string(svg_string=svg_string)
     doc_paths = doc.paths()
     zorder_pos = np.linspace(1.0, 2.0, num=len(doc_paths))

@@ -23,7 +23,7 @@ def get_smiles_order_ignoring_h(mol: rc.Mol) -> list[int]:
     # Avoid mutating input
     mol = rc.Mol(mol)
     # molAtomMapNumber would interfere with the canonicalization, so use custom property
-    set_atom_props(mol, original_index=True)
+    set_atom_props(mol, inplace=True, original_index=True)
 
     mol_no_hs = rc.RemoveHs(mol)
     # The following call causes the _smilesAtomOutputOrder property to be computed and set:
