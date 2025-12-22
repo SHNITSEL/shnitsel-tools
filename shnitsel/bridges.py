@@ -250,6 +250,17 @@ def construct_default_mol(
     elif 'smiles_map' in atXYZ.attrs:
         return numbered_smiles_to_mol(atXYZ.attrs['smiles_map'])
 
+    if 'frame' in atXYZ.dims:
+        logging.info("Picking first frame for molecule construction")
+        atXYZ = atXYZ.isel(frame=0)
+        if 'frame' in atXYZ.dims:
+            atXYZ = atXYZ.squeeze('frame')
+    if 'time' in atXYZ.dims:
+        logging.info("Picking first time step for molecule construction")
+        atXYZ = atXYZ.isel(time=0)
+        if 'time' in atXYZ.dims:
+            atXYZ = atXYZ.squeeze('time')
+
     try:
         if charge_int != 0:
             logging.info(f"Creating molecule with {charge_int=}")
