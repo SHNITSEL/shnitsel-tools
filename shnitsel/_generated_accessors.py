@@ -21,7 +21,7 @@ from shnitsel.analyze.pls import pls, pls_ds
 from shnitsel.analyze.populations import calc_classical_populations
 from shnitsel.analyze.spectra import assign_fosc, ds_broaden_gauss, spectra_all_times
 from shnitsel.analyze.stats import calc_confidence_interval, get_inter_state, get_per_state, time_grouped_confidence_interval
-from shnitsel.bridges import default_mol, smiles_map, to_mol, to_xyz, traj_to_xyz
+from shnitsel.bridges import construct_default_mol, smiles_map, to_mol, to_xyz, traj_to_xyz
 from shnitsel.clean.common import omit, transect, true_upto, truncate
 from shnitsel.clean.filter_energy import energy_filtranda, sanity_check
 from shnitsel.clean.filter_geo import bond_length_filtranda, filter_by_length
@@ -53,7 +53,7 @@ class DataArrayAccessor(DAManualAccessor):
         'traj_to_xyz',
         'to_mol',
         'smiles_map',
-        'default_mol',
+        'construct_default_mol',
         'pairwise_dists_pca',
         'convert_energy',
         'convert_force',
@@ -137,9 +137,9 @@ class DataArrayAccessor(DAManualAccessor):
         """Wrapper for :py:func:`shnitsel.bridges.smiles_map`."""
         return smiles_map(self._obj, charge=charge, covFactor=covFactor)
 
-    def default_mol(self) -> Mol:
-        """Wrapper for :py:func:`shnitsel.bridges.default_mol`."""
-        return default_mol(self._obj)
+    def construct_default_mol(self) -> Mol:
+        """Wrapper for :py:func:`shnitsel.bridges.construct_default_mol`."""
+        return construct_default_mol(self._obj)
 
     @needs(dims={'atom'})
     def pairwise_dists_pca(self, mean: bool=False, return_pca_object=False, **kwargs) -> DataArray:
@@ -311,7 +311,7 @@ class DatasetAccessor(DSManualAccessor):
         'get_per_state',
         'get_inter_state',
         'calc_classical_populations',
-        'default_mol',
+        'construct_default_mol',
         'flatten_levels',
         'expand_midx',
         'assign_levels',
@@ -370,9 +370,9 @@ class DatasetAccessor(DSManualAccessor):
         """Wrapper for :py:func:`shnitsel.analyze.populations.calc_classical_populations`."""
         return calc_classical_populations(self._obj)
 
-    def default_mol(self) -> Mol:
-        """Wrapper for :py:func:`shnitsel.bridges.default_mol`."""
-        return default_mol(self._obj)
+    def construct_default_mol(self) -> Mol:
+        """Wrapper for :py:func:`shnitsel.bridges.construct_default_mol`."""
+        return construct_default_mol(self._obj)
 
     def flatten_levels(self, idx_name: str, levels: Sequence[str], new_name: str | None=None, position: int=0, renamer: Callable | None=None) -> DatasetOrArray:
         """Wrapper for :py:func:`shnitsel.data.multi_indices.flatten_levels`."""
