@@ -227,7 +227,7 @@ def relativize(da: xr.DataArray, **sel) -> xr.DataArray:
     return res
 
 
-def pwdists(atXYZ: AtXYZ, mean: bool = False) -> xr.DataArray:
+def pwdists(atXYZ: AtXYZ, center_mean: bool = False) -> xr.DataArray:
     """
     Compute pairwise distances and standardize it by removing the mean
     and L2-normalization (if your features are vectors and you want magnitudes only,
@@ -238,9 +238,8 @@ def pwdists(atXYZ: AtXYZ, mean: bool = False) -> xr.DataArray:
     atXYZ
         A DataArray containing the atomic positions;
         must have a dimension called 'atom'
-    mean
-        subtract mean if true to center data
-
+    center_mean
+        subtract mean if `True`.
     Returns
     -------
         A DataArray with the same dimensions as `atXYZ` but transposed
@@ -249,7 +248,7 @@ def pwdists(atXYZ: AtXYZ, mean: bool = False) -> xr.DataArray:
     res = atXYZ.pipe(subtract_combinations, 'atom', labels=True)
 
     res = norm(res)
-    if mean:
+    if center_mean:
         res = center(res)
 
     return res
