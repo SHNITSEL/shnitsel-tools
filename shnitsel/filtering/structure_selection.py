@@ -1720,6 +1720,7 @@ class StructureSelection:
         new_dihedrals: list[DihedralDescriptor] = []
         runs = {}
         min_run_len = 0
+        # TODO: FIXME: Test this algorithm throroughly. I could not find a reference for this.
         for i in order:
             if len(runs) == 0:
                 logger.info(f'Atom {i}: Nothing to do')
