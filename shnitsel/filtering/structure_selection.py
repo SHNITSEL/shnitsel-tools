@@ -1294,7 +1294,7 @@ class StructureSelection:
         if len(active_bonds) == 0:
             active_bonds = None
         else:
-            active_bonds = self.__bond_descriptor_to_mol_index(active_bonds)
+            active_bonds = self.bond_descriptor_to_mol_index(active_bonds)
 
         # print(f"{drawer=}")
         # print(f"{self.mol=}")
@@ -1392,7 +1392,7 @@ class StructureSelection:
 
         return list(bond_set)
 
-    def __bond_descriptor_to_mol_index(
+    def bond_descriptor_to_mol_index(
         self, bond_descriptors: list[BondDescriptor]
     ) -> list[int]:
         """Helper function to translate a list of Bond descriptors into RDKit bond indices.
