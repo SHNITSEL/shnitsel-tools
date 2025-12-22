@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from logging import warning
 from numbers import Number
 from typing import Literal, Sequence
@@ -9,25 +10,23 @@ from shnitsel.data.multi_indices import mdiff
 from shnitsel.clean.common import dispatch_cut
 from shnitsel.clean.dispatch_plots import dispatch_plots
 from shnitsel.units.conversion import convert_energy
+from shnitsel.units.definitions import energy
 
-_default_energy_thresholds_eV = {
-    'etot_drift': 0.2,
-    'etot_step': 0.1,
-    'epot_step': 0.7,
-    'ekin_step': 0.7,
-    'hop_epot_step': 1.0,
-}
+
+@dataclass
+class EnergyThresholds:
+    etot_drift: float = 0.2
+    etot_step: float = 0.1
+    epot_step: float = 0.7
+    ekin_step: float = 0.7
+    hop_epot_step: float = 1.0
+    energy_unit: str = energy.eV
 
 
 def energy_filtranda(
     frames,
     *,
-    etot_drift: float | None = None,
-    etot_step: float | None = None,
-    epot_step: float | None = None,
-    ekin_step: float | None = None,
-    hop_epot_step: float | None = None,
-    units='eV',
+    energy_thresholds: EnergyThresholds | None = None,
 ):
     """Derive energetic filtration targets from an xr.Dataset
 
@@ -35,19 +34,12 @@ def energy_filtranda(
     ----------
     frames
         A xr.Dataset with ``astate``, ``energy``, and ideally ``e_kin`` variables
-    etot_drift, optional
-        Threshold for drift of total energy over an entire trajectory, by default 0.2 eV
-    etot_step, optional
-        Threshold for difference in total energy from one frame to the next, ignoring hops
-        , by default 0.1 eV
-    epot_step, optional
-        Threshold for difference in potential energy from one frame to the next, ignoring hops, by default 0.7 eV
-    ekin_step, optional
-        Threshold for difference in kinetic energy from one frame to the next, ignoring hops, by default 0.7 eV
-    hop_epot_step, optional
-        Threshold for difference in potential energy across hops, by default 1.0 eV
-    units, optional
-        Units in which custom thresholds are given, and to which defaults and data will be converted, by default 'eV'
+    energy_thresholds, optional
+        Threshold for total, potential and kinetic energy of the system.
+        Can specify thresholds for overall drift and individual time step changes.
+        Can also specify thresholds for energy steps at hops.
+        Unit should be specified as a member variable.
+        If not provided will default to some reasonable default values as seen in `EnergyThresholds` definition.
 
     Returns
     -------
@@ -55,21 +47,26 @@ def energy_filtranda(
         criteria comprise epot_step and hop_epot_step, as well as
         etot_drift, etot_step and ekin_step if the input contains an e_kin variable
     """
+
+    if energy_thresholds is None:
+        energy_thresholds = EnergyThresholds()
+
     res = xr.Dataset()
     is_hop = mdiff(frames['astate']) != 0
-    e_pot = frames.energy.sel(state=frames.astate).drop_vars('state')
-    e_pot.attrs['units'] = frames['energy'].attrs['units']
-    e_pot = convert_energy(e_pot, to=units)
+    # TODO: FIXME: Shouldn't we drop coords instead?
+    e_pot_active = frames.energy.sel(state=frames.astate).drop_vars('state')
+    e_pot_active.attrs['units'] = frames['energy'].attrs['units']
+    # e_pot_active = convert_energy(e_pot_active, to=units)
 
-    res['epot_step'] = mdiff(e_pot).where(~is_hop, 0)
-    res['hop_epot_step'] = mdiff(e_pot).where(is_hop, 0)
+    res['epot_step'] = mdiff(e_pot_active).where(~is_hop, 0)
+    res['hop_epot_step'] = mdiff(e_pot_active).where(is_hop, 0)
 
     if 'e_kin' in frames.data_vars:
         e_kin = frames['e_kin']
         e_kin.attrs['units'] = frames['e_kin'].attrs['units']
-        e_kin = convert_energy(e_kin, to=units)
+        # e_kin = convert_energy(e_kin, to=units)
 
-        e_tot = e_pot + e_kin
+        e_tot = e_pot_active + e_kin
         res['etot_drift'] = e_tot.groupby('trajid').map(
             lambda traj: abs(traj - traj.item(0))
         )
@@ -104,12 +101,7 @@ def sanity_check(
     frames,
     cut: Literal['truncate', 'omit', False] | Number = 'truncate',
     *,
-    units='eV',
-    etot_drift: float = np.nan,
-    etot_step: float = np.nan,
-    epot_step: float = np.nan,
-    ekin_step: float = np.nan,
-    hop_epot_step: float = np.nan,
+    energy_thresholds: EnergyThresholds | None = None,
     plot_thresholds: bool | Sequence[float] = False,
     plot_populations: bool | Literal['independent', 'intersections'] = False,
 ):
@@ -130,19 +122,12 @@ def sanity_check(
               (:py:func:`shnitsel.clean.transect`)
             - if ``False``, merely annotate the data;
         see :py:func:`shnitsel.clean.dispatch_cut`.
-    units, optional
-        Units in which custom thresholds are given, and to which defaults and data will be converted, by default 'eV'
-    etot_drift, optional
-        Threshold for drift of total energy over an entire trajectory, by default 0.2 eV
-    etot_step, optional
-        Threshold for difference in total energy from one frame to the next, ignoring hops
-        , by default 0.1 eV
-    epot_step, optional
-        Threshold for difference in potential energy from one frame to the next, ignoring hops, by default 0.7 eV
-    ekin_step, optional
-        Threshold for difference in kinetic energy from one frame to the next, ignoring hops, by default 0.7 eV
-    hop_epot_step, optional
-        Threshold for difference in potential energy across hops, by default 1.0 eV
+    energy_thresholds, optional
+        Threshold for total, potential and kinetic energy of the system.
+        Can specify thresholds for overall drift and individual time step changes.
+        Can also specify thresholds for energy steps at hops.
+        Unit should be specified as a member variable.
+        If not provided will default to some reasonable default values as seen in `EnergyThresholds` definition.
     plot_thresholds
         See :py:func:`shnitsel.vis.plot.filtration.check_thresholds`.
 
@@ -168,17 +153,11 @@ def sanity_check(
     The resulting object has a ``filtranda`` data_var, representing the values by which the data were filtered.
     If the input has a ``filtranda`` data_var, it is overwritten.
     """
-    settings = {
-        'etot_drift': etot_drift,
-        'etot_step': etot_step,
-        'epot_step': epot_step,
-        'ekin_step': ekin_step,
-        'hop_epot_step': hop_epot_step,
-        'units': units,
-    }
-    filtranda = energy_filtranda(frames, **settings)
+    if energy_thresholds is None:
+        energy_thresholds = EnergyThresholds()
+    filtranda = energy_filtranda(frames, energy_thresholds=energy_thresholds)
     dispatch_plots(filtranda, plot_thresholds, plot_populations)
-    frames = frames.drop_dims(['criterion'], errors='ignore').assign(
+    filtered_frames = frames.drop_dims(['criterion'], errors='ignore').assign(
         filtranda=filtranda
     )
-    return dispatch_cut(frames, cut)
+    return dispatch_cut(filtered_frames, cut)
