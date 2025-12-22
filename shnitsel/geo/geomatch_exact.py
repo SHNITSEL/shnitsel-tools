@@ -5,9 +5,8 @@ import rdkit.Chem as rc
 import xarray as xr
 
 from shnitsel._contracts import needs
-from shnitsel.bridges import default_mol
+from shnitsel.bridges import construct_default_mol
 from shnitsel.geo.geocalc import get_bats
-from shnitsel.geo import geomatch
 
 
 def flag_exact(mol, l_smarts) -> dict:
@@ -92,6 +91,6 @@ def get_bats_matching(
         # Finds and calculates all-carbon torsions with a central double bond
         # and bond-lengths between carbon and nitrogen.
     """
-    mol = default_mol(atXYZ)
+    mol = construct_default_mol(atXYZ)
     matches = flag_exact(mol, l_smarts)
     return get_bats(atXYZ, matches_or_mol=matches, signed=signed, ang=ang, pyr=False)
