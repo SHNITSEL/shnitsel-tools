@@ -180,7 +180,9 @@ def numbered_smiles_to_mol(smiles: str) -> rc.Mol:
 
 
 def construct_default_mol(
-    obj: xr.Dataset | xr.DataArray | rc.Mol, to2D: bool = True
+    obj: xr.Dataset | xr.DataArray | rc.Mol,
+    to2D: bool = True,
+    charge: int | float | None = None,
 ) -> rc.Mol:
     """Try many ways to get a representative Mol object for an ensemble:
 
@@ -199,6 +201,12 @@ def construct_default_mol(
         or an rc.Mol object that will just be returned.
     to2D
         Discard 3D information and generate 2D conformer (useful for displaying), by default True
+    charge: int, float or None
+        Optional parameter to set the charge of the molecule if not present within the molecule data.
+        If provided as an int, will be interpreted as number of elemental charges.
+        Float will be converted to int and interpreted the same way.
+        If not provided, will attempt to extract charge info from the xarray or Mol object and
+        default to 0 charge if none can be found.
 
     Returns
     -------
@@ -221,14 +229,18 @@ def construct_default_mol(
     else:
         atXYZ = obj  # We have an atXYZ DataArray
 
-    charge: int | None = None
-    if charge is None and 'charge' in obj.attrs:
-        charge = int(obj.attrs.get('charge', 0))
-    if charge is None and 'state_charges' in obj.coords:
-        charge = int(obj.state_charges[0].item())
-    if charge is None:
+    charge_int: int | None = None
+    if charge is not None:
+        if isinstance(charge, float):
+            charge = int(np.round(charge))
+        charge_int = charge
+    if charge_int is None and 'charge' in obj.attrs:
+        charge_int = int(obj.attrs.get('charge', 0))
+    if charge_int is None and 'state_charges' in obj.coords:
+        charge_int = int(obj.state_charges[0].item())
+    if charge_int is None:
         logging.info("Assuming molecular charge as 0")
-        charge = 0
+        charge_int = 0
 
     # TODO: FIXME: Make these internal attributes with double underscores so they don't get written out.
     if 'mol' in atXYZ.attrs:
@@ -239,9 +251,9 @@ def construct_default_mol(
         return numbered_smiles_to_mol(atXYZ.attrs['smiles_map'])
 
     try:
-        if charge != 0:
-            print(f"Creating molecule with {charge=}")
-        return to_mol(atXYZ, charge=charge, to2D=to2D)
+        if charge_int != 0:
+            logging.info(f"Creating molecule with {charge_int=}")
+        return to_mol(atXYZ, charge=charge_int, to2D=to2D)
     except (KeyError, ValueError) as e:
         logging.error(e)
         raise ValueError(
