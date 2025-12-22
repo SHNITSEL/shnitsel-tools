@@ -1,3 +1,6 @@
+from typing import overload
+
+from matplotlib.pylab import Literal
 from shnitsel import _state
 from shnitsel._contracts import needs
 import xarray as xr
@@ -13,10 +16,28 @@ from shnitsel.core.typedefs import AtXYZ
 from shnitsel.filtering.structure_selection import StructureSelection
 
 
+@overload
+def pca_and_hops(
+    frames: xr.Dataset,
+    center_mean: bool,
+    n_components: int = 2,
+    return_pca_object: Literal[False] = False,
+) -> tuple[xr.DataArray, xr.DataArray]: ...
+
+
+@overload
+def pca_and_hops(
+    frames: xr.Dataset,
+    center_mean: bool,
+    return_pca_object: Literal[True],
+    n_components: int = 2,
+) -> tuple[tuple[xr.DataArray, sk_PCA], xr.DataArray]: ...
+
+
 @needs(coords_or_vars={'atXYZ', 'astate'})
 def pca_and_hops(
     frames: xr.Dataset,
-    mean: bool,
+    center_mean: bool,
     n_components: int = 2,
     return_pca_object: bool = False,
 ) -> tuple[xr.DataArray | tuple[xr.DataArray, sk_PCA], xr.DataArray]:
@@ -26,8 +47,8 @@ def pca_and_hops(
     ----------
     frames
         A Dataset containing 'atXYZ' and 'astate' variables
-    mean
-        mean center data before pca if true
+    center_mean
+        Center mean data before pca if True.
     n_components, optional
         The number of principle components to return, by default 2
     return_pca_object, optional
@@ -42,6 +63,7 @@ def pca_and_hops(
         `pca_res` filtered by hops, to facilitate marking hops when plotting
 
     """
+    # TODO: FIXME: use `center_mean` parameter.
     pca_res = pairwise_dists_pca(
         frames['atXYZ'], n_components=n_components, return_pca_object=return_pca_object
     )
@@ -57,7 +79,7 @@ def pca_and_hops(
 @needs(dims={'atom'})
 def pairwise_dists_pca(
     atXYZ: AtXYZ,
-    mean: bool = False,
+    center_mean: bool = False,
     n_components: int = 2,
     return_pca_object: bool = False,
     **kwargs,
@@ -69,8 +91,8 @@ def pairwise_dists_pca(
     atXYZ
         A DataArray containing the atomic positions;
         must have a dimension called 'atom'
-    mean
-        mean center data before pca if true
+    center_mean
+        Center mean data before pca if true.
     n_components, optional
         The number of principle components to return, by default 2
     return_pca_object, optional
@@ -86,9 +108,13 @@ def pairwise_dists_pca(
         If return_pca_object=True, the result will be a tuple that holds the sklearn.PCA object as second entry
     """
 
-    descr = get_standardized_pairwise_dists(atXYZ, mean=mean)
+    descr = get_standardized_pairwise_dists(atXYZ, center_mean=center_mean)
     res = pca(
-        descr, 'atomcomb', n_components=n_components, return_pca_object=True, **kwargs
+        descr,
+        'atomcomb',
+        n_components=n_components,
+        return_pca_object=return_pca_object,
+        **kwargs,
     )
 
     if not return_pca_object:
