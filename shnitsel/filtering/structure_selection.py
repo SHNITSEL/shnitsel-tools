@@ -10,6 +10,7 @@ from rdkit.Chem.rdchem import Mol
 from rdkit import Chem
 
 from shnitsel.bridges import construct_default_mol, to_mol
+from shnitsel.rd import set_atom_props
 from shnitsel.vis.colormaps import hex2rgb, st_yellow
 from IPython.display import SVG
 
@@ -392,7 +393,9 @@ class StructureSelection:
             for i in neighbors_j:
                 for l in neighbors_k:
                     # TODO: FIXME: check if we want to exclude potential i=l
-                    dihedrals.add(StructureSelection.canonicalize_dihedral((i, j, k, l)))
+                    dihedrals.add(
+                        StructureSelection.canonicalize_dihedral((i, j, k, l))
+                    )
 
                     # TODO: FIXME: Should we only keep one here? Canonical direction maybe?
                     # also handle reversed central bond direction (k–j)
@@ -1637,3 +1640,125 @@ class StructureSelection:
         return self.mol.GetBondBetweenAtoms(
             int(bond[0]), int(bond[1])
         ).GetBondTypeAsDouble()
+
+    @staticmethod
+    def __get_smiles_order(mol: Mol, include_h: bool = True) -> list[int]:
+        """Returns the order in which atoms would appear in the canonical SMILES of
+        ``mol``, ignoring hydrogens
+
+        Parameters
+        ----------
+        mol
+            An ``rdkit.Chem.Mol`` object
+        include_h
+            A flag to include the H atoms in the smiles order. If set to False, will return
+            the set of original indices of all atoms but hydrogens. If set to True,
+            will return the index set of all atoms in the molecule.
+
+        Returns
+        -------
+            A list of integers representing indices of the original ``mol`` object (as opposed
+            to the integers assigned to the copy stripped of hydrogens)
+
+        Notes
+        -------
+            Helper function for `non_redundant()` method to get the non-redundant subset of bonds,
+            angles and dihedrals.
+        """
+        # Avoid mutating input
+        mol = Mol(mol)
+        # molAtomMapNumber would interfere with the canonicalization, so use custom property
+        set_atom_props(mol, original_index=True)
+
+        if include_h:
+            _ = Chem.MolToSmiles(mol)
+            props = mol.GetPropsAsDict(includePrivate=True, includeComputed=True)
+            order = list(props['_smilesAtomOutputOrder'])
+            return [mol.GetAtomWithIdx(i).GetIntProp('original_index') for i in order]
+        else:
+            mol_no_hs = Chem.RemoveHs(mol)
+            # The following call causes the _smilesAtomOutputOrder property to be computed and set:
+            _ = Chem.MolToSmiles(mol_no_hs)
+            props = mol_no_hs.GetPropsAsDict(includePrivate=True, includeComputed=True)
+            order = list(props['_smilesAtomOutputOrder'])
+            return [
+                mol_no_hs.GetAtomWithIdx(i).GetIntProp('original_index') for i in order
+            ]
+
+    def non_redundant(self, include_h: bool = True, inplace: bool = False) -> Self:
+        """
+        Compute a non-redundant set of bonds, angles, and dihedrals
+        sufficient to uniquely determine the atoms of the input,
+        given a fixed centre and whole-molecular orientation.
+
+        Parameters
+        ----------
+        mol : rdkit.Chem.rdchem.Mol
+            Molecule under study.
+        include_h : bool
+            Whether to include internal coordinates for hydrogen atoms
+        inplace: bool
+            Whether to update the selection in-place. Defaults to False, yielding a new object.
+
+        Returns
+        -------
+            The updated StructureSelection object with only non-redundant coordinates in bonds,
+            angles and dihedrals.
+        """
+        assert (
+            self.mol is not None
+        ), "Mol object of selection not set. Cannot filter for SMILES order."
+
+        def f(s):
+            return ' '.join(str(x) for x in s)
+
+        logger = logging.getLogger('flag_nonredundant')
+        order = self.__get_smiles_order(self.mol, include_h)
+
+        new_bonds: list[BondDescriptor] = []
+        new_angles: list[AngleDescriptor] = []
+        new_dihedrals: list[DihedralDescriptor] = []
+        runs = {}
+        min_run_len = 0
+        for i in order:
+            if len(runs) == 0:
+                logger.info(f'Atom {i}: Nothing to do')
+                runs[i] = [i]
+                continue
+
+            neigh_runs = (
+                runs.get(neighbor.GetIdx(), [])
+                for neighbor in self.mol.GetAtomWithIdx(i).GetNeighbors()
+            )
+            runs[i] = run = max(neigh_runs, key=lambda x: len(x)) + [i]
+
+            assert len(run) >= min_run_len
+
+            if len(run) > 4:
+                logger.info(f"Atom {i}: Using run ({f(run[:-4])}) {f(run[-4:])}")
+            else:
+                logger.info(f"Atom {i}: Using run {f(run)}")
+
+            for n, k in enumerate(run[:-1]):
+                if len(runs.get(k, [])) < 4 <= len(run) - n:
+                    new_run = run[n:][::-1]
+                    logger.info(f"Overwriting run for {k} with {f(new_run)}")
+                    runs[k] = new_run
+
+            if min_run_len < 4 and len(run) > min_run_len:
+                min_run_len = len(run)
+                logger.info(f'{min_run_len=}')
+
+            if len(run) >= 2:
+                new_bonds.append(tuple(run[-2:]))
+            if len(run) >= 3:
+                new_angles.append(tuple(run[-3:]))
+            if len(run) >= 4:
+                new_dihedrals.append(tuple(run[-4:]))
+
+        return self.copy_or_update(
+            bonds_selected=set(new_bonds),
+            angles_selected=set(new_angles),
+            dihedrals_selected=set(new_dihedrals),
+            inplace=inplace,
+        )
