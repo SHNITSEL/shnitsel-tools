@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from typing import Sequence
 import xarray as xr
 
 
@@ -18,42 +19,50 @@ class ShnitselDataset:
 @dataclass
 class Trajectory(ShnitselDataset):
     def __init__(self, ds: xr.Dataset):
-        assert 'time' in ds.dims, (
-            'Dataset is missing `time` dimension and cannot be considered a Trajectory'
-        )
-        assert 'atom' in ds.dims, (
-            'Dataset is missing `atom` dimension and cannot be considered a Trajectory'
-        )
-        assert 'state' in ds.dims, (
-            'Dataset is missing `state` dimension and cannot be considered a Trajectory'
-        )
+        assert (
+            'time' in ds.dims
+        ), 'Dataset is missing `time` dimension and cannot be considered a Trajectory'
+        assert (
+            'atom' in ds.dims
+        ), 'Dataset is missing `atom` dimension and cannot be considered a Trajectory'
+        assert (
+            'state' in ds.dims
+        ), 'Dataset is missing `state` dimension and cannot be considered a Trajectory'
         super().__init__(ds)
+
+
+@dataclass
+class TrajectoryCollection:
+    _trajectories: Sequence[Trajectory]
+
+    def __init__(self, trajectories: Sequence[Trajectory]):
+        self._trajectories = trajectories
 
 
 @dataclass
 class Frames(ShnitselDataset):
     def __init__(self, ds: xr.Dataset):
-        assert 'time' not in ds.dims, (
-            'Dataset has `time` dimension and cannot be considered a set of Frames'
-        )
-        assert 'frame' in ds.dims, (
-            'Dataset is missing `frame` dimension and cannot be considered a set of Frames'
-        )
-        assert 'atom' in ds.dims, (
-            'Dataset is missing `atom` dimension and cannot be considered a set of Frames'
-        )
-        assert 'state' in ds.dims, (
-            'Dataset is missing `state` dimension and cannot be considered a set of Frames'
-        )
+        assert (
+            'time' not in ds.dims
+        ), 'Dataset has `time` dimension and cannot be considered a set of Frames'
+        assert (
+            'frame' in ds.dims
+        ), 'Dataset is missing `frame` dimension and cannot be considered a set of Frames'
+        assert (
+            'atom' in ds.dims
+        ), 'Dataset is missing `atom` dimension and cannot be considered a set of Frames'
+        assert (
+            'state' in ds.dims
+        ), 'Dataset is missing `state` dimension and cannot be considered a set of Frames'
         super().__init__(ds)
 
 
 @dataclass
 class InterState(ShnitselDataset):
     def __init__(self, ds: xr.Dataset):
-        assert 'state' in ds.dims, (
-            'Dataset is missing `state` dimension and cannot be considered an InterState set of variables.'
-        )
+        assert (
+            'state' in ds.dims
+        ), 'Dataset is missing `state` dimension and cannot be considered an InterState set of variables.'
         # TODO: FIXME: Calculate inter-state variables and cache in original dataset
         super().__init__(ds)
 
@@ -61,8 +70,8 @@ class InterState(ShnitselDataset):
 @dataclass
 class PerState(ShnitselDataset):
     def __init__(self, ds: xr.Dataset):
-        assert 'state' in ds.dims, (
-            'Dataset is missing `state` dimension and cannot be considered an PerState set of variables.'
-        )
+        assert (
+            'state' in ds.dims
+        ), 'Dataset is missing `state` dimension and cannot be considered an PerState set of variables.'
         # TODO: FIXME: Calculate per-state variables and cache in original dataset
         super().__init__(ds)
