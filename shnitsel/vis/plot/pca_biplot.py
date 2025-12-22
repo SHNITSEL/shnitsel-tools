@@ -1,8 +1,9 @@
-from typing import Any, Callable, Iterable
+from typing import Any, Callable, Iterable, TYPE_CHECKING
 
 from matplotlib.colors import Normalize
 from matplotlib.figure import Figure, SubFigure
 import numpy as np
+from numpy.typing import NDArray
 import xarray as xr
 import matplotlib as mpl
 
@@ -17,13 +18,16 @@ from shnitsel.analyze.pca import pca
 from .common import figax, extrude, mpl_imshow_png
 from ...rd import highlight_pairs
 
+if TYPE_CHECKING:
+    from rdkit.Chem import Mol
+
 
 def plot_noodleplot(
-    noodle: np.NDArray | xr.DataArray,
+    noodle: NDArray | xr.DataArray,
     hops=None,
     fig: Figure | SubFigure | None = None,
     ax: Axes | None = None,
-    c: np.NDArray | xr.DataArray = None,
+    c: NDArray | xr.DataArray = None,
     colorbar_label: str | None = None,
     cmap: str | None = None,
     cnorm: str | Normalize | None = None,
@@ -115,27 +119,25 @@ def plot_noodleplot(
     return ax
 
 
-# TODO: finish later!
-# def plot_noodleplot_lines(
-#     noodle,  # hops,
-#     ax=None,
-#     cmap=None,
-#     cnorm=None,
-#     cscale=None,
-# ):
-#     fig, ax = figax(ax=ax)
-#     points = noodle.values
-#     # One traj per line
-#     for trajid, traj in noodle.groupby('trajid'):
-#         segments = np.concatenate([points[:-1], points[1:]], axis=1)
-#         lc = mpl.collections.LineCollection([[0, 0]])
-
-#     segments
-#     lc
-#     return ax
+# TODO: implement plotting of noodleplot using multi-coloured lines
 
 
-def get_loadings(frames, mean=False):
+def get_loadings(frames: xr.Dataset, mean=False) -> xr.DataArray:
+    """Get the loadings for the PCA of pairwise distances
+    for the positional data in ``frames``.
+
+    Parameters
+    ----------
+    frames
+        A Dataset with an 'atXYZ' data_var, which should have
+        'atom' and 'direction' dimensions.
+
+    Returns
+    -------
+        A DataArray of loadings with dimensions
+        'PC' (principal component) and 'atomcomb' (atom combination,
+        one for each pair of atoms).
+    """
     atXYZ = frames['atXYZ']
     descr = get_standardized_pairwise_dists(atXYZ, mean=mean)
     _, pca_obj = pca(descr, 'atomcomb', return_pca_object=True)
@@ -148,7 +150,18 @@ def get_loadings(frames, mean=False):
     )
 
 
-def plot_loadings(ax, loadings):
+def plot_loadings(ax: Axes, loadings: xr.DataArray):
+    """Plot all loadings as arrows.
+
+    Parameters
+    ----------
+    ax
+        The :py:class:`matplotlib.pyplot.axes.Axes` object onto which to plot
+        the loadings.
+    loadings
+        A DataArray of PCA loadings including an 'atomcomb' dimension;
+        as produced by :py:func:`shnitsel.vis.plot.pca_biplot.get_loadings`.
+    """
     for _, pcs in loadings.groupby('atomcomb'):
         assert len(pcs) == 2
         pc1, pc2 = pcs.item(0), pcs.item(1)
@@ -263,7 +276,7 @@ def plot_clusters(
         ax.text(x, y, s)
 
 
-def get_clusters_coords(loadings, atomcomb_clusters):
+def _get_clusters_coords(loadings, atomcomb_clusters):
     return np.array(
         [
             loadings.isel(atomcomb=c).mean(dim='atomcomb').values
@@ -272,7 +285,25 @@ def get_clusters_coords(loadings, atomcomb_clusters):
     )
 
 
-def separate_angles(points, min_angle=10):
+def _separate_angles(points: NDArray, min_angle: float = 10) -> dict[int, float]:
+    """Group points based on their polar angles, and work out scale factors
+    by which to place labels along the ray from origin to point when annotating
+    points, intending to avoid overlaps between labels.
+
+    Parameters
+    ----------
+    points
+        An array of shape (npoints, 2)
+    min_angle, optional
+        The minimal difference in argument (angle from positive x-axis, in degrees),
+        of two points, below which they will be considered part of the
+        same cluster; by default 10
+
+    Returns
+    -------
+        A dictionary mapping from indices (corresponding to ``points``)
+        to scalefactors used to extrude the label away from the loading.
+    """
     angles = [float(np.degrees(np.arctan2(x, y))) for x, y in points]
 
     def decider(i, j):
@@ -303,7 +334,7 @@ def separate_angles(points, min_angle=10):
     return scalefactors
 
 
-def filter_cluster_coords(coords, n):
+def _filter_cluster_coords(coords, n):
     radii = [(x**2 + y**2) ** 0.5 for x, y in coords]
     angles = [np.degrees(np.arctan2(x, y)) for x, y in coords]
     res = set(np.argsort(radii)[-(n - 2) :])
@@ -312,20 +343,45 @@ def filter_cluster_coords(coords, n):
     return res.union(np.argsort(splay)[-2:])
 
 
-def plot_clusters2(
+def plot_clusters_insets(
     ax, loadings, clusters, mol, min_angle=10, inset_scale=1, show_at_most=None
 ):
-    points = get_clusters_coords(loadings, clusters)
+    """Plot selected clusters of the loadings of a pairwise distance PCA,
+    and interpretations of those loadings, as highlighted molecular structures inset upon
+    the loadings plot.
+
+    Parameters
+    ----------
+    ax
+        The :py:class:`matplotlib.pyplot.axes.Axes` object onto which to plot
+        the loadings
+    loadings
+        A DataArray of PCA loadings including an 'atomcomb' dimension;
+        as produced by :py:func:`shnitsel.vis.plot.pca_biplot.get_loadings`.
+    clusters
+        A list of clusters, where each cluster is represented as a
+        list of indices corresponding to ``loadings``; as produced
+        by :py:func:`shnitsel.vis.plot.pca_biplot.get_clusters`.
+    mol
+        An RDKit ``Mol`` object to be used for structure display.
+    min_angle
+        Where multiple clusters of loadings lie in similar directions from
+        the origin, they will be grouped together and only their member with the
+        greatest radius will be annotated with a highlighted structure.
+    inset_scale
+        A factor by which to scale the size of the inset highlighted structures.
+    show_at_most
+        Maximal number of clusters to show; if the number of clusters is greater than
+        this value, the clusters with smallest radius will be excluded so that only this
+        many remain.
+    """
+    points = _get_clusters_coords(loadings, clusters)
     if show_at_most is not None:
-        indices = filter_cluster_coords(points, show_at_most)
-        # clusters = [c for i, c in enumerate(clusters) if i in indices]
-        # points = [p for i, p in enumerate(points) if i in indices]
+        indices = _filter_cluster_coords(points, show_at_most)
     else:
         indices = range(len(clusters))
-    scalefactors = separate_angles(points, min_angle)
+    scalefactors = _separate_angles(points, min_angle)
 
-    # else:
-    # indices = range(len(clusters))
     for i, cluster in enumerate(clusters):
         acs = loadings.isel(atomcomb=cluster)
         x, y = acs.mean(dim='atomcomb')
@@ -351,11 +407,52 @@ def plot_clusters2(
         iax.set_anchor('SW')  # keep bottom-left corner of image at arrow tip!
 
         png = highlight_pairs(mol, acs.atomcomb.values)
-        # display(Image(png))  # DEBUG
         mpl_imshow_png(iax, png)
 
 
-def plot_clusters3(loadings, clusters, ax=None, labels=None, axs=None, mol=None):
+# Compatability with old notebooks:
+plot_clusters2 = plot_clusters_insets
+
+
+def plot_clusters_grid(
+    loadings: xr.DataArray,
+    clusters: list[list[int]],
+    ax: Axes | None = None,
+    labels: list[str] | None = None,
+    axs: dict[Axes] | None = None,
+    mol: 'Mol | None' = None,
+):
+    """Plot selected clusters of the loadings of a pairwise distance PCA,
+    and interpretations of those loadings:
+
+        - On the left, a large plot of selected clusters of loadings indicated as arrows
+        - On the right, a grid of structures corresponding to
+        structures of loadings; the pairs involved in the cluster
+        are represented by colour-coding the atoms of the structures.
+
+    Parameters
+    ----------
+    loadings
+        A DataArray of PCA loadings including an 'atomcomb' dimension;
+        as produced by :py:func:`shnitsel.vis.plot.pca_biplot.get_loadings`.
+    clusters
+        A list of clusters, where each cluster is represented as a
+        list of indices corresponding to ``loadings``; as produced
+        by :py:func:`shnitsel.vis.plot.pca_biplot.get_clusters`.
+    ax
+        The :py:class:`matplotlib.pyplot.axes.Axes` object onto which to plot
+        the loadings
+        (If not provided, one will be created.)
+    labels
+        Labels for the loadings; if not provided, loadings will be labelled
+        according to indices of the atoms to which they relate.
+    axs
+        A dictionary mapping from plot labels to :py:class:`matplotlib.pyplot.axes.Axes`
+        objects
+        (If not provided, one will be created.)
+    mol
+        An RDKit ``Mol`` object to be used for structure display
+    """
     fig, ax = figax(ax=ax)
     if labels is None:
         labels = list('abcdefghijklmnopqrstuvwxyz')
@@ -379,10 +476,8 @@ def plot_clusters3(loadings, clusters, ax=None, labels=None, axs=None, mol=None)
             mpl_imshow_png(axs[s], png)
             axs[s].set_title(s)
 
-
-##################
-# New stuff for angle binning!
-
+# Compatability with old notebooks:
+plot_clusters3 = plot_clusters_grid
 
 def circbins(
     angles, nbins=4, center=0
@@ -427,7 +522,39 @@ def circbins(
     return bins, edges
 
 
-def plot_bin_edges(angles, radii, bins, edges, picks, ax, labels):
+def plot_bin_edges(
+    angles: NDArray,
+    radii: NDArray,
+    bins: list[Iterable[int]],
+    edges: list[tuple[float, float]],
+    picks: list[int],
+    ax: Axes,
+    labels: list[str],
+):
+    """Illustrate how angles have been binned.
+
+    Parameters
+    ----------
+    angles
+        A 1D array of angles in degrees.
+    radii
+        A 1D array of radii, with order corresponding
+        to ``angles``.
+    bins
+        Lists of bins, each bin represented as a list
+        of indices.
+    edges
+        A pair of edges (angles in degrees) for each bin
+        in ``bins``.
+    picks
+        A list of indices indicating which cluster has
+        been chosen from each bin.
+    ax
+        An matplotlib ``Axes`` object onto which to plot;
+        this should be set up with polar projection.
+    labels
+        One label for each entry in ``picks``.
+    """
     rangles = np.radians(angles)
 
     for e in np.radians(edges):
@@ -468,23 +595,25 @@ def pick_clusters(frames, nbins, mean=False):
             - clusters: a list of clusters, where each cluster is represented as a
         list of indices corresponding to ``loadings``; as produced
         by :py:func:`shnitsel.vis.plot.pca_biplot.get_clusters`.
-            - picks:
-            - angles:
-            - center:
-            - radii:
-            - bins:
-            - edges:
+            - picks: the cluster chosen from each bin of clusters
+            - angles: the angular argument (rotation from the positive x-axis) of each
+            cluster center
+            - center: the circular mean of the angle of all picked clusters
+            - radii: The distance of each cluster from the origin
+            - bins: Indices of angles belonging to each bin
+            - edges: Tuple giving a pair of boundary angles for each bin;
+        the order of the bins corresponds to the order used in ``bins``
     """
     loadings = get_loadings(frames, mean)
     clusters = cluster_loadings(loadings)
-    points = get_clusters_coords(loadings, clusters)
+    points = _get_clusters_coords(loadings, clusters)
 
     angles = np.degrees(np.arctan2(points[:, 1], points[:, 0]))
     radii = np.sqrt(points[:, 0] ** 2 + points[:, 1] ** 2)
     center = stats.circmean(angles, high=180, low=-180)
 
-    picks, bins, edges = binning_with_min_entries(
-        nbins=nbins, angles=angles, center=center, radii=radii, return_bins_edges=True
+    picks, bins, edges = _binning_with_min_entries(
+        nbins=nbins, angles=angles, radii=radii, return_bins_edges=True
     )
     # bins, edges = circbins(angles, nbins=4, center=center)
     # picks = [b[np.argmax(radii[b])] for b in bins]
@@ -501,17 +630,16 @@ def pick_clusters(frames, nbins, mean=False):
     )
 
 
-def binning_with_min_entries(
-    nbins,
-    angles,
-    center,
-    radii,
-    min_entries=4,
-    max_attempts=10,
-    return_bins_edges=False,
+def _binning_with_min_entries(
+    nbins: int,
+    angles: NDArray,
+    radii: NDArray,
+    min_entries: int = 4,
+    max_attempts: int = 10,
+    return_bins_edges: bool = False,
 ):
     attempts = 0
-    bins, edges = circbins(angles=angles, nbins=nbins, center=center)
+    bins, edges = circbins(angles=angles, nbins=nbins)
 
     # Repeat binning until all bins have at least 'min_entries' or exceed max_attempts
     while any(arr.size == 0 for arr in bins) and attempts < max_attempts:
@@ -519,7 +647,7 @@ def binning_with_min_entries(
             f"Less than {min_entries} directions found, procedure repeated with another binning."
         )
         nbins += 1  # Increase the number of bins
-        bins, edges = circbins(angles, nbins, center=center)
+        bins, edges = circbins(angles, nbins)
         attempts += 1
 
     # If max attempts were reached without satisfying condition

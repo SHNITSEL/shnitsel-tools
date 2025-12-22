@@ -298,7 +298,7 @@ def biplot_kde(
     # in case more clusters were found than we have room for:
     picks = picks[:4]
 
-    pb.plot_clusters3(
+    pb.plot_clusters_grid(
         loadings,
         [clusters[i] for i in picks],
         ax=pcaax,
