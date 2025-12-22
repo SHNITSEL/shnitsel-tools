@@ -44,7 +44,8 @@ dependencies = [
 vis = [
   "bokeh>=3.5",
   "datashader",
-  "seaborn"
+  "seaborn>=0.13.2",
+  "holoviews>=1.22.1",
 ]
 
 dev = [
