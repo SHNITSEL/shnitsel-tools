@@ -1,4 +1,4 @@
-from typing import Iterable
+from typing import Iterable, Sequence
 
 from matplotlib.colors import Normalize, Colormap
 from matplotlib.figure import Figure, SubFigure
@@ -13,6 +13,7 @@ from sklearn.cluster import KMeans
 
 from shnitsel.analyze.generic import get_standardized_pairwise_dists
 from shnitsel.analyze.pca import pca
+from shnitsel.core.typedefs import Frames
 
 from .common import figax, extrude, mpl_imshow_png
 from ...rd import highlight_pairs
@@ -126,13 +127,14 @@ def plot_noodleplot_lines(
     return ax
 
 
-def get_loadings(frames, mean=False):
+def get_loadings(frames, center_mean=False):
     atXYZ = frames['atXYZ']
-    descr = get_standardized_pairwise_dists(atXYZ, mean=mean)
+    descr = get_standardized_pairwise_dists(atXYZ, center_mean=center_mean)
     _, pca_obj = pca(descr, 'atomcomb', return_pca_object=True)
 
     return xr.DataArray(
-        data=pca_obj[-1].components_,
+        # data=pca_obj[-1].components_,
+        data=pca_obj.components_,
         dims=['PC', 'atomcomb'],
         coords=dict(atomcomb=descr.atomcomb),
         attrs={'natoms': frames.sizes['atom']},
@@ -341,23 +343,22 @@ def get_mask(angles, theta1, theta2, seam=180):
 
 
 def circbins(
-    angles, nbins=4, center=0
-) -> tuple[list[Iterable[int]], list[tuple[float, float]]]:
+    angles: np.ndarray,
+    num_bins: int = 4,
+) -> tuple[Sequence[np.ndarray], list[tuple[float, float]]]:
     """Bin angular data by clustering unit-circle projections
 
     Parameters
     ----------
     angles
         Angles in degrees
-    nbins, optional
+    num_bins, optional
         Number of bins to return, by default 4
-    center, optional
-        No longer used, by default 0
 
     Returns
     -------
     bins
-        Indices of angles belonging to each bin
+        Indices of angles belonging to each bin as an np.ndarray
     edges
         Tuple giving a pair of boundary angles for each bin;
         the order of the bins corresponds to the order used in ``bins``
@@ -368,7 +369,7 @@ def circbins(
         x = x * np.pi / 180
         return np.c_[np.cos(x), np.sin(x)]
 
-    kmeans = KMeans(n_clusters=nbins)
+    kmeans = KMeans(n_clusters=num_bins)
 
     labels = kmeans.fit_predict(proj(angles))
 
@@ -402,17 +403,17 @@ def plot_bin_edges(angles, radii, bins, edges, picks, ax, labels):
     ax.set_rlabel_position(200)
 
 
-def pick_clusters(frames, nbins, mean=False):
-    loadings = get_loadings(frames, mean)
+def pick_clusters(frames: Frames, num_bins: int, center_mean: bool = False):
+    loadings = get_loadings(frames, center_mean)
     clusters = cluster_loadings(loadings)
     points = get_clusters_coords(loadings, clusters)
 
     angles = np.degrees(np.arctan2(points[:, 1], points[:, 0]))
     radii = np.sqrt(points[:, 0] ** 2 + points[:, 1] ** 2)
-    center = stats.circmean(angles, high=180, low=-180)
+    # center = stats.circmean(angles, high=180, low=-180)
 
     picks, bins, edges = binning_with_min_entries(
-        nbins=nbins, angles=angles, center=center, radii=radii, return_bins_edges=True
+        num_bins=num_bins, angles=angles, radii=radii, return_bins_edges=True
     )
     # bins, edges = circbins(angles, nbins=4, center=center)
     # picks = [b[np.argmax(radii[b])] for b in bins]
@@ -422,7 +423,6 @@ def pick_clusters(frames, nbins, mean=False):
         clusters=clusters,
         picks=picks,
         angles=angles,
-        center=center,
         radii=radii,
         bins=bins,
         edges=edges,
@@ -430,31 +430,30 @@ def pick_clusters(frames, nbins, mean=False):
 
 
 def binning_with_min_entries(
-    nbins,
-    angles,
-    center,
-    radii,
-    min_entries=4,
-    max_attempts=10,
-    return_bins_edges=False,
+    num_bins: int,
+    angles: np.ndarray,
+    radii: np.ndarray,
+    min_entries: int = 4,
+    max_attempts: int = 10,
+    return_bins_edges: bool = False,
 ):
     attempts = 0
-    bins, edges = circbins(angles=angles, nbins=nbins, center=center)
+    bins, edges = circbins(angles=angles, num_bins=num_bins)
 
     # Repeat binning until all bins have at least 'min_entries' or exceed max_attempts
     while any(arr.size == 0 for arr in bins) and attempts < max_attempts:
         print(
             f"Less than {min_entries} directions found, procedure repeated with another binning."
         )
-        nbins += 1  # Increase the number of bins
-        bins, edges = circbins(angles, nbins, center=center)
+        num_bins += 1  # Increase the number of bins
+        bins, edges = circbins(angles, num_bins)
         attempts += 1
 
     # If max attempts were reached without satisfying condition
     if attempts >= max_attempts:
         print(f"Max attempts ({max_attempts}) reached. Returning current bins.")
 
-    picks = [b[np.argmax(radii[b])] for b in bins]
+    picks = [bin[np.argmax(radii[bin])] for bin in bins]
 
     if return_bins_edges:
         return picks, bins, edges
