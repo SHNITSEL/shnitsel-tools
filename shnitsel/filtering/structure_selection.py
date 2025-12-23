@@ -11,7 +11,14 @@ from rdkit import Chem
 
 from shnitsel.bridges import construct_default_mol, to_mol
 from shnitsel.rd import set_atom_props
-from shnitsel.vis.colormaps import hex2rgb, st_yellow
+from shnitsel.vis.colormaps import (
+    hex2rgb,
+    st_yellow,
+    st_grey,
+    st_orange,
+    st_pink,
+    st_violet,
+)
 from IPython.display import SVG
 
 
@@ -78,6 +85,14 @@ class StructureSelection:
     pyramids: set[PyramidsDescriptor]
     pyramids_types: dict[PyramidsDescriptor, bool]
     pyramids_selected: set[PyramidsDescriptor]
+
+    feature_level_colors: dict[FeatureLevelType, str] = {
+        'atoms': st_grey,
+        'bonds': st_yellow,
+        'angles': st_pink,
+        'dihedrals': st_violet,
+        'pyramids': st_orange,
+    }
 
     def copy_or_update(
         self,
@@ -1260,7 +1275,7 @@ class StructureSelection:
     def draw(
         self,
         flag_level: FeatureLevelOptions = 'bonds',
-        highlight_color: tuple[float, float, float] | str = st_yellow,
+        highlight_color: tuple[float, float, float] | str | None = None,
         width=300,
         height=300,
     ) -> SVG:
@@ -1268,7 +1283,7 @@ class StructureSelection:
 
         Args:
             flag_level (FeatureLevelOptions, optional): Currently unused. Defaults to 'bonds'.
-            highlight_color (tuple[float, float, float] | str, optional): Color to use for highlights of the active parts. Defaults to st_yellow.
+            highlight_color (tuple[float, float, float] | str, optional): Color to use for highlights of the active parts. Defaults to a flag-level dependent color.
             width (int, optional): Width of the figure. Defaults to 300.
             height (int, optional): Height of the figure. Defaults to 300.
 
@@ -1277,6 +1292,11 @@ class StructureSelection:
         """
         # TODO: FIXME: Use different colors for different feature levels.
         from rdkit.Chem.Draw import rdMolDraw2D
+
+        if highlight_color is None:
+            # Get feature-level color if not set
+            feature_level = self._to_feature_level_str(flag_level)
+            highlight_color = self.feature_level_colors[feature_level]
 
         if isinstance(highlight_color, str):
             highlight_color = tuple(hex2rgb(highlight_color))
@@ -1310,6 +1330,7 @@ class StructureSelection:
         # drawer.DrawMolecule(mol)
         drawer.FinishDrawing()
         img_text = drawer.GetDrawingText()
+        # TODO: FIXME: Consider not returning an IPython object. Return only IPython if in IPython environment?
         img = SVG(img_text)
 
         return img
@@ -1706,9 +1727,9 @@ class StructureSelection:
             The updated StructureSelection object with only non-redundant coordinates in bonds,
             angles and dihedrals.
         """
-        assert (
-            self.mol is not None
-        ), "Mol object of selection not set. Cannot filter for SMILES order."
+        assert self.mol is not None, (
+            "Mol object of selection not set. Cannot filter for SMILES order."
+        )
 
         def f(s):
             return ' '.join(str(x) for x in s)

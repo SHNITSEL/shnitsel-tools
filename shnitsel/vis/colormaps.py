@@ -5,6 +5,9 @@ import numpy as np
 st_grey = '#2c3e50'
 st_yellow = '#C4A000'  # (196/255, 160/255, 0/255)
 st_violet = '#7E5273'
+st_blue = '#2233AA'
+st_orange = '#F67E00'
+st_pink = "#E00D99"
 
 __all__ = ['magma_rw', 'custom_ylgnr']
 
@@ -28,7 +31,7 @@ default_lower_singlet_colors = [
     '#000000',
     '#2c3e50',
     '#F6BE00',
-    '#7515AD'
+    '#7515AD',
     # '#2233AA',
     #     st_yellow,
     #     st_grey,
@@ -66,7 +69,9 @@ def get_default_singlet_state_colormap(num_singlets: int) -> list:
         colors = [hex2rgb(x) for x in default_lower_singlet_colors][:num_singlets]
     else:
         rem_states = num_singlets - len(default_lower_singlet_colors)
-        rem_colors = default_singlet_state_colormap(np.linspace(0, 0.85, num=rem_states))
+        rem_colors = default_singlet_state_colormap(
+            np.linspace(0, 0.85, num=rem_states)
+        )
         colors = [hex2rgb(x) for x in default_lower_singlet_colors] + list(rem_colors)
     return colors
 
@@ -265,7 +270,7 @@ def get_default_interstate_colormap_same_mult(
                 res_map[sc] = color
     if multiplicity == 3:
         for sc, color in default_lower_triplet_transition_colors.items():
-            shifted_sc = (min_index+sc[0],min_index+sc[1])
+            shifted_sc = (min_index + sc[0], min_index + sc[1])
             if shifted_sc in res_map:
                 res_map[shifted_sc] = color
 
