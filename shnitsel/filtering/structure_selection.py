@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from itertools import combinations
 import logging
 from typing import Iterator, Literal, Self, Sequence, TypeAlias
@@ -59,6 +59,14 @@ FeatureTypeLabel: TypeAlias = Literal[
     'pyr', 'pos', 'dist', 'angle', 'dih', 'cos', 'sin'
 ]
 
+FEATURE_LEVEL_DEFAULT_COLORS: dict[FeatureLevelType, str] = {
+    'atoms': st_grey,
+    'bonds': st_yellow,
+    'angles': st_pink,
+    'dihedrals': st_violet,
+    'pyramids': st_orange,
+}
+
 
 @dataclass
 class StructureSelection:
@@ -86,13 +94,9 @@ class StructureSelection:
     pyramids_types: dict[PyramidsDescriptor, bool]
     pyramids_selected: set[PyramidsDescriptor]
 
-    feature_level_colors: dict[FeatureLevelType, str] = {
-        'atoms': st_grey,
-        'bonds': st_yellow,
-        'angles': st_pink,
-        'dihedrals': st_violet,
-        'pyramids': st_orange,
-    }
+    feature_level_colors: dict[FeatureLevelType, str] = field(
+        default_factory=lambda: dict(FEATURE_LEVEL_DEFAULT_COLORS)
+    )
 
     def copy_or_update(
         self,
