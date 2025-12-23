@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from numbers import Number
 from typing import Literal, Sequence
 import logging
@@ -12,14 +13,83 @@ from shnitsel.bridges import default_mol
 from shnitsel.clean.common import dispatch_cut
 from shnitsel.units.conversion import convert_length
 from shnitsel.clean.dispatch_plots import dispatch_plots
+from shnitsel.units.definitions import length
 
-_default_bond_length_thresholds_angstrom = {'[#6,#7][H]': 2.0, '[*]~[*]': 3.0}
+
+@dataclass
+class GeometryFiltrationThresholds:
+    """Helper class to keep an extensible set of threshold values for various geometric
+    filtration properties.
+    The dictionary `match_thresholds` maps SMARTS to a threshold for the length of the bonds described by these SMARTS.
+    Additionally, this class has a `length_unit` field which specifies the unit that all other constraints are given in.
+    By default, the unit is `angstrom`.
+
+    TODO: FIXME: Should probably provide properties that automatically write to the dict instead.
+    """
+
+    all_bonds_threshold: float = 3.0
+    all_bonds_smarts: str = '[*]~[*]'
+    all_h_to_C_or_N_bonds_threshold: float = 2.0
+    all_h_to_C_or_N_bonds_SMARTS: str = '[#6,#7][H]'
+    length_unit: str = length.Angstrom
+
+    # Mappings of arbitrary SMARTs to threshold values.
+    # Each SMARTs should ideally only cover one bond.
+    match_thresholds: dict[str, float] = dict()
+
+    def get_full_match_dict(self) -> dict[str, float]:
+        """Get the full dictionary of SMARTs strings and associated bond length thresholds.
+
+        Used to incorporate settings that are available as explicit fields of this class into the match_thresholds dict.
+
+        Returns:
+            dict[str, float]: The combination of settings that can be set via the fields in this class and the `match_thresholds` dict.
+        """
+        res_dict = dict(self.match_thresholds)
+        if self.all_bonds_smarts not in res_dict:
+            res_dict[self.all_bonds_smarts] = self.all_bonds_threshold
+        if self.all_h_to_C_or_N_bonds_SMARTS not in res_dict:
+            res_dict[self.all_h_to_C_or_N_bonds_SMARTS] = (
+                self.all_h_to_C_or_N_bonds_threshold
+            )
+
+        return res_dict
+
+    def to_dataarray(
+        self, selected_SMARTS: Sequence[str] | None = None
+    ) -> xr.DataArray:
+        """Helper function to convert this dataclass object into an xarray.DataArray to be
+        assigned to the coordinate of a Filtration dataset.
+
+        Args:
+            selected_criteria (Sequence[str] | None, optional):
+                The sequence of criteria keys to be a result of the conversion. Defaults to None.
+                Must be a subset of the keys of fields on this object if not set to None.
+                If set to None, all but the unit field in this object will be used to set the
+                list of criterion keys.
 
 
-def _dict_to_thresholds(keys: list[str], d: dict, units: str) -> xr.DataArray:
-    data = [d.get(c, np.nan) for c in keys]
-    res = xr.DataArray(list(data), coords={'criterion': keys}, attrs={'units': units})
-    return res.astype(float)
+        Returns:
+            xr.DataArray:
+                A DataArray with a 'criterion' coordinate with either all available or all
+                selected properties and the threshold values in the array cells.
+
+        """
+        match_dict = self.get_full_match_dict()
+
+        if selected_SMARTS is None:
+            selected_SMARTS = list(match_dict.keys())
+        threshold_values = [
+            match_dict.get(smarts, np.nan) for smarts in selected_SMARTS
+        ]
+
+        # Build DataArray from thresholds, criterion names and length unit
+        res = xr.DataArray(
+            list(threshold_values),
+            coords={'criterion': selected_SMARTS},
+            attrs={'units': self.length_unit},
+        )
+        return res.astype(float)
 
 
 def _lengths_for_searches(atXYZ, searches, mol=None):
@@ -44,8 +114,7 @@ def _lengths_for_searches(atXYZ, searches, mol=None):
 
 def bond_length_filtranda(
     frames,
-    search_dict: dict[str, Number] | None = None,
-    units='angstrom',
+    geometry_thresholds: GeometryFiltrationThresholds | None = None,
     mol: Mol | None = None,
 ):
     """Derive bond length filtration targets from an xr.Dataset
@@ -54,16 +123,19 @@ def bond_length_filtranda(
     ----------
     frames
         A xr.Dataset with an ``atXYZ`` variable
-    search_dict, optional
+    geometry_thresholds, optional
         A mapping from SMARTS-strings to length-thresholds.
 
             - The SMARTS-strings describe bonds which are searched
               for in an RDKit Mol object obtained via :py:func:`shnitsel.bridges.default_mol`
             - The thresholds describe maximal tolerable bond-lengths; if there are multiple matches
               for a given search, the longest bond-length will be considered for each frame
-    units, optional
-        Units in which custom thresholds are given, and to which defaults and data will be converted, by default
-        'angstrom'
+            - The unit for the maximum length is provided in the member variable `length_unit` which defaults to `angstrom`.
+            - If not provided will be initialized with thresholds for H-(C/N) bonds and one for all bonds.
+    mol, optional
+        Optional `Mol` object to perform SMARTs matching on.
+
+        TODO: FIXME: We should be able to provide a StructureSelection instead.
 
     Returns
     -------
@@ -74,15 +146,15 @@ def bond_length_filtranda(
         search_dict = {}
         criteria = list(_default_bond_length_thresholds_angstrom)
         default_thresholds = _dict_to_thresholds(
-                criteria, _default_bond_length_thresholds_angstrom, units='angstrom'
-                )
+            criteria, _default_bond_length_thresholds_angstrom, units='angstrom'
+        )
         default_thresholds = convert_length(default_thresholds, to=units)
         thresholds = default_thresholds
     else:
         criteria = list(search_dict.keys())
         user_thresholds = _dict_to_thresholds(criteria, search_dict, units=units)
         thresholds = user_thresholds
-        #user_thresholds.where(~np.isnan(user_thresholds), default_thresholds)
+        # user_thresholds.where(~np.isnan(user_thresholds), default_thresholds)
 
     convert_coords = convert_length(frames['atXYZ'], to=units)
 
@@ -174,5 +246,3 @@ def filter_by_length(
     dispatch_plots(filtranda, plot_thresholds, plot_populations)
 
     return dispatch_cut(frames, cut)
-
-
