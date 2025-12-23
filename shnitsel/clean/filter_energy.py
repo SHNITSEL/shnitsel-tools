@@ -1,7 +1,7 @@
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from logging import warning
 from numbers import Number
-from typing import Literal, Sequence
+from typing import Hashable, Literal, Sequence
 
 import numpy as np
 import xarray as xr
@@ -14,19 +14,66 @@ from shnitsel.units.definitions import energy
 
 
 @dataclass
-class EnergyThresholds:
-    etot_drift: float = 0.2
+class EnergyFiltrationThresholds:
+    """Helper class to keep an extensible set of threshold values for various physical
+    filtration properties. The keys/names of the fields are the properties that can be checked
+    and the float values are the energy thresholds that should be applied.
+    Additionally, this class has a `energy_unit` field which specifies the unit that all other
+    fields are given in (by default: `eV`)
+    """
+
+    epot_active_step: float = 0.7
+    # TODO:FIXME: The hop step should be smaller than the epot active step.
+    epot_hop_step: float = 1.0
     etot_step: float = 0.1
-    epot_step: float = 0.7
+    etot_drift: float = 0.2
     ekin_step: float = 0.7
-    hop_epot_step: float = 1.0
     energy_unit: str = energy.eV
+
+    def to_dataarray(
+        self, selected_criteria: Sequence[str] | None = None
+    ) -> xr.DataArray:
+        """Helper function to convert this dataclass object into an xarray.DataArray to be
+        assigned to the coordinate of a Filtration dataset.
+
+        Args:
+            selected_criteria (Sequence[str] | None, optional):
+                The sequence of criteria keys to be a result of the conversion. Defaults to None.
+                Must be a subset of the keys of fields on this object if not set to None.
+                If set to None, all but the unit field in this object will be used to set the
+                list of criterion keys.
+
+
+        Returns:
+            xr.DataArray:
+                A DataArray with a 'criterion' coordinate with either all available or all
+                selected properties and the threshold values in the array cells.
+
+        """
+        dict_repr = asdict(self)
+        if selected_criteria is None:
+            criteria = list(dict_repr.keys())
+            # Don't include the unit property
+            criteria.remove('energy_unit')
+        else:
+            # Make sure all criteria exist on this object
+            assert all(x in dict_repr.keys() for x in selected_criteria)
+            criteria = list(selected_criteria)
+
+        threshold_values = [dict_repr[c] for c in criteria]
+        # Build DataArray from thresholds, criterion names and energy unit
+        res = xr.DataArray(
+            list(threshold_values),
+            coords={'criterion': criteria},
+            attrs={'units': self.energy_unit},
+        )
+        return res.astype(float)
 
 
 def energy_filtranda(
     frames,
     *,
-    energy_thresholds: EnergyThresholds | None = None,
+    energy_thresholds: EnergyFiltrationThresholds | None = None,
 ):
     """Derive energetic filtration targets from an xr.Dataset
 
@@ -39,7 +86,7 @@ def energy_filtranda(
         Can specify thresholds for overall drift and individual time step changes.
         Can also specify thresholds for energy steps at hops.
         Unit should be specified as a member variable.
-        If not provided will default to some reasonable default values as seen in `EnergyThresholds` definition.
+        If not provided will default to some reasonable default values as seen in `EnergyFiltrationThresholds` definition.
 
     Returns
     -------
@@ -49,51 +96,43 @@ def energy_filtranda(
     """
 
     if energy_thresholds is None:
-        energy_thresholds = EnergyThresholds()
+        energy_thresholds = EnergyFiltrationThresholds()
+
+    filter_energy_unit = energy_thresholds.energy_unit
 
     res = xr.Dataset()
     is_hop = mdiff(frames['astate']) != 0
     # TODO: FIXME: Shouldn't we drop coords instead?
     e_pot_active = frames.energy.sel(state=frames.astate).drop_vars('state')
     e_pot_active.attrs['units'] = frames['energy'].attrs['units']
-    # e_pot_active = convert_energy(e_pot_active, to=units)
+    e_pot_active = convert_energy(e_pot_active, to=filter_energy_unit)
 
-    res['epot_step'] = mdiff(e_pot_active).where(~is_hop, 0)
-    res['hop_epot_step'] = mdiff(e_pot_active).where(is_hop, 0)
+    res['epot_active_step'] = mdiff(e_pot_active).where(~is_hop, 0)
+    res['epot_hop_step'] = mdiff(e_pot_active).where(is_hop, 0)
 
     if 'e_kin' in frames.data_vars:
         e_kin = frames['e_kin']
         e_kin.attrs['units'] = frames['e_kin'].attrs['units']
-        # e_kin = convert_energy(e_kin, to=units)
+        e_kin = convert_energy(e_kin, to=filter_energy_unit)
 
         e_tot = e_pot_active + e_kin
+        res['etot_step'] = mdiff(e_tot)
         res['etot_drift'] = e_tot.groupby('trajid').map(
             lambda traj: abs(traj - traj.item(0))
         )
         res['ekin_step'] = mdiff(e_kin).where(~is_hop, 0)
-        res['etot_step'] = mdiff(e_tot)
     else:
         e_kin = None
         warning("data does not contain kinetic energy variable ('e_kin')")
 
-    da = np.abs(res.to_dataarray('criterion')).assign_attrs(units=units)
+    da = np.abs(res.to_dataarray('criterion')).assign_attrs(units=filter_energy_unit)
 
     # Make threshold coordinates
-
-    def dict_to_thresholds(d: dict, units: str) -> xr.DataArray:
-        criteria = da.coords['criterion'].data
-        data = [d[c] for c in criteria]
-        res = xr.DataArray(
-            list(data), coords={'criterion': criteria}, attrs={'units': units}
+    da = da.assign_coords(
+        criterion_thresholds=energy_thresholds.to_dataarray(
+            selected_criteria=res.coords['criterion'].values
         )
-        return res.astype(float)
-
-    default_thresholds = dict_to_thresholds(_default_energy_thresholds_eV, units='eV')
-    default_thresholds = convert_energy(default_thresholds, to=units)
-    user_thresholds = dict_to_thresholds(locals(), units=units)
-    thresholds = user_thresholds.where(~np.isnan(user_thresholds), default_thresholds)
-
-    da = da.assign_coords(thresholds=thresholds)
+    )
     return da
 
 
@@ -101,7 +140,7 @@ def sanity_check(
     frames,
     cut: Literal['truncate', 'omit', False] | Number = 'truncate',
     *,
-    energy_thresholds: EnergyThresholds | None = None,
+    energy_thresholds: EnergyFiltrationThresholds | None = None,
     plot_thresholds: bool | Sequence[float] = False,
     plot_populations: bool | Literal['independent', 'intersections'] = False,
 ):
@@ -154,7 +193,7 @@ def sanity_check(
     If the input has a ``filtranda`` data_var, it is overwritten.
     """
     if energy_thresholds is None:
-        energy_thresholds = EnergyThresholds()
+        energy_thresholds = EnergyFiltrationThresholds()
     filtranda = energy_filtranda(frames, energy_thresholds=energy_thresholds)
     dispatch_plots(filtranda, plot_thresholds, plot_populations)
     filtered_frames = frames.drop_dims(['criterion'], errors='ignore').assign(
