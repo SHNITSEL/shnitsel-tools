@@ -88,7 +88,7 @@ def traj_to_xyz(traj_atXYZ: AtXYZ, units='angstrom') -> str:
     atNames = traj_atXYZ.atNames.values
     sxyz = np.strings.mod('% 13.9f', atXYZ)
     sxyz = atNames[None, :] + sxyz[:, :, 0] + sxyz[:, :, 1] + sxyz[:, :, 2]
-    atom_lines = np.broadcast_to([f'{traj_atXYZ.sizes['atom']}'], (sxyz.shape[0], 1))
+    atom_lines = np.broadcast_to([str(traj_atXYZ.sizes['atom'])], (sxyz.shape[0], 1))
     if 'time' in traj_atXYZ.coords:
         time_values = np.atleast_1d(traj_atXYZ.coords['time'])
         comment_lines = np.strings.mod('# t=%.2f', time_values)[:, None]
