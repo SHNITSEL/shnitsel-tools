@@ -313,6 +313,28 @@ def biplot_kde(
 
 
 def plot_cdf_for_kde(z, level, ax=None):
+    """Plot the cumulative density for a KDE, to show what
+    proportion of points are contained by contours at a
+    given density ``level``
+
+    Parameters
+    ----------
+    z
+        The values from the kernel evaluated over the input
+        space
+    level
+        The cumulative density corresponding to this level
+        will be marked on the graph
+    ax
+        A :py:class:`matplotlib.axes.Axes` object into which
+        to plot. (If not provided, one will be created.)
+
+    Returns
+    -------
+    y
+        The proportion of points contained by contours placed
+        at density ``level``
+    """
     fig, ax = figax(ax=ax)
     bins, edges, _ = ax.hist(
         z,
