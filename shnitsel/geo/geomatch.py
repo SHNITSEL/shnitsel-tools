@@ -2,9 +2,9 @@ import logging
 from logging import warning, info
 from itertools import combinations
 
-import rdkit
 from rdkit import Chem
 from rdkit.Chem.rdchem import Mol
+
 try:
     # These fail on systems missing libXrender
     # and are only required for graphical use
@@ -21,13 +21,9 @@ from shnitsel._state import HAS_IPYTHON
 if HAS_IPYTHON:
     from IPython.display import SVG
 
-st_yellow = (196/255, 160/255, 0/255)
+st_yellow = (196 / 255, 160 / 255, 0 / 255)
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(levelname)s: %(message)s",
-    force=True
-)
+logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s", force=True)
 
 
 def _match_pattern(mol: Mol, smarts: str) -> list[tuple]:
@@ -77,7 +73,7 @@ def _get_bond_info(mol: Mol, flagged_tuples, pyramids=False):
     Returns
     -------
     flagged_tuples_binfo: list of tuples
-        Each entry: (flag, atom_tuple, bond_tuple, bondtype_tuple, 
+        Each entry: (flag, atom_tuple, bond_tuple, bondtype_tuple,
         rdkit.Chem.rdchem.Mol of submoli/subgraph )
         Example: [(0, (5, 0, 1), (6, 0), (1.0, 2.0), rdkit.Chem.rdchem.Mol object)]
     """
@@ -93,18 +89,18 @@ def _get_bond_info(mol: Mol, flagged_tuples, pyramids=False):
             continue
         l_flags.append(flag)
         l_atom_idxs.append(t)
-        
+
         if pyramids:
             # all atom pairs
             atom_pairs = combinations(t, 2)
         else:
             # consecutive pairs (divide angles, torsions back to bonds
-            atom_pairs = [(t[i], t[i+1]) for i in range(len(t)-1)]
-        
+            atom_pairs = [(t[i], t[i + 1]) for i in range(len(t) - 1)]
+
         inner_bond_idxs = []
         inner_bond_types = []
-        for i,j in atom_pairs:
-            bond = mol.GetBondBetweenAtoms(i,j)
+        for i, j in atom_pairs:
+            bond = mol.GetBondBetweenAtoms(i, j)
             if bond:
                 inner_bond_idxs.append(bond.GetIdx())
                 inner_bond_types.append(bond.GetBondTypeAsDouble())
@@ -112,35 +108,39 @@ def _get_bond_info(mol: Mol, flagged_tuples, pyramids=False):
         l_bond_idxs.append(tuple(inner_bond_idxs))
         l_bond_types.append(tuple(inner_bond_types))
         l_submols.append(Chem.PathToSubmol(mol, inner_bond_idxs))
-    
-    flagged_tuples_binfo = list(zip(l_flags, l_atom_idxs, l_bond_idxs, l_bond_types, l_submols))
+
+    flagged_tuples_binfo = list(
+        zip(l_flags, l_atom_idxs, l_bond_idxs, l_bond_types, l_submols)
+    )
 
     return flagged_tuples_binfo
 
 
 def _level_to_geo(flag_level):
-
     level_to_prop = {
-            0: 'bonds',
-            1: 'bonds',
-            2: 'angles',
-            3: 'dihedrals',
-            4: 'dihedrals'
-            }
+        0: 'bonds',
+        1: 'bonds',
+        2: 'angles',
+        3: 'dihedrals',
+        4: 'dihedrals',
+    }
 
     return level_to_prop[flag_level]
 
+
 def _get_color_atoms(d_flag, flag_level):
     flagged_tuples = d_flag[_level_to_geo(flag_level)]
-    color_atoms = [a for flag, at, *_ in flagged_tuples if flag==1 for a in at]
+    color_atoms = [a for flag, at, *_ in flagged_tuples if flag == 1 for a in at]
 
     return color_atoms
 
+
 def _get_color_bonds(d_flag, flag_level):
     flagged_tuples = d_flag[_level_to_geo(flag_level)]
-    color_bonds = [b for flag, at, bt, *_ in flagged_tuples if flag==1 for b in bt]
+    color_bonds = [b for flag, at, bt, *_ in flagged_tuples if flag == 1 for b in bt]
 
     return color_bonds
+
 
 def _collect_tuples(d_flag):
     """
@@ -158,8 +158,10 @@ def _collect_tuples(d_flag):
             if any(entry[0] != 0 for entry in tuples):
                 flagged_tuples = tuples
             else:
-                warning("All flags in dihedrals, angles, and bonds are zero. "\
-                        "Will collect all atoms instead.")
+                warning(
+                    "All flags in dihedrals, angles, and bonds are zero. "
+                    "Will collect all atoms instead."
+                )
                 if 'atoms' in d_flag:
                     if any(entry[0] != 0 for entry in tuples):
                         flagged_tuples = d_flag['atoms']
@@ -200,7 +202,7 @@ def _get_highlight_molimg(
 
     # draw molecule with highlights
     drawer = rdMolDraw2D.MolDraw2DSVG(width, height)
-    drawer.drawOptions().fillHighlights=True
+    drawer.drawOptions().fillHighlights = True
     drawer.drawOptions().addAtomIndices = True
     drawer.drawOptions().setHighlightColour(highlight_color)
     drawer.drawOptions().clearBackground = False
@@ -211,21 +213,15 @@ def _get_highlight_molimg(
         highlights = [(at, bt) for flag, at, bt, bot, m in flagged_tuples if flag == 1]
         highlight_bonds = [bidx for at, bt in highlights for bidx in bt]
         highlight_atoms = [aidx for at, bt in highlights for aidx in at]
-        
+
         rdMolDraw2D.PrepareAndDrawMolecule(
-                drawer, 
-                mol, 
-                highlightAtoms=highlight_atoms, 
-                highlightBonds=highlight_bonds)
+            drawer, mol, highlightAtoms=highlight_atoms, highlightBonds=highlight_bonds
+        )
 
     else:
         highlight_atoms = [idx for flag, (idx, symbol) in flagged_tuples if flag == 1]
 
-        rdMolDraw2D.PrepareAndDrawMolecule(
-                drawer, 
-                mol, 
-                highlightAtoms=highlight_atoms
-                ) 
+        rdMolDraw2D.PrepareAndDrawMolecule(drawer, mol, highlightAtoms=highlight_atoms)
 
     drawer.DrawMolecule(mol)
     drawer.FinishDrawing()
@@ -238,6 +234,7 @@ def _get_highlight_molimg(
 # -------------------------------------------------------------------
 # -- Atom specific functions ----------------------------------------
 # -------------------------------------------------------------------
+
 
 def _get_all_atoms(mol: Mol) -> dict:
     """
@@ -261,10 +258,7 @@ def _get_all_atoms(mol: Mol) -> dict:
                 The atom index in the molecule and its atomic symbol
                 (e.g., (0, 'C'), (1, 'H')).
     """
-    atom_list = [
-        (1, (atom.GetIdx(), atom.GetSymbol()))
-        for atom in mol.GetAtoms()
-    ]
+    atom_list = [(1, (atom.GetIdx(), atom.GetSymbol())) for atom in mol.GetAtoms()]
 
     return {'atoms': atom_list}
 
@@ -296,11 +290,7 @@ def _get_atoms_by_indices(match_indices_list: list[tuple], d_atoms: dict) -> dic
     return {'atoms': updated_atoms}
 
 
-def flag_atoms(
-    mol: Mol,
-    smarts: str = None,
-    t_idxs: tuple = (),
-    draw=False) -> dict:
+def flag_atoms(mol: Mol, smarts: str = None, t_idxs: tuple = (), draw=False) -> dict:
     """
     Flag atoms in a molecule based on substructure patterns or atom indices.
 
@@ -340,8 +330,10 @@ def flag_atoms(
         matches = _match_pattern(mol, smarts)
 
         if not matches:
-            info(f"SMARTS pattern '{smarts}' was not found in the molecule. "
-                 "Returning all atoms as active.")
+            info(
+                f"SMARTS pattern '{smarts}' was not found in the molecule. "
+                "Returning all atoms as active."
+            )
             d_flag = d_all_atoms
         else:
             d_flag = _get_atoms_by_indices(matches, d_all_atoms)
@@ -357,8 +349,10 @@ def flag_atoms(
         t_idxs_set = set(t_idxs)
 
         if not matches:
-            info(f"SMARTS pattern '{smarts}' was not found in the molecule. "
-                 "Returning atoms for the provided target indices only.")
+            info(
+                f"SMARTS pattern '{smarts}' was not found in the molecule. "
+                "Returning atoms for the provided target indices only."
+            )
             t_idxs_list = [t_idxs] if isinstance(t_idxs, tuple) else list(t_idxs)
             d_flag = _get_atoms_by_indices(t_idxs_list, d_all_atoms)
         else:
@@ -370,14 +364,18 @@ def flag_atoms(
             intersection = t_idxs_set & matched_atoms
 
             if not intersection:
-                info(f"No overlap between SMARTS matches {matches} and "
-                     f"target indices {t_idxs}. Returning atoms for the target indices only.")
+                info(
+                    f"No overlap between SMARTS matches {matches} and "
+                    f"target indices {t_idxs}. Returning atoms for the target indices only."
+                )
                 t_idxs_list = [t_idxs] if isinstance(t_idxs, tuple) else list(t_idxs)
                 d_flag = _get_atoms_by_indices(t_idxs_list, d_all_atoms)
             else:
-                info(f"Partial overlap found between SMARTS matches {matches} and "
-                     f"target indices {t_idxs}. Only indices {sorted(intersection)} "
-                     "are considered active.")
+                info(
+                    f"Partial overlap found between SMARTS matches {matches} and "
+                    f"target indices {t_idxs}. Only indices {sorted(intersection)} "
+                    "are considered active."
+                )
                 t_idxs_list = [tuple(intersection)]
                 d_flag = _get_atoms_by_indices(t_idxs_list, d_all_atoms)
 
@@ -385,12 +383,13 @@ def flag_atoms(
         img = _get_highlight_molimg(mol, d_flag)
         return d_flag, img
     else:
-        return d_flag 
+        return d_flag
 
 
 # -------------------------------------------------------------------
 # -- Bond specific functions ----------------------------------------
 # -------------------------------------------------------------------
+
 
 def _get_all_bonds(mol: Mol) -> dict:
     """
@@ -413,8 +412,9 @@ def _get_all_bonds(mol: Mol) -> dict:
             - (atom_idx1, atom_idx2) : tuple
                 Pair of atom indices defining the bond.
     """
-    bond_list = [(1, (bond.GetBeginAtomIdx(), bond.GetEndAtomIdx()))
-                 for bond in mol.GetBonds()]
+    bond_list = [
+        (1, (bond.GetBeginAtomIdx(), bond.GetEndAtomIdx())) for bond in mol.GetBonds()
+    ]
 
     return {'bonds': bond_list}
 
@@ -447,11 +447,7 @@ def _get_bonds_by_indices(match_indices_list: list[tuple], d_bonds: dict) -> dic
     return {'bonds': updated_bonds}
 
 
-def flag_bonds(
-    mol: Mol,
-    smarts: str = None,
-    t_idxs: tuple = (),
-    draw=True) -> dict:
+def flag_bonds(mol: Mol, smarts: str = None, t_idxs: tuple = (), draw=True) -> dict:
     """
     Flag bonds in a molecule based on substructure patterns or atom indices.
 
@@ -490,8 +486,10 @@ def flag_bonds(
         matches = _match_pattern(mol, smarts)
 
         if not matches:
-            info(f"SMARTS pattern '{smarts}' was not found in the molecule. "\
-                    f"Returning all bonds as active.")
+            info(
+                f"SMARTS pattern '{smarts}' was not found in the molecule. "
+                "Returning all bonds as active."
+            )
             d_flag = d_all_bonds
 
         else:
@@ -511,8 +509,10 @@ def flag_bonds(
         t_idxs_set = set(t_idxs)
 
         if not matches:
-            info(f"SMARTS pattern '{smarts}' was not found in the molecule. "\
-                    f"Returning bonds for the provided target indices only.")
+            info(
+                f"SMARTS pattern '{smarts}' was not found in the molecule. "
+                "Returning bonds for the provided target indices only."
+            )
             t_idxs_list = [t_idxs] if isinstance(t_idxs, tuple) else list(t_idxs)
             d_flag = _get_bonds_by_indices(t_idxs_list, d_all_bonds)
 
@@ -525,16 +525,20 @@ def flag_bonds(
             intersection = t_idxs_set & matched_atoms
 
             if not intersection:
-                info(f"There is no overlap between the SMARTS macthes {matches} "\
-                        f"and the target indices {t_idxs}. Returning bonds for "\
-                        f"the provided target indices only.")
+                info(
+                    f"There is no overlap between the SMARTS macthes {matches} "
+                    f"and the target indices {t_idxs}. Returning bonds for "
+                    "the provided target indices only."
+                )
                 t_idxs_list = [t_idxs] if isinstance(t_idxs, tuple) else list(t_idxs)
                 d_flag = _get_bonds_by_indices(t_idxs_list, d_all_bonds)
 
             else:
-                info(f"Partial overlap found between SMARTS matches {matches} and "\
-                    f"the target indices {t_idxs}. Only indices {sorted(intersection)} "\
-                    f"are considered for active bonds.")
+                info(
+                    f"Partial overlap found between SMARTS matches {matches} and "
+                    f"the target indices {t_idxs}. Only indices {sorted(intersection)} "
+                    "are considered for active bonds."
+                )
                 t_idxs_list = [tuple(intersection)]
                 d_flag = _get_bonds_by_indices(t_idxs_list, d_all_bonds)
 
@@ -552,6 +556,7 @@ def flag_bonds(
 # -------------------------------------------------------------------
 # -- Angle specific functions ---------------------------------------
 # -------------------------------------------------------------------
+
 
 def _get_all_angles(mol: Mol) -> dict:
     """
@@ -623,20 +628,13 @@ def _get_angles_by_indices(match_list: list[tuple], d_angles: dict) -> dict:
     updated = []
 
     for flag, (i, j, k) in d_angles['angles']:
-        active = any(
-            (i in match and j in match and k in match)
-            for match in match_list
-        )
+        active = any((i in match and j in match and k in match) for match in match_list)
         updated.append((1 if active else 0, (i, j, k)))
 
     return {'angles': updated}
 
 
-def flag_angles(
-    mol: Mol,
-    smarts: str = None,
-    t_idxs: tuple = (),
-    draw=False) -> dict:
+def flag_angles(mol: Mol, smarts: str = None, t_idxs: tuple = (), draw=False) -> dict:
     """
     Flag molecule angles based on SMARTS patterns and/or atom indices.
 
@@ -665,7 +663,7 @@ def flag_angles(
         Dictionary with key 'angles' mapping to list of (flag, (i, j, k)).
         Active = 1, inactive = 0.
     """
-    
+
     out_atoms = flag_atoms(mol=mol, smarts=smarts, t_idxs=t_idxs, draw=False)['atoms']
 
     d_all_angles = _get_all_angles(mol)
@@ -678,8 +676,10 @@ def flag_angles(
     if smarts and not t_idxs:
         matches = _match_pattern(mol, smarts)
         if not matches:
-            info(f"SMARTS pattern '{smarts}' was not found. "\
-                    f"Returning all angles as active.")
+            info(
+                f"SMARTS pattern '{smarts}' was not found. "
+                "Returning all angles as active."
+            )
             d_flag = d_all_angles
         else:
             d_flag = _get_angles_by_indices(matches, d_all_angles)
@@ -696,8 +696,10 @@ def flag_angles(
 
         # SMARTS fails: fallback
         if not matches:
-            info(f"SMARTS '{smarts}' not found. "\
-                    f"Returning angles for provided atom indices only.")
+            info(
+                f"SMARTS '{smarts}' not found. "
+                "Returning angles for provided atom indices only."
+            )
             d_flag = _get_angles_by_indices([t_idxs], d_all_angles)
 
         # Collect all atoms from matches
@@ -709,12 +711,16 @@ def flag_angles(
         inter = matched_atoms & t_set
 
         if not inter:
-            info("No overlap between SMARTS matches and target indices. "\
-                    f"Returning angles for t_idxs only.")
+            info(
+                "No overlap between SMARTS matches and target indices. "
+                "Returning angles for t_idxs only."
+            )
             d_flag = _get_angles_by_indices([t_idxs], d_all_angles)
         else:
-            info(f"Partial overlap between SMARTS and t_idxs. "\
-                    f"Using only atoms {sorted(inter)}.")
+            info(
+                "Partial overlap between SMARTS and t_idxs. "
+                f"Using only atoms {sorted(inter)}."
+            )
             d_flag = _get_angles_by_indices([tuple(inter)], d_all_angles)
 
     d_flag_binfo = {}
@@ -731,6 +737,7 @@ def flag_angles(
 # -------------------------------------------------------------------
 # -- Pyramidalization specific functions ----------------------------
 # -------------------------------------------------------------------
+
 
 def _get_all_pyramids(mol: Mol) -> dict:
     """
@@ -802,11 +809,7 @@ def _get_pyramids_by_indices(match_list: list[tuple], d_pyramids: dict) -> dict:
     return {'pyramids': updated}
 
 
-def flag_pyramids(
-        mol: Mol,
-        smarts: str = None,
-        t_idxs: tuple = (),
-        draw=False) -> dict:
+def flag_pyramids(mol: Mol, smarts: str = None, t_idxs: tuple = (), draw=False) -> dict:
     """
     Flag pyramids in a molecule based on SMARTS and/or atom indices.
 
@@ -850,10 +853,7 @@ def flag_pyramids(
         matches = _match_pattern(mol, smarts)
 
         if not matches:
-            info(
-                f"SMARTS pattern '{smarts}' not found. "
-                "Returning all pyramids active."
-            )
+            info(f"SMARTS pattern '{smarts}' not found. Returning all pyramids active.")
             d_flag = d_all
         else:
             # ---- pyramid validity check ----
@@ -884,10 +884,7 @@ def flag_pyramids(
         t_set = set(t_idxs)
 
         if not matches:
-            info(
-                f"SMARTS '{smarts}' not found. "
-                "Returning pyramids for t_idxs only."
-            )
+            info(f"SMARTS '{smarts}' not found. Returning pyramids for t_idxs only.")
             d_flag = _get_pyramids_by_indices([t_idxs], d_all)
         else:
             # ---- pyramid validity check ----
@@ -937,6 +934,7 @@ def flag_pyramids(
 # -- Torsion specific functions -------------------------------------
 # -------------------------------------------------------------------
 
+
 def _get_all_dihedrals(mol: Mol) -> dict:
     """
     Return all dihedrals in the molecule as a dictionary with flags.
@@ -983,7 +981,7 @@ def _get_all_dihedrals(mol: Mol) -> dict:
                 dihedrals.append((1, (i, j, k, l)))
 
         ### to handle reversed central bond direction (k-j) uncomment lines:
-        #for i in neighbors_k:
+        # for i in neighbors_k:
         #    for l in neighbors_j:
         #        dihedrals.append((1, (i, k, j, l)))
 
@@ -1020,10 +1018,8 @@ def _get_dihedrals_by_indices(match_list: list[tuple], d_dihedrals: dict) -> dic
 
 
 def flag_dihedrals(
-        mol: Mol, 
-        smarts: str = None, 
-        t_idxs: tuple = (),
-        draw=False) -> dict:
+    mol: Mol, smarts: str = None, t_idxs: tuple = (), draw=False
+) -> dict:
     """
     Flag dihedrals in a molecule based on SMARTS and/or atom indices.
 
@@ -1063,8 +1059,9 @@ def flag_dihedrals(
     if smarts and not t_idxs:
         matches = _match_pattern(mol, smarts)
         if not matches:
-            info(f"SMARTS pattern '{smarts}' not found. "\
-                    "Returning all dihedrals active.")
+            info(
+                f"SMARTS pattern '{smarts}' not found. Returning all dihedrals active."
+            )
             d_flag = d_all
         else:
             d_flag = _get_dihedrals_by_indices(matches, d_all)
@@ -1088,14 +1085,18 @@ def flag_dihedrals(
         inter = matched_atoms & t_set
 
         if not inter:
-            info(f"No overlap between SMARTS match and t_idxs. "\
-                    f"Returning dihedrals for atom indices {t_idxs} only.")
+            info(
+                f"No overlap between SMARTS match and t_idxs. "
+                f"Returning dihedrals for atom indices {t_idxs} only."
+            )
 
             d_flag = _get_dihedrals_by_indices([t_idxs], d_all)
 
         else:
-            info(f"Partial overlap between SMARTS and t_idxs. "\
-                    f"Using atoms {sorted(inter)} for dihedral filtering.")
+            info(
+                f"Partial overlap between SMARTS and t_idxs. "
+                f"Using atoms {sorted(inter)} for dihedral filtering."
+            )
 
             d_flag = _get_dihedrals_by_indices([tuple(inter)], d_all)
 
@@ -1109,15 +1110,15 @@ def flag_dihedrals(
     else:
         return d_flag_binfo
 
+
 # -----------------------------------------------------------------------------
 # --- Flag all bonds, angles, dihedrals ---------------------------------------
 # -----------------------------------------------------------------------------
 
+
 def flag_bats(
-    mol: Mol,
-    smarts: str = None,
-    t_idxs: tuple = (),
-    draw=False) -> tuple[dict, int]:
+    mol: Mol, smarts: str = None, t_idxs: tuple = (), draw=False
+) -> tuple[dict, int]:
     """
     Compute and flag bonds, angles, and dihedrals in a single call,
     automatically determining which interactions can be filtered
@@ -1147,7 +1148,7 @@ def flag_bats(
         SMARTS pattern for filtering interactions.
     t_idxs : tuple[int], optional
         Atom indices for filtering interactions.
-    draw: True or False flag for returning flagged 
+    draw: True or False flag for returning flagged
         rdkit.Chem.rdchem.Mol object
 
     Returns
@@ -1161,39 +1162,47 @@ def flag_bats(
 
     Interaction types that cannot be filtered due to SMARTS/t_idx size
     are returned fully active.
-    
+
     if draw: rdkit.Chem.rdchem.Mol object of filtered features
     """
 
     # ------------------------------------------------------------
     # 1) Determine allowed level from SMARTS size
     # ------------------------------------------------------------
-    smarts_level = 3 # bonds + angles + dihedrals
+    smarts_level = 3  # bonds + angles + dihedrals
 
     if smarts:
         patt = Chem.MolFromSmarts(smarts)
         if patt is None:
-            info(f"Invalid SMARTS '{smarts}' .\
-                    Falling back to full reference molecule.")
+            info(
+                f"Invalid SMARTS '{smarts}' .\
+                    Falling back to full reference molecule."
+            )
         else:
             n_atoms = patt.GetNumAtoms()
 
             if n_atoms <= 1:
-                info(f"SMARTS '{smarts}' contains <2 atoms. No filtering "\
-                        f"is possible. All interactions returned active.")
+                info(
+                    f"SMARTS '{smarts}' contains <2 atoms. No filtering "
+                    f"is possible. All interactions returned active."
+                )
                 smarts_level = 0
                 smarts = None
                 t_idxs = ()
 
             elif n_atoms == 2:
-                info(f"SMARTS {smarts} contains 2 atoms. All angles and "\
-                        f"dihedrals will be flagged as inactive.")
-                smarts_level = 1 # bonds
+                info(
+                    f"SMARTS {smarts} contains 2 atoms. All angles and "
+                    f"dihedrals will be flagged as inactive."
+                )
+                smarts_level = 1  # bonds
 
             elif n_atoms == 3:
-                info(f"SMARTS {smarts} contains 3 atoms. All dihedrals "\
-                        f"will be flagged as inactive.")
-                smarts_level = 2 # bonds + angles
+                info(
+                    f"SMARTS {smarts} contains 3 atoms. All dihedrals "
+                    f"will be flagged as inactive."
+                )
+                smarts_level = 2  # bonds + angles
 
     # ------------------------------------------------------------
     # 2) Determine allowed level from t_idxs size
@@ -1203,20 +1212,26 @@ def flag_bats(
     if t_idxs:
         n = len(t_idxs)
         if n == 1:
-            info(f"t_idxs has only 1 atom, filtering not possible. "\
-                    f"All interactions returned active.")
+            info(
+                "t_idxs has only 1 atom, filtering not possible. "
+                "All interactions returned active."
+            )
             t_level = 0
             smarts = None
             t_idxs = ()
 
         elif n == 2:
-            info(f"SMARTS {smarts} contains 2 atoms. All angles and "\
-                    f"dihedrals will be flagged as inactive.")
+            info(
+                f"SMARTS {smarts} contains 2 atoms. All angles and "
+                "dihedrals will be flagged as inactive."
+            )
             t_level = 1
 
         elif n == 3:
-            info(f"SMARTS {smarts} contains 3 atoms. All dihedrals "\
-                    f"will be flagged as inactive.")
+            info(
+                f"SMARTS {smarts} contains 3 atoms. All dihedrals "
+                "will be flagged as inactive."
+            )
             t_level = 2
 
     # ------------------------------------------------------------
@@ -1228,44 +1243,44 @@ def flag_bats(
     # ------------------------------------------------------------
     # 4) Call the individual flaggers
     # ------------------------------------------------------------
-    out_atoms     = flag_atoms(mol, smarts=smarts, t_idxs=t_idxs, draw=False)['atoms']
-    out_bonds     = flag_bonds(mol, smarts=smarts, t_idxs=t_idxs, draw=False)['bonds']
-    out_angles    = flag_angles(mol, smarts=smarts, t_idxs=t_idxs, draw=False)['angles']
-    out_dihedrals = flag_dihedrals(mol, smarts=smarts, t_idxs=t_idxs, draw=False)['dihedrals']
+    # out_atoms     = flag_atoms(mol, smarts=smarts, t_idxs=t_idxs, draw=False)['atoms']  # TODO: unused
+    out_bonds = flag_bonds(mol, smarts=smarts, t_idxs=t_idxs, draw=False)['bonds']
+    out_angles = flag_angles(mol, smarts=smarts, t_idxs=t_idxs, draw=False)['angles']
+    out_dihedrals = flag_dihedrals(mol, smarts=smarts, t_idxs=t_idxs, draw=False)[
+        'dihedrals'
+    ]
 
     # ------------------------------------------------------------
     # 5) Apply level truncation
     # ------------------------------------------------------------
     if filter_level == 0:
-        info(f"SMARTS/t_idxs only point to a single atom; no filtering possible. "\
-                f"All bonds, angles, torsion will be returned (all active).")
+        info(
+            "SMARTS/t_idxs only point to a single atom; no filtering possible. "
+            "All bonds, angles, torsion will be returned (all active)."
+        )
 
         d_flag = {
-            'bonds':     [(1, *info) for (_, *info) in out_bonds],  # force active
-            'angles':    [(1, *info) for (_, *info) in out_angles],   # force active
-            'dihedrals': [(1, *info) for (_, *info) in out_dihedrals] # force active
+            'bonds': [(1, *info) for (_, *info) in out_bonds],  # force active
+            'angles': [(1, *info) for (_, *info) in out_angles],  # force active
+            'dihedrals': [(1, *info) for (_, *info) in out_dihedrals],  # force active
         }
 
     if filter_level == 1:
         d_flag = {
-            'bonds':     out_bonds,
-            'angles':    [(0, *ang) for (_, *ang) in out_angles],   # force inactive
-            'dihedrals': [(0, *dih) for (_, *dih) in out_dihedrals] # force inactive
+            'bonds': out_bonds,
+            'angles': [(0, *ang) for (_, *ang) in out_angles],  # force inactive
+            'dihedrals': [(0, *dih) for (_, *dih) in out_dihedrals],  # force inactive
         }
 
     if filter_level == 2:
         d_flag = {
-            'bonds':     out_bonds,
-            'angles':    out_angles,
-            'dihedrals': [(0, *dih) for (_, *dih) in out_dihedrals] # force inactive
+            'bonds': out_bonds,
+            'angles': out_angles,
+            'dihedrals': [(0, *dih) for (_, *dih) in out_dihedrals],  # force inactive
         }
 
     else:
-        d_flag = {
-            'bonds':     out_bonds,
-            'angles':    out_angles,
-            'dihedrals': out_dihedrals
-        }
+        d_flag = {'bonds': out_bonds, 'angles': out_angles, 'dihedrals': out_dihedrals}
 
     if draw:
         img = _get_highlight_molimg(mol, d_flag)
@@ -1275,13 +1290,11 @@ def flag_bats(
 
 
 def flag_bats_multiple(
-    mol: Mol,
-    l_smarts: list[str] = None,
-    l_t_idxs: list[tuple] = (),
-    draw=False) -> dict:
+    mol: Mol, l_smarts: list[str] = None, l_t_idxs: list[tuple] = (), draw=False
+) -> dict:
     """
     Compute and flag bonds, angles, and dihedrals in a single call,
-    ifor multiple structural features 
+    for multiple structural features
 
     Parameters
     ----------
@@ -1291,7 +1304,7 @@ def flag_bats_multiple(
         SMARTS patterns for filtering interactions.
     t_idxs : list[tuple[int]], optional
         list of atom indices tuples for filtering interactions.
-    draw: True or False flag for returning flagged 
+    draw: True or False flag for returning flagged
         rdkit.Chem.rdchem.Mol object
 
     Returns
@@ -1305,13 +1318,12 @@ def flag_bats_multiple(
 
     Interaction types that cannot be filtered due to SMARTS/t_idx size
     are returned fully active.
-    
+
     if draw: rdkit.Chem.rdchem.Mol object of filtered features
     """
 
     if l_smarts and not l_t_idxs:
         res = {}
-        l_img = []
         l_levels = []
         for smarts in l_smarts:
             d_flag, flag_level = flag_bats(mol=mol, smarts=smarts, draw=False)
@@ -1324,10 +1336,8 @@ def flag_bats_multiple(
         else:
             return res
 
-
     elif l_t_idxs and not l_smarts:
         res = {}
-        res_img = []
         for t in l_t_idxs:
             d_flag = flag_bats(mol=mol, t_idxs=t, draw=False)
             res[t] = d_flag
@@ -1337,15 +1347,15 @@ def flag_bats_multiple(
             return res, img
         else:
             return res
-   
+
     elif smarts and l_t_idxs:
-        info(f"Info text with important data {var}") # where var is a variable you want printed
-        warning(f"Either define a list of smarts or a list of tuples with atom indices!"
-                f"Here, the list of smarts are ignored and only the"
-                f"l_t_idxs: {l_t_idxs} are used for further processing.")
-        
+        warning(
+            "Either define a list of smarts or a list of tuples with atom indices!"
+            "Here, the list of smarts are ignored and only the"
+            f"l_t_idxs: {l_t_idxs} are used for further processing."
+        )
+
         res = {}
-        res_img = []
         for t in l_t_idxs:
             d_flag = flag_bats(mol=mol, t_idxs=t, draw=False)
             res[t] = d_flag
@@ -1488,7 +1498,6 @@ def _match_bla_chromophor(
     """
 
     take = None
-    info_msg = None
 
     # --- case 1: SMARTS only ---
     if smarts and not n_double:
@@ -1517,9 +1526,7 @@ def _match_bla_chromophor(
 
     # --- case 4: neither given: auto-discovery ---
     else:
-        max_matches = ()
         best_smarts = None
-        best_n = 0
 
         n = 2
         while True:
@@ -1528,8 +1535,6 @@ def _match_bla_chromophor(
             if not matches:
                 break
             best_smarts = smi
-            best_n = n
-            max_matches = matches
             n += 1
 
         # overwrite smarts with best smarts
