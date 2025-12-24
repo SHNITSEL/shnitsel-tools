@@ -1563,12 +1563,43 @@ def flag_bla_chromophor(mol,
                         draw=True,
                         width: int = 500,
                         height: int = 300):
+    """Flag chromophors for which Bond Length Alternation can be calculated,
+    in a molecule based on SMARTS and/or atom indices
+
+    Parameters
+    ----------
+    mol
+        Molecule under study.
+    smarts
+        SMARTS pattern
+    n_double
+        The maximal number of double bonds to match in a single conjugated moiety
+    elems
+        A comma-separated list of SMARTS-style element designations,
+        by default "#6,#7,#8,#15,#16"
+    draw
+        Whether to display a highlighted structure to indicate matches
+    width
+        The width of the image produced when ``draw=True``, by default 500
+    height
+        The height of the image produced when ``draw=True``, by default 300
+
+    Returns
+    -------
+    dict
+        {
+            'atoms': [(flag, (i,)), ...],
+            'bonds': [(flag, (i, j)), ...]
+        }
+    """
     match_chromo = _match_bla_chromophor(mol, smarts, n_double, elems)
 
     if not match_chromo['matches']:
-        info(f"SMARTS ({match_chromo['smarts']}) and/or n_double "\
-             f"({match_chromo['n_double']}) not found in the molecule. "\
-             f"No bonds will be flagged.")
+        info(
+            f"SMARTS ({match_chromo['smarts']}) and/or n_double "
+            f"({match_chromo['n_double']}) not found in the molecule. "
+            "No bonds will be flagged."
+        )
         d_flag = {}
         return d_flag
 
