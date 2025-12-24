@@ -8,6 +8,7 @@ from typing import (
     Self,
     TypeAlias,
     TypeVar,
+    overload,
 )
 import numpy as np
 import xarray as xr
@@ -271,11 +272,31 @@ class ShnitselDBRoot(xr.DataTree):
 
         return type(self)(new_compounds)
 
+    @overload
     def map_over_trajectories(
         self,
         map_func: Callable[[Trajectory], T],
+        result_as_dict: Literal[False] = False,
         result_var_name: str = 'result',
+        parallel: bool = False,
+    ) -> Self:
+        ...
+        
+    @overload
+    def map_over_trajectories(
+        self,
+        map_func: Callable[[Trajectory], T],
+        result_as_dict: Literal[True],
+        result_var_name: str = 'result',
+        parallel: bool = False,
+    ) -> dict:
+        ...
+        
+    def map_over_trajectories(
+        self,
+        map_func: Callable[[Trajectory], T],
         result_as_dict: bool = False,
+        result_var_name: str = 'result',
         parallel: bool = False,
     ) -> Self | dict:
         """Method to apply a function to all trajectories
