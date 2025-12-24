@@ -2,7 +2,7 @@ from dataclasses import dataclass
 import logging
 import os
 import pathlib
-from typing import Callable, Dict, List, Literal, Tuple
+from typing import Callable, Dict, Generic, List, Literal, Tuple, TypeVar
 import numpy as np
 import xarray as xr
 import random
@@ -59,8 +59,9 @@ def make_uniform_path(
         path = pathlib.Path(path)
     return path
 
+T = TypeVar('_T', covariant=True)
 
-class ConsistentValue[T]:
+class ConsistentValue(Generic[T]):
     """Class to keep track of a value that may only be assigned once and not overwritten afterwards.
 
     Can be used to check consistency of a value across multiple datasets.

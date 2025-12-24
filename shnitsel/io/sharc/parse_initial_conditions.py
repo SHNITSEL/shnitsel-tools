@@ -8,7 +8,6 @@ import os
 import re
 from itertools import product
 from typing import Dict, List, NamedTuple, Any, Tuple
-from tqdm.auto import tqdm
 from shnitsel.io.helpers import (
     PathOptionsType,
     dip_sep,
@@ -395,7 +394,7 @@ def read_iconds_individual(
                         iconds.atXYZ.attrs["units"] = length.Bohr
                     else:
                         logging.warning(
-                            f"Unsupported input length unit in QM.in: {unit_name}. Unit on the position is assumed to be of unit {default_format_attributes["atXYZ"]["units"]}"
+                            f"Unsupported input length unit in QM.in: {unit_name}. Unit on the position is assumed to be of unit {default_format_attributes['atXYZ']['units']}"
                         )
 
                 mark_variable_assigned(iconds.atXYZ)
