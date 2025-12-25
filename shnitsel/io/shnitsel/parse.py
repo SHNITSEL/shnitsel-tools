@@ -11,7 +11,6 @@ from shnitsel._api_info import internal
 from ...data.shnitsel_db.datatree_level import _datatree_level_attribute_key
 
 from shnitsel.io.shared.variable_flagging import mark_variable_assigned
-from ...data.shnitsel_db.datatree_level import _datatree_level_attribute_key
 
 from shnitsel.io.helpers import LoadingParameters, PathOptionsType
 
