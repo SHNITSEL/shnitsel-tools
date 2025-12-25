@@ -20,8 +20,8 @@ from numbers import Number
 from typing import Sequence
 from typing_extensions import Literal
 
-from shnitsel.clean.filter_energy import EnergyFiltrationThresholds, filter_by_energy
-from shnitsel.clean.filter_geo import GeometryFiltrationThresholds, filter_by_length
+from .filter_energy import EnergyFiltrationThresholds, filter_by_energy
+from .filter_geo import GeometryFiltrationThresholds, filter_by_length
 from rdkit.Chem import Mol
 
 
