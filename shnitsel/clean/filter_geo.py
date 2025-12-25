@@ -7,9 +7,9 @@ import numpy as np
 import xarray as xr
 from rdkit.Chem import Mol
 
-from shnitsel.geo.geocalc import get_bond_lengths
-from shnitsel.geo.geomatch import flag_bats_multiple
-from shnitsel.bridges import default_mol
+from shnitsel.filtering.structure_selection import StructureSelection
+from shnitsel.geo.geocalc import get_distances
+from shnitsel.bridges import construct_default_mol
 from shnitsel.clean.common import dispatch_cut
 from shnitsel.units.conversion import convert_length
 from shnitsel.clean.dispatch_plots import dispatch_plots
@@ -28,9 +28,9 @@ class GeometryFiltrationThresholds:
     """
 
     all_bonds_threshold: float = 3.0
-    all_bonds_smarts: str = '[*]~[*]'
+    all_bonds_smarts: str = "[*]~[*]"
     all_h_to_C_or_N_bonds_threshold: float = 2.0
-    all_h_to_C_or_N_bonds_SMARTS: str = '[#6,#7][H]'
+    all_h_to_C_or_N_bonds_SMARTS: str = "[#6,#7][H]"
     length_unit: str = length.Angstrom
 
     # Mappings of arbitrary SMARTs to threshold values.
@@ -86,33 +86,13 @@ class GeometryFiltrationThresholds:
         # Build DataArray from thresholds, criterion names and length unit
         res = xr.DataArray(
             list(threshold_values),
-            coords={'criterion': selected_SMARTS},
-            attrs={'units': self.length_unit},
+            coords={"criterion": selected_SMARTS},
+            attrs={"units": self.length_unit},
         )
         return res.astype(float)
 
 
-def _lengths_for_searches(atXYZ, searches, mol=None):
-    if mol is None:
-        mol = default_mol(atXYZ)
-
-    logging.disable(logging.INFO)
-    matches = flag_bats_multiple(mol, searches)
-    logging.disable(logging.NOTSET)
-
-    bonds = xr.concat(
-        [
-            (x := get_bond_lengths(atXYZ, v)).assign_coords(
-                {'bond_search': ('descriptor', np.full(x.sizes['descriptor'], k))}
-            )
-            for k, v in matches.items()
-        ],
-        dim='descriptor',
-    )
-    return bonds
-
-
-def bond_length_filtranda(
+def calculate_bond_length_filtranda(
     frames,
     geometry_thresholds: GeometryFiltrationThresholds | None = None,
     mol: Mol | None = None,
@@ -127,9 +107,9 @@ def bond_length_filtranda(
         A mapping from SMARTS-strings to length-thresholds.
 
             - The SMARTS-strings describe bonds which are searched
-              for in an RDKit Mol object obtained via :py:func:`shnitsel.bridges.default_mol`
+                for in an RDKit Mol object obtained via :py:func:`shnitsel.bridges.default_mol`
             - The thresholds describe maximal tolerable bond-lengths; if there are multiple matches
-              for a given search, the longest bond-length will be considered for each frame
+                for a given search, the longest bond-length will be considered for each frame
             - The unit for the maximum length is provided in the member variable `length_unit` which defaults to `angstrom`.
             - If not provided will be initialized with thresholds for H-(C/N) bonds and one for all bonds.
     mol, optional
@@ -142,43 +122,46 @@ def bond_length_filtranda(
         An xr.DataArray of filtration targets stacked along the ``criterion`` dimension;
         one criterion per ``search_dict`` entry.
     """
-    if search_dict is None:
-        search_dict = {}
-        criteria = list(_default_bond_length_thresholds_angstrom)
-        default_thresholds = _dict_to_thresholds(
-            criteria, _default_bond_length_thresholds_angstrom, units='angstrom'
-        )
-        default_thresholds = convert_length(default_thresholds, to=units)
-        thresholds = default_thresholds
-    else:
-        criteria = list(search_dict.keys())
-        user_thresholds = _dict_to_thresholds(criteria, search_dict, units=units)
-        thresholds = user_thresholds
-        # user_thresholds.where(~np.isnan(user_thresholds), default_thresholds)
+    if geometry_thresholds is None:
+        # Assign default threshold rules.
+        geometry_thresholds = GeometryFiltrationThresholds()
 
-    convert_coords = convert_length(frames['atXYZ'], to=units)
+    thresholds_array = geometry_thresholds.to_dataarray()
 
-    bonds = _lengths_for_searches(
-        convert_coords,
-        list(thresholds.coords['criterion'].data),
-        mol=mol,
+    converted_coords = convert_length(
+        frames["atXYZ"], to=geometry_thresholds.length_unit
     )
 
-    return (
-        bonds.groupby('bond_search')
-        .max()
-        .rename({'bond_search': 'criterion'})
-        .assign_coords({'thresholds': thresholds})
+    if mol is None:
+        mol = construct_default_mol(converted_coords)
+    base_selection = StructureSelection.init_from_mol(mol, "bonds")
+
+    criteria_ordered = thresholds_array.coords["criterion"].values
+    criteria_results = []
+
+    for smarts in criteria_ordered:
+        # Find all bonds conforming to this smarts
+        smarts_selection = base_selection.select_bonds(smarts)
+        # Calculate distances for these bonds
+        smart_specific_distances = get_distances(smarts_selection)
+
+        # Find maximum across all descriptors/bonds in each frame for this smarts
+        max_distances = smart_specific_distances.max("descriptor", keep_attrs=True)
+        # Add criterion dimension and append to results
+        criteria_results.append(max_distances.expand_dims("criterion"))
+
+    return xr.concat(criteria_results, dim="criterion").assign_coords(
+        {"thresholds": thresholds_array}
     )
 
 
 def filter_by_length(
     frames,
-    cut: Literal['truncate', 'omit', False] | Number = 'truncate',
+    cut: Literal["truncate", "omit", False] | Number = "truncate",
     search_dict: dict[str, Number] | None = None,
-    units: str = 'angstrom',
+    units: str = "angstrom",
     plot_thresholds: bool | Sequence[float] = False,
-    plot_populations: bool | Literal['independent', 'intersections'] = False,
+    plot_populations: bool | Literal["independent", "intersections"] = False,
     mol: Mol | None = None,
 ):
     """Filter trajectories according to bond length
@@ -237,10 +220,10 @@ def filter_by_length(
     The resulting object has a ``filtranda`` data_var, representing the values by which the data were filtered.
     If the input has a ``filtranda`` data_var, it is overwritten.
     """
-    filtranda = bond_length_filtranda(
+    filtranda = calculate_bond_length_filtranda(
         frames, search_dict=search_dict, units=units, mol=mol
     )
-    frames = frames.drop_dims(['criterion'], errors='ignore').assign(
+    frames = frames.drop_dims(["criterion"], errors="ignore").assign(
         filtranda=filtranda
     )
     dispatch_plots(filtranda, plot_thresholds, plot_populations)
