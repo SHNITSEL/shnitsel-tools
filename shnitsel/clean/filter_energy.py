@@ -70,7 +70,7 @@ class EnergyFiltrationThresholds:
         return res.astype(float)
 
 
-def energy_filtranda(
+def calculate_energy_filtranda(
     frames,
     *,
     energy_thresholds: EnergyFiltrationThresholds | None = None,
@@ -194,7 +194,7 @@ def sanity_check(
     """
     if energy_thresholds is None:
         energy_thresholds = EnergyFiltrationThresholds()
-    filtranda = energy_filtranda(frames, energy_thresholds=energy_thresholds)
+    filtranda = calculate_energy_filtranda(frames, energy_thresholds=energy_thresholds)
     dispatch_plots(filtranda, plot_thresholds, plot_populations)
     filtered_frames = frames.drop_dims(['criterion'], errors='ignore').assign(
         filtranda=filtranda
