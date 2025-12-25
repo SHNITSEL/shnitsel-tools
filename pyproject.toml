@@ -110,7 +110,7 @@ ignore_missing_imports = true
 
 [tool.tox]
 min_version = "4.19"
-env_list = ["py313", "py312", "py311", "py310"]
+env_list = ["py313", "py312", "py311"]
 
 [tool.tox.testenv]
 deps = ["pytest"]
