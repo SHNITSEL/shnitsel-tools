@@ -7,7 +7,7 @@ import numpy as np
 import xarray as xr
 
 from shnitsel.data.multi_indices import mdiff
-from shnitsel.clean.common import dispatch_cut
+from shnitsel.clean.common import dispatch_filter
 from shnitsel.clean.dispatch_plots import dispatch_plots
 from shnitsel.units.conversion import convert_energy
 from shnitsel.units.definitions import energy
@@ -54,7 +54,7 @@ class EnergyFiltrationThresholds:
         if selected_criteria is None:
             criteria = list(dict_repr.keys())
             # Don't include the unit property
-            criteria.remove('energy_unit')
+            criteria.remove("energy_unit")
         else:
             # Make sure all criteria exist on this object
             assert all(x in dict_repr.keys() for x in selected_criteria)
@@ -64,8 +64,8 @@ class EnergyFiltrationThresholds:
         # Build DataArray from thresholds, criterion names and energy unit
         res = xr.DataArray(
             list(threshold_values),
-            coords={'criterion': criteria},
-            attrs={'units': self.energy_unit},
+            coords={"criterion": criteria},
+            attrs={"units": self.energy_unit},
         )
         return res.astype(float)
 
@@ -101,48 +101,48 @@ def calculate_energy_filtranda(
     filter_energy_unit = energy_thresholds.energy_unit
 
     res = xr.Dataset()
-    is_hop = mdiff(frames['astate']) != 0
+    is_hop = mdiff(frames["astate"]) != 0
     # TODO: FIXME: Shouldn't we drop coords instead?
-    e_pot_active = frames.energy.sel(state=frames.astate).drop_vars('state')
-    e_pot_active.attrs['units'] = frames['energy'].attrs['units']
+    e_pot_active = frames.energy.sel(state=frames.astate).drop_vars("state")
+    e_pot_active.attrs["units"] = frames["energy"].attrs["units"]
     e_pot_active = convert_energy(e_pot_active, to=filter_energy_unit)
 
-    res['epot_active_step'] = mdiff(e_pot_active).where(~is_hop, 0)
-    res['epot_hop_step'] = mdiff(e_pot_active).where(is_hop, 0)
+    res["epot_active_step"] = mdiff(e_pot_active).where(~is_hop, 0)
+    res["epot_hop_step"] = mdiff(e_pot_active).where(is_hop, 0)
 
-    if 'e_kin' in frames.data_vars:
-        e_kin = frames['e_kin']
-        e_kin.attrs['units'] = frames['e_kin'].attrs['units']
+    if "e_kin" in frames.data_vars:
+        e_kin = frames["e_kin"]
+        e_kin.attrs["units"] = frames["e_kin"].attrs["units"]
         e_kin = convert_energy(e_kin, to=filter_energy_unit)
 
         e_tot = e_pot_active + e_kin
-        res['etot_step'] = mdiff(e_tot)
-        res['etot_drift'] = e_tot.groupby('trajid').map(
+        res["etot_step"] = mdiff(e_tot)
+        res["etot_drift"] = e_tot.groupby("trajid").map(
             lambda traj: abs(traj - traj.item(0))
         )
-        res['ekin_step'] = mdiff(e_kin).where(~is_hop, 0)
+        res["ekin_step"] = mdiff(e_kin).where(~is_hop, 0)
     else:
         e_kin = None
         warning("data does not contain kinetic energy variable ('e_kin')")
 
-    da = np.abs(res.to_dataarray('criterion')).assign_attrs(units=filter_energy_unit)
+    da = np.abs(res.to_dataarray("criterion")).assign_attrs(units=filter_energy_unit)
 
     # Make threshold coordinates
     da = da.assign_coords(
         criterion_thresholds=energy_thresholds.to_dataarray(
-            selected_criteria=res.coords['criterion'].values
+            selected_criteria=res.coords["criterion"].values
         )
     )
     return da
 
 
-def sanity_check(
+def filter_by_energy(
     frames,
-    cut: Literal['truncate', 'omit', False] | Number = 'truncate',
+    filter_method: Literal["truncate", "omit", "annotate"] | Number = "truncate",
     *,
     energy_thresholds: EnergyFiltrationThresholds | None = None,
     plot_thresholds: bool | Sequence[float] = False,
-    plot_populations: bool | Literal['independent', 'intersections'] = False,
+    plot_populations: bool | Literal["independent", "intersections"] = False,
 ):
     """Filter trajectories according to energy to exclude unphysical (insane) behaviour
 
@@ -150,17 +150,17 @@ def sanity_check(
     ----------
     frames
         A xr.Dataset with ``astate``, ``energy``, and ideally ``e_kin`` variables
-    cut, optional
+    filter_method, optional
         Specifies the manner in which to remove data;
 
             - if 'omit', drop trajectories unless all frames meet criteria (:py:func:`shnitsel.clean.omit`)
             - if 'truncate', cut each trajectory off just before the first frame that doesn't meet criteria
-              (:py:func:`shnitsel.clean.truncate`)
+                (:py:func:`shnitsel.clean.truncate`)
+            - if 'annotate', merely annotate the data;
             - if a number, interpret this number as a time, and cut all trajectories off at this time,
-              discarding those which violate criteria before reaching the given limit,
-              (:py:func:`shnitsel.clean.transect`)
-            - if ``False``, merely annotate the data;
-        see :py:func:`shnitsel.clean.dispatch_cut`.
+                discarding those which violate criteria before reaching the given limit,
+                (:py:func:`shnitsel.clean.transect`)
+        see :py:func:`shnitsel.clean.dispatch_filter`.
     energy_thresholds, optional
         Threshold for total, potential and kinetic energy of the system.
         Can specify thresholds for overall drift and individual time step changes.
@@ -196,7 +196,7 @@ def sanity_check(
         energy_thresholds = EnergyFiltrationThresholds()
     filtranda = calculate_energy_filtranda(frames, energy_thresholds=energy_thresholds)
     dispatch_plots(filtranda, plot_thresholds, plot_populations)
-    filtered_frames = frames.drop_dims(['criterion'], errors='ignore').assign(
+    filtered_frames = frames.drop_dims(["criterion"], errors="ignore").assign(
         filtranda=filtranda
     )
-    return dispatch_cut(filtered_frames, cut)
+    return dispatch_filter(filtered_frames, filter_method)

@@ -10,7 +10,7 @@ from rdkit.Chem import Mol
 from shnitsel.filtering.structure_selection import StructureSelection
 from shnitsel.geo.geocalc import get_distances
 from shnitsel.bridges import construct_default_mol
-from shnitsel.clean.common import dispatch_cut
+from shnitsel.clean.common import dispatch_filter
 from shnitsel.units.conversion import convert_length
 from shnitsel.clean.dispatch_plots import dispatch_plots
 from shnitsel.units.definitions import length
@@ -157,12 +157,12 @@ def calculate_bond_length_filtranda(
 
 def filter_by_length(
     frames,
-    cut: Literal["truncate", "omit", False] | Number = "truncate",
-    search_dict: dict[str, Number] | None = None,
-    units: str = "angstrom",
+    filter_method: Literal["truncate", "omit", "annotate"] | Number = "truncate",
+    *,
+    geometry_thresholds: GeometryFiltrationThresholds | None = None,
+    mol: Mol | None = None,
     plot_thresholds: bool | Sequence[float] = False,
     plot_populations: bool | Literal["independent", "intersections"] = False,
-    mol: Mol | None = None,
 ):
     """Filter trajectories according to bond length
 
@@ -170,25 +170,29 @@ def filter_by_length(
     ----------
     frames
         A xr.Dataset with an ``atXYZ`` variable (NB. this function takes an xr.Dataset as
-        opposed to an xr.DataArray for consistency with :py:func:`shnitsel.clean.sanity_check`)
-    cut
+        opposed to an xr.DataArray for consistency with :py:func:`shnitsel.clean.filter_by_energy`)
+    filter_method, optional
         Specifies the manner in which to remove data;
 
             - if 'omit', drop trajectories unless all frames meet criteria (:py:func:`shnitsel.clean.omit`)
             - if 'truncate', cut each trajectory off just before the first frame that doesn't meet criteria
-              (:py:func:`shnitsel.clean.truncate`)
+                (:py:func:`shnitsel.clean.truncate`)
+            - if 'annotate', merely annotate the data;
             - if a number, interpret this number as a time, and cut all trajectories off at this time,
-              discarding those which violate criteria before reaching the given limit,
-              (:py:func:`shnitsel.clean.transect`)
-            - if ``False``, merely annotate the data;
-        see :py:func:`shnitsel.clean.dispatch_cut`.
-    search_dict
+                discarding those which violate criteria before reaching the given limit,
+                (:py:func:`shnitsel.clean.transect`)
+        see :py:func:`shnitsel.clean.dispatch_filter`.
+    geometry_thresholds, optional
         A mapping from SMARTS-strings to length-thresholds.
 
             - The SMARTS-strings describe bonds which are searched
-              for in an RDKit Mol object obtained via :py:func:`shnitsel.bridges.default_mol`
+                for in an RDKit Mol object obtained via :py:func:`shnitsel.bridges.default_mol`
             - The thresholds describe maximal tolerable bond-lengths; if there are multiple matches
-              for a given search, the longest bond-length will be considered for each frame
+                for a given search, the longest bond-length will be considered for each frame
+            - The unit for the maximum length is provided in the member variable `length_unit` which defaults to `angstrom`.
+            - If not provided will be initialized with thresholds for H-(C/N) bonds and one for all bonds.
+    mol
+        An rdkit mol object, if not provided it will be generated from the XYZ coordinates in the data
     plot_thresholds
         See :py:func:`shnitsel.vis.plot.filtration.check_thresholds`.
 
@@ -205,11 +209,6 @@ def filter_by_length(
         - If ``'independent'``, will plot populations of
         trajectories satisfying conditions taken independently
         - If ``False``, will not plot populations plot
-    mol
-        An rdkit mol object, if not provided it will be generated from the XYZ coordinates in the data
-    units
-        Units in which custom thresholds are given, and to which defaults and data will be converted, by default
-        'angstrom'
 
     Returns
     -------
@@ -218,14 +217,15 @@ def filter_by_length(
     Notes
     -----
     The resulting object has a ``filtranda`` data_var, representing the values by which the data were filtered.
-    If the input has a ``filtranda`` data_var, it is overwritten.
+    If the input has a ``filtranda`` data_var, it is overwritten. An existing 'criterion' dimension will be dropped from
+    the `frames` parameter along with all variables and coordinates tied to it.
     """
     filtranda = calculate_bond_length_filtranda(
-        frames, search_dict=search_dict, units=units, mol=mol
+        frames, geometry_thresholds=geometry_thresholds, mol=mol
     )
     frames = frames.drop_dims(["criterion"], errors="ignore").assign(
         filtranda=filtranda
     )
     dispatch_plots(filtranda, plot_thresholds, plot_populations)
 
-    return dispatch_cut(frames, cut)
+    return dispatch_filter(frames, filter_method)
