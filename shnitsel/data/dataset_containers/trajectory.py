@@ -24,7 +24,7 @@ class Trajectory(ShnitselDataset):
         super().__init__(ds)
 
     @cached_property
-    def as_frames(self) -> Frames:
+    def as_frames(self) -> "Frames":
         """Convert this trajectory to a frames version of this trajectory, where the leading dimension
         is `frame` instead of `time`.
 

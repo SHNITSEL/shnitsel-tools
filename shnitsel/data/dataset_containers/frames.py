@@ -1,6 +1,6 @@
 from dataclasses import dataclass
+from typing import Iterable
 import xarray as xr
-from .shared import ShnitselDataset
 from .trajectory import Trajectory
 
 
@@ -30,3 +30,11 @@ class Frames(Trajectory):
 
     def is_multi_trajectory(self) -> bool:
         return self._is_multi_trajectory
+
+
+class MultiTrajectoryFrames(Frames):
+    def __init__(self, framesets: Iterable[Frames]):
+        # TODO: FIXME: Concatenate frames into one single big frameset.
+        ...
+        super().__init__(framesets)
+        self._is_multi_trajectory = True
