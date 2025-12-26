@@ -155,6 +155,7 @@ def calculate_bond_length_filtranda(
     )
 
 
+# TODO: FIXME: This should operate on single trajectories.
 def filter_by_length(
     frames,
     filter_method: Literal["truncate", "omit", "annotate"] | Number = "truncate",

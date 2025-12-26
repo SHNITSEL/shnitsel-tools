@@ -20,13 +20,17 @@ from numbers import Number
 from typing import Sequence
 from typing_extensions import Literal
 
+from shnitsel.core.typedefs import Frames
+from shnitsel.data.trajectory_format import Trajectory
+
 from .filter_energy import EnergyFiltrationThresholds, filter_by_energy
 from .filter_geo import GeometryFiltrationThresholds, filter_by_length
 from rdkit.Chem import Mol
 
 
+# TODO: FIXME: This should operate on single trajectories.
 def sanity_check(
-    frames,
+    trajectory_or_frames: Trajectory | Frames,
     filter_method: Literal["truncate", "omit", "annotate"] | Number = "truncate",
     *,
     energy_thresholds: EnergyFiltrationThresholds | None = None,
@@ -39,7 +43,7 @@ def sanity_check(
 
     Parameters
     ----------
-    frames
+    trajectory_or_frames
         A xr.Dataset with an ``atXYZ`` variable as well as ``astate``, ``energy``, and ideally ``e_kin`` variables
     filter_method, optional
         Specifies the manner in which to remove data;
@@ -96,12 +100,14 @@ def sanity_check(
 
     # Perform energy filtering
     ds_energy = filter_by_energy(
-        frames,
+        trajectory_or_frames,
         filter_method,
         energy_thresholds=energy_thresholds,
         plot_thresholds=plot_thresholds,
         plot_populations=plot_populations,
     )
+
+    # TODO: FIXME: Deal with trajectory being rejected in transect or omit.
 
     # Rename to filter-method prefixed names
     ds_tmp = ds_energy.rename_dims({"criterion": "energy_criterion"}).rename(

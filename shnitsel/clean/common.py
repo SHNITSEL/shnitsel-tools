@@ -196,6 +196,7 @@ def transect(ds: TrajectoryOrFrames, cutoff: float) -> TrajectoryOrFrames:
     return ds.isel({"trajid": traj_selection})
 
 
+# TODO: FIXME: This should work on individual trajectories.
 def dispatch_filter(
     frames: xr.Dataset,
     filter_method: Literal["truncate", "omit", "annotate"] | Number = "truncate",
