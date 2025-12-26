@@ -19,3 +19,19 @@ class InterState(ShnitselDerivedDataset):
         self._original_frames = frames
         per_state_props = get_inter_state(frames.dataset)
         super().__init__(frames.dataset, per_state_props)
+
+    @property
+    def delta_energy(self):
+        pass
+
+    @property
+    def dipole_transition(self):
+        pass
+
+    @property
+    def nacs(self):
+        pass
+
+    @property
+    def socs(self):
+        pass

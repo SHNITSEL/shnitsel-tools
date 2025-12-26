@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Sequence
+from typing import Iterable, Sequence
 
 from .trajectory import Trajectory
 
@@ -10,3 +10,7 @@ class TrajectoryCollection:
 
     def __init__(self, trajectories: Sequence[Trajectory]):
         self._trajectories = trajectories
+
+    @property
+    def trajectories(self) -> Iterable[Trajectory]:
+        return self._trajectories

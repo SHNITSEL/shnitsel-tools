@@ -19,3 +19,15 @@ class PerState(ShnitselDerivedDataset):
         self._original_frames = frames
         per_state_props = get_per_state(frames.dataset)
         super().__init__(frames.dataset, per_state_props)
+
+    @property
+    def energy(self):
+        pass
+
+    @property
+    def dipole_permanent(self):
+        pass
+
+    @property
+    def forces(self):
+        pass
