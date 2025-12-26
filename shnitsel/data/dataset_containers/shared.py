@@ -26,39 +26,65 @@ class ShnitselDataset:
 
     @property
     def state_names(self):
-        pass
+        if "state_names" not in self.dataset.coords:
+            raise KeyError("No coordinate `state_names` provided for the trajectory")
+        return self.dataset.coords["state_names"]
 
     @property
     def state_types(self):
-        pass
+        if "state_types" not in self.dataset.coords:
+            raise KeyError("No coordinate `state_types` provided for the trajectory")
+        return self.dataset.coords["state_types"]
 
     @property
     def state_magnetic_number(self):
-        pass
+        if "state_magnetic_number" not in self.dataset.coords:
+            raise KeyError(
+                "No coordinate `state_magnetic_number` provided for the trajectory"
+            )
+        return self.dataset.coords["state_magnetic_number"]
 
     @property
     def state_degeneracy_group(self):
-        pass
+        if "state_degeneracy_group" not in self.dataset.coords:
+            raise KeyError(
+                "No coordinate `state_degeneracy_group` provided for the trajectory"
+            )
+        return self.dataset.coords["state_degeneracy_group"]
 
     @property
     def state_charges(self):
-        pass
+        if "state_charges" not in self.dataset.coords:
+            raise KeyError("No coordinate `state_charges` provided for the trajectory")
+        return self.dataset.coords["state_charges"]
 
     @property
     def active_state(self):
-        pass
+        if "astate" not in self.dataset.coords:
+            raise KeyError(
+                "No coordinate `astate` holding the active state id provided for the trajectory"
+            )
+        return self.dataset.coords["astate"]
 
     @property
     def state_diagonal(self):
-        pass
+        if "sdiag" not in self.dataset.coords:
+            raise KeyError(
+                "No coordinate `sdiag` holding the active state id provided for the trajectory"
+            )
+        return self.dataset.coords["sdiag"]
 
     @property
     def atom_names(self):
-        pass
+        if "atom_names" not in self.dataset.coords:
+            raise KeyError("No coordinate `atom_names` provided for the trajectory")
+        return self.dataset.coords["atom_names"]
 
     @property
     def atom_numbers(self):
-        pass
+        if "atom_numbers" not in self.dataset.coords:
+            raise KeyError("No coordinate `atom_numbers` provided for the trajectory")
+        return self.dataset.coords["atom_numbers"]
 
     # TODO: Forward all unmet requests to dataset.
 

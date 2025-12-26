@@ -45,42 +45,69 @@ class Trajectory(ShnitselDataset):
 
     @property
     def positions(self):
-        if "atXYZ" in self.dataset:
-            return self.dataset["atXYZ"]
-        else:
-            return None
+        if "atXYZ" not in self.dataset.data_vars:
+            raise KeyError(
+                "No variable `atXYZ` to encode positions provided for the trajectory"
+            )
+        return self.dataset.data_vars["atXYZ"]
+
+    @property
+    def atXYZ(self):
+        if "atXYZ" not in self.dataset.data_vars:
+            raise KeyError("No variable `atXYZ` provided for the trajectory")
+        return self.dataset.data_vars["atXYZ"]
 
     @property
     def energy(self):
-        pass
+        if "energy" not in self.dataset.data_vars:
+            raise KeyError("No variable `energy` provided for the trajectory")
+        return self.dataset.data_vars["energy"]
 
     @property
     def forces(self):
-        pass
+        if "forces" not in self.dataset.data_vars:
+            raise KeyError("No variable `forces` provided for the trajectory")
+        return self.dataset.data_vars["forces"]
 
     @property
     def nacs(self):
-        pass
+        if "nacs" not in self.dataset.data_vars:
+            raise KeyError("No variable `nacs` provided for the trajectory")
+        return self.dataset.data_vars["nacs"]
 
     @property
     def socs(self):
-        pass
+        if "socs" not in self.dataset.data_vars:
+            raise KeyError("No variable `socs` provided for the trajectory")
+        return self.dataset.data_vars["socs"]
 
     @property
     def dipole_permanent(self):
-        pass
+        if "dip_perm" not in self.dataset.data_vars:
+            raise KeyError(
+                "No variable `dip_perm` containing permanent dipole moments provided for the trajectory"
+            )
+        return self.dataset.data_vars["dip_perm"]
 
     @property
     def dipole_transition(self):
-        pass
+        if "dip_trans" not in self.dataset.data_vars:
+            raise KeyError(
+                "No variable `dip_trans` containing transitional dipole moments provided for the trajectory"
+            )
+        return self.dataset.data_vars["dip_trans"]
 
     @property
     def e_kin(self):
-        pass
+        if "e_kin" not in self.dataset.data_vars:
+            raise KeyError("No variable `e_kin` provided for the trajectory")
+        return self.dataset.data_vars["e_kin"]
 
     @property
     def velocities(self):
-        pass
+        if "velocities" not in self.dataset.data_vars:
+            raise KeyError("No variable `velocities` provided for the trajectory")
+        return self.dataset.data_vars["velocities"]
 
     @property
     def charge(self) -> float:
@@ -136,7 +163,7 @@ class Trajectory(ShnitselDataset):
 
     @property
     def is_multi_trajectory(self) -> bool:
-        pass
+        return False
 
     @property
     def trajectory_input_path(self) -> str | None:
@@ -154,3 +181,7 @@ class Trajectory(ShnitselDataset):
     def misc_input_settings(self) -> dict | None:
         # To keep track of input settings we do not explicitly use anywhere else.
         pass
+
+    @property
+    def attrs(self) -> dict:
+        return self.dataset.attrs
