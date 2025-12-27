@@ -154,12 +154,22 @@ def keep_norming(
 ) -> xr.DataArray:
     """Function to calculate the norm of a variable across all dimensions except the ones denoted in `exclude`
 
-    Args:
-        da (xr.DataArray): The data array to norm across all non-excluded dimensions
-        exclude (Collection[DimName] | None, optional): The dimensions to exclude/retain. Defaults to ['state', 'statecomb', 'frame'].
+    Parameters
+    ----------
+        da
+            The data array to norm across all non-excluded dimensions
+        exclude
+            The dimensions to exclude/retain. Defaults to ['state', 'statecomb', 'frame'].
 
-    Returns:
+    Returns
+    -------
         xr.DataArray: The resulting, normed array
+
+    Notes
+    -----
+        The output of keep_norming is not necessarily >= 0; for example, if all dimensions
+        in ``da`` are in ``exclude``, the original object possibly containing negative values
+        will be returned unaltered.
     """
     if exclude is None:
         exclude = {'state', 'statecomb', 'frame'}
@@ -185,9 +195,11 @@ def replace_total(
     da
         An xr.DataArray
     to_replace
-        Values to replace
+        Values to replace -- these should be sortable, i.e. each pair of elements
+        must be comparable by ``<``
     value
-        Values with which to replace them
+        Values with which to replace them -- the dtype of this argument determines
+        the dtype of the result
 
     Returns
     -------
@@ -215,8 +227,8 @@ def relativize(da: xr.DataArray, **sel) -> xr.DataArray:
         The xr.DataArray from which to subtract the minimum
     **sel
         If keyword parameters are present, the reference minimum is picked
-    from those elements that remain after running :py:meth:`xarray.DataArray.sel`
-    using the keyword parameters as arguments.
+        from those elements that remain after running :py:meth:`xarray.DataArray.sel`
+        using the keyword parameters as arguments.
 
 
     Returns
@@ -230,15 +242,15 @@ def relativize(da: xr.DataArray, **sel) -> xr.DataArray:
 
 def pwdists(atXYZ: AtXYZ, mean: bool = False) -> xr.DataArray:
     """
-    Compute pairwise distances and standardize it by removing the mean 
-    and L2-normalization (if your features are vectors and you want magnitudes only, 
+    Compute pairwise distances and standardize it by removing the mean
+    and L2-normalization (if your features are vectors and you want magnitudes only,
     to lose directional info)
 
     Parameters
     ----------
     atXYZ
         A DataArray containing the atomic positions;
-        must have a dimension called 'atom'
+        must have dimensions called 'atom' and 'direction'
     mean
         subtract mean if true to center data
 

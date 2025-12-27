@@ -1,26 +1,54 @@
 import pytest
 from hypothesis import assume, given
 import hypothesis.strategies as st
+from hypothesis.strategies import just, composite
+import hypothesis.extra.numpy as hnp
 from xarray.testing import assert_equal
 import xarray.testing.strategies as xrst
 
 import numpy as np
 import xarray as xr
 
-from shnitsel.analyze.generic import norm, subtract_combinations
+from shnitsel.analyze.generic import (
+    norm,
+    subtract_combinations,
+    keep_norming,
+    replace_total,
+    relativize,
+    pwdists,
+)
 from shnitsel.analyze.pca import pca
-from shnitsel.data.helpers import ts_to_time
-from shnitsel.io import read
+# from shnitsel.data.helpers import ts_to_time
+# from shnitsel.io import read
 
+
+def dim_name_supersets_of(names):
+    required = st.just(names)
+    extra = xrst.dimension_names()
+    together = st.builds(lambda r, e: r + e, required, extra)
+
+    return together.flatmap(st.permutations)
+
+
+def arrays_no_nan(dtype, shape):
+    if np.issubdtype(dtype, np.floating):
+        elements = st.floats(allow_nan=False)
+    elif np.issubdtype(dtype, np.complexfloating):
+        elements = st.complex_numbers(allow_nan=False)
+    else:
+        elements = None  # Allow any valid element
+
+    return hnp.arrays(dtype=st.just(dtype), shape=st.just(shape), elements=elements)
 
 class TestProcessing:
     """Class to test all functions of the shnitsel tools related to postprocessing"""
 
-    @pytest.fixture
-    def traj_butene(self):
-        # TODO: FIXME: This does not work with default settings of the new read() function
-        frames = read('tutorials/test_data/sharc/traj_butene', kind='sharc')
-        return ts_to_time(frames)
+    # TODO: Fixture currently unused. Remove?
+    # @pytest.fixture
+    # def traj_butene(self):
+    #     # TODO: FIXME: This does not work with default settings of the new read() function
+    #     frames = read('tutorials/test_data/sharc/traj_butene', kind='sharc')
+    #     return ts_to_time(frames)
 
     @given(
         xrst.variables(
@@ -52,6 +80,82 @@ class TestProcessing:
             to_check = res.isel(targetcomb=c)
             assert_equal(da_diff, to_check)
 
+    # TODO: test center
+
+    @composite
+    def inputs_for_keep_norming(draw):
+        dims = draw(xrst.dimension_names(min_dims=1))
+        dims_in_var = draw(xrst.unique_subset_of(dims))
+        dims_to_exclude = draw(xrst.unique_subset_of(dims))
+        da = draw(xrst.variables(dims=st.just(dims_in_var), dtype=st.just(float)))
+        return da, dims_to_exclude
+
+    @given(inputs_for_keep_norming())
+    def test_keep_norming(self, inputs):
+        # NB. The output of keep_norming isn't necessarily >= 0
+        da, exclude = inputs
+        da = xr.DataArray(da)
+        res = keep_norming(da, exclude=exclude)
+        assert set(da.dims) - set(res.dims) == set(da.dims) - set(exclude)
+
+    @composite
+    def inputs_for_replace_total(draw):
+        def make_array_strategy(dtype, shape):
+            if np.issubdtype(dtype, np.floating):
+                elements = st.floats(allow_nan=False)
+            elif np.issubdtype(dtype, np.complexfloating):
+                elements = st.complex_numbers(allow_nan=False)
+            else:
+                elements = None  # Allow any valid element
+
+            return hnp.arrays(
+                dtype=st.just(dtype), shape=st.just(shape), elements=elements
+            )
+
+        da = draw(xrst.variables(array_strategy_fn=make_array_strategy))
+        to_replace = np.unique(da)
+        nitems = len(to_replace)
+        value = draw(
+            st.lists(
+                st.one_of(st.integers(), st.floats(), st.text()),
+                min_size=nitems,
+                max_size=nitems,
+                unique=True,
+            )
+        )
+        return da, to_replace, value
+
+    @given(inputs_for_replace_total())
+    def test_replace_total(self, inputs):
+        """Test round trip -- replace and replace again"""
+        # FIXME: the function being tested expects inputs that
+        # support `=` and `<`; this exculdes nan and mixtures of
+        # string and int
+        da, to_replace, value = inputs
+        da = xr.DataArray(da)
+        da2 = replace_total(da, to_replace, value)
+        da3 = replace_total(da2, to_replace=value, value=to_replace)
+        assert_equal(da, da3)
+
+    @given(xrst.variables(dtype=st.one_of(st.just(float))))
+    def test_relativize(self, da):
+        # TODO: test **sel parameter
+        da = xr.DataArray(da)
+        res = relativize(da)
+        # FIXME: Fails for extremely large numbers. Change test? Fix function? Document?
+        assert res.min() == 0
+
+    @given(xrst.variables(dims=dim_name_supersets_of(['atom', 'direction'])))
+    def test_pwdists(self, da):
+        da = xr.DataArray(da)
+        res = pwdists(da)
+
+        assert set(da.dims) - set(res.dims) == {'atom', 'direction'}
+        assert set(res.dims) - set(da.dims) == {'atomcomb'}
+        if not np.isnan(da).any() and not np.isinf(da).any():
+            assert (res >= 0).all()
+
+    # Dimensional reduction functions
     @given(
         xrst.variables(
             dims=st.just({'test': 2, 'target': 4}),
