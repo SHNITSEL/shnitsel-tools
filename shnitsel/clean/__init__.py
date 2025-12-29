@@ -16,27 +16,29 @@
 #     cum_mask_from_filtranda as cum_mask_from_filtranda,
 # )
 
+import logging
 from numbers import Number
 from typing import Sequence
 from typing_extensions import Literal
 
-from shnitsel.core.typedefs import Frames
-from shnitsel.data.trajectory_format import Trajectory
+from shnitsel.data.dataset_containers.frames import Frames
+from shnitsel.data.dataset_containers.trajectory import Trajectory
+
 
 from .filter_energy import EnergyFiltrationThresholds, filter_by_energy
 from .filter_geo import GeometryFiltrationThresholds, filter_by_length
 from rdkit.Chem import Mol
 
 
-# TODO: FIXME: This should operate on single trajectories.
+# TODO: FIXME: This should be able to operate on trees and multi-sets of Trajectories.
 def sanity_check(
     trajectory_or_frames: Trajectory | Frames,
-    filter_method: Literal["truncate", "omit", "annotate"] | Number = "truncate",
+    filter_method: Literal["truncate", "omit", "annotate"] | float = "truncate",
     *,
     energy_thresholds: EnergyFiltrationThresholds | None = None,
     geometry_thresholds: GeometryFiltrationThresholds | None = None,
     plot_thresholds: bool | Sequence[float] = False,
-    plot_populations: bool | Literal["independent", "intersections"] = False,
+    plot_populations: Literal["independent", "intersections", False] = False,
     mol: Mol | None = None,
 ):
     """Filter trajectories according to energy to exclude unphysical (insane) behaviour
@@ -52,7 +54,7 @@ def sanity_check(
             - if 'truncate', cut each trajectory off just before the first frame that doesn't meet criteria
                 (:py:func:`shnitsel.clean.truncate`)
             - if 'annotate', merely annotate the data;
-            - if a number, interpret this number as a time, and cut all trajectories off at this time,
+            - if a `float` number, interpret this number as a time, and cut all trajectories off at this time,
                 discarding those which violate criteria before reaching the given limit,
                 (:py:func:`shnitsel.clean.transect`)
         see :py:func:`shnitsel.clean.dispatch_filter`.
@@ -82,7 +84,7 @@ def sanity_check(
     plot_populations
         See :py:func:`shnitsel.vis.plot.filtration.validity_populations`.
 
-        - If ``True`` or ``'intersections'``, will plot populations of
+        - If ``'intersections'``, will plot populations of
         trajectories satisfying intersecting conditions
         - If ``'independent'``, will plot populations of
         trajectories satisfying conditions taken independently
@@ -107,11 +109,17 @@ def sanity_check(
         plot_populations=plot_populations,
     )
 
-    # TODO: FIXME: Deal with trajectory being rejected in transect or omit.
+    if ds_energy is None:
+        logging.info("Rejected trajectory because of energy constraints")
+        return None
 
+    rename_keys = ["filtranda", "thresholds", "filter_mask", "good_upto"]
+    prefix = "energy"
     # Rename to filter-method prefixed names
-    ds_tmp = ds_energy.rename_dims({"criterion": "energy_criterion"}).rename(
-        {"filtranda": "energy_filtranda", "thresholds": "energy_thresholds"}
+    ds_tmp = type(ds_energy)(
+        ds_energy.dataset.rename_dims({"criterion": prefix + "_criterion"}).rename(
+            {key: prefix + "_" + key for key in rename_keys if key in ds_energy.dataset}
+        )
     )
 
     # Perform length filtering
@@ -124,9 +132,16 @@ def sanity_check(
         plot_populations=plot_populations,
     )
 
+    if ds_lengths is None:
+        logging.info("Rejected trajectory because of length constraints")
+        return None
+    prefix = "length"
+
     # Rename to filter-method prefixed names
-    ds_tmp = ds_lengths.rename_dims({"criterion": "length_criterion"}).rename(
-        {"filtranda": "length_filtranda", "thresholds": "lengths_thresholds"}
+    ds_tmp = type(ds_energy)(
+        ds_energy.dataset.rename_dims({"criterion": prefix + "_criterion"}).rename(
+            {key: prefix + "_" + key for key in rename_keys if key in ds_energy.dataset}
+        )
     )
 
     return ds_tmp

@@ -1,9 +1,10 @@
 from dataclasses import asdict, dataclass
-from logging import warning
-from numbers import Number
-from typing import Hashable, Literal, Sequence
+import logging
+from typing import Literal, Sequence
 
 import numpy as np
+from shnitsel.data.dataset_containers.frames import Frames
+from shnitsel.data.dataset_containers.trajectory import Trajectory
 import xarray as xr
 
 from shnitsel.data.multi_indices import mdiff
@@ -71,10 +72,10 @@ class EnergyFiltrationThresholds:
 
 
 def calculate_energy_filtranda(
-    frames,
+    frames_or_trajectory: Frames | Trajectory,
     *,
     energy_thresholds: EnergyFiltrationThresholds | None = None,
-):
+) -> xr.DataArray:
     """Derive energetic filtration targets from an xr.Dataset
 
     Parameters
@@ -94,36 +95,55 @@ def calculate_energy_filtranda(
         criteria comprise epot_step and hop_epot_step, as well as
         etot_drift, etot_step and ekin_step if the input contains an e_kin variable
     """
+    if not frames_or_trajectory.has_coordinate('astate'):
+        message: str = 'Skipping active energy filtering because of missing variable `astate` in the trajectory'
+        logging.warning(message)
+        raise ValueError(message)
+
+    if not isinstance(frames_or_trajectory, Frames) and not isinstance(
+        frames_or_trajectory, Trajectory
+    ):
+        message: str = 'Filtered dataset object is of type %s instead of the required types Frames or Trajectory'
+        logging.warning(message, type(frames_or_trajectory))
+        raise ValueError(message % type(frames_or_trajectory))
 
     if energy_thresholds is None:
         energy_thresholds = EnergyFiltrationThresholds()
 
     filter_energy_unit = energy_thresholds.energy_unit
 
+    is_hop = mdiff(frames_or_trajectory.active_state) != 0
     res = xr.Dataset()
-    is_hop = mdiff(frames["astate"]) != 0
-    # TODO: FIXME: Shouldn't we drop coords instead?
-    e_pot_active = frames.energy.sel(state=frames.astate).drop_vars("state")
-    e_pot_active.attrs["units"] = frames["energy"].attrs["units"]
-    e_pot_active = convert_energy(e_pot_active, to=filter_energy_unit)
-
-    res["epot_active_step"] = mdiff(e_pot_active).where(~is_hop, 0)
-    res["epot_hop_step"] = mdiff(e_pot_active).where(is_hop, 0)
-
-    if "e_kin" in frames.data_vars:
-        e_kin = frames["e_kin"]
-        e_kin.attrs["units"] = frames["e_kin"].attrs["units"]
-        e_kin = convert_energy(e_kin, to=filter_energy_unit)
-
-        e_tot = e_pot_active + e_kin
-        res["etot_step"] = mdiff(e_tot)
-        res["etot_drift"] = e_tot.groupby("trajid").map(
-            lambda traj: abs(traj - traj.item(0))
+    if 'energy' not in frames_or_trajectory.coords:
+        logging.warning(
+            'Skipping active state energy filtering because of missing variable `energy` in the trajectory'
         )
+        e_pot_active = None
+    else:
+        # TODO: FIXME: Shouldn't we drop coords instead?
+        e_pot_active = frames_or_trajectory.energy.sel(
+            state=frames_or_trajectory.active_state
+        ).drop_vars("state")
+        e_pot_active.attrs["units"] = frames_or_trajectory.energy.attrs["units"]
+        e_pot_active = convert_energy(e_pot_active, to=filter_energy_unit)
+
+        res["epot_active_step"] = mdiff(e_pot_active).where(~is_hop, 0)
+        res["epot_hop_step"] = mdiff(e_pot_active).where(is_hop, 0)
+
+    if "e_kin" in frames_or_trajectory.data_vars:
+        e_kin = frames_or_trajectory.e_kin
+        e_kin.attrs["units"] = frames_or_trajectory.e_kin.attrs["units"]
+        e_kin = convert_energy(e_kin, to=filter_energy_unit)
+        # TODO: FIXME: Do we really only care about the ekin difference at hopping points?
         res["ekin_step"] = mdiff(e_kin).where(~is_hop, 0)
+
+        if e_pot_active is not None:
+            e_tot = e_pot_active + e_kin
+            res["etot_step"] = mdiff(e_tot)
+            res["etot_drift"] = e_tot - e_tot.item(0)
     else:
         e_kin = None
-        warning("data does not contain kinetic energy variable ('e_kin')")
+        logging.warning("data does not contain kinetic energy variable ('e_kin')")
 
     da = np.abs(res.to_dataarray("criterion")).assign_attrs(units=filter_energy_unit)
 
@@ -137,19 +157,20 @@ def calculate_energy_filtranda(
 
 
 def filter_by_energy(
-    frames,
-    filter_method: Literal["truncate", "omit", "annotate"] | Number = "truncate",
+    frames_or_trajectory: Frames | Trajectory,
+    filter_method: Literal["truncate", "omit", "annotate"] | float = "truncate",
     *,
     energy_thresholds: EnergyFiltrationThresholds | None = None,
     plot_thresholds: bool | Sequence[float] = False,
-    plot_populations: bool | Literal["independent", "intersections"] = False,
-):
+    plot_populations: Literal["independent", "intersections", False] = False,
+) -> Frames | Trajectory | None:
     """Filter trajectories according to energy to exclude unphysical (insane) behaviour
 
     Parameters
     ----------
-    frames
-        A xr.Dataset with ``astate``, ``energy``, and ideally ``e_kin`` variables
+    frames_or_trajectory
+        A Frames or Trajectory object with ``astate``, ``energy``, and ideally ``e_kin`` variables.
+        If ``astate`` is not set, no filtering will be performed and no filtranda assigned.
     filter_method, optional
         Specifies the manner in which to remove data;
 
@@ -157,7 +178,7 @@ def filter_by_energy(
             - if 'truncate', cut each trajectory off just before the first frame that doesn't meet criteria
                 (:py:func:`shnitsel.clean.truncate`)
             - if 'annotate', merely annotate the data;
-            - if a number, interpret this number as a time, and cut all trajectories off at this time,
+            - if a `float` number, interpret this number as a time, and cut all trajectories off at this time,
                 discarding those which violate criteria before reaching the given limit,
                 (:py:func:`shnitsel.clean.transect`)
         see :py:func:`shnitsel.clean.dispatch_filter`.
@@ -174,15 +195,15 @@ def filter_by_energy(
         default quantiles
         - If a ``Sequence``, will plot using ``check_thresholds``
         with specified quantiles
-        - If ``False``, will not plot threshold plot
+        - If ``False`` (the default), will not plot threshold plot
     plot_populations
         See :py:func:`shnitsel.vis.plot.filtration.validity_populations`.
 
-        - If ``True`` or ``'intersections'``, will plot populations of
+        - If ``'intersections'``, will plot populations of
         trajectories satisfying intersecting conditions
         - If ``'independent'``, will plot populations of
         trajectories satisfying conditions taken independently
-        - If ``False``, will not plot populations plot
+        - If ``False`` (the default), will not plot populations plot
     Returns
     -------
         The sanitized xr.Dataset
@@ -194,9 +215,14 @@ def filter_by_energy(
     """
     if energy_thresholds is None:
         energy_thresholds = EnergyFiltrationThresholds()
-    filtranda = calculate_energy_filtranda(frames, energy_thresholds=energy_thresholds)
+    filtranda = calculate_energy_filtranda(
+        frames_or_trajectory, energy_thresholds=energy_thresholds
+    )
     dispatch_plots(filtranda, plot_thresholds, plot_populations)
-    filtered_frames = frames.drop_dims(["criterion"], errors="ignore").assign(
-        filtranda=filtranda
+    # Here we need to build a new object with the criteria assigned.
+    filtered_frames = type(frames_or_trajectory)(
+        frames_or_trajectory.dataset.drop_dims(["criterion"], errors="ignore").assign(
+            filtranda=filtranda
+        )
     )
     return dispatch_filter(filtered_frames, filter_method)

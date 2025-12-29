@@ -10,7 +10,7 @@ from shnitsel.vis.plot.filtration import check_thresholds, validity_populations
 def dispatch_plots(
     filtranda,
     plot_thresholds: bool | Sequence[float],
-    plot_populations: bool | Literal['independent', 'intersections'],
+    plot_populations: Literal['independent', 'intersections', False],
 ):
     """Call filtration-related plotting functions depending on arguments
 
@@ -25,7 +25,7 @@ def dispatch_plots(
         with specified quantiles
         - If ``False``, will not plot threshold plot
     plot_populations
-        - If ``True`` or ``'intersections'``, will plot populations of
+        - If ``'intersections'``, will plot populations of
         trajectories satisfying intersecting conditions
         - If ``'independent'``, will plot populations of
         trajectories satisfying conditions taken independently
@@ -43,7 +43,7 @@ def dispatch_plots(
         else:
             quantiles = None
         check_thresholds(filtranda, quantiles)
-    if plot_populations is True or plot_populations == 'intersections':
+    if plot_populations == 'intersections':
         validity_populations(filtranda, intersections=True)
     elif plot_populations == 'independent':
         validity_populations(filtranda, intersections=False)

@@ -7,6 +7,8 @@ import numpy as np
 import xarray as xr
 from rdkit.Chem import Mol
 
+from shnitsel.data.dataset_containers.frames import Frames
+from shnitsel.data.dataset_containers.trajectory import Trajectory
 from shnitsel.filtering.structure_selection import StructureSelection
 from shnitsel.geo.geocalc import get_distances
 from shnitsel.bridges import construct_default_mol
@@ -158,13 +160,13 @@ def calculate_bond_length_filtranda(
 # TODO: FIXME: This should operate on single trajectories.
 def filter_by_length(
     frames,
-    filter_method: Literal["truncate", "omit", "annotate"] | Number = "truncate",
+    filter_method: Literal["truncate", "omit", "annotate"] | float = "truncate",
     *,
     geometry_thresholds: GeometryFiltrationThresholds | None = None,
     mol: Mol | None = None,
     plot_thresholds: bool | Sequence[float] = False,
-    plot_populations: bool | Literal["independent", "intersections"] = False,
-):
+    plot_populations: Literal["independent", "intersections", False] = False,
+) -> Frames | Trajectory | None:
     """Filter trajectories according to bond length
 
     Parameters
@@ -179,7 +181,7 @@ def filter_by_length(
             - if 'truncate', cut each trajectory off just before the first frame that doesn't meet criteria
                 (:py:func:`shnitsel.clean.truncate`)
             - if 'annotate', merely annotate the data;
-            - if a number, interpret this number as a time, and cut all trajectories off at this time,
+            - if a `float` number, interpret this number as a time, and cut all trajectories off at this time,
                 discarding those which violate criteria before reaching the given limit,
                 (:py:func:`shnitsel.clean.transect`)
         see :py:func:`shnitsel.clean.dispatch_filter`.
@@ -205,7 +207,7 @@ def filter_by_length(
     plot_populations
         See :py:func:`shnitsel.vis.plot.filtration.validity_populations`.
 
-        - If ``True`` or ``'intersections'``, will plot populations of
+        - If ``'intersections'``, will plot populations of
         trajectories satisfying intersecting conditions
         - If ``'independent'``, will plot populations of
         trajectories satisfying conditions taken independently
@@ -213,7 +215,7 @@ def filter_by_length(
 
     Returns
     -------
-        The filtered Dataset
+        The filtered Dataset or None if the filter method results in the trajectory being rejected.
 
     Notes
     -----

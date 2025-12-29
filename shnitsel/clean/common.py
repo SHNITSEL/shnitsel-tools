@@ -1,56 +1,11 @@
-from logging import warning
-from numbers import Number
-from typing import Literal, TypeAlias, TypeVar
+import logging
+from typing import Literal, Sequence, TypeVar
 
 import numpy as np
 import xarray as xr
 
-from shnitsel.core.typedefs import Frames, Stacked, Unstacked
-from shnitsel.data.multi_indices import sel_trajs, stack_trajs, unstack_trajs
-from shnitsel.data.trajectory_format import Trajectory
-
-# TODO: FIXME: This still needs refactoring
-
-
-def is_stacked(obj):
-    # TODO: FIXME: We should build this either globally or not rely on it at all.
-    if "frame" in obj.dims and {"trajid", "time"}.issubset(obj.coords):
-        return True
-    elif "trajid" in obj.dims or "time" in obj.dims:
-        return False
-    else:
-        raise ValueError(
-            "The mask argument should be trajectories, either stacked or unstacked"
-        )
-
-
-def ensure_unstacked(obj):
-    if is_stacked(obj):
-        return unstack_trajs(obj)
-    else:
-        return obj
-
-
-def ensure_stacked(obj):
-    if not is_stacked(obj):
-        return stack_trajs(obj)
-    else:
-        return obj
-
-
-def da_or_data_var(ds_or_da, var_name):
-    if hasattr(ds_or_da, "data_vars"):
-        return ds_or_da[var_name]
-    else:
-        return ds_or_da
-
-
-def get_unstacked_coord(obj, coord_name):
-    if coord_name in obj.dims:
-        return obj.coords[coord_name]
-    else:
-        dim_name = obj.indexes[coord_name].name
-        return obj.coords[dim_name].unstack(dim_name)[coord_name]
+from shnitsel.data.dataset_containers.frames import Frames
+from shnitsel.data.dataset_containers.trajectory import Trajectory
 
 
 ########################
@@ -58,99 +13,108 @@ def get_unstacked_coord(obj, coord_name):
 ########################
 
 
-def cum_mask_from_filtranda(filtranda: Stacked | Unstacked) -> Unstacked:
-    filtranda = ensure_unstacked(filtranda)
-    res = (filtranda < filtranda.coords["thresholds"]).cumprod("time").astype(bool)
-    return res
+def _true_upto(mask: xr.DataArray, dim: str) -> xr.DataArray:
+    """Helper function to assess whether a mask has only `true` entries up until a certain point
+    along dimension `dim`.
+    Used to check if criterion validity is maintained along the `time` dimension.
 
+    Returns array with values of `dim` coordinate up to which the values are all `true` or `-np.inf` if no
+    frame is valid.
 
-def cum_mask_from_dataset(ds: Stacked | Unstacked) -> Unstacked:
-    if "is_good_frame" in ds:
-        mask = ensure_unstacked(ds["is_good_frame"])
-    elif "good_upto" in ds:
-        # time_coord = get_unstacked_coord(ds, 'time')
-        ds = ensure_unstacked(ds)
-        mask = ds.coords["time"] <= ds["good_upto"]
-        mask = mask.assign_coords(is_frame=ds.coords["is_frame"])
-    elif "filtranda" in ds:
-        return cum_mask_from_filtranda(ds["filtranda"])
+    Args:
+        mask (xr.DataArray): The mask holding boolean flags whether criteria are fulfilled.
+        dim (str): The dimension along which to check continuous validity of criteria.
 
-    return mask.cumprod("time").astype(bool)
-
-
-def assign_mask(ds):
-    "Does not change stacked status"
-    mask = cum_mask_from_dataset(ds)
-    if is_stacked(ds):
-        mask = stack_trajs(mask)
-    return ds.assign(is_good_frame=mask)
-
-
-def true_upto(mask, dim):
-    if is_stacked(mask):
-        mask = unstack_trajs(mask).fillna(False)
-    shifted_coord = np.concat([[-1], mask.coords[dim].data])
-    indexer = mask.cumprod(dim).sum(dim).astype(int)
-    res = np.take(shifted_coord, indexer.data)
-    return indexer.copy(data=res)
-
-
-def cutoffs_from_mask(mask: Stacked | Unstacked) -> Unstacked:
-    if is_stacked(mask):
-        mask = unstack_trajs(mask)
-    good_upto = true_upto(mask, "time")
-    good_throughout = mask.all("time")
-    good_upto.name = "good_upto"
-    return good_upto.assign_coords(good_throughout=good_throughout)
-
-
-def cutoffs_from_filtranda(filtranda: xr.DataArray) -> xr.DataArray:
+    Returns:
+        xr.DataArray: The point in time up to which the criterion is fulfilled.
     """
-    Does not change stacked status
+    assert dim in mask.dims, 'Mask array is missing specified dimension %s' % dim
+    shifted_coord = np.concat([[-np.inf], mask.coords[dim].data])
+    num_cum_valid_indices = mask.cumprod(dim).sum(dim).astype(int)
+    res = np.take(shifted_coord, num_cum_valid_indices.data)
+    # We only deal with individual trajectories
+    return num_cum_valid_indices.copy(data=res)
+
+
+def _filter_mask_from_criterion_mask(mask: xr.DataArray) -> xr.DataArray:
+    """Generate cutoff array from the mask, specifying for each criterion, up to which point
+    the criterion is fulfilled.
+
+    Either holds a boolean `filter_mask` or a time values variable `good_upto` depending on
+    whether a `time` dimension is present.
+
+
+    """
+    leading_dim: str
+    if 'time' in mask.dims:
+        leading_dim = 'time'
+        filter_mask = _true_upto(mask, leading_dim)
+        filter_mask.name = 'good_upto'
+    else:
+        # We have independent frames. Don't try and conceive a `good up to this point` property
+        leading_dim = 'frame'
+        filter_mask = mask.copy()
+        filter_mask.name = 'filter_mask'
+
+    good_throughout = mask.all(leading_dim)
+
+    return filter_mask.assign_coords(good_throughout=good_throughout)
+
+
+def _filter_mask_from_filtranda(filtranda: xr.DataArray) -> xr.DataArray:
+    """
+    Calculates first a filter mask and then the cutoffs from that mask using
+    `_cutoffs_from_mask`
     """
     thresholds = filtranda.coords["thresholds"]
     is_good_frame = (filtranda < thresholds).astype(bool)
-    return cutoffs_from_mask(is_good_frame)
+    return _filter_mask_from_criterion_mask(is_good_frame)
 
 
-def cutoffs_from_dataset(ds) -> Unstacked:
+def _filter_mask_from_dataset(ds: xr.Dataset) -> xr.DataArray:
     """
     Returns a da containing cutoff times (the same as the good_upto data_var)
     and with a coord called good_throughout
 
-    The returned object has dimensions {'trajid', 'criterion'}.
-    In that sense it is unstacked.
+    The returned object has dimension {'criterion'}.
     """
-    if "good_upto" in ds.data_vars:
-        res = ds.data_vars["good_upto"]
-        if "good_throughout" in res.coords:
-            if "filtranda" in ds.data_vars:
-                warning(
-                    "data_vars 'filtranda' and 'good_upto' present in "
-                    "the same dataset; ignoring 'filtranda'"
-                )
-            if "trajid_" in res.dims and "trajid" not in res.dims:
-                res = res.rename(trajid_="trajid")
-            return res
-        else:
-            warning(
+    if 'good_upto' in ds.data_vars:
+        mask = (ds.coords["time"] <= ds["good_upto"]).astype(bool)
+        mask.name = 'filter_mask'
+        return mask
+    elif "filter_mask" in ds.data_vars:
+        mask = ds.data_vars["filter_mask"]
+        if "good_throughout" not in mask.coords:
+            raise ValueError(
                 "data_var 'good_upto' is missing expected coord "
                 "'good_throughout'; will recalculate."
             )
+        else:
+            return mask
     elif "filtranda" in ds.data_vars:
-        return cutoffs_from_filtranda(ds.data_vars["filtranda"])
+        return _filter_mask_from_filtranda(ds.data_vars["filtranda"])
     else:
         raise ValueError(
             "Please set data_vars 'filtranda' and 'thresholds', "
-            "or alternatively supply cutoffs directly using data_var 'good_upto'"
+            "or alternatively supply a filter mask directly using data_var 'filter_mask'"
         )
 
 
-def assign_cutoffs(ds):
-    cutoffs = cutoffs_from_dataset(ds)
-    if is_stacked(ds):
-        cutoffs = cutoffs.rename(trajid="trajid_")
-    return ds.assign(good_upto=cutoffs)
+def _assign_filter_mask(
+    ds: xr.Dataset,
+) -> xr.Dataset:
+    """Either sets a `filter_mask` variable on the dataset encoding whether a criterion is fulfilled up to this point if
+    a `time` dimension is present or if the current frame is valid according to the criteria.
+
+    Args:
+        ds (xr.Dataset): _description_
+
+    Returns:
+        xr.Dataset: _description_
+    """
+    filter_mask = _filter_mask_from_dataset(ds)
+
+    return ds.assign(filter_mask=filter_mask)
 
 
 ####################
@@ -163,50 +127,83 @@ def assign_cutoffs(ds):
 TrajectoryOrFrames = TypeVar("TrajectoryOrFrames", bounds=Trajectory | Frames)
 
 
-def omit(ds: TrajectoryOrFrames) -> TrajectoryOrFrames:
-    cutoffs = cutoffs_from_dataset(ds)
-    good_throughout = cutoffs["good_throughout"]
-    selection = good_throughout.all("criterion")
-    return sel_trajs(ds, selection)
+def _omit(frames_or_trajectory: Frames | Trajectory) -> Frames | Trajectory | None:
+    """If all filter criteria are fulfilled throughout, keep the trajectory.
+    Otherwise return None to omit it.
 
+    Args:
+        frames_or_trajectory (Frames | Trajectory): Either the Frameset or the trajectory to filter
 
-def truncate(ds: TrajectoryOrFrames) -> TrajectoryOrFrames:
-    if is_stacked(ds):
-        cutoffs = cutoffs_from_dataset(ds).min("criterion")
-        sel = cutoffs.sel(trajid=ds.coords["trajid"])
-        stacked_mask = ds.coords["time"].data < sel.data
-        return ds.isel(frame=stacked_mask)
+    Returns:
+        Frames | Trajectory | None: The Frameset or Trajectory if all filter conditions are fulfilled or None if it should be omitted.
+    """
+    filter_mask = _filter_mask_from_dataset(frames_or_trajectory.dataset)
+    good_throughout = filter_mask["good_throughout"]
+    all_critera_fulfilled = good_throughout.all("criterion").item()
+    if all_critera_fulfilled:
+        return frames_or_trajectory
     else:
-        unstacked_mask = cum_mask_from_dataset(ds).all("criterion")
-        return ds.assign_coords(is_frame=ds.coords["is_frame"] & unstacked_mask)
+        return None
 
 
-def transect(ds: TrajectoryOrFrames, cutoff: float) -> TrajectoryOrFrames:
-    # TODO: FIXME: If this is a float, we should have float in the dispatch and filter_method parameter definitions
-    if is_stacked(ds):
-        ds = unstack_trajs(ds)
-    ds = ds.loc[{"time": slice(float(cutoff))}]
-    good_upto = cutoffs_from_dataset(ds)
-    traj_selection = (
-        (good_upto >= cutoff).all("criterion")
-        &
-        # the following must be calculated after time-slicing.
-        ds.coords["is_frame"].all("time")
+def _truncate(frames_or_trajectory: Frames | Trajectory) -> Frames | Trajectory:
+    filter_mask_all_criteria = _filter_mask_from_dataset(
+        frames_or_trajectory.dataset
+    ).all("criterion")
+    # TODO: FIXME: Test whether this works. May be wrong shape.
+    return type(frames_or_trajectory)(
+        frames_or_trajectory.dataset.where(filter_mask_all_criteria).dropna(
+            frames_or_trajectory.leading_dim,
+        )
     )
-    return ds.isel({"trajid": traj_selection})
 
 
-# TODO: FIXME: This should work on individual trajectories.
+def _transect(trajectory: Trajectory, cutoff_time: float) -> Trajectory | None:
+    """Perform a transect, i.e. cut off the trajetory at time `cutoff_time` if it is valid until then
+    or omit it, if it is not valid for long enough.
+
+    Trajectory must be a trajectory with `time` dimension.
+
+    Args:
+        trajectory ( Trajectory): _description_
+        cutoff_time (float): _description_
+
+    Returns:
+        Trajectory | None: Either the filtered trajectory with all frames being valid up until `cutoff_time` or None if the trajectory is not valid for long enough.
+    """
+    working_dataset: xr.Dataset
+    if isinstance(trajectory, xr.Dataset):
+        working_dataset = trajectory
+    else:
+        working_dataset = trajectory.dataset
+
+    assert 'time' in working_dataset.dims, (
+        'Dataset has no coordinate `time` but time-based truncation has been requested, which cannot be performed!'
+    )
+
+    time_sliced_dataset = working_dataset.loc[{"time": slice(float(cutoff_time))}]
+    good_upto = _filter_mask_from_dataset(time_sliced_dataset)
+    assert good_upto.name == 'good_upto', (
+        "Despite a `time` dimension being present, the filter mask returned for the dataset was not a `good_upto` value."
+    )
+    # TODO: FIXME: We may want to accept the last time before `cutoff_time` to be true.
+    is_trajectory_good = (good_upto >= cutoff_time).all("criterion").item()
+    if is_trajectory_good:
+        return type(trajectory)(time_sliced_dataset)
+    else:
+        return None
+
+
 def dispatch_filter(
-    frames: xr.Dataset,
-    filter_method: Literal["truncate", "omit", "annotate"] | Number = "truncate",
-) -> xr.Dataset:
+    frames_or_trajectory: Frames | Trajectory,
+    filter_method: Literal["truncate", "omit", "annotate"] | float = "truncate",
+) -> Frames | Trajectory | None:
     """Filter trajectories according to energy to exclude unphysical (insane) behaviour
 
     Parameters
     ----------
-    frames
-        A xr.Dataset with a `filtranda` variable set and a `thresholds` coordinate both along a `criterion` dimension.
+    frames_or_trajectory
+        A Frames or Trajectory object with a `filtranda` variable set and a `thresholds` coordinate both along a `criterion` dimension.
     filter_method, optional
         Specifies the manner in which to remove data;
 
@@ -214,7 +211,7 @@ def dispatch_filter(
             - if 'truncate', cut each trajectory off just before the first frame that doesn't meet criteria
                 (:py:func:`shnitsel.clean.truncate`)
             - if 'annotate', merely annotate the data;
-            - if a number, interpret this number as a time, and cut all trajectories off at this time,
+            - if a `float` number, interpret this number as a time, and cut all trajectories off at this time,
                 discarding those which violate criteria before reaching the given limit,
                 (:py:func:`shnitsel.clean.transect`)
         see :py:func:`shnitsel.clean.dispatch_filter`.
@@ -228,18 +225,30 @@ def dispatch_filter(
     ValueError
         If an unsupported value for the `cut` parameter was provided.
     """
+    if not frames_or_trajectory.has_variable(
+        'filtranda'
+    ) or not frames_or_trajectory.has_coordinate('thresholds'):
+        logging.warning(
+            "Trajectory is missing the required variable `filtranda` (possibly because they could not be calculated) or the required coordinate `thresholds` for those filtranda. No filtering is performed."
+        )
+        return frames_or_trajectory
+
     if filter_method == "annotate":
-        return frames.assign(good_upto=cutoffs_from_dataset(frames))
+        filter_mask = _filter_mask_from_dataset(frames_or_trajectory.dataset)
+        return type(frames_or_trajectory)(
+            frames_or_trajectory.dataset.assign({filter_mask.name: filter_mask})
+        )
     elif filter_method == "truncate":
-        return truncate(frames)
+        return _truncate(frames_or_trajectory)
     elif filter_method == "omit":
-        return omit(frames)
-    elif isinstance(filter_method, Number):
-        return transect(frames, filter_method)
+        return _omit(frames_or_trajectory)
+    elif isinstance(filter_method, float):
+        transect_position: float = filter_method
+        return _transect(frames_or_trajectory, transect_position)
     else:
         raise ValueError(
-            "`cut` should be one of {'truncate', 'omit', 'annotate'}, or a number, "
-            f"not {cut}"
+            "`filter_method` should be one of {'truncate', 'omit', 'annotate'}, or a number, "
+            f"not {filter_method}"
         )
 
 
@@ -248,14 +257,18 @@ def dispatch_filter(
 ###########################################
 
 
-def cum_max_quantiles(obj, quantiles=None):
+def cum_max_quantiles(
+    filtranda_array: xr.DataArray, quantiles: Sequence[float] | None = None
+) -> xr.DataArray:
+    # TODO: FIXME: I don't understand, what this is supposed to do. Why do we perform quantile extraction across trajectories?
     if quantiles is None:
         quantiles = [0.25, 0.5, 0.75, 0.9, 0.95, 0.99, 1]
 
-    da = da_or_data_var(obj, "filtranda")
-    da = ensure_unstacked(da)
-    da = da.fillna(0)
-    time_axis = da.get_axis_num("time")
+    filtranda_array = filtranda_array.fillna(0)
+    time_axis = filtranda_array.get_axis_num("time")
 
-    cum_max = da.copy(data=np.maximum.accumulate(da.data, axis=time_axis))
+    cum_max = filtranda_array.copy(
+        data=np.maximum.accumulate(filtranda_array.data, axis=time_axis)
+    )
+    # TODO: FIXME: Rewrite this to allow for accumulation across collection of trajectories, not only stacked.
     return cum_max.quantile(quantiles, "trajid")
