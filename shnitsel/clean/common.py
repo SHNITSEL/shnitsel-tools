@@ -124,10 +124,10 @@ def _assign_filter_mask(
 # All the action functions take a dataset
 # They can use the functions above to get the info they need
 
-TrajectoryOrFrames = TypeVar("TrajectoryOrFrames", bounds=Trajectory | Frames)
+TrajectoryOrFrames = TypeVar("TrajectoryOrFrames", bound=Trajectory | Frames)
 
 
-def _omit(frames_or_trajectory: Frames | Trajectory) -> Frames | Trajectory | None:
+def _omit(frames_or_trajectory: TrajectoryOrFrames) -> TrajectoryOrFrames | None:
     """If all filter criteria are fulfilled throughout, keep the trajectory.
     Otherwise return None to omit it.
 
@@ -146,14 +146,15 @@ def _omit(frames_or_trajectory: Frames | Trajectory) -> Frames | Trajectory | No
         return None
 
 
-def _truncate(frames_or_trajectory: Frames | Trajectory) -> Frames | Trajectory:
+def _truncate(frames_or_trajectory: TrajectoryOrFrames) -> TrajectoryOrFrames:
+    """Perform a truncation, i.e. cut off the trajectory at its last continuously valid frame from the begining."""
     filter_mask_all_criteria = _filter_mask_from_dataset(
         frames_or_trajectory.dataset
     ).all("criterion")
     # TODO: FIXME: Test whether this works. May be wrong shape.
     return type(frames_or_trajectory)(
         frames_or_trajectory.dataset.where(filter_mask_all_criteria).dropna(
-            frames_or_trajectory.leading_dim,
+            frames_or_trajectory.leading_dim, how='all'
         )
     )
 
@@ -195,9 +196,9 @@ def _transect(trajectory: Trajectory, cutoff_time: float) -> Trajectory | None:
 
 
 def dispatch_filter(
-    frames_or_trajectory: Frames | Trajectory,
+    frames_or_trajectory: TrajectoryOrFrames,
     filter_method: Literal["truncate", "omit", "annotate"] | float = "truncate",
-) -> Frames | Trajectory | None:
+) -> TrajectoryOrFrames | None:
     """Filter trajectories according to energy to exclude unphysical (insane) behaviour
 
     Parameters
@@ -244,7 +245,10 @@ def dispatch_filter(
         return _omit(frames_or_trajectory)
     elif isinstance(filter_method, float):
         transect_position: float = filter_method
-        return _transect(frames_or_trajectory, transect_position)
+        # assert isinstance(frames_or_trajectory, Trajectory), (
+        #     "Cannot provide a `Frames` object to a `transect()` call. Unsupported operation."
+        # )
+        return _transect(frames_or_trajectory, transect_position)  # type: ignore # Must be Trajectory here or the _transect() call will error out anyway.
     else:
         raise ValueError(
             "`filter_method` should be one of {'truncate', 'omit', 'annotate'}, or a number, "
