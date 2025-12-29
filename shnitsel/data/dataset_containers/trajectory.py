@@ -10,17 +10,19 @@ import xarray as xr
 @dataclass
 class Trajectory(ShnitselDataset):
     from .frames import Frames
+    from .per_state import PerState
+    from .inter_state import InterState
 
     def __init__(self, ds: xr.Dataset):
-        assert (
-            "time" in ds.dims
-        ), "Dataset is missing `time` dimension and cannot be considered a Trajectory"
-        assert (
-            "atom" in ds.dims
-        ), "Dataset is missing `atom` dimension and cannot be considered a Trajectory"
-        assert (
-            "state" in ds.dims
-        ), "Dataset is missing `state` dimension and cannot be considered a Trajectory"
+        assert "time" in ds.dims, (
+            "Dataset is missing `time` dimension and cannot be considered a Trajectory"
+        )
+        assert "atom" in ds.dims, (
+            "Dataset is missing `atom` dimension and cannot be considered a Trajectory"
+        )
+        assert "state" in ds.dims, (
+            "Dataset is missing `state` dimension and cannot be considered a Trajectory"
+        )
         super().__init__(ds)
 
     @cached_property
@@ -38,6 +40,32 @@ class Trajectory(ShnitselDataset):
             active_trajectory=[self.dataset.attrs["trajid"]]
         ).stack(frame=["active_trajectory", "time"])
         return Frames(frame_ds)
+
+    @cached_property
+    def per_state(self) -> "PerState":
+        """Convert this trajectory to a PerState object only allowing access to the per-state data encoded in this entity
+
+        Returns
+        --------
+            PerState: The wrapper for the per-state properties
+        """
+        from .per_state import PerState
+
+        return PerState(self)
+
+    @cached_property
+    def inter_state(self) -> "InterState":
+        """Convert this trajectory to an InterState object only allowing access to the inter-state data encoded in this entity.
+
+        Will calculate some interstate properties like state-to-state energy differences.
+
+        Returns
+        --------
+            InterState: The wrapper for the inter-state properties
+        """
+        from .inter_state import InterState
+
+        return InterState(self)
 
     @property
     def leading_dim(self) -> str:

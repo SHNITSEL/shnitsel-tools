@@ -3,14 +3,15 @@ from dataclasses import dataclass
 from shnitsel.analyze.stats import get_inter_state
 from .shared import ShnitselDerivedDataset
 from .frames import Frames
+from .trajectory import Trajectory
 import xarray as xr
 
 
 @dataclass
 class InterState(ShnitselDerivedDataset):
-    _original_frames: Frames
+    _original_frames: Frames | Trajectory
 
-    def __init__(self, frames: Frames):
+    def __init__(self, frames: Frames | Trajectory):
         assert "state" in frames.dataset.dims, (
             "Dataset is missing `state` dimension and cannot be considered an PerState set of variables."
         )
