@@ -9,18 +9,18 @@ class Frames(Trajectory):
     _is_multi_trajectory: bool = False
 
     def __init__(self, ds: xr.Dataset):
-        assert (
-            "time" not in ds.dims
-        ), "Dataset has `time` dimension and cannot be considered a set of Frames"
-        assert (
-            "frame" in ds.dims
-        ), "Dataset is missing `frame` dimension and cannot be considered a set of Frames"
-        assert (
-            "atom" in ds.dims
-        ), "Dataset is missing `atom` dimension and cannot be considered a set of Frames"
-        assert (
-            "state" in ds.dims
-        ), "Dataset is missing `state` dimension and cannot be considered a set of Frames"
+        assert "time" not in ds.dims, (
+            "Dataset has `time` dimension and cannot be considered a set of Frames"
+        )
+        assert "frame" in ds.dims, (
+            "Dataset is missing `frame` dimension and cannot be considered a set of Frames"
+        )
+        assert "atom" in ds.dims, (
+            "Dataset is missing `atom` dimension and cannot be considered a set of Frames"
+        )
+        assert "state" in ds.dims, (
+            "Dataset is missing `state` dimension and cannot be considered a set of Frames"
+        )
         super().__init__(ds)
 
         # TODO: FIXME: This should be harmonized across all creation and use points. Make the frame-component `active_trajectory` and the per-trajectory property `trajectory`
@@ -28,6 +28,7 @@ class Frames(Trajectory):
             # Check if we have a dimension to select properties of different trajectories.
             self._is_multi_trajectory = True
 
+    @property
     def is_multi_trajectory(self) -> bool:
         return self._is_multi_trajectory
 
