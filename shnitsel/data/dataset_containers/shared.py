@@ -88,6 +88,31 @@ class ShnitselDataset:
 
     # TODO: Forward all unmet requests to dataset.
 
+    @property
+    def dims(self):
+        return self.dataset.dims
+
+    @property
+    def coords(self):
+        return self.dataset.coords
+
+    @property
+    def sizes(self):
+        return self.dataset.sizes
+
+    @property
+    def data_vars(self):
+        return self.dataset.data_vars
+
+    def has_variable(self, name: str) -> bool:
+        return name in self.data_vars
+
+    def has_dimension(self, name: str) -> bool:
+        return name in self.dims
+
+    def has_coordinate(self, name: str) -> bool:
+        return name in self.coords
+
 
 @dataclass
 class ShnitselDerivedDataset(ShnitselDataset):
