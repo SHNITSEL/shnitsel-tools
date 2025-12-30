@@ -6,6 +6,7 @@ from .trajectory import Trajectory
 
 @dataclass
 class Frames(Trajectory):
+    # TODO: FIXME: This should not be a subclass of Trajectory. It should have similar accessors, but probably from a different base class.
     _is_multi_trajectory: bool = False
 
     def __init__(self, ds: xr.Dataset):
