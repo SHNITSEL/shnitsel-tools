@@ -3,6 +3,8 @@ from typing import Literal
 import xarray as xr
 import numpy as np
 
+from shnitsel.data.multi_indices import mdiff, sel_trajs
+
 
 # TODO: type-hinting of appropriate generality for first argument
 def hops(frames, hop_types: list[tuple[int, int]] | None = None):
@@ -28,7 +30,7 @@ def hops(frames, hop_types: list[tuple[int, int]] | None = None):
         - ``hop_from``: the active state before the hop
         - ``hop_to``: the active state after the hop
     """
-    is_hop = frames.astate.st.mdiff() != 0
+    is_hop = mdiff(frames['astate']) != 0
 
     res = frames.isel(frame=is_hop)
     tidxs = np.concat(
@@ -37,8 +39,8 @@ def hops(frames, hop_types: list[tuple[int, int]] | None = None):
     hop_tidx = tidxs[is_hop]
     res = res.assign_coords(
         tidx=('frame', hop_tidx),
-        hop_from=(frames.astate.shift({'frame': 1}, -1).isel(frame=is_hop)),
-        hop_to=res.astate,
+        hop_from=(frames['astate'].shift({'frame': 1}, -1).isel(frame=is_hop)),
+        hop_to=res['astate'],
     )
     if hop_types is not None:
         acc = np.full(res.sizes['frame'], False)
@@ -73,24 +75,29 @@ def focus_hops(
     Each entry in ``hop`` represents a trajectory;
     there is one trajectory per hop, so possibly more than
     one copy of a given trajectory in the object.
-    The following coordinates are added along dimension ``hop_time``:
+    The following coordinates are added along dimension ``hop_time``, and do not vary
+    by hop (i.e. do not contain a ``hop`` dimension):
 
         - ``hop_time``: the trajectory time coordinate relative to the hop
-        - ``time``: the original time coordinate relative to the start of the trajectory
         - ``hop_tidx``: the trajectory time-step index relative to the hop
+
+    The following coordinates are added along dimensions ``hop_time`` and ``hop``:
+
+        - ``time``: the original time coordinate relative to the start of the trajectory
         - ``tidx``: the trajectory time-step index relative to the start of the trajectory
 
     The following coordinates are added along dimension ``hop``:
 
         - ``hop_from``: the active state before the hop
         - ``hop_to``: the active state after the hop
+        - ``trajid``: the ID of the trajectory in which the hop occurred
     """
     hop_vals = hops(frames, hop_types=hop_types)
     to_cat = []
     trajids = []
     for (trajid, time), hop in hop_vals.groupby('frame'):
-        traj = frames.st.sel_trajs(trajid)
-        orig_time = traj.time
+        traj = sel_trajs(frames, trajid)
+        orig_time = traj['time'].data
         hop_time = traj.time - time
         hop_time = hop_time.swap_dims({'frame': 'hop_time'})
         hop_time = hop_time.assign_coords(hop_time=hop_time).drop_vars(
@@ -101,22 +108,24 @@ def focus_hops(
             ['frame', 'trajid', 'time']
         )
 
-        # Add useful metadata
-        traj = traj.assign_coords(time=('hop_time', orig_time.data))
-        traj = traj.assign_coords(tidx=('hop_time', np.arange(traj.sizes['hop_time'])))
+        # Add per-hop metadata
+        traj = traj.assign_coords(time=('hop_time', orig_time))
+        traj = traj.assign_coords(tidx=('hop_time', np.arange(len(orig_time))))
+
+        # Add further hop-independent metadata
         traj = traj.assign_coords(hop_tidx=traj['tidx'] - hop['tidx'].item())
 
-        trajids.append(traj.coords['trajid_'].item())
-        traj = traj.drop_dims('trajid_')
+        traj = traj.drop_dims(['trajid_'], errors='ignore')
         if window is not None:
             traj = traj.sel(hop_time=window)
 
+        trajids.append(trajid)
         to_cat.append(traj)
 
     res = xr.concat(to_cat, 'hop', join='outer')
     from_to = (
         hop_vals[['hop_from', 'hop_to']]
-        .drop_vars(['frame', 'trajid', 'time'])
+        .drop_vars(['frame', 'trajid', 'time', 'tidx'])
         .rename({'frame': 'hop'})
     )
     res = res.assign_coords(
