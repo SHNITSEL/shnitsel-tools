@@ -1,7 +1,5 @@
 from dataclasses import dataclass
-from numbers import Number
-from typing import Literal, Sequence
-import logging
+from typing import Literal, Sequence, TypeVar
 
 import numpy as np
 import xarray as xr
@@ -16,6 +14,8 @@ from shnitsel.clean.common import dispatch_filter
 from shnitsel.units.conversion import convert_length
 from shnitsel.clean.dispatch_plots import dispatch_plots
 from shnitsel.units.definitions import length
+
+TrajectoryOrFrames = TypeVar("TrajectoryOrFrames", bound=Trajectory | Frames)
 
 
 @dataclass
@@ -95,10 +95,10 @@ class GeometryFiltrationThresholds:
 
 
 def calculate_bond_length_filtranda(
-    frames,
+    frames: Frames | Trajectory,
     geometry_thresholds: GeometryFiltrationThresholds | None = None,
     mol: Mol | None = None,
-):
+) -> xr.DataArray:
     """Derive bond length filtration targets from an xr.Dataset
 
     Parameters
@@ -131,12 +131,12 @@ def calculate_bond_length_filtranda(
     thresholds_array = geometry_thresholds.to_dataarray()
 
     converted_coords = convert_length(
-        frames["atXYZ"], to=geometry_thresholds.length_unit
+        frames.positions, to=geometry_thresholds.length_unit
     )
 
     if mol is None:
         mol = construct_default_mol(converted_coords)
-    base_selection = StructureSelection.init_from_mol(mol, "bonds")
+    base_selection = StructureSelection.init_from_mol(mol, ["bonds"])
 
     criteria_ordered = thresholds_array.coords["criterion"].values
     criteria_results = []
@@ -145,7 +145,9 @@ def calculate_bond_length_filtranda(
         # Find all bonds conforming to this smarts
         smarts_selection = base_selection.select_bonds(smarts)
         # Calculate distances for these bonds
-        smart_specific_distances = get_distances(smarts_selection)
+        smart_specific_distances = get_distances(
+            converted_coords, structure_selection=smarts_selection
+        )
 
         # Find maximum across all descriptors/bonds in each frame for this smarts
         max_distances = smart_specific_distances.max("descriptor", keep_attrs=True)
@@ -159,20 +161,20 @@ def calculate_bond_length_filtranda(
 
 # TODO: FIXME: This should operate on single trajectories.
 def filter_by_length(
-    frames,
+    frames: TrajectoryOrFrames,
     filter_method: Literal["truncate", "omit", "annotate"] | float = "truncate",
     *,
     geometry_thresholds: GeometryFiltrationThresholds | None = None,
     mol: Mol | None = None,
     plot_thresholds: bool | Sequence[float] = False,
     plot_populations: Literal["independent", "intersections", False] = False,
-) -> Frames | Trajectory | None:
+) -> TrajectoryOrFrames | None:
     """Filter trajectories according to bond length
 
     Parameters
     ----------
     frames
-        A xr.Dataset with an ``atXYZ`` variable (NB. this function takes an xr.Dataset as
+        A Trajectory or Frames Dataset with an ``atXYZ`` variable (NB. this function takes an xr.Dataset as
         opposed to an xr.DataArray for consistency with :py:func:`shnitsel.clean.filter_by_energy`)
     filter_method, optional
         Specifies the manner in which to remove data;
@@ -226,9 +228,11 @@ def filter_by_length(
     filtranda = calculate_bond_length_filtranda(
         frames, geometry_thresholds=geometry_thresholds, mol=mol
     )
-    frames = frames.drop_dims(["criterion"], errors="ignore").assign(
+    frames_dataset = frames.dataset.drop_dims(["criterion"], errors="ignore").assign(
         filtranda=filtranda
     )
+    new_frames = type(frames)(frames_dataset)
+
     dispatch_plots(filtranda, plot_thresholds, plot_populations)
 
-    return dispatch_filter(frames, filter_method)
+    return dispatch_filter(new_frames, filter_method)

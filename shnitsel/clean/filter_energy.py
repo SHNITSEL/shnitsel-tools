@@ -1,6 +1,6 @@
 from dataclasses import asdict, dataclass
 import logging
-from typing import Literal, Sequence
+from typing import Literal, Sequence, TypeVar
 
 import numpy as np
 from shnitsel.data.dataset_containers.frames import Frames
@@ -13,6 +13,7 @@ from shnitsel.clean.dispatch_plots import dispatch_plots
 from shnitsel.units.conversion import convert_energy
 from shnitsel.units.definitions import energy
 
+TrajectoryOrFrames = TypeVar("TrajectoryOrFrames", bound=Trajectory | Frames)
 
 @dataclass
 class EnergyFiltrationThresholds:
@@ -157,13 +158,13 @@ def calculate_energy_filtranda(
 
 
 def filter_by_energy(
-    frames_or_trajectory: Frames | Trajectory,
+    frames_or_trajectory: TrajectoryOrFrames,
     filter_method: Literal["truncate", "omit", "annotate"] | float = "truncate",
     *,
     energy_thresholds: EnergyFiltrationThresholds | None = None,
     plot_thresholds: bool | Sequence[float] = False,
     plot_populations: Literal["independent", "intersections", False] = False,
-) -> Frames | Trajectory | None:
+) -> TrajectoryOrFrames | None:
     """Filter trajectories according to energy to exclude unphysical (insane) behaviour
 
     Parameters
