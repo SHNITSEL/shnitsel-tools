@@ -107,6 +107,10 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
     ) -> Self | None:
         keep_self = filter_func(self)
 
+        # Stop if the node is not kept.
+        if not keep_self:
+            return None
+
         new_children = None
         if recurse:
             new_children = {
