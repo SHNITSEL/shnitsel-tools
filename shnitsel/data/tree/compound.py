@@ -1,9 +1,10 @@
 from dataclasses import dataclass
-from typing import Any, Generic, Hashable, Mapping, TypeVar
+from typing import Any, Callable, Generic, Hashable, Mapping, TypeVar
 from .data_group import DataGroup, GroupInfo
 from .data_leaf import DataLeaf
 
 DataType = TypeVar("DataType")
+ResType = TypeVar("ResType")
 
 
 @dataclass
@@ -31,7 +32,6 @@ class CompoundGroup(Generic[DataType], DataGroup[DataType]):
         | None = None,
         level_name: str | None = None,
         attrs: Mapping[str, Any] | None = None,
-        dtype: type[DataType] | None = None,
     ):
         if name is None:
             if compound_info is not None:
@@ -45,7 +45,6 @@ class CompoundGroup(Generic[DataType], DataGroup[DataType]):
             attrs=attrs,
             level_name=level_name,
             children=children,
-            dtype=dtype,
         )
 
         self._compound_info = (
@@ -60,3 +59,35 @@ class CompoundGroup(Generic[DataType], DataGroup[DataType]):
             CompoundInfo: The metadata for the compound in this compound group
         """
         return self._compound_info
+
+    def map_data(
+        self,
+        func: Callable[[DataType], ResType | None],
+        recurse: bool = True,
+        keep_empty_branches: bool = False,
+    ) -> "CompoundGroup[ResType]|None":
+        new_children: dict[Hashable, DataGroup[ResType] | DataLeaf[ResType]] | None = (
+            None
+        )
+        if recurse:
+            new_children = {
+                k: res
+                for k, v in self._children.items()
+                if v is not None
+                and (res := v.map_data(func, recurse, keep_empty_branches)) is not None
+            }
+
+            if len(new_children) == 0 and not keep_empty_branches:
+                new_children = None
+
+        if not keep_empty_branches and new_children is None:
+            return None
+        else:
+            return CompoundGroup[ResType](
+                name=self._name,
+                compound_info=self._compound_info,
+                group_info=self._group_info,
+                children=new_children,
+                level_name=self._level_name,
+                attrs=dict(self.attrs),
+            )

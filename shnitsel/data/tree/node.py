@@ -1,14 +1,17 @@
+import abc
 from dataclasses import dataclass
 from typing import Any, Callable, Hashable, Mapping, Self, TypeVar, Generic, get_args
 
 
 ChildType = TypeVar("ChildType", bound="TreeNode|None")
 DataType = TypeVar("DataType")
+NewDataType = TypeVar("NewDataType")
+NewChildType = TypeVar("NewChildType", bound="TreeNode|None")
 ResType = TypeVar("ResType")
 
 
 @dataclass
-class TreeNode(Generic[ChildType, DataType]):
+class TreeNode(Generic[ChildType, DataType], abc.ABC):
     _name: str | None
 
     _data: DataType | None
@@ -18,8 +21,6 @@ class TreeNode(Generic[ChildType, DataType]):
     _parent: Self | None
     _level_name: str | None
 
-    _dtype: type[DataType]
-
     def __init__(
         self,
         name: str | None,
@@ -27,7 +28,6 @@ class TreeNode(Generic[ChildType, DataType]):
         children: Mapping[Hashable, ChildType] | None = None,
         attrs: Mapping[str, Any] | None = None,
         level_name: str | None = None,
-        dtype: type[DataType] | Any = Any,
     ):
         self._name = name
         self._data = data
@@ -37,25 +37,15 @@ class TreeNode(Generic[ChildType, DataType]):
         self._level_name = (
             level_name if level_name is not None else self.__class__.__qualname__
         )
-        self._dtype = dtype
 
-    def copy(self, copy_children: bool = False, new_type=None) -> Self:
-        new_children = None
-        if copy_children:
-            new_children = {}
-            for key, child in self._children.items():
-                assert isinstance(child, TreeNode), (
-                    "Can only copy children of TreeNode type."
-                )
-                new_children[key] = child.copy(copy_children=True)
-
-        new_type = type(self) if new_type is None else new_type
-        return new_type(
+    def construct_copy(self, **kwargs) -> Self:
+        return type(self)(
             name=self._name,
-            data=self._data,
-            children=new_children,
+            data=self.data,
+            children=self.children,
             attrs=dict(self._attrs),
-            dtype=self._dtype,
+            level_name=self._level_name,
+            **kwargs,
         )
 
     @property
@@ -101,37 +91,13 @@ class TreeNode(Generic[ChildType, DataType]):
     def map_node(self, func: Callable[[Self], ResType]) -> ResType:
         return func(self)
 
+    @abc.abstractmethod
     def map_data(
         self,
         func: Callable[[DataType], ResType | None],
         recurse: bool = True,
         keep_empty_branches: bool = False,
-    ) -> "TreeNode[ChildType, ResType] | None":
-        new_data = self._data
-        if self.has_data:
-            new_data = func(self.data)
-
-        new_children = None
-        if recurse:
-            new_children = {
-                k: res
-                for k, v in self._children.items()
-                if v is not None
-                and (res := v.map_data(func, recurse, keep_empty_branches)) is not None
-            }
-
-            if len(new_children) == 0 and not keep_empty_branches:
-                new_children = None
-
-        if not keep_empty_branches and new_children is None and new_data is None:
-            return None
-        else:
-            # This yields a different kind of tree.
-            tmp_res = self.copy()
-            tmp_res._data = new_data
-            if recurse:
-                tmp_res._children = new_children if new_children is not None else {}
-            return tmp_res
+    ) -> "TreeNode|None": ...
 
     def filter_nodes(
         self,
@@ -155,7 +121,7 @@ class TreeNode(Generic[ChildType, DataType]):
         if not keep_empty_branches and not keep_self and new_children is None:
             return None
         else:
-            tmp_res = self.copy()
+            tmp_res = self.construct_copy()
             return tmp_res
 
     def is_level(self, target_level: str) -> bool:

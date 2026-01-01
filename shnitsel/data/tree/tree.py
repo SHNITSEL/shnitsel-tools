@@ -1,9 +1,7 @@
-from typing import Any, Generic, Hashable, Mapping, TypeVar
+from typing import Any, Callable, Generic, Hashable, Mapping, TypeVar
 
 from shnitsel.data.tree.data_leaf import DataLeaf
 
-from ..dataset_containers.frames import Frames
-from ..dataset_containers.trajectory import Trajectory
 from .data_group import DataGroup, GroupInfo
 from .node import TreeNode
 
@@ -11,15 +9,17 @@ from .compound import CompoundGroup, CompoundInfo
 
 
 DataType = TypeVar("DataType")
+ResType = TypeVar("ResType")
 
 
 class ShnitselDB(Generic[DataType], TreeNode[CompoundGroup[DataType], DataType]):
-    def __init__(self, dtype=Trajectory | Frames):
+    def __init__(
+        self, compounds: Mapping[Hashable, CompoundGroup[DataType]] | None = None
+    ):
         super().__init__(
             name="ROOT",
             data=None,
-            children={},
-            dtype=dtype,
+            children=compounds or {},
         )
 
     def add_compound(
@@ -30,31 +30,37 @@ class ShnitselDB(Generic[DataType], TreeNode[CompoundGroup[DataType], DataType])
         children: Mapping[Hashable, DataGroup[DataType] | DataLeaf[DataType]]
         | None = None,
         attrs: Mapping[str, Any] | None = None,
-        dtype=None,
     ) -> CompoundGroup[DataType]:
-        if dtype is None:
-            if self._dtype is not None:
-                dtype = self._dtype
-        else:
-            if self._dtype is None:
-                self._dtype = dtype
-            else:
-                if not issubclass(dtype, self._dtype):
-                    raise ValueError(
-                        "Cannot assign data type %s to a tree with dtype %s"
-                        % (dtype, self._dtype)
-                    )
-
+        # TODO: FIXME: Should add compound to tree
         new_compound = CompoundGroup[DataType](
             name=name,
             compound_info=compound_info,
             group_info=group_info,
             children=children,
             attrs=attrs,
-            dtype=dtype,
         )
         return new_compound
 
     @property
     def compounds(self) -> Mapping[Hashable, CompoundGroup[DataType]]:
         return self.children
+
+    def map_data(
+        self,
+        func: Callable[[DataType], ResType | None],
+        recurse: bool = True,
+        keep_empty_branches: bool = False,
+    ) -> "ShnitselDB[ResType]":
+        new_children = None
+        if recurse:
+            new_children = {
+                k: res
+                for k, v in self._children.items()
+                if v is not None
+                and (res := v.map_data(func, recurse, keep_empty_branches)) is not None
+            }
+
+            if len(new_children) == 0 and not keep_empty_branches:
+                new_children = None
+
+        return ShnitselDB[ResType](new_children)

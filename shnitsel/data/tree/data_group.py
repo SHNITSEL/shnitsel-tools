@@ -1,9 +1,10 @@
 from dataclasses import dataclass
-from typing import Any, Generic, Hashable, Mapping, TypeVar
+from typing import Any, Callable, Generic, Hashable, Mapping, TypeVar
 from .node import TreeNode
 from .data_leaf import DataLeaf
 
 DataType = TypeVar("DataType")
+ResType = TypeVar("ResType")
 
 
 @dataclass
@@ -19,6 +20,8 @@ class GroupInfo:
 class DataGroup(
     Generic[DataType], TreeNode["DataGroup[DataType]|DataLeaf[DataType]", DataType]
 ):
+    _group_info: GroupInfo | None = None
+
     def __init__(
         self,
         name: str | None = None,
@@ -30,7 +33,6 @@ class DataGroup(
         | None = None,
         attrs: Mapping[str, Any] | None = None,
         level_name: str | None = None,
-        dtype: type[DataType] | None = None,
     ):
         if name is None and group_info is not None:
             name = group_info.group_name
@@ -41,8 +43,8 @@ class DataGroup(
             children=children,
             attrs=attrs,
             level_name=level_name,
-            dtype=dtype,
         )
+        self._group_info = group_info
 
     def collect_data_nodes(self) -> list[DataLeaf[DataType]]:
         """Function to retrieve all nodes with data in this subtree
@@ -61,6 +63,13 @@ class DataGroup(
         return res
 
     @property
+    def group_info(self) -> GroupInfo:
+        if self._group_info is None:
+            raise ValueError("No group info set")
+        else:
+            return self._group_info
+
+    @property
     def subgroups(self) -> Mapping[Hashable, "DataGroup[DataType]"]:
         from .data_group import DataGroup
 
@@ -71,3 +80,34 @@ class DataGroup(
         from .data_leaf import DataLeaf
 
         return {k: v for k, v in self._children.items() if isinstance(v, DataLeaf)}
+
+    def map_data(
+        self,
+        func: Callable[[DataType], ResType | None],
+        recurse: bool = True,
+        keep_empty_branches: bool = False,
+    ) -> "DataGroup[ResType]|None":
+        new_children: dict[Hashable, DataGroup[ResType] | DataLeaf[ResType]] | None = (
+            None
+        )
+        if recurse:
+            new_children = {
+                k: res
+                for k, v in self._children.items()
+                if v is not None
+                and (res := v.map_data(func, recurse, keep_empty_branches)) is not None
+            }
+
+            if len(new_children) == 0 and not keep_empty_branches:
+                new_children = None
+
+        if not keep_empty_branches and new_children is None:
+            return None
+        else:
+            return DataGroup[ResType](
+                name=self._name,
+                group_info=self._group_info,
+                children=new_children,
+                level_name=self._level_name,
+                attrs=dict(self.attrs),
+            )
