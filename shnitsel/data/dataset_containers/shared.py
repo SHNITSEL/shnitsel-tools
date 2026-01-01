@@ -25,6 +25,12 @@ class ShnitselDataset:
             )
 
     @property
+    def state_ids(self):
+        if "state" not in self.dataset.coords:
+            raise KeyError("No coordinate `state` provided for the trajectory")
+        return self.dataset.coords["state"]
+
+    @property
     def state_names(self):
         if "state_names" not in self.dataset.coords:
             raise KeyError("No coordinate `state_names` provided for the trajectory")
