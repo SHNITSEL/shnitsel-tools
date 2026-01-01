@@ -78,18 +78,18 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
         else:
             return self._name
 
-    def map_over_child_nodes(
-        self, func: Callable[[Self], ResType | None]
-    ) -> Mapping[Hashable, ResType]:
-        new_children = {
-            k: res
-            for k, v in self._children.items()
-            if v is not None and (res := v.map_node(func)) is not None
-        }
-        return new_children
+    # def map_over_child_nodes(
+    #     self, func: Callable[[Self], ResType | None]
+    # ) -> Mapping[Hashable, ResType]:
+    #     new_children = {
+    #         k: res
+    #         for k, v in self._children.items()
+    #         if v is not None and (res := v.map_node(func)) is not None
+    #     }
+    #     return new_children
 
-    def map_node(self, func: Callable[[Self], ResType]) -> ResType:
-        return func(self)
+    # def map_node(self, func: Callable[[Self], ResType]) -> ResType:
+    #     return func(self)
 
     @abc.abstractmethod
     def map_data(
