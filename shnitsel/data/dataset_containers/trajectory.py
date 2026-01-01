@@ -1,3 +1,4 @@
+from __future__ import annotations
 from dataclasses import dataclass
 from functools import cached_property
 from typing import Literal
@@ -9,9 +10,9 @@ import xarray as xr
 
 @dataclass
 class Trajectory(ShnitselDataset):
-    from .frames import Frames
-    from .per_state import PerState
-    from .inter_state import InterState
+    # from .frames import Frames
+    # from .per_state import PerState
+    # from .inter_state import InterState
 
     def __init__(self, ds: xr.Dataset):
         assert "time" in ds.dims, (
