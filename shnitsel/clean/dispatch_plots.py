@@ -1,5 +1,5 @@
 from typing import Literal, Sequence
-
+import xarray as xr
 from shnitsel.vis.plot.filtration import check_thresholds, validity_populations
 
 
@@ -8,7 +8,7 @@ from shnitsel.vis.plot.filtration import check_thresholds, validity_populations
 
 
 def dispatch_plots(
-    filtranda,
+    filtranda: xr.DataArray,
     plot_thresholds: bool | Sequence[float],
     plot_populations: Literal['independent', 'intersections', False],
 ):
