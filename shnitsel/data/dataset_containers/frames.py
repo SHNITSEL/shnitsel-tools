@@ -1,6 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import Iterable
+from typing import Sequence
 import xarray as xr
 from .trajectory import Trajectory
 
@@ -35,9 +35,26 @@ class Frames(Trajectory):
         return self._is_multi_trajectory
 
 
+@dataclass
 class MultiTrajectoryFrames(Frames):
-    def __init__(self, framesets: Iterable[Frames]):
+    _frame_sources: Sequence[Frames] | None = None
+
+    def __init__(self, framesets: Sequence[Frames]):
         # TODO: FIXME: Concatenate frames into one single big frameset.
-        ...
-        super().__init__(framesets)
-        self._is_multi_trajectory = True
+        self._frame_sources = framesets
+        is_multi_trajectory = False
+        if len(framesets) > 1:
+            is_multi_trajectory = True
+        elif len(framesets) == 1 and framesets[0].is_multi_trajectory:
+            is_multi_trajectory = True
+
+        # TODO: FIXME: Make sure that concatenation would work. Convert variables to same unit, etc.
+
+        # Build the concatenated trajectory. May trigger exceptions
+        combined_dataset = xr.concat(
+            [frames.dataset for frames in framesets],
+            dim='frame',
+        )
+
+        super().__init__(combined_dataset)
+        self._is_multi_trajectory = is_multi_trajectory
