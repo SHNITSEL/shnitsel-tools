@@ -8,8 +8,7 @@ import rdkit.Chem as rc
 import xarray as xr
 
 from shnitsel.data.multi_indices import expand_midx
-from shnitsel.bridges import default_mol, set_atom_props
-from shnitsel.clean.common import is_stacked  # TODO: move
+from shnitsel.bridges import construct_default_mol, set_atom_props
 
 
 def _find_atom_pairs(mol, atoms):
@@ -66,8 +65,10 @@ def list_analogs(
     """
     if vis:
         from IPython.display import display
+    else:
+        display = None
 
-    mols = [default_mol(x) for x in ensembles]
+    mols = [construct_default_mol(x) for x in ensembles]
     if not smarts:
         from rdkit.Chem import rdFMCS
 
@@ -104,7 +105,7 @@ def list_analogs(
             .sortby('atom')
             .assign_attrs(mol=res_mol)
         )
-    if vis:
+    if vis and display is not None:
         display(rc.Draw.MolsMatrixToGridImage(mol_grid))
 
     return results
