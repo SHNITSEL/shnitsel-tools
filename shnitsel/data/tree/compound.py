@@ -31,6 +31,7 @@ class CompoundGroup(Generic[DataType], DataGroup[DataType]):
         | None = None,
         level_name: str | None = None,
         attrs: Mapping[str, Any] | None = None,
+        dtype: type[DataType] | None = None,
     ):
         if name is None:
             if compound_info is not None:
@@ -44,22 +45,12 @@ class CompoundGroup(Generic[DataType], DataGroup[DataType]):
             attrs=attrs,
             level_name=level_name,
             children=children,
+            dtype=dtype,
         )
 
         self._compound_info = (
             compound_info if compound_info is not None else CompoundInfo()
         )
-
-    def is_level(self, target_level: str) -> bool:
-        """Check whether we are at a certain level
-
-        Args:
-            target_level (str): Desired level to check for
-
-        Returns:
-            bool: True if this level satisfies the requirements
-        """
-        return target_level == "TrajectoryGroup" or target_level == "CompoundGroup"
 
     @property
     def compound_info(self) -> CompoundInfo:
@@ -69,16 +60,3 @@ class CompoundGroup(Generic[DataType], DataGroup[DataType]):
             CompoundInfo: The metadata for the compound in this compound group
         """
         return self._compound_info
-
-    def collect_trajectories(self) -> List[TrajectoryData]:
-        """Function to retrieve all trajectories in this subtree
-
-        Returns:
-            List[TrajectoryData]: List of all nodes with TrajectoryData type
-        """
-        res = []
-
-        for x in self.children.values():
-            res += x.collect_trajectories()
-
-        return res

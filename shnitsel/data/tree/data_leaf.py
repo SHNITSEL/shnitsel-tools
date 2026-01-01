@@ -12,7 +12,12 @@ class DataLeaf(Generic[DataType], TreeNode[None, DataType]):
         name: str | None = None,
         data: DataType | None = None,
         attrs: Mapping[str, Any] | None = None,
+        dtype: type[DataType] | None = None,
     ):
         super().__init__(
-            name=name, data=data, attrs=attrs, level_name=self.__class__.__name__
+            name=name,
+            data=data,
+            attrs=attrs,
+            level_name=self.__class__.__name__,
+            dtype=dtype,
         )

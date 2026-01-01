@@ -30,10 +30,32 @@ class DataGroup(
         | None = None,
         attrs: Mapping[str, Any] | None = None,
         level_name: str | None = None,
+        dtype: type[DataType] | None = None,
     ):
         if name is None and group_info is not None:
             name = group_info.group_name
 
         super().__init__(
-            name=name, data=None, children=children, attrs=attrs, level_name=level_name
+            name=name,
+            data=None,
+            children=children,
+            attrs=attrs,
+            level_name=level_name,
+            dtype=dtype,
         )
+
+    def collect_data_nodes(self) -> list[DataLeaf[DataType]]:
+        """Function to retrieve all nodes with data in this subtree
+
+        Returns:
+            list[DataLeaf[DataType]]: List of all nodes with DataLeaf Type in this tree.
+        """
+        res = []
+
+        for x in self.children.values():
+            if isinstance(x, DataGroup):
+                res += x.collect_data_nodes()
+            elif isinstance(x, DataLeaf):
+                res.append(x)
+
+        return res

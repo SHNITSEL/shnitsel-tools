@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, Callable, Hashable, Mapping, Self, TypeVar, Generic
+from typing import Any, Callable, Hashable, Mapping, Self, TypeVar, Generic, get_args
 
 
 ChildType = TypeVar("ChildType", bound="TreeNode|None")
@@ -18,6 +18,8 @@ class TreeNode(Generic[ChildType, DataType]):
     _parent: Self | None
     _level_name: str | None
 
+    _dtype: type[DataType]
+
     def __init__(
         self,
         name: str | None,
@@ -25,6 +27,7 @@ class TreeNode(Generic[ChildType, DataType]):
         children: Mapping[Hashable, ChildType] | None = None,
         attrs: Mapping[str, Any] | None = None,
         level_name: str | None = None,
+        dtype: type[DataType] | Any = Any,
     ):
         self._name = name
         self._data = data
@@ -32,8 +35,9 @@ class TreeNode(Generic[ChildType, DataType]):
         self._attrs = attrs if attrs is not None else dict()
         self._parent = None
         self._level_name = (
-            level_name if level_name is not None else self.__class__.__name__
+            level_name if level_name is not None else self.__class__.__qualname__
         )
+        self._dtype = dtype
 
     def copy(self, copy_children: bool = False, new_type=None) -> Self:
         new_children = None
@@ -51,6 +55,7 @@ class TreeNode(Generic[ChildType, DataType]):
             data=self._data,
             children=new_children,
             attrs=dict(self._attrs),
+            dtype=self._dtype,
         )
 
     @property
@@ -151,3 +156,15 @@ class TreeNode(Generic[ChildType, DataType]):
             return None
         else:
             tmp_res = self.copy()
+            return tmp_res
+
+    def is_level(self, target_level: str) -> bool:
+        """Check whether we are at a certain level
+
+        Args:
+            target_level (str): Desired level to check for
+
+        Returns:
+            bool: True if this level satisfies the requirements
+        """
+        return self._level_name == target_level
