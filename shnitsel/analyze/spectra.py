@@ -18,7 +18,7 @@ import ase.units as si
 
 
 @internal()
-def _get_fosc(
+def _calculate_fosc(
     energy_interstate: xr.DataArray, dip_trans_norm: xr.DataArray
 ) -> xr.DataArray:
     """Internal function to actually calculate the oscillator frequency for energies and transition dipoles.
@@ -71,7 +71,7 @@ def get_fosc(
         f"Energy and dip_trans do not have the same shapes: {energy_interstate.values.shape} <-> {dip_trans_norm.values.shape}"
     )
 
-    da = _get_fosc(energy_interstate, dip_trans_norm)
+    da = _calculate_fosc(energy_interstate, dip_trans_norm)
     da.name = 'fosc'
     da.attrs.update(
         {
