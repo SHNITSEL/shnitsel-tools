@@ -59,3 +59,15 @@ class DataGroup(
                 res.append(x)
 
         return res
+
+    @property
+    def subgroups(self) -> Mapping[Hashable, "DataGroup[DataType]"]:
+        from .data_group import DataGroup
+
+        return {k: v for k, v in self._children.items() if isinstance(v, DataGroup)}
+
+    @property
+    def subleaves(self) -> Mapping[Hashable, "DataLeaf[DataType]"]:
+        from .data_leaf import DataLeaf
+
+        return {k: v for k, v in self._children.items() if isinstance(v, DataLeaf)}

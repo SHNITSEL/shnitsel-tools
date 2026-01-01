@@ -54,3 +54,7 @@ class ShnitselDB(Generic[DataType], TreeNode[CompoundGroup[DataType], DataType])
             dtype=dtype,
         )
         return new_compound
+
+    @property
+    def compounds(self) -> Mapping[Hashable, CompoundGroup[DataType]]:
+        return self.children
