@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+from shnitsel.analyze.generic import keep_norming
 from shnitsel.analyze.stats import get_inter_state
 from .shared import ShnitselDerivedDataset
 from .frames import Frames
@@ -42,6 +43,16 @@ class InterState(ShnitselDerivedDataset):
         return self.dataset.data_vars["dip_trans"]
 
     @property
+    def dipole_transition_norm(self) -> xr.DataArray:
+        if "dipole_trans_norm" not in self.dataset.data_vars:
+            if not self.has_variable('dip_trans'):
+                raise KeyError(
+                    "No variable `dipole_trans_norm` to encode the norm of interstate transition dipole moments in trajectory data. Also no raw `dipole_trans` to calculate it from. "
+                )
+            self.dataset['dip_trans_norm'] = keep_norming(self.dipole_transition)
+        return self.dataset.data_vars["dip_trans_norm"]
+
+    @property
     def nacs(self) -> xr.DataArray:
         if "nacs" not in self.dataset.data_vars:
             raise KeyError(
@@ -50,9 +61,37 @@ class InterState(ShnitselDerivedDataset):
         return self.dataset.data_vars["nacs"]
 
     @property
+    def nacs_norm(self) -> xr.DataArray:
+        if "nacs_norm" not in self.dataset.data_vars:
+            if not self.has_variable('nacs'):
+                raise KeyError(
+                    "No variable `nacs_norm` to encode the norm of non-adiabatic-couplings in trajectory data. Also no raw `nacs` to calculate it from. "
+                )
+            self.dataset['nacs_norm'] = keep_norming(self.nacs)
+        return self.dataset.data_vars["nacs_norm"]
+
+    @property
     def socs(self) -> xr.DataArray:
         if "socs" not in self.dataset.data_vars:
             raise KeyError(
                 "No variable `socs` to encode spin-orbit-couplings in trajectory data"
             )
         return self.dataset.data_vars["socs"]
+
+    @property
+    def socs_norm(self) -> xr.DataArray:
+        if "socs_norm" not in self.dataset.data_vars:
+            if not self.has_variable('socs'):
+                raise KeyError(
+                    "No variable `socs_norm` to encode the norm of spin-orbit-couplings in trajectory data. Also no raw `socs` to calculate it from. "
+                )
+            self.dataset['socs_norm'] = keep_norming(self.socs)
+        return self.dataset.data_vars["socs_norm"]
+
+    @property
+    def fosc(self) -> xr.DataArray:
+        if "fosc" not in self.dataset.data_vars:
+            raise KeyError(
+                "No variable `fosc` to encode the strength of the oscillator in trajectory data"
+            )
+        return self.dataset.data_vars["fosc"]
