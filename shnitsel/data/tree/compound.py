@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, Callable, Generic, Hashable, Mapping, TypeVar
+from typing import Any, Callable, Generic, Hashable, Mapping, Self, TypeVar
 from .data_group import DataGroup, GroupInfo
 from .data_leaf import DataLeaf
 
@@ -50,6 +50,11 @@ class CompoundGroup(Generic[DataType], DataGroup[DataType]):
         self._compound_info = (
             compound_info if compound_info is not None else CompoundInfo()
         )
+
+    def construct_copy(self, **kwargs) -> Self:
+        if 'compound_info' not in kwargs:
+            kwargs['compound_info'] = self._compound_info
+        return super().construct_copy(**kwargs)
 
     @property
     def compound_info(self) -> CompoundInfo:

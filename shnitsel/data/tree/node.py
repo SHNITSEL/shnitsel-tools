@@ -8,6 +8,7 @@ DataType = TypeVar("DataType")
 NewDataType = TypeVar("NewDataType")
 NewChildType = TypeVar("NewChildType", bound="TreeNode|None")
 ResType = TypeVar("ResType")
+KeyType = TypeVar("KeyType")
 
 
 @dataclass
@@ -39,12 +40,22 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
         )
 
     def construct_copy(self, **kwargs) -> Self:
+        if 'name' not in kwargs:
+            kwargs['name'] = self._name
+        if 'data' not in kwargs:
+            kwargs['data'] = self._data
+        if 'children' not in kwargs:
+            kwargs['children'] = {
+                k: v.construct_copy()
+                for k, v in self._children.items()
+                if v is not None
+            }
+        if 'attrs' not in kwargs:
+            kwargs['attrs'] = dict(self._attrs)
+        if 'level_name' not in kwargs:
+            kwargs['level_name'] = str(self._level_name)
+
         return type(self)(
-            name=self._name,
-            data=self.data,
-            children=self.children,
-            attrs=dict(self._attrs),
-            level_name=self._level_name,
             **kwargs,
         )
 
@@ -88,8 +99,15 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
     #     }
     #     return new_children
 
-    # def map_node(self, func: Callable[[Self], ResType]) -> ResType:
-    #     return func(self)
+    def map_subtree(self, func: Callable[[Self], ResType]) -> ResType:
+        return func(self)
+
+    @abc.abstractmethod
+    def group_children_by(
+        self,
+        key_func: Callable[["TreeNode"], KeyType],
+        group_leaves_only: bool = False,
+    ) -> Self | None: ...
 
     @abc.abstractmethod
     def map_data(
@@ -125,8 +143,36 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
         if not keep_empty_branches and not keep_self and new_children is None:
             return None
         else:
-            tmp_res = self.construct_copy()
+            tmp_res = self.construct_copy(children=new_children)
             return tmp_res
+
+    def add_child(self, child_name: str | None, child: ChildType) -> Self:
+        new_children = dict(self._children)
+        if child_name is not None and child_name not in new_children:
+            new_children[child_name] = child
+        else:
+            if child_name is None:
+                child_name = type(child).__name__
+
+            found = False
+            for i in range(1000):
+                tmp_name = child_name + "_" + str(i)
+                if tmp_name not in new_children:
+                    found = True
+                    new_children[tmp_name] = child
+                    break
+
+            if not found:
+                raise OverflowError(
+                    "Could not patch child name without name collision after 1000 modifications"
+                )
+        return self.construct_copy(children=new_children)
+
+    def assign_children(
+        self, new_children: Mapping[Hashable, ChildType | None]
+    ) -> Self:
+        # TODO: FIXME: Implement
+        raise NotImplementedError()
 
     def is_level(self, target_level: str) -> bool:
         """Check whether we are at a certain level

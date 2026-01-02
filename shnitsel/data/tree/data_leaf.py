@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, Callable, Generic, Mapping, TypeVar
+from typing import Any, Callable, Generic, Mapping, Self, TypeVar
 from .node import TreeNode
 
 DataType = TypeVar("DataType")
@@ -20,6 +20,17 @@ class DataLeaf(Generic[DataType], TreeNode[None, DataType]):
             attrs=attrs,
             level_name=self.__class__.__name__,
         )
+
+    def construct_copy(self, **kwargs) -> Self:
+        return super().construct_copy(**kwargs)
+
+    def group_children_by(
+        self,
+        key_func: Any = None,
+        group_leaves_only: bool = False,
+        recurse: bool = True,
+    ) -> Self:
+        return self.construct_copy()
 
     def map_data(
         self,

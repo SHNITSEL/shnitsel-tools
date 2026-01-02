@@ -1,10 +1,11 @@
-from dataclasses import dataclass
-from typing import Any, Callable, Generic, Hashable, Mapping, TypeVar
+from dataclasses import dataclass, asdict
+from typing import Any, Callable, Generic, Hashable, Mapping, Self, TypeVar
 from .node import TreeNode
 from .data_leaf import DataLeaf
 
 DataType = TypeVar("DataType")
 ResType = TypeVar("ResType")
+KeyType = TypeVar("KeyType")
 
 
 @dataclass
@@ -46,6 +47,11 @@ class DataGroup(
         )
         self._group_info = group_info
 
+    def construct_copy(self, **kwargs) -> Self:
+        if 'group_info' not in kwargs:
+            kwargs['group_info'] = self._group_info
+        return super().construct_copy(**kwargs)
+
     def collect_data_nodes(self) -> list[DataLeaf[DataType]]:
         """Function to retrieve all nodes with data in this subtree
 
@@ -80,6 +86,85 @@ class DataGroup(
         from .data_leaf import DataLeaf
 
         return {k: v for k, v in self._children.items() if isinstance(v, DataLeaf)}
+
+    def group_children_by(
+        self,
+        key_func: Callable[["TreeNode"], KeyType | None],
+        group_leaves_only: bool = False,
+    ) -> Self | None:
+        # At the end of this, we should have either only sub-groups or only sub-leaves
+        num_categories = 0
+        key_set: set[KeyType | str] = set()
+        member_children: Mapping[
+            KeyType | str, list[DataGroup[DataType] | DataLeaf[DataType]]
+        ] = {}
+
+        res_children: Mapping[Hashable, DataGroup[DataType] | DataLeaf[DataType]] = {}
+
+        for k, child in self.children.items():
+            # If we recurse, group the child first.
+            child = child.group_children_by(
+                key_func=key_func, group_leaves_only=group_leaves_only
+            )
+
+            if isinstance(child, DataGroup):
+                if group_leaves_only:
+                    res_children[k] = child
+                    num_categories += 1
+                else:
+                    key = key_func(child)
+                    if key is None:
+                        continue
+
+                    if key not in key_set:
+                        key_set.add(key)
+                        member_children[key] = []
+                        num_categories += 1
+                    member_children[key].append(child)
+            elif isinstance(child, DataLeaf):
+                key = key_func(child)
+                if key is None:
+                    continue
+                if key not in key_set:
+                    key_set.add(key)
+                    member_children[key] = []
+                    num_categories += 1
+                member_children[key].append(child)
+
+        new_node = self.construct_copy()
+        new_node._children = res_children
+
+        # TODO: FIXME: Make key to group info more straightforward
+
+        for key, group in member_children.items():
+            try:
+                key_dict = asdict(key)
+            except:
+                key_dict = {'key': key}
+
+            group_child_dict: dict[
+                Hashable, DataGroup[DataType] | DataLeaf[DataType]
+            ] = {e.name: e for e in group}
+
+            if num_categories == 1:
+                # Only one category, update the group info and return full node
+                new_node._group_info = GroupInfo(str(key))
+                new_node._group_info.group_attributes = key_dict
+                if self._group_info and self._group_info.grouped_properties:
+                    new_node._group_info.grouped_properties = dict(
+                        self._group_info.grouped_properties
+                    )
+
+                new_node._children = group_child_dict
+            else:
+                # Generate new group for this category
+                new_group_info = GroupInfo(str(key), group_attributes=key_dict)
+                new_group = DataGroup[DataType](
+                    group_info=new_group_info, children=group_child_dict
+                )
+                new_node = new_node.add_child(new_group.name, new_group)
+
+        return new_node
 
     def map_data(
         self,
