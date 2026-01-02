@@ -131,6 +131,8 @@ class DataGroup(
                     num_categories += 1
                 member_children[key].append(child)
 
+        # TODO: FIXME: We should not patch the new node but modify the group info and children instead.
+
         new_node = self.construct_copy()
         new_node._children = res_children
 
