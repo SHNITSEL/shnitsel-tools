@@ -68,21 +68,35 @@ class TestProcessing:
             assert (res >= 0).all()
         assert len(res.dims) == len(da.dims) - 1
 
-    @given(
-        xrst.variables(
-            dims=st.just({'test1': 2, 'target': 3, 'test2': 5}),
+    @composite
+    def inputs_for_subtract_combinations(draw):
+        dims = draw(xrst.dimension_names(min_dims=1))
+
+        dvar = xrst.variables(
+            dims=st.just(dims),
             dtype=st.just(float),  # type: ignore
-        ),
-    )
-    def test_subtract_combinations(self, da):
+        )
+        da = xr.DataArray(draw(dvar))
+
+        axis = draw(st.integers(min_value=0, max_value=len(dims) - 1))
+        target_dim = dims[axis]
+
+        return da, target_dim
+
+    @given(inputs_for_subtract_combinations())
+    def test_subtract_combinations(self, inputs):
+        from itertools import combinations
+
+        da, target_dim = inputs
         assume((da != np.inf).all())
         assume((da != -np.inf).all())
         assume((~np.isnan(da)).all())  # no NaNs allowed
         da = xr.DataArray(da)
-        res = subtract_combinations(da, 'target')
-        for c, i, j in [(0, 1, 0), (1, 2, 0), (2, 2, 1)]:
-            da_diff = da.isel(target=i) - da.isel(target=j)
-            to_check = res.isel(targetcomb=c)
+        res = subtract_combinations(da, target_dim)
+        combs = combinations(range(da.sizes[target_dim]), 2)
+        for c, (i, j) in enumerate(combs):
+            da_diff = da[{target_dim: j}] - da.isel({target_dim: i})
+            to_check = res[{target_dim + "comb": c}]
             assert_equal(da_diff, to_check)
 
     # TODO: test center
