@@ -1,7 +1,7 @@
 import abc
 from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Any, Callable, Hashable, Mapping, Self, TypeVar, Generic
+from typing import Any, Callable, Hashable, Mapping, Self, TypeVar, Generic, overload
 
 
 ChildType = TypeVar("ChildType", bound="TreeNode|None", covariant=True)
@@ -40,7 +40,10 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
             level_name if level_name is not None else self.__class__.__qualname__
         )
 
-    def construct_copy(self, **kwargs) -> Self:
+    def construct_copy(
+        self,
+        **kwargs,
+    ) -> Self | "TreeNode[Any, ResType]":
         if 'name' not in kwargs:
             kwargs['name'] = self._name
         if 'data' not in kwargs:
@@ -117,6 +120,32 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
         recurse: bool = True,
         keep_empty_branches: bool = False,
     ) -> "TreeNode|None": ...
+
+    def map_filtered_nodes(
+        self,
+        filter_func: Callable[["TreeNode[Any, DataType]"], bool],
+        map_func: Callable[["TreeNode[Any, DataType]"], "TreeNode[Any, ResType]"],
+    ) -> "TreeNode[Any, ResType]":
+        """Map nodes if the filter function picks them as relevant to this run.
+        If the node is not picked by `filter_func` a copy will be created with its children being recursively mapped
+        according to the same rule.
+        If a node is mapped, the `map_func` must take care of potential mapping over children."""
+
+        if filter_func(self):
+            new_node = map_func(self)
+        else:
+            new_children = {
+                k: res
+                for k, v in self.children.items()
+                if v is not None
+                and (res := v.map_filtered_nodes(filter_func, map_func)) is not None
+            }
+
+            new_node: TreeNode[Any, ResType] = self.construct_copy(
+                children=new_children
+            )  # type: ignore # By mapping the children, we are sure that they now also hold the resulting datatype.
+
+        return new_node
 
     def filter_nodes(
         self,
