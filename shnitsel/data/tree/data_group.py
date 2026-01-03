@@ -1,4 +1,5 @@
 from dataclasses import dataclass, asdict
+from functools import cached_property
 from typing import Any, Callable, Generic, Hashable, Mapping, Self, TypeVar
 from .node import TreeNode
 from .data_leaf import DataLeaf
@@ -67,6 +68,11 @@ class DataGroup(
                 res.append(x)
 
         return res
+
+    @cached_property
+    def is_flat_group(self) -> bool:
+        """Boolean flag that is true if there are no more sub-groups beneath this group, thus making the children of this group exclusively data-nodes."""
+        return len(self.subgroups) == 0
 
     @property
     def group_info(self) -> GroupInfo:
