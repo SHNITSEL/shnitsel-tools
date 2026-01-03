@@ -96,7 +96,8 @@ class DataGroup(
         num_categories = 0
         key_set: set[KeyType | str] = set()
         member_children: Mapping[
-            KeyType | str, list[DataGroup[DataType] | DataLeaf[DataType]]
+            KeyType | str,
+            list[tuple[Hashable, DataGroup[DataType] | DataLeaf[DataType]]],
         ] = {}
 
         res_children: Mapping[Hashable, DataGroup[DataType] | DataLeaf[DataType]] = {}
@@ -120,7 +121,7 @@ class DataGroup(
                         key_set.add(key)
                         member_children[key] = []
                         num_categories += 1
-                    member_children[key].append(child)
+                    member_children[key].append((k, child))
             elif isinstance(child, DataLeaf):
                 key = key_func(child)
                 if key is None:
@@ -129,12 +130,14 @@ class DataGroup(
                     key_set.add(key)
                     member_children[key] = []
                     num_categories += 1
-                member_children[key].append(child)
+                member_children[key].append((k, child))
 
-        # TODO: FIXME: We should not patch the new node but modify the group info and children instead.
-
-        new_node = self.construct_copy()
-        new_node._children = res_children
+        new_children = res_children
+        base_group_info = (
+            self._group_info
+            if self._group_info is not None
+            else GroupInfo(group_name=self._name or "group")
+        )
 
         # TODO: FIXME: Make key to group info more straightforward
 
@@ -146,27 +149,25 @@ class DataGroup(
 
             group_child_dict: dict[
                 Hashable, DataGroup[DataType] | DataLeaf[DataType]
-            ] = {e.name: e for e in group}
+            ] = {e[0]: e[1] for e in group}
 
             if num_categories == 1:
                 # Only one category, update the group info and return full node
-                new_node._group_info = GroupInfo(str(key))
-                new_node._group_info.group_attributes = key_dict
-                if self._group_info and self._group_info.grouped_properties:
-                    new_node._group_info.grouped_properties = dict(
-                        self._group_info.grouped_properties
-                    )
-
-                new_node._children = group_child_dict
+                base_group_info.group_name = str(key)
+                base_group_info.group_attributes = key_dict
+                new_children.update(group_child_dict)
             else:
                 # Generate new group for this category
                 new_group_info = GroupInfo(str(key), group_attributes=key_dict)
                 new_group = DataGroup[DataType](
                     group_info=new_group_info, children=group_child_dict
                 )
-                new_node = new_node.add_child(new_group.name, new_group)
+                for i in range(10000):
+                    group_name_try = f"group_{i}"
+                    if group_name_try not in new_children:
+                        new_children[group_name_try] = new_group
 
-        return new_node
+        return self.construct_copy(children=new_children, group_info=base_group_info)
 
     def map_data(
         self,
