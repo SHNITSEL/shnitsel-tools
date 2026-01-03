@@ -1,5 +1,8 @@
 from typing import Any, Callable, Generic, Hashable, Mapping, Self, TypeVar
 
+from shnitsel.data.dataset_containers.frames import Frames
+from shnitsel.data.dataset_containers.trajectory import Trajectory
+from shnitsel.data.trajectory_grouping_params import TrajectoryGroupingMetadata
 from shnitsel.data.tree.data_leaf import DataLeaf
 
 from .data_group import DataGroup, GroupInfo
@@ -34,8 +37,7 @@ class ShnitselDBRoot(Generic[DataType], TreeNode[CompoundGroup[DataType], DataTy
         children: Mapping[Hashable, DataGroup[DataType] | DataLeaf[DataType]]
         | None = None,
         attrs: Mapping[str, Any] | None = None,
-    ) -> CompoundGroup[DataType]:
-        # TODO: FIXME: Should add compound to tree
+    ) -> Self:
         new_compound = CompoundGroup[DataType](
             name=name,
             compound_info=compound_info,
@@ -43,7 +45,7 @@ class ShnitselDBRoot(Generic[DataType], TreeNode[CompoundGroup[DataType], DataTy
             children=children,
             attrs=attrs,
         )
-        return new_compound
+        return self.add_child(name, new_compound)
 
     @property
     def compounds(self) -> Mapping[Hashable, CompoundGroup[DataType]]:
@@ -87,6 +89,16 @@ class ShnitselDBRoot(Generic[DataType], TreeNode[CompoundGroup[DataType], DataTy
         )
 
 
-def _trajectory_key_func(node: TreeNode) -> Any:
-    # TODO: FIXME: Implement keys for DataLeaf instances. Be inspired by old version.
-    raise NotImplementedError
+def _trajectory_key_func(node: TreeNode) -> None | str | TrajectoryGroupingMetadata:
+    if isinstance(node, DataLeaf):
+        if not node.has_data:
+            # Do not group empty data
+            return None
+        else:
+            # Get grouping metadata
+            if isinstance(node.data, Trajectory) or isinstance(node.data, Frames):
+                return node.data.get_grouping_metadata()
+        # Don't attempt to group weird data types
+        return None
+    else:
+        return node.name
