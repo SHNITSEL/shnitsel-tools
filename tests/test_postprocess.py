@@ -17,6 +17,11 @@ from shnitsel.analyze.generic import (
     relativize,
     pwdists,
 )
+from shnitsel.analyze.hops import (
+    hops,
+    focus_hops,
+    assign_hop_time,
+)
 from shnitsel.analyze.pca import pca
 # from shnitsel.data.helpers import ts_to_time
 # from shnitsel.io import read
@@ -155,6 +160,57 @@ class TestProcessing:
         if not np.isnan(da).any() and not np.isinf(da).any():
             assert (res >= 0).all()
 
+    ##############
+    # analyze.hops
+    @composite
+    def frames_for_hops(draw):
+        nframes = draw(hnp.array_shapes(min_dims=1, max_dims=1))[0]
+
+        def get_var(dtype):
+            return draw(
+                xrst.variables(dims=st.just({'frame': nframes}), dtype=st.just(dtype))
+            )
+
+        astate = get_var(int)
+        time = get_var(float)
+        trajid = get_var(int)
+
+        da = xr.DataArray(
+            astate, coords={'time': ('frame', time), 'trajid': ('frame', trajid)}
+        ).set_xindex(['trajid', 'time'])
+        return xr.Dataset({'astate': da})
+
+    @given(frames_for_hops())
+    def test_hops(self, frames):
+        res = hops(frames)
+        assert 'tidx' in res
+        assert 'hop_from' in res
+        assert 'hop_to' in res
+
+    @given(frames_for_hops())
+    def test_focus_hops(self, frames):
+        res = focus_hops(frames)
+        # Check hop-independent coord dimensions
+        assert res['hop_time'].dims == ('hop_time',)
+        assert res['hop_tidx'].dims == ('hop_time',)
+
+        # Check per-hop 1D coord dimensions
+        assert res['hop_from'].dims == ('hop',)
+        assert res['hop_to'].dims == ('hop',)
+        assert res['trajid'].dims == ('hop',)
+
+        # Check per-hop 2D coord dimensions
+        assert set(res['time'].dims) == {'hop', 'hop_time'}
+        assert set(res['tidx'].dims) == {'hop', 'hop_time'}
+
+    @given(frames_for_hops(), st.booleans())
+    def test_assign_hop_time(self, frames, choose_first):
+        which = 'first' if choose_first else 'last'
+        res = assign_hop_time(frames, which=which)
+        assert 'hop_time' in res.coords
+        assert res.coords['hop_time'].dims == ('frame',)
+
+    #################################
     # Dimensional reduction functions
     @given(
         xrst.variables(
