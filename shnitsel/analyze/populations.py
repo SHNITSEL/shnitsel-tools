@@ -1,4 +1,5 @@
 import logging
+from typing import Iterable, overload
 
 import numpy as np
 import xarray as xr
@@ -12,11 +13,54 @@ from shnitsel.units.definitions import time, unit_dimensions
 from .._contracts import needs
 
 
+@overload
+def calc_classical_populations(
+    data: ShnitselDB[Trajectory | Frames],
+) -> ShnitselDB[xr.DataArray]:
+    """Specialized version of the population calculation where a tree hierarchy of Trajectory data
+    is mapped to a tree hierarchy of population statistics.
+
+    The hierarchy will first be grouped by metadata, then a population statistics `xr.DataArray` will
+    be calculated for each flat group.
+
+    Parameters
+    ----------
+    data : ShnitselDB[Trajectory  |  Frames]
+        The tree-structured trajectory data
+
+    Returns
+    -------
+    ShnitselDB[xr.DataArray]
+        The tree structure holding population statistics for grouped data out of the input.
+        Results contain inidividual states' absolute population numbers for every time step.
+    """
+    ...
+
+
+@overload
+def calc_classical_populations(
+    data: Trajectory | Frames | xr.Dataset,
+) -> xr.DataArray:
+    """Specialized version of the population calculation where a single Trajectory or Frameset instance
+    is mapped to population statistics for their different states.
+
+    Parameters
+    ----------
+    data : Trajectory | Frames | xr.Dataset
+        The input dataset to calculate population statistics along the `time` dimension for.
+
+    Returns
+    -------
+    xr.DataArray
+        The multi-dimensional array with coordinates and annotations that holds the absolute population data for states.
+    """
+
+
 @API()
 @needs(dims={'frame', 'state'}, coords={'time'}, data_vars={'astate'})
 def calc_classical_populations(
     frames: ShnitselDB[Trajectory | Frames] | Trajectory | Frames | xr.Dataset,
-) -> xr.DataArray:
+) -> xr.DataArray | ShnitselDB[xr.DataArray]:
     """Function to calculate classical state populations from the active state information in `astate` of the dataset `frames.
 
     Does not use the partial QM coefficients of the states.
@@ -26,6 +70,7 @@ def calc_classical_populations(
 
     Returns:
         xr.DataArray: The array holding the ratio of trajectories in each respective state.
+        ShnitselDB[xr.DataArray]: The tree holding the hierarchical structure of data to be processed. Will calculate populations across grouped subtrees.
     """
     if isinstance(frames, ShnitselDB):
         # TODO: convert the shnitsel db subtrees to frames and perform some aggregation
@@ -42,7 +87,60 @@ def calc_classical_populations(
         # pops = xr.DataArray(
         #     populations, dims=['time', 'state'], coords={'time': data.coords['time']}
         # )
-        pass
+        db: ShnitselDB[Trajectory | Frames] = frames.group_data_by_metadata()
+
+        def _map_prepare(frames: Trajectory | Frames) -> xr.DataArray:
+            if isinstance(frames, Trajectory) and not isinstance(frames, Frames):
+                frames = frames.as_frames
+
+            return _calc_classical_populations(frames)
+
+        mapped_pop_data = db.map_data(_map_prepare, keep_empty_branches=False)
+
+        def _combine_func(pop_data: Iterable[xr.DataArray]) -> xr.DataArray:
+            res: xr.DataArray | None = None
+            res_timelen: int = -1
+            for data in pop_data:
+                if data is None:
+                    continue
+
+                if res is None:
+                    # Copy
+                    res = data
+                    res_timelen = res.sizes['time']
+                else:
+                    new_timelen = data.sizes['time']
+
+                    time_values: xr.DataArray | None = None
+
+                    if new_timelen < res_timelen:
+                        data = data.pad(
+                            {'time': (0, res_timelen - new_timelen)},
+                            constant_values=0.0,
+                            keep_attrs=True,
+                        )
+                        time_values = res.time
+                    else:
+                        res = res.pad(
+                            {'time': (0, new_timelen - res_timelen)},
+                            constant_values=0.0,
+                            keep_attrs=True,
+                        )
+                        time_values = data.time()
+
+                    res = res + data
+                    if time_values is not None:
+                        res = res.assign_coords(
+                            {'time': ('time', time_values, time_values.attrs)}
+                        )
+            if res is None:
+                # No population data, empty array
+                return xr.DataArray()
+            # Yield the absolute population for this group
+            return res
+
+        reduced_pop_data = mapped_pop_data.map_flat_group_data(_combine_func)
+        return reduced_pop_data
     else:
         eventual_frames: Frames
         if isinstance(frames, xr.Dataset):
@@ -74,7 +172,7 @@ def _calc_classical_populations(
         frames (Frames): The dataset holding the active state information in a variable `astate`.
 
     Returns:
-        xr.DataArray: The array holding the ratio of trajectories in each respective state.
+        xr.DataArray: The array holding the absolute number of trajectories in each respective state.
     """
     # TODO: FIXME: Make this able to deal with ShnitselDB/tree data directly. This should not be too much of an issue?
     data = frames.active_state
@@ -118,12 +216,11 @@ def _calc_classical_populations(
             output_core_dims=[['state']],
         )
     )
+    pops.name = "abs_population"
     # TODO: FIXME: Do we want absolute populations as well?
-    return (
-        (pops / pops.sum('state'))
-        .assign_coords(state=frames.state_ids)
-        .assign_attrs({'long_name': "Population of different states over times"})
-    )
+    return pops.assign_coords(  # (pops / pops.sum('state'))
+        state=frames.state_ids
+    ).assign_attrs({'long_name': "Absolute population of different states over times"})
 
 
 # Alternative name of the function to calculate population statistics
