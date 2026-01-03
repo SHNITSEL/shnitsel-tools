@@ -1,4 +1,13 @@
-from typing import Any, Callable, Generic, Hashable, Iterable, Mapping, Self, TypeVar
+from typing import (
+    Any,
+    Callable,
+    Generic,
+    Hashable,
+    Iterable,
+    Mapping,
+    Self,
+    TypeVar,
+)
 
 from shnitsel.data.dataset_containers.frames import Frames
 from shnitsel.data.dataset_containers.trajectory import Trajectory
@@ -295,3 +304,6 @@ def _trajectory_key_func(node: TreeNode) -> None | str | TrajectoryGroupingMetad
         return None
     else:
         return node.name
+
+
+ShnitselDB = ShnitselDBRoot
