@@ -1,4 +1,5 @@
 import abc
+from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Any, Callable, Hashable, Mapping, Self, TypeVar, Generic
 
@@ -147,6 +148,23 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
             return tmp_res
 
     def add_child(self, child_name: str | None, child: ChildType) -> Self:
+        """Add a new child node with a preferred name in the mapping of children.
+        If the child name is already in use, will attempt to find a collision-free alternative name.
+
+        Parameters
+        -----------
+            child_name (str | None): The preferred name under which the child should be registered.
+                    To avoid overriding, a different name will be chosen if the name is in use.
+            child (ChildType): Object to register as the child-subtree
+
+        Raises
+        -----------
+            OverflowError: If the attempts to find a new collision-free name have exceeded 1000.
+
+        Returns
+        -----------
+            Self: The new instance of a subtree
+        """
         new_children = dict(self._children)
         if child_name is not None and child_name not in new_children:
             new_children[child_name] = child
@@ -169,6 +187,7 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
         return self.construct_copy(children=new_children)
 
     def assign_children(self, new_children: Mapping[Hashable, ChildType]) -> Self:
+        """Construct a new instance of a subtree with new children assigned to this tree"""
         # TODO: FIXME: Implement
         all_children = dict(self._children)
         all_children.update(new_children)
@@ -184,3 +203,12 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
             bool: True if this level satisfies the requirements
         """
         return self._level_name == target_level
+
+    def collect_data(self) -> Iterable[DataType]:
+        """Get an iterator over all data in this subtree. Does not preserve the tree structure but can be helpful for aggregation functions."""
+        if self.has_data:
+            yield self.data
+
+        for child in self.children.values():
+            if child is not None:
+                yield from child.collect_data()
