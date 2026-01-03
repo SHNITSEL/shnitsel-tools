@@ -93,6 +93,27 @@ def focus_hops(
         - ``trajid``: the ID of the trajectory in which the hop occurred
     """
     hop_vals = hops(frames, hop_types=hop_types)
+    # If no hops, return empty
+    if hop_vals.sizes['frame'] == 0:
+        res = frames.isel(frame=[])
+        res = res.swap_dims({'frame': 'hop_time'})
+        res = res.drop_vars(['frame', 'trajid', 'time'])
+        res = res.drop_dims(['trajid_'], errors='ignore')
+        res = res.expand_dims('hop').isel(hop=[])
+        empty_2d = xr.Variable(('hop', 'hop_time'), [[]]).isel(hop=[], hop_time=[])
+        res = res.assign_coords(
+            {
+                'hop_time': ('hop_time', []),
+                'hop_tidx': ('hop_time', []),
+                'hop_from': ('hop', []),
+                'hop_to': ('hop', []),
+                'trajid': ('hop', []),
+                'time': empty_2d,
+                'tidx': empty_2d,
+            }
+        )
+        return res
+
     to_cat = []
     trajids = []
     for (trajid, time), hop in hop_vals.groupby('frame'):
@@ -109,11 +130,12 @@ def focus_hops(
         )
 
         # Add per-hop metadata
-        traj = traj.assign_coords(time=('hop_time', orig_time))
-        traj = traj.assign_coords(tidx=('hop_time', np.arange(len(orig_time))))
+        traj = traj.assign_coords(time=(('hop', 'hop_time'), orig_time[None, :]))
+        tidx = xr.Variable(dims=('hop_time'), data=np.arange(len(orig_time)))
+        traj = traj.assign_coords(tidx=tidx.expand_dims('hop'))
 
         # Add further hop-independent metadata
-        traj = traj.assign_coords(hop_tidx=traj['tidx'] - hop['tidx'].item())
+        traj = traj.assign_coords(hop_tidx=tidx - hop['tidx'].item())
 
         traj = traj.drop_dims(['trajid_'], errors='ignore')
         if window is not None:
@@ -160,7 +182,14 @@ def assign_hop_time(
     trajectory, and containing ``nan`` in trajectories lacking any hops of the
     types specified.
     """
+    if frames.sizes['frame'] == 0:
+        return frames.assign_coords(hop_time=('frame', []))
+
     hop_vals = hops(frames, hop_types=hop_types).reset_index('frame')
+    if hop_vals.sizes['frame'] == 0:
+        return frames.assign_coords(
+            hop_time=('frame', np.full(frames.sizes['frame'], np.nan))
+        )
 
     if which == 'first':
         fn = min
