@@ -3,7 +3,7 @@ from typing import Any, Callable, Generic, Hashable, Mapping, Self, TypeVar
 from .data_group import DataGroup, GroupInfo
 from .data_leaf import DataLeaf
 
-DataType = TypeVar("DataType")
+DataType = TypeVar("DataType", covariant=True)
 ResType = TypeVar("ResType")
 
 

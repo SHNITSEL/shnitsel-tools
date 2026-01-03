@@ -11,7 +11,7 @@ from .node import TreeNode
 from .compound import CompoundGroup, CompoundInfo
 
 
-DataType = TypeVar("DataType")
+DataType = TypeVar("DataType", covariant=True)
 ResType = TypeVar("ResType")
 KeyType = TypeVar("KeyType")
 

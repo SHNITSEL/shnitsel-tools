@@ -3,7 +3,7 @@ from typing import Any, Callable, Generic, Hashable, Mapping, Self, TypeVar
 from .node import TreeNode
 from .data_leaf import DataLeaf
 
-DataType = TypeVar("DataType")
+DataType = TypeVar("DataType", covariant=True)
 ResType = TypeVar("ResType")
 KeyType = TypeVar("KeyType")
 

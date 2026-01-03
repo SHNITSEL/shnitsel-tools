@@ -1,10 +1,10 @@
 import abc
 from dataclasses import dataclass
-from typing import Any, Callable, Hashable, Mapping, Self, TypeVar, Generic, get_args
+from typing import Any, Callable, Hashable, Mapping, Self, TypeVar, Generic
 
 
-ChildType = TypeVar("ChildType", bound="TreeNode|None")
-DataType = TypeVar("DataType")
+ChildType = TypeVar("ChildType", bound="TreeNode|None", covariant=True)
+DataType = TypeVar("DataType", covariant=True)
 NewDataType = TypeVar("NewDataType")
 NewChildType = TypeVar("NewChildType", bound="TreeNode|None")
 ResType = TypeVar("ResType")
