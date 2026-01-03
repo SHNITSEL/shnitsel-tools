@@ -168,11 +168,11 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
                 )
         return self.construct_copy(children=new_children)
 
-    def assign_children(
-        self, new_children: Mapping[Hashable, ChildType | None]
-    ) -> Self:
+    def assign_children(self, new_children: Mapping[Hashable, ChildType]) -> Self:
         # TODO: FIXME: Implement
-        raise NotImplementedError()
+        all_children = dict(self._children)
+        all_children.update(new_children)
+        return self.construct_copy(children=all_children)
 
     def is_level(self, target_level: str) -> bool:
         """Check whether we are at a certain level
