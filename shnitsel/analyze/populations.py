@@ -1,3 +1,4 @@
+from functools import cached_property
 import logging
 from typing import Iterable, overload
 
@@ -13,10 +14,134 @@ from shnitsel.units.definitions import time, unit_dimensions
 from .._contracts import needs
 
 
+class PopulationStatistics:
+    """Class to hold population statistics of a homogeneous/compatible set
+    of trajectories.
+
+    Holds absolute and relative statistics, with the latter being derived from the prior.
+    """
+
+    _absolute_statistics: xr.DataArray
+
+    def __init__(self, base_traj_or_data: Frames | xr.DataArray):
+        if isinstance(base_traj_or_data, xr.DataArray):
+            self._absolute_statistics = base_traj_or_data
+        else:
+            self._absolute_statistics = self._calc_classical_populations(
+                base_traj_or_data
+            )
+
+    @property
+    def absolute(self) -> xr.DataArray:
+        """Returns the absolute population statistics across `time`.
+
+        Values should be integer and of the shape (time, state)
+        where the value in [t,s] is the number of trajectories with active state `s`
+        at time `t`
+
+        Returns
+        -------
+        xr.DataArray
+            The array with absolute population statistics over time
+        """
+        return self._absolute_statistics
+
+    @cached_property
+    def relative(self) -> xr.DataArray:
+        """Returns the relative population statistics across `time`, i.e. the ratio of trajectories in every state.
+
+        Values should be float in the range `[0,1]` and of the shape (time, state)
+        where the value at position [t,s] is the ratio of trajectories still running up to this point with active state `s`
+        at time `t`.
+
+        Note for interpretation that only having one trajectory left at time `t` with state `s` would make the value at `[t,s]` a full 1.
+
+        Returns
+        -------
+        xr.DataArray
+            The array with relative population statistics over time
+        """
+        abs_data = self.absolute
+        res = (
+            (abs_data / abs_data.sum('state'))
+            .assign_coords(abs_data.coords)
+            .assign_attrs(
+                {'long_name': "Relative population of different states over times"}
+            )
+        )
+        res.name = "rel_populations"
+        return res
+
+    @internal()
+    @staticmethod
+    def _calc_classical_populations(
+        frames: Frames,
+    ) -> xr.DataArray:
+        """Function to calculate classical state populations from the active state information in `astate` of the dataset `frames.
+
+        Does not use the partial QM coefficients of the states.
+
+        Args:
+            frames (Frames): The dataset holding the active state information in a variable `astate`.
+
+        Returns:
+            xr.DataArray: The array holding the absolute number of trajectories in each respective state.
+        """
+        # TODO: FIXME: Make this able to deal with ShnitselDB/tree data directly. This should not be too much of an issue?
+        data = frames.active_state
+        if -1 in data:
+            logging.warning(
+                "`active_state` data contains the placeholder value `-1`, "
+                "indicating missing state information.  "
+                "The frames in question will be excluded from the "
+                "population count altogether."
+            )
+            data = data.sel(frame=(data != -1))
+
+        nstates = frames.sizes['state']
+        # zero_or_one = int(frames.coords['state'].min())
+        lowest_state_id = 1  # TODO: For now, assume lowest state is 1
+        assert lowest_state_id in {0, 1}
+
+        # Add dummy time coordinate if missing
+        if 'time' not in data.coords:
+            data = data.assign_coords(
+                {
+                    'time': (
+                        'frame',
+                        xr.zeros_like(data.coords['frame']),
+                        {'units': time.femto_seconds, 'unit_dim': unit_dimensions.time},
+                    )
+                }
+            )
+            logging.warning(
+                "No `time` coordinate found. Added dummy time coordinate of 0fs to all frames."
+            )
+
+        input_core_dims = [['frame']]
+        pops = data.groupby('time').map(
+            lambda group: xr.apply_ufunc(
+                lambda values: np.bincount(values, minlength=nstates + lowest_state_id)[
+                    lowest_state_id:
+                ],
+                group,
+                input_core_dims=input_core_dims,
+                output_core_dims=[['state']],
+            )
+        )
+        pops.name = "abs_population"
+        # TODO: FIXME: Do we want absolute populations as well?
+        return pops.assign_coords(  # (pops / pops.sum('state'))
+            state=frames.state_ids
+        ).assign_attrs(
+            {'long_name': "Absolute population of different states over times"}
+        )
+
+
 @overload
 def calc_classical_populations(
     data: ShnitselDB[Trajectory | Frames],
-) -> ShnitselDB[xr.DataArray]:
+) -> ShnitselDB[PopulationStatistics]:
     """Specialized version of the population calculation where a tree hierarchy of Trajectory data
     is mapped to a tree hierarchy of population statistics.
 
@@ -30,7 +155,7 @@ def calc_classical_populations(
 
     Returns
     -------
-    ShnitselDB[xr.DataArray]
+    ShnitselDB[PopulationStatistics]
         The tree structure holding population statistics for grouped data out of the input.
         Results contain inidividual states' absolute population numbers for every time step.
     """
@@ -40,7 +165,7 @@ def calc_classical_populations(
 @overload
 def calc_classical_populations(
     data: Trajectory | Frames | xr.Dataset,
-) -> xr.DataArray:
+) -> PopulationStatistics:
     """Specialized version of the population calculation where a single Trajectory or Frameset instance
     is mapped to population statistics for their different states.
 
@@ -60,7 +185,7 @@ def calc_classical_populations(
 @needs(dims={'frame', 'state'}, coords={'time'}, data_vars={'astate'})
 def calc_classical_populations(
     frames: ShnitselDB[Trajectory | Frames] | Trajectory | Frames | xr.Dataset,
-) -> xr.DataArray | ShnitselDB[xr.DataArray]:
+) -> PopulationStatistics | ShnitselDB[PopulationStatistics]:
     """Function to calculate classical state populations from the active state information in `astate` of the dataset `frames.
 
     Does not use the partial QM coefficients of the states.
@@ -69,8 +194,8 @@ def calc_classical_populations(
         frames (Frames): The dataset holding the active state information in a variable `astate`.
 
     Returns:
-        xr.DataArray: The array holding the ratio of trajectories in each respective state.
-        ShnitselDB[xr.DataArray]: The tree holding the hierarchical structure of data to be processed. Will calculate populations across grouped subtrees.
+        PopulationStatistics: The object holding population statistics (absolute+relative) in each respective state.
+        ShnitselDB[PopulationStatistics]: The tree holding the hierarchical population statistics for each flat group in the tree with compatible metadata.
     """
     if isinstance(frames, ShnitselDB):
         # TODO: convert the shnitsel db subtrees to frames and perform some aggregation
@@ -89,55 +214,58 @@ def calc_classical_populations(
         # )
         db: ShnitselDB[Trajectory | Frames] = frames.group_data_by_metadata()
 
-        def _map_prepare(frames: Trajectory | Frames) -> xr.DataArray:
+        def _map_prepare(frames: Trajectory | Frames) -> PopulationStatistics:
             if isinstance(frames, Trajectory) and not isinstance(frames, Frames):
                 frames = frames.as_frames
 
-            return _calc_classical_populations(frames)
+            return PopulationStatistics(frames)
 
         mapped_pop_data = db.map_data(_map_prepare, keep_empty_branches=False)
 
-        def _combine_func(pop_data: Iterable[xr.DataArray]) -> xr.DataArray:
-            res: xr.DataArray | None = None
+        def _combine_func(
+            pop_data: Iterable[PopulationStatistics],
+        ) -> PopulationStatistics:
+            res_abs: xr.DataArray | None = None
             res_timelen: int = -1
             for data in pop_data:
+                data_abs = data.absolute
                 if data is None:
                     continue
 
-                if res is None:
-                    # Copy
-                    res = data
-                    res_timelen = res.sizes['time']
+                if res_abs is None:
+                    # Copy into result for the first match
+                    res_abs = data_abs
+                    res_timelen = res_abs.sizes['time']
                 else:
-                    new_timelen = data.sizes['time']
+                    new_timelen = data_abs.sizes['time']
 
                     time_values: xr.DataArray | None = None
 
                     if new_timelen < res_timelen:
-                        data = data.pad(
+                        data_abs = data_abs.pad(
                             {'time': (0, res_timelen - new_timelen)},
                             constant_values=0.0,
                             keep_attrs=True,
                         )
-                        time_values = res.time
+                        time_values = res_abs.time
                     else:
-                        res = res.pad(
+                        res_abs = res_abs.pad(
                             {'time': (0, new_timelen - res_timelen)},
                             constant_values=0.0,
                             keep_attrs=True,
                         )
-                        time_values = data.time()
+                        time_values = data_abs.time()
 
-                    res = res + data
+                    res_abs = res_abs + data_abs
                     if time_values is not None:
-                        res = res.assign_coords(
+                        res_abs = res_abs.assign_coords(
                             {'time': ('time', time_values, time_values.attrs)}
                         )
-            if res is None:
+            if res_abs is None:
                 # No population data, empty array
-                return xr.DataArray()
+                return PopulationStatistics(xr.DataArray())
             # Yield the absolute population for this group
-            return res
+            return PopulationStatistics(res_abs)
 
         reduced_pop_data = mapped_pop_data.map_flat_group_data(_combine_func)
         return reduced_pop_data
@@ -156,71 +284,8 @@ def calc_classical_populations(
         elif isinstance(frames, Trajectory):
             eventual_frames = frames.as_frames
 
-        population_results = _calc_classical_populations(eventual_frames)
+        population_results = PopulationStatistics(eventual_frames)
         return population_results
-
-
-@internal()
-def _calc_classical_populations(
-    frames: Frames,
-) -> xr.DataArray:
-    """Function to calculate classical state populations from the active state information in `astate` of the dataset `frames.
-
-    Does not use the partial QM coefficients of the states.
-
-    Args:
-        frames (Frames): The dataset holding the active state information in a variable `astate`.
-
-    Returns:
-        xr.DataArray: The array holding the absolute number of trajectories in each respective state.
-    """
-    # TODO: FIXME: Make this able to deal with ShnitselDB/tree data directly. This should not be too much of an issue?
-    data = frames.active_state
-    if -1 in data:
-        logging.warning(
-            "`active_state` data contains the placeholder value `-1`, "
-            "indicating missing state information.  "
-            "The frames in question will be excluded from the "
-            "population count altogether."
-        )
-        data = data.sel(frame=(data != -1))
-
-    nstates = frames.sizes['state']
-    # zero_or_one = int(frames.coords['state'].min())
-    lowest_state_id = 1  # TODO: For now, assume lowest state is 1
-    assert lowest_state_id in {0, 1}
-
-    # Add dummy time coordinate if missing
-    if 'time' not in data.coords:
-        data = data.assign_coords(
-            {
-                'time': (
-                    'frame',
-                    xr.zeros_like(data.coords['frame']),
-                    {'units': time.femto_seconds, 'unit_dim': unit_dimensions.time},
-                )
-            }
-        )
-        logging.warning(
-            "No `time` coordinate found. Added dummy time coordinate of 0fs to all frames."
-        )
-
-    input_core_dims = [['frame']]
-    pops = data.groupby('time').map(
-        lambda group: xr.apply_ufunc(
-            lambda values: np.bincount(values, minlength=nstates + lowest_state_id)[
-                lowest_state_id:
-            ],
-            group,
-            input_core_dims=input_core_dims,
-            output_core_dims=[['state']],
-        )
-    )
-    pops.name = "abs_population"
-    # TODO: FIXME: Do we want absolute populations as well?
-    return pops.assign_coords(  # (pops / pops.sum('state'))
-        state=frames.state_ids
-    ).assign_attrs({'long_name': "Absolute population of different states over times"})
 
 
 # Alternative name of the function to calculate population statistics
