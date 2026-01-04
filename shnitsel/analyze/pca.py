@@ -25,7 +25,6 @@ ResultType = TypeVar('ResultType')
 DataType = TypeVar('DataType')
 
 
-# TODO: Make inputs type configurable.
 class PCAResult(
     Generic[OriginType, ResultType],
 ):
