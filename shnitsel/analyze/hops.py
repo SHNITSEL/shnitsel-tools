@@ -4,6 +4,7 @@ import xarray as xr
 import numpy as np
 
 
+# TODO: FIXME: Make StateSelection the preferred type for picking hopping types.
 # TODO: type-hinting of appropriate generality for first argument
 def hops(frames, hop_types: list[tuple[int, int]] | None = None):
     """Select hops
@@ -28,6 +29,8 @@ def hops(frames, hop_types: list[tuple[int, int]] | None = None):
         - ``hop_from``: the active state before the hop
         - ``hop_to``: the active state after the hop
     """
+    # FIXME: If we concatenate frames into multi-frames, this will give us strange results at the concatenation boundary.
+    # TODO: FIXME: For generality, we should make this use the `leading_dimension` of our object, i.e. either `frame` or `time`
     is_hop = frames.astate.st.mdiff() != 0
 
     res = frames.isel(frame=is_hop)
@@ -48,6 +51,7 @@ def hops(frames, hop_types: list[tuple[int, int]] | None = None):
     return res.drop_dims(['trajid_'], errors='ignore')
 
 
+# TODO: FIXME: Make StateSelection the preferred type for picking hopping types.
 def focus_hops(
     frames, hop_types: list[tuple[int, int]] | None = None, window: slice | None = None
 ):
@@ -125,6 +129,7 @@ def focus_hops(
     return res
 
 
+# TODO: FIXME: Make StateSelection the preferred type for picking hopping types.
 def assign_hop_time(
     frames,
     hop_types: list[tuple[int, int]] | None = None,
