@@ -22,6 +22,7 @@ from shnitsel.analyze.hops import (
     focus_hops,
     assign_hop_time,
 )
+from shnitsel.analyze.populations import calc_classical_populations
 from shnitsel.analyze.pca import pca
 # from shnitsel.data.helpers import ts_to_time
 # from shnitsel.io import read
@@ -223,6 +224,49 @@ class TestProcessing:
         res = assign_hop_time(frames, which=which)
         assert 'hop_time' in res.coords
         assert res.coords['hop_time'].dims == ('frame',)
+
+    #############
+    # Populations
+
+    @composite
+    def frames_for_populations(draw):
+        nframes = draw(hnp.array_shapes(min_dims=1, max_dims=1))[0]
+
+        states = draw(st.lists(st.integers(min_value=1), min_size=1, unique=True))
+
+        def make_array_strategy(dtype, shape):
+            assert dtype is int
+            return hnp.arrays(
+                dtype=st.just(dtype),
+                shape=st.just(shape),
+                elements=st.sampled_from(states),
+            )
+
+        astate = draw(
+            xrst.variables(
+                array_strategy_fn=make_array_strategy,
+                dims=st.just({'frame': nframes}),
+                dtype=st.just(int),
+            )
+        )
+
+        def get_var(dtype):
+            return draw(
+                xrst.variables(dims=st.just({'frame': nframes}), dtype=st.just(dtype))
+            )
+
+        time = get_var(float)
+        trajid = get_var(int)
+
+        da = xr.DataArray(
+            astate, coords={'time': ('frame', time), 'trajid': ('frame', trajid)}
+        ).set_xindex(['trajid', 'time'])
+        return xr.Dataset({'astate': da}, coords={'state': states})
+
+    @given(frames_for_populations())
+    def test_calc_classical_populations(self, frames):
+        res = calc_classical_populations(frames)
+        assert 'state' in res.dims
 
     #################################
     # Dimensional reduction functions
