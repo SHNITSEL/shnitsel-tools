@@ -1,6 +1,6 @@
 import itertools
 import logging
-from typing import Collection, Union
+from typing import Collection, Hashable, Union
 
 import numpy as np
 import xarray as xr
@@ -86,7 +86,22 @@ def subtract_combinations(
         A DataArray with the dimension `dim` replaced by a dimension '`dim`comb' of size $n(n-1)/2$
     """
 
-    def midx(da, dim):
+    def midx(da: xr.DataArray, dim: Hashable) -> xr.DataArray:
+        """Small helper function to get a Coordinates object from the index of pairwise combinations of index values in `da` along
+        dimension `dim`.
+
+        Parameters
+        ----------
+        da : xr.DataArray
+            The data for which to generate the combination index along dimension `dim`
+        dim : Hashable
+            Dimension along which to get the combinations.
+
+        Returns
+        -------
+        xr.DataArray
+            The DataArray object holding coordinate values for the `{dim}comb` dimension.
+        """
         return midx_combs(da.get_index(dim))[f'{dim}comb']
 
     if dim not in da.dims:
