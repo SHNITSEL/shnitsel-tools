@@ -19,7 +19,7 @@ DatasetOrArray = TypeVar("DatasetOrArray", bound=xr.Dataset | xr.DataArray)
 
 
 @internal()
-def midx_combs(values: pd.core.indexes.base.Index | list, name: str | None = None):
+def midx_combs(values: pd.core.indexes.base.Index | list, name: str | None = None) -> xr.Coordinates:
     """Helper function to create a Multi-index based dimension coordinate for an xarray
     from all (unordered) pairwise combinations of entries in `values`
 
