@@ -124,9 +124,7 @@ def pca_and_hops(
     n_components: int = 2,
 ) -> tuple[PCAResult, xr.DataArray]:
     """
-    Get PCA points and info on which of them represent hops
-
-    _extended_summary_
+    Get PCA projectd data and a mask to provide information on which of the data points represent hopping points.
 
     Parameters
     ----------
@@ -150,15 +148,24 @@ def pca_and_hops(
             The mask of the hopping point events. Can be used to only extract the hopping point PCA results from the projected input result in pca_res.
     """
     if feature_selection is None:
-        pca_res = pairwise_dists_pca(
-            frames['atXYZ'], n_components=n_components, center_mean=center_mean
+        # Will default to pairwise distances
+        pca_res = pca(
+            frames.positions,
+            dim=None,
+            feature_selection=None,
+            n_components=n_components,
+            center_mean=center_mean,
         )
     else:
-        pca_res = pca_with_features(
-            frames.atXYZ, feature_selection=feature_selection, n_components=n_components
+        # Perform a pca with feature extraction
+        pca_res = pca(
+            frames.positions,
+            dim=None,
+            feature_selection=feature_selection,
+            n_components=n_components,
         )
 
-    hops_positions = mdiff(frames['astate']) != 0
+    hops_positions = mdiff(frames.active_state) != 0
 
     return pca_res, hops_positions
 
@@ -172,6 +179,18 @@ def pca(
     center_mean: bool = False,
 ) -> ShnitselDB[PCAResult[DataGroup[xr.DataArray], DataGroup[xr.DataArray]]]:
     """Specialization for the pca being mapped over grouped data in a ShnitselDB tree structure"""
+    ...
+
+
+@overload
+def pca(
+    data: Trajectory | Frames | xr.Dataset | xr.DataArray,
+    dim: None = None,
+    feature_selection: StructureSelection | None = None,
+    n_components: int = 2,
+    center_mean: bool = False,
+) -> PCAResult:
+    """Specialization for the pca being applied to only simple structures"""
     ...
 
 
@@ -254,6 +273,7 @@ def pca(
     ...
 
 
+# TODO: FIXME: This should probably be pca_on_features and a separate pca_on_data() function to allo ShnitselDB trees with xr.DataArrays of only features calculated by the user
 def pca(
     data: Trajectory
     | Frames
