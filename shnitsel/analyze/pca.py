@@ -28,6 +28,25 @@ DataType = TypeVar('DataType')
 class PCAResult(
     Generic[OriginType, ResultType],
 ):
+    """Class to hold the results of a PCA analysis.
+
+    Also retains input data as well as corresponding results of the PCA decomposition.
+    Input and output types are parametrized to allow for tree structures to be accurately represented.
+
+    Provides accessors for all result meta data as well as the method `project_array(data_array)` to
+    project another array of appropriate shape with dimension `pca_mapped_dimension` to the PCA
+    principal components.
+
+    Parameters
+    ----------
+    OriginType
+        The type of the original intput data. Should either be xr.DataArray for simple types, meaning we were provided a feature array
+        or a flat DataGroup with xr.DataArrays in its leaves for tree types.
+    ResultType
+        Matching structure to `OriginType` but with the projected PCA decomposed input data as data within it.
+        Either an xr.DataArray or a DataGroup same as for `OriginType`.
+    """
+
     _pca_inputs: OriginType
     _pca_pipeline: Pipeline
     _pca_dimension: Hashable
