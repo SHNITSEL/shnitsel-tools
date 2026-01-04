@@ -73,7 +73,9 @@ def pca(
     Parameters
     ----------
     da
-        A DataArray with at least a dimension with a name matching `dim`
+        A 2D DataArray having one dimension with a name matching `dim`;
+        dtype should be integer or floating with no
+        ``nan`` or ``inf`` entries
     dim
         The name of the array-dimension to reduce (i.e. the axis along which different
         features lie)
@@ -87,7 +89,7 @@ def pca(
     -------
     pca_res
         A DataArray with the same dimensions as ``da``, except for the dimension
-        indicated by `dim`, which is replaced by a dimension ``PC`` of size ``n_components``
+        indicated by ``dim``, which is replaced by a dimension ``PC`` of size ``n_components``
         If DataArray accessors are active, the following members will be added to
         the accessor of the result:
 
