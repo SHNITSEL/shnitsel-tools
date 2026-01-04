@@ -68,18 +68,18 @@ def center(
 
 # @needs(dims={'statecomb'}, coords={'statecomb'})
 def subtract_combinations(
-    da: xr.DataArray, dim: DimName, labels: bool = False
+    da: xr.DataArray, dim: DimName, add_labels: bool = False
 ) -> xr.DataArray:
     """Calculate all possible pairwise differences over a given dimension
 
     Parameters
     ----------
-    da
-        Input DataArray; must contain dimension `dim`
-    dim
-        Dimension (of size $n$) to take pairwise differences over
-    labels, optional
-        If True, label the pairwise differences based on the index of `dim`, by default False
+    da : xr.DataArray
+        Input DataArray; must contain dimension `dim` with an associated coordinate.
+    dim : Dimname
+        Dimension (of size $n$) to take pairwise differences over.
+    add_labels : bool, optional
+        If True, label the pairwise differences based on the index of `dim` otherwise do not add labels, by default False.
 
     Returns
     -------
@@ -146,7 +146,7 @@ def subtract_combinations(
         mat[r, c1] = -1
         mat[r, c2] = 1
 
-    if labels and coordinates is not None:
+    if add_labels and coordinates is not None:
         xrmat = xr.DataArray(
             data=mat,
             coords=coordinates,
@@ -166,19 +166,28 @@ def subtract_combinations(
 def keep_norming(
     da: xr.DataArray, exclude: Collection[DimName] | None = None
 ) -> xr.DataArray:
-    """Function to calculate the norm of a variable across all dimensions except the ones denoted in `exclude`
+    """ "Function to calculate the norm of a variable across all dimensions except the ones denoted in `exclude`
 
-    Args:
-        da (xr.DataArray): The data array to norm across all non-excluded dimensions
-        exclude (Collection[DimName] | None, optional): The dimensions to exclude/retain. Defaults to ['state', 'statecomb', 'frame'].
+    Used to obtain scalar representations of vector-values observables for plotting and other calculations
+    where only the magnitude of the vector is of relevance.
 
-    Returns:
-        xr.DataArray: The resulting, normed array
+    Parameters
+    ----------
+    da : xr.DataArray
+        The data array to norm across all non-excluded dimensions
+    exclude : Collection[DimName] | None, optional
+        The dimensions to exclude/retain. Defaults to ['state', 'statecomb', 'frame', 'time'].
+
+    Returns
+    -------
+    xr.DataArray
+        The resulting, normed array
     """
     if exclude is None:
-        exclude = {'state', 'statecomb', 'frame'}
+        exclude = {'state', 'statecomb', 'frame', 'time'}
 
     # Get all non-excluded dimensions
+    # TODO: FIXME: This is not the same as calculating the norm across all non-excluded dimensions. This depends on the order of non-excluded dimensions!
     diff_dims = set(da.dims).difference(exclude)
     for dim in diff_dims:
         da = norm(da, dim, keep_attrs=True)
@@ -196,16 +205,16 @@ def replace_total(
 
     Parameters
     ----------
-    da
-        An xr.DataArray
-    to_replace
-        Values to replace
-    value
-        Values with which to replace them
+    da : xr.DataArray
+        An xr.DataArray to replace values within
+    to_replace : np.ndarray | list
+        Values to search for and replace
+    value : np.ndarray | list
+        Values with which to replace the found occurrences of `to_replace`
 
     Returns
     -------
-        An xr.DataArray with dtype matching `value`.
+        An xr.DataArray with dtype matching `value` obtained from `da` by replacing occurrences of `to_replace` with the corresponding values in `value`
     """
     to_replace = np.array(to_replace)
     value = np.array(value)
@@ -225,12 +234,12 @@ def relativize(da: xr.DataArray, **sel) -> xr.DataArray:
 
     Parameters
     ----------
-    da
+    da :xr.DataArray
         The xr.DataArray from which to subtract the minimum
     **sel
-        If keyword parameters are present, the reference minimum is picked
-    from those elements that remain after running :py:meth:`xarray.DataArray.sel`
-    using the keyword parameters as arguments.
+        If keyword parameters are present, the reference minimum is picked from the selection obtained with these parameters
+        from those elements that remain after running :py:meth:`xarray.DataArray.sel`
+        using the keyword parameters as arguments.
 
 
     Returns
@@ -250,17 +259,18 @@ def pwdists(atXYZ: AtXYZ, center_mean: bool = False) -> xr.DataArray:
 
     Parameters
     ----------
-    atXYZ
+    atXYZ : xr.DataArray | AtXYZ
         A DataArray containing the atomic positions;
         must have a dimension called 'atom'
-    center_mean
-        subtract mean if `True`.
+    center_mean : bool, optional
+        Subtract mean of calculated pairwise distances if `True`, by default `False`
     Returns
     -------
-        A DataArray with the same dimensions as `atXYZ` but transposed
+        A DataArray holding pairwise distance vectors with the same dimensions as `atXYZ` but transposed and `atom` dimension replaced by a `atomcomb` dimension.
+        To obtain the length of pairwise distances, apply `keep_norming()` to the result.
     """
 
-    res = atXYZ.pipe(subtract_combinations, 'atom', labels=True)
+    res = atXYZ.pipe(subtract_combinations, 'atom', add_labels=True)
 
     res = norm(res)
     if center_mean:
