@@ -1,5 +1,4 @@
 import os
-import tempfile
 
 import pytest
 from matplotlib.testing.decorators import image_comparison
@@ -7,7 +6,7 @@ from matplotlib.testing.decorators import image_comparison
 import shnitsel as sh
 import shnitsel.xarray
 
-from shnitsel.io import read_shnitsel_file
+from shnitsel.io import read
 
 # In this file, we aim to directly test the output of all plotting functions,
 # by comparing their output for a test dataset to a pre-made reference plot.
@@ -31,9 +30,7 @@ class TestPlotFunctionality:
     @pytest.fixture
     def ensembles(self):
         names = ['butene_static', 'butene_dynamic', 'butene_grid']
-        return {
-            name: read_shnitsel_file(os.path.join(FIXDIR, name, 'data.nc')) for name in names
-        }
+        return {name: read(os.path.join(FIXDIR, name, 'data.nc')) for name in names}
 
     @pytest.fixture
     def spectra3d(self, ensembles):
@@ -55,8 +52,7 @@ class TestPlotFunctionality:
 
     def test_biplot(self):
         # load trajectory data of A01
-        a01 = read_shnitsel_file(
-            'tutorials/test_data/shnitsel/A01_ethene_dynamic.nc')
+        a01 = read('tutorials/test_data/shnitsel/A01_ethene_dynamic.nc')
         # create PCA plot over all trajectories with visualization of the
         # four most important PCA-axis on the molecular structure
         # C=C bond color highlighgting via KDE in PCA
@@ -71,8 +67,7 @@ class TestPlotFunctionality:
     def test_ski_plots_accessor_conversion(self):
         # load data
         spectra_data = (
-            read_shnitsel_file(
-                path='tutorials/test_data/shnitsel/A01_ethene_dynamic.nc')
+            read(path='tutorials/test_data/shnitsel/A01_ethene_dynamic.nc')
             .st.get_inter_state()
             .st.spectra_all_times()
         )
