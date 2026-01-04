@@ -1,4 +1,4 @@
-from typing import Hashable, overload
+from typing import Any, Generic, Hashable, TypeVar, overload
 
 from shnitsel import _state
 from shnitsel._contracts import needs
@@ -13,45 +13,77 @@ from sklearn.decomposition import PCA as sk_PCA
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.pipeline import Pipeline
 
-from shnitsel.core.typedefs import AtXYZ
+from shnitsel.data.tree.data_group import DataGroup
+from shnitsel.data.tree.data_leaf import DataLeaf
+from shnitsel.data.tree.node import TreeNode
 from shnitsel.data.tree.tree import ShnitselDB
 from shnitsel.filtering.structure_selection import StructureSelection
 from shnitsel.geo.geocalc import get_bats
 
+OriginType = TypeVar('OriginType')
+ResultType = TypeVar('ResultType')
+DataType = TypeVar('DataType')
+
 
 # TODO: Make inputs type configurable.
-class PCAResult:
-    _pca_inputs: xr.DataArray
+class PCAResult(
+    Generic[OriginType, ResultType],
+):
+    _pca_inputs: OriginType
     _pca_pipeline: Pipeline
     _pca_dimension: Hashable
     _pca_components: xr.DataArray
     _pca_object: sk_PCA
-    _pca_inputs_projected: xr.DataArray
+    _pca_inputs_projected: ResultType
 
     def __init__(
         self,
-        pca_inputs: xr.DataArray,
+        pca_inputs: OriginType,
         pca_dimension: Hashable,
         pca_pipeline: Pipeline,
         pca_object: sk_PCA,
-        pca_projected_inputs: xr.DataArray,
+        pca_projected_inputs: ResultType,
     ):
         self._pca_inputs = pca_inputs
         self._pca_pipeline = pca_pipeline
         self._pca_dimension = pca_dimension
-        self._pca_components = xr.DataArray(
-            pca_object.components_,
-            coords=[
-                pca_projected_inputs.coords['PC'],
-                pca_inputs.coords[pca_dimension],
-            ],
-        )
+        if isinstance(pca_inputs, xr.DataArray):
+            assert isinstance(pca_projected_inputs, xr.DataArray), (
+                "If inputs are provided as a single data array, the results must also be a single data array"
+            )
+            self._pca_components = xr.DataArray(
+                pca_object.components_,
+                coords=[
+                    pca_projected_inputs.coords['PC'],
+                    pca_inputs.coords[pca_dimension],
+                ],
+            )
+        elif isinstance(pca_inputs, TreeNode):
+            assert isinstance(pca_projected_inputs, TreeNode), (
+                "If inputs are provided in tree shape, the projected inputs must also be provided in tree shape."
+            )
+            inputs_collected = list(pca_inputs.collect_data())
+            outputs_collected = list(pca_projected_inputs.collect_data())
+            assert isinstance(inputs_collected, xr.DataArray), (
+                "Tree-shaped inputs of PCA are not of data type xr.DataArray"
+            )
+            assert isinstance(outputs_collected, xr.DataArray), (
+                "Tree-shaped results of PCA are not of data type xr.DataArray"
+            )
+
+            self._pca_components = xr.DataArray(
+                pca_object.components_,
+                coords=[
+                    outputs_collected[0].coords['PC'],
+                    inputs_collected[0].coords[pca_dimension],
+                ],
+            )
         self._pca_object = pca_object
         self._pca_inputs_projected = pca_projected_inputs
         # TODO: Get the projected inputs?
 
     @property
-    def inputs(self) -> xr.DataArray:
+    def inputs(self) -> OriginType:
         return self._pca_inputs
 
     @property
@@ -71,7 +103,7 @@ class PCAResult:
         return self._pca_components
 
     @property
-    def projected_inputs(self) -> xr.DataArray:
+    def projected_inputs(self) -> ResultType:
         return self._pca_inputs_projected
 
     def project_array(self, other_da: xr.DataArray) -> xr.DataArray:
@@ -138,7 +170,7 @@ def pca(
     feature_selection: StructureSelection | None = None,
     n_components: int = 2,
     center_mean: bool = False,
-) -> ShnitselDB[PCAResult]:
+) -> ShnitselDB[PCAResult[DataGroup[xr.DataArray], DataGroup[xr.DataArray]]]:
     """Specialization for the pca being mapped over grouped data in a ShnitselDB tree structure"""
     ...
 
@@ -154,7 +186,9 @@ def pca(
     feature_selection: StructureSelection | None = None,
     n_components: int = 2,
     center_mean: bool = False,
-) -> PCAResult | ShnitselDB[PCAResult]:
+) -> (
+    PCAResult | ShnitselDB[PCAResult[DataGroup[xr.DataArray], DataGroup[xr.DataArray]]]
+):
     """Perform a PCA decomposition on features derived from `data` using the structural features flagged in `feature_selection`.
     Will not directly run PCA on the input data.
 
@@ -182,6 +216,8 @@ def pca(
     PCAResult
         The result of running the PCA analysis on the features selected in `feature_selection` or a full pairwise distance PCA
         extracted from `data`.
+    ShnitselDB[PCAResult[DataGroup[xr.DataArray], DataGroup[xr.DataArray]]]
+        The hierarchical structure of PCA results, where each flat group is used for a PCA analysis.
     """
     ...
 
@@ -193,7 +229,7 @@ def pca(
     feature_selection: None = None,
     n_components: int = 2,
     center_mean: bool = False,
-) -> PCAResult:
+) -> PCAResult[xr.DataArray, xr.DataArray]:
     """Perform a PCA decomposition directly on the data in `data` along the dimension `dim`
     without first deriving features from `data` to run the PCA on.
 
@@ -212,7 +248,7 @@ def pca(
 
     Returns
     -------
-    PCAResult
+    PCAResult[xr.DataArray, xr.DataArray]
         The result of running the PCA analysis on the `data` array along the dimension `dim`.
     """
     ...
@@ -228,7 +264,10 @@ def pca(
     feature_selection: StructureSelection | None = None,
     n_components: int = 2,
     center_mean: bool = False,
-) -> PCAResult | ShnitselDB[PCAResult]:
+) -> (
+    PCAResult[xr.DataArray, xr.DataArray]
+    | ShnitselDB[PCAResult[DataGroup[xr.DataArray], DataGroup[xr.DataArray]]]
+):
     """
     Function to perform a PCA decomposition on the `data` of various origins and formats.
 
@@ -251,7 +290,7 @@ def pca(
 
     Returns
     -------
-    PCAResult
+    PCAResult[xr.DataArray, xr.DataArray]
         The full information obtained by the fitting of the result.
         Contains the inputs for the PCA result, the principal components,
         the mapped values for the inputs, the full pipeline to apply the PCA
@@ -262,6 +301,8 @@ def pca(
 
         ``result.principal_components`` holds the fitted principal components.
         ``result.projected_inputs`` provides the PCA projection result when applied to the inputs.
+    ShnitselDB[PCAResult[DataGroup[xr.DataArray], DataGroup[xr.DataArray]]]
+        The hierarchical structure of PCA results, where each flat group is used for a PCA analysis.
 
     Examples:
     ---------
@@ -278,7 +319,80 @@ def pca(
         # We need to calculate features first.
 
         if isinstance(data, ShnitselDB):
-            raise NotImplementedError()
+
+            def traj_to_frame(x: Trajectory | Frames) -> Frames:
+                if isinstance(x, Trajectory) and not isinstance(x, Frames):
+                    return x.as_frames
+                return x
+
+            data_framed = data.map_data(traj_to_frame)
+            data_grouped = data_framed.group_data_by_metadata()
+            if feature_selection is not None:
+
+                def extract_features(x: Frames) -> xr.DataArray:
+                    return get_bats(x.positions, structure_selection=feature_selection)
+            else:
+
+                def extract_features(x: Frames) -> xr.DataArray:
+                    return get_standardized_pairwise_dists(
+                        x.positions, center_mean=center_mean
+                    ).rename({'atomcomb': 'descriptor'})
+
+            # We extract the features either with the selection or with the
+            # Pairwise distances approach
+            feature_data_grouped = data_grouped.map_data(extract_features)
+
+            def filter_flat_group(node: TreeNode) -> bool:
+                # We only want to process flat groups
+                if isinstance(node, DataGroup):
+                    return node.is_flat_group
+                return False
+
+            def pca_on_flat_group(
+                flat_group: TreeNode[Any, xr.DataArray],
+            ) -> DataGroup[PCAResult[DataGroup[xr.DataArray], DataGroup[xr.DataArray]]]:
+                assert isinstance(flat_group, DataGroup)
+                assert flat_group.is_flat_group, (
+                    "Something went wrong filtering for only flat groups in PCA"
+                )
+
+                inputs: DataGroup[xr.DataArray] = flat_group
+                # Extract feature arrays out of leaves
+                collected_features = flat_group.collect_data()
+                # Concatenate features
+                glued_features = xr.concat(collected_features, dim='descriptor')
+
+                # Perform concatenated PCA
+                tmp_res = pca_direct(
+                    glued_features, dim='descriptor', n_components=n_components
+                )
+
+                # Calculate hierarchical projected results
+                mapped_inputs: DataGroup[xr.DataArray] = inputs.map_data(
+                    tmp_res.project_array
+                )  # type: ignore # Result should not be none here.
+
+                # Rebuild appropriately shaped results with subtree as input and mapped
+                # subtree as output
+                full_res = PCAResult(
+                    pca_inputs=inputs,
+                    pca_dimension=tmp_res.pca_mapped_dimension,
+                    pca_pipeline=tmp_res.pca_pipeline,
+                    pca_object=tmp_res.fitted_pca_object,
+                    pca_projected_inputs=mapped_inputs,
+                )
+
+                # Build new subtree with only pca result
+                new_leaf = DataLeaf(name='pca', data=full_res)
+                new_group: DataGroup[
+                    PCAResult[DataGroup[xr.DataArray], DataGroup[xr.DataArray]]
+                ] = flat_group.construct_copy(children={'pca': new_leaf})  # type: ignore # with this copy construction we have the right data type
+                return new_group
+
+            pca_res = feature_data_grouped.map_filtered_nodes(
+                filter_flat_group, pca_on_flat_group
+            )
+            return pca_res
         else:
             feature_array: xr.DataArray
             if isinstance(data, Trajectory) or isinstance(data, Frames):
