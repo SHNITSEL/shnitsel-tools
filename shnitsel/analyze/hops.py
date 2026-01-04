@@ -1,12 +1,125 @@
-from typing import Literal
+from typing import Literal, overload
 
 import xarray as xr
 import numpy as np
 
+from shnitsel.data.dataset_containers.frames import Frames
+from shnitsel.data.dataset_containers.trajectory import Trajectory
+from shnitsel.data.multi_indices import mdiff
+from shnitsel.data.tree.tree import ShnitselDB
+
+
+# TODO: Finish documentation
+@overload
+def hops_mask_from_active_state(
+    active_state_source: Trajectory | Frames | xr.DataArray,
+) -> xr.DataArray:
+    """Overload to specify simple return type for simple (flat) input types.
+
+    _extended_summary_
+
+    Parameters
+    ----------
+    active_state_source : Trajectory | Frames | xr.DataArray
+        _description_
+
+    Returns
+    -------
+    xr.DataArray
+        _description_
+
+    Raises
+    ------
+    ValueError
+        _description_
+    """
+    ...
+
+
+@overload
+def hops_mask_from_active_state(
+    active_state_source: ShnitselDB[Trajectory | Frames | xr.DataArray],
+) -> ShnitselDB[xr.DataArray]:
+    """Overload to specify hierarchical return type for hierarchical input types.
+
+    _extended_summary_
+
+    Parameters
+    ----------
+    active_state_source : Trajectory | Frames | xr.DataArray
+        _description_
+
+    Returns
+    -------
+    xr.DataArray
+        _description_
+
+    Raises
+    ------
+    ValueError
+        _description_
+    """
+    ...
+
+
+def hops_mask_from_active_state(
+    active_state_source: Trajectory
+    | Frames
+    | ShnitselDB[Trajectory | Frames | xr.DataArray]
+    | xr.DataArray,
+) -> xr.DataArray | ShnitselDB[xr.DataArray]:
+    """Generate boolean masks marking hopping points by identifying changes in the active state of provided
+    data source.
+
+    Needs to be fed either with (hierarchical) trajectory data that has `active_state` (`astate`) information
+    or directly with the xr.DataArray holding `astate` information.
+
+    Parameters
+    ----------
+    active_state_source : Trajectory | Frames | ShnitselDB[Trajectory  |  Frames  |  xr.DataArray] | xr.DataArray
+        A potential source for extracting the active state along a leading dimension and the leading dimension name.
+
+    Returns
+    -------
+    xr.DataArray | ShnitselDB[xr.DataArray]
+        Either the flat boolean mask of leading dimension instances where a hop happens or a hierarchical structure holding
+        such a flat mask for every original data entry in the hierarchical input data
+
+    Raises
+    ------
+    ValueError
+        If an unsupported input type was provided
+    """
+    if isinstance(active_state_source, ShnitselDB):
+        return active_state_source.map_data(hops_mask_from_active_state)
+
+    else:
+        active_state_data: xr.DataArray
+        leading_dim: str | None
+        if isinstance(active_state_source, Trajectory) or isinstance(
+            active_state_source, Frames
+        ):
+            active_state_data = active_state_source.active_state
+            leading_dim = active_state_source.leading_dim
+        elif isinstance(active_state_source, xr.DataArray):
+            active_state_data = active_state_source
+            leading_dim = None
+        else:
+            raise ValueError(
+                "Unknown type of provided source for `active_state` data: %s"
+                % type(active_state_source)
+            )
+
+        is_hop_mask = mdiff(active_state_data, dim=leading_dim) != 0
+        return is_hop_mask
+
 
 # TODO: FIXME: Make StateSelection the preferred type for picking hopping types.
 # TODO: type-hinting of appropriate generality for first argument
-def hops(frames, hop_types: list[tuple[int, int]] | None = None):
+def hops(
+    data: Trajectory | Frames | ShnitselDB[Trajectory | Frames | xr.DataArray],
+    hop_types: list[tuple[int, int]] | None = None,
+):
     """Select hops
 
     Parameters
