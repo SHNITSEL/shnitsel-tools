@@ -19,7 +19,9 @@ DatasetOrArray = TypeVar("DatasetOrArray", bound=xr.Dataset | xr.DataArray)
 
 
 @internal()
-def midx_combs(values: pd.core.indexes.base.Index | list, name: str | None = None) -> xr.Coordinates:
+def midx_combs(
+    values: pd.core.indexes.base.Index | list, name: str | None = None
+) -> xr.Coordinates:
     """Helper function to create a Multi-index based dimension coordinate for an xarray
     from all (unordered) pairwise combinations of entries in `values`
 
@@ -545,7 +547,7 @@ def stack_trajs(unstacked: DatasetOrArray) -> DatasetOrArray:
 
 
 @needs(dims={'frame'})
-def mdiff(da: xr.DataArray) -> xr.DataArray:
+def mdiff(da: xr.DataArray, dim: str | None = None) -> xr.DataArray:
     """Take successive differences along the 'frame' dimension
 
     Parameters
@@ -562,9 +564,15 @@ def mdiff(da: xr.DataArray) -> xr.DataArray:
         initial frame and any frame for which time = 0, to avoid taking differences
         between the last and first frames of successive trajectories.
     """
-    leading_dim = (
-        'frame' if 'frame' in da.dims else ('time' if 'time' in da.dims else da.dims[0])
-    )
+    if dim is None:
+        leading_dim = (
+            'frame'
+            if 'frame' in da.dims
+            else ('time' if 'time' in da.dims else da.dims[0])
+        )
+    else:
+        leading_dim = dim
+
     res = xr.apply_ufunc(
         lambda arr: np.diff(arr, prepend=np.array(arr[..., [0]], ndmin=arr.ndim)),
         da,
