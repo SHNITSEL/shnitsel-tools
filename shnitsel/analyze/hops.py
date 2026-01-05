@@ -301,6 +301,8 @@ def focus_hops(
         - ``hop_from``: the active state before the hop
         - ``hop_to``: the active state after the hop
     """
+    raise NotImplementedError()
+    # TODO: FIXME: Refactor this to new wrapper types
     hop_vals = hops(frames, hop_types=hop_types)
     to_cat = []
     trajids = []
@@ -368,6 +370,8 @@ def assign_hop_time(
     trajectory, and containing ``nan`` in trajectories lacking any hops of the
     types specified.
     """
+    raise NotImplementedError()
+    # TODO: FIXME: Refactor this to new wrapper types
     hop_vals = hops(frames, hop_types=hop_types).reset_index('frame')
 
     if which == 'first':
