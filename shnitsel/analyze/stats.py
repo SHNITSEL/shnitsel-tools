@@ -13,7 +13,7 @@ from shnitsel.units.definitions import energy
 from shnitsel.units.conversion import convert_energy
 
 from .generic import keep_norming, subtract_combinations as subtract_combinations
-from .spectra import assign_fosc
+from .spectra import calculate_fosc
 
 from .._contracts import needs
 
@@ -180,7 +180,14 @@ def get_per_state(frames: Frames) -> PerState:
     # TODO: FIXME: Attributes need to be kept.
     # And why create a new dataset instead of amending the original one?
     props_per = {'energy', 'forces', 'dip_perm'}.intersection(frames.keys())
-    per_state = frames[props_per].map(keep_norming, keep_attrs=True)
+    per_base_props_to_norm = {'dip_perm', 'forces'}.intersection(frames.keys())
+
+    per_state = frames[props_per]
+
+    for prop in per_base_props_to_norm:
+        if prop in frames:
+            per_state[str(prop) + "_norm"] = keep_norming(frames[prop])
+
     if 'forces' in per_state:
         per_state['forces'] = per_state['forces'].where(per_state['forces'] != 0)
         per_state['forces'].attrs['long_name'] = r'$\mathbf{F}$'
@@ -262,7 +269,10 @@ def get_inter_state(frames: Frames) -> InterState:
     # inter_state['statecomb'].attrs['long_name'] = "State combinations"
 
     if {'energy_interstate', 'dip_trans'}.issubset(inter_state.variables.keys()):
-        inter_state = assign_fosc(inter_state)
+        fosc_data = calculate_fosc(
+            inter_state.energy_interstate, inter_state.dip_trans_norm
+        )
+        inter_state = inter_state.assign(fosc=fosc_data)
 
     if 'energy_interstate' in inter_state:
         inter_state['energy_interstate'] = convert_energy(
