@@ -3823,6 +3823,7 @@ vis = [
     { name = "bokeh" },
     { name = "datashader" },
     { name = "holoviews" },
+    { name = "numba" },
     { name = "seaborn" },
 ]
 
@@ -3842,6 +3843,7 @@ requires-dist = [
     { name = "matplotlib", specifier = ">=3.10" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.9.0" },
     { name = "nbsphinx", marker = "extra == 'dev'" },
+    { name = "numba", marker = "extra == 'vis'", specifier = ">=0.60" },
     { name = "numpy", specifier = ">=2.3" },
     { name = "pandas", specifier = ">=2.2" },
     { name = "pandas-stubs", marker = "extra == 'dev'" },

@@ -43,6 +43,7 @@ dependencies = [
 vis = [
   "bokeh>=3.5",
   "datashader",
+  "numba>=0.60", # Required for datashader; some lower versions affected by build error, see https://github.com/astral-sh/uv/issues/6281
   "seaborn",
   "holoviews"
 ]
