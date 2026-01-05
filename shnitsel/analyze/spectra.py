@@ -1,14 +1,18 @@
 from itertools import product
 import logging
-from typing import Iterable
+from typing import Iterable, overload
 
 import numpy as np
 import xarray as xr
 
 from shnitsel.core._api_info import internal
+from shnitsel.data.dataset_containers.frames import Frames
+from shnitsel.data.dataset_containers.inter_state import InterState
+from shnitsel.data.dataset_containers.trajectory import Trajectory
+from shnitsel.data.tree.tree import ShnitselDB
 from shnitsel.units.definitions import energy, dipole
 
-from shnitsel.core.typedefs import InterState, DimName, SpectraDictType
+from shnitsel.core.typedefs import DimName, SpectraDictType
 
 from .generic import keep_norming, subtract_combinations
 from .._contracts import needs
@@ -48,25 +52,18 @@ def _calculate_fosc(
     )
 
 
-def get_fosc(
-    energy_per_or_interstate: xr.DataArray, dip_trans_norm: xr.DataArray
+def calculate_fosc(
+    energy_interstate: xr.DataArray, dip_trans_norm: xr.DataArray
 ) -> xr.DataArray:
     """Function to obtain a dataarray containing the oscillator strength as a dataarray.
 
     Args:
-        energy_interstate (DataArray): The array of per- or inter-state energies in the system.
-            If provided as a per-state energy, inter-state barriers will automatically be calculated.
+        energy_interstate (DataArray): The array of inter-state energies (delta_E) in the system.
         dip_trans_norm (DataArray): The array of associated transition dipoles in the system with their norm calculated across the direction dimension.
 
     Returns:
         DataArray: The resulting datarray of oscillator strength f_osc
     """
-    if 'state' in energy_per_or_interstate.dims:
-        assert 'statecomb' not in energy_per_or_interstate.dims
-        energy_interstate = subtract_combinations(energy_per_or_interstate, 'state')
-    else:
-        energy_interstate = energy_per_or_interstate
-
     assert energy_interstate.values.shape == dip_trans_norm.values.shape, (
         f"Energy and dip_trans do not have the same shapes: {energy_interstate.values.shape} <-> {dip_trans_norm.values.shape}"
     )
@@ -80,6 +77,66 @@ def get_fosc(
         }
     )
     return da
+
+
+@overload
+def get_fosc(data: Trajectory | Frames | InterState) -> xr.DataArray: ...
+
+
+@overload
+def get_fosc(
+    data: ShnitselDB[Trajectory | Frames | InterState],
+) -> ShnitselDB[xr.DataArray]: ...
+
+
+def get_fosc(
+    data: Trajectory
+    | Frames
+    | InterState
+    | ShnitselDB[Trajectory | Frames | InterState],
+) -> xr.DataArray | ShnitselDB[xr.DataArray]:
+    """Function to calculate the strength of the oscillator for state-to-state transitions.
+
+    If provided a simple data type like a Trajectory of Frames, will extract InterState information from it.
+    If provided a hierarchical tree structure, will map calculation over data entries.
+    Uses energy delta and `dip_trans_norm`, i.e. the norm of the transition dipole for calculation and will only yield results if those are available.
+    Otherwise, the function call will fail.
+
+    Parameters
+    ----------
+    data :  Trajectory
+            | Frames
+            | InterState
+            | ShnitselDB[Trajectory | Frames | InterState]
+        The data from which interstate information can be deduced (transition dipoles and energy deltas).
+        Alternatively, the interstate information can be provided directly.
+        The data can also be supplied in a hierarchical tree format. In that case, the operation will be applied to data entries
+        in the tree structure.
+
+    Returns
+    -------
+    xr.DataArray | ShnitselDB[Trajectory | Frames | InterState]
+        Either the array of fosc values for simple input structures or the tree structure with the fosc results for individual data entries after mapping
+        over the tree.
+    """
+    if isinstance(data, ShnitselDB):
+        return data.map_data(get_fosc)
+    else:
+        # Trajectory, Frames or Interstate
+        interstate_data: InterState
+        if isinstance(data, InterState):
+            interstate_data = data
+        elif isinstance(data, Frames):
+            interstate_data = InterState(data)
+        elif isinstance(data, Trajectory):
+            interstate_data = InterState(data)
+        else:
+            raise ValueError(
+                "Invalid input type provided for fosc calculation: %s" % type(data)
+            )
+        return calculate_fosc(
+            interstate_data.energy_interstate, interstate_data.dipole_transition_norm
+        )
 
 
 # TODO: deprecate (made redundant by DerivedProperties)
