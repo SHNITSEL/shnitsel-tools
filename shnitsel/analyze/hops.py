@@ -1,4 +1,4 @@
-from typing import Literal, overload
+from typing import Literal, TypeVar, overload
 
 import xarray as xr
 import numpy as np
@@ -7,31 +7,45 @@ from shnitsel.data.dataset_containers.frames import Frames
 from shnitsel.data.dataset_containers.trajectory import Trajectory
 from shnitsel.data.multi_indices import mdiff
 from shnitsel.data.tree.tree import ShnitselDB
+from shnitsel.filtering.state_selection import StateSelection
+
+TrajectoryOrFrames = TypeVar("TrajectoryOrFrames", bound=Trajectory | Frames)
 
 
 # TODO: Finish documentation
 @overload
 def hops_mask_from_active_state(
     active_state_source: Trajectory | Frames | xr.DataArray,
+    hop_type_selection: StateSelection | None = None,
 ) -> xr.DataArray:
     """Overload to specify simple return type for simple (flat) input types.
 
-    _extended_summary_
+    See `hops_mask_from_active_state()` for details
 
     Parameters
     ----------
     active_state_source : Trajectory | Frames | xr.DataArray
-        _description_
+        The simple object to extract active state information and calculate hopping points from.
+        From Trajectory or Frames objects, extracts the `active_state` (`astate`) variable.
+        plain DataArray objects are assumed to hold integer information on the active state.
+    hop_type_selection: StateSelection, optional
+        A state selection holding state transitions that should be used in hop filtering.
 
     Returns
     -------
     xr.DataArray
-        _description_
+        The boolean mask of points along the leading dimension where hops occur.
+        Has the following coordinates attached:
+            - ``hop_from``: The state from which the hop at this point would occur
+            - ``hop_to``: The state to which the hop would be.
+        The flag is set in the frame along the leading dimension after the frame boundary where
+        the active state changes, meaning hops may occur in the last frame of a trajectory but
+        never in the first frame of a trajectory.
 
     Raises
     ------
     ValueError
-        _description_
+        Unsupported input type
     """
     ...
 
@@ -39,25 +53,30 @@ def hops_mask_from_active_state(
 @overload
 def hops_mask_from_active_state(
     active_state_source: ShnitselDB[Trajectory | Frames | xr.DataArray],
+    hop_type_selection: StateSelection | None = None,
 ) -> ShnitselDB[xr.DataArray]:
     """Overload to specify hierarchical return type for hierarchical input types.
 
-    _extended_summary_
+    See other overloads of `hops_mask_from_active_state` for details of how the individual data entries are
+    mapped
 
     Parameters
     ----------
-    active_state_source : Trajectory | Frames | xr.DataArray
-        _description_
+    active_state_source : ShnitselDB[Trajectory | Frames | xr.DataArray]
+        A hierarchical set of sources of active state data that should be mapped using `hops_mask_from_active_state`
+    hop_type_selection: StateSelection, optional
+        A state selection holding state transitions that should be used in hop filtering.
 
     Returns
     -------
-    xr.DataArray
-        _description_
+    ShnitselDB[xr.DataArray]
+        The hierarchically structured result of running the mapping of `hops_mask_from_active_state()` over entries in the
+        input tree.
 
     Raises
     ------
     ValueError
-        _description_
+        Invalid input type in one of the data leaves of the tree.
     """
     ...
 
@@ -67,6 +86,7 @@ def hops_mask_from_active_state(
     | Frames
     | ShnitselDB[Trajectory | Frames | xr.DataArray]
     | xr.DataArray,
+    hop_type_selection: StateSelection | None = None,
 ) -> xr.DataArray | ShnitselDB[xr.DataArray]:
     """Generate boolean masks marking hopping points by identifying changes in the active state of provided
     data source.
@@ -78,6 +98,8 @@ def hops_mask_from_active_state(
     ----------
     active_state_source : Trajectory | Frames | ShnitselDB[Trajectory  |  Frames  |  xr.DataArray] | xr.DataArray
         A potential source for extracting the active state along a leading dimension and the leading dimension name.
+    hop_type_selection: StateSelection, optional
+        A state selection holding state transitions that should be used in hop filtering.
 
     Returns
     -------
@@ -103,7 +125,7 @@ def hops_mask_from_active_state(
             leading_dim = active_state_source.leading_dim
         elif isinstance(active_state_source, xr.DataArray):
             active_state_data = active_state_source
-            leading_dim = None
+            leading_dim = str(active_state_source.dims[0])
         else:
             raise ValueError(
                 "Unknown type of provided source for `active_state` data: %s"
@@ -111,57 +133,134 @@ def hops_mask_from_active_state(
             )
 
         is_hop_mask = mdiff(active_state_data, dim=leading_dim) != 0
+        # Add prior and current state back as coordinates
+        is_hop_mask = is_hop_mask.assign_coords(
+            hop_from=(active_state_data.shift({leading_dim: 1}, -1)),
+            hop_to=active_state_data,
+        )
+
+        if hop_type_selection is not None and leading_dim is not None:
+            type_filter = np.full(is_hop_mask.sizes[leading_dim], False)
+            for hop_from, hop_to in hop_type_selection.state_combinations:
+                type_filter |= (is_hop_mask.hop_from == hop_from) & (
+                    is_hop_mask.hop_to == hop_to
+                )
+            is_hop_mask &= type_filter
         return is_hop_mask
 
 
-# TODO: FIXME: Make StateSelection the preferred type for picking hopping types.
-# TODO: type-hinting of appropriate generality for first argument
-def hops(
-    data: Trajectory | Frames | ShnitselDB[Trajectory | Frames | xr.DataArray],
-    hop_types: list[tuple[int, int]] | None = None,
-):
-    """Select hops
+@overload
+def filter_data_at_hops(
+    active_state_and_data_source: TrajectoryOrFrames,
+    hop_type_selection: StateSelection | None = None,
+) -> TrajectoryOrFrames:
+    """Overload of `filter_data_at_hops` for non-hierarchical input types to indicate non-hierarchical returns.
+
+    _extended_summary_
 
     Parameters
     ----------
-    frames
-        An Xarray object (Dataset or DataArray) with a ``frames`` dimension
-    hop_types
-        A list of pairs of states, e.g.:
-        ``[(1, 2), (2, 1), (3, 1)]``
-        to select only hops between states 1 and 2 as well as from
-        3 to 1 (but not from 1 to 3).
+    active_state_and_data_source : Trajectory | Frames
+        _description_
+    hop_type_selection : StateSelection | None, optional
+        _description_, by default None
 
     Returns
     -------
-    An indexed version of ``frames``, where each entry in the
-    ``frames`` dimension represents a hop.
-    The following coordinates are added along ``frames``:
-
-        - ``tidx``: the time-step index of the hop in its trajectory
-        - ``hop_from``: the active state before the hop
-        - ``hop_to``: the active state after the hop
+    Trajectory | Frames
+        _description_
     """
-    # FIXME: If we concatenate frames into multi-frames, this will give us strange results at the concatenation boundary.
-    # TODO: FIXME: For generality, we should make this use the `leading_dimension` of our object, i.e. either `frame` or `time`
-    is_hop = frames.astate.st.mdiff() != 0
+    ...
 
-    res = frames.isel(frame=is_hop)
-    tidxs = np.concat(
-        [np.arange(traj.sizes['frame']) for _, traj in frames.groupby('trajid')]
-    )
-    hop_tidx = tidxs[is_hop]
-    res = res.assign_coords(
-        tidx=('frame', hop_tidx),
-        hop_from=(frames.astate.shift({'frame': 1}, -1).isel(frame=is_hop)),
-        hop_to=res.astate,
-    )
-    if hop_types is not None:
-        acc = np.full(res.sizes['frame'], False)
-        for hop_from, hop_to in hop_types:
-            acc |= (res.hop_from == hop_from) & (res.hop_to == hop_to)
-        res = res.isel(frame=acc)
-    return res.drop_dims(['trajid_'], errors='ignore')
+
+@overload
+def filter_data_at_hops(
+    active_state_and_data_source: ShnitselDB[TrajectoryOrFrames],
+    hop_type_selection: StateSelection | None = None,
+) -> ShnitselDB[TrajectoryOrFrames]:
+    """Overload of `filter_data_at_hops` for hierarchical input types to indicate hierarchical returns.
+
+    _extended_summary_
+
+    Parameters
+    ----------
+    active_state_and_data_source : ShnitselDB[TrajectoryOrFrames]
+        _description_
+    hop_type_selection : StateSelection | None, optional
+        _description_, by default None
+
+    Returns
+    -------
+    ShnitselDB[TrajectoryOrFrames]
+        _description_
+    """
+
+
+def filter_data_at_hops(
+    active_state_and_data_source: Trajectory | Frames | ShnitselDB[Trajectory | Frames],
+    hop_type_selection: StateSelection | None = None,
+) -> Trajectory | Frames | ShnitselDB[Trajectory | Frames]:
+    """Filter data to only retain data at points where hops of selected transitions occur.
+
+    Needs to be fed either with (hierarchical) trajectory data that has `active_state` (`astate`) information
+    or with simple (single) trajectory data with an `active_state` (`astate`) variable.
+
+    If you wish to perform arbitrary filtering, you can employ the `hops_mask_from_active_state()` function
+    to just get the boolean mask of hop positions and perform the filtering yourself.
+
+    Parameters
+    ----------
+    active_state_and_data_source : Trajectory | Frames | ShnitselDB[Trajectory  |  Frames  |  xr.DataArray] | xr.DataArray
+        A source for extracting the active state along a leading dimension and the leading dimension name as well as to filter
+        the data from.
+    hop_type_selection: StateSelection, optional
+        A state selection holding state transitions that should be used in hop filtering.
+
+    Returns
+    -------
+    Trajectory | Frames | ShnitselDB[Trajectory | Frames]
+        Filtered version of the input data source, where a selection was performed to only retain data at points where
+        a hop was happening.
+        Each entry along the leading dimension (`time` or `frame`) represents a hop.
+        The following coordinates are added along the leading dimension:
+            - ``hop_from``: the active state before the hop
+            - ``hop_to``: the active state after the hop
+    """
+
+    if isinstance(active_state_and_data_source, ShnitselDB):
+        return active_state_and_data_source.map_data(
+            lambda x: filter_data_at_hops(x, hop_type_selection=hop_type_selection)
+        )
+    else:
+        # Frames or Trajectory
+        input_dataset = active_state_and_data_source.dataset
+        is_hop_mask = hops_mask_from_active_state(
+            active_state_source=active_state_and_data_source
+        )
+        # This introduces the coordinates for is_hop_mask, namely the mask of hopping point flags, the hop_from and hop_to coordinates.
+        tmp_dataset = input_dataset.assign_coords(is_hop_mask=is_hop_mask)
+        res_dataset = tmp_dataset.sel(is_hop_mask=True)
+
+        # time_step_idxs = np.concat(
+        #     [np.arange(traj.sizes['frame']) for _, traj in frames.groupby('trajid')]
+        # )
+        # hop_tidx = tidxs[is_hop]
+        # res = res.assign_coords(
+        #     # tidx=('frame', hop_tidx),
+        #     hop_from=(frames.astate.shift({'frame': 1}, -1).isel(frame=is_hop)),
+        #     hop_to=res.astate,
+        # # )
+        # if hop_types is not None:
+        #     acc = np.full(res.sizes['frame'], False)
+        #     for hop_from, hop_to in hop_types:
+        #         acc |= (res.hop_from == hop_from) & (res.hop_to == hop_to)
+        #     res = res.isel(frame=acc)
+        # return res.drop_dims(['trajid_'], errors='ignore')
+
+        # We drop the mask that should be all True values now.
+        return type(active_state_and_data_source)(
+            res_dataset.drop('is_hop_mask', errors='ignore')
+        )
 
 
 # TODO: FIXME: Make StateSelection the preferred type for picking hopping types.
