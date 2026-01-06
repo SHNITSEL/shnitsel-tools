@@ -110,12 +110,12 @@ module = ["scipy", "sklearn.*"]
 ignore_missing_imports = true
 
 [tool.tox]
-min_version = "4.19"
+requires = ["tox>=4.19"]
 env_list = ["py313", "py312", "py311"]
 
-[tool.tox.testenv]
-deps = ["pytest"]
+[tool.tox.env_run_base]
+deps = ["pytest", "pytest-cov", "pytest-sugar", "hypothesis"]
 commands = [["python", "--version"], ["pytest"]]
 
 [tool.pytest.ini_options]
-addopts = "--cov=shnitsel-tools --log-level=DEBUG" # "--maxfail=1 "
+addopts = "--cov=shnitsel --log-level=DEBUG" # "--maxfail=1 "
