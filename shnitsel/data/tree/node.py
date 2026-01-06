@@ -2,6 +2,7 @@ import abc
 from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Any, Callable, Hashable, Mapping, Self, TypeVar, Generic, overload
+from typing_extensions import TypeForm
 
 
 ChildType = TypeVar("ChildType", bound="TreeNode|None", covariant=True)
@@ -14,7 +15,16 @@ KeyType = TypeVar("KeyType")
 
 @dataclass
 class TreeNode(Generic[ChildType, DataType], abc.ABC):
+    """Base class to model a tree structure of arbitrary data type to keep
+    trajectory data with hierarchical structure in.
+
+    Has two type parameters to allow for explicit type checks:
+    - `ChildType`: Which node types are allowed to be registered as children of this node.
+    - `DataType`: What kind of data is expected within this tree if the data is not None.
+    """
+
     _name: str | None
+    _dtype: type[DataType] | TypeForm[DataType] | None
 
     _data: DataType | None
     _children: Mapping[Hashable, ChildType]
@@ -30,6 +40,7 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
         children: Mapping[Hashable, ChildType] | None = None,
         attrs: Mapping[str, Any] | None = None,
         level_name: str | None = None,
+        dtype: type[DataType] | None = None,
     ):
         self._name = name
         self._data = data
@@ -40,17 +51,109 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
             level_name if level_name is not None else self.__class__.__qualname__
         )
 
+        if dtype is not None:
+            filled_in_dtype = dtype
+            if data is not None:
+                assert isinstance(data, dtype), (
+                    "Provided data did not match provided dtype"
+                )
+        else:
+            if data is not None:
+                # If we have data, try and use the type of that data
+                filled_in_dtype = type(data)
+            else:
+                if self._children:
+                    # If we have children, try and construct the type from the basis type
+                    child_types_collection = set()
+
+                    for child in self._children.values():
+                        if child is not None and child.dtype is not None:
+                            child_types_collection.add(child.dtype)
+
+                    filled_in_dtype = None
+                    for ct in child_types_collection:
+                        if filled_in_dtype is None:
+                            filled_in_dtype = ct
+                        else:
+                            filled_in_dtype = filled_in_dtype | ct
+                else:
+                    # If nothing helps, don't add a dtype for this node
+                    filled_in_dtype = None
+
+        self._dtype = filled_in_dtype
+
+    @overload
     def construct_copy(
         self,
+        data: ResType,
+        dtype: None = None,
         **kwargs,
-    ) -> Self | "TreeNode[Any, ResType]":
+    ) -> "TreeNode[TreeNode[Any, ResType]|None, ResType]": ...
+
+    @overload
+    def construct_copy(
+        self,
+        data: ResType | None,
+        dtype: type[ResType] | TypeForm[ResType],
+        **kwargs,
+    ) -> "TreeNode[TreeNode[Any, ResType]|None, ResType]": ...
+
+    @overload
+    def construct_copy(
+        self,
+        data: DataType | None,
+        dtype: type[DataType] | TypeForm[DataType] | None,
+        **kwargs,
+    ) -> Self: ...
+
+    def construct_copy(
+        self,
+        data: DataType | ResType | None = None,
+        dtype: type[DataType]
+        | TypeForm[DataType]
+        | type[ResType]
+        | TypeForm[ResType]
+        | None = None,
+        **kwargs,
+    ) -> Self | "TreeNode[TreeNode[Any, ResType]|None, ResType]":
+        """Function to construct a copy with optionally a new `dtype`
+        set for this node and the data value updated.
+
+        Parameters
+        ----------
+        data: DataType | ResType, optional
+            New data for the copy node. Either with the same datatype as the current tree or
+            with a new ResType type such that a new tree with a different `DataType` template argument
+            can be constructed
+        dtype: type[DataType] | TypeForm[DataType] | type[ResType] | TypeForm[ResType]
+            The data type of the data in this tree.
+        **kwargs: dict[str, Any], optional
+            A dictionary holding the settings for the constructor of the current node's type.
+
+
+        Returns
+        -------
+        Self
+            Either the same type as self if data and dtype have not been updated
+        TreeNode[TreeNode[Any, ResType], ResType]
+            Or effectively the same original type with update DataType variable
+        """
+        if data is not None:
+            kwargs['data'] = data
+        elif 'data' not in kwargs:
+            kwargs['data'] = self._data
+
+        if dtype is not None:
+            kwargs['dtype'] = dtype
+        elif 'dtype' not in kwargs:
+            kwargs['dtype'] = self._dtype
+
         if 'name' not in kwargs:
             kwargs['name'] = self._name
-        if 'data' not in kwargs:
-            kwargs['data'] = self._data
         if 'children' not in kwargs:
             kwargs['children'] = {
-                k: v.construct_copy()
+                # TODO: FIXME: Figure out this typing issue
+                k: v.construct_copy(dtype=dtype)
                 for k, v in self._children.items()
                 if v is not None
             }
@@ -70,6 +173,10 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
     @property
     def has_data(self) -> bool:
         return self._data is not None
+
+    @property
+    def dtype(self) -> type[DataType] | TypeForm[DataType] | None:
+        return self._dtype
 
     @property
     def data(self) -> DataType:
@@ -125,6 +232,7 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
         self,
         filter_func: Callable[["TreeNode[Any, DataType]"], bool],
         map_func: Callable[["TreeNode[Any, DataType]"], "TreeNode[Any, ResType]"],
+        dtype: type[ResType] | None = None,
     ) -> "TreeNode[Any, ResType]":
         """Map nodes if the filter function picks them as relevant to this run.
         If the node is not picked by `filter_func` a copy will be created with its children being recursively mapped
@@ -138,11 +246,12 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
                 k: res
                 for k, v in self.children.items()
                 if v is not None
-                and (res := v.map_filtered_nodes(filter_func, map_func)) is not None
+                and (res := v.map_filtered_nodes(filter_func, map_func, dtype=dtype))
+                is not None
             }
 
             new_node: TreeNode[Any, ResType] = self.construct_copy(
-                children=new_children
+                children=new_children, dtype=dtype
             )  # type: ignore # By mapping the children, we are sure that they now also hold the resulting datatype.
 
         return new_node
@@ -153,6 +262,26 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
         recurse: bool = True,
         keep_empty_branches: bool = False,
     ) -> Self | None:
+        """Function to filter the nodes in this tree and create a new tree that are ancestors of
+        at least one accepted node.
+
+        If `keep_empty_branches=True`, all branches in which there are no accepted nodes, will be truncated.
+        If `filter_func` does not return `True`, the entire subtree starting at this node, will be dropped.
+
+        Parameters
+        ----------
+        filter_func : Callable[..., bool]
+            _description_
+        recurse : bool, optional
+            _description_, by default True
+        keep_empty_branches : bool, optional
+            _description_, by default False
+
+        Returns
+        -------
+        Self | None
+            _description_
+        """
         keep_self = filter_func(self)
 
         # Stop if the node is not kept.
