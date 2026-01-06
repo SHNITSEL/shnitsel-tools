@@ -1,6 +1,6 @@
 from itertools import product
 import logging
-from typing import Iterable, Literal, overload
+from typing import Iterable, Literal, Sequence, overload
 
 import numpy as np
 import xarray as xr
@@ -162,7 +162,7 @@ def get_fosc(
 def apply_gauss_broadening(
     delta_E: xr.DataArray,
     fosc: xr.DataArray,
-    agg_dim: DimName = 'frame',
+    agg_dim: DimName | None = None,
     *,
     width_in_eV: float = 0.5,  # in eV
     nsamples: int = 1000,
@@ -182,19 +182,18 @@ def apply_gauss_broadening(
         Values used for the y-axis, presumably $f_\mathrm{osc}$
     agg_dim : DimName, optional
         Dimension along which to aggregate the many Gaussian distributions,
-        by default 'frame'
-    width_in_eV, optional
+        by default None, which means, no automatic mean calculation is applied.
+    width_in_eV : float, optional
         the width of the Gaussian distributions used, by default 0.5 eV
-    nsamples, optional
+    nsamples : int, optional
         number of evenly spaced x-values over which to sample the distribution,
         by default 1000
-    max_energy_range, optional
+    max_energy_range : float
+        The minimum x-value used for the energy-spectrum, by default 0.0
+    max_energy_range : float, optional
         the maximum x-value, by default 3 standard deviations
         beyond the pre-broadened maximum
     """
-    assert agg_dim in delta_E.sizes, (
-        f"E does not have required dimension {agg_dim} for aggregation"
-    )
 
     # TODO: FIXME: Should this remain as-is?
     stdev_in_eV = width_in_eV / 2
@@ -209,7 +208,7 @@ def apply_gauss_broadening(
             * np.exp(-(x**2) / (2 * stdev_in_eV**2))
         )
 
-    xname = getattr(delta_E_eV, 'name', 'energy') or 'xdim'
+    xname = getattr(delta_E_eV, 'name', 'energy_interstate') or 'xdim'
     yname = getattr(fosc, 'name', 'fosc') or 'ydim'
 
     if max_energy_range is None:
@@ -221,10 +220,16 @@ def apply_gauss_broadening(
             "Could not calculate maximum of the provided energy"
         )
 
-    energy_range = np.linspace(0, max_energy_range, num=nsamples)
+    energy_range = np.linspace(min_energy_range, max_energy_range, num=nsamples)
     Espace = xr.DataArray(energy_range, dims=[xname], attrs=delta_E_eV.attrs)
-    # TODO: FIXME: Do not apply mean if no agg_dim is set?
-    res: xr.DataArray = (gaussian_filter(Espace - delta_E_eV) * fosc).mean(dim=agg_dim)
+    res: xr.DataArray = gaussian_filter(Espace - delta_E_eV) * fosc
+
+    if agg_dim is not None:
+        assert agg_dim in delta_E.sizes, (
+            f"E does not have required dimension {agg_dim} for aggregation"
+        )
+        res = res.mean(dim=agg_dim)
+
     # print(res)
     res.name = yname
     res.attrs = fosc.attrs
@@ -313,21 +318,41 @@ def get_fosc_gauss_broadened(
         )
 
 
-@needs(data_vars={'energy_interstate', 'fosc'}, coords={"statecomb", "time"})
+@overload
 def get_spectrum_at_time(
-    interstate_data: InterState | xr.Dataset,
+    interstate_data: ShnitselDB[InterState | xr.Dataset],
     t: float,
     sc: StateCombination,
     rel_cutoff: float = 0.01,
-) -> xr.DataArray:
+) -> ShnitselDB[xr.Dataset] | None: ...
+@overload
+def get_spectrum_at_time(
+    interstate_data: InterState | xr.Dataset | Sequence[InterState | xr.Dataset],
+    t: float,
+    sc: StateCombination,
+    rel_cutoff: float = 0.01,
+) -> xr.DataArray | None: ...
+
+
+@needs(data_vars={'energy_interstate', 'fosc'}, coords={"statecomb", "time"})
+def get_spectrum_at_time(
+    interstate_data: InterState
+    | xr.Dataset
+    | Sequence[InterState | xr.Dataset]
+    | ShnitselDB[InterState | xr.Dataset],
+    t: float,
+    sc: StateCombination,
+    rel_cutoff: float = 0.01,
+) -> xr.DataArray | ShnitselDB[xr.DataArray] | None:
     """Function to calculate a gaussian-smoothed spectrum of an interstate dataset at one specific point in time and for one specific state transition
 
     _extended_summary_
 
     Parameters
     ----------
-    interstate_data : InterState | xr.Dataset
-        An InterState dataset with fosc and energy data
+    interstate_data : InterState | xr.Dataset | Sequence[InterState | xr.Dataset ] | ShnitselDB[InterState | xr.Dataset]
+        An InterState dataset with fosc and energy data.
+        Alternatively, a sequence of Interstate data or a hierarchical set of interstate data.
     t : float
         The time at which to evaluate the spectrum
     sc : StateCombination
@@ -340,32 +365,107 @@ def get_spectrum_at_time(
     xr.DataArray
         The Gauss-broadened spectrum of the provided `data` system.
         If broadening across trajectories could not be performed, just returns the fosc array.
+        If a sequence of interstate data was provided, aggregation will be performed across
+        the spectra of the different datasets.
+    ShnitselDB[xr.DataArray]
+        Hierarchically mapped data, where spectrum calculation was performed across flat groups.
+        If a hierarchical tree set was provided, the data will be grouped and aggregation performed across the spectra of data within the same group
+    None
+        If the spectrum could not be calculated for whatever reason. Most likely due to missing data for the spectrum calculation.
 
     Raises
     ------
-    NotImplementedError
-        _description_
+    ValueError
+        Unsupported type provided.
     """
-    # TODO: FIXME: Deal with hierarchical data being processed, i.e. take a set of Interstate data and do manual gauss broadening
-    # following required because `method='nearest'` doesn't work for MultiIndex
-    if t not in interstate_data.coords['time']:
-        times = np.unique(interstate_data.coords['time'])
-        diffs = np.abs(times - t)
-        t = times[np.argmin(diffs)]
+    if isinstance(interstate_data, ShnitselDB):
+        interstate_data_grouped = interstate_data.group_data_by_metadata()
+        # mapped_spectrum_data = interstate_data_grouped.map_data(
+        #     lambda x: get_spectrum_at_time(x, t, sc, 0.0)
+        # )
 
-    # Only take one timestep and one state combination
-    interstate_data = interstate_data.sel(time=t, statecomb=sc)
+        spectrum_tree = interstate_data_grouped.map_flat_group_data(
+            lambda x: get_spectrum_at_time(list(x), t, sc, rel_cutoff=rel_cutoff)
+        )
+        return spectrum_tree
+    elif isinstance(interstate_data, Sequence):
+        spectra_results: list[xr.DataArray] = []
+        for traj_data in interstate_data:
+            if isinstance(traj_data, InterState):
+                traj_data = traj_data.dataset
 
-    # Figure out how the trajectory is indexed across multiple trajectories or whether a single trajectory is provided
-    trajid_dim = None
-    if "active_trajectory" in interstate_data.energy_interstate.sizes:
-        trajid_dim = "active_trajectory"
-    elif "trajectory" in interstate_data.energy_interstate.sizes:
-        trajid_dim = "trajectory"
+            if t > traj_data.coords['time'].max():
+                # Don't produce a spectrum after the end of the trajectory
+                continue
 
-    if trajid_dim is not None:
+            if t not in traj_data.coords['time']:
+                times = np.unique(traj_data.coords['time'])
+                diffs = np.abs(times - t)
+                curr_t = times[np.argmin(diffs)]
+            else:
+                curr_t = t
+
+            tmp_res = get_spectrum_at_time(traj_data, curr_t, sc, 0.00)
+            if tmp_res is not None:
+                spectra_results.append(tmp_res)
+
+        num_spectra = len(spectra_results)
+        if num_spectra == 0:
+            return None
+        else:
+            gauss_broadened_point_spectrum = spectra_results[0]
+            for i in range(1, num_spectra):
+                gauss_broadened_point_spectrum += spectra_results[i]
+            gauss_broadened_point_spectrum /= float(num_spectra)
+            gauss_broadened_point_spectrum.name = spectra_results[0].name
+            gauss_broadened_point_spectrum.attrs.update(spectra_results[0].attrs)
+
+            # Perform cutoff filtering:
+            max_ = gauss_broadened_point_spectrum.max().item()
+            non_negligible = gauss_broadened_point_spectrum.where(
+                gauss_broadened_point_spectrum > rel_cutoff * max_, drop=True
+            ).energy_interstate
+            if len(non_negligible) == 0:
+                return gauss_broadened_point_spectrum.sel(
+                    energy_interstate=non_negligible
+                )
+            return gauss_broadened_point_spectrum.sel(
+                energy_interstate=slice(non_negligible.min(), non_negligible.max())
+            )
+    else:
+        interstate_ds: xr.Dataset
+        if isinstance(interstate_data, InterState):
+            interstate_ds = interstate_data.dataset
+        elif isinstance(interstate_data, xr.Dataset):
+            interstate_ds = interstate_data
+        else:
+            raise ValueError(
+                "Unsupported type provided to spectrum calculation: %s"
+                % type(interstate_data)
+            )
+
+        # TODO: FIXME: Deal with hierarchical data being processed, i.e. take a set of Interstate data and do manual gauss broadening
+        # following required because `method='nearest'` doesn't work for MultiIndex
+        if t not in interstate_ds.coords['time']:
+            times = np.unique(interstate_ds.coords['time'])
+            diffs = np.abs(times - t)
+            t = times[np.argmin(diffs)]
+
+        # Only take one timestep and one state combination
+        interstate_ds = interstate_ds.sel(time=t, statecomb=sc)
+
+        # Figure out how the trajectory is indexed across multiple trajectories or whether a single trajectory is provided
+        trajid_dim = None
+        if "active_trajectory" in interstate_ds.energy_interstate.sizes:
+            trajid_dim = "active_trajectory"
+        elif "trajectory" in interstate_ds.energy_interstate.sizes:
+            trajid_dim = "trajectory"
+
+        if trajid_dim is None:
+            logging.info("Single Trajectory provided, no aggregation performed")
+
         gauss_broadened_point_spectrum: xr.DataArray = apply_gauss_broadening(
-            interstate_data.energy_interstate, interstate_data.fosc, agg_dim=trajid_dim
+            interstate_ds.energy_interstate, interstate_ds.fosc, agg_dim=trajid_dim
         )
         max_ = gauss_broadened_point_spectrum.max().item()
         non_negligible = gauss_broadened_point_spectrum.where(
@@ -376,23 +476,36 @@ def get_spectrum_at_time(
         return gauss_broadened_point_spectrum.sel(
             energy_interstate=slice(non_negligible.min(), non_negligible.max())
         )
-    else:
-        # TODO: Deal with no aggregation being possible?
-        logging.warning(
-            "A single trajectory was provided. No gaussian smoothing across multiple trajectories could be performed."
-        )
-        raise NotImplementedError(
-            "Cannot perform spectra calculation for single trajectory."
-        )
+
+
+@overload
+def get_spectra(
+    interstate_data: InterState | xr.Dataset | Sequence[InterState | xr.Dataset],
+    state_selection: StateSelection | None = None,
+    times: Iterable[float] | Literal['all'] | None = None,
+    rel_cutoff: float = 0.01,
+) -> SpectraDictType: ...
+
+
+@overload
+def get_spectra(
+    interstate_data: ShnitselDB[InterState | xr.Dataset],
+    state_selection: StateSelection | None = None,
+    times: Iterable[float] | Literal['all'] | None = None,
+    rel_cutoff: float = 0.01,
+) -> ShnitselDB[SpectraDictType]: ...
 
 
 @needs(data_vars={'energy', 'fosc'}, coords={"statecomb", "time"})
 def get_spectra(
-    interstate_data: InterState | xr.Dataset,
+    interstate_data: InterState
+    | xr.Dataset
+    | Sequence[InterState | xr.Dataset]
+    | ShnitselDB[InterState | xr.Dataset],
     state_selection: StateSelection | None = None,
     times: Iterable[float] | Literal['all'] | None = None,
     rel_cutoff: float = 0.01,
-) -> SpectraDictType:
+) -> SpectraDictType | ShnitselDB[SpectraDictType]:
     """Function to calculate (gauss-broadened) spectra at multiple (or all) points in time
 
     Uses strength of oscillator (`fosc`) and energy deltas (`energy_interstate`) to calculate
@@ -402,10 +515,13 @@ def get_spectra(
 
     Parameters
     ----------
-    interstate : InterState | xr.Dataset
+    interstate : InterState | xr.Dataset | Sequence[InterState | xr.Dataset] | ShnitselDB[InterState | xr.Dataset]
         The data source for interstate data that needs to provide interstate energy differenses and fosc data,
         which can be derived from `energy_interstate` and `dip_trans`.
         If the necessary data is not provided, an error will be raised.
+        If a sequence is provided, state selection defaults will be generated from the first data set in the selection.
+        If a hierarchical tree is provided, data will be grouped and the spectra calculation will be mapped over
+        the data within each group.
     state_selection : StateSelection, optional
         State combination selection provided either as a `StateSelection` instance or, by default will consider all state combinations.
     times : Iterable[float] | Literal['all'] | None, optional
@@ -414,45 +530,102 @@ def get_spectra(
     rel_cutoff : float, optional
         Factor for the cutoff of broadened/smoothened spectrum relative to maximum to be considered, by default 0.01
 
+    Raises
+    ------
+    ValueError
+        Unsupported type provided.
+
     Returns
     -------
     SpectraDictType
         The resulting spectrum as a mapping from `(t,sc)` pairs to the resulting, broadened spectrum.
         The first item in the key is the time at which the spectrum was extracted.
         The second item is the state combination descriptor for which it was calculated.
+    ShnitselDB[SpectraDictType]
+        If a hierarchical input is provided, the spectra results will be provided in hierarchical structure with one result for every grouped set of data.
     """
-    # TODO: FIXME: Allow tree as input and apply to collection in grouped data manner
-    interstate_dataset: xr.Dataset
-
-    if isinstance(interstate_data, InterState):
-        interstate_dataset = interstate_data.dataset
-    elif isinstance(interstate_data, xr.Dataset):
-        interstate_dataset = interstate_data
-    else:
-        raise ValueError(
-            "Unsupported type provided for interstate data: %s" % type(interstate_data)
-        )
-
     if times is None:
         # TODO: FIXME: Make choice of times more sophisticated
         times = [0, 10, 20, 30]
-    elif times == 'all':
-        times = interstate_dataset.coords['time'].values
 
-    if state_selection is None:
-        # Use all combinations if no selection provided
-        state_selection = StateSelection.init_from_dataset(interstate_dataset)
+    if isinstance(interstate_data, ShnitselDB):
+        interstate_data_grouped = interstate_data.group_data_by_metadata()
 
-    sc_values: Iterable[tuple[int, int]] = state_selection.state_combinations
-
-    # TODO: FIXME: We should consider making this a data array with nice dimensions instead
-    res: SpectraDictType = {
-        (t, sc): get_spectrum_at_time(
-            interstate_data, t=t, sc=sc, rel_cutoff=rel_cutoff
+        spectrum_tree = interstate_data_grouped.map_flat_group_data(
+            lambda x: get_spectra(
+                list(x),
+                state_selection=state_selection,
+                times=times,
+                rel_cutoff=rel_cutoff,
+            )
         )
-        for t, sc in product(times, sc_values)
-    }
-    return res
+        return spectrum_tree
+    elif isinstance(interstate_data, Sequence):
+        if times == 'all':
+            times = set()
+            for data in interstate_data:
+                times.update(data.coords['time'])
+            times = list(times)
+            times.sort()
+
+        if state_selection is None:
+            # Use all combinations if no selection provided
+            if isinstance(interstate_data[0], InterState):
+                state_selection = StateSelection.init_from_dataset(
+                    interstate_data[0].dataset
+                )
+            else:
+                state_selection = StateSelection.init_from_dataset(interstate_data[0])
+
+        sc_values: Iterable[tuple[int, int]] = state_selection.state_combinations
+
+        # TODO: FIXME: We should consider making this a data array with nice dimensions instead
+        res: SpectraDictType = {
+            (t, sc): res_spec
+            for t, sc in product(times, sc_values)
+            if (
+                res_spec := get_spectrum_at_time(
+                    interstate_data, t=t, sc=sc, rel_cutoff=rel_cutoff
+                )
+            )
+            is not None
+        }
+        return res
+    else:
+        # TODO: FIXME: Allow tree as input and apply to collection in grouped data manner
+        interstate_dataset: xr.Dataset
+
+        if isinstance(interstate_data, InterState):
+            interstate_dataset = interstate_data.dataset
+        elif isinstance(interstate_data, xr.Dataset):
+            interstate_dataset = interstate_data
+        else:
+            raise ValueError(
+                "Unsupported type provided for interstate data: %s"
+                % type(interstate_data)
+            )
+
+        if times == 'all':
+            times = interstate_dataset.coords['time'].values
+
+        if state_selection is None:
+            # Use all combinations if no selection provided
+            state_selection = StateSelection.init_from_dataset(interstate_dataset)
+
+        sc_values: Iterable[tuple[int, int]] = state_selection.state_combinations
+
+        # TODO: FIXME: We should consider making this a data array with nice dimensions instead
+        res: SpectraDictType = {
+            (t, sc): res_spec
+            for t, sc in product(times, sc_values)
+            if (
+                res_spec := get_spectrum_at_time(
+                    interstate_data, t=t, sc=sc, rel_cutoff=rel_cutoff
+                )
+            )
+            is not None
+        }
+        return res
 
 
 def get_spectra_groups(
@@ -501,31 +674,31 @@ def get_spectra_groups(
 
 
 # TODO: FIXME: This looks like it should be covered by get_spectra?
-@needs(data_vars={'energy', 'fosc'}, coords={'frame', 'trajid_'})
-def spectra_all_times(inter_state: InterState | xr.Dataset) -> xr.DataArray:
-    """Function to calculate the spectra at all times.
+# @needs(data_vars={'energy', 'fosc'}, coords={'frame', 'trajid_'})
+# def spectra_all_times(inter_state: InterState | xr.Dataset) -> xr.DataArray:
+#     """Function to calculate the spectra at all times.
 
-    Does not return a dict with only the relevant (t,sc) combinations as above but instead a full
-    xr.DataArray with a time dimension that has spectrum data for all times within the dataset averaged across trajectories.
+#     Does not return a dict with only the relevant (t,sc) combinations as above but instead a full
+#     xr.DataArray with a time dimension that has spectrum data for all times within the dataset averaged across trajectories.
 
-    Args:
-        inter_state (xr.Dataset): The InterState transformed Dataset.
+#     Args:
+#         inter_state (xr.Dataset): The InterState transformed Dataset.
 
-    Raises:
-        ValueError: If required variables or dimensions are missing
+#     Raises:
+#         ValueError: If required variables or dimensions are missing
 
-    Returns:
-        xr.DataArray: The resulting spectra across all times.
-    """
-    assert isinstance(inter_state, xr.Dataset)
-    if 'energy' not in inter_state.data_vars:
-        raise ValueError("Missing required variable 'energy'")
-    if 'fosc' not in inter_state.data_vars:
-        raise ValueError("Missing required variable 'fosc'")
-    assert 'frame' in inter_state and 'active_trajectory' in inter_state, (
-        "Missing required dimensions"
-    )
-    # TODO: FIXME: This probably should not have to unstack here? We should just accept a tree and use each trajectory individually and then aggregate over trajectories?
+#     Returns:
+#         xr.DataArray: The resulting spectra across all times.
+#     """
+#     assert isinstance(inter_state, xr.Dataset)
+#     if 'energy' not in inter_state.data_vars:
+#         raise ValueError("Missing required variable 'energy'")
+#     if 'fosc' not in inter_state.data_vars:
+#         raise ValueError("Missing required variable 'fosc'")
+#     assert 'frame' in inter_state and 'active_trajectory' in inter_state, (
+#         "Missing required dimensions"
+#     )
+#     # TODO: FIXME: This probably should not have to unstack here? We should just accept a tree and use each trajectory individually and then aggregate over trajectories?
 
-    data = inter_state.unstack('frame')
-    return apply_gauss_broadening(data.energy, data.fosc, agg_dim='active_trajectory')
+#     data = inter_state.unstack('frame')
+#     return apply_gauss_broadening(data.energy, data.fosc, agg_dim='active_trajectory')
