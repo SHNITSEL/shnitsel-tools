@@ -1,27 +1,27 @@
-import shnitsel as st
 import shnitsel.xarray
 import xarray as xr
 import pytest
-from shnitsel.io.sharc import read_traj, dir_of_iconds
+from shnitsel.io import read
+from shnitsel.data.tree import tree_to_frames
 
 
 class TestAccessors:
     """Class to test all functions of the shnitsel accessors provided to DataArray and DataSet objects"""
+
     @pytest.fixture
     def traj_butene(self):
-        frames = read_traj(
-            'tutorials/test_data/sharc/traj_butene', kind='sharc')
+        db = read('tutorials/test_data/sharc/traj_butene', kind='sharc')
+        assert db is not None
+        frames = tree_to_frames(db)
         return frames
 
     @pytest.fixture
     def iconds_butene(self):
-        iconds = dir_of_iconds(
-            'tutorials/test_data/sharc/iconds_butene'
-        )
+        iconds = read('tutorials/test_data/sharc/iconds_butene')
         return iconds
 
     def test_da_accessors(self, traj_butene):
-        frames = st.postprocess.ts_to_time(traj_butene)
+        frames = traj_butene
         e_step = frames.energy.st.mdiff()
         assert isinstance(e_step, xr.DataArray)
         xyz = frames.atXYZ.isel(frame=0).squeeze().st.to_xyz()
