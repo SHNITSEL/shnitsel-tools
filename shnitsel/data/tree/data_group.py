@@ -1,6 +1,7 @@
 from dataclasses import dataclass, asdict
 from functools import cached_property
-from typing import Any, Callable, Generic, Hashable, Mapping, Self, TypeVar
+from typing import Any, Callable, Generic, Hashable, Mapping, Self, TypeVar, overload
+from typing_extensions import TypeForm
 from .node import TreeNode
 from .data_leaf import DataLeaf
 
@@ -35,6 +36,7 @@ class DataGroup(
         | None = None,
         attrs: Mapping[str, Any] | None = None,
         level_name: str | None = None,
+        **kwargs,
     ):
         if name is None and group_info is not None:
             name = group_info.group_name
@@ -45,13 +47,82 @@ class DataGroup(
             children=children,
             attrs=attrs,
             level_name=level_name,
+            **kwargs,
         )
         self._group_info = group_info
 
-    def construct_copy(self, **kwargs) -> Self:
+    @overload
+    def construct_copy(
+        self,
+        children: None = None,
+        dtype: type[ResType] | TypeForm[ResType] | None = None,
+        data: None = None,
+        **kwargs,
+    ) -> Self: ...
+
+    @overload
+    def construct_copy(
+        self,
+        children: Mapping[Hashable, "DataGroup[ResType] | DataLeaf[ResType]"],
+        dtype: type[ResType] | TypeForm[ResType] | None = None,
+        data: None = None,
+        **kwargs,
+    ) -> "DataGroup[ResType]": ...
+
+    def construct_copy(
+        self,
+        children: Mapping[Hashable, "DataGroup[ResType] | DataLeaf[ResType]"]
+        | None = None,
+        dtype: type[ResType] | TypeForm[ResType] | None = None,
+        data: None = None,
+        **kwargs,
+    ) -> Self | "DataGroup[ResType]":
+        """Helper function to create a copy of this tree structure, but with potential changes to metadata, data or children
+
+        Parameters:
+        -----------
+        data: None, optional
+            Data setting not supported on this type of node.
+        children: Mapping[Hashable, DataGroup[ResType]], optional
+            The mapping of children with a potentially new `DataType`. If not provided, will be copied from the current node's child nodes.
+        dtype: type[ResType] | TypeForm[ResType], optional
+            The data type of the data in the copy constructed tree.
+
+        Returns:
+        -----------
+            Self: A copy of this node with recursively copied children if `children` is not set with an appropriate mapping.
+        """
+        assert data is None, "No data must be set on a root node"
+        if 'name' not in kwargs:
+            kwargs['name'] = self._name
         if 'group_info' not in kwargs:
             kwargs['group_info'] = self._group_info
-        return super().construct_copy(**kwargs)
+
+        if 'attrs' not in kwargs:
+            kwargs['attrs'] = dict(self._attrs)
+        if 'level_name' not in kwargs:
+            kwargs['level_name'] = str(self._level_name)
+
+        if children is None:
+            return type(self)(
+                children={
+                    # TODO: FIXME: Figure out this typing issue
+                    k: v.construct_copy()
+                    for k, v in self._children.items()
+                    if v is not None
+                },
+                dtype=self._dtype,
+                **kwargs,
+            )
+        else:
+            # We have new children and can extract the ResType from them
+            new_dtype: type[ResType] | TypeForm[ResType] | None = dtype
+
+            return DataGroup[ResType](
+                children=children,
+                dtype=new_dtype,
+                **kwargs,
+            )
 
     def collect_data_nodes(self) -> list[DataLeaf[DataType]]:
         """Function to retrieve all nodes with data in this subtree

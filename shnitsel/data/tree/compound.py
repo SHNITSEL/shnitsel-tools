@@ -1,5 +1,6 @@
 from dataclasses import dataclass
-from typing import Any, Callable, Generic, Hashable, Mapping, Self, TypeVar
+from typing import Any, Callable, Generic, Hashable, Mapping, Self, TypeVar, overload
+from typing_extensions import TypeForm
 from .data_group import DataGroup, GroupInfo
 from .data_leaf import DataLeaf
 
@@ -32,6 +33,7 @@ class CompoundGroup(Generic[DataType], DataGroup[DataType]):
         | None = None,
         level_name: str | None = None,
         attrs: Mapping[str, Any] | None = None,
+        **kwargs,
     ):
         if name is None:
             if compound_info is not None:
@@ -45,16 +47,128 @@ class CompoundGroup(Generic[DataType], DataGroup[DataType]):
             attrs=attrs,
             level_name=level_name,
             children=children,
+            **kwargs,
         )
 
         self._compound_info = (
             compound_info if compound_info is not None else CompoundInfo()
         )
 
-    def construct_copy(self, **kwargs) -> Self:
+    @overload
+    def construct_copy(
+        self,
+        children: None = None,
+        dtype: type[ResType] | TypeForm[ResType] | None = None,
+        data: None = None,
+        **kwargs,
+    ) -> Self: ...
+
+    @overload
+    def construct_copy(
+        self,
+        children: Mapping[Hashable, DataGroup[ResType] | DataLeaf[ResType]],
+        dtype: type[ResType] | TypeForm[ResType] | None = None,
+        data: None = None,
+        **kwargs,
+    ) -> "CompoundGroup[ResType]": ...
+
+    def construct_copy(
+        self,
+        children: Mapping[Hashable, DataGroup[ResType] | DataLeaf[ResType]]
+        | None = None,
+        dtype: type[ResType] | TypeForm[ResType] | None = None,
+        data: None = None,
+        **kwargs,
+    ) -> Self | "CompoundGroup[ResType]":
+        """Helper function to create a copy of this tree structure, but with potential changes to metadata, data or children
+
+        Parameters:
+        -----------
+        data: None, optional
+            Data setting not supported on this type of node.
+        children: Mapping[Hashable, CompoundGroup[ResType]], optional
+            The mapping of children with a potentially new `DataType`. If not provided, will be copied from the current node's child nodes.
+        dtype: type[ResType] | TypeForm[ResType], optional
+            The data type of the data in the copy constructed tree.
+
+        Raises
+        -----------
+        AssertionError
+            If dtype is provided but children parameter not set and node has children, indicating an issue with a type update without setting the new children
+
+        Returns:
+        -----------
+            Self: A copy of this node with recursively copied children if `children` is not set with an appropriate mapping.
+        """
+        assert data is None, "No data must be set on a root node"
+
+        if 'name' not in kwargs:
+            kwargs['name'] = self._name
         if 'compound_info' not in kwargs:
             kwargs['compound_info'] = self._compound_info
-        return super().construct_copy(**kwargs)
+        if 'group_info' not in kwargs:
+            kwargs['group_info'] = self._group_info
+
+        if 'attrs' not in kwargs:
+            kwargs['attrs'] = dict(self._attrs)
+        if 'level_name' not in kwargs:
+            kwargs['level_name'] = str(self._level_name)
+
+        if children is None:
+            return type(self)(
+                children={
+                    # TODO: FIXME: Figure out this typing issue
+                    k: v.construct_copy()
+                    for k, v in self._children.items()
+                    if v is not None
+                },
+                dtype=self._dtype,
+                **kwargs,
+            )
+        else:
+            new_dtype: type[ResType] | TypeForm[ResType] | None = dtype
+
+            return CompoundGroup[ResType](
+                children=children,
+                dtype=new_dtype,
+                **kwargs,
+            )
+
+    # def construct_copy(
+    #     self,
+    #     data: DataType | ResType | None = None,
+    #     dtype: type[DataType]
+    #     | TypeForm[DataType]
+    #     | type[ResType]
+    #     | TypeForm[ResType]
+    #     | None = None,
+    #     **kwargs,
+    # ) -> Self | "CompoundGroup[ResType]":
+    #     """Function to generate a copy of a `CompoundGroup` instance with either a new data type
+    #     or the same datatype but potentially new children.
+
+    #     Parameters
+    #     ----------
+    #     data: None
+    #         No data must be set on a `CompoundGroup` node. Do not set this parameter
+    #     dtype: type[DataType] | TypeForm[DataType] | type[ResType] | TypeForm[ResType], optional
+    #         The data type of the data in the copy constructed group.
+    #     **kwargs, optional
+    #         Keyword arguments for the constructor of this type. If parameters for the constructor are not set, will be populated with the relevant values
+    #         set in this instance.
+
+    #     Returns
+    #     -------
+    #     CompoundGroup[DataType]
+    #         If no new type was provided and the children were also not set with a new dtype.
+    #     CompoundGroup[ResType]
+    #         If a new dtype was set, the duplicate will have a new `DataType` set.
+    #     """
+    #     assert data is None, "No data must be set on a compound group node"
+    #     if 'compound_info' not in kwargs:
+    #         kwargs['compound_info'] = self._compound_info
+
+    #     return super().construct_copy(dtype=dtype, **kwargs)
 
     @property
     def compound_info(self) -> CompoundInfo:

@@ -7,7 +7,9 @@ from typing import (
     Mapping,
     Self,
     TypeVar,
+    overload,
 )
+from typing_extensions import TypeForm
 
 from shnitsel.data.dataset_containers.frames import Frames
 from shnitsel.data.dataset_containers.trajectory import Trajectory
@@ -41,29 +43,86 @@ class ShnitselDBRoot(Generic[DataType], TreeNode[CompoundGroup[DataType], DataTy
     """
 
     def __init__(
-        self, compounds: Mapping[Hashable, CompoundGroup[DataType]] | None = None
+        self,
+        compounds: Mapping[Hashable, CompoundGroup[DataType]] | None = None,
+        **kwargs,
     ):
-        super().__init__(
-            name="ROOT",
-            data=None,
-            children=compounds or {},
-        )
+        super().__init__(name="ROOT", data=None, children=compounds or {}, **kwargs)
 
-    def construct_copy(self, **kwargs) -> Self:
-        """Helper function to create a copy of this node of the same type, but with potential changes to metadata, data or children
+    @overload
+    def construct_copy(
+        self,
+        children: None = None,
+        dtype: None = None,
+        data: None = None,
+        **kwargs,
+    ) -> Self: ...
+
+    @overload
+    def construct_copy(
+        self,
+        children: Mapping[Hashable, CompoundGroup[ResType]],
+        dtype: type[ResType] | TypeForm[ResType] | None = None,
+        data: None = None,
+        **kwargs,
+    ) -> "ShnitselDBRoot[ResType]": ...
+
+    def construct_copy(
+        self,
+        children: Mapping[Hashable, CompoundGroup[ResType]] | None = None,
+        dtype: type[ResType] | TypeForm[ResType] | None = None,
+        data: None = None,
+        **kwargs,
+    ) -> Self | "ShnitselDBRoot[ResType]":
+        """Helper function to create a copy of this tree structure, but with potential changes to metadata, data or children
 
         Parameters:
         -----------
-        **kwargs, optional
-            Keyword arguments for the constructor of this type. If parameters for the constructor are not set, will be populated with the relevant values
-            set in this instance.
-
+        data: None, optional
+            Data setting not supported on this type of node.
+        children: Mapping[Hashable, CompoundGroup[ResType]], optional
+            The mapping of children with a potentially new `DataType`. If not provided, will be copied from the current node's child nodes.
+        dtype: type[ResType] | TypeForm[ResType], optional
+            The data type of the data in the copy constructed tree.
 
         Returns:
         -----------
             Self: A copy of this node with recursively copied children if `children` is not set with an appropriate mapping.
         """
-        return super().construct_copy(**kwargs)  # type: ignore # function is built such that the main type is preserved, only template arguments may change
+        assert data is None, "No data must be set on a root node"
+
+        if 'attrs' not in kwargs:
+            kwargs['attrs'] = dict(self._attrs)
+        if 'level_name' not in kwargs:
+            kwargs['level_name'] = str(self._level_name)
+
+        new_dtype: (
+            type[ResType]
+            | TypeForm[ResType]
+            | type[DataType]
+            | TypeForm[DataType]
+            | None
+        ) = dtype
+        if children is None:
+            assert dtype is None, (
+                "Cannot cast the data type of the tree without reassigning children/compounds of appropriate new type."
+            )
+
+            return type(self)(
+                compounds={
+                    # TODO: FIXME: Figure out this typing issue
+                    k: v.construct_copy()
+                    for k, v in self._children.items()
+                    if v is not None
+                },
+                **kwargs,
+            )
+        else:
+            return ShnitselDBRoot[ResType](
+                compounds=children,
+                dtype=new_dtype,
+                **kwargs,
+            )
 
     def add_compound(
         self,

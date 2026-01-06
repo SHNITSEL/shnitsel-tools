@@ -50,6 +50,10 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
         self._level_name = (
             level_name if level_name is not None else self.__class__.__qualname__
         )
+        # Set parent entry
+        for child in self._children.values():
+            if child is not None:
+                child._parent = self
 
         if dtype is not None:
             filled_in_dtype = dtype
@@ -82,89 +86,115 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
 
         self._dtype = filled_in_dtype
 
-    @overload
-    def construct_copy(
-        self,
-        data: ResType,
-        dtype: None = None,
-        **kwargs,
-    ) -> "TreeNode[TreeNode[Any, ResType]|None, ResType]": ...
+    # @abc.abstractmethod
+    # def construct_copy(
+    #     self,
+    #     data,
+    #     children,
+    #     dtype,
+    #     **kwargs,
+    # ) -> Any:
+    #     """Every class inheriting from TreeNode should implement this method to create a copy of that subtree
+    #     with appropriate typing or just plain up creating a copy of the subtree, if no updates are requested.
 
-    @overload
-    def construct_copy(
-        self,
-        data: ResType | None,
-        dtype: type[ResType] | TypeForm[ResType],
-        **kwargs,
-    ) -> "TreeNode[TreeNode[Any, ResType]|None, ResType]": ...
+    #     Support for changing the typing by changing child types, setting the explicit `dtype` or by providing
+    #     a new `data` entry should be supported by the base class.
 
-    @overload
-    def construct_copy(
-        self,
-        data: DataType | None,
-        dtype: type[DataType] | TypeForm[DataType] | None,
-        **kwargs,
-    ) -> Self: ...
+    #     Parameters
+    #     ----------
+    #     data : DataType | ResType | None, optional
+    #         The new data to be set in the copy of this node, by default None, which should populate it with the node's current data
+    #     children : Mapping[str, NewChildType], optional
+    #         A new set of children to replace the old mapping of children can be provided with this parameter.
+    #         The data type can also be changed with appropriate typing here:
+    #     dtype : type[ResType] | TypeForm[ResType] | None, optional
+    #         An explicit argument to set the `dtype` property of the new subtree, by default None.
 
-    def construct_copy(
-        self,
-        data: DataType | ResType | None = None,
-        dtype: type[DataType]
-        | TypeForm[DataType]
-        | type[ResType]
-        | TypeForm[ResType]
-        | None = None,
-        **kwargs,
-    ) -> Self | "TreeNode[TreeNode[Any, ResType]|None, ResType]":
-        """Function to construct a copy with optionally a new `dtype`
-        set for this node and the data value updated.
+    #     Returns
+    #     -------
+    #     Self | TreeNode[TreeNode[Any, RestType]|None, ResType]
+    #         Returns a new subtree with a duplicate of this node in regards to metadata at its root and
+    #         updates properties as provided.
+    #     """
 
-        Parameters
-        ----------
-        data: DataType | ResType, optional
-            New data for the copy node. Either with the same datatype as the current tree or
-            with a new ResType type such that a new tree with a different `DataType` template argument
-            can be constructed
-        dtype: type[DataType] | TypeForm[DataType] | type[ResType] | TypeForm[ResType]
-            The data type of the data in this tree.
-        **kwargs: dict[str, Any], optional
-            A dictionary holding the settings for the constructor of the current node's type.
+    # @overload
+    # def construct_copy(
+    #     self,
+    #     data: ResType,
+    #     dtype: None = None,
+    #     **kwargs,
+    # ) -> "TreeNode[TreeNode[Any, ResType]|None, ResType]": ...
 
+    # @overload
+    # def construct_copy(
+    #     self,
+    #     data: None,
+    #     dtype: type[ResType] | TypeForm[ResType],
+    #     **kwargs,
+    # ) -> "TreeNode[TreeNode[Any, ResType]|None, ResType]": ...
 
-        Returns
-        -------
-        Self
-            Either the same type as self if data and dtype have not been updated
-        TreeNode[TreeNode[Any, ResType], ResType]
-            Or effectively the same original type with update DataType variable
-        """
-        if data is not None:
-            kwargs['data'] = data
-        elif 'data' not in kwargs:
-            kwargs['data'] = self._data
+    # @overload
+    # def construct_copy(
+    #     self,
+    #     data: DataType | None,
+    #     dtype: type[DataType] | TypeForm[DataType] | None,
+    #     **kwargs,
+    # ) -> Self: ...
 
-        if dtype is not None:
-            kwargs['dtype'] = dtype
-        elif 'dtype' not in kwargs:
-            kwargs['dtype'] = self._dtype
+    # def construct_copy(
+    #     self,
+    #     data: ResType | None = None,
+    #     dtype: type[ResType] | TypeForm[ResType] | None = None,
+    #     **kwargs,
+    # ) -> Self | "TreeNode[Any, ResType]":
+    #     """Function to construct a copy with optionally a new `dtype`
+    #     set for this node and the data value updated.
 
-        if 'name' not in kwargs:
-            kwargs['name'] = self._name
-        if 'children' not in kwargs:
-            kwargs['children'] = {
-                # TODO: FIXME: Figure out this typing issue
-                k: v.construct_copy(dtype=dtype)
-                for k, v in self._children.items()
-                if v is not None
-            }
-        if 'attrs' not in kwargs:
-            kwargs['attrs'] = dict(self._attrs)
-        if 'level_name' not in kwargs:
-            kwargs['level_name'] = str(self._level_name)
+    #     Parameters
+    #     ----------
+    #     data: DataType | ResType, optional
+    #         New data for the copy node. Either with the same datatype as the current tree or
+    #         with a new ResType type such that a new tree with a different `DataType` template argument
+    #         can be constructed
+    #     dtype: type[DataType] | TypeForm[DataType] | type[ResType] | TypeForm[ResType]
+    #         The data type of the data in this tree.
+    #     **kwargs: dict[str, Any], optional
+    #         A dictionary holding the settings for the constructor of the current node's type.
 
-        return type(self)(
-            **kwargs,
-        )
+    #     Returns
+    #     -------
+    #     Self
+    #         Either the same type as self if data and dtype have not been updated
+    #     TreeNode[TreeNode[Any, ResType], ResType]
+    #         Or effectively the same original type with update DataType variable
+    #     """
+    #     if data is not None:
+    #         kwargs['data'] = data
+    #     elif 'data' not in kwargs:
+    #         kwargs['data'] = self._data
+
+    #     if dtype is not None:
+    #         kwargs['dtype'] = dtype
+    #     elif 'dtype' not in kwargs:
+    #         kwargs['dtype'] = self._dtype
+
+    #     if 'name' not in kwargs:
+    #         kwargs['name'] = self._name
+    #     if 'children' not in kwargs:
+    #         kwargs['children'] = {
+    #             # TODO: FIXME: Figure out this typing issue
+    #             k: v.construct_copy(dtype=dtype)
+    #             for k, v in self._children.items()
+    #             if v is not None
+    #         }
+    #     if 'attrs' not in kwargs:
+    #         kwargs['attrs'] = dict(self._attrs)
+    #     if 'level_name' not in kwargs:
+    #         kwargs['level_name'] = str(self._level_name)
+
+    #     return type(self)(
+    #         **kwargs,
+    #     )
 
     @property
     def is_leaf(self) -> bool:

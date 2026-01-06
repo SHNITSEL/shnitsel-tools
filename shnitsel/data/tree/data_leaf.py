@@ -1,5 +1,6 @@
 from dataclasses import dataclass
-from typing import Any, Callable, Generic, Mapping, Protocol, Self, TypeVar
+from typing import Any, Callable, Generic, Mapping, Protocol, Self, TypeVar, overload
+from typing_extensions import TypeForm
 from .node import TreeNode
 
 DataType = TypeVar("DataType", covariant=True)
@@ -8,21 +9,93 @@ ResType = TypeVar("ResType")
 
 @dataclass
 class DataLeaf(Generic[DataType], TreeNode[None, DataType]):
-    def __init__(
-        self,
-        name: str | None = None,
-        data: DataType | None = None,
-        attrs: Mapping[str, Any] | None = None,
-    ):
+    """Class to represent a leaf node holding data in the ShnitselDB tree hierarchy.
+
+    May be inherited from to provide leaves with more advanced features like provision
+    of delayed results for support of parallel processing or delayed loading from disc, etc.
+    """
+
+    def __init__(self, name: str | None = None, data: DataType | None = None, **kwargs):
         super().__init__(
-            name=name,
-            data=data,
-            attrs=attrs,
-            level_name=self.__class__.__name__,
+            name=name, data=data, level_name=self.__class__.__name__, **kwargs
         )
 
-    def construct_copy(self, **kwargs) -> Self:
-        return super().construct_copy(**kwargs)
+    @overload
+    def construct_copy(
+        self,
+        name: str | None = None,
+        data: None = None,
+        children: None = None,
+        dtype: None = None,
+        **kwargs,
+    ) -> Self: ...
+
+    @overload
+    def construct_copy(
+        self,
+        name: str | None,
+        data: ResType | None,
+        children: None,
+        dtype: type[ResType] | TypeForm[ResType] | None = None,
+        **kwargs,
+    ) -> "DataLeaf[ResType]": ...
+
+    def construct_copy(
+        self,
+        name: str | None = None,
+        data: ResType | None = None,
+        children: None = None,
+        dtype: type[ResType] | TypeForm[ResType] | None = None,
+        **kwargs,
+    ) -> Self | "DataLeaf[ResType]":
+        """Helper function to create a copy of this tree structure, but with potential changes to metadata or data
+
+        Parameters:
+        -----------
+        data: ResType | None, optional
+            Data to replace the current data in the copy of this node
+        children: None, optional
+            Parameter not supported by this type of node.
+        dtype: type[ResType] | TypeForm[ResType], optional
+            The data type of the data in the copy constructed tree.
+
+        Raises
+        -----------
+        AssertionError
+            If dtype is set without a new `data` entry being provided
+
+        Returns:
+        -----------
+            Self
+                A copy of this node with recursively copied children if `data` is not set .
+            DataLeaf[ResType]
+                A new leaf with a new data type if `data` is provided.
+        """
+        assert children is None, "No children can be provided for a Leaf node"
+
+        if name is None:
+            name = self._name
+
+        if 'attrs' not in kwargs:
+            kwargs['attrs'] = self._attrs
+
+        if data is None:
+            assert dtype is None, (
+                "Cannot reassign data type if new data entry is not provided"
+            )
+            return type(self)(
+                name=name,
+                data=self._data,
+                dtype=self._dtype,
+                **kwargs,
+            )
+        else:
+            return DataLeaf[ResType](
+                name=name,
+                data=data,
+                dtype=dtype,
+                **kwargs,
+            )
 
     def group_children_by(
         self,
@@ -66,7 +139,7 @@ class ProvidesDelayedData(Generic[DataType], Protocol):
 
 
 @dataclass
-class DelayedDataLeaf(Generic[DataType], DataLeaf[DataType]):
+class DelayedDataLeaf(DataLeaf[DataType]):
     """Class to hold data in a leaf of the tree structure,
     where the data is not immediately accessible but may be the delayed
     result of asynchronous processing.
