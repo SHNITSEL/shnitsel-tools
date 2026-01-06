@@ -276,12 +276,12 @@ class DatasheetPage:
         # inter_state['_color'] = 'statecomb', self.col_inter
 
         # Calculate fosc if missing and conditions met
-        if (
-            "fosc" not in inter_state
-            and 'dip_trans' in inter_state
-            and "energy_interstate" in inter_state
-        ):
-            inter_state = assign_fosc(inter_state)
+        # if (
+        #     "fosc" not in inter_state
+        #     and 'dip_trans' in inter_state
+        #     and "energy_interstate" in inter_state
+        # ):
+        #     inter_state = assign_fosc(inter_state)
 
         for var, tex in [
             ('energy', r"$\Delta E$"),
