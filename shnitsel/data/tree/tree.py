@@ -163,7 +163,7 @@ class ShnitselDBRoot(Generic[DataType], TreeNode[CompoundGroup[DataType], DataTy
         return ShnitselDBRoot[ResType](new_children)
 
     def map_flat_group_data(
-        self, map_func: Callable[[Iterable[DataType]], ResType]
+        self, map_func: Callable[[Iterable[DataType]], ResType | None]
     ) -> "ShnitselDBRoot[ResType]":
         """Helper function to apply a mapping function to all flat group nodes.
 
