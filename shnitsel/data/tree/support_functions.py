@@ -2,7 +2,11 @@ from types import UnionType
 from typing import Any, TypeVar, Union, overload
 from typing_extensions import TypeForm
 
-from shnitsel.data.tree.node import TreeNode
+from .data_leaf import DataLeaf
+from .node import TreeNode
+from .tree import ShnitselDBRoot
+from .data_group import DataGroup
+from .compound import CompoundGroup
 
 DataType1 = TypeVar("DataType1")
 DataType2 = TypeVar("DataType2")
@@ -16,39 +20,51 @@ ChildType = TypeVar("ChildType", bound=TreeNode)
 
 @overload
 def tree_zip(
-    *trees, res_data_type: type[ResDataType]
-) -> TreeNode[Any, ResDataType]: ...
+    *trees: DataLeaf, res_data_type: type[ResDataType] | TypeForm[ResDataType]
+) -> DataLeaf[ResDataType] | None: ...
+
+
+@overload
+def tree_zip(*trees: DataLeaf, res_data_type: None = None) -> DataLeaf | None: ...
 
 
 @overload
 def tree_zip(
-    tree1: TreeNode[Any, DataType1],
-    tree2: TreeNode[Any, DataType2],
-    res_data_type: None = None,
-) -> TreeNode[Any, tuple[DataType1, DataType2]]: ...
+    *trees: CompoundGroup, res_data_type: type[ResDataType] | TypeForm[ResDataType]
+) -> CompoundGroup[ResDataType] | None: ...
 
 
 @overload
 def tree_zip(
-    tree1: TreeNode[Any, DataType1],
-    tree2: TreeNode[Any, DataType2],
-    tree3: TreeNode[Any, DataType3],
-    res_data_type: None = None,
-) -> TreeNode[Any, tuple[DataType1, DataType2, DataType3]]: ...
+    *trees: CompoundGroup, res_data_type: None = None
+) -> CompoundGroup | None: ...
 
 
 @overload
 def tree_zip(
-    tree1: TreeNode[Any, DataType1],
-    tree2: TreeNode[Any, DataType2],
-    tree3: TreeNode[Any, DataType3],
-    tree4: TreeNode[Any, DataType4],
-    res_data_type: None = None,
-) -> TreeNode[Any, tuple[DataType1, DataType2, DataType3, DataType4]]: ...
+    *trees: DataGroup, res_data_type: type[ResDataType] | TypeForm[ResDataType]
+) -> DataGroup[ResDataType] | None: ...
+
+
+@overload
+def tree_zip(*trees: DataGroup, res_data_type: None = None) -> DataGroup | None: ...
+
+
+@overload
+def tree_zip(
+    *trees: ShnitselDBRoot, res_data_type: type[ResDataType] | TypeForm[ResDataType]
+) -> ShnitselDBRoot[ResDataType] | None: ...
+
+
+@overload
+def tree_zip(
+    *trees: ShnitselDBRoot, res_data_type: None = None
+) -> ShnitselDBRoot | None: ...
 
 
 def tree_zip(
-    *trees: TreeNode, res_data_type: type[ResDataType] | None = None
+    *trees: TreeNode,
+    res_data_type: type[ResDataType] | TypeForm[ResDataType] | None = None,
 ) -> TreeNode | TreeNode[Any, ResDataType] | None:
     """Helper function to allow zipping of multiple trees into a single tree with tuples of data for
     its data.
@@ -62,7 +78,7 @@ def tree_zip(
     ----------
     *trees: TreeNode
         An arbitrary positional list of trees to use for the zipping.
-    res_data_type : type[ResDataType] | None, optional
+    res_data_type : type[ResDataType] | TypeForm[ResDataType] | None, optional
         Optional datatype for the resulting tree, by default None, which means, it will be inferred.
 
     Returns
@@ -99,13 +115,35 @@ def tree_zip(
         has_data = tree.has_data
         break
 
-    if has_data:
-        for tree in tree_list:
-            res_data_entries.append(tree.data)
+    if isinstance(tree_list[0], DataLeaf):
+        if has_data:
+            # We are a data leaf:
+            data_types = []
+            for tree in tree_list:
+                tree_data = tree.data
+                res_data_entries.append(tree_data)
+                data_types.append(type(tree_data))
 
-        new_data = tuple(res_data_entries)
-    else:
-        new_data = None
+            if res_data_type is None:
+                new_data_type = tuple(data_types)
+            else:
+                new_data_type = res_data_type
+
+            new_data = tuple(res_data_entries)
+            return DataLeaf(
+                name=tree_list[0].name,
+                data=new_data,
+                dtype=new_data_type,
+                attrs=tree_list[0]._attrs,
+            )
+        else:
+            return tree_list[0].construct_copy()
+
+    assert (
+        isinstance(tree_list[0], ShnitselDBRoot)
+        or isinstance(tree_list[0], CompoundGroup)
+        or isinstance(tree_list[0], DataGroup)
+    ), "Unsupported node type provided to `tree_zip() : %s" % type(tree_list[0])
 
     new_children = {}
     if child_keys:
@@ -120,13 +158,10 @@ def tree_zip(
                 new_children[key] = tree_zip(
                     *[tree.children[key] for tree in tree_list]
                 )
-
     if res_data_type is not None:
-        return tree_list[0].construct_copy(
-            data=new_data, children=new_children, dtype=res_data_type
-        )
+        return tree_list[0].construct_copy(children=new_children, dtype=res_data_type)
     else:
-        return tree_list[0].construct_copy(data=new_data, children=new_children)
+        return tree_list[0].construct_copy(children=new_children)
 
 
 def has_same_structure(*trees: TreeNode) -> bool:
