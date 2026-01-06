@@ -1,8 +1,5 @@
-import os
-import shnitsel as sh
 from shnitsel.data.shnitsel_db_format import ShnitselDB
 from shnitsel.data.trajectory_format import Trajectory
-from shnitsel.io.pyrai2md import parse_pyrai2md
 from shnitsel.io import read
 from shnitsel.io.pyrai2md.format_reader import PyrAI2mdFormatReader
 from shnitsel.test_support.trajectory_verification import verify_trajectory_format
