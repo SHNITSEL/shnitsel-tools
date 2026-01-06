@@ -89,11 +89,11 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
     # @abc.abstractmethod
     # def construct_copy(
     #     self,
-    #     data,
-    #     children,
-    #     dtype,
+    #     data: ResType | None = None,
+    #     children: Mapping[Hashable, NewChildType] | None = None,
+    #     dtype: type[ResType] | TypeForm[ResType] | None =None,
     #     **kwargs,
-    # ) -> Any:
+    # ) -> Self | "TreeNode[NewChildType, ResType]":
     #     """Every class inheriting from TreeNode should implement this method to create a copy of that subtree
     #     with appropriate typing or just plain up creating a copy of the subtree, if no updates are requested.
 
@@ -102,7 +102,7 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
 
     #     Parameters
     #     ----------
-    #     data : DataType | ResType | None, optional
+    #     data : ResType | None, optional
     #         The new data to be set in the copy of this node, by default None, which should populate it with the node's current data
     #     children : Mapping[str, NewChildType], optional
     #         A new set of children to replace the old mapping of children can be provided with this parameter.
