@@ -71,6 +71,7 @@ dev = [
   "sphinx-design",
   "sphinx-autoapi",
 ]
+
 [project.scripts]
 convert_to_shnitsel_file = "shnitsel.cli.convert_to_shnitsel:main"
 merge_shnitsel_files = "shnitsel.cli.merge_shnitsel_files:main"
@@ -87,6 +88,11 @@ extend-exclude = ["shnitsel/_generated_accessors.py"]
 quote-style = "preserve"
 
 [tool.ruff.lint]
+select = [
+  "D103",  # Undocumented public function
+  "PERF",  # Identify more performant approaches
+]
+
 ignore = [
   "E731", # Do not assign a `lambda` expression, use a `def`
   "E741", # Ambiguous variable name
