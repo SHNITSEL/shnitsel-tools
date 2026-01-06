@@ -232,7 +232,11 @@ class TestProcessing:
     def frames_for_populations(draw):
         nframes = draw(hnp.array_shapes(min_dims=1, max_dims=1))[0]
 
-        states = draw(st.lists(st.integers(min_value=1), min_size=1, unique=True))
+        # calc_classical_populations expects state IDs to be integers starting at 1 without gaps.
+        # Does it make sense to lift that assumption?
+        # Previous approach:
+        # states = draw(st.lists(st.integers(min_value=1), min_size=1, unique=True))
+        states = range(1, draw(st.integers(min_value=2, max_value=20)))
 
         def make_array_strategy(dtype, shape):
             assert dtype is int
@@ -267,6 +271,7 @@ class TestProcessing:
     def test_calc_classical_populations(self, frames):
         res = calc_classical_populations(frames)
         assert 'state' in res.dims
+        assert ((0 <= res) & (res <= 1)).all()
 
     #################################
     # Dimensional reduction functions
