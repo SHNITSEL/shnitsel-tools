@@ -89,6 +89,8 @@ def tree_zip(
 
     res_data_entries = []
 
+    # TODO: Build tuple of child types and explictly set dtype of new tree?
+
     child_keys: set[str] | None = None
     has_data: bool | None = None
 
