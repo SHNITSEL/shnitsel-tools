@@ -168,7 +168,7 @@ def plot_kdes(xx, yy, Zs, colors=None, levels=None, fill=True, fig=None, ax=None
         if len(Zs) == 2:
             colors = ['purple', 'green']
         else:
-            colors = plt.get_cmap('tab10')
+            colors = plt.get_cmap('tab10').colors
 
     for Z, c in zip(Zs, colors):
         if fill:
