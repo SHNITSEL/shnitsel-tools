@@ -1,9 +1,10 @@
 import logging
+from typing import TypeVar
 import xarray as xr
 
-from shnitsel.data.shnitsel_db_format import ShnitselDB
-from shnitsel.data.trajectory_format import Trajectory
-from shnitsel.data.trajectory_format_wrapper import wrap_trajectory
+from shnitsel.data.tree import TreeNode
+
+from shnitsel.data.dataset_containers import Trajectory, Frames
 from shnitsel.io.shared.helpers import LoadingParameters
 from shnitsel.data.state_helpers import (
     default_state_name_assigner,
@@ -14,26 +15,42 @@ from shnitsel.io.shared.variable_flagging import (
 )
 from shnitsel.units.conversion import convert_all_units_to_shnitsel_defaults
 
+NodeType = TypeVar("NodeType", bound=TreeNode)
+DataType = TypeVar("DataType", bound=xr.Dataset | Trajectory | Frames)
+
 
 def finalize_loaded_trajectory(
-    dataset: xr.Dataset | ShnitselDB | None,
+    dataset: DataType | NodeType | None,
     loading_parameters: LoadingParameters | None,
-) -> Trajectory | ShnitselDB | None:
-    """Function to apply some final postprocessing common to all input routines.
+) -> DataType | Trajectory | Frames | NodeType | None:
+    """Function to apply some final postprocessing common to all input routines that allow reading of single trajectories from input formats.
 
-    Args:
-        dataset (xr.Dataset | ShnitselDB | None): The dataset, ShnitselDB object or None, if reading failed. Only individual trajectories will be post-processed here.
-        loading_parameters (LoadingParameters | None): Parameters to set some defaults.
+    Parameters
+    ----------
+    dataset : xr.Dataset | Trajectory | Frames | NodeType | None
+        The dataset to perform finalization on. Only updates Dataset, Trajectory and Frames data.
+        All other data will be returned unchanged
+    loading_parameters : LoadingParameters | None
+         Parameters to set some defaults.
 
-    Returns:
-        Trajectory | None: _description_
+    Returns
+    -------
+    xr.Dataset | Trajectory | Frames | NodeType | None
+        The same type as the original `dataset` parameter but potentially with some
+        default values and conversions applied.
     """
     if dataset is not None:
         # logging.debug(f"Finalizing: {repr(dataset)}")
-        if isinstance(dataset, xr.Dataset):
+        if isinstance(dataset, (xr.Dataset, Trajectory, Frames)):
+            rebuild_type = None
+            if isinstance(dataset, (Trajectory, Frames)):
+                rebuild_type = type(dataset)
+                dataset = dataset.dataset
+
             # TODO: FIXME: use loading_parameters to configure state names
             dataset = set_state_defaults(dataset, loading_parameters)
 
+            # TODO: FIXME: Configure cleaning to only run on initial construction trajectories, not when loaded from Shnitsel files.
             unset_vars = []
             for var in dataset.variables:
                 if is_variable_assigned(dataset[var]):
@@ -44,9 +61,19 @@ def finalize_loaded_trajectory(
 
             logging.debug(f"Dropping unset variables: {unset_vars}")
             dataset = dataset.drop_vars(unset_vars)
+            convert_all_units_to_shnitsel_defaults(dataset)
 
-            return wrap_trajectory(convert_all_units_to_shnitsel_defaults(dataset))
-        elif isinstance(dataset, ShnitselDB):
+            if rebuild_type:
+                return rebuild_type(dataset)
+            else:
+                try:
+                    return Trajectory(dataset)
+                except:
+                    try:
+                        return Frames(dataset)
+                    except:
+                        return dataset
+        else:
             # TODO: FIXME: Should we post-process all individual trajectories just in case?
             return dataset
 
