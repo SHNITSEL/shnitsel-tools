@@ -25,6 +25,7 @@ from .compound import CompoundGroup, CompoundInfo
 DataType = TypeVar("DataType", covariant=True)
 ResType = TypeVar("ResType")
 KeyType = TypeVar("KeyType")
+NewChildType = TypeVar("NewChildType", bound=TreeNode)
 
 
 class ShnitselDBRoot(Generic[DataType], TreeNode[CompoundGroup[DataType], DataType]):
@@ -49,41 +50,77 @@ class ShnitselDBRoot(Generic[DataType], TreeNode[CompoundGroup[DataType], DataTy
     ):
         super().__init__(name="ROOT", data=None, children=compounds or {}, **kwargs)
 
+    # @overload
+    # def construct_copy(
+    #     self,
+    #     children: Mapping[Hashable, CompoundGroup[DataType]] | None = None,
+    #     dtype: None = None,
+    #     data: None = None,
+    #     **kwargs,
+    # ) -> Self: ...
+
+    # @overload
+    # def construct_copy(
+    #     self,
+    #     children: Mapping[Hashable, CompoundGroup[ResType]],
+    #     dtype: type[ResType] | TypeForm[ResType] | None = None,
+    #     data: None = None,
+    #     **kwargs,
+    # ) -> "ShnitselDBRoot[ResType]": ...
+
     @overload
     def construct_copy(
         self,
-        children: None = None,
+        children: Mapping[Hashable, CompoundGroup[DataType]] | None = None,
         dtype: None = None,
-        data: None = None,
+        data: DataType | None = None,
         **kwargs,
     ) -> Self: ...
 
     @overload
     def construct_copy(
         self,
-        children: Mapping[Hashable, CompoundGroup[ResType]],
+        children: None = None,
+        dtype: type[ResType] | TypeForm[ResType] | None = None,
+        data: ResType | None = None,
+        **kwargs,
+    ) -> "ShnitselDBRoot[ResType]": ...
+
+    @overload
+    def construct_copy(
+        self,
+        children: Mapping[Hashable, NewChildType] | None = None,
         dtype: type[ResType] | TypeForm[ResType] | None = None,
         data: None = None,
         **kwargs,
     ) -> "ShnitselDBRoot[ResType]": ...
 
+    # def construct_copy_(
+    #     self,
+    #     children: Mapping[Hashable, CompoundGroup[ResType]] | None = None,
+    #     dtype: type[ResType] | TypeForm[ResType] | None = None,
+    #     data: None = None,
+    #     **kwargs,
+    # ) -> Self | "ShnitselDBRoot[ResType]":
     def construct_copy(
         self,
-        children: Mapping[Hashable, CompoundGroup[ResType]] | None = None,
+        children: Mapping[Hashable, CompoundGroup[DataType]]
+        | Mapping[Hashable, NewChildType]
+        | None = None,
         dtype: type[ResType] | TypeForm[ResType] | None = None,
-        data: None = None,
+        data: ResType | None = None,
         **kwargs,
     ) -> Self | "ShnitselDBRoot[ResType]":
         """Helper function to create a copy of this tree structure, but with potential changes to metadata, data or children
 
         Parameters:
         -----------
-        data: None, optional
-            Data setting not supported on this type of node.
-        children: Mapping[Hashable, CompoundGroup[ResType]], optional
+        children: Mapping[Hashable, CompoundGroup[DataType]] Mapping[Hashable, CompoundGroup[ResType]], optional
             The mapping of children with a potentially new `DataType`. If not provided, will be copied from the current node's child nodes.
         dtype: type[ResType] | TypeForm[ResType], optional
             The data type of the data in the copy constructed tree.
+        data: None, optional
+            Data setting not supported on this type of node.
 
         Returns:
         -----------
@@ -118,6 +155,9 @@ class ShnitselDBRoot(Generic[DataType], TreeNode[CompoundGroup[DataType], DataTy
                 **kwargs,
             )
         else:
+            assert all(isinstance(child, CompoundGroup) for child in children), (
+                "Children provided to `construct_copy` for tree root are not of type `CompoundGroup`"
+            )
             return ShnitselDBRoot[ResType](
                 compounds=children,
                 dtype=new_dtype,
@@ -260,24 +300,27 @@ class ShnitselDBRoot(Generic[DataType], TreeNode[CompoundGroup[DataType], DataTy
         self,
         filter_func: Callable[[TreeNode[Any, DataType]], bool],
         map_func: Callable[[TreeNode[Any, DataType]], TreeNode[Any, ResType]],
+        dtype: type[ResType] | TypeForm[ResType] | None = None,
     ) -> "ShnitselDBRoot[ResType]":
-        """_summary_
+        """Override of the filter method to make the type explicit when the base class method is unclear about the specific node type
+        without repeating the full definition.
 
-        _extended_summary_
+        Applies a map function to subtrees for which the `filter_func` returns `True`.
+        Builds a new tree from the mapped subtrees.
 
         Parameters
         ----------
         filter_func : Callable[[TreeNode[Any, DataType]], bool]
-            _description_
+            Function to filter out, to which subtrees, `map_func` should be applied. If result is `True`, the subtree will be mapped.
         map_func : Callable[[TreeNode[Any, DataType]], TreeNode[Any, ResType]]
-            _description_
+            The mapping function to be applied to all subtrees for which `filter_func` returns `True` at their root node.
 
         Returns
         -------
         ShnitselDBRoot[ResType]
-            _description_
+            The mapped tree structure
         """
-        return super().map_filtered_nodes(filter_func, map_func)  # type: ignore # The mapped node of a ShnitelDBRoot will be of the same type
+        return super().map_filtered_nodes(filter_func, map_func, dtype=dtype)  # type: ignore # The mapped node of a ShnitelDBRoot will be of the same type
 
     def group_children_by(
         self, key_func: Callable[[TreeNode], KeyType], group_leaves_only: bool = True
@@ -312,8 +355,7 @@ class ShnitselDBRoot(Generic[DataType], TreeNode[CompoundGroup[DataType], DataTy
             for k, v in self._children.items()
             if (res := v.group_children_by(key_func, group_leaves_only)) is not None
         }
-        new_node = self.construct_copy()
-        new_node._children = new_children
+        new_node = self.construct_copy(children=new_children)
         return new_node
 
     def group_data_by_metadata(self) -> Self:

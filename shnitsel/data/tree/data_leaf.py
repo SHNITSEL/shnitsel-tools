@@ -1,10 +1,21 @@
 from dataclasses import dataclass
-from typing import Any, Callable, Generic, Mapping, Protocol, Self, TypeVar, overload
+from typing import (
+    Any,
+    Callable,
+    Generic,
+    Hashable,
+    Mapping,
+    Protocol,
+    Self,
+    TypeVar,
+    overload,
+)
 from typing_extensions import TypeForm
 from .node import TreeNode
 
 DataType = TypeVar("DataType", covariant=True)
 ResType = TypeVar("ResType")
+NewChildType = TypeVar("NewChildType", bound=TreeNode)
 
 
 @dataclass
@@ -23,29 +34,45 @@ class DataLeaf(Generic[DataType], TreeNode[None, DataType]):
     @overload
     def construct_copy(
         self,
-        name: str | None = None,
-        data: None = None,
-        children: None = None,
+        children: Mapping[Hashable, None] | None = None,
         dtype: None = None,
+        data: DataType | None = None,
         **kwargs,
     ) -> Self: ...
 
     @overload
     def construct_copy(
         self,
-        name: str | None,
-        data: ResType | None,
-        children: None,
+        children: None = None,
         dtype: type[ResType] | TypeForm[ResType] | None = None,
+        data: ResType | None = None,
         **kwargs,
     ) -> "DataLeaf[ResType]": ...
 
+    @overload
     def construct_copy(
         self,
-        name: str | None = None,
-        data: ResType | None = None,
-        children: None = None,
+        children: Mapping[Hashable, NewChildType] | None = None,
         dtype: type[ResType] | TypeForm[ResType] | None = None,
+        data: None = None,
+        **kwargs,
+    ) -> "DataLeaf[ResType]": ...
+
+    # def construct_copy_(
+    #     self,
+    #     children: Mapping[Hashable, CompoundGroup[ResType]] | None = None,
+    #     dtype: type[ResType] | TypeForm[ResType] | None = None,
+    #     data: None = None,
+    #     **kwargs,
+    # ) -> Self | "ShnitselDBRoot[ResType]":
+
+    def construct_copy(
+        self,
+        children: Mapping[Hashable, None]
+        | Mapping[Hashable, NewChildType]
+        | None = None,
+        dtype: type[ResType] | TypeForm[ResType] | None = None,
+        data: ResType | None = None,
         **kwargs,
     ) -> Self | "DataLeaf[ResType]":
         """Helper function to create a copy of this tree structure, but with potential changes to metadata or data
@@ -73,9 +100,8 @@ class DataLeaf(Generic[DataType], TreeNode[None, DataType]):
         """
         assert children is None, "No children can be provided for a Leaf node"
 
-        if name is None:
-            name = self._name
-
+        if 'name' not in kwargs:
+            kwargs['name'] = self._name
         if 'attrs' not in kwargs:
             kwargs['attrs'] = self._attrs
 
@@ -84,14 +110,13 @@ class DataLeaf(Generic[DataType], TreeNode[None, DataType]):
                 "Cannot reassign data type if new data entry is not provided"
             )
             return type(self)(
-                name=name,
+                name=self._name,
                 data=self._data,
                 dtype=self._dtype,
                 **kwargs,
             )
         else:
             return DataLeaf[ResType](
-                name=name,
                 data=data,
                 dtype=dtype,
                 **kwargs,

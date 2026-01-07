@@ -86,36 +86,68 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
 
         self._dtype = filled_in_dtype
 
-    # @abc.abstractmethod
-    # def construct_copy(
-    #     self,
-    #     data: ResType | None = None,
-    #     children: Mapping[Hashable, NewChildType] | None = None,
-    #     dtype: type[ResType] | TypeForm[ResType] | None =None,
-    #     **kwargs,
-    # ) -> Self | "TreeNode[NewChildType, ResType]":
-    #     """Every class inheriting from TreeNode should implement this method to create a copy of that subtree
-    #     with appropriate typing or just plain up creating a copy of the subtree, if no updates are requested.
+    @overload
+    def construct_copy(
+        self,
+        children: Mapping[Hashable, ChildType] | None = None,
+        dtype: None = None,
+        data: DataType | None = None,
+        **kwargs,
+    ) -> Self: ...
 
-    #     Support for changing the typing by changing child types, setting the explicit `dtype` or by providing
-    #     a new `data` entry should be supported by the base class.
+    @overload
+    def construct_copy(
+        self,
+        children: Mapping[Hashable, NewChildType] | None = None,
+        dtype: type[ResType] | TypeForm[ResType] | None = None,
+        data: None = None,
+        **kwargs,
+    ) -> "TreeNode[NewChildType, ResType]": ...
 
-    #     Parameters
-    #     ----------
-    #     data : ResType | None, optional
-    #         The new data to be set in the copy of this node, by default None, which should populate it with the node's current data
-    #     children : Mapping[str, NewChildType], optional
-    #         A new set of children to replace the old mapping of children can be provided with this parameter.
-    #         The data type can also be changed with appropriate typing here:
-    #     dtype : type[ResType] | TypeForm[ResType] | None, optional
-    #         An explicit argument to set the `dtype` property of the new subtree, by default None.
+    @overload
+    def construct_copy(
+        self,
+        children: None = None,
+        dtype: type[ResType] | TypeForm[ResType] | None = None,
+        data: ResType | None = None,
+        **kwargs,
+    ) -> "TreeNode[Any, ResType]": ...
 
-    #     Returns
-    #     -------
-    #     Self | TreeNode[TreeNode[Any, RestType]|None, ResType]
-    #         Returns a new subtree with a duplicate of this node in regards to metadata at its root and
-    #         updates properties as provided.
-    #     """
+    @abc.abstractmethod
+    def construct_copy(
+        self,
+        children: Mapping[Hashable, ChildType]
+        | Mapping[Hashable, NewChildType]
+        | None = None,
+        dtype: type[ResType] | TypeForm[ResType] | None = None,
+        data: ResType | None = None,
+        **kwargs,
+    ) -> Self | "TreeNode[NewChildType, ResType]":
+        """Every class inheriting from TreeNode should implement this method to create a copy of that subtree
+        with appropriate typing or just plain up creating a copy of the subtree, if no updates are requested.
+
+        Support for changing the typing by changing child types, setting the explicit `dtype` or by providing
+        a new `data` entry should be supported by the base class.
+
+        Parameters
+        ----------
+        data : ResType | None, optional
+            The new data to be set in the copy of this node, by default None, which should populate it with the node's current data
+        children : Mapping[str, NewChildType], optional
+            A new set of children to replace the old mapping of children can be provided with this parameter.
+            The data type can also be changed with appropriate typing here:
+        dtype : type[ResType] | TypeForm[ResType] | None, optional
+            An explicit argument to set the `dtype` property of the new subtree, by default None.
+
+        Returns
+        -------
+        Self | TreeNode[TreeNode[Any, RestType]|None, ResType]
+            Returns a new subtree with a duplicate of this node in regards to metadata at its root and
+            updates properties as provided.
+        """
+        raise NotImplementedError(
+            "The node type should provide a specialization of the `construct_copy()` function"
+        )
 
     # @overload
     # def construct_copy(
@@ -241,6 +273,21 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
     #     return new_children
 
     def map_subtree(self, func: Callable[[Self], ResType]) -> ResType:
+        """Just a helper function with telling name to apply a function
+        to the root node of this current subtree.
+
+        Simply calls `func(self)`.
+
+        Parameters
+        ----------
+        func : Callable[[Self], ResType]
+            The function to apply to this node
+
+        Returns
+        -------
+        ResType
+            The result of `funct(self)`.
+        """
         return func(self)
 
     @abc.abstractmethod
@@ -248,41 +295,121 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
         self,
         key_func: Callable[["TreeNode"], KeyType],
         group_leaves_only: bool = False,
-    ) -> Self | None: ...
+    ) -> Self | None:
+        """Method to group nodes within this current subtree by keys
+        as retrieved via `key_func`.
+
+        Can be used to group data within this tree by metadata, e.g.
+        to separate trajectory data with different simulation settings into
+        distinct groups.
+
+        Adds new groups into the tree structure.
+
+        Parameters
+        ----------
+        key_func : Callable[[TreeNode], KeyType]
+            Key function that should map Any tree node that is not excluded, e.g. by setting
+            `group_leaves_only` to a key value that should be a dataclass and should be
+            equal for two nodes if and only if those nodes should eventually end up in the same group.
+        group_leaves_only : bool, optional
+            Flag to control whether grouping should only be applied to
+            `DataLeaf` nodes, by default False
+
+        Returns
+        -------
+        Self | None
+            The current node after its subtree has been grouped.
+            If no keys could be retrieved, the result may be `None`.
+        """
+        ...
 
     @abc.abstractmethod
     def map_data(
         self,
         func: Callable[[DataType], ResType | None],
         recurse: bool = True,
-        keep_empty_branches: bool = False,
-    ) -> "TreeNode|None": ...
+        keep_empty_branches: bool = True,
+        dtype: type[ResType] | TypeForm[ResType] | None = None,
+    ) -> "TreeNode[Any,ResType]|None":
+        """Helper function to apply a mapping function to all data in leaves of this tree
+
+        The function `func` is applied to all `DataLeaf` instances with `data` within them.
+        If `keep_empty_branches=False` is set, will truncate branches without any data in them or without any further children.
+
+        Parameters
+        ----------
+        func : Callable[[DataType], ResType  |  None]
+            The mapping function to apply to data in this subtree.
+        recurse : bool, optional
+            Whether to automatically recurse into children of the current node, by default True
+        keep_empty_branches : bool, optional
+            Flag to control whether branches/subtrees without any data in them should be truncated, by default False to keep the same structure
+        dtype : type[ResType] | TypeForm[ResType] | None, optional
+            Optional parameter to explicitly specify the `dtype` for the resulting tree, by default None
+
+        Returns
+        -------
+        TreeNode[Any,ResType]|None
+            The resulting node after the subtree has been mapped or None if truncation is active and the subtree has no data after mapping.
+        """
 
     def map_filtered_nodes(
         self,
         filter_func: Callable[["TreeNode[Any, DataType]"], bool],
         map_func: Callable[["TreeNode[Any, DataType]"], "TreeNode[Any, ResType]"],
-        dtype: type[ResType] | None = None,
+        dtype: type[ResType] | TypeForm[ResType] | None = None,
     ) -> "TreeNode[Any, ResType]":
-        """Map nodes if the filter function picks them as relevant to this run.
+        """Map nodes using `map_func()` if the filter function `filter_func` picks them as relevant.
+
         If the node is not picked by `filter_func` a copy will be created with its children being recursively mapped
         according to the same rule.
-        If a node is mapped, the `map_func` must take care of potential mapping over children."""
+        If a node is mapped, the mapping function `map_func` must take care of potential mapping over children.
+
+        Parameters
+        ----------
+        filter_func : Callable[[TreeNode[Any, DataType]], bool]
+            Filter function to apply to nodes in the current subtree of any kind. Must return `True` for all nodes to which `map_func` should be applied.
+        map_func : Callable[[TreeNode[Any, DataType]], TreeNode[Any, ResType]]
+            Mapping function that transforms a selected node of a certain datatype to a consistent new data type `RestType`.
+        dtype : type[ResType] | TypeForm[ResType] | None, optional
+            Optional parameter to explicitly specify the `dtype` for the resulting tree, by default None.
+
+        Returns
+        -------
+        TreeNode[Any, ResType]
+            A new subtree with the data type changed and select subtrees mapped.
+        """
+        # from .data_group import DataGroup
+        from .data_leaf import DataLeaf
+        # from .compound import CompoundGroup
+        # from .tree import ShnitselDBRoot
 
         if filter_func(self):
             new_node = map_func(self)
         else:
-            new_children = {
-                k: res
-                for k, v in self.children.items()
-                if v is not None
-                and (res := v.map_filtered_nodes(filter_func, map_func, dtype=dtype))
-                is not None
-            }
+            if isinstance(self, DataLeaf):
+                new_node: TreeNode[Any, ResType] = self.construct_copy(
+                    data=self._data,  # type: ignore # If the user gives us a conflicting type that does not include unmapped leaves, it is their problem.
+                    dtype=dtype,  # type: ignore # Same as in the prior line
+                )
+            else:
+                # assert isinstance(self, (DataGroup, CompoundGroup, ShnitselDBRoot)), (
+                #     "Unsupported node type provided to `map` function: %s" % type(self)
+                # )
 
-            new_node: TreeNode[Any, ResType] = self.construct_copy(
-                children=new_children, dtype=dtype
-            )  # type: ignore # By mapping the children, we are sure that they now also hold the resulting datatype.
+                new_children = {
+                    k: res
+                    for k, v in self.children.items()
+                    if v is not None
+                    and (
+                        res := v.map_filtered_nodes(filter_func, map_func, dtype=dtype)
+                    )
+                    is not None
+                }
+                new_node: TreeNode[Any, ResType] = self.construct_copy(
+                    children=new_children,
+                    dtype=dtype,  # type: ignore # By mapping the children, we are sure that they now also hold the resulting datatype.
+                )
 
         return new_node
 
@@ -301,39 +428,52 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
         Parameters
         ----------
         filter_func : Callable[..., bool]
-            _description_
+            A filter function that should return True for Nodes that should be kept within the Tree and `False` for Nodes that should be kicked out together with their entire subtree.
         recurse : bool, optional
-            _description_, by default True
+            Whether to recurse the filtering into the children of kept nodes, by default True
         keep_empty_branches : bool, optional
-            _description_, by default False
+            A flag to enable truncation of branches with only empty lists of children and no data, by default False
 
         Returns
         -------
         Self | None
-            _description_
+            Either a copy of the current subtree if it is kept or None if the subtree is omitted
         """
+        from .data_group import DataGroup
+        from .data_leaf import DataLeaf
+        from .compound import CompoundGroup
+        from .tree import ShnitselDBRoot
+
+        assert isinstance(self, (DataGroup, CompoundGroup, ShnitselDBRoot)), (
+            "Unsupported node type provided to `map` function: %s" % type(self)
+        )
+
         keep_self = filter_func(self)
 
         # Stop if the node is not kept.
         if not keep_self:
             return None
 
-        new_children = None
-        if recurse:
-            new_children = {
-                k: res
-                for k, v in self._children.items()
-                if v is not None and (res := v.filter_nodes(filter_func)) is not None
-            }
-
-            if len(new_children) == 0:
-                new_children = None
-
-        if not keep_empty_branches and not keep_self and new_children is None:
-            return None
+        if isinstance(self, DataLeaf):
+            return self.construct_copy()
         else:
-            tmp_res = self.construct_copy(children=new_children)
-            return tmp_res
+            new_children = None
+            if recurse:
+                new_children = {
+                    k: res
+                    for k, v in self._children.items()
+                    if v is not None
+                    and (res := v.filter_nodes(filter_func)) is not None
+                }
+
+                if len(new_children) == 0:
+                    new_children = None
+
+            if not keep_empty_branches and not keep_self and new_children is None:
+                return None
+            else:
+                tmp_res: Self = self.construct_copy(children=new_children)  # type: ignore # Our filtering effectively only copies the subtree, no type modification is performed.
+                return tmp_res
 
     def add_child(self, child_name: str | None, child: ChildType) -> Self:
         """Add a new child node with a preferred name in the mapping of children.
@@ -375,25 +515,60 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
         return self.construct_copy(children=new_children)
 
     def assign_children(self, new_children: Mapping[Hashable, ChildType]) -> Self:
-        """Construct a new instance of a subtree with new children assigned to this tree"""
+        """Helper function to assign new children to this node without changing the child or data type of the tree
+
+        Unlike calling `construct_copy()` directly, this will retain already existing children under this node if `new_children` does not overwrite all keys
+        in this node
+
+        Parameters
+        ----------
+        new_children : Mapping[Hashable, ChildType]
+            The mapping of *additional* children to be appended to this node's list of children.
+
+        Returns
+        -------
+        Self
+            A copy of this node but with potentially more or different child nodes.
+        """
         # TODO: FIXME: Implement
         all_children = dict(self._children)
         all_children.update(new_children)
         return self.construct_copy(children=all_children)
 
-    def is_level(self, target_level: str) -> bool:
-        """Check whether we are at a certain level
+    def is_level(self, target_level: str | list[str]) -> bool:
+        """Check whether we are at a certain level in the ShnitselDB structure
 
-        Args:
-            target_level (str): Desired level to check for
+        Parameters
+        ----------
+        target_level : str | Iterable[str]
+            Desired level(s) to check for and accept as the target level.
 
-        Returns:
-            bool: True if this level satisfies the requirements
+        Returns
+        -------
+        bool
+            True if the current node is of the required level or one of the required levels
         """
-        return self._level_name == target_level
+        if isinstance(target_level, list):
+            return self._level_name in target_level
+        else:
+            return self._level_name == target_level
 
     def collect_data(self) -> Iterable[DataType]:
-        """Get an iterator over all data in this subtree. Does not preserve the tree structure but can be helpful for aggregation functions."""
+        """Function to retrieve all data entries in the tree underneath this node.
+
+        Helpful for aggregating across all entries in a subtree without the need for
+        full hierarchical information.
+
+        Returns
+        -------
+        Iterable[DataType]
+            An iterator over all the data entries in this subtree.
+
+        Yields
+        ------
+        Iterator[Iterable[DataType]]
+            An iterator over all the data entries in this subtree.
+        """
         if self.has_data:
             yield self.data
 

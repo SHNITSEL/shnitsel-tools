@@ -3,9 +3,11 @@ from typing import Any, Callable, Generic, Hashable, Mapping, Self, TypeVar, ove
 from typing_extensions import TypeForm
 from .data_group import DataGroup, GroupInfo
 from .data_leaf import DataLeaf
+from .node import TreeNode
 
 DataType = TypeVar("DataType", covariant=True)
 ResType = TypeVar("ResType")
+NewChildType = TypeVar("NewChildType", bound=TreeNode)
 
 
 @dataclass
@@ -57,27 +59,46 @@ class CompoundGroup(Generic[DataType], DataGroup[DataType]):
     @overload
     def construct_copy(
         self,
-        children: None = None,
-        dtype: type[ResType] | TypeForm[ResType] | None = None,
-        data: None = None,
+        children: Mapping[Hashable, "DataGroup[DataType]|DataLeaf[DataType]"]
+        | None = None,
+        dtype: None = None,
+        data: DataType | None = None,
         **kwargs,
     ) -> Self: ...
 
     @overload
     def construct_copy(
         self,
-        children: Mapping[Hashable, DataGroup[ResType] | DataLeaf[ResType]],
+        children: None = None,
+        dtype: type[ResType] | TypeForm[ResType] | None = None,
+        data: ResType | None = None,
+        **kwargs,
+    ) -> "CompoundGroup[ResType]": ...
+
+    @overload
+    def construct_copy(
+        self,
+        children: Mapping[Hashable, NewChildType] | None = None,
         dtype: type[ResType] | TypeForm[ResType] | None = None,
         data: None = None,
         **kwargs,
     ) -> "CompoundGroup[ResType]": ...
 
+    # def construct_copy_(
+    #     self,
+    #     children: Mapping[Hashable, CompoundGroup[ResType]] | None = None,
+    #     dtype: type[ResType] | TypeForm[ResType] | None = None,
+    #     data: None = None,
+    #     **kwargs,
+    # ) -> Self | "ShnitselDBRoot[ResType]":
+
     def construct_copy(
         self,
-        children: Mapping[Hashable, DataGroup[ResType] | DataLeaf[ResType]]
+        children: Mapping[Hashable, "DataGroup[DataType]|DataLeaf[DataType]"]
+        | Mapping[Hashable, NewChildType]
         | None = None,
         dtype: type[ResType] | TypeForm[ResType] | None = None,
-        data: None = None,
+        data: ResType | None = None,
         **kwargs,
     ) -> Self | "CompoundGroup[ResType]":
         """Helper function to create a copy of this tree structure, but with potential changes to metadata, data or children
@@ -126,6 +147,11 @@ class CompoundGroup(Generic[DataType], DataGroup[DataType]):
                 **kwargs,
             )
         else:
+            assert all(
+                isinstance(child, (DataGroup, DataLeaf)) for child in children
+            ), (
+                "Children provided to `construct_copy` for compound group are not of type `DataGroup` or `DataLeaf"
+            )
             new_dtype: type[ResType] | TypeForm[ResType] | None = dtype
 
             return CompoundGroup[ResType](

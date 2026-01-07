@@ -8,6 +8,7 @@ from .data_leaf import DataLeaf
 DataType = TypeVar("DataType", covariant=True)
 ResType = TypeVar("ResType")
 KeyType = TypeVar("KeyType")
+NewChildType = TypeVar("NewChildType", bound=TreeNode)
 
 
 @dataclass
@@ -51,30 +52,67 @@ class DataGroup(
         )
         self._group_info = group_info
 
+    # @overload
+    # def construct_copy(
+    #     self,
+    #     children: None = None,
+    #     dtype: type[ResType] | TypeForm[ResType] | None = None,
+    #     data: None = None,
+    #     **kwargs,
+    # ) -> Self: ...
+
+    # @overload
+    # def construct_copy(
+    #     self,
+    #     children: Mapping[Hashable, "DataGroup[ResType] | DataLeaf[ResType]"],
+    #     dtype: type[ResType] | TypeForm[ResType] | None = None,
+    #     data: None = None,
+    #     **kwargs,
+    # ) -> "DataGroup[ResType]": ...
+
     @overload
     def construct_copy(
         self,
-        children: None = None,
-        dtype: type[ResType] | TypeForm[ResType] | None = None,
-        data: None = None,
+        children: Mapping[Hashable, "DataGroup[DataType]|DataLeaf[DataType]"]
+        | None = None,
+        dtype: None = None,
+        data: DataType | None = None,
         **kwargs,
     ) -> Self: ...
 
     @overload
     def construct_copy(
         self,
-        children: Mapping[Hashable, "DataGroup[ResType] | DataLeaf[ResType]"],
+        children: None = None,
+        dtype: type[ResType] | TypeForm[ResType] | None = None,
+        data: ResType | None = None,
+        **kwargs,
+    ) -> "DataGroup[ResType]": ...
+
+    @overload
+    def construct_copy(
+        self,
+        children: Mapping[Hashable, NewChildType] | None = None,
         dtype: type[ResType] | TypeForm[ResType] | None = None,
         data: None = None,
         **kwargs,
     ) -> "DataGroup[ResType]": ...
 
+    # def construct_copy_(
+    #     self,
+    #     children: Mapping[Hashable, CompoundGroup[ResType]] | None = None,
+    #     dtype: type[ResType] | TypeForm[ResType] | None = None,
+    #     data: None = None,
+    #     **kwargs,
+    # ) -> Self | "ShnitselDBRoot[ResType]":
+
     def construct_copy(
         self,
-        children: Mapping[Hashable, "DataGroup[ResType] | DataLeaf[ResType]"]
+        children: Mapping[Hashable, "DataGroup[DataType]|DataLeaf[DataType]"]
+        | Mapping[Hashable, NewChildType]
         | None = None,
         dtype: type[ResType] | TypeForm[ResType] | None = None,
-        data: None = None,
+        data: ResType | None = None,
         **kwargs,
     ) -> Self | "DataGroup[ResType]":
         """Helper function to create a copy of this tree structure, but with potential changes to metadata, data or children
@@ -115,6 +153,11 @@ class DataGroup(
                 **kwargs,
             )
         else:
+            assert all(
+                isinstance(child, (DataGroup, DataLeaf)) for child in children
+            ), (
+                "Children provided to `construct_copy` for datagroup are not of type `DataGroup` or `DataLeaf"
+            )
             # We have new children and can extract the ResType from them
             new_dtype: type[ResType] | TypeForm[ResType] | None = dtype
 
@@ -169,6 +212,14 @@ class DataGroup(
         key_func: Callable[["TreeNode"], KeyType | None],
         group_leaves_only: bool = False,
     ) -> Self | None:
+        """Specialization of the `group_children_by` function for group nodes, where grouping may need to be
+        performed on subsets of their children.
+
+        Returns
+        -------
+        Self
+            Generally returns the same node type, potentially with updated children and an additional layer of `DataGroup` nodes underneath
+        """
         # At the end of this, we should have either only sub-groups or only sub-leaves
         num_categories = 0
         key_set: set[KeyType | str] = set()
@@ -220,8 +271,10 @@ class DataGroup(
 
         for key, group in member_children.items():
             try:
-                key_dict = asdict(key)
-            except:
+                # First try to treat it as a dataclass
+                key_dict = asdict(key)  # type: ignore # We know that the type does not need to fit, but it will raise a TypeError that we handle right afterwards if we are wrong
+            except TypeError:
+                # It wasn't a dataclass apparently
                 key_dict = {'key': key}
 
             group_child_dict: dict[
