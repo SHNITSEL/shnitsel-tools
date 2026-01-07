@@ -2,7 +2,7 @@ from dataclasses import dataclass
 import logging
 import os
 import pathlib
-from typing import Callable, Dict, List, Literal, Tuple
+from typing import Callable, Dict, Generic, List, Literal, Tuple, TypeVar
 import numpy as np
 import xarray as xr
 import random
@@ -65,7 +65,10 @@ def make_uniform_path(
     return path
 
 
-class ConsistentValue[T]:
+T = TypeVar("T", bound=int | float | complex | np.integer | np.floating)
+
+
+class ConsistentValue(Generic[T]):
     """Class to keep track of a value that may only be assigned once and not overwritten afterwards.
 
     Can be used to check consistency of a value across multiple datasets.
@@ -73,7 +76,7 @@ class ConsistentValue[T]:
 
     Raises:
         AttributeError: Will be raised if the value is read before first assignment if the object has not been created with ``weak=true``.
-        ValueError: _description_
+        ValueError: If an inconsistent value is assigned to this instance, i.e. two different values have been assigned.
 
     """
 
