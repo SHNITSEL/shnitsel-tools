@@ -10,17 +10,32 @@ import xarray as xr
 
 @dataclass
 class InterState(ShnitselDerivedDataset):
-    _original_frames: Frames | Trajectory
+    _original_frames: Frames | Trajectory | None
 
-    def __init__(self, frames: Frames | Trajectory):
-        assert "state" in frames.dataset.dims, (
-            "Dataset is missing `state` dimension and cannot be considered an PerState set of variables."
-        )
-        # TODO: FIXME: Calculate per-state variables and cache in original dataset
+    def __init__(
+        self,
+        frames: Frames | Trajectory | None = None,
+        /,
+        direct_interstate_data: xr.Dataset | None = None,
+    ):
+        base_ds = None
+        if frames is not None:
+            assert (
+                "state" in frames.dataset.dims
+            ), "Dataset is missing `state` dimension and cannot be considered an InterState set of variables."
+            # TODO: FIXME: Calculate per-state variables and cache in original dataset
+            base_ds = frames.dataset
+
+        if direct_interstate_data is not None:
+            inter_state_props = direct_interstate_data
+        elif base_ds is not None:
+            inter_state_props = get_inter_state(base_ds)
+        else:
+            inter_state_props = xr.Dataset()
 
         self._original_frames = frames
-        per_state_props = get_inter_state(frames.dataset)
-        super().__init__(frames.dataset, per_state_props)
+
+        super().__init__(base_ds, inter_state_props)
 
     @property
     def delta_energy(self) -> xr.DataArray:
