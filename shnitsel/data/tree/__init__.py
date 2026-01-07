@@ -6,6 +6,7 @@ from .tree import ShnitselDB, ShnitselDBRoot
 from .support_functions import tree_zip, has_same_structure
 from .node import TreeNode
 from .xr_conversion import xarray_datatree_to_shnitsel_tree, tree_to_xarray_datatree
+from .tree_completion import complete_shnitsel_tree
 
 __all__ = [
     'TreeNode',
@@ -20,4 +21,5 @@ __all__ = [
     'has_same_structure',
     'xarray_datatree_to_shnitsel_tree',
     'tree_to_xarray_datatree',
+    'complete_shnitsel_tree',
 ]
