@@ -1,3 +1,4 @@
+from typing_extensions import TypeForm
 from shnitsel.core._api_info import API, internal
 from shnitsel.core.typedefs import StateTypeSpecifier
 from shnitsel.data.shnitsel_db.combiner_methods import (
@@ -5,8 +6,17 @@ from shnitsel.data.shnitsel_db.combiner_methods import (
     db_from_trajs,
     layer_trajs,
 )
-from shnitsel.data.trajectory_format import Trajectory
-from shnitsel.data.shnitsel_db_format import ShnitselDB, build_shnitsel_db
+from shnitsel.data.dataset_containers import Trajectory, Frames
+
+# from shnitsel.data.trajectory_format import Trajectory
+# from shnitsel.data.shnitsel_db_format import ShnitselDB, build_shnitsel_db
+from shnitsel.data.tree import (
+    ShnitselDB,
+    CompoundGroup,
+    DataGroup,
+    DataLeaf,
+    complete_shnitsel_tree,
+)
 from shnitsel.io.format_reader_base import FormatInformation, FormatReader
 from shnitsel.io.format_registry import get_available_io_handlers, FormatIdentifierType
 from shnitsel.io.shared.helpers import (
@@ -15,15 +25,11 @@ from shnitsel.io.shared.helpers import (
     make_uniform_path,
 )
 import traceback
-from shnitsel.io.newtonx.format_reader import NewtonXFormatReader
-from shnitsel.io.pyrai2md.format_reader import PyrAI2mdFormatReader
-from shnitsel.io.sharc.format_reader import SHARCFormatReader
 from shnitsel.io.shared.messages import (
     collect_and_clean_queue_handler,
     handle_records,
     setup_queue_handler,
 )
-from shnitsel.io.shnitsel.format_reader import ShnitselFormatReader
 from tqdm.contrib.logging import logging_redirect_tqdm
 from tqdm.auto import tqdm
 import pandas as pd
@@ -37,12 +43,15 @@ from typing import (
     Callable,
     Literal,
     TYPE_CHECKING,
+    TypeVar,
 )
 from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass
 import logging
 import os
 import pathlib
+
+DataType = TypeVar("DataType")
 
 
 # def read_trajs(
@@ -52,7 +61,12 @@ def read(
     kind: FormatIdentifierType | None = None,
     sub_pattern: str | None = None,
     multiple: bool = True,
-    concat_method: Literal["layers", "list", "frames", "db"] = "db",
+    concat_method: Literal[
+        "db",
+        "layers",
+        "list",
+        "frames",
+    ] = "db",
     parallel: bool = True,
     error_reporting: Literal["log", "raise"] = "log",
     input_units: Dict[str, str] | None = None,
@@ -64,7 +78,22 @@ def read(
     input_trajectory_id_maps: Dict[str, int]
     | Callable[[pathlib.Path], int]
     | None = None,
-) -> Trajectory | List[Trajectory] | ShnitselDB | None:
+    expect_dtype: type[DataType] | TypeForm[DataType] | None = None,
+) -> (
+    Trajectory
+    | Frames
+    | xr.Dataset
+    | xr.DataArray
+    | DataType
+    | List[Trajectory | Frames]
+    | List[DataType]
+    | ShnitselDB[Trajectory | Frames]
+    | ShnitselDB[DataType]
+    | CompoundGroup[DataType]
+    | DataGroup[DataType]
+    | DataLeaf[DataType]
+    | None
+):
     """Read all trajectories from a folder of trajectory folder.
 
     The function will attempt to automatically detect the type of the trajectory if `kind` is not set.
@@ -109,62 +138,82 @@ def read(
 
     Parameters
     ----------
-    path (PathOptionsType):
+    path : PathOptionsType
         The path to the folder of folders. Can be provided as `str`, `os.PathLike` or `pathlib.Path`.
         Depending on the kind of trajectory to be loaded should denote the path of the trajectory file (``kind='shnitsel'`` or ``kind='ase'`) or a directory containing the files of the respective file format.
         Alternatively, if ``multiple=True`, this can also denote a directory containing multiple sub-directories with the actual Trajectories.
         In that case, the `concat_method` parameter should be set to specify how the .
-    kind (FormatIdentifierType | None, optional):
+    kind : FormatIdentifierType, optional
         The kind of trajectory, i.e. whether it was produced by SHARC, Newton-X, PyRAI2MD or Shnitsel-Tools.
         If None is provided, the function will make a best-guess effort to identify which kind of trajectory has been provided.
-    sub_pattern (str|None, optional):
+    sub_pattern : str, optional
         If the input is a format with multiple input trajectories in different directories, this is the search pattern to append
         to the `path` (the whole thing will be read by :external:py:func:`glob.glob`).
         The default will be chosen based on `kind`, e.g., for SHARC 'TRAJ_*' or 'ICOND*' and for NewtonX 'TRAJ*'.
         If the `kind` does not support multi-folder inputs (like `shnitsel`), this will be ignored.
         If ``multiple=False``, this pattern will be ignored.
-    multiple (bool, optional):
+    multiple: bool, optional
         A flag to enable loading of multiple trajectories from the subdirectories of the provided `path`.
         If set to False, only the provided path will be attempted to be loaded.
         If `sub_pattern` is provided, this parameter should not be set to `False` or the matching will be ignored.
-    concat_method (Literal['layers', 'list', 'frames'])
+    concat_method : Literal['db', 'layers', 'list', 'frames']
         How to combine the loaded trajectories if multiple trajectories have been loaded.
         Defaults to ``concat_method='db'``.
         The available methods are:
+        `'db'` : Returns the trajectories/data points in a hierarchical tree structure to allow for easier management of complex data hierarchies.
         `'layers'`: Introduce a new axis `trajid` along which the different trajectories are indexed in a combined `xr.Dataset` structure.
         `'list'`: Return the multiple trajectories as a list of individually loaded data.
         `'frames'`: Concatenate the individual trajectories along the time axis ('frames') using a :external:py:class:`xarray.indexes.PandasMultiIndex`
-    parallel (bool, optional):
+    parallel : bool, optional
         Whether to read multiple trajectories at the same time via parallel processing (which, in the current implementation,
         is only faster on storage that allows non-sequential reads).
         By default True.
-    error_reporting (Literal['log','raise']):
+    error_reporting : Literal['log','raise'], optional
         Choose whether to `log` or to `raise` errors as they occur during the import process.
         Currently, the implementation does not support `error_reporting='raise'` while `parallel=True`.
-    state_names (List[str] | Callable | None, optional):
-    input_units (Dict[str, str] | None, optional):
+    input_units : dict[str, str], optional
         An optional dictionary to set the units in the loaded trajectory.
         Only necessary if the units differ from that tool's default convention or if there is no default convention for the tool.
         Please refer to the names of the different unit kinds and possible values for different units in `shnitsel.units.definitions`.
-    input_state_types (List[int] | Callable[[xr.Dataset], xr.Dataset], optional):
+    input_state_types : list[int] | Callable[[xr.Dataset], xr.Dataset], optional
         Either a list of state types/multiplicities to assign to states in the loaded trajectories or a function that assigns a state multiplicity to each state.
         The function may use all of the information in the trajectory if required and should return the updated Dataset.
         If not provided or set to None, default types/multipliciteis will be applied based on extracted numbers of singlets, doublets and triplets. The first num_singlet types will be set to `1`, then 2*num_doublet types will be set to `2` and then 3*num_triplets types will be set to 3.
         Will be invoked/applied before the `input_state_names` setting.
-    input_state_names (List[str] | Callable[[xr.Dataset], xr.Dataset], optional):
+    input_state_names : list[str] | Callable[[xr.Dataset], xr.Dataset], optional
         Either a list of names to assign to states in the loaded file or a function that assigns a state name to each state.
         The function may use all of the information in the trajectory, i.e. the state_types array, and should return the updated Dataset.
         If not provided or set to None, default naming will be applied, naming singlet states S0, S1,.., doublet states D0,... and triplet states T0, etc in ascending order.
         Will be invoked/applied after the `input_state_types` setting.
-    input_trajectory_id_maps (Dict[str, int]| Callable[[pathlib.Path], int], optional):
+    input_trajectory_id_maps : dict[str, int]| Callable[[pathlib.Path], int], optional
         A dict mapping absolut posix paths to ids to be applied or a function to convert a path into an integer id to assign to the trajectory.
         If not provided, will be chosen either based on the last integer matched from the path or at random up to `2**31-1`.
+    expected_dtype: type[DataType] | TypeForm[DataType], optional
+        An explicit type hint to control the output type of this function where template arguments are concerned.
+        Will be explicitly set on `ShnitselDB` nodes.
+        If not provided, may be inferred internally.
 
     Returns
     -------
-        An :external:py:class:`xarray.Dataset` containing the data of the trajectories,
-        a `Trajectory` wrapper object, a list of `Trajectory` wrapper objects or `None`
-        if no data could be loaded and `error_reporting='log'`.
+    Trajectory | Frames | DataType | xr.Dataset | xr.DataArray
+        For simple inputs like single trajectories or non-hierarchical inputs, this function will
+        return trajectory data or the data stored in the file that was attempted to be read.
+        If `concat_method='frames'`, multiple data entries will be combined into a single `MultiFrames` object.
+    List[Trajectory | Frames] | List[DataType]
+        If `concat_method='list'` and multiple data entries were read, a list of that data may be returned.
+    ShnitselDB[Trajectory | Frames]
+    | ShnitselDB[DataType]
+    | CompoundGroup[DataType]
+    | DataGroup[DataType]
+    | DataLeaf[DataType]
+        If a file with hierarchical data was read or if `concat_method='db'` was set,
+        a hierarchical structure will be returned.
+        If such a structure was constructed, it will always complete the tree up to the `ShnitselDB` root.
+        If a tree structure is read from file, completion is not automatically performed.
+    xr.Dataset
+        If no conversion is possible, the data is most likely returned as an xr.Dataset or a list thereof.
+    None
+        If no data could be loaded.
 
     Raises
     ------
@@ -280,7 +329,7 @@ def read_folder_multi(
     parallel: bool = True,
     error_reporting: Literal["log", "raise"] = "log",
     base_loading_parameters: LoadingParameters | None = None,
-) -> List[Trajectory] | None:
+) -> list[Trajectory] | list[Trajectory] | None:
     """Function to read multiple trajectories from an input directory.
 
     You can either specify the kind and pattern to match relevant entries or the default pattern for `kind` will be used.
