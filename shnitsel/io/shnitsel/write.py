@@ -8,7 +8,7 @@ from shnitsel.data.dataset_containers.frames import Frames
 import xarray as xr
 import json
 
-from shnitsel.data.tree.to_xr_datatree import (
+from shnitsel.data.tree.xr_conversion import (
     data_to_xarray_dataset,
     tree_to_xarray_datatree,
 )
