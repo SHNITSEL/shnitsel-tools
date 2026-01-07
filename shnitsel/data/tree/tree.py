@@ -227,6 +227,7 @@ class ShnitselDBRoot(Generic[DataType], TreeNode[CompoundGroup[DataType], DataTy
         func: Callable[[DataType], ResType | None],
         recurse: bool = True,
         keep_empty_branches: bool = True,
+        dtype: type[ResType] | TypeForm[ResType] | None = None,
     ) -> "ShnitselDBRoot[ResType]":
         """Function to map the data in this subtree using a map function `func` and build a new tree
         with the same structure (if `keep_empty_branches=True`) but mapped data.
@@ -241,6 +242,8 @@ class ShnitselDBRoot(Generic[DataType], TreeNode[CompoundGroup[DataType], DataTy
             Flag to control whether empty branches should be omitted. If set to False, branches with no data and only empty children will be
             truncated. Only nodes with at least one child with mapped data will be kept. If True, the resulting tree will have the same
             structure as the input tree, by default True.
+        dtype : type[ResType] | TypeForm[ResType] | None, optional
+            Optional specific type parameter for the result of this mapping, by default None
 
         Returns
         -------
@@ -253,7 +256,8 @@ class ShnitselDBRoot(Generic[DataType], TreeNode[CompoundGroup[DataType], DataTy
                 k: res
                 for k, v in self._children.items()
                 if v is not None
-                and (res := v.map_data(func, recurse, keep_empty_branches)) is not None
+                and (res := v.map_data(func, recurse, keep_empty_branches, dtype=dtype))
+                is not None
             }
 
             if len(new_children) == 0 and not keep_empty_branches:
@@ -268,12 +272,15 @@ class ShnitselDBRoot(Generic[DataType], TreeNode[CompoundGroup[DataType], DataTy
 
         Will only apply the mapping function to nodes of type `DataGroup` and only those who have exclusively `DataLeaf` children.
 
+        Parameters
+        ----------
+        map_func : Callable[[Iterable[DataType]], ResType  |  None]
+            Function mapping the data in the flat groups to a new result type
 
-        Args:
-            map_func (Callable[[Iterable[DataType]], ResType]): Function mapping the data in the flat groups to a new result type
-
-        Returns:
-            ShnitselDBRoot[ResType]: A new tree structure, which will hold leaves with ResType data underneath each mapped group.
+        Returns
+        -------
+        ShnitselDBRoot[ResType]
+             A new tree structure, which will hold leaves with ResType data underneath each mapped group.
         """
 
         def extended_mapper(

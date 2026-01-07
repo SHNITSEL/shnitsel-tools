@@ -128,6 +128,24 @@ class DataLeaf(Generic[DataType], TreeNode[None, DataType]):
         group_leaves_only: bool = False,
         recurse: bool = True,
     ) -> Self:
+        """Specialization of the grouping operation for leaf nodes.
+
+        Simply returns a copy of the current node.
+
+        Parameters
+        ----------
+        key_func : Any, optional
+            Unused, by default None
+        group_leaves_only : bool, optional
+            Unused, by default False
+        recurse : bool, optional
+            Unused, by default True
+
+        Returns
+        -------
+        Self
+            A copy of the current node. No further grouping possible at the leaf layer.
+        """
         return self.construct_copy()
 
     def map_data(
@@ -135,7 +153,28 @@ class DataLeaf(Generic[DataType], TreeNode[None, DataType]):
         func: Callable[[DataType], ResType | None],
         recurse: bool = True,
         keep_empty_branches: bool = False,
+        dtype: type[ResType] | TypeForm[ResType] | None = None,
     ) -> "DataLeaf[ResType] | None":
+        """Specialization of the `map_data()` method for leaf nodes.
+
+        Applies the `func()` function to available data in this node.
+
+        Parameters
+        ----------
+        func : Callable[[DataType], ResType  |  None]
+            The function to apply to the data in this node
+        recurse : bool, optional
+            Ignored by this level, by default True
+        keep_empty_branches : bool, optional
+            If set to True and the result of the mapping is `None` for this node, it will be dropped and `None` returned, by default False
+        dtype : type[ResType] | TypeForm[ResType] | None, optional
+            Optional specific type parameter for the result of this mapping, by default None
+
+        Returns
+        -------
+        DataLeaf[ResType] | None
+            The new DataLeaf with the updated data or None if no data could be obtained from the mapping and `keep_empty_branches=True`.
+        """
         if self.has_data:
             new_data = func(self.data)
         else:
@@ -146,7 +185,7 @@ class DataLeaf(Generic[DataType], TreeNode[None, DataType]):
         else:
             # This yields a different kind of tree.
             return DataLeaf[ResType](
-                name=self.name, data=new_data, attrs=dict(self.attrs)
+                name=self.name, data=new_data, attrs=dict(self.attrs), dtype=dtype
             )
 
 

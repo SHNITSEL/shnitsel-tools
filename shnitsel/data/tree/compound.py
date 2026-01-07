@@ -210,7 +210,31 @@ class CompoundGroup(Generic[DataType], DataGroup[DataType]):
         func: Callable[[DataType], ResType | None],
         recurse: bool = True,
         keep_empty_branches: bool = False,
+        dtype: type[ResType] | TypeForm[ResType] | None = None,
     ) -> "CompoundGroup[ResType]|None":
+        """Function to map the data in this subtree using a map function `func` and build a new tree
+        with the same structure (if `keep_empty_branches=True`) but mapped data.
+
+        This is the Specialization for nodes of type `CompoundGroup`
+
+        Parameters
+        ----------
+        func : Callable[[DataType], ResType  |  None]
+            The mapping function to be applied to data in this tree. The data is generally limited to the Leaf-level in our data structure.
+        recurse : bool, optional
+            Flag to map the function automatically across child levels of this subtree, by default True
+        keep_empty_branches : bool, optional
+            Flag to control whether empty branches should be omitted. If set to False, branches with no data and only empty children will be
+            truncated. Only nodes with at least one child with mapped data will be kept. If True, the resulting tree will have the same
+            structure as the input tree, by default False
+        dtype : type[ResType] | TypeForm[ResType] | None, optional
+            Optional specific type parameter for the result of this mapping, by default None
+
+        Returns
+        -------
+        DataGroup[ResType]|None
+            A new tree with all data mapped by `func` to a new type and optionally empty branches truncated.
+        """
         new_children: dict[Hashable, DataGroup[ResType] | DataLeaf[ResType]] | None = (
             None
         )
@@ -219,7 +243,8 @@ class CompoundGroup(Generic[DataType], DataGroup[DataType]):
                 k: res
                 for k, v in self._children.items()
                 if v is not None
-                and (res := v.map_data(func, recurse, keep_empty_branches)) is not None
+                and (res := v.map_data(func, recurse, keep_empty_branches, dtype=dtype))
+                is not None
             }
 
             if len(new_children) == 0 and not keep_empty_branches:
@@ -235,4 +260,5 @@ class CompoundGroup(Generic[DataType], DataGroup[DataType]):
                 children=new_children,
                 level_name=self._level_name,
                 attrs=dict(self.attrs),
+                dtype=dtype,
             )
