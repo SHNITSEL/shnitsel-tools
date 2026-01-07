@@ -1,8 +1,10 @@
 from typing import Literal
 
 import numpy as np
+from numpy.typing import ArrayLike
 from scipy import stats
 import matplotlib.pyplot as plt
+import xarray as xr
 
 from shnitsel.analyze.pca import pca_and_hops
 from shnitsel.geo.geocalc import distance, angle, dihedral
@@ -11,7 +13,7 @@ from .common import figax
 from shnitsel.bridges import default_mol, set_atom_props
 
 
-def fit_kdes(noodle, geo_prop, geo_filter):
+def fit_kdes(noodle, geo_prop: ArrayLike, geo_filter: list[tuple[float, float]]):
     """Fit multiple subsets of data using kernel density esimation
 
     Parameters
@@ -46,7 +48,7 @@ def fit_kdes(noodle, geo_prop, geo_filter):
     return kernels
 
 
-def eval_kdes(kernels: list, xx, yy):
+def eval_kdes(kernels: list, xx: ArrayLike, yy: ArrayLike):
     """Evaluate each of a list of kernels over the same meshgrid
 
     Parameters
@@ -73,7 +75,7 @@ def eval_kdes(kernels: list, xx, yy):
     return Zs
 
 
-def get_xx_yy(noodle, fineness=500, extension=0.1):
+def get_xx_yy(noodle: xr.DataArray, fineness: float = 500, extension: float = 0.1):
     """Produce a meshgrid over the range of the data
 
     Parameters
@@ -100,7 +102,13 @@ def get_xx_yy(noodle, fineness=500, extension=0.1):
     return xx, yy
 
 
-def fit_and_eval_kdes(noodle, geo_prop, geo_filter, fineness=500, extension=0.1):
+def fit_and_eval_kdes(
+    noodle: xr.DataArray,
+    geo_prop: ArrayLike,
+    geo_filter: list[tuple[float, float]],
+    fineness=500,
+    extension=0.1,
+):
     """Get kernel density estimates and a range-appropriate meshgrid for data
 
     Parameters
@@ -135,7 +143,16 @@ def fit_and_eval_kdes(noodle, geo_prop, geo_filter, fineness=500, extension=0.1)
     return xx, yy, eval_kdes(kernels, xx, yy)
 
 
-def plot_kdes(xx, yy, Zs, colors=None, levels=None, fill=True, fig=None, ax=None):
+def plot_kdes(
+    xx: ArrayLike,
+    yy: ArrayLike,
+    Zs: ArrayLike,
+    colors=None,
+    levels=None,
+    fill=True,
+    fig=None,
+    ax=None,
+):
     """Plot contours of kernel density estimates
 
     Parameters
