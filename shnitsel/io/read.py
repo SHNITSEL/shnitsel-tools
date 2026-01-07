@@ -258,7 +258,11 @@ def read(
     combined_error = None
     try:
         res = read_single(
-            path, kind, error_reporting, base_loading_parameters=loading_parameters
+            path,
+            kind,
+            error_reporting,
+            base_loading_parameters=loading_parameters,
+            expect_dtype=expect_dtype,
         )
 
         if res is not None:
@@ -286,6 +290,7 @@ def read(
                 parallel,
                 error_reporting,
                 base_loading_parameters=loading_parameters,
+                expect_dtype=expect_dtype,
             )
 
             if res_list is not None:
@@ -329,8 +334,24 @@ def read_folder_multi(
     parallel: bool = True,
     error_reporting: Literal["log", "raise"] = "log",
     base_loading_parameters: LoadingParameters | None = None,
-) -> list[Trajectory] | list[Trajectory] | None:
-    """Function to read multiple trajectories from an input directory.
+    expect_dtype: type[DataType] | TypeForm[DataType] | None = None,
+) -> (
+    list[Trajectory]
+    | list[xr.Dataset]
+    | list[xr.DataArray]
+    | list[Trajectory | Frames]
+    | list[DataType]
+    | list[ShnitselDB[Trajectory | Frames]]
+    | list[
+        ShnitselDB[DataType]
+        | CompoundGroup[DataType]
+        | DataGroup[DataType]
+        | DataLeaf[DataType]
+    ]
+    | None
+):
+    """
+    Function to read multiple trajectories from an input directory.
 
     You can either specify the kind and pattern to match relevant entries or the default pattern for `kind` will be used.
     If no `kind` is specified, all possible input formats will be checked.
@@ -339,20 +360,36 @@ def read_folder_multi(
 
     Otherwise, all successful reads will be returned as a list.
 
-    Args:
-        path (PathOptionsType): The path pointing to the directory where multiple trajectories may be located in the subdirectory
-        kind (FormatIdentifierType | None,optional): The key indicating the input format.
-        sub_pattern (str | None, optional): The pattern provided to "glob" to identify relevant entries in the `path` subtree. Defaults to None.
-        parallel (bool, optional): A flag to enable parallel loading of trajectories. Only faster if postprocessing of read data takes up significant amounts of time. Defaults to True.
-        error_reporting (Literal[&quot;log&quot;, &quot;raise&quot;], optional): Whether to raise or to log resulting errors. If errors are raised, they may also be logged. 'raise' conflicts with ``parallel=True`` setting. Defaults to "log".
-        base_loading_parameters (LoadingParameters | None, optional): Base parameters to influence the loading of individual trajectories. Can be used to set default inputs and variable name mappings. Defaults to None.
+    Parameters
+    ----------
+    path : PathOptionsType, optional
+        The path pointing to the directory where multiple trajectories may be located in the subdirectory, by default None,
+    kind : FormatIdentifierType, optional
+        The key indicating the input format, will be inferred if not provided.
+    sub_pattern : str, optional
+        The pattern provided to "glob" to identify relevant entries in the `path` subtree. Defaults to None.
+    parallel : bool, optional
+        A flag to enable parallel loading of trajectories. Only faster if postprocessing of read data takes up significant amounts of time. Defaults to True.
+    error_reporting : Literal["log", "raise"], optional
+        Whether to raise or to log resulting errors. If errors are raised, they may also be logged. 'raise' conflicts with ``parallel=True`` setting. Defaults to "log".
+    base_loading_parameters : LoadingParameters, optional
+        Base parameters to influence the loading of individual trajectories. Can be used to set default inputs and variable name mappings. Defaults to None.
+    expect_dtype : type[DataType]  |  TypeForm[DataType], optional
+        An explicit type hint to control the output type of this function where template arguments are concerned.
+        Will be explicitly set on `ShnitselDB` nodes.
+        If not provided, may be inferred internally.
 
-    Raises:
-        FileNotFoundError: If the path does not exist or Files were not founds.
-        ValueError: If conflicting information of file format is detected in the target directory
+    Returns
+    -------
+    list[Trajectory] | list[...] None
+        Either a list of individual trajectories, a list of various possible result types read from file or None if loading failed.
 
-    Returns:
-        List[Trajectory] | None: Either a list of individual trajectories or None if loading failed.
+    Raises
+    ------
+    FileNotFoundError
+        If the path does not exist or Files were not founds.
+    ValueError
+        If conflicting information of file format is detected in the target directory
     """
 
     path_obj = make_uniform_path(path)
@@ -519,7 +556,19 @@ def read_single(
     kind: FormatIdentifierType | None,
     error_reporting: Literal["log", "raise"] = "log",
     base_loading_parameters: LoadingParameters | None = None,
-) -> Trajectory | ShnitselDB | None:
+    expect_dtype: type[DataType] | TypeForm[DataType] | None = None,
+) -> (
+    Trajectory
+    | Frames
+    | DataType
+    | ShnitselDB[Trajectory | Frames]
+    | ShnitselDB[DataType]
+    | CompoundGroup[DataType]
+    | DataGroup[DataType]
+    | DataLeaf[DataType]
+    | xr.Dataset
+    | None
+):
     queue, handler, logger, original_handlers = setup_queue_handler(None, 'root')
 
     if base_loading_parameters is None:
@@ -532,8 +581,9 @@ def read_single(
         if res_format is not None:
             READERS = get_available_io_handlers()
             reader = READERS[res_format.format_name]
+            # TODO: FIXME: Rename to more general read_data()?
             trajectory = reader.read_trajectory(
-                path, res_format, base_loading_parameters
+                path, res_format, base_loading_parameters, expect_dtype=expect_dtype
             )
             # TODO: FIXME: Deal with a full SchnitselDB being loaded from a single file in a directory and then combined with others.
             return trajectory
