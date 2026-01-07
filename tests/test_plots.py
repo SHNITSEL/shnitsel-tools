@@ -1,10 +1,12 @@
 import os
 
 import pytest
+from pytest import fixture
 from matplotlib.testing.decorators import image_comparison
 
 import shnitsel as sh
 import shnitsel.xarray
+from shnitsel.data.tree import tree_to_frames
 
 from shnitsel.io import read
 
@@ -21,34 +23,34 @@ from shnitsel.io import read
 # Framework for now: matplotlib.testing
 # Later: matplotcheck (additional dev dependency)
 
-FIXDIR = 'tutorials/test_data/shnitsel/fixtures'
+# FIXDIR = 'tutorials/test_data/shnitsel/fixtures'
 
 
 class TestPlotFunctionality:
     """Class to test all plotting functionality included in Shnitsel-Tools"""
 
-    @pytest.fixture
-    def ensembles(self):
-        names = ['butene_static', 'butene_dynamic', 'butene_grid']
-        return {name: read(os.path.join(FIXDIR, name, 'data.nc')) for name in names}
+    @fixture(
+        params=[
+            ('tutorials/tut_data/traj_I02.nc', -1),
+        ]
+    )
+    def ensemble(self, request):
+        path, charge = request.param
+        db = read(path)
+        res = tree_to_frames(db)
+        res['atXYZ'].attrs['charge'] = charge
+        return res
 
     @pytest.fixture
-    def spectra3d(self, ensembles):
-        return {
-            name: frames.st.get_inter_state().st.assign_fosc().st.spectra_all_times()
-            for name, frames in ensembles.items()
-        }
+    def spectra3d(self, ensemble):
+        return ensemble.st.get_inter_state().st.assign_fosc().st.spectra_all_times()
 
     #################
     # plot.spectra3d:
 
     @image_comparison(['ski_plots'])
     def test_ski_plots(self, spectra3d):
-        for name, spectral in spectra3d.items():
-            name
-            # os.path.join(FIXDIR, name, 'ski_plots.png')
-            # with tempfile.NamedTemporaryFile() as f:
-            sh.plot.ski_plots(spectral)  # .savefig(f.name)
+        sh.vis.plot.ski_plots(spectra3d)  # .savefig(f.name)
 
     def test_biplot(self):
         # load trajectory data of A01
@@ -56,12 +58,12 @@ class TestPlotFunctionality:
         # create PCA plot over all trajectories with visualization of the
         # four most important PCA-axis on the molecular structure
         # C=C bond color highlighgting via KDE in PCA
-        sh.plot.biplot_kde(
-            frames=a01, at1=0, at2=1, geo_filter=[[0., 3.], [5., 20.]], levels=10
+        sh.vis.plot.kde.biplot_kde(
+            frames=a01, at1=0, at2=1, geo_filter=[[0.0, 3.0], [5.0, 20.0]], levels=10
         )
         # C-H bond color highlighting via KDE in PCA
-        sh.plot.biplot_kde(
-            frames=a01, at1=0, at2=2, geo_filter=[[0., 3.], [5., 20.]], levels=10
+        sh.vis.plot.kde.biplot_kde(
+            frames=a01, at1=0, at2=2, geo_filter=[[0.0, 3.0], [5.0, 20.0]], levels=10
         )
 
     def test_ski_plots_accessor_conversion(self):
