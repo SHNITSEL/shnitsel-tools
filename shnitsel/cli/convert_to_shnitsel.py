@@ -1,14 +1,18 @@
 import argparse
+from dataclasses import asdict
 import logging
 import pathlib
 import sys
 
 import shnitsel
-from shnitsel.data.shnitsel_db.db_compound_group import CompoundInfo
 from shnitsel.data.shnitsel_db_format import (
     MetaInformation,
+)
+from shnitsel.data.tree import (
+    complete_shnitsel_tree,
     ShnitselDB,
-    build_shnitsel_db,
+    CompoundInfo,
+    GroupInfo,
 )
 
 
@@ -109,7 +113,7 @@ def main():
     input_path = pathlib.Path(args.input_path)
     input_kind = args.kind
     input_path_pattern = args.pattern
-    input_group = args.group_name
+    input_group: str | None = args.group_name
     input_compound = args.compound_name
 
     input_est_level = args.est_level
@@ -150,7 +154,7 @@ def main():
             )
             sys.exit(1)
 
-    trajectory = shnitsel.io.read(
+    tree = shnitsel.io.read(
         input_path,
         sub_pattern=input_path_pattern,
         concat_method="db",
@@ -160,36 +164,36 @@ def main():
 
     from pprint import pprint
 
-    if trajectory is None:
-        logging.error("Trajectory failed to load.")
+    if tree is None:
+        logging.error("Trajectory/shnitselDB failed to load.")
         sys.exit(1)
-    elif isinstance(trajectory, list):
+    elif isinstance(tree, list):
         logging.error(
             "Trajectories failed to merge. Numbers of atoms or numbers of states differ. Please restrict your loading to a subset of trajectories with consistent parameters."
         )
         sys.exit(1)
     else:
-        if not isinstance(trajectory, ShnitselDB):
-            trajectory = build_shnitsel_db(trajectory)
+        if not isinstance(tree, ShnitselDB):
+            tree = complete_shnitsel_tree(tree)
 
         compound_info = CompoundInfo()
         if input_compound:
             compound_info.compound_name = input_compound
-            trajectory = trajectory.set_compound_info(compound_info=compound_info)
+            tree = tree.set_compound_info(compound_info=compound_info)
 
         if input_group:
-            trajectory = trajectory.add_trajectory_group(input_group)
+            tree = tree.add_data_group(group_info=GroupInfo(group_name=input_group))
 
         meta_info = MetaInformation(
             est_level=input_est_level, theory_basis_set=input_basis_set
         )
-        trajectory.apply_trajectory_setup_properties(meta_info)
+        tree.apply_data_attributes(asdict(meta_info))
 
-        num_compounds = len(trajectory.children)
-        list_compounds = [str(k) for k in trajectory.children.keys()]
+        num_compounds = len(tree.children)
+        list_compounds = [str(k) for k in tree.children.keys()]
         print(f"Number of compounds in trajectory: {num_compounds}")
         print(f"Present compounds: {list_compounds}")
-        num_trajectories = len(trajectory.leaves)
+        num_trajectories = len(list(tree.collect_data()))
         print(f"Number of Trajectories: {num_trajectories}")
 
         if output_path.exists() and not found_file_at_beginning:
@@ -208,16 +212,16 @@ def main():
                 )
 
                 if not alternative_path.exists():
-                    shnitsel.io.write_shnitsel_file(trajectory, alternative_path)
+                    shnitsel.io.write_shnitsel_file(tree, alternative_path)
                     logging.warning(
                         f"To avoid loss of data, we swapped the output path to: {alternative_path}"
                     )
                     break
         else:
-            shnitsel.io.write_shnitsel_file(trajectory, output_path)
+            shnitsel.io.write_shnitsel_file(tree, output_path)
 
         print("Wrote resulting trajectory collection:")
-        pprint(trajectory)
+        pprint(tree)
         sys.exit(0)
 
 

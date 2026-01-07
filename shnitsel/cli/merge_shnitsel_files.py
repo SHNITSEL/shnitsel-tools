@@ -4,7 +4,7 @@ import pathlib
 import sys
 
 import shnitsel
-from shnitsel.data.shnitsel_db_format import ShnitselDB, build_shnitsel_db
+from shnitsel.data.tree import ShnitselDB, complete_shnitsel_tree, tree_merge
 from pprint import pprint
 
 
@@ -65,7 +65,9 @@ def main():
         )
         sys.exit(1)
 
-    merged_trajectory = None
+    merged_tree = None
+
+    tree_inputs: list[ShnitselDB] = []
 
     for input_path in input_paths:
         input_path = pathlib.Path(input_path)
@@ -84,28 +86,30 @@ def main():
             )
             sys.exit(1)
         else:
-            pprint(trajectory)
+            # pprint(trajectory)
             if not isinstance(trajectory, ShnitselDB):
-                trajectory = build_shnitsel_db(trajectory)
-            if merged_trajectory is None:
-                merged_trajectory = trajectory
+                tree = complete_shnitsel_tree(trajectory)
             else:
-                merged_trajectory = merged_trajectory.merge_with(trajectory)
+                tree = trajectory
 
-    if merged_trajectory is None:
+            tree_inputs.append(tree)
+
+    merged_tree = tree_merge(*tree_inputs)
+
+    if merged_tree is None:
         logging.error("Merge failed")
         sys.exit(1)
 
-    num_compounds = len(merged_trajectory.children)
-    list_compounds = [str(k) for k in merged_trajectory.children.keys()]
-    num_trajectories = len(merged_trajectory.leaves)
+    num_compounds = len(merged_tree.children)
+    list_compounds = [str(k) for k in merged_tree.children.keys()]
+    num_trajectories = len(list(merged_tree.collect_data()))
     print(f"Number of compounds in trajectory: {num_compounds}")
     print(f"Present compounds: {list_compounds}")
     print(f"Number of Trajectories: {num_trajectories}")
 
-    print("Resulting trajectory:")
-    pprint(merged_trajectory)
-    shnitsel.io.write_shnitsel_file(merged_trajectory, output_path)
+    print("Resulting hierarchical structure:")
+    shnitsel.io.write_shnitsel_file(merged_tree, output_path)
+    pprint(merged_tree)
     sys.exit(0)
 
 
