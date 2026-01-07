@@ -2,9 +2,6 @@ import argparse
 import sys
 import timeit
 
-from shnitsel.data.shnitsel_db_format import (
-    build_shnitsel_db,
-)
 from shnitsel.io.shared.trajectory_setup import create_initial_dataset
 
 from types import ModuleType, FunctionType

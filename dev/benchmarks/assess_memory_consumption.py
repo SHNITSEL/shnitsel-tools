@@ -1,10 +1,8 @@
 import argparse
 import sys
 
-from shnitsel.data.shnitsel_db_format import (
-    build_shnitsel_db,
-)
 from shnitsel.io.shared.trajectory_setup import create_initial_dataset
+from shnitsel.data.tree import complete_shnitsel_tree
 
 from types import ModuleType, FunctionType
 from gc import get_referents
@@ -58,7 +56,7 @@ def main():
                 )
                 stats[(nsteps, natoms, statecount)] = getsize(traj)
                 print(f"{stats[(nsteps, natoms, statecount)]=}")
-                db_traj = build_shnitsel_db(traj)
+                db_traj = complete_shnitsel_tree(traj)
                 stats_db[(nsteps, natoms, statecount)] = getsize(db_traj)
                 print(f"{stats_db[(nsteps, natoms, statecount)]=}")
                 del traj
