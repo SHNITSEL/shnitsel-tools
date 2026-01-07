@@ -3,10 +3,11 @@ from dataclasses import dataclass
 import logging
 import pathlib
 import re
-from typing import Callable, Dict, List
+from typing import Callable, TypeVar
+from typing_extensions import TypeForm
 
 from shnitsel.core.typedefs import StateTypeSpecifier
-from shnitsel.data.shnitsel_db_format import ShnitselDB
+from shnitsel.data.tree import ShnitselDB, CompoundGroup, DataGroup, DataLeaf
 from shnitsel.data.trajectory_format import Trajectory
 from shnitsel.io.shared.helpers import (
     LoadingParameters,
@@ -42,6 +43,8 @@ class FormatInformation:
 
 _default_trajid_pattern_regex = re.compile(r"(?P<trajid>\d+)")
 
+DataType = TypeVar("DataType")
+
 
 class FormatReader(ABC):
     """Abstract base class for all input formats to define a unified input reader interface.
@@ -53,11 +56,11 @@ class FormatReader(ABC):
     @abstractmethod
     def find_candidates_in_directory(
         self, path: PathOptionsType
-    ) -> List[pathlib.Path] | None:
+    ) -> list[pathlib.Path] | None:
         """Function to return a all potential matches for the current file format  within a provided directory at `path`.
 
         Returns:
-            List[PathOptionsType] : A list of paths that should be checked in detail for whether they represent the format of this FormatReader.
+            list[PathOptionsType] : A list of paths that should be checked in detail for whether they represent the format of this FormatReader.
             None: No potential candidate found
         """
         # TODO: FIXME: Add option to specify if we want only file or only directory paths
@@ -66,7 +69,7 @@ class FormatReader(ABC):
 
     @abstractmethod
     def check_path_for_format_info(
-        self, path: PathOptionsType, hints_or_settings: Dict | None = None
+        self, path: PathOptionsType, hints_or_settings: dict | None = None
     ) -> FormatInformation:
         """Checks if a path is of a given format and returns a struct containing all relevant info for reading
         the format at this location. Additionally checks configured user settings provided in `hints_or_settings` whether they are
@@ -107,7 +110,16 @@ class FormatReader(ABC):
         path: pathlib.Path,
         format_info: FormatInformation,
         loading_parameters: LoadingParameters | None = None,
-    ) -> xr.Dataset | ShnitselDB | None:
+        expect_dtype: type[DataType] | TypeForm[DataType] | None = None,
+    ) -> (
+        xr.Dataset
+        | ShnitselDB[DataType]
+        | CompoundGroup[DataType]
+        | DataGroup[DataType]
+        | DataLeaf[DataType]
+        | DataType
+        | None
+    ):
         """Method to read a path of the respective format (e.g. ) into a shnitsel-conform trajectory.
 
         The return value of type `Trajectory` is a wrapper for the raw `xarray.Dataset` read from the `path`.
@@ -134,6 +146,7 @@ class FormatReader(ABC):
         path: PathOptionsType | None,
         format_info: FormatInformation | None = None,
         loading_parameters: LoadingParameters | None = None,
+        expect_dtype: type[DataType] | TypeForm[DataType] | None = None,
     ) -> Trajectory | ShnitselDB | None:
         """Wrapper function to perform some potential initialization and finalization on the read trajectory objects.
 
@@ -244,8 +257,8 @@ class FormatReader(ABC):
 
     @abstractmethod
     def get_units_with_defaults(
-        self, unit_overrides: Dict[str, str] | None = None
-    ) -> Dict[str, str]:
+        self, unit_overrides: dict[str, str] | None = None
+    ) -> dict[str, str]:
         """Apply units to the default unit dictionary of the format
 
         Args:
@@ -355,9 +368,7 @@ class FormatReader(ABC):
                         assert (
                             'state' not in dataset.sizes
                             or len(state_types_override) == dataset.sizes['state']
-                        ), (
-                            "Length of provided state type list did not match length of state array in loaded dataset."
-                        )
+                        ), "Length of provided state type list did not match length of state array in loaded dataset."
                         dataset = dataset.assign_coords(
                             {
                                 "state_types": (
