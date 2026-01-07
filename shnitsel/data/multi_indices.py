@@ -548,13 +548,15 @@ def stack_trajs(unstacked: DatasetOrArray) -> DatasetOrArray:
 
 @needs(dims={'frame'})
 def mdiff(da: xr.DataArray, dim: str | None = None) -> xr.DataArray:
-    """Take successive differences along the 'frame' dimension
+    """Take successive differences along the `dim` dimension
 
     Parameters
     ----------
-    da
-        An ``xarray.DataArray`` with a 'frame' dimension corresponding
+    da : xr.DataArray
+        An ``xarray.DataArray`` with a dimension `dim` corresponding
         to a ``pandas.MultiIndex`` of which the innermost level is 'time'.
+    dim : str, optional
+        The dimension along which the successive differences should be calculated.
 
     Returns
     -------
@@ -564,6 +566,7 @@ def mdiff(da: xr.DataArray, dim: str | None = None) -> xr.DataArray:
         initial frame and any frame for which time = 0, to avoid taking differences
         between the last and first frames of successive trajectories.
     """
+    # TODO: FIXME: Tweak documentation to actually reflect what is happening here.
     if dim is None:
         leading_dim = (
             'frame'
