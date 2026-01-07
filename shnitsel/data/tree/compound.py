@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from typing import Any, Callable, Generic, Hashable, Mapping, Self, TypeVar, overload
 from typing_extensions import TypeForm
+
+from .datatree_level import DataTreeLevelMap
 from .data_group import DataGroup, GroupInfo
 from .data_leaf import DataLeaf
 from .node import TreeNode
@@ -42,6 +44,9 @@ class CompoundGroup(Generic[DataType], DataGroup[DataType]):
                 name = compound_info.compound_name
             elif group_info is not None:
                 name = group_info.group_name
+
+        if level_name is None:
+            level_name = DataTreeLevelMap['compound']
 
         super().__init__(
             name,

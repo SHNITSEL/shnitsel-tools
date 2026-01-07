@@ -15,6 +15,7 @@ from shnitsel.data.dataset_containers.frames import Frames
 from shnitsel.data.dataset_containers.trajectory import Trajectory
 from shnitsel.data.trajectory_grouping_params import TrajectoryGroupingMetadata
 from shnitsel.data.tree.data_leaf import DataLeaf
+from .datatree_level import DataTreeLevelMap
 
 from .data_group import DataGroup, GroupInfo
 from .node import TreeNode
@@ -48,7 +49,13 @@ class ShnitselDBRoot(Generic[DataType], TreeNode[CompoundGroup[DataType], DataTy
         compounds: Mapping[Hashable, CompoundGroup[DataType]] | None = None,
         **kwargs,
     ):
-        super().__init__(name="ROOT", data=None, children=compounds or {}, **kwargs)
+        super().__init__(
+            name="ROOT",
+            data=None,
+            children=compounds or {},
+            level_name=DataTreeLevelMap['root'],
+            **kwargs,
+        )
 
     # @overload
     # def construct_copy(

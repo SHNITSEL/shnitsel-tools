@@ -2,6 +2,8 @@ from dataclasses import dataclass, asdict
 from functools import cached_property
 from typing import Any, Callable, Generic, Hashable, Mapping, Self, TypeVar, overload
 from typing_extensions import TypeForm
+
+from .datatree_level import DataTreeLevelMap
 from .node import TreeNode
 from .data_leaf import DataLeaf
 
@@ -41,6 +43,9 @@ class DataGroup(
     ):
         if name is None and group_info is not None:
             name = group_info.group_name
+
+        if level_name is None:
+            level_name = DataTreeLevelMap['group']
 
         super().__init__(
             name=name,

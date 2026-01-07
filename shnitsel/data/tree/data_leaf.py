@@ -11,6 +11,8 @@ from typing import (
     overload,
 )
 from typing_extensions import TypeForm
+
+from .datatree_level import DataTreeLevelMap
 from .node import TreeNode
 
 DataType = TypeVar("DataType", covariant=True)
@@ -28,7 +30,7 @@ class DataLeaf(Generic[DataType], TreeNode[None, DataType]):
 
     def __init__(self, name: str | None = None, data: DataType | None = None, **kwargs):
         super().__init__(
-            name=name, data=data, level_name=self.__class__.__name__, **kwargs
+            name=name, data=data, level_name=DataTreeLevelMap['data'], **kwargs
         )
 
     @overload
