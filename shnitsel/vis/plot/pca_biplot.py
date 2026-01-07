@@ -166,7 +166,7 @@ def plot_loadings(ax: Axes, loadings: xr.DataArray):
         assert len(pcs) == 2
         pc1, pc2 = pcs.item(0), pcs.item(1)
         ax.arrow(0, 0, pc1, pc2)
-        a1, a2 = int(pcs['from']), int(pcs['to'])
+        a1, a2 = int(pcs['atomcomb_from']), int(pcs['atomcomb_to'])
         ax.text(pc1, pc2, f"{a1},{a2}")
 
 
