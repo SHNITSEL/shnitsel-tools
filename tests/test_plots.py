@@ -32,11 +32,13 @@ class TestPlotFunctionality:
     def ensembles(self):
         names = ['butene_static', 'butene_dynamic', 'butene_grid']
         return {
-            name: read_shnitsel_file(os.path.join(FIXDIR, name, 'data.nc')) for name in names
+            name: read_shnitsel_file(os.path.join(FIXDIR, name, 'data.nc'))
+            for name in names
         }
 
     @pytest.fixture
     def spectra3d(self, ensembles):
+        # TODO: FIXME: fosc is calculated automatically in the inter_state generation if possible
         return {
             name: frames.st.get_inter_state().st.assign_fosc().st.spectra_all_times()
             for name, frames in ensembles.items()
@@ -55,24 +57,24 @@ class TestPlotFunctionality:
 
     def test_biplot(self):
         # load trajectory data of A01
-        a01 = read_shnitsel_file(
-            'tutorials/test_data/shnitsel/A01_ethene_dynamic.nc')
+        a01 = read_shnitsel_file('tutorials/test_data/shnitsel/A01_ethene_dynamic.nc')
         # create PCA plot over all trajectories with visualization of the
         # four most important PCA-axis on the molecular structure
         # C=C bond color highlighgting via KDE in PCA
         sh.plot.biplot_kde(
-            frames=a01, at1=0, at2=1, geo_filter=[[0., 3.], [5., 20.]], levels=10
+            frames=a01, at1=0, at2=1, geo_filter=[[0.0, 3.0], [5.0, 20.0]], levels=10
         )
         # C-H bond color highlighting via KDE in PCA
         sh.plot.biplot_kde(
-            frames=a01, at1=0, at2=2, geo_filter=[[0., 3.], [5., 20.]], levels=10
+            frames=a01, at1=0, at2=2, geo_filter=[[0.0, 3.0], [5.0, 20.0]], levels=10
         )
 
     def test_ski_plots_accessor_conversion(self):
         # load data
         spectra_data = (
             read_shnitsel_file(
-                path='tutorials/test_data/shnitsel/A01_ethene_dynamic.nc')
+                path='tutorials/test_data/shnitsel/A01_ethene_dynamic.nc'
+            )
             .st.get_inter_state()
             .st.spectra_all_times()
         )
