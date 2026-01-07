@@ -1,3 +1,5 @@
+from dataclasses import asdict
+import logging
 from typing import (
     Any,
     Callable,
@@ -15,6 +17,7 @@ from shnitsel.data.dataset_containers.frames import Frames
 from shnitsel.data.dataset_containers.trajectory import Trajectory
 from shnitsel.data.trajectory_grouping_params import TrajectoryGroupingMetadata
 from shnitsel.data.tree.data_leaf import DataLeaf
+from shnitsel.data.tree.support_functions import tree_merge
 from .datatree_level import DataTreeLevelMap
 
 from .data_group import DataGroup, GroupInfo
@@ -148,9 +151,9 @@ class ShnitselDBRoot(Generic[DataType], TreeNode[CompoundGroup[DataType], DataTy
             | None
         ) = dtype
         if children is None:
-            assert dtype is None, (
-                "Cannot cast the data type of the tree without reassigning children/compounds of appropriate new type."
-            )
+            assert (
+                dtype is None
+            ), "Cannot cast the data type of the tree without reassigning children/compounds of appropriate new type."
 
             return type(self)(
                 compounds={
@@ -162,9 +165,9 @@ class ShnitselDBRoot(Generic[DataType], TreeNode[CompoundGroup[DataType], DataTy
                 **kwargs,
             )
         else:
-            assert all(isinstance(child, CompoundGroup) for child in children), (
-                "Children provided to `construct_copy` for tree root are not of type `CompoundGroup`"
-            )
+            assert all(
+                isinstance(child, CompoundGroup) for child in children
+            ), "Children provided to `construct_copy` for tree root are not of type `CompoundGroup`"
             return ShnitselDBRoot[ResType](
                 compounds=children,
                 dtype=new_dtype,
@@ -215,6 +218,148 @@ class ShnitselDBRoot(Generic[DataType], TreeNode[CompoundGroup[DataType], DataTy
             attrs=attrs,
         )
         return self.add_child(name, new_compound)
+
+    def add_data_group(
+        self,
+        group_info: GroupInfo,
+        filter_func_compound: Callable[[CompoundInfo], bool] | None = None,
+        filter_func_data: Callable[[DataLeaf | DataGroup], bool] | None = None,
+        flatten_compound_data: bool = False,
+        **kwargs,
+    ) -> Self:
+        """
+        Function to add a group under the compound level for arbitrary compounds.
+        The group is inserted at the top level underneath `CompoundGroup` nodes.
+
+        `filter_func_compound` can be used to only generate the group for certain compounds.
+        This parameter should be a function that only returns True if the group should be created underneath this comound.
+        `filter_func_data` can be used to select only specific groups and leaves out of the children of a compound to be part of this group.
+        `flatten_compound_data` can be set to `True` if existing groups within a compound are supposed to be dissolved (i.e. all data leaves gathered and put directly as children of the Compound)
+
+        Parameters
+        ----------
+        group_info : GroupInfo
+            The name and optionally additional metadata of the group to be created
+        filter_func_compound : Callable[[CompoundInfo], bool] | None, optional
+            Filter function that should return True if the group should be created for this compound, by default None, meaning all compounds will be filtered.
+        filter_func_data : Callable[[DataLeaf | DataGroup], bool] | None, optional
+            Filter function to determine whether a group or data leaf should be included in the new group, by default None
+        flatten_compound_data : bool, optional
+            Flag to determine whether all trajectories under selected compounds should be ungrouped before selecting for the new group, by default False
+
+        Returns
+        -------
+        Self
+             A resulting ShnitselDB structure with the grouping applied.
+        """
+        new_children = {}
+
+        for child_key, child in self.children.items():
+            if filter_func_compound is None or filter_func_compound(
+                child.compound_info
+            ):
+                new_children[child_key] = child.add_data_group(
+                    group_info,
+                    filter_func_data,
+                    flatten_compound_data,
+                    **kwargs,
+                )
+            else:
+                new_children[child_key] = child.construct_copy()
+        return type(self)(new_children)
+
+    def set_compound_info(
+        self, compound_info: CompoundInfo, overwrite_all: bool = False
+    ) -> Self:
+        """Function to set the compound information on either all unknown compounds (`overwrite_all=False`) or for all trajectories in the tree
+        creating a new CompoundGroup holding all trajectories. (if `overwrite_all=True`).
+
+        By default, the compound info will only be applied to trajectories with unknown compounds.
+        If all compounds are merged or a compound info is assigned that is already in use, the concerned compound subtrees will be merged
+        before the new `compound_info` is applied.
+
+        Parameters
+        ----------
+        compound_info : CompoundInfo
+            The compound information to apply to either the unknown compounds or all data in the tree.
+        overwrite_all : bool, optional
+            Flag to control whether the compound group of all data should be overwritten, by default False
+
+        Returns
+        -------
+        Self
+            The updated database
+        """
+        if overwrite_all:
+            new_compound: CompoundGroup[DataType] | None = tree_merge(
+                *self.children.values(), res_data_type=self._dtype
+            )
+            if new_compound is not None:
+                return self.construct_copy(
+                    compounds={
+                        compound_info.compound_name: new_compound.construct_copy(
+                            compound_info=compound_info, dtype=self._dtype
+                        )
+                    }
+                )
+            else:
+                # No compounds, so we can just return a copy
+                return self.construct_copy()
+        else:
+            if "unknown" not in self.children:
+                logging.warning(
+                    "Non `unknown` compounds in tree to assign the compound info to."
+                )
+                return self.construct_copy()
+            else:
+                new_children = {
+                    k: v.construct_copy()
+                    for k, v in self.children.items()
+                    if k != "unknown" and v is not None
+                }
+                unknown_child = self.children["unknown"]
+
+                renamed_child = unknown_child.construct_copy(
+                    name=compound_info.compound_name, compound_info=compound_info
+                )
+                res_name = renamed_child.name
+                if res_name in new_children:
+                    merged_child = tree_merge(renamed_child, new_children[res_name])
+                    assert (
+                        merged_child is not None
+                    ), "Something went wrong with the merge of at least 2 trees."
+                    new_children[res_name] = merged_child
+                else:
+                    new_children[res_name] = renamed_child
+
+                return self.construct_copy(compunds=new_children)
+
+    def apply_data_attributes(self, properties: dict) -> "ShnitselDBRoot[DataType]":
+        """
+
+        Parameters
+        ----------
+        properties : dict
+            The attributes to set with their respective values.
+
+        Returns
+        -------
+        ShnitselDBRoot[DataType]
+            The tree after the update
+        """
+
+        props = {}
+
+        for k, v in properties:
+            if v is not None:
+                props[k] = v
+
+        def update_attrs(data: DataType, _props: dict) -> DataType:
+            if hasattr(data, 'attrs'):
+                getattr(data, 'attrs').update(props)
+            return data
+
+        return self.map_data(lambda x: update_attrs(x, props))
 
     @property
     def compounds(self) -> Mapping[Hashable, CompoundGroup[DataType]]:
