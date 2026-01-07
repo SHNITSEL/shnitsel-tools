@@ -135,13 +135,12 @@ class TestProcessing:
         da = draw(xrst.variables(array_strategy_fn=make_array_strategy))
         to_replace = np.unique(da)
         nitems = len(to_replace)
+        # TODO: Make replace_total() robust against mixtures of numbers and strings
+        kws = dict(min_size=nitems, max_size=nitems, unique=True)
         value = draw(
-            st.lists(
-                st.one_of(st.integers(), st.floats(), st.text()),
-                min_size=nitems,
-                max_size=nitems,
-                unique=True,
-            )
+            st.lists(st.integers(), **kws),
+            st.lists(st.floats(), **kws),
+            st.lists(st.text(), **kws),
         )
         return da, to_replace, value
 
