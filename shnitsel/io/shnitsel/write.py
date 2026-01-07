@@ -3,11 +3,16 @@ import pathlib
 from typing import Any, Dict, Hashable
 import numpy as np
 
-from shnitsel.data.trajectory_format import Trajectory
+from shnitsel.data.dataset_containers.trajectory import Trajectory
+from shnitsel.data.dataset_containers.frames import Frames
 import xarray as xr
 import json
 
-from shnitsel.data.shnitsel_db_format import ShnitselDB
+from shnitsel.data.tree.to_xr_datatree import (
+    data_to_xarray_dataset,
+    tree_to_xarray_datatree,
+)
+from shnitsel.data.tree.tree import ShnitselDB
 from shnitsel.io.shared.helpers import PathOptionsType, make_uniform_path
 
 
@@ -176,7 +181,7 @@ def _dataset_to_encoding(dataset: xr.Dataset, complevel: int) -> Dict[Hashable, 
 
 
 def write_shnitsel_file(
-    dataset: xr.Dataset | Trajectory | ShnitselDB,
+    dataset: xr.Dataset | xr.DataArray | Trajectory | Frames | ShnitselDB,
     savepath: PathOptionsType,
     complevel: int = 9,
 ):
@@ -199,7 +204,6 @@ def write_shnitsel_file(
     -----
     This function/accessor method wraps :py:meth:`xarray.Dataset.to_netcdf` :py:meth:`xarray.DataTree.to_netcdf` but not :py:func:`numpy.any`.
     """
-
     savepath_obj: pathlib.Path = make_uniform_path(savepath)  # type: ignore
 
     # Make sure the extension is appropriately set.
@@ -207,14 +211,18 @@ def write_shnitsel_file(
         savepath_obj = savepath_obj.parent / (savepath_obj.name + ".nc")
 
     if isinstance(dataset, ShnitselDB):
-        cleaned_tree = _prepare_datatree(dataset)
+        tmp_res = tree_to_xarray_datatree(dataset)
+        if tmp_res is None:
+            raise ValueError("Tree could not be converted to netcdf conforming format.")
+
+        cleaned_tree = _prepare_datatree(tmp_res)
 
         encoding = {}
         for leaf in cleaned_tree.leaves:
             if leaf.has_data:
                 encoding[leaf.path] = _dataset_to_encoding(leaf.dataset, complevel)
 
-        cleaned_tree.attrs["__shnitsel_format_version"] = "v1.2"
+        cleaned_tree.attrs["__shnitsel_format_version"] = "v1.3"
         # import pprint
 
         # pprint.pprint(cleaned_tree)
@@ -226,3 +234,9 @@ def write_shnitsel_file(
         cleaned_ds.attrs["__shnitsel_format_version"] = "v1.2"
 
         return cleaned_ds.to_netcdf(savepath, engine='h5netcdf', encoding=encoding)
+    else:
+        ds, metadata = data_to_xarray_dataset(dataset, dict())
+        if ds is None:
+            raise ValueError("Data not be converted to netcdf conforming format.")
+        ds.attrs.update(metadata)
+        return write_shnitsel_file(ds, savepath=savepath)
