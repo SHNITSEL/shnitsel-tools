@@ -1,3 +1,4 @@
+from math import ceil
 from typing import Any, Callable, Iterable, TYPE_CHECKING
 
 from matplotlib.colors import Normalize
@@ -8,6 +9,7 @@ import xarray as xr
 import matplotlib as mpl
 
 from matplotlib.axes import Axes
+from matplotlib.pyplot import subplot_mosaic
 
 from scipy import stats
 from sklearn.cluster import KMeans
@@ -414,6 +416,16 @@ def plot_clusters_insets(
 plot_clusters2 = plot_clusters_insets
 
 
+def _get_axs(clusters, labels):
+    naxs = min(len(clusters), len(labels))
+    ncols = ceil(naxs**0.5)
+    nblanks = naxs % ncols
+    flat = labels[:naxs] + [None] * nblanks
+    mosaic = np.array(flat).reshape(-1, ncols)
+    _, axs = subplot_mosaic(mosaic)
+    return axs
+
+
 def plot_clusters_grid(
     loadings: xr.DataArray,
     clusters: list[list[int]],
@@ -456,6 +468,9 @@ def plot_clusters_grid(
     fig, ax = figax(ax=ax)
     if labels is None:
         labels = list('abcdefghijklmnopqrstuvwxyz')
+
+    if axs is None:
+        axs = _get_axs(clusters, labels)
 
     for mol_ax in axs.values():
         mol_ax.axis('off')
