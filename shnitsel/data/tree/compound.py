@@ -2,6 +2,8 @@ from dataclasses import dataclass
 from typing import Any, Callable, Generic, Hashable, Mapping, Self, TypeVar, overload
 from typing_extensions import TypeForm
 
+from shnitsel.data.tree.support_functions import find_child_key
+
 from .datatree_level import DataTreeLevelMap
 from .data_group import DataGroup, GroupInfo
 from .data_leaf import DataLeaf
@@ -154,9 +156,7 @@ class CompoundGroup(Generic[DataType], DataGroup[DataType]):
         else:
             assert all(
                 isinstance(child, (DataGroup, DataLeaf)) for child in children
-            ), (
-                "Children provided to `construct_copy` for compound group are not of type `DataGroup` or `DataLeaf"
-            )
+            ), "Children provided to `construct_copy` for compound group are not of type `DataGroup` or `DataLeaf"
             new_dtype: type[ResType] | TypeForm[ResType] | None = dtype
 
             return CompoundGroup[ResType](
@@ -164,42 +164,6 @@ class CompoundGroup(Generic[DataType], DataGroup[DataType]):
                 dtype=new_dtype,
                 **kwargs,
             )
-
-    # def construct_copy(
-    #     self,
-    #     data: DataType | ResType | None = None,
-    #     dtype: type[DataType]
-    #     | TypeForm[DataType]
-    #     | type[ResType]
-    #     | TypeForm[ResType]
-    #     | None = None,
-    #     **kwargs,
-    # ) -> Self | "CompoundGroup[ResType]":
-    #     """Function to generate a copy of a `CompoundGroup` instance with either a new data type
-    #     or the same datatype but potentially new children.
-
-    #     Parameters
-    #     ----------
-    #     data: None
-    #         No data must be set on a `CompoundGroup` node. Do not set this parameter
-    #     dtype: type[DataType] | TypeForm[DataType] | type[ResType] | TypeForm[ResType], optional
-    #         The data type of the data in the copy constructed group.
-    #     **kwargs, optional
-    #         Keyword arguments for the constructor of this type. If parameters for the constructor are not set, will be populated with the relevant values
-    #         set in this instance.
-
-    #     Returns
-    #     -------
-    #     CompoundGroup[DataType]
-    #         If no new type was provided and the children were also not set with a new dtype.
-    #     CompoundGroup[ResType]
-    #         If a new dtype was set, the duplicate will have a new `DataType` set.
-    #     """
-    #     assert data is None, "No data must be set on a compound group node"
-    #     if 'compound_info' not in kwargs:
-    #         kwargs['compound_info'] = self._compound_info
-
-    #     return super().construct_copy(dtype=dtype, **kwargs)
 
     @property
     def compound_info(self) -> CompoundInfo:
@@ -267,3 +231,62 @@ class CompoundGroup(Generic[DataType], DataGroup[DataType]):
                 attrs=dict(self.attrs),
                 dtype=dtype,
             )
+
+    def add_data_group(
+        self,
+        group_info: GroupInfo,
+        filter_func_data: Callable[[DataGroup | DataLeaf], bool] | None = None,
+        flatten_data=False,
+        **kwargs,
+    ) -> Self:
+        """Function to add trajectories within this compound subtree to a `TrajectoryGroup` of trajectories.
+
+        The `group_name` will be set as the name of the group in the tree.
+        If `flatten_trajectories=True` all existing groups will be dissolved before filtering and the children will be turned into an ungrouped list of trajectories.
+        The `filter_func_trajectories` will either be applied to only the current groups and trajectories immediately beneath this compound or to the flattened list of all child directories.
+
+        Args:
+            group_name (str): The name to be set for the TrajectoryGroup object
+            filter_func_Trajectories (Callable[[Trajectory|GroupInfo], bool] | None, optional): A function to return true for Groups and individual trajectories that should be added to the new group. Defaults to None.
+            flatten_trajectories (bool, optional): A flag whether all descendant groups should be dissolved and flattened into a list of trajectories first before applying a group. Defaults to False.
+
+        Returns:
+            CompoundGroup: The restructured Compound with a new added group if at least one trajectory has satisfied the filter condition.
+        """
+        base_children: dict[Hashable, DataGroup[DataType] | DataLeaf[DataType]]
+        # Either get the children or a map of all data nodes
+        if flatten_data:
+            all_data = self.collect_data_nodes()
+            base_children = {}
+
+            for x in all_data:
+                x_key = find_child_key(base_children.keys(), x, "data")
+                base_children[x_key] = x
+        else:
+            base_children = dict(self.children)
+
+        # Filter out the nodes that should be in this group
+        grouped_data: dict[Hashable, DataGroup[DataType] | DataLeaf[DataType]]
+        ungrouped_data: dict[Hashable, DataGroup[DataType] | DataLeaf[DataType]]
+
+        if filter_func_data is None:
+            # All nodes should be in the group
+            grouped_data = {
+                str(k): v.construct_copy() for k, v in base_children.items()
+            }
+            ungrouped_data = {}
+        else:
+            # Split into data in new group and other data
+            grouped_data = {}
+            ungrouped_data = {}
+            for key, child in base_children.items():
+                if filter_func_data(child):
+                    grouped_data[key] = child.construct_copy()
+                else:
+                    ungrouped_data[key] = child.construct_copy()
+
+        # Build new group
+        new_group = DataGroup(group_info=group_info, children=grouped_data)
+        new_group_key = find_child_key(ungrouped_data.keys(), new_group, "group")
+        ungrouped_data[new_group_key] = new_group
+        return self.construct_copy(children=ungrouped_data)
