@@ -234,5 +234,7 @@ def get_inter_state(frames: Frames) -> InterState:
         inter_state['energy_interstate'].attrs["long_name"] = (
             "Energy delta between the energy levels of various states derived from `energy`"
         )
-        
+
+    # The result should contain only statecomb
+    inter_state = inter_state.drop_dims(['state'], errors='ignore')
     return inter_state

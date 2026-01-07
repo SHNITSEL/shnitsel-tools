@@ -14,7 +14,6 @@ def _inlabel(s, ax, ha='center', va='center'):
         va=va,
     )
 
-
 def ski_plots(spectra: xr.DataArray) -> mpl.figure.Figure:
     """Plot spectra for different times on top of each other,
     along with a dashed line that tracks the maximum.
@@ -44,7 +43,9 @@ def ski_plots(spectra: xr.DataArray) -> mpl.figure.Figure:
     """
     assert 'time' in spectra.coords, "Missing 'time' coordinate"
     assert 'statecomb' in spectra.coords, "Missing 'statecomb' coordinate"
-    assert 'energy' in spectra.coords, "Missing 'energy' coordinate"
+    assert 'energy_interstate' in spectra.coords, (
+        "Missing 'energy_interstate' coordinate"
+    )
 
     nstatecombs = spectra.sizes['statecomb']
     fig, axs = plt.subplots(nstatecombs, 1, layout='constrained', sharex=True)
@@ -58,10 +59,15 @@ def ski_plots(spectra: xr.DataArray) -> mpl.figure.Figure:
 
     for ax, (sc, scdata) in zip(axs, spectra.groupby('statecomb')):
         for t, tdata in scdata.groupby('time'):
-            ax.plot(tdata.energy, tdata.squeeze(), c=cmap(cnorm(t)), linewidth=0.2)
-        maxes = scdata[scdata.argmax('energy')]
+            ax.plot(
+                tdata['energy_interstate'],
+                tdata.squeeze(),
+                c=cmap(cnorm(t)),
+                linewidth=0.2,
+            )
+        maxes = scdata[scdata.argmax('energy_interstate')]
         ax.plot(
-            maxes.energy.squeeze(),
+            maxes['energy_interstate'].squeeze(),
             maxes.squeeze(),
             c='black',
             linewidth=1,
@@ -103,7 +109,9 @@ def pcm_plots(spectra: xr.DataArray) -> mpl.figure.Figure:
     """
     assert 'time' in spectra.coords, "Missing 'time' coordinate"
     assert 'statecomb' in spectra.coords, "Missing 'statecomb' coordinate"
-    assert 'energy' in spectra.coords, "Missing 'energy' coordinate"
+    assert 'energy_interstate' in spectra.coords, (
+        "Missing 'energy_interstate' coordinate"
+    )
 
     nstatecombs = spectra.sizes['statecomb']
     fig, axs = plt.subplots(1, nstatecombs, layout='constrained')
@@ -113,6 +121,8 @@ def pcm_plots(spectra: xr.DataArray) -> mpl.figure.Figure:
     if nstatecombs == 1:
         axs = [axs]
     for ax, (sc, scdata) in zip(axs, spectra.groupby('statecomb')):
-        qm = scdata.squeeze().plot.pcolormesh(x='energy', y='time', ax=ax, norm=cnorm)
+        qm = scdata.squeeze().plot.pcolormesh(
+            x='energy_interstate', y='time', ax=ax, norm=cnorm
+        )
         qm.axes.invert_yaxis()
     return fig

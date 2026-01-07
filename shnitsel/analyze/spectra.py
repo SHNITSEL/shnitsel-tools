@@ -349,7 +349,7 @@ def sep_ground_excited_spectra(
     return ground, excited
 
 
-@needs(data_vars={'energy', 'fosc'}, coords={'frame', 'trajid'})
+@needs(data_vars={'energy_interstate', 'fosc'}, coords={'frame', 'trajid'})
 def spectra_all_times(inter_state: xr.Dataset) -> xr.DataArray:
     """Function to calculate the spectra at all times.
 
@@ -366,14 +366,14 @@ def spectra_all_times(inter_state: xr.Dataset) -> xr.DataArray:
         xr.DataArray: The resulting spectra across all times.
     """
     assert isinstance(inter_state, xr.Dataset)
-    if 'energy' not in inter_state.data_vars:
-        raise ValueError("Missing required variable 'energy'")
+    if 'energy_interstate' not in inter_state.data_vars:
+        raise ValueError("Missing required variable 'energy_interstate'")
     if 'fosc' not in inter_state.data_vars:
         raise ValueError("Missing required variable 'fosc'")
     assert 'frame' in inter_state and 'trajid' in inter_state, (
         "Missing required dimensions"
     )
-    # TODO: FIXME: This probably should not have to unstack here? We should just accept a tree and use each trajectory individually and then aggregate over trajectories?
 
+    # Unstack so that Xarray takes care of vectorizing Gaussian broadening and alignment
     data = inter_state.unstack('frame')
-    return broaden_gauss(data.energy, data.fosc, agg_dim='trajid')
+    return broaden_gauss(data['energy_interstate'], data['fosc'], agg_dim='trajid')
