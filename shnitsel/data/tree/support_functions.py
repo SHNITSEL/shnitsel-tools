@@ -1,5 +1,5 @@
 from types import UnionType
-from typing import Any, TypeVar, Union, overload
+from typing import Any, Hashable, Iterable, Sequence, TypeVar, Union, overload
 from typing_extensions import TypeForm
 
 from .data_leaf import DataLeaf
@@ -8,6 +8,7 @@ from .tree import ShnitselDBRoot
 from .data_group import DataGroup
 from .compound import CompoundGroup
 
+DataType = TypeVar("DataType")
 DataType1 = TypeVar("DataType1")
 DataType2 = TypeVar("DataType2")
 DataType3 = TypeVar("DataType3")
@@ -200,3 +201,174 @@ def has_same_structure(*trees: TreeNode) -> bool:
         if not has_same_structure(*child_nodes):
             return False
     return True
+
+
+@overload
+def tree_merge(
+    *trees: ShnitselDBRoot[DataType],
+    res_data_type: type[DataType] | TypeForm[DataType] | None = None,
+) -> ShnitselDBRoot[DataType] | None: ...
+
+
+@overload
+def tree_merge(
+    *trees: CompoundGroup[DataType],
+    res_data_type: type[DataType] | TypeForm[DataType] | None = None,
+) -> CompoundGroup[DataType] | None: ...
+
+@overload
+def tree_merge(
+    *trees: DataGroup[DataType],
+    res_data_type: type[DataType] | TypeForm[DataType] | None = None,
+) -> DataGroup[DataType] | None: ...
+
+
+def tree_merge(
+    *trees: ShnitselDBRoot[DataType] | CompoundGroup[DataType] | DataGroup[DataType],
+    res_data_type: type[DataType] | TypeForm[DataType] | None = None,
+) -> ShnitselDBRoot[DataType] | CompoundGroup[DataType] | DataGroup[DataType] | None:
+    """Helper function to merge two trees at the same level.
+    Data leaves on the same level will all be retained.
+    Data Group children of the roots will be merged recursively.
+
+
+    Parameters
+    ----------
+    *trees: ShnitselDBRoot[DataType] | CompoundGroup[DataType] | DataGroup[DataType]
+        Compatible roots at the same level that represent a group of children.
+        If inconsistent types are provided, the merge may fail.
+    res_data_type : type[DataType] | TypeForm[DataType] | None, optional
+        An explicit indicator of which type we expect the merged tree to have, by default None
+
+    Returns
+    -------
+    ShnitselDBRoot[DataType] | CompoundGroup[DataType] | DataGroup[DataType] | None
+        The merged tree of the same level as the input tree roots.
+        Specifically, the same level as `trees[0]`.
+        If there are no `trees`, then `None` is returned.
+        If a single `trees` parameter is provided, then a copy of that tree is returned.
+
+    Raises
+    ------
+    ValueError
+        _description_
+    """
+    if len(trees) == 0:
+        return None
+
+    if len(trees) == 1:
+        return trees[0].construct_copy(dtype=res_data_type)
+
+    data_children: Sequence[DataLeaf[DataType]] = []
+
+    children_to_merge: dict[Hashable, list[DataGroup[DataType]]] = dict()
+
+    for tree in trees:
+        data_children = data_children + [
+            child.construct_copy(dtype=res_data_type)
+            for child in tree.children.values()
+            if isinstance(child, DataLeaf)
+        ]
+        for key, child in tree.children.items():
+            if isinstance(child, DataGroup):
+                if key not in children_to_merge:
+                    children_to_merge[key] = [child]
+                else:
+                    children_to_merge[key].append(child)
+
+    children_res: dict[Hashable, DataGroup[DataType] | DataLeaf[DataType]] = {
+        key: res
+        for key, candidates in children_to_merge.items()
+        if (res := tree_merge(*candidates, res_data_type=res_data_type)) is not None
+        and isinstance(res, DataGroup)
+    }
+
+    for data_child in data_children:
+        child_key = find_child_key(children_res.keys(), data_child)
+        children_res[child_key] = data_child
+
+    if isinstance(trees[0], ShnitselDBRoot):
+        return ShnitselDBRoot[DataType](compounds=children_res, dtype=res_data_type)  # type: ignore # If the prior Compound groups were right, this is too
+    elif isinstance(trees[0], CompoundGroup):
+        return trees[0].construct_copy(children=children_res, dtype=res_data_type)
+    elif isinstance(trees[0], DataGroup):
+        return trees[0].construct_copy(children=children_res, dtype=res_data_type)
+    else:
+        raise ValueError("Cannot merge type of provided root: %s" % type(trees[0]))
+
+
+def find_child_key(
+    existing_child_keys: Iterable[Hashable],
+    new_child: TreeNode,
+    default_prefix: str = "child",
+) -> str:
+    """Helper function to find a new collision free key for a new child node
+    given the existing set of keys and the new node
+
+    Will first attempt to extract a name candidate from the node and then
+    try to resolve potential name collisions by appending suffixes.
+
+    Parameters
+    ----------
+    existing_child_keys : Iterable[Hashable]
+        Set of existing keys in use for existing children.
+    new_child : TreeNode
+        The new node for which we want to find a key.
+    default_prefix : str, optional
+        A default prefix to use if we cannot extract a name candidate, by default "child"
+
+    Returns
+    -------
+    str
+        A derived key that does not have any collisions in `existing_child_keys`
+        and incorporates information from `new_child` if possible.
+
+    Raises
+    ------
+    OverflowError
+        If no unused child name has been found after 1000 attempts.
+    """
+    name_candidate = new_child.name
+    if name_candidate is None:
+        if isinstance(new_child, DataLeaf) and new_child.has_data:
+            name_candidate = get_data_name_candidate(new_child.data)
+
+    if name_candidate is None:
+        name_candidate = default_prefix
+    elif name_candidate not in existing_child_keys:
+        return name_candidate
+
+    for i in range(1000):
+        new_candidate = name_candidate + f"_{i}"
+
+        if new_candidate not in existing_child_keys:
+            return new_candidate
+
+    raise OverflowError(
+        "Could not find a new child name in `1000` attempts that was not already in use."
+    )
+
+
+def get_data_name_candidate(data, name_candidate: str | None = None) -> str | None:
+    """Helper function to extract name candidates from arbitrary data
+    that could be stored in a Tree leave.
+
+    Parameters
+    ----------
+    data : Any
+        The arbitrary data for which we want to derive a name
+    name_candidate : str | None, optional
+        A potentially already existing name candidate that may be used, by default None
+
+    Returns
+    -------
+    str | None
+        A name based on the `data` or `None` if no name could be derived.
+    """
+    if name_candidate is None:
+        name_candidate = getattr(data, 'name', None)
+    if name_candidate is None:
+        name_candidate = getattr(data, 'trajid', None)
+    if name_candidate is None:
+        name_candidate = getattr(data, 'id', None)
+    return name_candidate
