@@ -102,6 +102,13 @@ ignore = [
 [tool.ruff.lint.flake8-annotations]
 ignore-fully-untyped = true
 
+[tool.ruff.per-file-ignores]
+"tests/*" = [
+  # Don't require docstrings in tests
+  "D102",  
+  "D103",
+]
+
 [tool.mypy]
 packages = "shnitsel"
 warn_return_any = true
