@@ -60,6 +60,15 @@ Four [notebooks](https://github.com/SHNITSEL/shnitsel-tools/tree/main/tutorials/
 analysis of homologous/isoelectronic molecules, from filtration via dimensional reduction and clustering to kinetics.
 -->
 
+## Tests
+Running the test-suite can help confirm that `shnitsel-tools` is correctly installed in your environment.
+To run the tests, please install `shnitsel-tools` by cloning the repo as described [here](#for-tutorials-tests-or-development-conda) (conda users)
+or [here](#for-tutorials-tests-or-development-uv) (uv users).
+Then run the `pytest` program without arguments while inside the repository directory, with the virtual environment activated.
+More information on how to invoke `pytest` is available [here](https://docs.pytest.org/en/stable/how-to/usage.html#usage).
+
+If you are a contributor, please consider using the `tox` command to run tests across the different supported Python versions.
+
 ## Tree
 
 ```bash
@@ -80,8 +89,8 @@ To install all optional dependencies, please add `[vis,dev]` after the package n
 
 ### Installation using conda
 
-#### For tutorials or development
-If you would like to work through the tutorials or modify the code, please use the following commands:
+#### For tutorials, tests or development (conda)
+If you would like to work through the tutorials, run the tests, or modify the code, please use the following commands:
 
 ```bash
 git clone 'https://github.com/SHNITSEL/shnitsel-tools.git'
@@ -114,8 +123,8 @@ without requiring environments to be activated first.
 uv tool install shnitsel-tools
 ```
 
-#### For tutorials or development
-If you would like to work through the tutorials or modify the code, please use the following commands:
+#### For tutorials, tests or development (uv)
+If you would like to work through the tutorials or modify the code, run the tests, please use the following commands:
 
 ```bash
 git clone 'https://github.com/SHNITSEL/shnitsel-tools.git'
