@@ -11,6 +11,7 @@ from shnitsel.data.state_helpers import (
     default_state_type_assigner,
 )
 from shnitsel.io.shared.variable_flagging import (
+    clean_unassigned_variables,
     is_variable_assigned,
 )
 from shnitsel.units.conversion import convert_all_units_to_shnitsel_defaults
@@ -31,7 +32,7 @@ def finalize_loaded_trajectory(
         The dataset to perform finalization on. Only updates Dataset, Trajectory and Frames data.
         All other data will be returned unchanged
     loading_parameters : LoadingParameters | None
-         Parameters to set some defaults.
+        Parameters to set some defaults.
 
     Returns
     -------
@@ -47,20 +48,9 @@ def finalize_loaded_trajectory(
                 rebuild_type = type(dataset)
                 dataset = dataset.dataset
 
-            # TODO: FIXME: use loading_parameters to configure state names
             dataset = set_state_defaults(dataset, loading_parameters)
-
-            # TODO: FIXME: Configure cleaning to only run on initial construction trajectories, not when loaded from Shnitsel files.
-            unset_vars = []
-            for var in dataset.variables:
-                if is_variable_assigned(dataset[var]):
-                    # Remove tags
-                    del dataset[var].attrs["__assigned"]
-                else:
-                    unset_vars.append(var)
-
-            logging.debug(f"Dropping unset variables: {unset_vars}")
-            dataset = dataset.drop_vars(unset_vars)
+            # Clean up variables if the variables are not assigned yet.
+            dataset = clean_unassigned_variables(dataset)
             convert_all_units_to_shnitsel_defaults(dataset)
 
             if rebuild_type:
@@ -83,6 +73,22 @@ def finalize_loaded_trajectory(
 def set_state_defaults(
     dataset: xr.Dataset, loading_parameters: LoadingParameters | None
 ) -> xr.Dataset:
+    """Helper function to apply default settings to dataset variables
+    for state names and state types if they have not been assigned at some point
+    earlier during the configuration process.
+
+    Parameters
+    ----------
+    dataset : xr.Dataset
+        The dataset to set state name and state type information on.
+    loading_parameters : LoadingParameters | None
+        Currently unused settings to be applied to trajectory import.
+
+    Returns
+    -------
+    xr.Dataset
+        The dataset but with default values for state types and state names
+    """
     # TODO: FIXME: apply configured names from loading_parameters
 
     if is_variable_assigned(dataset.state_types) and is_variable_assigned(
@@ -96,7 +102,7 @@ def set_state_defaults(
         # logging.debug(f"Names: {dataset.state_names}")
         return dataset
 
-    logging.debug("Assigning default state names and/or.")
+    logging.debug("Assigning default state names and/or types.")
 
     if not is_variable_assigned(dataset.state_types):
         dataset = default_state_type_assigner(dataset)
