@@ -1,5 +1,6 @@
 import logging
 from typing import TypeVar
+from typing_extensions import TypeForm
 import xarray as xr
 
 from shnitsel.data.helpers import dataclass_from_dict
@@ -91,7 +92,7 @@ def tree_to_xarray_datatree(
 
 
 def xarray_datatree_to_shnitsel_tree(
-    node: xr.DataTree,
+    node: xr.DataTree, dtype: type[DataType] | TypeForm[DataType] | None = None
 ) -> ShnitselDBRoot | CompoundGroup | DataGroup | DataLeaf | None:
     """
     Helper function to invert the operation of `tree_to_xarray_datastree` and deserialize the
@@ -102,6 +103,8 @@ def xarray_datatree_to_shnitsel_tree(
     node : xr.DataTree
         The root node of a xarray subtree.
         will convert this subtree recursively.
+    dtype: type[DataType] | TypeForm[DataType], optional
+        Optional argument to specify the desired target type of data in the shnitsel tree structure.
 
     Returns
     -------
@@ -127,6 +130,7 @@ def xarray_datatree_to_shnitsel_tree(
                 name=node.name,
                 data=xr_dataset_to_shnitsel_format(node.dataset, metadata),
                 attrs=remaining_node_meta,
+                dtype=dtype,
             )
         else:
             child_types = set()
@@ -159,6 +163,7 @@ def xarray_datatree_to_shnitsel_tree(
                 return ShnitselDBRoot(
                     compounds=converted_children,  # type: ignore # The above assertion checks the correct type of the children
                     attrs=node.attrs,
+                    dtype=dtype,
                 )
             if is_likely_compound:
                 compound_info = CompoundInfo()
@@ -186,6 +191,7 @@ def xarray_datatree_to_shnitsel_tree(
                     compound_info=compound_info,
                     group_info=group_info,
                     attrs={str(k): v for k, v in node.attrs.items()},
+                    dtype=dtype,
                 )
 
             if is_likely_group:
@@ -204,6 +210,7 @@ def xarray_datatree_to_shnitsel_tree(
                     children=converted_children,  # type: ignore # The likelihood flag checks for correct child types
                     group_info=group_info,
                     attrs={str(k): v for k, v in node.attrs.items()},
+                    dtype=dtype,
                 )
 
             if is_likely_data:
@@ -211,6 +218,7 @@ def xarray_datatree_to_shnitsel_tree(
                     name=node.name,
                     data=None,
                     attrs={str(k): v for k, v in node.attrs.items()},
+                    dtype=dtype,
                 )
         raise ValueError(
             "Provided tree did not have type hints and structure could not be mapped to shnitsel data structure."
@@ -237,6 +245,7 @@ def xarray_datatree_to_shnitsel_tree(
                 name=node.name,
                 data=xr_dataset_to_shnitsel_format(node.dataset, metadata),
                 attrs=remaining_node_meta,
+                dtype=dtype,
             )
         else:
             converted_children = {
@@ -255,6 +264,7 @@ def xarray_datatree_to_shnitsel_tree(
                     name=node.name,
                     compounds=converted_children,  # type: ignore # The above assertion checks the correct type of the children
                     attrs=node.attrs,
+                    dtype=dtype,
                 )
 
             if mapped_level == DataTreeLevelMap["compound"]:
@@ -288,6 +298,7 @@ def xarray_datatree_to_shnitsel_tree(
                     compound_info=compound_info,
                     group_info=group_info,
                     attrs={str(k): v for k, v in node.attrs.items()},
+                    dtype=dtype,
                 )
 
             if mapped_level == DataTreeLevelMap["group"]:
@@ -311,6 +322,7 @@ def xarray_datatree_to_shnitsel_tree(
                     children=converted_children,  # type: ignore # The above assertion checks the correct type of the children
                     group_info=group_info,
                     attrs={str(k): v for k, v in node.attrs.items()},
+                    dtype=dtype,
                 )
     logging.warning("Could not infer shnitsel node type for node: %s", node)
     return None
