@@ -122,12 +122,14 @@ class ShnitselFormatReader(FormatReader):
         expect_dtype: type[DataType] | TypeForm[DataType] | None = None,
     ) -> (
         xr.Dataset
+        | xr.DataArray
         | Trajectory
         | Frames
         | PerState
         | InterState
         | SupportsFromXrConversion
         | ShnitselDB[SupportsFromXrConversion]
+        | ShnitselDB[xr.Dataset]
         | ShnitselDB[DataType]
         | CompoundGroup[DataType]
         | DataGroup[DataType]
@@ -159,12 +161,14 @@ class ShnitselFormatReader(FormatReader):
         Returns
         -------
         xr.Dataset
+        | xr.DataArray
         | Trajectory
         | Frames
         | PerState
         | InterState
         | SupportsFromXrConversion
         | ShnitselDB[SupportsFromXrConversion]
+        | ShnitselDB[xr.Dataset]
         | ShnitselDB[DataType]
         | CompoundGroup[DataType]
         | DataGroup[DataType]
@@ -184,26 +188,38 @@ class ShnitselFormatReader(FormatReader):
         try:
             # TODO: FIXME: Something is funky with type checks here.
             loaded_dataset_or_tree = read_shnitsel_file(
-                path, loading_parameters=loading_parameters, expect_dtype=expect_dtype
+                path, loading_parameters=loading_parameters
             )
 
             if isinstance(loaded_dataset_or_tree, xr.Dataset):
+                io_metadata = loaded_dataset_or_tree.attrs.get("_shnitsel_io_meta", {})
                 try:
-                    res = xr_dataset_to_shnitsel_format(loaded_dataset_or_tree)
+                    res = xr_dataset_to_shnitsel_format(
+                        loaded_dataset_or_tree, io_metadata
+                    )
                 except:
                     return loaded_dataset_or_tree
 
                 if expect_dtype is None:
-                    return xr_dataset_to_shnitsel_format(loaded_dataset_or_tree)
+                    return xr_dataset_to_shnitsel_format(
+                        loaded_dataset_or_tree, io_metadata
+                    )
                 elif expect_dtype == xr.Dataset:
                     # Do not convert
                     return loaded_dataset_or_tree
-                elif isinstance(expect_dtype, ShnitselDB):
-                    return complete_shnitsel_tree(loaded_dataset_or_tree)
+                elif isinstance(loaded_dataset_or_tree, ShnitselDB):
+                    return complete_shnitsel_tree(
+                        loaded_dataset_or_tree, dtype=expect_dtype
+                    )
                 else:
                     if is_assignable_to(type(res), expect_dtype):
                         return res
                     else:
+                        logging.error(
+                            "Could not convert result of type %s to expected type %s. Returning bare xr.Dataset",
+                            type(res),
+                            expect_dtype,
+                        )
                         return loaded_dataset_or_tree
             if isinstance(loaded_dataset_or_tree, xr.DataTree):
                 try:
@@ -212,6 +228,11 @@ class ShnitselFormatReader(FormatReader):
                     )
                     return db
                 except:
+                    logging.error(
+                        "Could not convert result of type %s to expected type %s. Returning bare xr.Dataset",
+                        type(loaded_dataset_or_tree),
+                        expect_dtype,
+                    )
                     raise
 
         except FileNotFoundError as fnf_e:
