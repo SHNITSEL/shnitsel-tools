@@ -3,12 +3,13 @@ import logging
 import os
 import traceback
 from typing import Any, Callable, Dict, TypeVar
+from typing_extensions import TypeForm
 import numpy as np
 import xarray as xr
 import sys
 
 from shnitsel.core._api_info import internal
-from ...data.shnitsel_db.datatree_level import _datatree_level_attribute_key
+from ...data.tree.datatree_level import _datatree_level_attribute_key
 
 from shnitsel.io.shared.variable_flagging import mark_variable_assigned
 
@@ -16,20 +17,22 @@ from shnitsel.io.shared.helpers import LoadingParameters, PathOptionsType
 
 # def open_frames(path):
 
-T = TypeVar('T')
+T = TypeVar("T")
 
 
 @internal()
 def read_shnitsel_file(
-    path: PathOptionsType, loading_parameters: LoadingParameters | None = None
-) -> xr.Dataset | xr.DataTree:
+    path: PathOptionsType,
+    loading_parameters: LoadingParameters | None = None,
+) -> xr.Dataset | xr.DataTree | None:
     """Opens a NetCDF4 file saved by shnitsel-tools, specially interpreting certain attributes.
 
     Parameters
     ----------
-    path (PathOptionsType):
+    path : PathOptionsType
         The path of the file to open.
-    loading_parameters (LoadingParameters,optional): Parameter settings for e.g. standard units or state names.
+    loading_parameters : LoadingParameters, optional
+        Parameter settings for e.g. standard units or state names.
 
     Returns
     -------
@@ -49,7 +52,15 @@ def read_shnitsel_file(
         frames = xr.open_datatree(path)
 
         # Unpack the dataset if the file did not contain a tree
-        if _datatree_level_attribute_key not in frames.attrs:
+        if (
+            _datatree_level_attribute_key not in frames.attrs
+            and (
+                "_shnitsel_tree_indicator" not in frames.attrs
+                or frames.attrs["_shnitsel_tree_indicator"] != "TREE"
+            )
+            and len(frames.children) == 0
+        ):
+            # We have a simple data type, unwrap the tree.
             # logging.debug(f"{frames.attrs=}")
             frames = frames.dataset
     except ValueError as ds_err:
@@ -63,10 +74,10 @@ def read_shnitsel_file(
                 datatree_info = sys.exc_info()
                 message = "Failed to load file as either Dataset or DataTree: %(ds_err)s \n %(ds_info)s \n %(dt_err)s \n %(dt_info)s"
                 params = {
-                    'ds_err': ds_err,
-                    'ds_info': dataset_info,
-                    'dt_err': dt_err,
-                    'dt_info': datatree_info,
+                    "ds_err": ds_err,
+                    "ds_info": dataset_info,
+                    "dt_err": dt_err,
+                    "dt_info": datatree_info,
                 }
                 logging.error(message, params)
                 raise ValueError(message % params)
@@ -85,7 +96,7 @@ def read_shnitsel_file(
             "This file might have been created with a later version of the `shnitsel-tools` package. \n"
             "Please update the `shnitsel-tools` package and attempt to read the file again."
         )
-        params = {'format_version': {shnitsel_format_version}}
+        params = {"format_version": {shnitsel_format_version}}
         logging.error(message, params)
         raise ValueError(message % params)
 
@@ -172,7 +183,7 @@ def _decode_shnitsel_v1_1_dataset(dataset: xr.Dataset) -> xr.Dataset:
                         value_d = np.array(entries, dtype=dtype_descr)
                 return value_d
             except TypeError as e:
-                params = {'e': e, 'traceback': traceback.format_exc()}
+                params = {"e": e, "traceback": traceback.format_exc()}
                 logging.debug(
                     "Encountered error during json decode: %(e)s \n %(traceback)s",
                     params,
@@ -244,7 +255,7 @@ def decode_attrs(obj):
                         value_d = np.array(entries, dtype=dtype_descr)
                 return value_d
             except TypeError as e:
-                params = {'e': e, 'traceback': traceback.format_exc()}
+                params = {"e": e, "traceback": traceback.format_exc()}
                 logging.debug(
                     "Encountered error during json decode: %(e)s \n %(traceback)s",
                     params,
@@ -255,6 +266,16 @@ def decode_attrs(obj):
             obj.attrs[attr] = json_deserialize_ndarray(str(attr), obj.attrs[attr])
 
     return obj
+
+
+def _decode_shnitsel_v1_1_datatree(datatree: xr.DataTree) -> xr.DataTree:
+    res = datatree.copy()
+    if res.has_data:
+        res.dataset = _decode_shnitsel_v1_1_dataset(res.dataset)
+
+    return res.assign(
+        {k: _decode_shnitsel_v1_1_datatree(v) for k, v in res.children.items()}
+    )
 
 
 def _decode_shnitsel_v1_2_datatree(datatree: xr.DataTree) -> xr.DataTree:
@@ -291,12 +312,13 @@ def _parse_shnitsel_file_v1_1(
         )
     if isinstance(frames, xr.DataTree):
         # import pprint
-
-        shnitsel_db = build_shnitsel_db(frames)
+        decoded_tree = _decode_shnitsel_v1_1_datatree(frames)
+        # shnitsel_db = build_shnitsel_db(frames)
         # pprint.pprint(shnitsel_db)
 
         # Decode json encoded attributes if json encoding is recorded
-        return shnitsel_db.map_over_trajectories(_decode_shnitsel_v1_1_dataset)  # type: ignore
+        # return shnitsel_db.map_over_trajectories(_decode_shnitsel_v1_1_dataset)  # type: ignore
+        return decoded_tree
     if isinstance(frames, xr.Dataset):
         # Decode json encoded attributes if json encoding is recorded
         return _decode_shnitsel_v1_1_dataset(frames)
@@ -326,11 +348,11 @@ def _parse_shnitsel_file_v1_2(
         # import pprint
 
         # pprint.pprint(frames)
-        shnitsel_db = _decode_shnitsel_v1_2_datatree(frames)
+        decoded_tree = _decode_shnitsel_v1_2_datatree(frames)
         # pprint.pprint(shnitsel_db)
-        shnitsel_db = build_shnitsel_db(shnitsel_db)
+        # decoded_tree = build_shnitsel_db(decoded_tree)
         # pprint.pprint(shnitsel_db)
-        return shnitsel_db
+        return decoded_tree
     if isinstance(frames, xr.Dataset):
         # Decode json encoded attributes if json encoding is recorded
         return _decode_shnitsel_v1_1_dataset(frames)
@@ -345,4 +367,5 @@ __SHNITSEL_READERS: Dict[
     "v1.0": _parse_shnitsel_file_v1_0,
     "v1.1": _parse_shnitsel_file_v1_1,
     "v1.2": _parse_shnitsel_file_v1_2,
+    "v1.3": _parse_shnitsel_file_v1_2,  # it's the 1.2 format but with more extensive in-tree metdatata
 }
