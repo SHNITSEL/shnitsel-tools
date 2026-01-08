@@ -197,6 +197,8 @@ def get_per_state(frames: Frames) -> PerState:
 
     if 'dip_perm' in per_state:
         per_state['dip_perm'].attrs['long_name'] = r'$\mathbf{\mu}_i$'
+    
+    per_state.attrs.update(frames.attrs)
     return per_state
 
 
