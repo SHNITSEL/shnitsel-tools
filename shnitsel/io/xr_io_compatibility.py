@@ -1,12 +1,13 @@
 from abc import abstractmethod
 import logging
-from typing import Protocol, TypeAlias, TypeVar
+from typing import Protocol, TypeAlias, TypeVar, runtime_checkable
 import xarray as xr
 
 ResType = TypeVar("ResType")
 MetaData: TypeAlias = dict[str, str]
 
 
+@runtime_checkable
 class SupportsToXrConversion(Protocol):
     """Definition of the protocol to support conversion of a type into
     xarray Dataset structs mostly for io purposes
@@ -35,6 +36,7 @@ class SupportsToXrConversion(Protocol):
         )
 
 
+@runtime_checkable
 class SupportsFromXrConversion(Protocol):
     """Definition of the protocol to support instantiation from
     xarray dataset structs.
