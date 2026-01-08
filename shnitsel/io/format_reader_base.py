@@ -8,7 +8,7 @@ from typing_extensions import TypeForm
 
 from shnitsel.core.typedefs import StateTypeSpecifier
 from shnitsel.data.tree import ShnitselDB, CompoundGroup, DataGroup, DataLeaf
-from shnitsel.data.trajectory_format import Trajectory
+from shnitsel.data.dataset_containers import Trajectory, Frames, InterState, PerState
 from shnitsel.io.shared.helpers import (
     LoadingParameters,
     PathOptionsType,
@@ -29,6 +29,7 @@ from shnitsel.io.shared.trajectory_setup import (
     fill_missing_dataset_variables,
 )
 from shnitsel.io.shared.variable_flagging import mark_variable_assigned
+from shnitsel.io.xr_io_compatibility import SupportsFromXrConversion
 
 
 @dataclass
@@ -59,9 +60,12 @@ class FormatReader(ABC):
     ) -> list[pathlib.Path] | None:
         """Function to return a all potential matches for the current file format  within a provided directory at `path`.
 
-        Returns:
-            list[PathOptionsType] : A list of paths that should be checked in detail for whether they represent the format of this FormatReader.
-            None: No potential candidate found
+        Returns
+        -------
+        list[PathOptionsType]
+            A list of paths that should be checked in detail for whether they represent the format of this FormatReader.
+        None
+            No potential candidate found
         """
         # TODO: FIXME: Add option to specify if we want only file or only directory paths
         # TODO: FIXME: maybe just turn into a "filter" function and provide the paths?
@@ -77,25 +81,30 @@ class FormatReader(ABC):
 
         Needs to be overridden by each format.
 
-        Args:
-            path (os.PathLike):
-                The path to look for data from the respective method for.
-                Depending on the format, this would need to point to a file or a directory containing the actual
-                trajectory information
-            hints (Dict|None, optional):
-                Potential hints/configuration options provided by the user as input to the reader which can be
-                checked for conflicts with the requirements of the format (i.e. requesting a static initial condition from a dynamic trajectory in SHARC).
-                Defaults to None
+        Parameters
+        ----------
+        path : os.PathLike
+            The path to look for data from the respective method for.
+            Depending on the format, this would need to point to a file or a directory containing the actual
+            trajectory information
+        hints : dict|None, optional
+            Potential hints/configuration options provided by the user as input to the reader which can be
+            checked for conflicts with the requirements of the format (i.e. requesting a static initial condition from a dynamic trajectory in SHARC).
+            Defaults to None
 
-        Raises:
-            FileNotFoundError: If required files were not found, i.e. if the path does not actually constitute input data of the denoted format
-            ValueError: If the hints/settings provided by the user conflict with the requirements of the format
+        Raises
+        ------
+        FileNotFoundError
+            If required files were not found, i.e. if the path does not actually constitute input data of the denoted format
+        ValueError
+            If the hints/settings provided by the user conflict with the requirements of the format
 
-        Returns:
-            FormatInformation:
-                A structure containing all of the information relevant to the interpretation or reading of the format.
-                Can be used to differentiate different versions of the same format.
-                Should be passed to the `read_from_path()` method of the same class.
+        Returns
+        -------
+        FormatInformation
+            A structure containing all of the information relevant to the interpretation or reading of the format.
+            Can be used to differentiate different versions of the same format.
+            Should be passed to the `read_from_path()` method of the same class.
         """
         path_obj: pathlib.Path = make_uniform_path(path)  # type: ignore
         matched_data = _default_trajid_pattern_regex.match(path_obj.name)
@@ -120,55 +129,117 @@ class FormatReader(ABC):
         | DataType
         | None
     ):
-        """Method to read a path of the respective format (e.g. ) into a shnitsel-conform trajectory.
+        """
+        Method to read a path of the respective format (e.g. 'shnitsel' or 'sharc') into a shnitsel-format trajectory or hierarchical data type.
 
-        The return value of type `Trajectory` is a wrapper for the raw `xarray.Dataset` read from the `path`.
-        This allows provision of extra features like keeping track of the original data while post-processing is performed.
+        The return value of type `xarray.Dataset` read from the `path` is used for first-time imported trajectories from various formats.
+        It is then wrapped into a `Trajectory` or `Frames` object to make type distinction simpler for users.
+        For more complex input formats, hierarchical return types may be supported.
 
-        Args:
-            path (pathlib.Path): Path to either the input file or input folder to be read.
-            format_info (FormatInformation): Format information previously constructed by `check_path_for_format_info()`. If None, will be constructed by calling `Self.check_path_for_format_info()` first. Defaults to None.
-            loading_parameters: (LoadingParameters|None, optional): Loading parameters to e.g. override default state names, units or configure the error reporting behavior
+        Parameters
+        ----------
+            path : pathlib.Path
+                Path to either the input file or input folder to be read.
+            format_info : FormatInformation
+                Format information previously constructed by `check_path_for_format_info()`.
+                If None, will be constructed by calling `Self.check_path_for_format_info()` first.
+            loading_parameters : LoadingParameters|None, optional
+                Loading parameters to e.g. override default state names, units or configure the error reporting behavior
 
-        Raises:
-            FileNotFoundError: If required files were not found, i.e. if the path does not actually constitute input data of the denoted format
-            ValueError: If the `format_info` provided by the user conflicts with the requirements of the format
-            Valueerror: If neither `path` nor `format_info` are provided
+        Raises
+        ------
+            FileNotFoundError
+                If required files were not found, i.e. if the path does not actually constitute input data of the denoted format
+            ValueError
+                If the `format_info` provided by the user conflicts with the requirements of the format
+            Valueerror
+                If neither `path` nor `format_info` are provided
 
-
-        Returns:
-            Trajectory: The parsed dataset as wrapper around `xarray.Dataset` to keep track of original data.
+        Returns
+        -------
+            xr.Dataset
+                The parsed dataset imported from the underlying data format.
+            ShnitselDB[DataType]
+            | CompoundGroup[DataType]
+            | DataGroup[DataType]
+            | DataLeaf[DataType]
+            | DataType
+                Data resulting from reading data with hierarchical or arbitrary data contents.
+            None
+                If the reading of data failed for arbitrary reasons.
         """
         ...
 
-    def read_trajectory(
+    def read_data(
         self,
         path: PathOptionsType | None,
         format_info: FormatInformation | None = None,
         loading_parameters: LoadingParameters | None = None,
         expect_dtype: type[DataType] | TypeForm[DataType] | None = None,
-    ) -> Trajectory | ShnitselDB | None:
-        """Wrapper function to perform some potential initialization and finalization on the read trajectory objects.
+    ) -> (
+        xr.Dataset
+        | Trajectory
+        | Frames
+        | ShnitselDB[
+            Trajectory | Frames | InterState | PerState | SupportsFromXrConversion
+        ]
+        | DataType
+        | ShnitselDB[DataType]
+        | CompoundGroup[DataType]
+        | CompoundGroup[DataType]
+        | CompoundGroup[DataType]
+        | None
+    ):
+        """
+        Wrapper function to perform some potential initialization and finalization on the read trajectory objects.
 
         Uses the format-specific `self.read_from_path()` method to read the trajectory and then performs some standard post processing on it.
 
 
-        Args:
-            path (PathOptionsType, optional): Path to either the input file or input folder to be read.
-            format_info (FormatInformation, optional): Format information previously constructed by `check_path_for_format_info()`. If None, will be constructed by calling `Self.check_path_for_format_info()` first. Defaults to None.
-            loading_parameters: (LoadingParameters|None, optional): Loading parameters to e.g. override default state names, units or configure the error reporting behavior
+        Parameters
+        ----------
+            path : PathOptionsType, optional
+                Path to either the input file or input folder to be read.
+            format_info : FormatInformation, optional
+                Format information previously constructed by `check_path_for_format_info()`.
+                If None, will be constructed by calling `Self.check_path_for_format_info()` first. Defaults to None.
+            loading_parameters : LoadingParameters|None, optional
+                Loading parameters to e.g. override default state names, units or configure the error reporting behavior
+            expected_dtype : type[DataType] | TypeForm[DataType], optional
+                Optional setting of the expected dtype as a result of this call to import data.
+                Either specifies the direct output type expected by the `read()` call or the `dtype` in a hierarchical structure.s
 
-        Raises:
-            FileNotFoundError: If required files were not found, i.e. if the path does not actually constitute input data of the denoted format
-            ValueError: If the `format_info` provided by the user conflicts with the requirements of the format
-            Valueerror: If neither `path` nor `format_info` are provided
+        Returns
+        -------
+        Trajectory | Frames | xr.Dataset
+            Returns a wrapped Trajectory/Frames/xr.Dataset object with standard units, only assigned variables remaining and all
+            variables with appropriate attributes if new data was imported from one of the supported input formats.
+        ShnitselDB[Trajectory | Frames | InterState | PerState | SupportsFromXrConversion]
+        | DataType
+        | ShnitselDB[DataType]
+        | CompoundGroup[DataType]
+        | CompoundGroup[DataType]
+        | CompoundGroup[DataType]
+        | xr.DataArray
+            If a netcdf file was read as input, will return either one of the default xarray datatypes or a hierarchy of data stored in a shnitsel
+            tools tree.
+            Providing a type hint of the expected `dtype` in the invocation helps with identifying the expected type in the hierarchy
+            but also allows for explicit control of the output type if desired.
+            In principle, arbitrary types can be the result of inputs from netcdf files due to deserialization routines called in the deserialization process.
+        None
+            If no result was obtained by the call to `self.read_from_path()`, it will return `None`.
 
-        Returns:
-            Trajectory|None: Returns a wrapped Trajectory/xr.Dataset object with standard units, only assigned variables remaining and all
-                                variables with appropriate attributes.
-                                If no result was obtained by the call to `self.read_from_path()`, it will return `None`.
+        Raises
+        ------
+        ValueError
+            If the `format_info` provided by the user conflicts with the requirements of the format
+        ValueError
+            If neither `path` nor `format_info` are provided
+        FileNotFoundError
+            If required files were not found, i.e. if the path does not actually constitute input data of the denoted format
         """
 
+        # This here transforms lists of input state names and types into functions to assign them automatically later on.
         loading_parameters = self.get_loading_parameters_with_defaults(
             loading_parameters
         )
@@ -192,12 +263,16 @@ class FormatReader(ABC):
         if not path_obj.exists():
             raise FileNotFoundError(f"Path at {path_obj} does not exist.")
 
-        res = self.read_from_path(path_obj, format_info, loading_parameters)
+        res = self.read_from_path(
+            path_obj, format_info, loading_parameters, expect_dtype=expect_dtype
+        )
 
         if res is not None:
             # NOTE: Do not post-process the tree like a single trajectory
-            if isinstance(res, xr.DataTree):
-                logging.debug("Skipping trajectory finalization for ShnitselDB object")
+            if not isinstance(res, (xr.Dataset, Trajectory, Frames)):
+                logging.debug(
+                    "Skipping trajectory finalization for non-trajectory object"
+                )
                 return res
 
             # Set some optional settings.
@@ -259,29 +334,46 @@ class FormatReader(ABC):
     def get_units_with_defaults(
         self, unit_overrides: dict[str, str] | None = None
     ) -> dict[str, str]:
-        """Apply units to the default unit dictionary of the format
+        """
+        Apply units to the default unit dictionary of the format
 
-        Args:
-            unit_overrides (Dict[str, str] | None, optional): Units denoted by the user to override format default settings. Defaults to None.
+        Parameters
+        ----------
+        unit_overrides : dict[str, str] | None, optional
+            Units denoted by the user to override format default settings, by default None
 
-        Raises:
-            NotImplementedError: The class does not provide this functionality yet
+        Returns
+        -------
+        dict[str, str]
+            The resulting, overridden default units
 
-        Returns:
-            Dict[str, str]: The resulting, overridden default units
+        Raises
+        ------
+        NotImplementedError
+            The class does not provide this functionality yet
         """
         raise NotImplementedError()
 
     def get_loading_parameters_with_defaults(
         self, base_loading_parameters: LoadingParameters | None
     ) -> LoadingParameters:
-        """Populate loading parameters with default settings for this format
+        """
+        Populate loading parameters with default settings for this format
 
-        Args:
-            base_loading_parameters (LoadingParameters | None): User-provided parameter overrides
+        If settings were applied by the user, they may be coerced into a more fitting format
+        like converting lists of state names into a function that automatically assigns the names to
+        the variables in a dataset to simplify the logic at a later point where we would
+        have to support both callables or lists being provided as parameters.
 
-        Returns:
-            LoadingParameters: The default parameters modified by user overrides
+        Parameters
+        ----------
+        base_loading_parameters : LoadingParameters | None
+            User-provided parameter overrides
+
+        Returns
+        -------
+        LoadingParameters
+            The default parameters modified by user overrides.
         """
 
         # Transform different options of input settings into a callable that assigns the values.
@@ -333,16 +425,16 @@ class FormatReader(ABC):
                     elif isinstance(label, str):
                         label_low = label.lower()
 
-                        if label_low.startswith('s'):
+                        if label_low.startswith("s"):
                             return 1
-                        elif label_low.startswith('d'):
+                        elif label_low.startswith("d"):
                             return 2
-                        elif label_low.startswith('t'):
+                        elif label_low.startswith("t"):
                             return 3
 
                     logging.error(
                         "Encountered invalid state type specifier: %(label)s",
-                        {'label': label},
+                        {"label": label},
                     )
                     return -1
 
@@ -366,8 +458,8 @@ class FormatReader(ABC):
                     def tmp_state_assigner(dataset: xr.Dataset) -> xr.Dataset:
                         dataset = fill_missing_dataset_variables(dataset)
                         assert (
-                            'state' not in dataset.sizes
-                            or len(state_types_override) == dataset.sizes['state']
+                            "state" not in dataset.sizes
+                            or len(state_types_override) == dataset.sizes["state"]
                         ), "Length of provided state type list did not match length of state array in loaded dataset."
                         dataset = dataset.assign_coords(
                             {
