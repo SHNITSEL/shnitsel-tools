@@ -1,7 +1,5 @@
 from dataclasses import dataclass
 
-from shnitsel.analyze.generic import keep_norming
-from shnitsel.analyze.stats import get_inter_state
 from .shared import ShnitselDerivedDataset
 from .frames import Frames
 from .trajectory import Trajectory
@@ -18,6 +16,8 @@ class InterState(ShnitselDerivedDataset):
         /,
         direct_interstate_data: xr.Dataset | None = None,
     ):
+        from shnitsel.analyze.stats import get_inter_state
+
         base_ds = None
         if frames is not None:
             assert (
@@ -64,6 +64,8 @@ class InterState(ShnitselDerivedDataset):
                 raise KeyError(
                     "No variable `dipole_trans_norm` to encode the norm of interstate transition dipole moments in trajectory data. Also no raw `dipole_trans` to calculate it from. "
                 )
+            from shnitsel.analyze.generic import keep_norming
+
             self.dataset['dip_trans_norm'] = keep_norming(self.dipole_transition)
         return self.dataset.data_vars["dip_trans_norm"]
 
@@ -82,6 +84,8 @@ class InterState(ShnitselDerivedDataset):
                 raise KeyError(
                     "No variable `nacs_norm` to encode the norm of non-adiabatic-couplings in trajectory data. Also no raw `nacs` to calculate it from. "
                 )
+            from shnitsel.analyze.generic import keep_norming
+
             self.dataset['nacs_norm'] = keep_norming(self.nacs)
         return self.dataset.data_vars["nacs_norm"]
 
@@ -100,6 +104,8 @@ class InterState(ShnitselDerivedDataset):
                 raise KeyError(
                     "No variable `socs_norm` to encode the norm of spin-orbit-couplings in trajectory data. Also no raw `socs` to calculate it from. "
                 )
+            from shnitsel.analyze.generic import keep_norming
+
             self.dataset['socs_norm'] = keep_norming(self.socs)
         return self.dataset.data_vars["socs_norm"]
 

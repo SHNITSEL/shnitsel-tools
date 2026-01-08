@@ -1,8 +1,6 @@
 from dataclasses import dataclass
 from typing import Literal
 
-from shnitsel.analyze.generic import keep_norming
-from shnitsel.analyze.stats import get_per_state
 from .trajectory import Trajectory
 from .shared import ShnitselDerivedDataset
 from .frames import Frames
@@ -20,6 +18,7 @@ class PerState(ShnitselDerivedDataset):
         /,
         direct_perstate_data: xr.Dataset | None = None,
     ):
+        from shnitsel.analyze.stats import get_per_state
         # TODO: FIXME: Calculate per-state variables and cache in original dataset
 
         base_ds = None
@@ -64,6 +63,8 @@ class PerState(ShnitselDerivedDataset):
                 raise KeyError(
                     "No variable `dip_perm_norm` to encode per-state permanent dipole moments in trajectory data"
                 )
+            from shnitsel.analyze.generic import keep_norming
+
             self.dataset["dip_perm_norm"] = keep_norming(self.dataset["dip_perm"])
         return self.dataset.data_vars["dip_perm_norm"]
 
@@ -82,9 +83,11 @@ class PerState(ShnitselDerivedDataset):
                 raise KeyError(
                     "No variable `forces` to encode per-state forces in trajectory data"
                 )
+            from shnitsel.analyze.generic import keep_norming
+
             self.dataset["forces_norm"] = keep_norming(self.dataset["forces"])
         return self.dataset.data_vars["forces_norm"]
 
     @property
     def forces_format(self) -> bool | Literal["all", "active_only"] | None:
-        return self._original_frames.forces_format
+        return self.dataset.attrs[]
