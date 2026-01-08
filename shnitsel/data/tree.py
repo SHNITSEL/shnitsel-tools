@@ -29,9 +29,9 @@ def _common_coords_attrs(tree, ensure_unique):
     unique_values = {k: {} for k in iter(ensure_unique)}
     dvauv = {}
     for node in tree.children.values():
-        for k in node.attrs:
-            if k not in exclude_attrs | ensure_unique:
-                coord_names.append(k)
+        coord_names.extend(
+            [k for k in node.attrs if k not in exclude_attrs | ensure_unique]
+        )
 
         for varname, var in chain(node.data_vars.items(), node.coords.items()):
             if varname not in dvauv:
