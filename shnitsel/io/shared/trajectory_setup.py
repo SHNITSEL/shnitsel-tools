@@ -8,18 +8,25 @@ import xarray as xr
 
 import numpy as np
 
+from shnitsel.core.typedefs import Frames
+from shnitsel.data.trajectory_format import Trajectory
 from shnitsel.io.shared.helpers import LoadingParameters
 from shnitsel.io.shared.variable_flagging import mark_variable_assigned
 
 
 @dataclass
 class RequiredTrajectorySettings:
+    """Helper class to make sure all required settings are applied and to
+    avoid typos when assigning required settings to consistent keys in trajectories.
+
+    """
+
     t_max: float
     delta_t: float
     max_ts: int
     completed: bool
     input_format: Literal["sharc", "newtonx", "ase", "pyrai2md"]
-    input_type: Literal['static', 'dynamic', 'unknown']
+    input_type: Literal["static", "dynamic", "unknown"]
     input_format_version: str
 
     num_singlets: int
@@ -29,7 +36,11 @@ class RequiredTrajectorySettings:
 
 @dataclass
 class OptionalTrajectorySettings:
-    has_forces: bool | Literal['all', 'active_only'] | None = None
+    """Helper class to make sure consistent keys are used in trajectory settings
+    for optional configuration information.
+    """
+
+    has_forces: bool | Literal["all", "active_only"] | None = None
     trajid: int | None = None
     is_multi_trajectory: bool | None = None
     trajectory_input_path: str | None = None
@@ -42,29 +53,37 @@ class OptionalTrajectorySettings:
 
 
 def assign_required_settings(
-    dataset: xr.Dataset | xr.DataTree, settings: RequiredTrajectorySettings
+    dataset: xr.Dataset | Trajectory | Frames, settings: RequiredTrajectorySettings
 ) -> None:
-    """Function to assign all required settings to the dataset.
+    """
+    Function to assign all required settings to the dataset.
 
     Just a handy tool so all values are assigned because all fields in `settings` should be assigned upon its creation
 
-    Args:
-        dataset (xr.Dataset): The dataset to write the required settings into
-        settings (RequiredTrajectorySettings): The fully assigned settings object containing all keys and values to be assigned.
+    Parameters
+    ----------
+    dataset : xr.Dataset | Trajectory | Frames
+        The dataset/trajectory to write the required settings into
+    settings : RequiredTrajectorySettings
+        The fully assigned settings object containing all keys and values to be assigned.
     """
     dataset.attrs.update(asdict(settings))
 
 
 def assign_optional_settings(
-    dataset: xr.Dataset | xr.DataTree, settings: OptionalTrajectorySettings
+    dataset: xr.Dataset | Trajectory | Frames, settings: OptionalTrajectorySettings
 ) -> None:
-    """Function to assign all assigned optional settings to a dataset.
+    """
+    Function to assign all assigned optional settings to a dataset.
 
     Just a handy tool so we can be sure the settings are assigned with the correct keys.
 
-    Args:
-        dataset (xr.Dataset): The dataset to write the optional settings into
-        settings (OptionalTrajectorySettings): The dataclass object that has all optional setting keys with optional values. Only assigned settings (not None) will be inserted.
+    Parameters
+    ----------
+    dataset : xr.Dataset | Trajectory | Frames
+        The dataset/trajectory to write the optional settings into
+    settings : OptionalTrajectorySettings
+        The dataclass object that has all optional setting keys with optional values. Only assigned settings (not None) will be inserted.
     """
     kv_dict = asdict(settings)
     for k, v in kv_dict.items():
@@ -75,11 +94,15 @@ def assign_optional_settings(
 def get_statecomb_coordinate(states: xr.DataArray) -> xr.Coordinates:
     """Helper function to create a statecombination coordinate if it is missing, based on the states registered.
 
-    Args:
-        states (xr.DataArray): The state coordinate
+    Parameters
+    ----------
+    states : xr.DataArray
+        The state coordinate
 
-    Returns:
-        xr.Coordinates: The new coordinate having all non-ordered state combinations
+    Returns
+    -------
+    xr.Coordinates
+        The new coordinate having all non-ordered state combinations
     """
     return xr.Coordinates.from_pandas_multiindex(
         pd.MultiIndex.from_tuples(combinations(states, 2), names=["from", "to"]),
@@ -95,20 +118,32 @@ def create_initial_dataset(
     format_name: Literal["sharc", "newtonx", "ase", "pyrai2md"],
     loading_parameters: LoadingParameters | None,
     **kwargs,
-) -> Tuple[xr.Dataset, Dict]:
-    """Function to initialize an `xr.Dataset` with appropriate variables and coordinates to acommodate loaded data.
+) -> Tuple[xr.Dataset, dict]:
+    """
+    Function to initialize an `xr.Dataset` with appropriate variables and coordinates to acommodate loaded data.
 
     All arguments are used to accurately size the dimensions of the dataset or assign.
     Also returns the default attributes associated with the variables in the dataset for later assignment of certain values like "time" which is not initialized with values.
 
-    Args:
-        num_time_steps (int): The number of expected time steps in this trajectory. Set to 0 to not create a "time" dimension.
-        num_states (int): The number of states within the datasets.
-        num_atoms (int): The number of atoms within the datasets. Set to 0 to remove all observables tied to an "atom" index.
 
-    Returns:
-        xr.Dataset: An xarray Dataset with appropriately sized DataArrays and coordinates also including default attributes for all variables.
-        Dict: The key-value dict, where the key is the name of standard variables/coordinates in Shnitsel terminology and the value is the dict of default attributes associated with this variable in this format.
+    Parameters
+    ----------
+    num_time_steps : int
+        The number of expected time steps in this trajectory. Set to 0 to not create a "time" dimension.
+    num_states : int
+        The number of states within the datasets.
+    num_atoms : int
+        _description_
+    format_name : Literal["sharc", "newtonx", "ase", "pyrai2md"]
+        The number of atoms within the datasets. Set to 0 to remove all observables tied to an "atom" index.
+    loading_parameters : LoadingParameters | None
+        Optional parameters to influence import and object creation. Used to set some input units and default handlers.
+
+    Returns
+    -------
+    Tuple[xr.Dataset, dict]
+        First An xarray Dataset with appropriately sized DataArrays and coordinates also including default attributes for all variables.
+        Second the key-value dict, where the key is the name of standard variables/coordinates in Shnitsel terminology and the value is the dict of default attributes associated with this variable in this format.
     """
     from shnitsel.units.defaults import get_default_input_attributes
 
@@ -162,7 +197,7 @@ def create_initial_dataset(
     }
 
     default_float_type = np.dtypes.Float32DType
-    default_string_type = 'U8'
+    default_string_type = "U8"
 
     template_default_dtypes = {
         "energy": default_float_type,
@@ -321,6 +356,7 @@ def create_initial_dataset(
         mark_variable_assigned(res_dataset.state_charges)
 
     res_dataset = res_dataset.set_coords(isolated_keys)
+    res_dataset.attrs["_shnitsel_setup_for_cleanup"] = True
 
     return res_dataset, default_format_attributes
 
@@ -357,7 +393,7 @@ def fill_missing_dataset_variables(ds: xr.Dataset) -> xr.Dataset:
     }
 
     default_float_type = np.dtypes.Float32DType
-    default_string_type = 'U8'
+    default_string_type = "U8"
 
     template_default_dtypes = {
         "state_names": default_string_type,
@@ -369,8 +405,8 @@ def fill_missing_dataset_variables(ds: xr.Dataset) -> xr.Dataset:
         "atNums": np.dtypes.Int8DType,
     }
 
-    num_states = ds.sizes['state'] if 'state' in ds.sizes else 0
-    num_atoms = ds.sizes['atom'] if 'atom' in ds.sizes else 0
+    num_states = ds.sizes["state"] if "state" in ds.sizes else 0
+    num_atoms = ds.sizes["atom"] if "atom" in ds.sizes else 0
 
     dim_lengths = {
         "state": num_states,
@@ -391,7 +427,7 @@ def fill_missing_dataset_variables(ds: xr.Dataset) -> xr.Dataset:
         ).intersection(template.keys())
     )
 
-    default_format_attributes = get_default_input_attributes('shnitsel', None)
+    default_format_attributes = get_default_input_attributes("shnitsel", None)
 
     var_data = {
         varname: (
