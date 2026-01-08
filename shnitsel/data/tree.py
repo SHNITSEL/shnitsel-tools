@@ -80,7 +80,7 @@ def _get_message(vals):
         inc = " including" if len(ids) > MAX_IDS else ""
         ids_shown = " ".join([str(x) for x in ids[:MAX_IDS]])
         message += (
-            f"  - {k} = {val} in {len(ids)} trajectories,",
+            f"  - value {val!r} in {len(ids)} trajectories,",
             f"{inc} IDs: {ids_shown}\n",
         )
     return message
