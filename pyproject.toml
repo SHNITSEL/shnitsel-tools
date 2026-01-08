@@ -99,15 +99,16 @@ ignore = [
   "E70",  # Multiple statements on one line
 ]
 
-[tool.ruff.lint.flake8-annotations]
-ignore-fully-untyped = true
-
-[tool.ruff.per-file-ignores]
+[tool.ruff.lint.per-file-ignores]
 "tests/*" = [
   # Don't require docstrings in tests
   "D102",  
   "D103",
 ]
+
+[tool.ruff.lint.flake8-annotations]
+ignore-fully-untyped = true
+
 
 [tool.mypy]
 packages = "shnitsel"
