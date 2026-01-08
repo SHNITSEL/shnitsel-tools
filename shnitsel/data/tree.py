@@ -74,6 +74,16 @@ def _collect_values(tree, ensure_unique):
 
     return datasets, trajids, coords, unique_values, dvauv
 
+def _get_message(vals):
+    message = ""
+    for val, ids in vals.items():
+        inc = " including" if len(ids) > MAX_IDS else ""
+        ids_shown = " ".join([str(x) for x in ids[:MAX_IDS]])
+        message += (
+            f"  - {k} = {val} in {len(ids)} trajectories,",
+            f"{inc} IDs: {ids_shown}\n",
+        )
+    return message
 
 def _concat(tree, ensure_unique):
     per_traj_dim_name = 'trajid_'
@@ -85,13 +95,7 @@ def _concat(tree, ensure_unique):
     for k, vals in unique_values.items():
         if len(vals) != 1:
             messages += f"- There are {len(vals)} different values for {k}:\n"
-            for val, ids in vals.items():
-                messages += f"  - {k} = {val} in {len(ids)} trajectories, "
-                if len(ids) < MAX_IDS:
-                    messages += "IDs: " + " ".join([str(x) for x in ids])
-                else:
-                    messages += "including IDs: " + " ".join([str(x) for x in ids[:20]])
-                messages += "\n"
+            messages += _get_message(vals)
         elif next(iter(vals)) is MissingValue:
             messages += f"- The attribute {k} is missing in all trajectories."
         else:
@@ -105,15 +109,7 @@ def _concat(tree, ensure_unique):
         for var_attr_name, vals in var_attr_data.items():
             if len(vals) != 1:
                 messages += f"- There are {len(vals)} different values for {var_attr_name} in {var_name}:\n"
-                for val, ids in vals.items():
-                    messages += f"  - {k} = {val} in {len(ids)} trajectories, "
-                    if len(ids) < MAX_IDS:
-                        messages += "IDs: " + " ".join([str(x) for x in ids])
-                    else:
-                        messages += "including IDs: " + " ".join(
-                            [str(x) for x in ids[:20]]
-                        )
-                    messages += "\n"
+                messages += _get_message(vals)
             elif next(iter(vals)) is MissingValue:
                 messages += f"- The attribute {var_attr_name} in {var_name} is missing in all trajectories."
             elif var_name in res.coords:
