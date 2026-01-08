@@ -3,9 +3,11 @@ import logging
 import pathlib
 import re
 import traceback
-from typing import Dict, List
+from typing import TypeVar
+from typing_extensions import TypeForm
 
-from shnitsel.data.shnitsel_db_format import ShnitselDB
+from shnitsel.data.dataset_containers import Trajectory, Frames
+from shnitsel.data.tree.tree import ShnitselDB
 from shnitsel.io.shared.helpers import (
     LoadingParameters,
     PathOptionsType,
@@ -24,6 +26,8 @@ class NewtonXFormatInformation(FormatInformation):
     pass
 
 
+DataType = TypeVar("DataType")
+
 _newtonx_default_pattern_regex = re.compile(r"TRAJ(?P<trajid>\d+)")
 _newtonx_default_pattern_glob = r"TRAJ*"
 
@@ -33,12 +37,20 @@ class NewtonXFormatReader(FormatReader):
 
     def find_candidates_in_directory(
         self, path: PathOptionsType
-    ) -> List[pathlib.Path] | None:
-        """Function to return a all potential matches for the current file format  within a provided directory at `path`.
+    ) -> list[pathlib.Path] | None:
+        """
+        Function to return a all potential matches for the current file format  within a provided directory at `path`.
+        Parameters
+        ----------
+        path : PathOptionsType
+            The path to a directory to check for potential candidate files or subdirectories
 
-        Returns:
-            List[PathOptionsType] : A list of paths that should be checked in detail for whether they represent the format of this FormatReader.
-            None: No potential candidate found
+        Returns
+        -------
+        list[pathlib.Path]
+            A list of paths that should be checked in detail for whether they represent the format of this FormatReader.
+        None
+            If no potential candidates were found
         """
         # TODO: FIXME: Add option to specify if we want only file or only directory paths
         # TODO: FIXME: maybe just turn into a "filter" function and provide the paths?
@@ -52,22 +64,32 @@ class NewtonXFormatReader(FormatReader):
         return None if len(res_entries) == 0 else res_entries
 
     def check_path_for_format_info(
-        self, path: PathOptionsType, hints_or_settings: Dict | None = None
+        self, path: PathOptionsType, hints_or_settings: dict | None = None
     ) -> FormatInformation:
-        """Check if the `path` is a SHARC-style output directory.
+        """
+        Check if the `path` is a NewtonX-style output directory.
 
         Designed for a single input trajectory.
 
-        Args:
-            path (PathOptionsType): The path to check for SHARC data
-            hints_or_settings (Dict): Configuration options provided to the reader by the user
+        Parameters
+        ----------
+        path : PathOptionsType
+            The path to check for NewtonX data
+        hints_or_settings : dict | None, optional
+            Configuration options provided to the reader by the user, by default None
 
-        Raises:
-            FileNotFoundError: If the `path` is not a directory.
-            FileNotFoundError: If `path` is a directory but does not contain the required SHARC output files
+        Returns
+        -------
+        FormatInformation
+            The object holding all relevant format information for the path contents if
+            it matches the NewtonX format
 
-        Returns:
-            FormatInformation: _description_
+        Raises
+        ------
+        FileNotFoundError
+            If the `path` is not a directory.
+        FileNotFoundError
+            If `path` is a directory but does not contain the required NewtonX output files
         """
         path_obj: pathlib.Path = make_uniform_path(path)
 
@@ -94,7 +116,7 @@ class NewtonXFormatReader(FormatReader):
         for file in [nx_log_path, nx_dynxyz_path, nx_dynout_path, nx_endat_path]:
             if not file.is_file():
                 message = "Input directory is missing %(file)s"
-                params = {'file': file}
+                params = {"file": file}
                 logging.debug(message, params)
                 file_not_found_miss = FileNotFoundError(message % params)
             else:
@@ -113,7 +135,7 @@ class NewtonXFormatReader(FormatReader):
         if match_attempt:
             path_based_trajid = match_attempt.group("trajid")
             format_information.trajid = int(path_based_trajid)
-            logging.info("Assigning id %(id)d to trajectory", {'id': path_based_trajid})
+            logging.info("Assigning id %(id)d to trajectory", {"id": path_based_trajid})
         else:
             format_information.trajid = base_format_info.trajid
 
@@ -124,21 +146,39 @@ class NewtonXFormatReader(FormatReader):
         path: pathlib.Path,
         format_info: FormatInformation,
         loading_parameters: LoadingParameters | None = None,
-    ) -> xr.Dataset | ShnitselDB:
+        expect_dtype: type[DataType] | TypeForm[DataType] | None = None,
+    ) -> xr.Dataset | Trajectory | Frames | None:
         """Read a NewtonX-style trajcetory from path at `path`. Implements `FormatReader.read_from_path()`
 
-        Args:
-            path (pathlib.Path): Path to a NewtonX-format directory.
-            format_info (FormatInformation): Format information on the provided `path` that has been previously parsed.
-            loading_parameters: (LoadingParameters|None, optional): Loading parameters to e.g. override default state names, units or configure the error reporting behavior
+        Parameters
+        ----------
+        path : pathlib.Path
+            Path to a NewtonX-format directory.
+        format_info : FormatInformation
+            Format information on the provided `path` that has been previously parsed.
+        loading_parameters : LoadingParameters | None, optional
+            Loading parameters to e.g. override default state names, units or configure the error reporting behavior, by default None
+        expect_dtype : type[DataType] | TypeForm[DataType] | None, optional
+            An optional parameter to specify the return type.
+            For this class, it should be `xr.Dataset`, `Trajectory` or `Frames`, by default None
 
-        Raises:
-            ValueError: Not enough loading information was provided via `path` and `format_info`, e.g. if both are None.
-            FileNotFoundError: Path was not found or was not of appropriate NewtonX format
+        Returns
+        -------
+        xr.Dataset | Trajectory | Frames | None
+            The loaded Shnitsel-conforming trajectory.
 
-        Returns:
-            Trajectory: The loaded Shnitsel-conforming trajectory
+        Raises
+        ------
+        ValueError
+            Not enough loading information was provided via `path` and `format_info`, e.g. if both are None.
+        FileNotFoundError
+            Path was not found or was not of appropriate NewtonX format
         """
+
+        if expect_dtype is not None:
+            logging.debug(
+                "The NewtonX format reader only supports dtypes `Trajectory`, `Frames` or `xr.Dataset` "
+            )
 
         try:
             loaded_dataset = parse_newtonx(path, loading_parameters=loading_parameters)
@@ -147,25 +187,27 @@ class NewtonXFormatReader(FormatReader):
         except ValueError as v_e:
             message = "Attempt at reading NewtonX trajectory from path `%(path)s` failed because of original error: %(v_e)s.\n Trace: \n %(v_e)s"
             logging.error(
-                message, {'path': path, 'v_e': v_e, 'tb': traceback.format_exc()}
+                message, {"path": path, "v_e": v_e, "tb": traceback.format_exc()}
             )
             raise
 
         return loaded_dataset
 
     def get_units_with_defaults(
-        self, unit_overrides: Dict[str, str] | None = None
-    ) -> Dict[str, str]:
-        """Apply units to the default unit dictionary of the format NewtonX
+        self, unit_overrides: dict[str, str] | None = None
+    ) -> dict[str, str]:
+        """
+        Apply units to the default unit dictionary of the format NewtonX
 
-        Args:
-            unit_overrides (Dict[str, str] | None, optional): Units denoted by the user to override format default settings. Defaults to None.
+        Parameters
+        ----------
+        unit_overrides : Dict[str, str] | None, optional
+            Units denoted by the user to override format default settings., by default None
 
-        Raises:
-            NotImplementedError: The class does not provide this functionality yet
-
-        Returns:
-            Dict[str, str]: The resulting, overridden default units
+        Returns
+        -------
+        dict[str, str]
+            The resulting, overridden default units
         """
         from shnitsel.units.definitions import standard_units_of_formats
 

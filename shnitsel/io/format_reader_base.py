@@ -122,6 +122,12 @@ class FormatReader(ABC):
         expect_dtype: type[DataType] | TypeForm[DataType] | None = None,
     ) -> (
         xr.Dataset
+        | Trajectory
+        | Frames
+        | PerState
+        | InterState
+        | SupportsFromXrConversion
+        | ShnitselDB[SupportsFromXrConversion]
         | ShnitselDB[DataType]
         | CompoundGroup[DataType]
         | DataGroup[DataType]
@@ -183,6 +189,7 @@ class FormatReader(ABC):
         | ShnitselDB[
             Trajectory | Frames | InterState | PerState | SupportsFromXrConversion
         ]
+        | SupportsFromXrConversion
         | DataType
         | ShnitselDB[DataType]
         | CompoundGroup[DataType]

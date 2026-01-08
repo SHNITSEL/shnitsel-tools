@@ -5,7 +5,9 @@ import pathlib
 import re
 import sys
 import traceback
-from typing import Dict, List, Tuple
+from typing import TypeVar
+from typing_extensions import TypeForm
+from shnitsel.data.dataset_containers import Trajectory, Frames
 
 from shnitsel.io.shared.helpers import (
     LoadingParameters,
@@ -25,17 +27,29 @@ class PyrAI2mdFormatInformation(FormatInformation):
     pass
 
 
+DataType = TypeVar("DataType")
+
+
 class PyrAI2mdFormatReader(FormatReader):
     """Class for providing the PyrAI2md format reading functionality in the standardized `FormatReader` interface"""
 
     def find_candidates_in_directory(
         self, path: PathOptionsType
-    ) -> List[pathlib.Path] | None:
-        """Function to return a all potential matches for the current file format  within a provided directory at `path`.
+    ) -> list[pathlib.Path] | None:
+        """
+        Function to return a all potential matches for the current file format  within a provided directory at `path`.
+        Parameters
 
-        Returns:
-            List[PathOptionsType] : A list of paths that should be checked in detail for whether they represent the format of this FormatReader.
-            None: No potential candidate found
+        ----------
+        path : PathOptionsType
+            The path to a directory to check for potential candidate files or subdirectories
+
+        Returns
+        -------
+        list[pathlib.Path]
+            A list of paths that should be checked in detail for whether they represent the format of this FormatReader.
+        None
+            If no potential candidates were found
         """
         # TODO: FIXME: Add option to specify if we want only file or only directory paths
         # TODO: FIXME: maybe just turn into a "filter" function and provide the paths?
@@ -45,22 +59,31 @@ class PyrAI2mdFormatReader(FormatReader):
         return None if len(res_entries) == 0 else res_entries
 
     def check_path_for_format_info(
-        self, path: PathOptionsType, hints_or_settings: Dict | None = None
+        self, path: PathOptionsType, hints_or_settings: dict | None = None
     ) -> FormatInformation:
-        """Check if the `path` is a SHARC-style output directory.
+        """Check if the `path` is a PyrAI2MD-style output directory.
 
         Designed for a single input trajectory.
 
-        Args:
-            path (PathOptionsType): The path to check for SHARC data
-            hints_or_settings (Dict): Configuration options provided to the reader by the user
+        Parameters
+        ----------
+        path : PathOptionsType
+            The path to check for PyrAI2MD data
+        hints_or_settings : dict | None, optional
+            Configuration options provided to the reader by the user, by default None
 
-        Raises:
-            FileNotFoundError: If the `path` is not a directory.
-            FileNotFoundError: If `path` is a directory but does not contain the required SHARC output files
+        Returns
+        -------
+        FormatInformation
+            The object holding all relevant format information for the path contents if
+            it matches the PyrAI2MD format
 
-        Returns:
-            FormatInformation: _description_
+        Raises
+        ------
+        FileNotFoundError
+            If the `path` is not a directory.
+        FileNotFoundError
+            If `path` is a directory but does not contain the required PyrAI2MD output files
         """
         path_obj: pathlib.Path = make_uniform_path(path)  # type: ignore
         base_format_info = super().check_path_for_format_info(
@@ -82,7 +105,7 @@ class PyrAI2mdFormatReader(FormatReader):
                 "Path `%(path)s` does not constitute a PyrAI2md style output directory: Expected to find a single file ending with '.md.energies' "
                 "but found %(n)d files: %(md_energies_paths)s"
             )
-            params = {'path': path, 'n': n, 'md_energies_paths': md_energies_paths}
+            params = {"path": path, "n": n, "md_energies_paths": md_energies_paths}
             logging.debug(message, params)
             raise FileNotFoundError(message % params)
 
@@ -97,7 +120,7 @@ class PyrAI2mdFormatReader(FormatReader):
                 "Path `%(path)s` does not constitute a PyrAI2md style output directory: Expected to find a single file ending with '.log' "
                 "but found %(n)d files: %(log_paths)s"
             )
-            params = {'path': path, 'n': n, 'log_paths': log_paths}
+            params = {"path": path, "n": n, "log_paths": log_paths}
             logging.debug(message, params)
             raise FileNotFoundError(message % params)
 
@@ -117,21 +140,42 @@ class PyrAI2mdFormatReader(FormatReader):
         path: pathlib.Path,
         format_info: FormatInformation,
         loading_parameters: LoadingParameters | None = None,
-    ) -> xr.Dataset:
-        """Read a PyrAI2md-style trajcetory from path at `path`. Implements `FormatReader.read_from_path()`
+        expect_dtype: type[DataType] | TypeForm[DataType] | None = None,
+    ) -> xr.Dataset | Trajectory | Frames | None:
+        """Read a PyrAI2MD-style trajcetory from path at `path`.
+        Implements `FormatReader.read_from_path()`.
 
-        Args:
-            path (pathlib.Path): Path to a PyrAI2md-format directory.
-            format_info (FormatInformation): Format information on the provided `path` that has been previously parsed.
-            loading_parameters: (LoadingParameters|None, optional): Loading parameters to e.g. override default state names, units or configure the error reporting behavior
+        Designed for a single input trajectory.
 
-        Raises:
-            ValueError: Not enough loading information was provided via `path` and `format_info`, e.g. if both are None.
-            FileNotFoundError: Path was not found or was not of appropriate PyrAI2md format
+        Parameters
+        ----------
+        path : pathlib.Path
+            Path to a PyrAI2MD-format directory.
+        format_info : FormatInformation
+            Format information on the provided `path` that has been previously parsed.
+        loading_parameters : LoadingParameters | None, optional
+            Loading parameters to e.g. override default state names, units or configure the error reporting behavior, by default None
+        expect_dtype : type[DataType] | TypeForm[DataType] | None, optional
+            An optional parameter to specify the return type.
+            For this class, it should be `xr.Dataset`, `Trajectory` or `Frames`, by default None
 
-        Returns:
-            Trajectory: The loaded Shnitsel-conforming trajectory
+        Returns
+        -------
+        xr.Dataset | Trajectory | Frames | None
+            The loaded Shnitsel-conforming trajectory.
+
+        Raises
+        ------
+        ValueError
+            Not enough loading information was provided via `path` and `format_info`, e.g. if both are None.
+        FileNotFoundError
+            Path was not found or was not of appropriate PyrAI2MD format
         """
+
+        if expect_dtype is not None:
+            logging.debug(
+                "The NewtonX format reader only supports dtypes `Trajectory`, `Frames` or `xr.Dataset` "
+            )
 
         try:
             loaded_dataset = parse_pyrai2md(path, loading_parameters=loading_parameters)
@@ -140,25 +184,27 @@ class PyrAI2mdFormatReader(FormatReader):
         except ValueError as v_e:
             message = "Attempt at reading PyRAI2md trajectory from path `%(path)s` failed because of original error: %(v_e)s.\n Trace: \n %(v_e)s"
             logging.error(
-                message, {'path': path, 'v_e': v_e, 'tb': traceback.format_exc()}
+                message, {"path": path, "v_e": v_e, "tb": traceback.format_exc()}
             )
             raise FileNotFoundError(message)
 
         return loaded_dataset
 
     def get_units_with_defaults(
-        self, unit_overrides: Dict[str, str] | None = None
-    ) -> Dict[str, str]:
-        """Apply units to the default unit dictionary of the format PyrAI2md
+        self, unit_overrides: dict[str, str] | None = None
+    ) -> dict[str, str]:
+        """
+        Apply units to the default unit dictionary of the format PyrAI2md
 
-        Args:
-            unit_overrides (Dict[str, str] | None, optional): Units denoted by the user to override format default settings. Defaults to None.
+        Parameters
+        ----------
+        unit_overrides : dict[str, str] | None, optional
+            Units denoted by the user to override format default settings, by default None
 
-        Raises:
-            NotImplementedError: The class does not provide this functionality yet
-
-        Returns:
-            Dict[str, str]: The resulting, overridden default units
+        Returns
+        -------
+        dict[str, str]
+            The resulting, overridden default units
         """
         from shnitsel.units.definitions import standard_units_of_formats
 

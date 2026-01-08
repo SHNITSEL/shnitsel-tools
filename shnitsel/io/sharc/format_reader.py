@@ -3,8 +3,11 @@ import logging
 import pathlib
 import re
 import traceback
-from typing import Dict, List
+from typing import TypeVar
+from typing_extensions import TypeForm
 
+from shnitsel.data.dataset_containers.frames import Frames
+from shnitsel.data.dataset_containers.trajectory import Trajectory
 from shnitsel.io.shared.helpers import (
     LoadingParameters,
     PathOptionsType,
@@ -29,12 +32,14 @@ class SHARCInitialFormatInformation(FormatInformation):
 
 @dataclass
 class SHARCMultiInitialFormatInformation(FormatInformation):
-    list_of_iconds: List | None = None
+    list_of_iconds: list | None = None
 
 
 _sharc_default_pattern_regex = re.compile(r"(?P<dynstat>TRAJ|ICOND)_(?P<trajid>\d+)")
 _sharc_default_pattern_glob_traj = "TRAJ_*"
 _sharc_default_pattern_glob_icond = "ICOND_*"
+
+DataType = TypeVar("DataType")
 
 
 class SHARCFormatReader(FormatReader):
@@ -42,12 +47,21 @@ class SHARCFormatReader(FormatReader):
 
     def find_candidates_in_directory(
         self, path: PathOptionsType
-    ) -> List[pathlib.Path] | None:
-        """Function to return a all potential matches for the current file format  within a provided directory at `path`.
+    ) -> list[pathlib.Path] | None:
+        """
+        Function to return a all potential matches for the current file format  within a provided directory at `path`.
+        Parameters
 
-        Returns:
-            List[PathOptionsType] : A list of paths that should be checked in detail for whether they represent the format of this FormatReader.
-            None: No potential candidate found
+        ----------
+        path : PathOptionsType
+            The path to a directory to check for potential candidate files or subdirectories
+
+        Returns
+        -------
+        list[pathlib.Path]
+            A list of paths that should be checked in detail for whether they represent the format of this FormatReader.
+        None
+            If no potential candidates were found
         """
         path_obj = make_uniform_path(path)
 
@@ -65,22 +79,31 @@ class SHARCFormatReader(FormatReader):
         return None if len(res_entries) == 0 else res_entries
 
     def check_path_for_format_info(
-        self, path: PathOptionsType, hints_or_settings: Dict | None = None
+        self, path: PathOptionsType, hints_or_settings: dict | None = None
     ) -> FormatInformation:
         """Check if the `path` is a SHARC-style output directory.
 
         Designed for a single input trajectory.
 
-        Args:
-            path (PathOptionsType): The path to check for SHARC data
-            hints_or_settings (Dict): Configuration options provided to the reader by the user
+        Parameters
+        ----------
+        path : PathOptionsType
+            The path to check for SHARC data
+        hints_or_settings : dict | None, optional
+            Configuration options provided to the reader by the user, by default None
 
-        Raises:
-            FileNotFoundError: If the `path` is not a directory.
-            FileNotFoundError: If `path` is a directory but does not contain the required SHARC output files
+        Returns
+        -------
+        FormatInformation
+            The object holding all relevant format information for the path contents if
+            it matches the SHARC format
 
-        Returns:
-            FormatInformation: _description_
+        Raises
+        ------
+        FileNotFoundError
+            If the `path` is not a directory.
+        FileNotFoundError
+            If `path` is a directory but does not contain the required SHARC output files
         """
         path_obj: pathlib.Path = make_uniform_path(path)
 
@@ -98,9 +121,9 @@ class SHARCFormatReader(FormatReader):
             message = "Path `%(path)s` does not constitute a SHARC style output directory: Does not exist or is not a directory."
             logging.debug(
                 message,
-                {'path': path},
+                {"path": path},
             )
-            raise FileNotFoundError(message % {'path': path})
+            raise FileNotFoundError(message % {"path": path})
 
         dontanalyze_file_path = path_obj / "DONT_ANALYZE"
 
@@ -108,9 +131,9 @@ class SHARCFormatReader(FormatReader):
             message = "The path `%(path)s` does contain a `DONT_ANALYZE` file and will therefore be skipped. Please remove that file if you want the directory to be read."
             logging.warning(
                 message,
-                {'path': path},
+                {"path": path},
             )
-            raise FileNotFoundError(message % {'path': path})
+            raise FileNotFoundError(message % {"path": path})
 
         # Check if dynamic SHARC format satisfied
         is_dynamic = False
@@ -124,15 +147,15 @@ class SHARCFormatReader(FormatReader):
                 if not file.is_file():
                     message = "Input directory `%(path)s` is missing `%(file)s`"
 
-                    logging.debug(message, {'path': path, 'file': file})
-                    raise FileNotFoundError(message % {'path': path, 'file': file})
+                    logging.debug(message, {"path": path, "file": file})
+                    raise FileNotFoundError(message % {"path": path, "file": file})
             is_dynamic = True
             format_information = SHARCDynamicFormatInformation(
                 "sharc", "unkown", None, path_obj
             )
             logging.debug(
                 "Input directory `%(path)s` fulfils data requirements of dynamic SHARC trajectory",
-                {'path': path},
+                {"path": path},
             )
         except Exception as e:
             dynamic_check_error = e
@@ -149,8 +172,8 @@ class SHARCFormatReader(FormatReader):
                 not qm_log_path.is_file() and not qm_in_path.is_file()
             ):
                 message = "Input directory `%(path)s` is missing `QM.out` or both `QM.log` and `QM.in`"
-                logging.debug(message, {'path': path})
-                raise FileNotFoundError(message % {'path': path})
+                logging.debug(message, {"path": path})
+                raise FileNotFoundError(message % {"path": path})
 
             # list_of_initial_condition_paths = list_iconds(path_obj)
             is_static = True
@@ -162,7 +185,7 @@ class SHARCFormatReader(FormatReader):
             )
             logging.debug(
                 "Input directory `%(path)s` fulfils data requirements of SHARC Initial Conditions",
-                {'path': path},
+                {"path": path},
             )
         except Exception as e:
             static_check_error = e
@@ -172,17 +195,15 @@ class SHARCFormatReader(FormatReader):
                 "Input directory `%(path)s` contains both static initial conditions and dynamic trajectory data of type SHARC."
                 "Please only point to a directory containing exactly one of the two kinds of data"
             )
-            logging.debug(message,
-                {'path': path})
-            raise ValueError(message % {'path': path})
+            logging.debug(message, {"path": path})
+            raise ValueError(message % {"path": path})
         if format_information is None:
             message = (
                 "Input directory `%(path)s` contains neither static initial conditions nor dynamic trajectory data of type SHARC."
                 "Please point to a directory containing exactly one of the two kinds of data"
             )
-            logging.debug(message,
-                {'path': path})
-            raise FileNotFoundError(message % {'path': path})
+            logging.debug(message, {"path": path})
+            raise FileNotFoundError(message % {"path": path})
 
         # Try and extract a trajectory ID from the path name
         match_attempt = _sharc_default_pattern_regex.match(path_obj.name)
@@ -200,22 +221,42 @@ class SHARCFormatReader(FormatReader):
         path: pathlib.Path,
         format_info: FormatInformation,
         loading_parameters: LoadingParameters | None = None,
-    ) -> xr.Dataset:
-        """Read a SHARC-style trajcetory from path at `path`. Implements `FormatReader.read_from_path()`
+        expect_dtype: type[DataType] | TypeForm[DataType] | None = None,
+    ) -> xr.Dataset | Trajectory | Frames | None:
+        """Read a SHARC-style trajcetory from path at `path`.
+        Implements `FormatReader.read_from_path()`.
 
-        Args:
-            path (pathlib.Path): Path to a SHARC-format directory.
-            format_info (FormatInformation): Format information on the provided `path` that has been previously parsed.
-            loading_parameters: (LoadingParameters|None, optional): Loading parameters to e.g. override default state names, units or configure the error reporting behavior
+        Designed for a single input trajectory.
 
-        Raises:
-            ValueError: Not enough loading information was provided via `path` and `format_info`, e.g. if both are None.
-            ValueError: `format_info` was of a wrong non-SHARC type.
-            FileNotFoundError: Path was not found or was not of appropriate Shnitsel format
+        Parameters
+        ----------
+        path : pathlib.Path
+            Path to a SHARC-format directory.
+        format_info : FormatInformation
+            Format information on the provided `path` that has been previously parsed.
+        loading_parameters : LoadingParameters | None, optional
+            Loading parameters to e.g. override default state names, units or configure the error reporting behavior, by default None
+        expect_dtype : type[DataType] | TypeForm[DataType] | None, optional
+            An optional parameter to specify the return type.
+            For this class, it should be `xr.Dataset`, `Trajectory` or `Frames`, by default None
 
-        Returns:
-            Trajectory: The loaded Shnitsel-conforming trajectory
+        Returns
+        -------
+        xr.Dataset | Trajectory | Frames | None
+            The loaded Shnitsel-conforming trajectory.
+
+        Raises
+        ------
+        ValueError
+            Not enough loading information was provided via `path` and `format_info`, e.g. if both are None.
+        FileNotFoundError
+            Path was not found or was not of appropriate SHARC format
         """
+
+        if expect_dtype is not None:
+            logging.debug(
+                "The NewtonX format reader only supports dtypes `Trajectory`, `Frames` or `xr.Dataset` "
+            )
 
         is_dynamic = False
         if isinstance(format_info, SHARCDynamicFormatInformation):
@@ -241,25 +282,27 @@ class SHARCFormatReader(FormatReader):
         except ValueError as v_e:
             message = "Attempt at reading SHARC trajectory from path `%(path)s` failed because of original error: %(v_e)s.\n Trace: \n %(v_e)s"
             logging.error(
-                message, {'path': path, 'v_e': v_e, 'tb': traceback.format_exc()}
+                message, {"path": path, "v_e": v_e, "tb": traceback.format_exc()}
             )
             raise FileNotFoundError(message)
 
         return loaded_dataset
 
     def get_units_with_defaults(
-        self, unit_overrides: Dict[str, str] | None = None
-    ) -> Dict[str, str]:
-        """Apply units to the default unit dictionary of the format SHARC
+        self, unit_overrides: dict[str, str] | None = None
+    ) -> dict[str, str]:
+        """
+        Apply units to the default unit dictionary of the format SHARC
 
-        Args:
-            unit_overrides (Dict[str, str] | None, optional): Units denoted by the user to override format default settings. Defaults to None.
+        Parameters
+        ----------
+        unit_overrides : Dict[str, str] | None, optional
+            Units denoted by the user to override format default settings., by default None
 
-        Raises:
-            NotImplementedError: The class does not provide this functionality yet
-
-        Returns:
-            Dict[str, str]: The resulting, overridden default units
+        Returns
+        -------
+        dict[str, str]
+            The resulting, overridden default units
         """
         from shnitsel.units.definitions import standard_units_of_formats
 
