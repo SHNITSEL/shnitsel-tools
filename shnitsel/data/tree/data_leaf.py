@@ -108,11 +108,10 @@ class DataLeaf(Generic[DataType], TreeNode[None, DataType]):
             kwargs['attrs'] = self._attrs
 
         if data is None:
-            assert dtype is None, (
-                "Cannot reassign data type if new data entry is not provided"
-            )
+            assert (
+                dtype is None
+            ), "Cannot reassign data type if new data entry is not provided"
             return type(self)(
-                name=self._name,
                 data=self._data,
                 dtype=self._dtype,
                 **kwargs,

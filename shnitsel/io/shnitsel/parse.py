@@ -3,7 +3,6 @@ import logging
 import os
 import traceback
 from typing import Any, Callable, Dict, TypeVar
-from typing_extensions import TypeForm
 import numpy as np
 import xarray as xr
 import sys
@@ -302,8 +301,8 @@ def _parse_shnitsel_file_v1_1(
     Returns:
         xr.Dataset: The post-processed shnitsel trajectory
     """
-    from shnitsel.data.shnitsel_db_format import (
-        build_shnitsel_db,
+    from shnitsel.data.tree import (
+        complete_shnitsel_tree,
     )
 
     if not isinstance(frames, xr.Dataset) and not isinstance(frames, xr.DataTree):
@@ -336,8 +335,8 @@ def _parse_shnitsel_file_v1_2(
     Returns:
         xr.DataTree: The post-processed shnitsel trajectory
     """
-    from shnitsel.data.shnitsel_db_format import (
-        build_shnitsel_db,
+    from shnitsel.data.tree import (
+        complete_shnitsel_tree,
     )
 
     if not isinstance(frames, xr.Dataset) and not isinstance(frames, xr.DataTree):

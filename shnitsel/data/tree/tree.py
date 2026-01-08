@@ -51,11 +51,16 @@ class ShnitselDBRoot(Generic[DataType], TreeNode[CompoundGroup[DataType], DataTy
         compounds: Mapping[Hashable, CompoundGroup[DataType]] | None = None,
         **kwargs,
     ):
+        if 'name' not in kwargs or kwargs['name'] is None:
+            kwargs['name'] = "ROOT"
+        if 'level_name' not in kwargs or kwargs['level_name'] is None:
+            kwargs['level_name'] = DataTreeLevelMap['root']
+
+        if compounds is not None:
+            kwargs['children'] = compounds
+
         super().__init__(
-            name="ROOT",
             data=None,
-            children=compounds or {},
-            level_name=DataTreeLevelMap['root'],
             **kwargs,
         )
 
@@ -149,26 +154,33 @@ class ShnitselDBRoot(Generic[DataType], TreeNode[CompoundGroup[DataType], DataTy
             | TypeForm[DataType]
             | None
         ) = dtype
-        if children is None:
+
+        if children is not None:
+            if 'compounds' in kwargs and kwargs["compounds"] is not None:
+                raise KeyError(
+                    "Provided both `compounds` and `children` argument to `construct_copy`"
+                )
+            kwargs['compounds'] = children
+
+        if 'compounds' not in kwargs or kwargs["compounds"] is None:
             assert (
                 dtype is None
             ), "Cannot cast the data type of the tree without reassigning children/compounds of appropriate new type."
-
+            kwargs["compounds"] = {
+                # TODO: FIXME: Figure out this typing issue
+                k: v.construct_copy()
+                for k, v in self._children.items()
+                if v is not None
+            }
             return type(self)(
-                compounds={
-                    # TODO: FIXME: Figure out this typing issue
-                    k: v.construct_copy()
-                    for k, v in self._children.items()
-                    if v is not None
-                },
                 **kwargs,
             )
         else:
             assert all(
-                isinstance(child, CompoundGroup) for child in children
+                isinstance(child, CompoundGroup)
+                for child in kwargs["compounds"].values()
             ), "Children provided to `construct_copy` for tree root are not of type `CompoundGroup`"
             return ShnitselDBRoot[ResType](
-                compounds=children,
                 dtype=new_dtype,
                 **kwargs,
             )
@@ -290,6 +302,7 @@ class ShnitselDBRoot(Generic[DataType], TreeNode[CompoundGroup[DataType], DataTy
             The updated database
         """
         from .support_functions import tree_merge
+
         if overwrite_all:
             new_compound: CompoundGroup[DataType] | None = tree_merge(
                 *self.children.values(), res_data_type=self._dtype
@@ -332,7 +345,9 @@ class ShnitselDBRoot(Generic[DataType], TreeNode[CompoundGroup[DataType], DataTy
                 else:
                     new_children[res_name] = renamed_child
 
-                return self.construct_copy(compunds=new_children)
+                print(new_children)
+
+                return self.construct_copy(compounds=new_children)
 
     def apply_data_attributes(self, properties: dict) -> "ShnitselDBRoot[DataType]":
         """
@@ -350,7 +365,7 @@ class ShnitselDBRoot(Generic[DataType], TreeNode[CompoundGroup[DataType], DataTy
 
         props = {}
 
-        for k, v in properties:
+        for k, v in properties.items():
             if v is not None:
                 props[k] = v
 

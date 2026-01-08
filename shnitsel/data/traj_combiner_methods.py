@@ -443,11 +443,11 @@ def concat_trajs(
     )
 
     # Envelop in the wrapper proxy
-    if not isinstance(frames, Trajectory):
-        frames = Trajectory(frames)
+    # if not isinstance(frames, Trajectory):
+    #     frames = Trajectory(frames)
 
-    if TYPE_CHECKING:
-        assert isinstance(frames, Trajectory)
+    # if TYPE_CHECKING:
+    #     assert isinstance(frames, Trajectory)
 
     frames.attrs["is_multi_trajectory"] = True
 

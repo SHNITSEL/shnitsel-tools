@@ -158,7 +158,7 @@ class CompoundGroup(Generic[DataType], DataGroup[DataType]):
             )
         else:
             assert all(
-                isinstance(child, (DataGroup, DataLeaf)) for child in children
+                isinstance(child, (DataGroup, DataLeaf)) for child in children.values()
             ), "Children provided to `construct_copy` for compound group are not of type `DataGroup` or `DataLeaf"
             new_dtype: type[ResType] | TypeForm[ResType] | None = dtype
 

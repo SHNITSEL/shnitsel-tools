@@ -159,10 +159,8 @@ class DataGroup(
             )
         else:
             assert all(
-                isinstance(child, (DataGroup, DataLeaf)) for child in children
-            ), (
-                "Children provided to `construct_copy` for datagroup are not of type `DataGroup` or `DataLeaf"
-            )
+                isinstance(child, (DataGroup, DataLeaf)) for child in children.values()
+            ), "Children provided to `construct_copy` for datagroup are not of type `DataGroup` or `DataLeaf"
             # We have new children and can extract the ResType from them
             new_dtype: type[ResType] | TypeForm[ResType] | None = dtype
 
