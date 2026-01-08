@@ -1,9 +1,9 @@
 from typing_extensions import TypeForm
 from shnitsel.core._api_info import API, internal
 from shnitsel.core.typedefs import StateTypeSpecifier
-from shnitsel.data.shnitsel_db.combiner_methods import (
+from shnitsel.data.traj_combiner_methods import (
     concat_trajs,
-    db_from_trajs,
+    db_from_data,
     layer_trajs,
 )
 from shnitsel.data.dataset_containers import Trajectory, Frames
@@ -15,7 +15,6 @@ from shnitsel.data.tree import (
     CompoundGroup,
     DataGroup,
     DataLeaf,
-    complete_shnitsel_tree,
 )
 from shnitsel.io.format_reader_base import FormatInformation, FormatReader
 from shnitsel.io.format_registry import get_available_io_handlers, FormatIdentifierType
@@ -232,7 +231,7 @@ def read(
     cats = {
         "frames": concat_trajs,
         "layers": layer_trajs,
-        "db": db_from_trajs,
+        "db": db_from_data,
         "list": lambda x: x,
     }
     if concat_method not in cats:
@@ -301,7 +300,7 @@ def read(
                     else:
                         raise FileNotFoundError(message)
                 else:
-                    return cat_func(res_list)
+                    return cat_func(res_list, dtype=expect_dtype)
         except Exception as e:
             multi_error = (
                 f"While trying to read as a directory containing multiple trajectories: {e} [Trace:"
