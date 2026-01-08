@@ -5,7 +5,7 @@ import pathlib
 import sys
 
 import shnitsel
-from shnitsel.data.shnitsel_db_format import (
+from shnitsel.data.dataset_containers.trajectory import (
     MetaInformation,
 )
 from shnitsel.data.tree import (
