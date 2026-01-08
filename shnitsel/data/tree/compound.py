@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import Any, Callable, Generic, Hashable, Mapping, Self, TypeVar, overload
 from typing_extensions import TypeForm
 
-from shnitsel.data.tree.support_functions import find_child_key
+from shnitsel.data.tree.child_support_functions import find_child_key
 
 from .datatree_level import DataTreeLevelMap
 from .data_group import DataGroup, GroupInfo
@@ -41,6 +41,9 @@ class CompoundGroup(Generic[DataType], DataGroup[DataType]):
         attrs: Mapping[str, Any] | None = None,
         **kwargs,
     ):
+        if compound_info is None:
+            compound_info = CompoundInfo()
+
         if name is None:
             if compound_info is not None:
                 name = compound_info.compound_name

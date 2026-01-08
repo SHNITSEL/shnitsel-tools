@@ -17,7 +17,6 @@ from shnitsel.data.dataset_containers.frames import Frames
 from shnitsel.data.dataset_containers.trajectory import Trajectory
 from shnitsel.data.trajectory_grouping_params import TrajectoryGroupingMetadata
 from shnitsel.data.tree.data_leaf import DataLeaf
-from shnitsel.data.tree.support_functions import tree_merge
 from .datatree_level import DataTreeLevelMap
 
 from .data_group import DataGroup, GroupInfo
@@ -290,6 +289,7 @@ class ShnitselDBRoot(Generic[DataType], TreeNode[CompoundGroup[DataType], DataTy
         Self
             The updated database
         """
+        from .support_functions import tree_merge
         if overwrite_all:
             new_compound: CompoundGroup[DataType] | None = tree_merge(
                 *self.children.values(), res_data_type=self._dtype

@@ -90,4 +90,6 @@ class PerState(ShnitselDerivedDataset):
 
     @property
     def forces_format(self) -> bool | Literal["all", "active_only"] | None:
-        return self.dataset.attrs[]
+        if self._original_frames is not None:
+            return self._original_frames.forces_format
+        return self.dataset.attrs.get('has_forces', None)

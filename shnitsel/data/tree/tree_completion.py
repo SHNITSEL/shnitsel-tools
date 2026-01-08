@@ -51,6 +51,7 @@ def build_shnitsel_db(
         ValueError: If the provided data is of no ShnitselDB format type.
     """
     if isinstance(data, Sequence):
+        print(f"Building tree from n data points: {len(data)}")
         is_likely_root = all(isinstance(child, CompoundGroup) for child in data)
         if is_likely_root:
             try:

@@ -77,9 +77,9 @@ def is_assignable_to(
     """
     if expected_dtype is None:
         return True
-    
+
     # TODO: FIXME: Implement some form of type checking.
-    return True.
+    return True
 
 
 # TODO: deprecate
