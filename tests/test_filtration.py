@@ -18,12 +18,21 @@ def load_frames(path):
     return frames
 
 
-@pytest.fixture
-def frames():
-    frames = load_frames('/nc/st-refactor/h24-oldstyle.nc')
-    frames['energy'] = frames['energy'].st.convert_energy('eV')
-    frames['e_kin'] = frames['e_kin'].st.convert_energy('eV')
-    return frames
+@pytest.fixture(
+    params=[
+        ('tutorials/tut_data/traj_I02.nc', -1),
+    ]
+)
+def frames(request):
+    from shnitsel.io import read
+    from shnitsel.data.tree import tree_to_frames
+
+    path, charge = request.param
+    db = read(path)
+    res = tree_to_frames(db)
+    res['atXYZ'].attrs['charge'] = charge
+    res.attrs['charge'] = charge
+    return res
 
 
 def test_filtranda(frames):
