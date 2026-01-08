@@ -85,11 +85,7 @@ def _get_message(vals):
         )
     return message
 
-def _concat(tree, ensure_unique):
-    per_traj_dim_name = 'trajid_'
-    datasets, trajids, coords, unique_values, dvauv = _collect_values(
-        tree, ensure_unique
-    )
+def _validate(unique_values, dvauv):
     attrs = {}
     messages = ""
     for k, vals in unique_values.items():
@@ -101,10 +97,7 @@ def _concat(tree, ensure_unique):
         else:
             attrs[k] = next(iter(vals))
 
-    res = xr.concat(datasets, 'frame').assign_coords(
-        trajid_=(per_traj_dim_name, trajids)
-    )
-
+    dv_attrs = {}
     for var_name, var_attr_data in dvauv.items():
         for var_attr_name, vals in var_attr_data.items():
             if len(vals) != 1:
@@ -112,13 +105,28 @@ def _concat(tree, ensure_unique):
                 messages += _get_message(vals)
             elif next(iter(vals)) is MissingValue:
                 messages += f"- The attribute {var_attr_name} in {var_name} is missing in all trajectories."
-            elif var_name in res.coords:
-                res.coords[var_name].attrs[var_attr_name] = next(iter(vals))
             else:
-                res.data_vars[var_name].attrs[var_attr_name] = next(iter(vals))
+                dv_attrs.setdefault(var_name, {})[var_attr_name] = next(iter(vals))
 
     if messages:
         raise InconsistentAttributeError("The following issues arose --\n" + messages)
+
+    return attrs, dv_attrs
+
+
+def _concat(tree, ensure_unique):
+    per_traj_dim_name = 'trajid_'
+    datasets, trajids, coords, unique_values, dvauv = _collect_values(
+        tree, ensure_unique
+    )
+
+    res = xr.concat(datasets, 'frame').assign_coords(
+        trajid_=(per_traj_dim_name, trajids)
+    )
+
+    attrs, dv_attrs = _validate(unique_values, dvauv)
+    for k, v in dv_attrs.items():
+        res[k].attrs.update(v)
 
     return res.assign_coords(coords).assign_attrs(attrs)
 
