@@ -473,7 +473,7 @@ def db_from_data(
     """
     if isinstance(datasets, Sequence):
         if len(datasets) == 0:
-            return ShnitselDB[DataType]()
+            return ShnitselDB[DataType](dtype=dtype)
 
         # Collect trajectories, check if trajectories match and build databases
         datasets_list = list(datasets)
