@@ -20,10 +20,12 @@ DataType = TypeVar("DataType")
 
 
 def tree_to_xarray_datatree(
-    node: ShnitselDBRoot[DataType]
-    | CompoundGroup[DataType]
-    | DataGroup[DataType]
-    | DataLeaf[DataType],
+    node: (
+        ShnitselDBRoot[DataType]
+        | CompoundGroup[DataType]
+        | DataGroup[DataType]
+        | DataLeaf[DataType]
+    ),
 ) -> xr.DataTree | None:
     """Helper function to convert a ShnitselDB tree format to xarray.DataTree format
     so that we can use the xarray functions to write a netcdf file.
@@ -44,15 +46,17 @@ def tree_to_xarray_datatree(
     """
     node_attrs = dict(node.attrs)
     node_attrs[_datatree_level_attribute_key] = node._level_name
-    node_attrs['_shnitsel_tree_indicator'] = "TREE"
+    node_attrs["_shnitsel_tree_indicator"] = "TREE"
 
     if isinstance(node, DataLeaf):
         tree_data = None
         if node.has_data:
             raw_data = node.data
-            tree_data, node_attrs = data_to_xarray_dataset(
-                raw_data=raw_data, metadata=node_attrs
+            metadata = {}
+            tree_data, metadata = data_to_xarray_dataset(
+                raw_data=raw_data, metadata=metadata
             )
+            node.attrs["_shnitsel_io_meta"] = metadata
 
         res_tree = xr.DataTree(dataset=tree_data, name=node.name)
         res_tree.attrs.update(node_attrs)
@@ -68,12 +72,12 @@ def tree_to_xarray_datatree(
             pass
         elif isinstance(node, CompoundGroup):
             compound_info = node.compound_info
-            node_attrs['_shnitsel_compound_info'] = asdict(compound_info)
+            node_attrs["_shnitsel_compound_info"] = asdict(compound_info)
             if node._group_info:
-                node_attrs['_shnitsel_group_info'] = asdict(node._group_info)
+                node_attrs["_shnitsel_group_info"] = asdict(node._group_info)
         elif isinstance(node, DataGroup):
             if node._group_info:
-                node_attrs['_shnitsel_group_info'] = asdict(node._group_info)
+                node_attrs["_shnitsel_group_info"] = asdict(node._group_info)
         else:
             logging.error(
                 "Currently unsupported node type %s found in tree to be converted to xarray datatree. Quietly skipping.",
@@ -105,7 +109,7 @@ def xarray_datatree_to_shnitsel_tree(
         The converted type or `None` if the tree could not be converted.
     """
     if (
-        '_shnitsel_tree_indicator' not in node.attrs
+        "_shnitsel_tree_indicator" not in node.attrs
         and _datatree_level_attribute_key not in node.attrs
     ):
         # Conversion of arbitrary tree without type hints.
@@ -115,10 +119,14 @@ def xarray_datatree_to_shnitsel_tree(
                 len(node.children) == 0
             ), "no children must be provided at `data` level."
 
+            metadata = node.attrs.get("_shnitsel_io_meta", {})
+            remaining_node_meta = dict(node.attrs)
+            if "_shnitsel_io_meta" in remaining_node_meta:
+                del remaining_node_meta["_shnitsel_io_meta"]
             return DataLeaf(
                 name=node.name,
-                data=xr_dataset_to_shnitsel_format(node.dataset),
-                attrs=node.attrs,
+                data=xr_dataset_to_shnitsel_format(node.dataset, metadata),
+                attrs=remaining_node_meta,
             )
         else:
             child_types = set()
@@ -134,13 +142,13 @@ def xarray_datatree_to_shnitsel_tree(
                 issubclass(ct, CompoundGroup) for ct in child_types
             )
             is_likely_compound = any(
-                str(attr_name).find('compound') for attr_name in node.attrs
+                str(attr_name).find("compound") for attr_name in node.attrs
             ) and all(
                 issubclass(ct, DataGroup) or issubclass(ct, DataLeaf)
                 for ct in child_types
             )
             is_likely_group = any(
-                str(attr_name).find('compound') for attr_name in node.attrs
+                str(attr_name).find("compound") for attr_name in node.attrs
             ) and all(
                 issubclass(ct, DataGroup) or issubclass(ct, DataLeaf)
                 for ct in child_types
@@ -154,22 +162,22 @@ def xarray_datatree_to_shnitsel_tree(
                 )
             if is_likely_compound:
                 compound_info = CompoundInfo()
-                if '_shnitsel_compound_info' in node.attrs:
+                if "_shnitsel_compound_info" in node.attrs:
                     compound_info = dataclass_from_dict(
-                        CompoundInfo, node.attrs['_shnitsel_compound_info']
+                        CompoundInfo, node.attrs["_shnitsel_compound_info"]
                     )
-                elif '_compound_info' in node.attrs:
+                elif "_compound_info" in node.attrs:
                     compound_info = dataclass_from_dict(
-                        CompoundInfo, node.attrs['_compound_info']
+                        CompoundInfo, node.attrs["_compound_info"]
                     )
                 group_info = None
-                if '_shnitsel_group_info' in node.attrs:
+                if "_shnitsel_group_info" in node.attrs:
                     group_info = dataclass_from_dict(
-                        GroupInfo, node.attrs['_shnitsel_group_info']
+                        GroupInfo, node.attrs["_shnitsel_group_info"]
                     )
-                elif '_group_info' in node.attrs:
+                elif "_group_info" in node.attrs:
                     group_info = dataclass_from_dict(
-                        GroupInfo, node.attrs['_group_info']
+                        GroupInfo, node.attrs["_group_info"]
                     )
 
                 return CompoundGroup(
@@ -182,13 +190,13 @@ def xarray_datatree_to_shnitsel_tree(
 
             if is_likely_group:
                 group_info = None
-                if '_shnitsel_group_info' in node.attrs:
+                if "_shnitsel_group_info" in node.attrs:
                     group_info = dataclass_from_dict(
-                        GroupInfo, node.attrs['_shnitsel_group_info']
+                        GroupInfo, node.attrs["_shnitsel_group_info"]
                     )
-                elif '_group_info' in node.attrs:
+                elif "_group_info" in node.attrs:
                     group_info = dataclass_from_dict(
-                        GroupInfo, node.attrs['_group_info']
+                        GroupInfo, node.attrs["_group_info"]
                     )
 
                 return DataGroup(
@@ -215,15 +223,20 @@ def xarray_datatree_to_shnitsel_tree(
                 % datatree_level
             )
         mapped_level = DataTreeLevelMap[datatree_level]
-        if mapped_level == DataTreeLevelMap['data']:
+        if mapped_level == DataTreeLevelMap["data"]:
             assert (
                 len(node.children) == 0
             ), "no children must be provided at `data` level."
 
+            metadata = node.attrs.get("_shnitsel_io_meta", {})
+            remaining_node_meta = dict(node.attrs)
+            if "_shnitsel_io_meta" in remaining_node_meta:
+                del remaining_node_meta["_shnitsel_io_meta"]
+
             return DataLeaf(
                 name=node.name,
-                data=xr_dataset_to_shnitsel_format(node.dataset),
-                attrs=node.attrs,
+                data=xr_dataset_to_shnitsel_format(node.dataset, metadata),
+                attrs=remaining_node_meta,
             )
         else:
             converted_children = {
@@ -232,7 +245,7 @@ def xarray_datatree_to_shnitsel_tree(
                 if (child_res := xarray_datatree_to_shnitsel_tree(v)) is not None
             }
 
-            if mapped_level == DataTreeLevelMap['root']:
+            if mapped_level == DataTreeLevelMap["root"]:
                 assert all(
                     isinstance(child, CompoundGroup)
                     for child in converted_children.values()
@@ -244,29 +257,29 @@ def xarray_datatree_to_shnitsel_tree(
                     attrs=node.attrs,
                 )
 
-            if mapped_level == DataTreeLevelMap['compound']:
+            if mapped_level == DataTreeLevelMap["compound"]:
                 assert all(
                     isinstance(child, (DataGroup, DataLeaf))
                     for child in converted_children.values()
                 ), "Malformed tree provided as input for compound."
 
                 compound_info = CompoundInfo()
-                if '_shnitsel_compound_info' in node.attrs:
+                if "_shnitsel_compound_info" in node.attrs:
                     compound_info = dataclass_from_dict(
-                        CompoundInfo, node.attrs['_shnitsel_compound_info']
+                        CompoundInfo, node.attrs["_shnitsel_compound_info"]
                     )
-                elif '_compound_info' in node.attrs:
+                elif "_compound_info" in node.attrs:
                     compound_info = dataclass_from_dict(
-                        CompoundInfo, node.attrs['_compound_info']
+                        CompoundInfo, node.attrs["_compound_info"]
                     )
                 group_info = None
-                if '_shnitsel_group_info' in node.attrs:
+                if "_shnitsel_group_info" in node.attrs:
                     group_info = dataclass_from_dict(
-                        GroupInfo, node.attrs['_shnitsel_group_info']
+                        GroupInfo, node.attrs["_shnitsel_group_info"]
                     )
-                elif '_group_info' in node.attrs:
+                elif "_group_info" in node.attrs:
                     group_info = dataclass_from_dict(
-                        GroupInfo, node.attrs['_group_info']
+                        GroupInfo, node.attrs["_group_info"]
                     )
 
                 return CompoundGroup(
@@ -277,20 +290,20 @@ def xarray_datatree_to_shnitsel_tree(
                     attrs={str(k): v for k, v in node.attrs.items()},
                 )
 
-            if mapped_level == DataTreeLevelMap['group']:
+            if mapped_level == DataTreeLevelMap["group"]:
                 assert all(
                     isinstance(child, (DataGroup, DataLeaf))
                     for child in converted_children.values()
                 ), "Malformed tree provided as input for group."
 
                 group_info = None
-                if '_shnitsel_group_info' in node.attrs:
+                if "_shnitsel_group_info" in node.attrs:
                     group_info = dataclass_from_dict(
-                        GroupInfo, node.attrs['_shnitsel_group_info']
+                        GroupInfo, node.attrs["_shnitsel_group_info"]
                     )
-                elif '_group_info' in node.attrs:
+                elif "_group_info" in node.attrs:
                     group_info = dataclass_from_dict(
-                        GroupInfo, node.attrs['_group_info']
+                        GroupInfo, node.attrs["_group_info"]
                     )
 
                 return DataGroup(
