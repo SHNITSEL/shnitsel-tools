@@ -14,6 +14,7 @@ from shnitsel.data.tree.xr_conversion import (
 )
 from shnitsel.data.tree.tree import ShnitselDB
 from shnitsel.io.shared.helpers import PathOptionsType, make_uniform_path
+from shnitsel.io.xr_io_compatibility import SupportsToXrConversion
 
 
 class NumpyDataEncoder(json.JSONEncoder):
@@ -181,7 +182,12 @@ def _dataset_to_encoding(dataset: xr.Dataset, complevel: int) -> Dict[Hashable, 
 
 
 def write_shnitsel_file(
-    dataset: xr.Dataset | xr.DataArray | Trajectory | Frames | ShnitselDB,
+    dataset: xr.Dataset
+    | xr.DataArray
+    | Trajectory
+    | Frames
+    | SupportsToXrConversion
+    | ShnitselDB[Trajectory | Frames | SupportsToXrConversion],
     savepath: PathOptionsType,
     complevel: int = 9,
 ):
@@ -190,19 +196,19 @@ def write_shnitsel_file(
     Strips all internal attributes first to avoid errors during writing.
     When writing directly with to_netcdf, errors might occur due to internally set attributes with problematic types.
 
-    Args:
-        dataset (xr.Dataset | Trajectory | ShnitselDB): The dataset or trajectory to write (omit if using accessor).
-        savepath (PathOptionsType): The path at which to save the trajectory file.
-        complevel (int, optional): The compression level to apply during saving.
+    Parameters
+    ----------
+    dataset : xr.Dataset | Trajectory | SupportsToXrConversion | ShnitselDB[Trajectory | Frames | SupportsToXrConversion]
+        The dataset or trajectory to write (omit if using accessor).
+    savepath : PathOptionsType
+        The path at which to save the trajectory file.
+    complevel : int, optional
+        The compression level to apply during saving, by default 9
 
-    Returns:
-        Unknown: Returns the result of the final call to xr.Dataset.to_netcdf() or xr.DataTree.to_netcdf()
-    """
-    """Save a ``Dataset`` or DataTree/ShnitselDB, presumably (but not necessarily) consisting of frames of trajectories, to a file at ``path``.
-
-    Notes
-    -----
-    This function/accessor method wraps :py:meth:`xarray.Dataset.to_netcdf` :py:meth:`xarray.DataTree.to_netcdf` but not :py:func:`numpy.any`.
+    Returns
+    -------
+    Unknown
+        Returns the result of the final call to xr.Dataset.to_netcdf() or xr.DataTree.to_netcdf()
     """
     savepath_obj: pathlib.Path = make_uniform_path(savepath)  # type: ignore
 
@@ -231,12 +237,13 @@ def write_shnitsel_file(
         cleaned_ds = _prepare_dataset(dataset)
         encoding = _dataset_to_encoding(cleaned_ds, complevel)
 
-        cleaned_ds.attrs["__shnitsel_format_version"] = "v1.2"
+        cleaned_ds.attrs["__shnitsel_format_version"] = "v1.3"
 
         return cleaned_ds.to_netcdf(savepath, engine='h5netcdf', encoding=encoding)
     else:
         ds, metadata = data_to_xarray_dataset(dataset, dict())
         if ds is None:
             raise ValueError("Data not be converted to netcdf conforming format.")
-        ds.attrs.update(metadata)
+        ds.attrs["_shnitsel_io_meta"] = metadata
+        
         return write_shnitsel_file(ds, savepath=savepath)
