@@ -1,6 +1,8 @@
 from typing import Any, Sequence, TypeVar
 from typing_extensions import TypeForm
 
+from shnitsel.data.tree.child_support_functions import find_child_key
+
 from . import (
     ShnitselDBRoot,
     CompoundGroup,
@@ -51,7 +53,6 @@ def build_shnitsel_db(
         ValueError: If the provided data is of no ShnitselDB format type.
     """
     if isinstance(data, Sequence):
-        print(f"Building tree from n data points: {len(data)}")
         is_likely_root = all(isinstance(child, CompoundGroup) for child in data)
         if is_likely_root:
             try:
@@ -77,10 +78,10 @@ def build_shnitsel_db(
             )
 
         # We have raw data in here, wrap it:
-        res: Sequence[DataGroup[DataType] | DataLeaf[DataType]] = []
+        res: dict[str, DataGroup[DataType] | DataLeaf[DataType]] = {}
         for child in data:
             if isinstance(child, (DataGroup, DataLeaf)):
-                res.append(child)
+                res[find_child_key(res.keys(), child, "data")]
             elif isinstance(child, TreeNode):
                 raise ValueError(
                     "Unsupported child type at data level: %s" % type(child)
@@ -92,31 +93,37 @@ def build_shnitsel_db(
                 if name_candidate is None:
                     name_candidate = getattr(child, 'trajid', None)
                 if name_candidate is None:
+                    name_candidate = getattr(child, 'trajectory_id', None)
+                if name_candidate is None:
                     name_candidate = getattr(child, 'id', None)
 
-                res.append(
-                    DataLeaf[DataType](name=name_candidate, data=child, dtype=dtype)
+                new_child = DataLeaf[DataType](
+                    name=name_candidate, data=child, dtype=dtype
                 )
-            return build_shnitsel_db(
-                CompoundGroup(
-                    children={str(child.name): child for child in res}, dtype=dtype
-                ),
-                dtype=dtype,
-            )  # type: ignore # The above check ensures the children to be Compound groups
+                child_key = find_child_key(res.keys(), new_child, "data")
+                new_child._name = child_key
+                res[child_key] = new_child
+        return build_shnitsel_db(
+            CompoundGroup(
+                children={str(key): child for key, child in res.items()}, dtype=dtype
+            ),
+            dtype=dtype,
+        )  # type: ignore # The above check ensures the children to be Compound groups
     if isinstance(data, ShnitselDBRoot):
         # If we already are a root node, return the structure.
         return data
     elif isinstance(data, CompoundGroup):
-        # If we are provided a single trajectory wrap in a TrajectoryData node and build rest of tree
-        return ShnitselDBRoot(compounds={data.name: data}, dtype=dtype)
+        key = find_child_key([], data, "compound")
+        return ShnitselDBRoot(compounds={key: data}, dtype=dtype)
     elif isinstance(data, DataGroup):
-        # If we are provided a single trajectory wrap in a TrajectoryData node and build rest of tree
+        key = find_child_key([], data, "group")
         return build_shnitsel_db(
-            CompoundGroup(children={data.name: data}, dtype=dtype), dtype=dtype
+            CompoundGroup(children={key: data}, dtype=dtype), dtype=dtype
         )
     elif isinstance(data, DataLeaf):
+        key = find_child_key([], data, "data")
         return build_shnitsel_db(
-            CompoundGroup(children={data.name: data}, dtype=dtype), dtype=dtype
+            CompoundGroup(children={key: data}, dtype=dtype), dtype=dtype
         )
     else:
         raise ValueError("Unsupported node type provided: %s" % type(data))

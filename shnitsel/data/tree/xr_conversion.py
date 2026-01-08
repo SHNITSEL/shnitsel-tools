@@ -48,6 +48,7 @@ def tree_to_xarray_datatree(
     node_attrs = dict(node.attrs)
     node_attrs[_datatree_level_attribute_key] = node._level_name
     node_attrs["_shnitsel_tree_indicator"] = "TREE"
+    node_name = str(node.name) if node.name is not None else None
 
     if isinstance(node, DataLeaf):
         tree_data = None
@@ -57,9 +58,9 @@ def tree_to_xarray_datatree(
             tree_data, metadata = data_to_xarray_dataset(
                 raw_data=raw_data, metadata=metadata
             )
-            node.attrs["_shnitsel_io_meta"] = metadata
+            node_attrs["_shnitsel_io_meta"] = metadata
 
-        res_tree = xr.DataTree(dataset=tree_data, name=node.name)
+        res_tree = xr.DataTree(dataset=tree_data, name=node_name)
         res_tree.attrs.update(node_attrs)
         return res_tree
     else:
@@ -86,7 +87,11 @@ def tree_to_xarray_datatree(
             )
             return None
 
-        res_tree = xr.DataTree(dataset=None, children=children_as_trees, name=node.name)
+        res_tree = xr.DataTree(
+            dataset=None,
+            children=children_as_trees,
+            name=node_name,
+        )
         res_tree.attrs.update(node_attrs)
         return res_tree
 
