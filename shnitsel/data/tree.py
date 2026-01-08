@@ -3,6 +3,7 @@ from logging import info
 
 import xarray as xr
 
+MAX_IDS = 20
 
 class InconsistentAttributeError(ValueError):
     pass
@@ -13,9 +14,7 @@ class MultipleCompoundsError(ValueError):
 
 
 class MissingValue:
-    "Sentinel value for ``tree_to_frames``"
-
-    pass
+    """Sentinel value for ``tree_to_frames``."""
 
 
 def _common_coords_attrs(tree, ensure_unique):
@@ -49,7 +48,7 @@ def _collect_values(tree, ensure_unique):
     datasets = []
     trajids = []
     coords = {k: ('trajid_', []) for k in coord_names}
-    for i, node in enumerate(tree.children.values()):
+    for node in tree.children.values():
         ds = (
             node.to_dataset()
             .expand_dims(trajid=[node.attrs['trajid']])
@@ -88,15 +87,15 @@ def _concat(tree, ensure_unique):
             messages += f"- There are {len(vals)} different values for {k}:\n"
             for val, ids in vals.items():
                 messages += f"  - {k} = {val} in {len(ids)} trajectories, "
-                if len(ids) < 20:
+                if len(ids) < MAX_IDS:
                     messages += "IDs: " + " ".join([str(x) for x in ids])
                 else:
                     messages += "including IDs: " + " ".join([str(x) for x in ids[:20]])
                 messages += "\n"
-        elif list(vals)[0] is MissingValue:
+        elif next(iter(vals)) is MissingValue:
             messages += f"- The attribute {k} is missing in all trajectories."
         else:
-            attrs[k] = list(vals)[0]
+            attrs[k] = next(iter(vals))
 
     res = xr.concat(datasets, 'frame').assign_coords(
         trajid_=(per_traj_dim_name, trajids)
@@ -108,20 +107,19 @@ def _concat(tree, ensure_unique):
                 messages += f"- There are {len(vals)} different values for {var_attr_name} in {var_name}:\n"
                 for val, ids in vals.items():
                     messages += f"  - {k} = {val} in {len(ids)} trajectories, "
-                    if len(ids) < 20:
+                    if len(ids) < MAX_IDS:
                         messages += "IDs: " + " ".join([str(x) for x in ids])
                     else:
                         messages += "including IDs: " + " ".join(
                             [str(x) for x in ids[:20]]
                         )
                     messages += "\n"
-            elif list(vals)[0] is MissingValue:
+            elif next(iter(vals)) is MissingValue:
                 messages += f"- The attribute {var_attr_name} in {var_name} is missing in all trajectories."
+            elif var_name in res.coords:
+                res.coords[var_name].attrs[var_attr_name] = next(iter(vals))
             else:
-                if var_name in res.coords:
-                    res.coords[var_name].attrs[var_attr_name] = list(vals)[0]
-                else:
-                    res.data_vars[var_name].attrs[var_attr_name] = list(vals)[0]
+                res.data_vars[var_name].attrs[var_attr_name] = next(iter(vals))
 
     if messages:
         raise InconsistentAttributeError("The following issues arose --\n" + messages)
@@ -130,7 +128,7 @@ def _concat(tree, ensure_unique):
 
 
 def tree_to_frames(tree, allow_inconsistent: set | None = None) -> xr.Dataset:
-    """Transforms a DataTree into a single stacked Dataset
+    """Transform a DataTree into a single stacked Dataset.
 
     Parameters
     ----------
