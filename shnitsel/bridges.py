@@ -195,13 +195,13 @@ def construct_default_mol(
 
     Parameters
     ----------
-    obj
+    obj : xr.Dataset | xr.DataArray | rc.Mol
         An 'atXYZ' xr.DataArray with molecular geometries
         or an xr.Dataset containing the above as one of its variables
         or an rc.Mol object that will just be returned.
-    to2D
+    to2D : bool, optional
         Discard 3D information and generate 2D conformer (useful for displaying), by default True
-    charge: int, float or None
+    charge: int, float or None, optional
         Optional parameter to set the charge of the molecule if not present within the molecule data.
         If provided as an int, will be interpreted as number of elemental charges.
         Float will be converted to int and interpreted the same way.
