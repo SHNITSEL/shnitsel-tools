@@ -8,6 +8,7 @@ import xarray as xr
 from shnitsel.core.typedefs import Frames, Stacked, Unstacked
 from shnitsel.data.multi_indices import sel_trajs, stack_trajs, unstack_trajs
 from shnitsel.data.trajectory_format import Trajectory
+from shnitsel._contracts import needs
 
 
 def is_stacked(obj: Stacked | Unstacked):
@@ -342,7 +343,7 @@ def _log_omit(before, after):
         f"Dropped {len(omitted)} trajectories, IDs: {omitted}"
     )
 
-
+@needs(data_vars={'filtranda'})
 def omit(ds:Trajectory):
     """Remove all trajectories containing even one bad frames from an ensemble.
     Badness is determined based on the information considered by
@@ -370,6 +371,7 @@ def omit(ds:Trajectory):
     return res
 
 
+@needs(data_vars={'filtranda'})
 def truncate(ds:Trajectory):
     """Cut off each trajectory in an ensemble just before the first bad frame.
     Badness is determined based on the information considered by
@@ -406,6 +408,7 @@ def truncate(ds:Trajectory):
     return res
 
 
+@needs(data_vars={'filtranda'})
 def transect(ds: Trajectory|Frames, cutoff: float):
     """Cut off all trajectories at a specified time, discarding trajectories
     which have bad frames earlier.

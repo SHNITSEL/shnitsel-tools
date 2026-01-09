@@ -209,7 +209,7 @@ class DataArrayAccessor(DAManualAccessor):
         """Wrapper for :py:func:`shnitsel.data.multi_indices.sel_trajids`."""
         return sel_trajids(self._obj, trajids, invert=invert)
 
-    def true_upto(self, dim):
+    def true_upto(self, dim: Hashable) -> DataArray:
         """Wrapper for :py:func:`shnitsel.clean.common.true_upto`."""
         return true_upto(self._obj, dim)
 
@@ -413,7 +413,7 @@ class DatasetAccessor(DSManualAccessor):
         """Wrapper for :py:func:`shnitsel.io.shnitsel.write.write_shnitsel_file`."""
         return write_shnitsel_file(self._obj, savepath, complevel=complevel)
 
-    @needs(coords={'frame', 'trajid_'}, data_vars={'energy', 'fosc'})
+    @needs(coords={'frame', 'trajid'}, data_vars={'energy_interstate', 'fosc'})
     def spectra_all_times(self) -> DataArray:
         """Wrapper for :py:func:`shnitsel.analyze.spectra.spectra_all_times`."""
         return spectra_all_times(self._obj)
@@ -434,14 +434,17 @@ class DatasetAccessor(DSManualAccessor):
         """Wrapper for :py:func:`shnitsel.clean.filter_geo.filter_by_length`."""
         return filter_by_length(self._obj, cut=cut, search_dict=search_dict, units=units, plot_thresholds=plot_thresholds, plot_populations=plot_populations, mol=mol)
 
+    @needs(data_vars={'filtranda'})
     def omit(self):
         """Wrapper for :py:func:`shnitsel.clean.common.omit`."""
         return omit(self._obj)
 
+    @needs(data_vars={'filtranda'})
     def truncate(self):
         """Wrapper for :py:func:`shnitsel.clean.common.truncate`."""
         return truncate(self._obj)
 
+    @needs(data_vars={'filtranda'})
     def transect(self, cutoff: float):
         """Wrapper for :py:func:`shnitsel.clean.common.transect`."""
         return transect(self._obj, cutoff)
