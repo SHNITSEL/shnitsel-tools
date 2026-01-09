@@ -1,6 +1,7 @@
 import abc
 from collections.abc import Iterable
 from dataclasses import dataclass
+from functools import cached_property
 from typing import Any, Callable, Hashable, Mapping, Self, TypeVar, Generic, overload
 from typing_extensions import TypeForm
 
@@ -58,9 +59,9 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
         if dtype is not None:
             filled_in_dtype = dtype
             if data is not None:
-                assert isinstance(data, dtype), (
-                    "Provided data did not match provided dtype"
-                )
+                assert isinstance(
+                    data, dtype
+                ), "Provided data did not match provided dtype"
         else:
             if data is not None:
                 # If we have data, try and use the type of that data
@@ -227,6 +228,18 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
     #     return type(self)(
     #         **kwargs,
     #     )
+
+    @cached_property
+    def path(self) -> str:
+        if self._parent is None:
+            return "/"
+        else:
+            parent_key = [k for k, v in self._parent._children.items() if v == self]
+            if parent_key:
+                parent_key = parent_key[0]
+            else:
+                "?"
+            return self._parent.path + str(parent_key) + "/"
 
     @property
     def is_leaf(self) -> bool:
