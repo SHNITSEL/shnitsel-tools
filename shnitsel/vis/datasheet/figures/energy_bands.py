@@ -5,7 +5,7 @@ from matplotlib.cm import ScalarMappable
 from matplotlib.colors import Colormap, LinearSegmentedColormap, Normalize
 from matplotlib.figure import Figure, SubFigure
 import numpy as np
-from shnitsel.core.typedefs import PerState
+from shnitsel.data.dataset_containers import PerState
 import xarray as xr
 
 from shnitsel.filtering.state_selection import StateSelection
@@ -66,14 +66,14 @@ def plot_energy_bands(
     state_names = []
     state_colors = []
 
-    for state_id in per_state.state.values:
+    for state_id in per_state.coords['state'].values:
         state_color = state_selection.get_state_color(state_id)
 
         state_names.append(f"${state_selection.get_state_tex_label(state_id)}$")
         state_colors.append(state_color)
 
     for pc_id, pc_ax in zip([0, 1], [axs["pc1"], axs["pc2"]]):
-        for state_id, per_state_data in per_state.groupby('state'):
+        for state_id, per_state_data in per_state.dataset.groupby('state'):
             state_color = state_selection.get_state_color(state_id)
 
             state_energy = per_state_data.energy

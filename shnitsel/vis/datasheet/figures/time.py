@@ -2,6 +2,7 @@ from matplotlib.axes import Axes
 from matplotlib.figure import Figure, SubFigure
 import numpy as np
 
+from shnitsel.analyze.populations import PopulationStatistics
 from shnitsel.filtering.state_selection import StateSelection
 
 from .common import figaxs_defaults, centertext
@@ -103,12 +104,12 @@ def plot_time_interstate_error(
 
 
 def plot_populations_graph(
-    pops: xr.DataArray, state_selection: StateSelection, ax: Axes
+    pops: PopulationStatistics, state_selection: StateSelection, ax: Axes
 ) -> Axes:
     """Plot a graph of populations to the provided axes.
 
     Args:
-        pops (xr.DataArray): The per-state population data. We expect the `time` data to be in fs. If it can be converted, it will be converted to fs.
+        pops (PopulationStatistics): The per-state population data. We expect the `time` data to be in fs. If it can be converted, it will be converted to fs.
         state_selection (StateSelection): State selection object to limit the states included in plotting and to provide state names.
         ax (Axes): The Axes object to plot the population graph into
 
@@ -116,7 +117,7 @@ def plot_populations_graph(
         Axes: The resulting Axes object after the plot
     """
     num_states_with_pops = 0
-    for state, sdata in pops.groupby('state'):
+    for state, sdata in pops.relative.groupby('state'):
         if not state_selection.has_state(state):
             continue
 
@@ -156,7 +157,7 @@ def plot_populations_graph(
 
 @figaxs_defaults(mosaic=[['pop'], ['de'], ['ft']], scale_factors=(1 / 3, 1 / 2))
 def plot_timeplots(
-    pops: xr.DataArray,
+    pops: PopulationStatistics,
     delta_E: xr.Dataset,
     fig: Figure | SubFigure | None,
     state_selection: StateSelection,
@@ -166,7 +167,7 @@ def plot_timeplots(
     """Function to generate all time plots, involving population plots and state-transition plots.
 
     Args:
-        pops (xr.DataArray): DataArray containing state population data with a time coordinate
+        pops (PopulationStatistics): object containing state population data with a time coordinate
         delta_E (xr.Dataset): Dataset containing the energy delta per state combination.
         fig (Figure| SubFigure): A figure, consumed by the autmatic axes generation. Not used by the function itself.
         state_selection (StateSelection): State selection object to limit the states included in plotting and to provide state names.

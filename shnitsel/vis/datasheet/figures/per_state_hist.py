@@ -3,7 +3,7 @@ from matplotlib.axes import Axes
 from matplotlib.figure import Figure, SubFigure
 import numpy as np
 
-from shnitsel.core.typedefs import PerState
+from shnitsel.data.dataset_containers import PerState
 from shnitsel.filtering.state_selection import StateSelection
 
 from .common import figaxs_defaults, centertext
@@ -63,11 +63,14 @@ def plot_per_state_histograms(
 
     for quantity in ['energy', 'forces', 'dip_perm']:
         ax = axs[quantity]
-        if quantity not in per_state or not per_state[quantity].notnull().any():
+        if (
+            not per_state.has_variable(quantity)
+            or not per_state.dataset[quantity].notnull().any()
+        ):
             centertext("No %s data" % symbols.get(quantity, quantity), ax)
             continue
 
-        for state, data in per_state.groupby('state'):
+        for state, data in per_state.dataset.groupby('state'):
             if not state_selection.has_state(state):
                 continue
 
@@ -92,7 +95,7 @@ def plot_per_state_histograms(
             )
 
         long_name = symbols[quantity]  # per_state[quantity].attrs.get('long_name')
-        units = per_state[quantity].attrs.get('units')
+        units = per_state.data_vars[quantity].attrs.get('units')
         axs[quantity].set_xlabel(rf'{long_name} / {units}')
 
     # for quantity in ['forces', 'dip_perm']:

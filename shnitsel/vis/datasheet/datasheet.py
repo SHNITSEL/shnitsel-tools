@@ -8,18 +8,20 @@ from matplotlib.backends.backend_pdf import PdfPages
 from matplotlib.figure import Figure
 from tqdm import tqdm
 
+from shnitsel.data.tree.data_group import DataGroup
+from shnitsel.data.tree.data_leaf import DataLeaf
 from shnitsel.filtering.state_selection import StateSelection
+from shnitsel.filtering.structure_selection import StructureSelection
 
 from .datasheet_page import DatasheetPage
 from ...data.shnitsel_db.db_function_decorator import concat_subtree
-from ...data.shnitsel_db.grouping_methods import group_subtree_by_metadata
-from ...data.shnitsel_db_format import ShnitselDB
+from ...data.tree import ShnitselDB
 from ...data.shnitsel_db_helpers import (
     aggregate_xr_over_levels,
-    get_trajectories_with_path,
 )
-from ...data.trajectory_format import Trajectory
+from ...data.dataset_containers import Trajectory, Frames
 from ...io import read
+import xarray as xr
 
 try:
     from typing import Self
@@ -43,15 +45,23 @@ class Datasheet:
     - timeplots: Plot of the active states over time.
     """
 
-    data_source: ShnitselDB | Trajectory
+    data_source: (
+        ShnitselDB[Trajectory | Frames | xr.Dataset] | Trajectory | Frames | xr.Dataset
+    )
     datasheet_pages: dict[str, DatasheetPage]
     name: str | None = None
 
     def __init__(
         self,
-        data: Trajectory | ShnitselDB | str | PathLike | Self,
+        data: Trajectory
+        | Frames
+        | xr.Dataset
+        | ShnitselDB[Trajectory | Frames | xr.Dataset]
+        | str
+        | PathLike
+        | Self,
         state_selection: StateSelection | None = None,
-        feature_selection: None = None,
+        feature_selection: StructureSelection | None = None,
         *,
         name: str | None = None,
         spectra_times: list[int | float] | np.ndarray | None = None,
@@ -103,28 +113,38 @@ class Datasheet:
                 self.data_source = base_data
                 # TODO: FIXME: Still need to deal with the appropriate grouping of ShnitselDB entries.
 
-                grouped_data = group_subtree_by_metadata(base_data)
+                grouped_data = base_data.group_data_by_metadata()
                 assert (
                     grouped_data is not None and isinstance(grouped_data, ShnitselDB)
                 ), "Grouping of the provided ShnitselDB did not yield any result. Please make sure your database is well formed and contains data."
 
-                tree_res_concat = aggregate_xr_over_levels(
-                    grouped_data,
-                    lambda x: concat_subtree(x, True),
-                    "group",
+                tree_res_concat: ShnitselDB[Frames | xr.Dataset] | None = (
+                    grouped_data.map_filtered_nodes(
+                        lambda n: isinstance(n, DataGroup) and n.is_flat_group,
+                        lambda n: n.construct_copy(
+                            children={'agg': DataLeaf(data=Frames(concat_subtree(n)))}
+                        ),
+                        dtype=Frames,
+                    )
                 )
                 assert (
                     tree_res_concat is not None
                 ), "Aggregation of ShnitselDB yielded None. Please provide a database with data."
 
-                datasheet_groups: list[tuple[str, Trajectory]] = (
-                    get_trajectories_with_path(tree_res_concat)
+                datasheet_groups: list[tuple[str, Frames | xr.Dataset]] = list(
+                    tree_res_concat.map_filtered_nodes(
+                        lambda n: n.is_leaf,
+                        lambda n: DataLeaf(name="tmp", data=(n.path, n.data)),
+                        tuple[str, Frames],
+                    ).collect_data()
                 )
 
                 for name, traj in datasheet_groups:
                     self.datasheet_pages[name] = DatasheetPage(
                         traj,
                         spectra_times=spectra_times,
+                        state_selection=state_selection,
+                        feature_selection=feature_selection,
                         col_inter=col_inter,
                         col_state=col_state,
                     )

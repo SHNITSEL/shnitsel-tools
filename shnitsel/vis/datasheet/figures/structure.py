@@ -8,8 +8,9 @@ import rdkit.Chem as rdChem
 
 import matplotlib as mpl
 
+from shnitsel.analyze.pca import PCAResult
 from shnitsel.bridges import to_mol
-from shnitsel.core.typedefs import Frames
+from shnitsel.data.dataset_containers import Frames
 
 from .common import centertext, label_plot_grid
 from ...plot.common import figax, mpl_imshow_png, mpl_svg_into_axes
@@ -154,19 +155,32 @@ def plot_pca_structure(
 ) -> dict[tuple[int, str], Axes]:
     """Function to plot the most extreme pca combinations as structure plots.
 
-    Args:
-        frames (Frames | xr.Dataset): The raw input data to use for extracting the positional data and structure.
-        pca_data (xr.DataArray): PCA decomposition data.
-        fig (Figure | SubFigure, optional): Figure to create axes into. If `axs` are provided, this can be left empty.
-        axs (dict[tuple[int,str],Axes] | None, optional): Axes to plot the extrema to. One row per pca, one column for 'min' or 'max'. Defaults to None.
+    Parameters
+    ----------
+    frames : Frames | xr.Dataset
+        The raw input data to use for extracting the positional data and structure.
+    pca_data : xr.DataArray
+        PCA decomposition data.
+    fig : Figure | SubFigure, optional
+        Figure to create axes into. If `axs` are provided, this can be left empty.
+    axs : dict[tuple[int,str],Axes] | None, optional
+        Axes to plot the extrema to. One row per pca, one column for 'min' or 'max'. Defaults to None.
 
-    Returns:
-        dict[tuple[int,str],Axes]: The axes the extrema have been plotted to.
+    Returns
+    -------
+    dict[tuple[int,str],Axes]
+        The axes the extrema have been plotted to.
     """
     assert 'PC' in pca_data.sizes, f"pca_data argument is no result of PCA: {pca_data}"
-    assert 'atXYZ' in frames, "No positional data provided."
+    if isinstance(frames, xr.Dataset):
+        try:
+            frames = Frames(frames)
+        except:
+            raise ValueError("Provided dataset is no appropriate frameset")
 
-    combined_ds = frames.assign(pca_data=pca_data)
+    assert frames.has_variable('atXYZ'), "No positional data provided."
+
+    combined_ds = frames.dataset.assign(pca_data=pca_data)
     num_pca = combined_ds.sizes['PC']
     if axs is None:
         if fig is not None:

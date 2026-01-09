@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from functools import cached_property
+import logging
 from matplotlib.axes import Axes
 from sklearn.decomposition import PCA as sk_PCA
 from tqdm import tqdm
@@ -12,18 +13,21 @@ from timeit import default_timer as timer
 
 from matplotlib.figure import Figure, SubFigure
 
-from shnitsel.analyze.populations import calc_classical_populations
+from shnitsel.analyze.pca import PCAResult
+from shnitsel.analyze.populations import (
+    PopulationStatistics,
+    calc_classical_populations,
+)
 from shnitsel.bridges import construct_default_mol
 from shnitsel.analyze import stats
 from shnitsel.core.typedefs import (
     AtXYZ,
-    InterState,
-    PerState,
     SpectraDictType,
     StateCombination,
 )
-from shnitsel.data.trajectory_format import Trajectory
+from shnitsel.data.dataset_containers import Trajectory, Frames, InterState, PerState
 from shnitsel.filtering.state_selection import StateSelection
+from shnitsel.filtering.structure_selection import StructureSelection
 from shnitsel.vis.datasheet.figures.energy_bands import plot_energy_bands
 from shnitsel.vis.datasheet.figures.soc_trans_hist import (
     plot_separated_spectra_and_soc_dip_hists,
@@ -39,7 +43,11 @@ try:
 except ImportError:
     from typing_extensions import Self
 
-from shnitsel.analyze.spectra import assign_fosc, calc_spectra, get_spectra_groups
+from shnitsel.analyze.spectra import (
+    get_fosc_gauss_broadened,
+    get_spectra,
+    get_spectra_groups,
+)
 
 from .figures.common import centertext, label_plot_grid
 from .figures.per_state_hist import plot_per_state_histograms
@@ -64,7 +72,9 @@ class DatasheetPage:
 
     state_selection: StateSelection
     state_selection_provided: bool = False
-    feature_selection: None = None
+    feature_selection: StructureSelection | None = None
+    feature_selection_provided: bool = False
+
     spectra_times: list[int | float] | np.ndarray | None = None
     charge: int = 0
     structure_skeletal: bool = False
@@ -72,9 +82,9 @@ class DatasheetPage:
 
     def __init__(
         self,
-        data: Trajectory | Self,
+        data: xr.Dataset | Trajectory | Frames | Self,
         state_selection: StateSelection | None = None,
-        feature_selection: None = None,
+        feature_selection: StructureSelection | None = None,
         *,
         spectra_times: list[int | float] | np.ndarray | None = None,
         col_state: list | None = None,
@@ -104,17 +114,33 @@ class DatasheetPage:
         if isinstance(data, DatasheetPage):
             self._copy_data(old=data)
             return
-        elif isinstance(data, Trajectory):
-            self.frames = data
         else:
-            raise TypeError("Neither DatasheetPage nor frames/Trajectory given.")
+            if isinstance(data, xr.Dataset):
+                try:
+                    data = Trajectory(data)
+                except:
+                    try:
+                        data = Frames(data)
+                    except:
+                        raise TypeError(
+                            "Data provided to datasheet page is neither of the right shape to be a trajectory nor of the type to be considered frames data."
+                        )
 
-        assert isinstance(self.frames, xr.Dataset)
+            if isinstance(data, Frames):
+                self.frames = data
+            elif isinstance(data, Trajectory):
+                self.frames = data.as_frames
+            else:
+                raise TypeError("Neither DatasheetPage nor frames/Trajectory given.")
+
+        assert isinstance(self.frames, Frames)
 
         if spectra_times is not None:
             self.spectra_times = spectra_times
-        elif 'time' not in self.frames:
-            warning("No 'time' variable found. Have ICONDs been passed as frames?")
+        elif 'time' not in self.frames.coords:
+            logging.warning(
+                "No 'time' variable found. Have ICONDs been passed as frames?"
+            )
         elif self.frames is not None:
             max_time = self.frames.coords['time'].max().item()
             # self.spectra_times = [max_time * i / 40 for i in range(5)]
@@ -136,6 +162,7 @@ class DatasheetPage:
         # Initialize feature selection or use provided selection
         if feature_selection is not None:
             self.feature_selection = feature_selection
+            self.feature_selection_provided = True
         else:
             self.feature_selection = None
 
@@ -194,15 +221,16 @@ class DatasheetPage:
         self.can = {}
 
         # print(self.frames['state_charges'])
-        if 'state_charges' in self.frames:
-            self.charge = int(self.frames.state_charges.isel(state=0))
+        self.charge = int(np.round(self.frames.charge))
 
         def check(*ks):
-            return all(k in self.frames for k in ks)
+            return all(
+                self.frames.has_variable(k) or self.frames.has_coordinate(k) for k in ks
+            )
 
         self.can['per_state_histograms'] = check('energy', 'forces', 'dip_trans')
-        self.can['separated_spectra_and_hists'] = (
-            'energy' in self.frames
+        self.can['separated_spectra_and_hists'] = self.frames.has_variable(
+            'energy'
         )  # check('dip_trans', 'time')
         self.can['noodle'] = check('atXYZ', 'state', 'time')
         self.can['structure'] = ('smiles_map' in self.frames.attrs) or check('atXYZ')
@@ -257,7 +285,7 @@ class DatasheetPage:
             PerState: Per-state data of the self.frames object. (Energies, permanent dipoles)
         """
         start = timer()
-        per_state = stats.get_per_state(self.frames)
+        per_state = self.frames.per_state
         # per_state['_color'] = 'state', self.col_state
         end = timer()
         info(f"cached per_state in {end - start} s")
@@ -272,7 +300,7 @@ class DatasheetPage:
         """
         start = timer()
         # TODO: FIXME: Use state selection for limit on which to calculate
-        inter_state = stats.get_inter_state(self.frames)
+        inter_state = self.frames.inter_state
         # inter_state['_color'] = 'statecomb', self.col_inter
 
         # Calculate fosc if missing and conditions met
@@ -290,7 +318,7 @@ class DatasheetPage:
             ('fosc', r"$f_\mathrm{osc}$"),
         ]:
             try:
-                inter_state[var].attrs['tex'] = tex
+                inter_state.dataset[var].attrs['tex'] = tex
             except KeyError:
                 pass
         end = timer()
@@ -298,11 +326,13 @@ class DatasheetPage:
         return inter_state
 
     @cached_property
-    def pops(self) -> xr.DataArray:
+    def pops(self) -> PopulationStatistics:
         """Population data for the underlying self.frames
 
-        Returns:
-            xr.DataArray: Population data encapsulated in a DataArray.
+        Returns
+        -------
+        PopulationStatistics
+            Population data encapsulated in an object holding absolute and relative population data
         """
         start = timer()
         # TODO: FIXME: Use state selection for limit on which to calculate
@@ -321,9 +351,7 @@ class DatasheetPage:
         """
         start = timer()
         # TODO: FIXME: Use state selection for limit on which to calculate
-        res = stats.time_grouped_confidence_interval(
-            self.inter_state['energy_interstate']
-        )
+        res = stats.time_grouped_confidence_interval(self.inter_state.energy_interstate)
         # res['_color'] = 'statecomb', self.col_inter
         res.attrs['tex'] = r"$\Delta E$"
         end = timer()
@@ -338,8 +366,8 @@ class DatasheetPage:
             xr.Dataset | None: Either the f_osc data (with confidence intervals) or None if not sufficient data in self.frames to calculate it.
         """
         start = timer()
-        if 'fosc' in self.inter_state:
-            res = stats.time_grouped_confidence_interval(self.inter_state['fosc'])
+        if self.inter_state.has_variable('fosc'):
+            res = stats.time_grouped_confidence_interval(self.inter_state.fosc)
             # res['_color'] = 'statecomb', self.col_inter
             res.attrs['tex'] = r"$f_\mathrm{osc}$"
         else:
@@ -357,8 +385,8 @@ class DatasheetPage:
         """
         start = timer()
         # TODO: FIXME: Use state selection for limit on which to calculate
-        if 'dip_trans' in self.frames:
-            res = calc_spectra(self.inter_state, times=self.spectra_times)
+        if self.frames.has_variable('dip_trans'):
+            res = get_spectra(self.inter_state, times=self.spectra_times)
         else:
             res = {}
         end = timer()
@@ -379,7 +407,7 @@ class DatasheetPage:
         """
         start = timer()
         # TODO: FIXME: Use state selection for split
-        if 'dip_trans' in self.frames:
+        if self.frames.has_variable('dip_trans'):
             res = get_spectra_groups(self.spectra)
         else:
             res = ({}, {})
@@ -407,19 +435,19 @@ class DatasheetPage:
         return self.spectra_groups[1]
 
     @cached_property
-    def pca_full_data(self) -> tuple[xr.DataArray, sk_PCA]:
+    def pca_full_data(self) -> PCAResult:
         """Get full PCA result with PCA detailed info.
 
         Returns:
             xr.DataArray: The pairwise distance PCA results
         """
-        from shnitsel.analyze.pca import pairwise_dists_pca
+        from shnitsel.analyze.pca import pca
 
         start = timer()
-        res, pca_info = pairwise_dists_pca(self.frames.atXYZ, return_pca_object=True)
+        res = pca(self.frames, feature_selection=self.feature_selection)
         end = timer()
         info(f"cached pca_data in {end - start} s")
-        return res, pca_info
+        return res
 
     @cached_property
     def pca_data(self) -> xr.DataArray:
@@ -428,7 +456,7 @@ class DatasheetPage:
         Returns:
             xr.DataArray: The pairwise distance PCA results
         """
-        return self.pca_full_data[0]
+        return self.pca_full_data.projected_inputs
 
     @cached_property
     def pca_info(self) -> sk_PCA:
@@ -437,7 +465,7 @@ class DatasheetPage:
         Returns:
             sk_PCA: The sklearn.decomposition.PCA object containing all PCA information.
         """
-        return self.pca_full_data[1]
+        return self.pca_full_data.fitted_pca_object
 
     @cached_property
     def pca_explanation(self) -> dict[str, str]:
@@ -462,9 +490,9 @@ class DatasheetPage:
         Returns:
             xr.DataArray: PCA data at the hopping points
         """
-        from shnitsel.data.multi_indices import mdiff
+        from shnitsel.analyze.hops import hops_mask_from_active_state
 
-        mask = mdiff(self.frames.astate) != 0
+        mask = hops_mask_from_active_state(self.frames)
         return self.pca_data[mask]
 
     @cached_property
@@ -474,10 +502,8 @@ class DatasheetPage:
         Returns:
             AtXYZ: Positional data.
         """
-        if "frame" in self.frames.sizes:
-            return self.frames.atXYZ.isel(frame=0)
-        else:
-            return self.frames.atXYZ.isel(time=0)
+        leading_dim_name = self.frames.leading_dim
+        return self.frames.atXYZ.isel({leading_dim_name: 0})
 
     @cached_property
     def mol(self) -> rdchem.Mol:
@@ -496,7 +522,7 @@ class DatasheetPage:
         #         atom.SetProp("atomNote", str(atom.GetIdx()))
         #     return mol
         # else:
-        return construct_default_mol(self.frames)
+        return construct_default_mol(self.frames.dataset, charge=self.frames.charge)
 
     @cached_property
     def mol_skeletal(self) -> rdchem.Mol:
@@ -721,14 +747,21 @@ class DatasheetPage:
 
         Either a plot of all state-coupling information or a matrix of plots with color-coded information of
 
-        Args:
-            figure (Figure | SubFigure): Figure this is being plotted into. Used for some after-the fact manipulation like introducing
-            suplots (dict[StateCombination, Axes]): Axes to plot the data of individual state combinations into.
-            state_selection (StateSelection): The StateSelection object to limit the combinations to include
-            simple_mode (bool, optional): Flag to determine whether we want full coupling plots (NACs, SOCs, dip_trans) or just color plots. Defaults to False meaning permitted and unpermitted transitions will be color-coded.
+        Parameters
+        ----------
+        figure : Figure | SubFigure
+            Figure this is being plotted into. Used for some after-the fact manipulation like introducing
+        suplots : dict[StateCombination, Axes]
+            Axes to plot the data of individual state combinations into.
+        state_selection : StateSelection
+            The StateSelection object to limit the combinations to include
+        simple_mode : bool, optional
+            Flag to determine whether we want full coupling plots (NACs, SOCs, dip_trans) or just color plots. Defaults to False meaning permitted and unpermitted transitions will be color-coded.
 
-        Returns:
-            dict[StateCombination, Axes]: The dict of axes after plotting to them
+        Returns
+        -------
+        dict[StateCombination, Axes]
+            The dict of axes after plotting to them
         """
         start = timer()
         # mol = self.mol_skeletal if self.structure_skeletal else self.mol
@@ -776,9 +809,11 @@ class DatasheetPage:
             s2label = state_selection.get_state_tex_label(s2)
             sccolor = state_selection.get_state_combination_color(sc)
             if has_nacs or has_dip_trans:
-                interstate_sc = interstate.sel(statecomb=sc)
+                interstate_sc = InterState(
+                    direct_interstate_data=interstate.dataset.sel(statecomb=sc)
+                )
                 if has_nacs:
-                    if interstate_sc['nacs_norm'].max() > 1e-9:
+                    if interstate_sc.nacs_norm.max() > 1e-9:
                         if simple_mode:
                             centertext(
                                 r"$\checkmark$",  # "NAC",
@@ -797,7 +832,7 @@ class DatasheetPage:
                             )
                         continue
                 if has_dip_trans:
-                    if interstate_sc['dip_trans_norm'].max() > 1e-9:
+                    if interstate_sc.dipole_transition_norm.max() > 1e-9:
                         centertext(
                             r"$\checkmark$",
                             # r"$\mathbf{\mu}_\mathrm{trans}$",
@@ -809,8 +844,12 @@ class DatasheetPage:
 
                 if has_socs:
                     found_soc = False
-                    interstate_sc = interstate.sel(statecomb=sc, full_statecomb=sc_r)
-                    if interstate_sc['socs_norm'].max() > 1e-9:
+                    interstate_sc = InterState(
+                        direct_interstate_data=interstate.dataset.sel(
+                            statecomb=sc, full_statecomb=sc_r
+                        )
+                    )
+                    if interstate_sc.socs_norm.max() > 1e-9:
                         if simple_mode:
                             centertext(
                                 "X",
@@ -881,34 +920,27 @@ class DatasheetPage:
         outlabel(ax, next(letter_it))
 
         metainfo = []
-        if 'trajid' in self.frames.sizes:
-            num_trajs = self.frames.sizes['trajid']
-            trajectory_ids = list(set(self.frames['trajid'].values))
+        if 'trajectory' in self.frames.sizes:
+            num_trajs = self.frames.sizes['trajectory']
+            trajectory_ids = list(set(self.frames.coords['trajectory'].values))
+        elif 'atrajectory' in self.frames.coords:
+            trajectory_ids = list(set(self.frames.coords['atrajectory'].values))
+
+            num_trajs = len(trajectory_ids)
         else:
-            traj_var_name = None
-            if 'trajid' in self.frames:
-                traj_var_name = 'trajid'
-            elif 'trajid_' in self.frames:
-                traj_var_name = 'trajid'
-
-            if traj_var_name is not None:
-                trajectory_ids = list(set(self.frames[traj_var_name].values))
-
-                num_trajs = len(trajectory_ids)
-            else:
-                num_trajs = 1
-                trajectory_ids = ['1']
+            num_trajs = 1
+            trajectory_ids = ['1']
 
         time_unit = 'unknown'
-        if 'time' in self.frames:
-            time_unit = self.frames.time.attrs['units']
+        if self.frames.has_coordinate('time'):
+            time_unit = self.frames.coords['time'].attrs['units']
         # metainfo.append(('$t$ unit', time_unit))
 
         def var_or_attr(ds, name, default=None):
-            if name in self.frames:
-                return self.frames[name].values
+            if name in self.frames.dataset:
+                return self.frames.dataset[name].values
             elif name in self.frames.attrs:
-                return self.frames.attrs[name]
+                return self.frames.dataset.attrs[name]
             else:
                 return default
 
@@ -943,17 +975,17 @@ class DatasheetPage:
                 'Forces in set',
                 (
                     'all'
-                    if self.frames.attrs['has_forces'] == True
-                    else self.frames.attrs['has_forces']
+                    if self.frames.forces_format == True
+                    else self.frames.forces_format
                 ),
             )
         )
-        metainfo.append(('Num Singlets', self.frames.attrs.get('num_singlets', '?')))
+        metainfo.append(('Num Singlets', self.frames.num_singlets))
 
-        if self.frames.attrs.get('num_doublets', -1) > 0:
-            metainfo.append(('Num Doublets', self.frames.attrs['num_doublets']))
+        if self.frames.num_doublets > 0:
+            metainfo.append(('Num Doublets', self.frames.num_doublets))
 
-        metainfo.append(('Num Triplets', self.frames.attrs.get('num_triplets', '?')))
+        metainfo.append(('Num Triplets', self.frames.num_triplets))
 
         var_meta_info: list[tuple[str, tuple[str, str]]] = []
         for varname, val in self.frames.data_vars.items():
@@ -990,8 +1022,8 @@ class DatasheetPage:
             ax.yaxis.set_major_locator(MaxNLocator(integer=True))
 
             cutoff_times = []
-            if 'trajid_' in self.frames and 'time' in self.frames:
-                for id, traj_data in self.frames.groupby('trajid_'):
+            if 'atrajectory' in self.frames.dataset and 'time' in self.frames.coords:
+                for id, traj_data in self.frames.dataset.groupby('atrajectory'):
                     t_max_present = traj_data['time'].max()
                     cutoff_times.append(t_max_present)
             cutoff_times.sort()
@@ -1224,7 +1256,7 @@ class DatasheetPage:
         Returns:
             Figure: The figure holding the entirety of plots in this Datasheet page.
         """
-        letter_base = 'abcdef'
+        letter_base = 'abcdefghijkl'
 
         figures = []
 

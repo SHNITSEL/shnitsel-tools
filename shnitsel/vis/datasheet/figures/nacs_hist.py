@@ -2,7 +2,7 @@ from matplotlib.figure import Figure, SubFigure
 import numpy as np
 from shnitsel._contracts import needs
 from shnitsel.analyze.generic import keep_norming
-from shnitsel.core.typedefs import InterState
+from shnitsel.data.dataset_containers import InterState
 from shnitsel.filtering.state_selection import StateSelection
 from ....units.definitions import energy
 from ....units.conversion import convert_energy
@@ -36,7 +36,7 @@ def plot_nacs_histograms(
     """
     assert axs is not None, "No axes objects provided."
 
-    hop_filter_data = inter_state.sel(frame=hop_idxs)
+    hop_filter_data = inter_state.dataset.sel(frame=hop_idxs)
 
     nacs_selection =state_selection.same_multiplicity_transitions()
 
@@ -92,10 +92,10 @@ def plot_nacs_histograms(
 
             ax.scatter(xdata, ydata, color=color, s=0.2, alpha=0.5)
 
-    if 'energy_interstate' in inter_state:
+    if inter_state.has_variable('energy_interstate'):
         plot('nde', 'energy_interstate', hop_filter_data)
 
-    if 'dip_trans' in inter_state:
+    if inter_state.has_variable('dip_trans'):
         plot('ntd', 'dip_trans_norm', hop_filter_data)
     else:
         centertext(r"No $\mathbf{\mu}_{ij}$ data", axs['ntd'])

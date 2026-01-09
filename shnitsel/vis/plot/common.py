@@ -233,7 +233,11 @@ def mpl_svg_into_axes(ax: Axes, svg_string: str, chord_length: float = 1e-2) -> 
                     # Read CSS style info:
                     # print(tree_elem.attrib['style'])
                     single_css_attribs = list(tree_elem.attrib['style'].split(';'))
-                    css_attrib_pairs = [part.split(':') for part in single_css_attribs]
+                    css_attrib_pairs = [
+                        res
+                        for part in single_css_attribs
+                        if len(res := part.split(':')) == 2
+                    ]
                     css_attribs = {k.strip(): v.strip() for (k, v) in css_attrib_pairs}
                     # print(css_attribs)
 

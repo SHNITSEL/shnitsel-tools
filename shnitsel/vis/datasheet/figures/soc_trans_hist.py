@@ -14,7 +14,9 @@ from shnitsel.vis.datasheet.figures.dip_trans_hist import (
     # single_dip_trans_hist,
 )
 
-from ....core.typedefs import InterState, SpectraDictType
+from shnitsel.data.dataset_containers import InterState
+
+from ....core.typedefs import SpectraDictType
 from ....units.definitions import energy
 
 from .common import centertext, figaxs_defaults
@@ -56,12 +58,12 @@ def plot_energy_histogram(
     # linestyles = {t: ['-', '--', '-.', ':'][i]
     #               for i, t in enumerate(np.unique(list(zip(*spectra.keys()))[0]))}
 
-    if 'energy_interstate' not in inter_state:
+    if not inter_state.has_variable('energy_interstate'):
         centertext(r"No $\Delta E$ data provided.", ax=ax)
         return ax
 
     for i, sc in enumerate(state_selection.state_combinations):
-        sc_data = inter_state.sel(statecomb=sc)
+        sc_data = inter_state.dataset.sel(statecomb=sc)
         sc_color = state_selection.get_state_combination_color(sc)
         sc_label = state_selection.get_state_combination_tex_label(sc)
 
@@ -153,14 +155,14 @@ def single_trans_hist(
         # print("No SOC plot for missing data")
         # print(interstate.data_vars.keys())
         return None
-    xdata = interstate[xvariable].squeeze()
+    xdata = interstate.dataset[xvariable].squeeze()
     if xvariable == 'energy_interstate':
         # We expect energies in eV for the energy delta plot
         xdata = convert_energy(xdata, to=energy.eV)
         xdata = np.abs(convert_energy(xdata, to=energy.eV))
 
     # We need the normed transition soc
-    ydata = interstate[yvariable].squeeze()
+    ydata = interstate.dataset[yvariable].squeeze()
     # print(f"{xdata=}")
     # print(f"{ydata=}")
 
@@ -336,7 +338,7 @@ def plot_soc_or_dip_trans_histograms(
 
     hist2d_outputs = []
     selected_scs = 0
-    for i, (sc_, data) in enumerate(inter_state.groupby('statecomb')):
+    for i, (sc_, data) in enumerate(inter_state.dataset.groupby('statecomb')):
         if not state_selection.has_state_combination(sc_):
             continue
 
@@ -357,14 +359,24 @@ def plot_soc_or_dip_trans_histograms(
         if 'dip_trans_norm' in data and data.dip_trans_norm.max() > 1e-9:
             # print("Opting for dip trans norm plot.")
             tmp_res = single_dip_trans_hist(
-                data, sc_label, state_labels, color=color, ax=ax, cnorm=cnorm
+                InterState(direct_interstate_data=data),
+                sc_label,
+                state_labels,
+                color=color,
+                ax=ax,
+                cnorm=cnorm,
             )
             if tmp_res is not None:
                 hist2d_outputs.append(tmp_res)
         elif 'socs_norm' in data and data.socs_norm.max() > 1e-9:
             # print("Opting for socs norm plot.")
             tmp_res = single_soc_trans_hist(
-                data, sc_label, state_labels, color=color, ax=ax, cnorm=cnorm
+                InterState(direct_interstate_data=data),
+                sc_label,
+                state_labels,
+                color=color,
+                ax=ax,
+                cnorm=cnorm,
             )
             if tmp_res is not None:
                 hist2d_outputs.append(tmp_res)
@@ -409,7 +421,9 @@ def plot_separated_spectra_and_soc_dip_hists(
     """
     assert axs is not None, "Could not acquire axes for plotting"
     ground, excited = spectra_groups
-    scnorm = plt.Normalize(inter_state.time.min(), inter_state.time.max())
+    scnorm = plt.Normalize(
+        inter_state.dataset.time.min(), inter_state.dataset.time.max()
+    )
     scmap = plt.get_cmap('turbo')
     # scscale = mpl.cm.ScalarMappable(norm=scnorm, cmap=scmap)
     non_degenerate_selection = state_selection.non_degenerate()
@@ -417,7 +431,7 @@ def plot_separated_spectra_and_soc_dip_hists(
     # print(state_selection.states, state_selection.state_combinations)
     # print(non_degenerate_selection.states, non_degenerate_selection.state_combinations)
 
-    time_unit = inter_state.time.attrs.get('units', 'fs')
+    time_unit = inter_state.dataset.time.attrs.get('units', 'fs')
 
     times = list(set([tup[0] for tup in ground]))
     times.sort()
@@ -585,7 +599,6 @@ def plot_separated_spectra_and_soc_dip_hists(
     else:
         axs['legend_spec'].set_axis_off()
 
-
     # cb_spec = axs['cb_spec'].figure.colorbar(
     #     scscale,
     #     cax=axs['cb_spec'],
@@ -655,7 +668,9 @@ def plot_separated_spectra_and_soc_dip_hists_groundstate(
     assert axs is not None, "Could not acquire axes to plot to."
     ground, excited = spectra_groups
     times = [tup[0] for lst in spectra_groups for tup in lst]
-    scnorm = plt.Normalize(inter_state.time.min(), inter_state.time.max() + 50)
+    scnorm = plt.Normalize(
+        inter_state.dataset.time.min(), inter_state.dataset.time.max() + 50
+    )
     scscale = mpl.cm.ScalarMappable(norm=scnorm, cmap=scmap)
 
     hist2d_outputs = []
@@ -677,7 +692,9 @@ def plot_separated_spectra_and_soc_dip_hists_groundstate(
         )
 
     res = plot_soc_or_dip_trans_histograms(
-        inter_state.isel(statecomb=selsc), axs=selaxs, state_selection=state_selection
+        InterState(direct_interstate_data=inter_state.dataset.isel(statecomb=selsc)),
+        axs=selaxs,
+        state_selection=state_selection,
     )
     if res is not None:
         hist2d_outputs += res
