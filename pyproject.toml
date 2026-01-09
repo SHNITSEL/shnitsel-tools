@@ -100,8 +100,17 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
+# Don't require docstrings in tests
 "tests/*" = [
-  # Don't require docstrings in tests
+  "D102",  
+  "D103",
+]
+# Don't require docstrings in cli programs
+"dev/*" = [
+  "D102",  
+  "D103",
+]
+"cli/*" = [
   "D102",  
   "D103",
 ]
