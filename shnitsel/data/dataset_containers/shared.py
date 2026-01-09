@@ -66,13 +66,13 @@ class ShnitselDataset:
 
     @property
     def active_state(self):
-        if "astate" not in self.dataset.coords:
-            if "astate" not in self.dataset:
+        if "astate" not in self.coords:
+            if "astate" not in self.data_vars:
                 raise KeyError(
                     "No coordinate `astate` holding the active state id provided for the trajectory"
                 )
-            return self.dataset['astate']
-        return self.dataset.coords["astate"]
+            return self.data_vars['astate']
+        return self.coords["astate"]
 
     @property
     def state_diagonal(self):
@@ -120,6 +120,12 @@ class ShnitselDataset:
 
     def has_coordinate(self, name: str) -> bool:
         return name in self.coords
+
+    def has_data(self, name: str) -> bool:
+        return self.has_variable(name) or self.has_coordinate(name)
+
+    def has(self, name: str) -> bool:
+        return self.has_data(name) or self.has_dimension(name)
 
 
 @dataclass
