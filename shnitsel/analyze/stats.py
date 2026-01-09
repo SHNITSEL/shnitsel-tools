@@ -238,7 +238,7 @@ def get_inter_state(frames: Frames) -> InterState:
     for prop in available_inter_base_props:
         if 'state' in frames[prop].dims and 'statecomb' not in frames[prop].dims:
             inter_state_res = subtract_combinations(
-                frames[prop], dim='state', labels=False
+                frames[prop], dim='state', add_labels=False
             )
             inter_state[str(prop) + "_interstate"] = inter_state_res
             inter_state[str(prop) + "_interstate"].attrs["long_name"] = (
