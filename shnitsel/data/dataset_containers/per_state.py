@@ -1,20 +1,19 @@
 from dataclasses import dataclass
 from typing import Literal
 
-from .trajectory import Trajectory
 from .shared import ShnitselDerivedDataset
-from .frames import Frames
+from .data_series import DataSeries
 
 import xarray as xr
 
 
 @dataclass
 class PerState(ShnitselDerivedDataset):
-    _original_frames: Frames | Trajectory | None
+    _original_frames: DataSeries | None
 
     def __init__(
         self,
-        frames: Frames | Trajectory | None = None,
+        frames: DataSeries | None = None,
         /,
         direct_perstate_data: xr.Dataset | None = None,
     ):

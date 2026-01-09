@@ -2,11 +2,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Sequence
 import xarray as xr
-from .trajectory import Trajectory
+from .data_series import DataSeries
 
 
 @dataclass
-class Frames(Trajectory):
+class Frames(DataSeries):
     # TODO: FIXME: This should not be a subclass of Trajectory. It should have similar accessors, but probably from a different base class.
     _is_multi_trajectory: bool = False
 
@@ -26,9 +26,15 @@ class Frames(Trajectory):
         super().__init__(ds)
 
         # TODO: FIXME: This should be harmonized across all creation and use points. Make the frame-component `active_trajectory` and the per-trajectory property `trajectory`
-        if "trajectory" in ds.dims:
+        if "trajectory" in ds.dims or "atrajectory" in ds.coords:
             # Check if we have a dimension to select properties of different trajectories.
             self._is_multi_trajectory = True
+
+    @property
+    def leading_dim(self) -> str:
+        """The leading dimension along which consistent configurations are indexed.
+        Usually `time` or `frame`."""
+        return "frame"
 
     @property
     def is_multi_trajectory(self) -> bool:

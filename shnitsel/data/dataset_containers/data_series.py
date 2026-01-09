@@ -6,8 +6,7 @@ from typing import Any, Literal
 from ..trajectory_grouping_params import TrajectoryGroupingMetadata
 
 
-from .data_series import DataSeries
-from .frames import Frames
+from .shared import ShnitselDataset
 import xarray as xr
 
 
@@ -23,43 +22,143 @@ class MetaInformation:
 
 
 @dataclass
-class Trajectory(DataSeries):
+class DataSeries(ShnitselDataset):
     # from .frames import Frames
     # from .per_state import PerState
     # from .inter_state import InterState
 
     def __init__(self, ds: xr.Dataset):
-        assert (
-            "time" in ds.dims
-        ), "Dataset is missing `time` dimension and cannot be considered a Trajectory"
-        assert (
-            "atom" in ds.dims
-        ), "Dataset is missing `atom` dimension and cannot be considered a Trajectory"
-        assert (
-            "state" in ds.dims
-        ), "Dataset is missing `state` dimension and cannot be considered a Trajectory"
         super().__init__(ds)
 
     @cached_property
-    def as_frames(self) -> "Frames":
-        """Convert this trajectory to a frames version of this trajectory, where the leading dimension
-        is `frame` instead of `time`.
+    def per_state(self) -> "PerState":
+        """Convert this trajectory to a PerState object only allowing access to the per-state data encoded in this entity
 
         Returns
         --------
-            Frames: The resulting frames instance with a stacked dimension `frame` and a new coordinate `active_trajectory` along the `frame` dimension
+            PerState: The wrapper for the per-state properties
         """
+        from .per_state import PerState
 
-        frame_ds = self.dataset.expand_dims(atrajectory=[self.trajectory_id]).stack(
-            frame=["atrajectory", "time"]
-        )
-        return Frames(frame_ds)
+        return PerState(self)
+
+    @cached_property
+    def inter_state(self) -> "InterState":
+        """Convert this trajectory to an InterState object only allowing access to the inter-state data encoded in this entity.
+
+        Will calculate some interstate properties like state-to-state energy differences.
+
+        Returns
+        --------
+            InterState: The wrapper for the inter-state properties
+        """
+        from .inter_state import InterState
+
+        return InterState(self)
 
     @property
     def leading_dim(self) -> str:
         """The leading dimension along which consistent configurations are indexed.
         Usually `time` or `frame`."""
-        return "time"
+        return "frame"
+
+    @property
+    def positions(self):
+        """The atom position data stored in this dataset if accessible.
+
+        Will throw a `KeyError` if no data is accessible."""
+        if "atXYZ" not in self.dataset.data_vars:
+            raise KeyError(
+                "No variable `atXYZ` to encode positions provided for the trajectory"
+            )
+        return self.dataset.data_vars["atXYZ"]
+
+    @property
+    def atXYZ(self):
+        """The positional data for atoms stored in this dataset if accessible.
+
+        Will throw a `KeyError` if no data is accessible."""
+        if "atXYZ" not in self.dataset.data_vars:
+            raise KeyError("No variable `atXYZ` provided for the trajectory")
+        return self.dataset.data_vars["atXYZ"]
+
+    @property
+    def energy(self):
+        """The energy information stored in this dataset if accessible.
+
+        Will throw a `KeyError` if no data is accessible."""
+        if "energy" not in self.dataset.data_vars:
+            raise KeyError("No variable `energy` provided for the trajectory")
+        return self.dataset.data_vars["energy"]
+
+    @property
+    def forces(self):
+        """The force data stored in this dataset if accessible.
+        Note that depending on `forces_format`, there may only be data for the active state or
+        for some of the states.
+
+        Will throw a `KeyError` if no data is accessible."""
+        if "forces" not in self.dataset.data_vars:
+            raise KeyError("No variable `forces` provided for the trajectory")
+        return self.dataset.data_vars["forces"]
+
+    @property
+    def nacs(self):
+        """The non adiabatic coupling data stored in this dataset if accessible.
+
+        Will throw a `KeyError` if no data is accessible."""
+        if "nacs" not in self.dataset.data_vars:
+            raise KeyError("No variable `nacs` provided for the trajectory")
+        return self.dataset.data_vars["nacs"]
+
+    @property
+    def socs(self):
+        """The spin orbit coupling data stored in this dataset if accessible.
+
+        Will throw a `KeyError` if no data is accessible."""
+        if "socs" not in self.dataset.data_vars:
+            raise KeyError("No variable `socs` provided for the trajectory")
+        return self.dataset.data_vars["socs"]
+
+    @property
+    def dipole_permanent(self):
+        """The permanent dipole data stored in this dataset if accessible.
+
+        Will throw a `KeyError` if no data is accessible."""
+        if "dip_perm" not in self.dataset.data_vars:
+            raise KeyError(
+                "No variable `dip_perm` containing permanent dipole moments provided for the trajectory"
+            )
+        return self.dataset.data_vars["dip_perm"]
+
+    @property
+    def dipole_transition(self):
+        """The transition dipole data stored in this dataset if accessible.
+
+        Will throw a `KeyError` if no data is accessible."""
+        if "dip_trans" not in self.dataset.data_vars:
+            raise KeyError(
+                "No variable `dip_trans` containing transitional dipole moments provided for the trajectory"
+            )
+        return self.dataset.data_vars["dip_trans"]
+
+    @property
+    def e_kin(self):
+        """The kinetic energy information stored in this dataset if accessible.
+
+        Will throw a `KeyError` if no data is accessible."""
+        if "e_kin" not in self.dataset.data_vars:
+            raise KeyError("No variable `e_kin` provided for the trajectory")
+        return self.dataset.data_vars["e_kin"]
+
+    @property
+    def velocities(self):
+        """The velocity information stored in this dataset if accessible.
+
+        Will throw a `KeyError` if no data is accessible."""
+        if "velocities" not in self.dataset.data_vars:
+            raise KeyError("No variable `velocities` provided for the trajectory")
+        return self.dataset.data_vars["velocities"]
 
     @property
     def charge(self) -> float:
@@ -86,6 +185,27 @@ class Trajectory(DataSeries):
         """
         self._raw_dataset.attrs['charge'] = value
         self._raw_dataset['state_charges'].values[:] = value
+
+    def _param_from_vars_or_attrs(self, key: str) -> Any | None:
+        """Helper function to extract information either from a data var or from
+        a coordinate or from the attributes of the dataset
+
+        Parameters
+        ----------
+        key : str
+            The key under which we expect to find the data
+
+        Returns
+        -------
+        Any|None
+            the value associated with the key that has been found
+        """
+        if key in self._raw_dataset.data_vars:
+            return self._raw_dataset.data_vars[key]
+        if key in self._raw_dataset.coords:
+            return self._raw_dataset.coords[key]
+        elif key in self._raw_dataset.attrs:
+            return self._raw_dataset.attrs.get(key, None)
 
     @property
     def t_max(self) -> float:
@@ -257,6 +377,14 @@ class Trajectory(DataSeries):
         # To keep track of input settings we do not explicitly use anywhere else.
         misc_input_settings = self._param_from_vars_or_attrs('misc_input_settings')
         return misc_input_settings
+
+    @property
+    def attrs(self) -> dict:
+        """A dictionary of the attributes set on this Trajectory.
+
+        Arbitrary mapping from attribute keys (str) to attribute values.
+        """
+        return self.dataset.attrs
 
     def get_grouping_metadata(self) -> TrajectoryGroupingMetadata:
         return TrajectoryGroupingMetadata(

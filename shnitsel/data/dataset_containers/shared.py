@@ -67,9 +67,11 @@ class ShnitselDataset:
     @property
     def active_state(self):
         if "astate" not in self.dataset.coords:
-            raise KeyError(
-                "No coordinate `astate` holding the active state id provided for the trajectory"
-            )
+            if "astate" not in self.dataset:
+                raise KeyError(
+                    "No coordinate `astate` holding the active state id provided for the trajectory"
+                )
+            return self.dataset['astate']
         return self.dataset.coords["astate"]
 
     @property
