@@ -109,7 +109,7 @@ def get_angles(
 
     """
     structure_selection = _get_default_selection(
-        structure_selection, atXYZ=atXYZ, default_levels=['angles']
+        structure_selection, atXYZ_source=atXYZ, default_levels=['angles']
     )
 
     angle_indices = list(structure_selection.angles_selected)

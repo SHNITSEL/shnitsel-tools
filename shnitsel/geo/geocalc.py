@@ -12,6 +12,9 @@ from typing import Literal, Sequence
 import xarray as xr
 
 from shnitsel.core._api_info import API
+from shnitsel.data.dataset_containers import Frames, Trajectory
+from shnitsel.data.tree import ShnitselDB
+
 from shnitsel.filtering.structure_selection import (
     FeatureLevelType,
     StructureSelection,
@@ -35,12 +38,12 @@ from .geocalc_.bla_chromophor import get_max_chromophor_BLA
 @API()
 @needs(dims={'atom', 'direction'})
 def get_bats(
-    atXYZ: AtXYZ,
+    atXYZ: Trajectory | Frames | ShnitselDB[Trajectory | Frames] | AtXYZ,
     structure_selection: StructureSelection | None = None,
     default_features: Sequence[FeatureLevelType] = ['bonds', 'angles', 'dihedrals'],
     signed: bool = False,
     deg: bool | Literal['trig'] = True,
-) -> xr.DataArray:
+) -> xr.DataArray | ShnitselDB[xr.DataArray]:
     """Get bond lengths, angles and torsions/dihedrals.
 
     Parameters
@@ -85,46 +88,76 @@ def get_bats(
         >>> frames = st.open_frames('/tmp/A03_filtered.nc')
         >>> geom.get_bats(frames['atXYZ'])
     """
-    # TODO: FIXME: Example is not up to date
-    structure_selection = _get_default_selection(
-        structure_selection, atXYZ=atXYZ, default_levels=default_features
-    )
 
-    feature_data: list[xr.DataArray] = []
-    if len(structure_selection.atoms_selected) > 0:
-        feature_data.append(
-            get_positions(atXYZ, structure_selection=structure_selection)
-        )
-    if len(structure_selection.bonds_selected) > 0:
-        feature_data.append(
-            get_distances(atXYZ, structure_selection=structure_selection)
-        )
-    if len(structure_selection.angles_selected) > 0:
-        feature_data.append(
-            get_angles(
-                atXYZ, structure_selection=structure_selection, deg=deg, signed=signed
-            )
-        )
-    if len(structure_selection.dihedrals_selected) > 0:
-        feature_data.append(
-            get_dihedrals(
-                atXYZ,
+    if isinstance(atXYZ, ShnitselDB):
+        return atXYZ.map_data(
+            lambda x: get_bats(
+                x,
                 structure_selection=structure_selection,
-                deg=deg if isinstance(deg, bool) else True,
+                default_features=default_features,
                 signed=signed,
-            )
+                deg=deg,
+            ),
+            dtype=xr.DataArray,
         )
-    if len(structure_selection.pyramids_selected) > 0:
-        feature_data.append(
-            get_pyramidalization(
-                atXYZ, structure_selection=structure_selection, signed=signed
-            )
+    else:
+        position_data: xr.DataArray
+        charge_info: int | None
+        if isinstance(atXYZ, xr.DataArray):
+            position_data = atXYZ
+            charge_info = None
+        else:
+            position_data = atXYZ.atXYZ
+            charge_info = int(atXYZ.charge)
+
+        # TODO: FIXME: Example is not up to date
+        structure_selection = _get_default_selection(
+            structure_selection,
+            atXYZ_source=position_data,
+            default_levels=default_features,
+            charge_info=charge_info,
         )
 
-    if len(feature_data) > 0:
-        return xr.concat(feature_data, dim='descriptor')
-    else:
-        logging.warning(
-            "No feature data could be calculated. Did you provide an empty selection?"
-        )
-        return _empty_descriptor_results(atXYZ)
+        feature_data: list[xr.DataArray] = []
+        if len(structure_selection.atoms_selected) > 0:
+            feature_data.append(
+                get_positions(position_data, structure_selection=structure_selection)
+            )
+        if len(structure_selection.bonds_selected) > 0:
+            feature_data.append(
+                get_distances(position_data, structure_selection=structure_selection)
+            )
+        if len(structure_selection.angles_selected) > 0:
+            feature_data.append(
+                get_angles(
+                    position_data,
+                    structure_selection=structure_selection,
+                    deg=deg,
+                    signed=signed,
+                )
+            )
+        if len(structure_selection.dihedrals_selected) > 0:
+            feature_data.append(
+                get_dihedrals(
+                    position_data,
+                    structure_selection=structure_selection,
+                    deg=deg if isinstance(deg, bool) else True,
+                    signed=signed,
+                )
+            )
+        if len(structure_selection.pyramids_selected) > 0:
+            feature_data.append(
+                get_pyramidalization(
+                    position_data,
+                    structure_selection=structure_selection,
+                    signed=signed,
+                )
+            )
+
+        if len(feature_data) > 0:
+            return xr.concat(feature_data, dim='descriptor')
+        else:
+            logging.warning(
+                "No feature data could be calculated. Did you provide an empty selection?"
+            )
+            return _empty_descriptor_results(position_data)

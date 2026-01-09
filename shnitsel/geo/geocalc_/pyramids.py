@@ -94,7 +94,7 @@ def get_pyramidalization(
 
     """
     structure_selection = _get_default_selection(
-        structure_selection, atXYZ=atXYZ, default_levels=['pyramids']
+        structure_selection, atXYZ_source=atXYZ, default_levels=['pyramids']
     )
 
     pyramid_descriptors = list(structure_selection.pyramids_selected)

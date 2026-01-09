@@ -3,6 +3,8 @@ from typing import Literal, Sequence, TypeAlias
 import numpy as np
 
 from shnitsel.core.typedefs import AtXYZ
+from shnitsel.data.dataset_containers.frames import Frames
+from shnitsel.data.dataset_containers.trajectory import Trajectory
 from shnitsel.filtering.structure_selection import (
     FeatureDescriptor,
     FeatureLevelOptions,
@@ -17,7 +19,8 @@ from shnitsel.bridges import construct_default_mol
 def _get_default_selection(
     structure_selection: StructureSelection | None = None,
     mol: rc.Mol | None = None,
-    atXYZ: xr.DataArray | None = None,
+    atXYZ_source: xr.Dataset | xr.DataArray | None = None,
+    charge_info: int | None = None,
     default_levels: Sequence[FeatureLevelOptions] = ['atoms', 'bonds'],
 ) -> StructureSelection:
     """Get a default selection object from any accessible data if possible.
@@ -34,13 +37,14 @@ def _get_default_selection(
     Returns:
         StructureSelection: The initialized default structure selection.
     """
+
     if structure_selection is not None:
         return structure_selection
 
     if mol is not None and isinstance(mol, rc.Mol):
         return StructureSelection.init_from_mol(mol, default_selection=default_levels)
-    elif mol is None and atXYZ is not None:
-        mol = construct_default_mol(atXYZ)
+    elif mol is None and atXYZ_source is not None:
+        mol = construct_default_mol(atXYZ_source, charge=charge_info)
     elif mol is None:
         raise ValueError(
             "You did not provide sufficient data to construct a default feature selection. Please provide your own StructureSelection object."

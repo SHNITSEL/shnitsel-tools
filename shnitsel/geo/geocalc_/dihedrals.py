@@ -129,7 +129,7 @@ def get_dihedrals(
     """
 
     structure_selection = _get_default_selection(
-        structure_selection, atXYZ=atXYZ, default_levels=['dihedrals']
+        structure_selection, atXYZ_source=atXYZ, default_levels=['dihedrals']
     )
 
     dihedral_indices = list(structure_selection.dihedrals_selected)

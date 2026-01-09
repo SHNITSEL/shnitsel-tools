@@ -58,7 +58,7 @@ def get_distances(
         If both `matches` and `mol` are specified.
     """
     structure_selection = _get_default_selection(
-        structure_selection, atXYZ=atXYZ, default_levels=['bonds']
+        structure_selection, atXYZ_source=atXYZ, default_levels=['bonds']
     )
 
     bond_indices = list(structure_selection.bonds_selected)

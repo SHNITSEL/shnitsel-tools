@@ -31,7 +31,7 @@ def get_positions(
 
     """
     structure_selection = _get_default_selection(
-        structure_selection, atXYZ=atXYZ, default_levels=['atoms']
+        structure_selection, atXYZ_source=atXYZ, default_levels=['atoms']
     )
 
     position_indices = list(structure_selection.atoms_selected)

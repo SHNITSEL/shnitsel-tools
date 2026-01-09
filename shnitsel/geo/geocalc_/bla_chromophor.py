@@ -52,7 +52,7 @@ def get_max_chromophor_BLA(
     """
 
     structure_selection = _get_default_selection(
-        structure_selection, atXYZ=atXYZ, default_levels=['atoms', 'bonds']
+        structure_selection, atXYZ_source=atXYZ, default_levels=['atoms', 'bonds']
     )
 
     BLA_selection = structure_selection.select_BLA_chromophor(
