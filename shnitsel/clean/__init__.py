@@ -198,6 +198,10 @@ def _sanity_check_per_trajectory(
     If the input has a ``filtranda`` data_var, it is overwritten.
     If the input has a `criterion` dimension, it will be dropped.
     """
+    import sys
+
+    # TODO: FIXME: Figure out why dispatch_filter converts all data to float.
+    print("pre_filter:", trajectory_or_frames.active_state)
     # Perform energy filtering
     ds_energy = filter_by_energy(
         trajectory_or_frames,
@@ -206,6 +210,8 @@ def _sanity_check_per_trajectory(
         plot_thresholds=plot_thresholds,
         plot_populations=plot_populations,
     )
+    print("post_filter:", ds_energy.active_state)
+    sys.exit(1)
 
     if ds_energy is None:
         logging.info("Rejected trajectory because of energy constraints")
