@@ -6,6 +6,7 @@ from typing import Iterable, Self, Sequence, Literal
 import numpy as np
 import xarray as xr
 
+from shnitsel.data.dataset_containers import Frames, Trajectory
 from shnitsel.data.state_helpers import state_name_to_tex_label
 from ..core.typedefs import (
     StateCombination,
@@ -166,7 +167,9 @@ class StateSelection:
             )
 
     @classmethod
-    def init_from_dataset(cls: type[Self], dataset: xr.Dataset) -> Self:
+    def init_from_dataset(
+        cls: type[Self], dataset: xr.Dataset | Trajectory | Frames
+    ) -> Self:
         """Alternative constructor that creates an initial StateSelection object from a dataset using the entire state information in it.
 
         Args:
@@ -181,9 +184,9 @@ class StateSelection:
         Returns:
             StateSelection: A state selection object initially covering all states (and state combinations) present in the dataset.
         """
-        assert 'state' in dataset.sizes, (
-            "No state information on the provided dataset. Cannot initialize state selection."
-        )
+        assert (
+            'state' in dataset.sizes
+        ), "No state information on the provided dataset. Cannot initialize state selection."
 
         if 'states' in dataset.coords:
             states = list(int(n) for n in dataset.coords['states'].values)
@@ -251,7 +254,7 @@ class StateSelection:
 
         state_degeneracy_group = {}
         degeneracy_group_states = {}
-        if 'state_degeneracy_group' in dataset.variables:
+        if 'state_degeneracy_group' in dataset.coords:
             # print('In ds:', dataset['state_degeneracy_group'])
             # print("State degeneracy data from dataset")
             degeneracy_info: list[tuple[StateId, int]] = list(
