@@ -15,7 +15,9 @@ from shnitsel.units.conversion import convert_length
 from shnitsel.clean.dispatch_plots import dispatch_plots
 from shnitsel.units.definitions import length
 
-TrajectoryOrFrames = TypeVar("TrajectoryOrFrames", bound=Trajectory | Frames)
+TrajectoryOrFrames = TypeVar(
+    "TrajectoryOrFrames", bound=Trajectory | Frames | xr.Dataset
+)
 
 
 @dataclass
@@ -37,7 +39,10 @@ class GeometryFiltrationThresholds:
 
     # Mappings of arbitrary SMARTs to threshold values.
     # Each SMARTs should ideally only cover one bond.
-    match_thresholds: dict[str, float] = dict()
+    match_thresholds: dict[str, float] | None = None
+
+    def __init__(self):
+        self.match_thresholds = dict()
 
     def get_full_match_dict(self) -> dict[str, float]:
         """Get the full dictionary of SMARTs strings and associated bond length thresholds.
@@ -47,7 +52,7 @@ class GeometryFiltrationThresholds:
         Returns:
             dict[str, float]: The combination of settings that can be set via the fields in this class and the `match_thresholds` dict.
         """
-        res_dict = dict(self.match_thresholds)
+        res_dict = dict(self.match_thresholds) if self.match_thresholds else {}
         if self.all_bonds_smarts not in res_dict:
             res_dict[self.all_bonds_smarts] = self.all_bonds_threshold
         if self.all_h_to_C_or_N_bonds_SMARTS not in res_dict:
@@ -135,7 +140,7 @@ def calculate_bond_length_filtranda(
     )
 
     if mol is None:
-        mol = construct_default_mol(converted_coords)
+        mol = construct_default_mol(frames.dataset)
     base_selection = StructureSelection.init_from_mol(mol, ["bonds"])
 
     criteria_ordered = thresholds_array.coords["criterion"].values
@@ -161,7 +166,7 @@ def calculate_bond_length_filtranda(
 
 # TODO: FIXME: This should operate on single trajectories.
 def filter_by_length(
-    frames: TrajectoryOrFrames,
+    frames_or_trajectory: TrajectoryOrFrames,
     filter_method: Literal["truncate", "omit", "annotate"] | float = "truncate",
     *,
     geometry_thresholds: GeometryFiltrationThresholds | None = None,
@@ -173,10 +178,10 @@ def filter_by_length(
 
     Parameters
     ----------
-    frames
+    frames_or_trajectory: Trajectory | Frames | xr.Dataset
         A Trajectory or Frames Dataset with an ``atXYZ`` variable (NB. this function takes an xr.Dataset as
         opposed to an xr.DataArray for consistency with :py:func:`shnitsel.clean.filter_by_energy`)
-    filter_method, optional
+    filter_method: Literal["truncate", "omit", "annotate"] | float, optional
         Specifies the manner in which to remove data;
 
             - if 'omit', drop trajectories unless all frames meet criteria (:py:func:`shnitsel.clean.omit`)
@@ -187,7 +192,7 @@ def filter_by_length(
                 discarding those which violate criteria before reaching the given limit,
                 (:py:func:`shnitsel.clean.transect`)
         see :py:func:`shnitsel.clean.dispatch_filter`.
-    geometry_thresholds, optional
+    geometry_thresholds: GeometryFiltrationThresholds, optional
         A mapping from SMARTS-strings to length-thresholds.
 
             - The SMARTS-strings describe bonds which are searched
@@ -196,9 +201,8 @@ def filter_by_length(
                 for a given search, the longest bond-length will be considered for each frame
             - The unit for the maximum length is provided in the member variable `length_unit` which defaults to `angstrom`.
             - If not provided will be initialized with thresholds for H-(C/N) bonds and one for all bonds.
-    mol
+    mol: Mol, optional
         An rdkit mol object, if not provided it will be generated from the XYZ coordinates in the data
-    plot_thresholds
         See :py:func:`shnitsel.vis.plot.filtration.check_thresholds`.
 
         - If ``True``, will plot using ``check_thresholds`` with
@@ -206,7 +210,7 @@ def filter_by_length(
         - If a ``Sequence``, will plot using ``check_thresholds``
         with specified quantiles
         - If ``False``, will not plot threshold plot
-    plot_populations
+    plot_populations: Literal["independent", "intersections", False], optional
         See :py:func:`shnitsel.vis.plot.filtration.validity_populations`.
 
         - If ``'intersections'``, will plot populations of
@@ -223,16 +227,37 @@ def filter_by_length(
     -----
     The resulting object has a ``filtranda`` data_var, representing the values by which the data were filtered.
     If the input has a ``filtranda`` data_var, it is overwritten. An existing 'criterion' dimension will be dropped from
-    the `frames` parameter along with all variables and coordinates tied to it.
+    the `frames_or_trajectory` parameter along with all variables and coordinates tied to it.
     """
+
+    analysis_data: Trajectory | Frames
+    if isinstance(frames_or_trajectory, xr.Dataset):
+        try:
+            analysis_data = Trajectory(frames_or_trajectory)
+        except:
+            try:
+                analysis_data = Frames(frames_or_trajectory)
+            except:
+                raise ValueError(
+                    "Filtered data is no DataSeries, i.e. not indexed by `time` or `frame` dimensions."
+                )
+    else:
+        analysis_data = frames_or_trajectory
+
     filtranda = calculate_bond_length_filtranda(
-        frames, geometry_thresholds=geometry_thresholds, mol=mol
+        analysis_data, geometry_thresholds=geometry_thresholds, mol=mol
     )
-    frames_dataset = frames.dataset.drop_dims(["criterion"], errors="ignore").assign(
-        filtranda=filtranda
+    frames_dataset = type(analysis_data)(
+        analysis_data.dataset.drop_dims(["criterion"], errors="ignore").assign(
+            filtranda=filtranda
+        )
     )
-    new_frames = type(frames)(frames_dataset)
 
     dispatch_plots(filtranda, plot_thresholds, plot_populations)
 
-    return dispatch_filter(new_frames, filter_method)
+    filter_res = dispatch_filter(frames_dataset, filter_method)
+
+    if isinstance(frames_or_trajectory, xr.Dataset):
+        return filter_res.dataset
+    else:
+        return filter_res

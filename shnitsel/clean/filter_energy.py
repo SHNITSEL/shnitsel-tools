@@ -3,8 +3,7 @@ import logging
 from typing import Literal, Sequence, TypeVar
 
 import numpy as np
-from shnitsel.data.dataset_containers.frames import Frames
-from shnitsel.data.dataset_containers.trajectory import Trajectory
+from shnitsel.data.dataset_containers import Frames, Trajectory
 import xarray as xr
 
 from shnitsel.data.multi_indices import mdiff
@@ -13,7 +12,10 @@ from shnitsel.clean.dispatch_plots import dispatch_plots
 from shnitsel.units.conversion import convert_energy
 from shnitsel.units.definitions import energy
 
-TrajectoryOrFrames = TypeVar("TrajectoryOrFrames", bound=Trajectory | Frames)
+TrajectoryOrFrames = TypeVar(
+    "TrajectoryOrFrames", bound=Trajectory | Frames | xr.Dataset
+)
+
 
 @dataclass
 class EnergyFiltrationThresholds:
@@ -96,11 +98,6 @@ def calculate_energy_filtranda(
         criteria comprise epot_step and hop_epot_step, as well as
         etot_drift, etot_step and ekin_step if the input contains an e_kin variable
     """
-    if not frames_or_trajectory.has_coordinate('astate'):
-        message: str = 'Skipping active energy filtering because of missing variable `astate` in the trajectory'
-        logging.warning(message)
-        raise ValueError(message)
-
     if not isinstance(frames_or_trajectory, Frames) and not isinstance(
         frames_or_trajectory, Trajectory
     ):
@@ -108,19 +105,21 @@ def calculate_energy_filtranda(
         logging.warning(message, type(frames_or_trajectory))
         raise ValueError(message % type(frames_or_trajectory))
 
+    if not frames_or_trajectory.has_data('astate'):
+        message: str = 'Skipping active energy filtering because of missing variable `astate` in the trajectory'
+        logging.warning(message)
+        print(frames_or_trajectory)
+        raise ValueError(message)
+
     if energy_thresholds is None:
         energy_thresholds = EnergyFiltrationThresholds()
 
     filter_energy_unit = energy_thresholds.energy_unit
 
     is_hop = mdiff(frames_or_trajectory.active_state) != 0
+
     res = xr.Dataset()
-    if 'energy' not in frames_or_trajectory.coords:
-        logging.warning(
-            'Skipping active state energy filtering because of missing variable `energy` in the trajectory'
-        )
-        e_pot_active = None
-    else:
+    if frames_or_trajectory.has_data('energy'):
         # TODO: FIXME: Shouldn't we drop coords instead?
         e_pot_active = frames_or_trajectory.energy.sel(
             state=frames_or_trajectory.active_state
@@ -130,8 +129,13 @@ def calculate_energy_filtranda(
 
         res["epot_active_step"] = mdiff(e_pot_active).where(~is_hop, 0)
         res["epot_hop_step"] = mdiff(e_pot_active).where(is_hop, 0)
+    else:
+        logging.warning(
+            'Skipping active state energy filtering because of missing variable `energy` in the trajectory'
+        )
+        e_pot_active = None
 
-    if "e_kin" in frames_or_trajectory.data_vars:
+    if frames_or_trajectory.has_data("e_kin"):
         e_kin = frames_or_trajectory.e_kin
         e_kin.attrs["units"] = frames_or_trajectory.e_kin.attrs["units"]
         e_kin = convert_energy(e_kin, to=filter_energy_unit)
@@ -146,12 +150,14 @@ def calculate_energy_filtranda(
         e_kin = None
         logging.warning("data does not contain kinetic energy variable ('e_kin')")
 
-    da = np.abs(res.to_dataarray("criterion")).assign_attrs(units=filter_energy_unit)
+    abs_criterion = np.abs(res.to_dataarray("criterion"))
+
+    da = abs_criterion.assign_attrs(units=filter_energy_unit)
 
     # Make threshold coordinates
     da = da.assign_coords(
         criterion_thresholds=energy_thresholds.to_dataarray(
-            selected_criteria=res.coords["criterion"].values
+            selected_criteria=da.coords["criterion"].values
         )
     )
     return da
@@ -214,16 +220,38 @@ def filter_by_energy(
     The resulting object has a ``filtranda`` data_var, representing the values by which the data were filtered.
     If the input has a ``filtranda`` data_var, it is overwritten.
     """
+
+    analysis_data: Trajectory | Frames
+    if isinstance(frames_or_trajectory, xr.Dataset):
+        try:
+            analysis_data = Trajectory(frames_or_trajectory)
+        except:
+            try:
+                analysis_data = Frames(frames_or_trajectory)
+            except:
+                raise ValueError(
+                    "Filtered data is no DataSeries, i.e. not indexed by `time` or `frame` dimensions."
+                )
+    else:
+        analysis_data = frames_or_trajectory
+
     if energy_thresholds is None:
         energy_thresholds = EnergyFiltrationThresholds()
+
     filtranda = calculate_energy_filtranda(
-        frames_or_trajectory, energy_thresholds=energy_thresholds
+        analysis_data, energy_thresholds=energy_thresholds
     )
     dispatch_plots(filtranda, plot_thresholds, plot_populations)
     # Here we need to build a new object with the criteria assigned.
-    filtered_frames = type(frames_or_trajectory)(
-        frames_or_trajectory.dataset.drop_dims(["criterion"], errors="ignore").assign(
+    filtered_frames = type(analysis_data)(
+        analysis_data.dataset.drop_dims(["criterion"], errors="ignore").assign(
             filtranda=filtranda
         )
     )
-    return dispatch_filter(filtered_frames, filter_method)
+
+    filter_res = dispatch_filter(filtered_frames, filter_method)
+
+    if not isinstance(frames_or_trajectory, xr.Dataset):
+        return filter_res
+    else:
+        return filter_res.dataset

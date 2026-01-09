@@ -198,7 +198,6 @@ def _sanity_check_per_trajectory(
     If the input has a ``filtranda`` data_var, it is overwritten.
     If the input has a `criterion` dimension, it will be dropped.
     """
-
     # Perform energy filtering
     ds_energy = filter_by_energy(
         trajectory_or_frames,
@@ -216,10 +215,13 @@ def _sanity_check_per_trajectory(
     prefix = "energy"
     # Rename to filter-method prefixed names
     ds_tmp = type(ds_energy)(
-        ds_energy.dataset.rename_dims({"criterion": prefix + "_criterion"}).rename(
+        ds_energy.dataset.rename_dims({"criterion": prefix + "_criterion"})
+        .rename(
             {key: prefix + "_" + key for key in rename_keys if key in ds_energy.dataset}
         )
+        .reset_index('criterion')
     )
+    ds_tmp.attrs.update()
 
     # Perform length filtering
     ds_lengths = filter_by_length(
@@ -238,9 +240,14 @@ def _sanity_check_per_trajectory(
 
     # Rename to filter-method prefixed names
     ds_tmp = type(ds_energy)(
-        ds_energy.dataset.rename_dims({"criterion": prefix + "_criterion"}).rename(
+        ds_energy.dataset.rename_dims({"criterion": prefix + "_criterion"})
+        .rename(
             {key: prefix + "_" + key for key in rename_keys if key in ds_energy.dataset}
         )
+        .reset_index('criterion')
     )
 
     return ds_tmp
+
+
+__all__ = ['sanity_check', 'filter_by_energy', 'filter_by_length']
