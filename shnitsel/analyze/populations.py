@@ -27,8 +27,8 @@ class PopulationStatistics:
         if isinstance(base_traj_or_data, xr.DataArray):
             self._absolute_statistics = base_traj_or_data
         else:
-            self._absolute_statistics = self._calc_classical_populations(
-                base_traj_or_data
+            self._absolute_statistics = (
+                PopulationStatistics._calc_classical_populations(base_traj_or_data)
             )
 
     @property
@@ -146,7 +146,7 @@ def calc_classical_populations(
     is mapped to a tree hierarchy of population statistics.
 
     The hierarchy will first be grouped by metadata, then a population statistics `xr.DataArray` will
-    be calculated for each flat group.
+    be calculated for each flat group.>
 
     Parameters
     ----------
@@ -184,7 +184,10 @@ def calc_classical_populations(
 @API()
 @needs(dims={'frame', 'state'}, coords={'time'}, data_vars={'astate'})
 def calc_classical_populations(
-    frames: ShnitselDB[Trajectory | Frames] | Trajectory | Frames | xr.Dataset,
+    frames: ShnitselDB[Trajectory | Frames | xr.Dataset]
+    | Trajectory
+    | Frames
+    | xr.Dataset,
 ) -> PopulationStatistics | ShnitselDB[PopulationStatistics]:
     """Function to calculate classical state populations from the active state information in `astate` of the dataset `frames.
 
@@ -212,9 +215,23 @@ def calc_classical_populations(
         # pops = xr.DataArray(
         #     populations, dims=['time', 'state'], coords={'time': data.coords['time']}
         # )
-        db: ShnitselDB[Trajectory | Frames] = frames.group_data_by_metadata()
+        db: ShnitselDB[Trajectory | Frames | xr.Dataset] = (
+            frames.group_data_by_metadata()
+        )
 
-        def _map_prepare(frames: Trajectory | Frames) -> PopulationStatistics:
+        def _map_prepare(
+            frames: Trajectory | Frames | xr.Dataset,
+        ) -> PopulationStatistics:
+            if isinstance(frames, xr.Dataset):
+                try:
+                    frames = Trajectory(frames)
+                except:
+                    try:
+                        frames = Frames(frames)
+                    except:
+                        raise ValueError(
+                            "Input dataset could not be considered a Trajectory or a Frameset."
+                        )
             if isinstance(frames, Trajectory) and not isinstance(frames, Frames):
                 frames = frames.as_frames
 
@@ -250,6 +267,10 @@ def calc_classical_populations(
                         time_values = res_abs.time
                     else:
                         res_abs = res_abs.pad(
+                            ShnitselDB[Trajectory | Frames | xr.Dataset]
+                            | Trajectory
+                            | Frames
+                            | xr.Dataset,
                             {'time': (0, new_timelen - res_timelen)},
                             constant_values=0.0,
                             keep_attrs=True,
@@ -283,6 +304,8 @@ def calc_classical_populations(
                 )
         elif isinstance(frames, Trajectory):
             eventual_frames = frames.as_frames
+        else:
+            eventual_frames = frames
 
         population_results = PopulationStatistics(eventual_frames)
         return population_results
