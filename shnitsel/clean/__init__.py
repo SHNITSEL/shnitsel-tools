@@ -211,17 +211,21 @@ def _sanity_check_per_trajectory(
         logging.info("Rejected trajectory because of energy constraints")
         return None
 
-    rename_keys = ["filtranda", "thresholds", "filter_mask", "good_upto"]
+    rename_keys = [
+        "filtranda",
+        "thresholds",
+        "filter_mask",
+        "good_upto",
+        "criterion",
+    ]
     prefix = "energy"
     # Rename to filter-method prefixed names
     ds_tmp = type(ds_energy)(
-        ds_energy.dataset.rename_dims({"criterion": prefix + "_criterion"})
-        .rename(
+        ds_energy.dataset.swap_dims({"criterion": prefix + "_criterion"}).rename_vars(
             {key: prefix + "_" + key for key in rename_keys if key in ds_energy.dataset}
         )
-        .reset_index('criterion')
     )
-    ds_tmp.attrs.update()
+    # ds_tmp.attrs.update()
 
     # Perform length filtering
     ds_lengths = filter_by_length(
@@ -239,12 +243,14 @@ def _sanity_check_per_trajectory(
     prefix = "length"
 
     # Rename to filter-method prefixed names
-    ds_tmp = type(ds_energy)(
-        ds_energy.dataset.rename_dims({"criterion": prefix + "_criterion"})
-        .rename(
-            {key: prefix + "_" + key for key in rename_keys if key in ds_energy.dataset}
+    ds_tmp = type(ds_lengths)(
+        ds_lengths.dataset.swap_dims({"criterion": prefix + "_criterion"}).rename_vars(
+            {
+                key: prefix + "_" + key
+                for key in rename_keys
+                if key in ds_lengths.dataset
+            }
         )
-        .reset_index('criterion')
     )
 
     return ds_tmp
