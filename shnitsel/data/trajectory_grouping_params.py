@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
 
-@dataclass
+@dataclass(unsafe_hash=True)
 class TrajectoryGroupingMetadata:
     delta_t_in_fs: float | None
     input_format_name: str | None
