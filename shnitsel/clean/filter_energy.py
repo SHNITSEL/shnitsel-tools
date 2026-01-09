@@ -156,7 +156,7 @@ def calculate_energy_filtranda(
 
     # Make threshold coordinates
     da = da.assign_coords(
-        criterion_thresholds=energy_thresholds.to_dataarray(
+        thresholds=energy_thresholds.to_dataarray(
             selected_criteria=da.coords["criterion"].values
         )
     )
@@ -243,14 +243,18 @@ def filter_by_energy(
     )
     dispatch_plots(filtranda, plot_thresholds, plot_populations)
     # Here we need to build a new object with the criteria assigned.
+
+    print(f"{analysis_data.active_state=}")
     filtered_frames = type(analysis_data)(
         analysis_data.dataset.drop_dims(["criterion"], errors="ignore").assign(
             filtranda=filtranda
         )
     )
+    print(f"{filtered_frames.active_state=}")
 
     filter_res = dispatch_filter(filtered_frames, filter_method)
 
+    print(f"{filter_res.active_state=}")
     if not isinstance(frames_or_trajectory, xr.Dataset):
         return filter_res
     else:
