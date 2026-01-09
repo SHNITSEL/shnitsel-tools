@@ -176,10 +176,11 @@ class ShnitselDBRoot(Generic[DataType], TreeNode[CompoundGroup[DataType], DataTy
                 **kwargs,
             )
         else:
+            compound_candidates =kwargs["compounds"]
             assert all(
                 isinstance(child, CompoundGroup)
-                for child in kwargs["compounds"].values()
-            ), "Children provided to `construct_copy` for tree root are not of type `CompoundGroup`"
+                for child in compound_candidates.values()
+            ), f"Children provided to `construct_copy` for tree root are not of type `CompoundGroup`: {compound_candidates}"
             return ShnitselDBRoot[ResType](
                 dtype=new_dtype,
                 **kwargs,
