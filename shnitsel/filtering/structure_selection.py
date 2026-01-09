@@ -274,11 +274,11 @@ class StructureSelection:
         """
         filtered_dataset = frame.squeeze()
 
-        if 'frame' in filtered_dataset.dims or 'time' in filtered_dataset.dims:
-            raise ValueError(
-                "The dataset should not contain frame or data but represent a single frame of data. \n"
-                f"Had dimensions : {filtered_dataset.dims}"
-            )
+        # if 'frame' in filtered_dataset.dims or 'time' in filtered_dataset.dims:
+        #     raise ValueError(
+        #         "The dataset should not contain frame or data but represent a single frame of data. \n"
+        #         f"Had dimensions : {filtered_dataset.dims}"
+        #     )
 
         # TODO: FIXME: Consider the charges needing to be set from the dataset settings.s
         mol = construct_default_mol(
