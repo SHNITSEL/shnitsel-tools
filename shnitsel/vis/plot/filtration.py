@@ -2,8 +2,8 @@ import matplotlib.pyplot as plt
 
 from shnitsel.clean.common import (
     cum_max_quantiles,
-    true_upto,
-    cum_mask_from_filtranda,
+    _true_upto,
+    _filter_mask_from_criterion_mask,
 )
 
 
@@ -81,7 +81,6 @@ def check_thresholds(ds_or_da, quantiles=None):
                 rotation='vertical',
                 fontsize=6,
             )
-
 
     for (title, data), ax in zip(filtranda.groupby('criterion'), axs[:, 0]):
         data = data.squeeze('criterion')
