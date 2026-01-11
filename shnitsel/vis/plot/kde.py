@@ -249,7 +249,9 @@ def biplot_kde(
     * Produces a figure with PCA projection, cluster analysis, and KDE plots.
     """
     if scatter_color not in {'time', 'geo'}:
-        raise ValueError("`scatter_color` must be 'time' or 'geo'")
+        raise ValueError(
+            f"`scatter_color` should be one of {{'geo', 'time'}}, not {scatter_color}"
+        )
 
     if levels is None:
         levels = [0.08, 1]
