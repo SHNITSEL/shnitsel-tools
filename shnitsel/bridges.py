@@ -1,6 +1,6 @@
 """This submodule contains functions used to interface with other packages and programs, especially RDKit."""
 
-from logging import warning
+from logging import warning, debug
 from typing import Literal
 
 import numpy as np
@@ -227,12 +227,16 @@ def default_mol(
         atXYZ = obj  # We have an atXYZ DataArray
 
     if 'mol' in obj.attrs:
+        debug("default_mol: Copying `obj.attrs['mol']`")
         mol = rc.Mol(obj.attrs['mol'])
     elif 'mol' in atXYZ.attrs:
+        debug("default_mol: Copying `obj['atXYZ'].attrs['mol']`")
         mol = rc.Mol(atXYZ.attrs['mol'])
     elif 'smiles_map' in obj.attrs:
+        debug("default_mol: Using `obj.attrs['smiles_map']`")
         mol = numbered_smiles_to_mol(obj.attrs['smiles_map'])
     elif 'smiles_map' in atXYZ.attrs:
+        debug("default_mol: Using `obj['atXYZ'].attrs['smiles_map']`")
         mol = numbered_smiles_to_mol(atXYZ.attrs['smiles_map'])
     else:
         try:
