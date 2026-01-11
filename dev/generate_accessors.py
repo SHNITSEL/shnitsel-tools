@@ -74,6 +74,7 @@ def main():
         geocalc.get_bond_angles,
         geocalc.get_bond_torsions,
         geocalc.get_pyramids,
+        geocalc.get_bla_chromophor,
         geocalc.get_bats,
         geocalc.kabsch,
         # select

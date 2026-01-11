@@ -28,7 +28,7 @@ from shnitsel.clean.filter_geo import bond_length_filtranda, filter_by_length
 from shnitsel.core.typedefs import DatasetOrArray
 from shnitsel.data.helpers import validate
 from shnitsel.data.multi_indices import assign_levels, expand_midx, flatten_levels, mdiff, mgroupby, msel, sel_trajids, sel_trajs, stack_trajs, unstack_trajs
-from shnitsel.geo.geocalc import angle, dihedral, distance, get_bats, get_bond_angles, get_bond_lengths, get_bond_torsions, get_pyramids, kabsch
+from shnitsel.geo.geocalc import angle, dihedral, distance, get_bats, get_bla_chromophor, get_bond_angles, get_bond_lengths, get_bond_torsions, get_pyramids, kabsch
 from shnitsel.io.ase.write import write_ase_db
 from shnitsel.io.shnitsel.write import write_shnitsel_file
 from shnitsel.units.conversion import convert_dipole, convert_energy, convert_force, convert_length, convert_nacs, convert_time
@@ -78,6 +78,7 @@ class DataArrayAccessor(DAManualAccessor):
         'get_bond_angles',
         'get_bond_torsions',
         'get_pyramids',
+        'get_bla_chromophor',
         'get_bats',
         'kabsch',
         'FrameSelector',
@@ -246,6 +247,11 @@ class DataArrayAccessor(DAManualAccessor):
     def get_pyramids(self, pyramid_idxs: dict[int, list[int]] | None=None, mol: rdkit.Chem.rdchem.Mol | None=None, deg: bool=False, signed=True) -> DataArray:
         """Wrapper for :py:func:`shnitsel.geo.geocalc.get_pyramids`."""
         return get_pyramids(self._obj, pyramid_idxs=pyramid_idxs, mol=mol, deg=deg, signed=signed)
+
+    @needs(dims={'atom', 'direction'})
+    def get_bla_chromophor(self, matches_or_mol: dict | rdkit.Chem.rdchem.Mol | None=None, mol: rdkit.Chem.rdchem.Mol | None=None, ang: Literal=False) -> DataArray:
+        """Wrapper for :py:func:`shnitsel.geo.geocalc.get_bla_chromophor`."""
+        return get_bla_chromophor(self._obj, matches_or_mol=matches_or_mol, mol=mol, ang=ang)
 
     @needs(dims={'atom', 'direction'})
     def get_bats(self, matches_or_mol: dict | rdkit.Chem.rdchem.Mol | None=None, signed: bool | None=None, ang: Literal=False, pyr=False) -> DataArray:
@@ -434,17 +440,14 @@ class DatasetAccessor(DSManualAccessor):
         """Wrapper for :py:func:`shnitsel.clean.filter_geo.filter_by_length`."""
         return filter_by_length(self._obj, cut=cut, search_dict=search_dict, units=units, plot_thresholds=plot_thresholds, plot_populations=plot_populations, mol=mol)
 
-    @needs(data_vars={'filtranda'})
     def omit(self):
         """Wrapper for :py:func:`shnitsel.clean.common.omit`."""
         return omit(self._obj)
 
-    @needs(data_vars={'filtranda'})
     def truncate(self):
         """Wrapper for :py:func:`shnitsel.clean.common.truncate`."""
         return truncate(self._obj)
 
-    @needs(data_vars={'filtranda'})
     def transect(self, cutoff: float):
         """Wrapper for :py:func:`shnitsel.clean.common.transect`."""
         return transect(self._obj, cutoff)
