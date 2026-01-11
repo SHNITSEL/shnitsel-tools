@@ -274,6 +274,7 @@ def _check_matches(matches_or_mol: rc.Mol | dict | None, atXYZ, fn=flag_bats):
         mol = default_mol(atXYZ)
         matches, _ = fn(mol)
     elif isinstance(matches_or_mol, rc.Mol):
+        mol = matches_or_mol
         matches, _ = fn(mol)
     elif isinstance(matches_or_mol, dict):
         matches = matches_or_mol
