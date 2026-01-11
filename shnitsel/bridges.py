@@ -229,22 +229,22 @@ def default_mol(
     if 'mol' in obj.attrs:
         mol = rc.Mol(obj.attrs['mol'])
     elif 'mol' in atXYZ.attrs:
-        mol = rc.Mol(obj.attrs['mol'])
+        mol = rc.Mol(atXYZ.attrs['mol'])
     elif 'smiles_map' in obj.attrs:
         mol = numbered_smiles_to_mol(obj.attrs['smiles_map'])
     elif 'smiles_map' in atXYZ.attrs:
         mol = numbered_smiles_to_mol(atXYZ.attrs['smiles_map'])
-
-    try:
-        charge = obj.attrs.get('charge', atXYZ.attrs.get('charge', 0))
-        mol = to_mol(atXYZ.isel(frame=0), charge=charge)
-    except (KeyError, ValueError):
-        raise ValueError(
-            "Failed to get default mol, please set a smiles map. "
-            "For example, if the compound has charge c and frame i "
-            "contains a representative geometry, use "
-            "frames.attrs['smiles_map'] = frames.atXYZ.isel(frame=i).st.get_smiles_map(charge=c)"
-        )
+    else:
+        try:
+            charge = obj.attrs.get('charge', atXYZ.attrs.get('charge', 0))
+            mol = to_mol(atXYZ.isel(frame=0), charge=charge)
+        except (KeyError, ValueError):
+            raise ValueError(
+                "Failed to get default mol, please set a smiles map. "
+                "For example, if the compound has charge c and frame i "
+                "contains a representative geometry, use "
+                "frames.attrs['smiles_map'] = frames.atXYZ.isel(frame=i).st.get_smiles_map(charge=c)"
+            )
     return set_atom_props(
         mol, molAtomMapNumber=molAtomMapNumber, atomNote=atomNote, atomLabel=atomLabel
     )
