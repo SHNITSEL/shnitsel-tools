@@ -80,8 +80,7 @@ def _get_message(vals):
         inc = " including" if len(ids) > MAX_IDS else ""
         ids_shown = " ".join([str(x) for x in ids[:MAX_IDS]])
         message += (
-            f"  - value {val!r} in {len(ids)} trajectories,",
-            f"{inc} IDs: {ids_shown}\n",
+            f"  - value {val!r} in {len(ids)} trajectories,{inc} IDs: {ids_shown}\n"
         )
     return message
 
@@ -176,7 +175,13 @@ def tree_to_frames(tree, allow_inconsistent: set | None = None) -> xr.Dataset:
     # TODO: Is there a guarantee that the tree structure follows the hierarchy
     # ShnitselDBRoot -> CompoundGroup -> TrajectoryData?
     # Would it be better to check whether the children of `tree` have the 'trajid' attr set?
-    if tree.attrs['DataTree_Level'] == 'ShnitselDBRoot':
+    if len(tree.children) == 0:
+        raise ValueError("The root node of 'tree' has no children.")
+    elif (
+        tree.attrs.get('DataTree_Level') == 'ShnitselDBRoot'
+        or 'trajid' not in next(iter(tree.children.values())).attrs
+    ):
+        # Assume we have been given a tree containing a CompoundGroup level
         compound_names = list(tree.children)
         if len(compound_names) == 1:
             target = compound_names[0]
