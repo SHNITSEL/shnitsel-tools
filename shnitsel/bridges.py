@@ -217,7 +217,7 @@ def default_mol(obj) -> rc.Mol:
         return numbered_smiles_to_mol(atXYZ.attrs['smiles_map'])
 
     try:
-        charge = obj.attrs.get('charge', 0)
+        charge = obj.attrs.get('charge', atXYZ.attrs.get('charge', 0))
         return to_mol(atXYZ.isel(frame=0), charge=charge)
     except (KeyError, ValueError):
         raise ValueError(
