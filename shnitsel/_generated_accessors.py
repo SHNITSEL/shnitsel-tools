@@ -138,9 +138,9 @@ class DataArrayAccessor(DAManualAccessor):
         """Wrapper for :py:func:`shnitsel.bridges.smiles_map`."""
         return smiles_map(self._obj, charge=charge, covFactor=covFactor)
 
-    def default_mol(self) -> Mol:
+    def default_mol(self, molAtomMapNumber: Union=None, atomNote: Union=None, atomLabel: Union=None) -> Mol:
         """Wrapper for :py:func:`shnitsel.bridges.default_mol`."""
-        return default_mol(self._obj)
+        return default_mol(self._obj, molAtomMapNumber=molAtomMapNumber, atomNote=atomNote, atomLabel=atomLabel)
 
     @needs(dims={'atom'})
     def pairwise_dists_pca(self, mean: bool=False, return_pca_object=False, **kwargs) -> DataArray:
@@ -378,9 +378,9 @@ class DatasetAccessor(DSManualAccessor):
         """Wrapper for :py:func:`shnitsel.analyze.populations.calc_classical_populations`."""
         return calc_classical_populations(self._obj)
 
-    def default_mol(self) -> Mol:
+    def default_mol(self, molAtomMapNumber: Union=None, atomNote: Union=None, atomLabel: Union=None) -> Mol:
         """Wrapper for :py:func:`shnitsel.bridges.default_mol`."""
-        return default_mol(self._obj)
+        return default_mol(self._obj, molAtomMapNumber=molAtomMapNumber, atomNote=atomNote, atomLabel=atomLabel)
 
     def flatten_levels(self, idx_name: str, levels: Sequence[str], new_name: str | None=None, position: int=0, renamer: Callable | None=None) -> DatasetOrArray:
         """Wrapper for :py:func:`shnitsel.data.multi_indices.flatten_levels`."""
@@ -440,14 +440,17 @@ class DatasetAccessor(DSManualAccessor):
         """Wrapper for :py:func:`shnitsel.clean.filter_geo.filter_by_length`."""
         return filter_by_length(self._obj, cut=cut, search_dict=search_dict, units=units, plot_thresholds=plot_thresholds, plot_populations=plot_populations, mol=mol)
 
+    @needs(data_vars={'filtranda'})
     def omit(self):
         """Wrapper for :py:func:`shnitsel.clean.common.omit`."""
         return omit(self._obj)
 
+    @needs(data_vars={'filtranda'})
     def truncate(self):
         """Wrapper for :py:func:`shnitsel.clean.common.truncate`."""
         return truncate(self._obj)
 
+    @needs(data_vars={'filtranda'})
     def transect(self, cutoff: float):
         """Wrapper for :py:func:`shnitsel.clean.common.transect`."""
         return transect(self._obj, cutoff)

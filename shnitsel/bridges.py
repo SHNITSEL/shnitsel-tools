@@ -177,7 +177,12 @@ def numbered_smiles_to_mol(smiles: str) -> rc.Mol:
     return rc.RenumberAtoms(mol, map_new_to_old)
 
 
-def default_mol(obj) -> rc.Mol:
+def default_mol(
+    obj,
+    molAtomMapNumber: list | Literal[True] | None = None,
+    atomNote: list | Literal[True] | None = None,
+    atomLabel: list | Literal[True] | None = None,
+) -> rc.Mol:
     """Try many ways to get a representative Mol object for an ensemble:
 
         1. Use the ``mol`` attr (of either obj or obj['atXYZ']) directly
@@ -192,6 +197,13 @@ def default_mol(obj) -> rc.Mol:
     obj
         An 'atXYZ' xr.DataArray with molecular geometries
         or an xr.Dataset containing the above as one of its variables
+    molAtomMapNumber
+        Set the ``molAtomMapNumber`` properties to values provided in a list,
+        or (if ``True`` is passed) set the properties to the respective atom indices
+    atomNote
+        Behaves like the ``molAtomMapNumber`` parameter above, but for the ``atomNote`` properties
+    atomLabel
+        Behaves like the ``molAtomMapNumber`` parameter above, but for the ``atomLabel`` properties
 
     Returns
     -------
@@ -201,6 +213,13 @@ def default_mol(obj) -> rc.Mol:
     ------
     ValueError
         If the final approach fails
+
+    Notes
+    -----
+    If this function uses an existing ``Mol`` object, it returns a copy.
+    One consequence is that the decoration parameters
+    ``molAtomMapNumber``, ``atomNote`` and ``atomLabel``
+    do not affect the existing ``Mol`` object.
     """
     if 'atXYZ' in obj:  # We have a frames Dataset
         atXYZ = obj['atXYZ']
@@ -208,17 +227,17 @@ def default_mol(obj) -> rc.Mol:
         atXYZ = obj  # We have an atXYZ DataArray
 
     if 'mol' in obj.attrs:
-        return rc.Mol(obj.attrs['mol'])
+        mol = rc.Mol(obj.attrs['mol'])
     elif 'mol' in atXYZ.attrs:
-        return rc.Mol(obj.attrs['mol'])
+        mol = rc.Mol(obj.attrs['mol'])
     elif 'smiles_map' in obj.attrs:
-        return numbered_smiles_to_mol(obj.attrs['smiles_map'])
+        mol = numbered_smiles_to_mol(obj.attrs['smiles_map'])
     elif 'smiles_map' in atXYZ.attrs:
-        return numbered_smiles_to_mol(atXYZ.attrs['smiles_map'])
+        mol = numbered_smiles_to_mol(atXYZ.attrs['smiles_map'])
 
     try:
         charge = obj.attrs.get('charge', atXYZ.attrs.get('charge', 0))
-        return to_mol(atXYZ.isel(frame=0), charge=charge)
+        mol = to_mol(atXYZ.isel(frame=0), charge=charge)
     except (KeyError, ValueError):
         raise ValueError(
             "Failed to get default mol, please set a smiles map. "
@@ -226,6 +245,9 @@ def default_mol(obj) -> rc.Mol:
             "contains a representative geometry, use "
             "frames.attrs['smiles_map'] = frames.atXYZ.isel(frame=i).st.get_smiles_map(charge=c)"
         )
+    return set_atom_props(
+        mol, molAtomMapNumber=molAtomMapNumber, atomNote=atomNote, atomLabel=atomLabel
+    )
 
 
 @needs(dims={'atom', 'direction'}, coords_or_vars={'atNames'}, not_dims={'frame'})
