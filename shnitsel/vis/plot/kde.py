@@ -202,9 +202,10 @@ def biplot_kde(
     geo_filter: list[tuple[float, float]] | None = None,
     levels: int | list[float] | None = None,
     scatter_color: Literal['time', 'geo'] = 'time',
+    scatter_cmap=str | None,
     fill: bool = True,
     nbins=4,
-    mean=False
+    mean=False,
 ):
     """\
     Generates a biplot that visualizes PCA projections and kernel density estimates (KDE) 
@@ -230,6 +231,8 @@ def biplot_kde(
     scatter_color
         Must be one of 'time' or 'geo'. If 'time', the scatter-points will be colored based on the time coordinate;
         if 'geo', the scatter-points will be colored based on the relevant geometry feature (see above).
+    scatter_cmap
+        # TODO @thevro: Complete implementation or alternative
     fill
         Whether to plot filled contours (``fill=True``, uses ``ax.contourf``)
         or just contour lines (``fill=False``, uses ``ax.contour``).
@@ -295,14 +298,10 @@ def biplot_kde(
     mol = default_mol(frames)
     mol = set_atom_props(mol, atomLabel=True, atomNote=[''] * mol.GetNumAtoms())
 
-    if scatter_color == 'time':
-        noodleplot_c = None
-        noodleplot_cmap = None
-    elif scatter_color == 'geo':
-        noodleplot_c = geo_prop
-        noodleplot_cmap = 'PRGn'
-    else:
-        assert False
+    noodleplot_c, noodleplot_cmap = {
+        'time': (None, (scatter_cmap or None)),
+        'geo': (geo_prop, (scatter_cmap or 'PRGn')),
+    }[scatter_color]
 
     pb.plot_noodleplot(
         noodle,
