@@ -334,6 +334,7 @@ class ShnitselDataset(object):
 
     def groupby(self) -> Any:
         self._raw_dataset.groupby()
+
     # @property
     # def _attr_sources(self) -> Iterable[Mapping[Hashable, Any]]:
     #     """Places to look-up items for attribute-style access"""
@@ -434,6 +435,50 @@ class ShnitselDataset(object):
             if isinstance(item, str)
         }
         return list(items)
+
+    # @overload
+    # def __getitem__(self, key: Hashable) -> DataArray: ...
+
+    # # Mapping is Iterable
+    # @overload
+    # def __getitem__(self, key: Iterable[Hashable]) -> Self: ...
+
+    # def __getitem__(
+    #     self, key: Mapping[Any, Any] | Hashable | Iterable[Hashable]
+    # ) -> Self | DataArray:
+    #     """Access variables or coordinates of this dataset as a
+    #     :py:class:`~xarray.DataArray` or a subset of variables or a indexed dataset.
+
+    #     Indexing with a list of names will return a new ``Dataset`` object.
+    #     """
+    #     from xarray.core.formatting import shorten_list_repr
+
+    #     if utils.is_dict_like(key):
+    #         return self.isel(**key)
+    #     if utils.hashable(key):
+    #         try:
+    #             return self._construct_dataarray(key)
+    #         except KeyError as e:
+    #             message = f"No variable named {key!r}."
+
+    #             best_guess = utils.did_you_mean(key, self.variables.keys())
+    #             if best_guess:
+    #                 message += f" {best_guess}"
+    #             else:
+    #                 message += f" Variables on the dataset include {shorten_list_repr(list(self.variables.keys()), max_items=10)}"
+
+    #             # If someone attempts `ds['foo' , 'bar']` instead of `ds[['foo', 'bar']]`
+    #             if isinstance(key, tuple):
+    #                 message += f"\nHint: use a list to select multiple variables, for example `ds[{list(key)}]`"
+    #             raise KeyError(message) from e
+
+    #     if utils.iterable_of_hashable(key):
+    #         return self._copy_listed(key)
+    #     raise ValueError(f"Unsupported key-type {type(key)}")
+
+    # def __setitem__(
+    #     self, key: Hashable | Iterable[Hashable] | Mapping, value: Any
+    # ) -> None:
 
 
 @dataclass
