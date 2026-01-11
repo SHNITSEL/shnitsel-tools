@@ -144,6 +144,8 @@ def focus_hops(
         trajids.append(trajid)
         to_cat.append(traj)
 
+    # FIXME @thevro: xarray 2025.12.0 FutureWarning: data_vars = 'all'->None
+    # FIXME @thevro: xarray 2025.12.0 FutureWarning: coords = 'different'->'minimal'
     res = xr.concat(to_cat, 'hop', join='outer')
     from_to = (
         hop_vals[['hop_from', 'hop_to']]
