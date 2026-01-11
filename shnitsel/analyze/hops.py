@@ -177,10 +177,15 @@ def assign_hop_time(
 
     Returns
     -------
-    The same ``frames`` object with the ``hop_time`` coordinate added along the
-    ``frame`` dimension, containing times relative to one chosen hop in each
-    trajectory, and containing ``nan`` in trajectories lacking any hops of the
-    types specified.
+    The same ``frames`` object with --
+
+        - the ``hop_time`` coordinate added along the ``frame`` dimension, containing
+          all times relative to one chosen hop in each trajectory,
+        - the ``time_at_hop`` coordinate added along the ``trajid_`` dimension,
+          containing the time at which each chosen hop occurred
+
+    Both of these coordinates contain ``nan`` for trajectories lacking any hops of the
+    types specified
     """
     if frames.sizes['frame'] == 0:
         return frames.assign_coords(hop_time=('frame', []))
@@ -195,13 +200,17 @@ def assign_hop_time(
         fn = min
     elif which == 'last':
         fn = max
-    hop_time = {
+    d_times = {
         trajid: fn(traj.coords['time']).item()
         for trajid, traj in hop_vals.groupby('trajid')
     }
 
     hop_time = frames.time.groupby('trajid').map(
-        lambda traj: traj.time.data - hop_time.get(traj.trajid.item(0), np.nan)
+        lambda traj: traj.time.data - d_times.get(traj.trajid.item(0), np.nan)
     )
 
-    return frames.assign_coords(hop_time=hop_time)
+    time_at_hop = [
+        d_times.get(trajid.item(), np.nan) for trajid in frames.coords['trajid_']
+    ]
+
+    return frames.assign_coords(hop_time=hop_time, time_at_hop=('trajid_', time_at_hop))
