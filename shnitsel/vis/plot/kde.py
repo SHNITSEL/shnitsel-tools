@@ -3,6 +3,7 @@ from typing import Literal
 import numpy as np
 from numpy.typing import ArrayLike
 from scipy import stats
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import xarray as xr
 
@@ -202,7 +203,9 @@ def biplot_kde(
     geo_filter: list[tuple[float, float]] | None = None,
     levels: int | list[float] | None = None,
     scatter_color: Literal['time', 'geo'] = 'time',
-    scatter_cmap=str | None,
+    geo_cmap: str | None = 'PRGn',  # any valid cmap type
+    time_cmap: str | None = 'cividis',  # any valid cmap type
+    contour_colors: list[str] | None = None,
     fill: bool = True,
     nbins=4,
     mean=False,
@@ -231,8 +234,14 @@ def biplot_kde(
     scatter_color
         Must be one of 'time' or 'geo'. If 'time', the scatter-points will be colored based on the time coordinate;
         if 'geo', the scatter-points will be colored based on the relevant geometry feature (see above).
-    scatter_cmap
-        # TODO @thevro: Complete implementation or alternative
+    geo_cmap
+        The Colormap to use for the noodleplot, if ``scatter_color='geo'``; this also determines contour
+        colors unless ``contour_colors`` is set.
+    time_cmap
+        The Colormap to use for the noodleplot, if ``scatter_color='time'``.
+    contour_colors
+        An iterable (not a Colormap) of colours (in a format matplotlib will accept) to use for the contours.
+        By default, the ``geo_cmap`` will be used; this defaults to 'PRGn'.
     fill
         Whether to plot filled contours (``fill=True``, uses ``ax.contourf``)
         or just contour lines (``fill=False``, uses ``ax.contour``).
@@ -298,16 +307,20 @@ def biplot_kde(
     mol = default_mol(frames)
     mol = set_atom_props(mol, atomLabel=True, atomNote=[''] * mol.GetNumAtoms())
 
-    noodleplot_c, noodleplot_cmap = {
-        'time': (None, (scatter_cmap or None)),
-        'geo': (geo_prop, (scatter_cmap or 'PRGn')),
+    noodle_c, noodle_cmap = {
+        'time': (None, time_cmap),
+        'geo': (geo_prop, geo_cmap),
     }[scatter_color]
+
+    noodle_cnorm = mpl.colors.Normalize(noodle_c.min(), noodle_c.max())
+    noodle_cscale = mpl.cm.ScalarMappable(norm=noodle_cnorm, cmap=noodle_cmap)
 
     pb.plot_noodleplot(
         noodle,
         hops,
-        c=noodleplot_c,
-        cmap=noodleplot_cmap,
+        c=noodle_c,
+        cmap=noodle_cmap,
+        cnorm=noodle_cnorm,
         ax=pcaax,
         noodle_kws=dict(alpha=1, marker='.'),
         hops_kws=dict(c='r', s=0.2),
@@ -324,8 +337,12 @@ def biplot_kde(
         mol=mol,
         labels=list('abcd'),
     )
+
+    if contour_colors is None:
+        contour_colors = plt.get_cmap(noodle_cmap)(np.linspace(0, 1, len(levels)))
+
     xx, yy, Zs = kde_data
-    plot_kdes(xx, yy, Zs, levels=levels, fill=fill, ax=pcaax)
+    plot_kdes(xx, yy, Zs, levels=levels, fill=fill, colors=contour_colors, ax=pcaax)
 
     return kde_data
 
