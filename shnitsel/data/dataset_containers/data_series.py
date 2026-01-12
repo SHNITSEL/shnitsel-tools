@@ -185,6 +185,7 @@ class DataSeries(ShnitselDataset):
         """
         self._raw_dataset.attrs['charge'] = value
         self._raw_dataset['state_charges'].values[:] = value
+        
 
     def _param_from_vars_or_attrs(self, key: str) -> Any | None:
         """Helper function to extract information either from a data var or from
