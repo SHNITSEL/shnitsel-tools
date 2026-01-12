@@ -34,6 +34,9 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
     _parent: Self | None
     _level_name: str | None
 
+    def __new__(cls, *args, **kwargs) -> Self:
+        return super().__new__(cls)
+
     def __init__(
         self,
         name: str | None,
