@@ -258,14 +258,3 @@ class Trajectory(DataSeries):
         misc_input_settings = self._param_from_vars_or_attrs('misc_input_settings')
         return misc_input_settings
 
-    def get_grouping_metadata(self) -> TrajectoryGroupingMetadata:
-        return TrajectoryGroupingMetadata(
-            delta_t_in_fs=self.delta_t,
-            input_format_name=self.input_format,
-            input_format_version=self.input_format_version,
-            est_level=self.est_level,
-            theory_basis_set=self.theory_basis_set,
-            charge_in_e=self.charge,
-            # TODO: FIXME: We should differentiate by all state attributes.
-            num_states=len(self.state_ids),
-        )
