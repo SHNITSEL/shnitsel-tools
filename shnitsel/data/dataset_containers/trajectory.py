@@ -30,7 +30,10 @@ class Trajectory(DataSeries):
 
     def __init__(self, ds: xr.Dataset):
         assert (
-            "time" in ds.dims
+            'frame' not in ds.dims
+        ), "Dataset has `frame` dimension and cannot be considered a Trajectory"
+        assert (
+            "time" in ds.dims or 'time' in ds.coords
         ), "Dataset is missing `time` dimension and cannot be considered a Trajectory"
         assert (
             "atom" in ds.dims
@@ -257,4 +260,3 @@ class Trajectory(DataSeries):
         # To keep track of input settings we do not explicitly use anywhere else.
         misc_input_settings = self._param_from_vars_or_attrs('misc_input_settings')
         return misc_input_settings
-

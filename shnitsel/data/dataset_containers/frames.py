@@ -15,7 +15,7 @@ class Frames(DataSeries):
             "time" not in ds.dims
         ), "Dataset has `time` dimension and cannot be considered a set of Frames"
         assert (
-            "frame" in ds.dims
+            "frame" in ds.dims or 'frame' in ds.coords
         ), "Dataset is missing `frame` dimension and cannot be considered a set of Frames"
         assert (
             "atom" in ds.dims
