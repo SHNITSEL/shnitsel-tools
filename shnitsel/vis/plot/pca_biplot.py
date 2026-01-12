@@ -33,7 +33,6 @@ def plot_noodleplot(
     colorbar_label: str | None = None,
     cmap: str | None = None,
     cnorm: str | Normalize | None = None,
-    cscale: mpl.cm.ScalarMappable = None,
     noodle_kws: dict[str, Any] = None,
     hops_kws: dict[str, Any] = None,
 ) -> Axes:
@@ -61,8 +60,6 @@ def plot_noodleplot(
         A :py:class:`matplotlib.colors.Normalize` object applied to
         the values in ``c`` before passing to ``cmap``.
         If not provided, linear normalization is used.
-    cscale, optional
-        A :py:class:`matplotlib.cm.ScalarMappable`
     noodle_kws, optional
         Keyword arguments for the main scatter-plot
     hops_kws, optional
@@ -92,16 +89,15 @@ def plot_noodleplot(
     if isinstance(cmap, str):
         cmap = mpl.colormaps[cmap]
     cnorm = cnorm or mpl.colors.Normalize(c.min(), c.max())  # type: ignore
-    cscale = cscale or mpl.cm.ScalarMappable(  # type: ignore
-        norm=cnorm, cmap=cmap
-    )
 
     # TODO: remove groupby? Needed only for line-plot or for legend
     # for trajid, traj in noodle.groupby('trajid'):
     #     ctraj = c.sel(trajid=trajid)
     noodle_kws = noodle_kws or {}
     noodle_kws = {'alpha': 0.5, 's': 0.2, **noodle_kws}
-    ax.scatter(noodle.isel(PC=0), noodle.isel(PC=1), c=cmap(cnorm(c)), **noodle_kws)
+    sc = ax.scatter(
+        noodle.isel(PC=0), noodle.isel(PC=1), c=c, cmap=cmap, norm=cnorm, **noodle_kws
+    )
 
     ax.set_xlabel('PC1')
     ax.set_ylabel('PC2')
@@ -109,8 +105,7 @@ def plot_noodleplot(
         hops_kws = dict(s=0.5, c='limegreen') | (hops_kws or {})
         ax.scatter(hops.isel(PC=0), hops.isel(PC=1), **hops_kws)
 
-    # TODO facilitate custom colorbar
-    fig.colorbar(cscale, ax=ax, label=colorbar_label, pad=0.02)
+    fig.colorbar(sc, ax=ax, label=colorbar_label, pad=0.02)
 
     # Alternative layout solution
     # d = make_axes_locatable(ax)
