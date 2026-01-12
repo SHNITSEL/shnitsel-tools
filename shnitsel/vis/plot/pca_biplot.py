@@ -98,7 +98,7 @@ def plot_noodleplot(
     # for trajid, traj in noodle.groupby('trajid'):
     #     ctraj = c.sel(trajid=trajid)
     noodle_kws = noodle_kws or {}
-    noodle_kws = {'alpha': 0.5, 's': 0.2, **noodle_kws}
+    noodle_kws = {'alpha': 0.5, 's': 0.2, 'rasterized': True, **noodle_kws}
     sc = ax.scatter(
         noodle.isel(PC=0), noodle.isel(PC=1), c=c, cmap=cmap, norm=cnorm, **noodle_kws
     )
