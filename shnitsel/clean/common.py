@@ -154,10 +154,10 @@ def _truncate(frames_or_trajectory: TrajectoryOrFrames) -> TrajectoryOrFrames:
     filter_mask_all_criteria = _filter_mask_from_dataset(
         frames_or_trajectory.dataset
     ).all("criterion")
-    # TODO: FIXME: Test whether this works. May be wrong shape.
+    # TODO: FIXME: Test whether this works. May be wrong shape
     return type(frames_or_trajectory)(
-        frames_or_trajectory.dataset.where(filter_mask_all_criteria).dropna(
-            frames_or_trajectory.leading_dim, how='all'
+        frames_or_trajectory.dataset.isel(
+            {frames_or_trajectory.leading_dim: filter_mask_all_criteria}
         )
     )
 
@@ -181,15 +181,15 @@ def _transect(trajectory: Trajectory, cutoff_time: float) -> Trajectory | None:
     else:
         working_dataset = trajectory.dataset
 
-    assert 'time' in working_dataset.dims, (
-        'Dataset has no coordinate `time` but time-based truncation has been requested, which cannot be performed!'
-    )
+    assert (
+        'time' in working_dataset.dims
+    ), 'Dataset has no coordinate `time` but time-based truncation has been requested, which cannot be performed!'
 
     time_sliced_dataset = working_dataset.loc[{"time": slice(float(cutoff_time))}]
     good_upto = _filter_mask_from_dataset(time_sliced_dataset)
-    assert good_upto.name == 'good_upto', (
-        "Despite a `time` dimension being present, the filter mask returned for the dataset was not a `good_upto` value."
-    )
+    assert (
+        good_upto.name == 'good_upto'
+    ), "Despite a `time` dimension being present, the filter mask returned for the dataset was not a `good_upto` value."
     # TODO: FIXME: We may want to accept the last time before `cutoff_time` to be true.
     is_trajectory_good = (good_upto >= cutoff_time).all("criterion").item()
     if is_trajectory_good:
