@@ -48,8 +48,11 @@ def _filter_mask_from_criterion_mask(mask: xr.DataArray) -> xr.DataArray:
     leading_dim: str
     if 'time' in mask.dims:
         leading_dim = 'time'
-        filter_mask = _true_upto(mask, leading_dim)
-        filter_mask.name = 'good_upto'
+        good_upto = _true_upto(mask, leading_dim)
+        good_upto.name = 'good_upto'
+        filter_mask = (mask.time < good_upto).astype(bool)
+        filter_mask.name = 'filter_mask'
+        filter_mask = filter_mask.assign_coords(good_upto=good_upto)
     else:
         # We have independent frames. Don't try and conceive a `good up to this point` property
         leading_dim = 'frame'
