@@ -208,6 +208,7 @@ def biplot_kde(
     contour_colors: list[str] | None = None,
     fill: bool = True,
     nbins=4,
+    fig: mpl.figure.Figure | None = None,
     mean=False,
 ):
     """\
@@ -247,6 +248,9 @@ def biplot_kde(
         or just contour lines (``fill=False``, uses ``ax.contour``).
     nbins
         number of bins to be visualized, must be an integer between 1 and 4
+    fig
+        matplotlib.figure.Figure object into which the plot will be drawn;
+        if not provided, one will be created using ``plt.figure(layout='constrained')``
 
     Returns
     -------
@@ -289,7 +293,9 @@ def biplot_kde(
                 geo_filter = [(0, 80), (110, 180)]
 
     # prepare layout
-    fig, oaxs = plt.subplots(1, 2, layout='constrained', width_ratios=[3, 2])
+    if fig is None:
+        fig = plt.figure(layout='constrained')
+    oaxs = fig.subplots(1, 2, width_ratios=[3, 2])
     fig.set_size_inches(8.27, 11.69 / 3)  # a third of a page, spanning both columns
     gs = oaxs[0].get_subplotspec().get_gridspec()
     for ax in oaxs:
