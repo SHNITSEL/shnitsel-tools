@@ -318,8 +318,12 @@ def _assign_descriptor_coords(
     #             [get_symbol_from_atom_number(a.GetAtomicNum()) for a in mol.GetAtoms()]
     #         )
     #     )
+    atom_sets = [set(x) for x in atom_idxs]
+    bond_sets = [set(x) for x in bond_idxs]
     coords = xr.Coordinates(
         {
+            'atoms': ('descriptor', np.fromiter(atom_sets, dtype=object)),
+            # 'bonds': ('descriptor', np.fromiter(bond_sets, dtype=object)),
             'atom_indices': ('descriptor', np.fromiter(atom_idxs, dtype=object)),
             'bond_indices': ('descriptor', np.fromiter(bond_idxs, dtype=object)),
             'bond_orders': ('descriptor', np.fromiter(bond_types, dtype=object)),
@@ -835,11 +839,13 @@ def get_pyramids(
 
     atom_indices = np.empty(len(pyramid_idxs), dtype=object)
     atom_indices[:] = [(b, x, a, c) for x, (a, b, c) in pyramid_idxs.items()]
+    atom_sets = np.fromiter([set(x) for x in atom_indices], dtype=object)
 
     res = res.assign_coords(
         descriptor_tex=('descriptor', descriptor_tex),
         descriptor_type=('descriptor', np.full(res.sizes['descriptor'], 'pyr')),
         atom_indices=('descriptor', atom_indices),
+        atoms=('descriptor', atom_sets),
     ).set_xindex('descriptor_tex')
     if deg:
         res *= 180 / np.pi
