@@ -26,9 +26,12 @@ def set_atom_props(
         Whether to alter ``mol``; , by default False (returns a copy)
     **kws
         A mapping where parameter names represent the name of a property
-        and the arguments are either a list of values the atoms should be
-        set to, or simply ``True``, in which case the atom indices as
-        assigned by RDKit will be used as values.
+        and the arguments are either
+
+            - a list of values the atoms should be set to;
+            - ``True``, in which case the atom indices as
+              assigned by RDKit will be used as values;
+            - ``False``, in which the property will be cleared on every atom.
 
     Returns
     -------
@@ -47,6 +50,10 @@ def set_atom_props(
             continue
         elif vals is True:
             vals = range(natoms)
+        elif vals is False:
+            for atom in mol.GetAtoms():
+                atom.ClearProp(prop)
+            continue
         elif natoms != len(vals):
             raise ValueError(
                 f"{len(vals)} values were passed for {prop}, but 'mol' has {natoms} atoms"
