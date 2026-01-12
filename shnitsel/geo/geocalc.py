@@ -6,7 +6,7 @@
 """
 
 import logging
-from typing import Literal, Sequence
+from typing import Literal, Sequence, overload
 
 
 import xarray as xr
@@ -33,6 +33,25 @@ from .geocalc_.angles import get_angles
 from .geocalc_.dihedrals import get_dihedrals
 from .geocalc_.pyramids import get_pyramidalization
 from .geocalc_.bla_chromophor import get_max_chromophor_BLA
+
+
+@overload
+def get_bats(
+    atXYZ: Trajectory | Frames | AtXYZ,
+    structure_selection: StructureSelection | None = None,
+    default_features: Sequence[FeatureLevelType] = ['bonds', 'angles', 'dihedrals'],
+    signed: bool = False,
+    deg: bool | Literal['trig'] = True,
+) -> xr.DataArray: ...
+
+@overload
+def get_bats(
+    atXYZ: ShnitselDB[Trajectory | Frames | AtXYZ],
+    structure_selection: StructureSelection | None = None,
+    default_features: Sequence[FeatureLevelType] = ['bonds', 'angles', 'dihedrals'],
+    signed: bool = False,
+    deg: bool | Literal['trig'] = True,
+) -> ShnitselDB[xr.DataArray]: ...
 
 
 @API()
