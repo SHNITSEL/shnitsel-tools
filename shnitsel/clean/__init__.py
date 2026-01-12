@@ -20,6 +20,7 @@ import logging
 from typing import Sequence, TypeVar
 from typing_extensions import Literal
 
+from shnitsel.bridges import construct_default_mol
 from shnitsel.core._api_info import API, internal
 from shnitsel.data.dataset_containers.frames import Frames
 from shnitsel.data.dataset_containers.trajectory import Trajectory
@@ -43,14 +44,15 @@ def sanity_check(
     plot_thresholds: bool | Sequence[float] = False,
     plot_populations: Literal["independent", "intersections", False] = False,
     mol: Mol | None = None,
+    drop_empty_trajectories: bool = False,
 ) -> ShnitselDB[TrajectoryOrFrames] | TrajectoryOrFrames | None:
     """Filter trajectories according to energy to exclude unphysical (insane) behaviour
 
     Parameters
     ----------
-    trajectory_or_frames
+    trajectory_or_frames : Trajectory | Frames | ShnitselDB[Trajectory|Frames]
         A Trajectory or Frames object (or a ShnitselDB structure holding such objects) with an ``atXYZ`` variable as well as ``astate``, ``energy``, and ideally ``e_kin`` variables
-    filter_method, optional
+    filter_method : Literal["truncate", "omit", "annotate"] | float, optional
         Specifies the manner in which to remove data;
             - if 'omit', drop trajectories unless all frames meet criteria (:py:func:`shnitsel.clean.omit`)
             - if 'truncate', cut each trajectory off just before the first frame that doesn't meet criteria
@@ -60,13 +62,13 @@ def sanity_check(
                 discarding those which violate criteria before reaching the given limit,
                 (:py:func:`shnitsel.clean.transect`)
         see :py:func:`shnitsel.clean.dispatch_filter`.
-    energy_thresholds, optional
+    energy_thresholds : EnergyFiltrationThresholds, optional
         Threshold for total, potential and kinetic energy of the system.
         Can specify thresholds for overall drift and individual time step changes.
         Can also specify thresholds for energy steps at hops.
         Unit should be specified as a member variable.
         If not provided will default to some reasonable default values as seen in `EnergyThresholds` definition.
-    geometry_thresholds, optional
+    geometry_thresholds : GeometryFiltrationThresholds, optional
         A mapping from SMARTS-strings to length-thresholds.
 
             - The SMARTS-strings describe bonds which are searched
@@ -75,7 +77,7 @@ def sanity_check(
                 for a given search, the longest bond-length will be considered for each frame
             - The unit for the maximum length is provided in the member variable `length_unit` which defaults to `angstrom`.
             - If not provided will be initialized with thresholds for H-(C/N) bonds and one for all bonds.
-    plot_thresholds
+    plot_thresholds : bool, optional
         See :py:func:`shnitsel.vis.plot.filtration.check_thresholds`.
 
         - If ``True``, will plot using ``check_thresholds`` with
@@ -83,7 +85,7 @@ def sanity_check(
         - If a ``Sequence``, will plot using ``check_thresholds``
         with specified quantiles
         - If ``False``, will not plot threshold plot
-    plot_populations
+    plot_populations : Literal ['intersections', 'independent', False], optional
         See :py:func:`shnitsel.vis.plot.filtration.validity_populations`.
 
         - If ``'intersections'``, will plot populations of
@@ -91,9 +93,16 @@ def sanity_check(
         - If ``'independent'``, will plot populations of
         trajectories satisfying conditions taken independently
         - If ``False``, will not plot populations plot
+    mol : rdkit.Chem.Mol, optional
+        Optional parameter to provide a mol object to base structure analysis on, by default generated from the first frame in the trajectory or frameset.
+    drop_empty_trajectories : bool, optional
+        Flag to not include trajectories for which the sanity check result was empty in the final result tree, by default False.
+        Only used for tree-structure inputs.
+
     Returns
     -------
-        The sanitized xr.Dataset
+        The sanitized trajectory, frames or tree.
+        A tree is sanitized by applying the sanitization function to all individual data points in the tree.
 
     Notes
     -----
@@ -113,7 +122,8 @@ def sanity_check(
                 plot_populations=plot_populations,
                 plot_thresholds=plot_thresholds,
                 mol=mol,
-            )
+            ),
+            keep_empty_branches=not drop_empty_trajectories,
         )
     elif isinstance(trajectory_or_frames, Frames) or isinstance(
         trajectory_or_frames, Trajectory
@@ -198,10 +208,11 @@ def _sanity_check_per_trajectory(
     If the input has a ``filtranda`` data_var, it is overwritten.
     If the input has a `criterion` dimension, it will be dropped.
     """
-    import sys
+
+    if mol is None:
+        mol = construct_default_mol(trajectory_or_frames.dataset)
 
     # TODO: FIXME: Figure out why dispatch_filter converts all data to float.
-    print("pre_filter:", trajectory_or_frames.active_state)
     # Perform energy filtering
     ds_energy = filter_by_energy(
         trajectory_or_frames,
@@ -210,8 +221,6 @@ def _sanity_check_per_trajectory(
         plot_thresholds=plot_thresholds,
         plot_populations=plot_populations,
     )
-    print("post_filter:", ds_energy.active_state)
-    sys.exit(1)
 
     if ds_energy is None:
         logging.info("Rejected trajectory because of energy constraints")
@@ -231,8 +240,6 @@ def _sanity_check_per_trajectory(
             {key: prefix + "_" + key for key in rename_keys if key in ds_energy.dataset}
         )
     )
-    # ds_tmp.attrs.update()
-
     # Perform length filtering
     ds_lengths = filter_by_length(
         ds_tmp,
