@@ -1087,7 +1087,7 @@ class StructureSelection:
         smarts: str | Sequence[str] | None = None,
         subgraph_selection: Sequence[AtomDescriptor] | None = None,
         idxs: FeatureDescriptor | Sequence[FeatureDescriptor] | None = None,
-        mode: Literal['intersect', 'ext', 'sub'] = 'intersect',
+        mode: Literal['repl', 'intersect', 'ext', 'sub'] | None = None,
         inplace: bool = False,
     ) -> Self:
         """Update entire selection on this molecule to a subset of available atoms, bonds, angles or dihedrals.
@@ -1102,9 +1102,10 @@ class StructureSelection:
                 If not provided, no filtering will be performed. Can be used to select by the result of a SMARTS pattern match.
             idxs (FeatureDescriptor | Sequence[FeatureDescriptor] | None, optional): Either a single tuple or a sequence of tuples to use for the update.
                 Will be assigned based on the length of the tuple. Defaults to None.
-            mode (Literal['intersect', 'ext', 'sub'], optional): The mode for the update. The new selection can either be the intersection of the current
+            mode (Literal['repl', 'intersect', 'ext', 'sub'], optional): The mode for the update. The new selection can either be the intersection of the current
                 selection and the features covered by the new update set, it can be extended to contain the new update set ('ext') or the new update set can
-                be removed from the current selection (`sub`). Defaults to 'intersect'.
+                be removed from the current selection (`sub`). Can also be 'repl' to indicate that we want to replace all indices with the provided idxs results.
+                Defaults to 'intersect' if a SMARTS is provided, to 'repl' if only idxs is provided.
             inplace (bool, optional): Whether the selection should be updated in-place. Defaults to False.
 
         Returns:
@@ -1121,6 +1122,11 @@ class StructureSelection:
         if smarts is None and idxs is None:
             logging.warning("No selection criteria provided.")
             return self
+        if mode is None:
+            if smarts is None:
+                mode = 'repl'
+            else:
+                mode = 'intersect'
 
         if smarts is not None:
             if isinstance(smarts, str):
@@ -1197,6 +1203,9 @@ class StructureSelection:
             new_angles_selection.difference_update(self.angles_selected)
             new_dihedrals_selection.difference_update(self.dihedrals_selected)
             new_pyramids_selection.difference_update(self.pyramids_selected)
+        elif mode == 'repl':
+            # Keep all selections as is
+            pass
 
         res = self.copy_or_update(
             atoms_selected=new_atoms_selection,
@@ -1432,9 +1441,9 @@ class StructureSelection:
             AssertionError: if self.mol is None, no mapping can be performed.
         """
         res: list[int] = []
-        assert self.mol is not None, (
-            'No molecule set for this selection. Cannot resolve bond ids.'
-        )
+        assert (
+            self.mol is not None
+        ), 'No molecule set for this selection. Cannot resolve bond ids.'
         for entry in bond_descriptors:
             bond = self.mol.GetBondBetweenAtoms(int(entry[0]), int(entry[1]))
             res.append(bond.GetIdx())
@@ -1485,9 +1494,9 @@ class StructureSelection:
         elif BLA_smarts is not None:
             logging.info("Using provided SMARTS for BLA detection")
 
-        assert self.mol is not None, (
-            "No Mol set for the selection. Cannot match patterns."
-        )
+        assert (
+            self.mol is not None
+        ), "No Mol set for the selection. Cannot match patterns."
 
         # Remove aromatic regions if present
         has_aromatic_bonds = any(bond.GetIsAromatic() for bond in self.mol.GetBonds())
@@ -1570,9 +1579,9 @@ class StructureSelection:
                         % (last_n)
                     )
 
-                assert last_match is not None, (
-                    'An error occurred while attempting to retrieve the matched subgraph of the BLA chromophor.'
-                )
+                assert (
+                    last_match is not None
+                ), 'An error occurred while attempting to retrieve the matched subgraph of the BLA chromophor.'
 
                 return self.copy_or_update(mol=new_mol, inplace=inplace).select_bats(
                     last_BLA, inplace=inplace
@@ -1611,15 +1620,15 @@ class StructureSelection:
     @staticmethod
     def _to_feature_level_str(ft: FeatureLevelOptions) -> FeatureLevelType:
         if isinstance(ft, str):
-            assert ft in FEATURE_LEVELS, (
-                f"Unknown feature level: {ft} supported are only {FEATURE_LEVELS}"
-            )
+            assert (
+                ft in FEATURE_LEVELS
+            ), f"Unknown feature level: {ft} supported are only {FEATURE_LEVELS}"
             return ft
         elif isinstance(ft, int):
             ft_offset = max(ft - 1, 0)
-            assert ft_offset < len(FEATURE_LEVELS), (
-                f"Unknown feature level: {ft} supported are only 1-{len(FEATURE_LEVELS)}"
-            )
+            assert ft_offset < len(
+                FEATURE_LEVELS
+            ), f"Unknown feature level: {ft} supported are only 1-{len(FEATURE_LEVELS)}"
             return FEATURE_LEVELS[ft_offset]
         else:
             raise ValueError(
@@ -1731,9 +1740,9 @@ class StructureSelection:
             The updated StructureSelection object with only non-redundant coordinates in bonds,
             angles and dihedrals.
         """
-        assert self.mol is not None, (
-            "Mol object of selection not set. Cannot filter for SMILES order."
-        )
+        assert (
+            self.mol is not None
+        ), "Mol object of selection not set. Cannot filter for SMILES order."
 
         def f(s):
             return ' '.join(str(x) for x in s)
