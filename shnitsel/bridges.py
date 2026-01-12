@@ -8,6 +8,7 @@ import numpy as np
 from rdkit import Chem as rc
 
 from shnitsel._contracts import needs
+from shnitsel.data.dataset_containers import Frames, Trajectory
 from shnitsel.rd import set_atom_props, mol_to_numbered_smiles
 from .core.typedefs import AtXYZ
 from .units.conversion import convert_length
@@ -101,7 +102,7 @@ def traj_to_xyz(traj_atXYZ: AtXYZ, units='angstrom') -> str:
 
 @needs(dims={'atom', 'direction'}, coords_or_vars={'atNames'}, not_dims={'frame'})
 def to_mol(
-    atXYZ_frame: AtXYZ,
+    atXYZ_frame: AtXYZ | xr.Dataset | Trajectory | Frames,
     charge: int | None = None,
     covFactor: float = 1.2,
     to2D: bool = True,
@@ -141,8 +142,20 @@ def to_mol(
     ValueError
         If ``charge`` is not ``None`` and bond order determination fails
     """
+    atXYZ_da_frame: xr.DataArray
+    if isinstance(atXYZ_frame, xr.Dataset):
+        atXYZ_da_frame = atXYZ_frame.atXYZ
+    elif isinstance(atXYZ_frame, (Trajectory, Frames)):
+        atXYZ_da_frame = atXYZ_frame.positions
+    elif isinstance(atXYZ_frame, xr.DataArray):
+        atXYZ_da_frame = atXYZ_frame
+    else:
+        raise ValueError(
+            "Unsupported type for `atXYZ_frame` parameter: %s" % type(atXYZ_frame)
+        )
+
     # Make sure the unit is correct
-    atXYZ_in_angstrom = convert_length(atXYZ_frame, to=length.Angstrom)
+    atXYZ_in_angstrom = convert_length(atXYZ_da_frame, to=length.Angstrom)
     mol = rc.rdmolfiles.MolFromXYZBlock(to_xyz(atXYZ_in_angstrom))
     rc.rdDetermineBonds.DetermineConnectivity(mol, useVdw=True, covFactor=covFactor)
     try:
@@ -180,7 +193,7 @@ def numbered_smiles_to_mol(smiles: str) -> rc.Mol:
 
 
 def construct_default_mol(
-    obj: xr.Dataset | xr.DataArray | rc.Mol,
+    obj: xr.Dataset | xr.DataArray | Trajectory | Frames | rc.Mol,
     to2D: bool = True,
     charge: int | float | None = None,
 ) -> rc.Mol:
@@ -217,6 +230,8 @@ def construct_default_mol(
     ValueError
         If the final approach fails
     """
+    charge_int: int | None = None
+    atXYZ: xr.DataArray 
 
     if isinstance(obj, xr.Dataset):
         # TODO: FIXME: Make these internal attributes with double underscores so they don't get written out.
@@ -226,10 +241,13 @@ def construct_default_mol(
             atXYZ = obj['atXYZ']
         else:
             raise ValueError("Not enough information to construct molecule from object")
+    elif isinstance(obj, (Trajectory, Frames)):
+        atXYZ = obj.positions
+        if charge is None:
+            charge = obj.charge
     else:
         atXYZ = obj  # We have an atXYZ DataArray
-
-    charge_int: int | None = None
+        
     if charge is not None:
         if isinstance(charge, float):
             charge = int(np.round(charge))
