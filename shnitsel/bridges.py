@@ -174,7 +174,8 @@ def numbered_smiles_to_mol(smiles: str) -> rc.Mol:
     for atom in mol.GetAtoms():
         # Renumbering with e.g. [3, 2, 0, 1] means atom 3 gets new index 0, not vice-versa!
         map_new_to_old[int(atom.GetProp("molAtomMapNumber"))] = atom.GetIdx()
-    return rc.RenumberAtoms(mol, map_new_to_old)
+    mol = rc.RenumberAtoms(mol, map_new_to_old)
+    return set_atom_props(mol, molAtomMapNumber=False)
 
 
 def default_mol(
