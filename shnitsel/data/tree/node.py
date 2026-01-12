@@ -2,7 +2,18 @@ import abc
 from collections.abc import Iterable
 from dataclasses import dataclass
 from functools import cached_property
-from typing import Any, Callable, Hashable, Mapping, Self, TypeVar, Generic, overload
+from types import UnionType
+from typing import (
+    Any,
+    Callable,
+    Hashable,
+    Mapping,
+    Self,
+    TypeVar,
+    Generic,
+    overload,
+)
+import typing
 from typing_extensions import TypeForm
 
 
@@ -23,6 +34,51 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
     - `ChildType`: Which node types are allowed to be registered as children of this node.
     - `DataType`: What kind of data is expected within this tree if the data is not None.
     """
+
+    def __class_getitem__(cls, args: "TypeVar | tuple[TypeVar , ...]"):
+        # print(typing.get_args(cls))
+        # print(typing.get_args(args))
+        # print(f"{cls=}[{args=}]")
+        data_type_options = None
+        if not isinstance(args, TypeVar):
+            if isinstance(args, tuple):
+                datatype_arg = args[-1]
+            else:
+                datatype_arg = args
+        else:
+            datatype_arg = None
+
+        base = super().__class_getitem__(args)
+        if datatype_arg is not None:
+            if not isinstance(datatype_arg, TypeVar):
+                if isinstance(datatype_arg, type):
+                    data_type_options = [datatype_arg]
+                elif isinstance(datatype_arg, UnionType):
+                    data_type_options = list(typing.get_args(datatype_arg))
+
+                # print(f"{part_types=}")
+
+        if data_type_options is not None:
+            types_with_props_and_methods = []
+            for otype in data_type_options:
+                # Find non-private members
+                non_private_entries = [d for d in dir(otype) if not d.startswith("_")]
+
+                public_properties = [
+                    d
+                    for d in non_private_entries
+                    if not callable(getattr(otype, d, None))
+                ]
+                public_funcs = [
+                    d for d in non_private_entries if callable(getattr(otype, d, None))
+                ]
+
+                types_with_props_and_methods.append(
+                    (otype, public_properties, public_funcs)
+                )
+            print(f"{types_with_props_and_methods=}")
+
+        return base
 
     _name: str | None
     _dtype: type[DataType] | TypeForm[DataType] | None
@@ -62,9 +118,9 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
         if dtype is not None:
             filled_in_dtype = dtype
             if data is not None:
-                assert isinstance(
-                    data, dtype
-                ), "Provided data did not match provided dtype"
+                assert isinstance(data, dtype), (
+                    "Provided data did not match provided dtype"
+                )
         else:
             if data is not None:
                 # If we have data, try and use the type of that data
