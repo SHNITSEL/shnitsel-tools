@@ -80,8 +80,12 @@ def plot_noodleplot(
         pass
     elif hasattr(c, 'attrs') and 'long_name' in c.attrs:
         colorbar_label = c.attrs['long_name']
+        if 'units' in c.attrs:
+            colorbar_label = f"{colorbar_label} / {c.attrs['units']}"
     elif hasattr(c, 'name'):
         colorbar_label = c.name
+        if 'units' in c.attrs:
+            colorbar_label = f"{colorbar_label} / {c.attrs['units']}"
     elif c_is_time:
         colorbar_label = '$t$ / fs'
 
