@@ -135,7 +135,7 @@ class Datasheet:
                     tree_res_concat.map_filtered_nodes(
                         lambda n: n.is_leaf,
                         lambda n: DataLeaf(name="tmp", data=(n.path, n.data)),
-                        tuple[str, Frames],
+                        tuple,
                     ).collect_data()
                 )
 
