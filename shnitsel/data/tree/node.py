@@ -16,6 +16,7 @@ from typing import (
 )
 import typing
 from typing_extensions import TypeForm
+from ..trajectory_grouping_params import TrajectoryGroupingMetadata
 
 
 ChildType = TypeVar("ChildType", bound="TreeNode|None", covariant=True)
@@ -233,13 +234,13 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
             filled_in_dtype = dtype
             if data is not None:
                 if isinstance(dtype, UnionType):
-                    assert isinstance(
-                        data, typing.get_args(dtype)
-                    ), "Provided data did not match provided dtype"
+                    assert isinstance(data, typing.get_args(dtype)), (
+                        "Provided data did not match provided dtype"
+                    )
                 else:
-                    assert isinstance(
-                        data, dtype
-                    ), "Provided data did not match provided dtype"
+                    assert isinstance(data, dtype), (
+                        "Provided data did not match provided dtype"
+                    )
         else:
             if data is not None:
                 # If we have data, try and use the type of that data
@@ -328,13 +329,13 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
             filled_in_dtype = dtype
             if data is not None:
                 if isinstance(dtype, UnionType):
-                    assert isinstance(
-                        data, typing.get_args(dtype)
-                    ), "Provided data did not match provided dtype"
+                    assert isinstance(data, typing.get_args(dtype)), (
+                        "Provided data did not match provided dtype"
+                    )
                 else:
-                    assert isinstance(
-                        data, dtype
-                    ), "Provided data did not match provided dtype"
+                    assert isinstance(data, dtype), (
+                        "Provided data did not match provided dtype"
+                    )
         else:
             if data is not None:
                 # If we have data, try and use the type of that data
@@ -873,11 +874,205 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
             if child is not None:
                 yield from child.collect_data()
 
+    def apply_data_attributes(
+        self, properties: dict
+    ) -> "Self | TreeNode[Any, DataType] | None":
+        """
+
+        Parameters
+        ----------
+        properties : dict
+            The attributes to set with their respective values.
+
+        Returns
+        -------
+        Self | TreeNode[Any, DataType]
+            The subtree after the update
+        """
+
+        props = {}
+
+        for k, v in properties.items():
+            if v is not None:
+                props[k] = v
+
+        def update_attrs(data: DataType, _props: dict) -> DataType:
+            if hasattr(data, 'attrs'):
+                getattr(data, 'attrs').update(props)
+            return data
+
+        return self.map_data(lambda x: update_attrs(x, props))
+
+    def map_flat_group_data(
+        self, map_func: Callable[[Iterable[DataType]], ResType | None]
+    ) -> "Self|TreeNode[Any, ResType]":
+        """Helper function to apply a mapping function to all flat group nodes.
+
+        Will only apply the mapping function to nodes of type `DataGroup` and only those who have exclusively `DataLeaf` children.
+
+        Parameters
+        ----------
+        map_func : Callable[[Iterable[DataType]], ResType  |  None]
+            Function mapping the data in the flat groups to a new result type
+
+        Returns
+        -------
+        Self | TreeNode[Any, ResType]
+             A new subtree structure, which will hold leaves with ResType data underneath each mapped group.
+        """
+        from .data_group import DataGroup
+        from .data_leaf import DataLeaf
+
+        def extended_mapper(
+            flat_group: TreeNode[Any, DataType],
+        ) -> TreeNode[Any, ResType]:
+            assert isinstance(flat_group, DataGroup)
+            assert len(flat_group.subgroups) == 0
+            child_data = {k: v.data for k, v in flat_group.subleaves.items()}
+            # Actually perform the mapping over child data
+            res = map_func(child_data.values())
+
+            new_leaf = DataLeaf[ResType](name="reduced", data=res)
+            new_group = flat_group.construct_copy(children={new_leaf.name: new_leaf})
+            return new_group
+
+        def filter_flat_groups(node: TreeNode[Any, DataType]) -> bool:
+            return isinstance(node, DataGroup) and node.is_flat_group
+
+        return self.map_filtered_nodes(
+            filter_func=filter_flat_groups, map_func=extended_mapper
+        )
+
+    def group_data_by_metadata(self) -> Self | None:
+        """Helper function to allow for grouping of data within the tree by the metadata
+        extracted from Trajectories.
+
+        Should only be called on trees where `DataType=Trajectory` or `DataType=Frames` or subtypes thereof.
+        Will fail due to an attribute error or yield an empty tree otherwise.
+
+        Returns
+        -------
+        Self
+            A tree where leaves are grouped to have similar metadata and only leaves with the same metadata are within the same gorup.
+        """
+        return self.group_children_by(
+            key_func=_trajectory_key_func, group_leaves_only=True
+        )
+
     def __str__(self) -> str:
-        return f"{type(self)}"
+        """A basic representation of this node.
+
+        Only contains rudimentary information about this node. Use `repr()` for a more extensive representation.
+
+        Returns
+        -------
+        str
+            A string representation with minimal information.
+        """
+        params = {}
+        if self.has_data:
+            params['data'] = str(self.data)
+        if self._level_name is not None:
+            params['level'] = str(self._level_name)
+        if self._children:
+            child_keys = list(str(x) for x in self._children.keys())
+            params['children'] = f"{len(self._children)}: " + "; ".join(child_keys)
+
+        return f"{type(self)} [{params}]"
 
     def __repr__(self) -> str:
-        return f"{type(self)}"
+        """A simple representation of the data and structure of this subtree.
+
+        _extended_summary_
+
+        Returns
+        -------
+        str
+            A string representation with more extensive information than that returned by `__str__()`
+        """
+        params = {}
+        if self.has_data:
+            params['data'] = repr(self.data)
+        if self._level_name is not None:
+            params['level'] = str(self._level_name)
+        if self._children:
+            childrep = {k: repr(x) for k, x in self._children.items()}
+            params['children'] = f"{len(self._children)}: " + repr(childrep)
+
+        return f"{type(self)} [{params}]"
 
     def _repr_html_(self) -> str:
-        return f"<h1>{type(self)}</h1>"
+        """Obtain an html representation of this subtree.
+
+        Currently generates a tabular representation of the subtree.
+
+        Returns
+        -------
+        str
+            A html string representing the data in this subtree.
+        """
+        # res = f"<h1>{type(self).__name__} (level: {self._level_name or 'unknown'})</h1>"
+        # if self.has_data:
+        #     res += "<br/>\r\n<h2>Data</h2>\r\n"
+        #     sdata = self.data
+        #     if hasattr(sdata, '_repr_html_') and False:
+        #         res += f"<p>{sdata._repr_html_()}</p>\r\n"
+        #     else:
+        #         res += f"<p>{type(sdata).__qualname__}</p>\r\n"
+        # if self._children:
+        #     cres = "<h2>Children</h2>\r\n<table>\r\n"
+
+        #     for k, c in self._children.items():
+        #         if c is not None:
+        #             cres += f"<tr><td>{repr(k)}</td><td>{c._repr_html_()}</td></tr>\r\n"
+        #     cres += "</table>\r\n"
+        #     res += cres
+        # attrs = self.attrs
+        # if attrs:
+        #     ares = "<br/>\r\n<h2>Attributes</h2>\r\n<table>\r\n"
+
+        #     for k, c in attrs.items():
+        #         if c is not None:
+        #             ares += f"<tr><td>{repr(k)}</td><td>{repr(c)}</td></tr>\r\n"
+        #     ares += "</table>\r\n"
+        #     res += ares
+        # return "<div>" + res + "</div>"
+        from .tree_vis import tree_repr
+
+        #TODO: Consider options: https://github.com/etetoolkit/ete, https://treelib.readthedocs.io/en/latest/, https://plotly.com/python/tree-plots/
+        return tree_repr(self)
+
+
+def _trajectory_key_func(node: TreeNode) -> None | str | TrajectoryGroupingMetadata:
+    """Helper function to extract trajectory metadata of leaf nodes for trees with
+    appropriate data types.
+
+    If applied to other nodes may yield a `None` key or just their `name` attribute as a `str`.
+
+    Parameters
+    ----------
+    node : TreeNode
+        The node to extract the `TrajectoryGroupingMetadata` metadata from.
+        See `Trajectory.get_grouping_metadata()` for creation of the meta data
+        instance.
+
+    Returns
+    -------
+    None | str | TrajectoryGroupingMetadata
+        The key to use for the grouping of this node.
+    """
+    from .data_leaf import DataLeaf
+    from ..dataset_containers import Trajectory, Frames
+
+    if isinstance(node, DataLeaf):
+        if not node.has_data:
+            # Do not group empty data
+            return None
+        else:
+            # Get grouping metadata
+            if isinstance(node.data, Trajectory) or isinstance(node.data, Frames):
+                return node.data.get_grouping_metadata()
+        # Don't attempt to group weird data types
+        return None
+    else:
+        return node.name

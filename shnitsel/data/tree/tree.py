@@ -180,9 +180,9 @@ class ShnitselDBRoot(Generic[DataType], TreeNode[CompoundGroup[DataType], DataTy
             kwargs['compounds'] = children
 
         if 'compounds' not in kwargs or kwargs["compounds"] is None:
-            assert (
-                dtype is None
-            ), "Cannot cast the data type of the tree without reassigning children/compounds of appropriate new type."
+            assert dtype is None, (
+                "Cannot cast the data type of the tree without reassigning children/compounds of appropriate new type."
+            )
             kwargs["compounds"] = {
                 # TODO: FIXME: Figure out this typing issue
                 k: v.construct_copy()
@@ -197,7 +197,9 @@ class ShnitselDBRoot(Generic[DataType], TreeNode[CompoundGroup[DataType], DataTy
             assert all(
                 isinstance(child, CompoundGroup)
                 for child in compound_candidates.values()
-            ), f"Children provided to `construct_copy` for tree root are not of type `CompoundGroup`: {compound_candidates}"
+            ), (
+                f"Children provided to `construct_copy` for tree root are not of type `CompoundGroup`: {compound_candidates}"
+            )
             return ShnitselDBRoot[ResType](
                 dtype=new_dtype,
                 **kwargs,
@@ -356,9 +358,9 @@ class ShnitselDBRoot(Generic[DataType], TreeNode[CompoundGroup[DataType], DataTy
                 res_name = renamed_child.name
                 if res_name in new_children:
                     merged_child = tree_merge(renamed_child, new_children[res_name])
-                    assert (
-                        merged_child is not None
-                    ), "Something went wrong with the merge of at least 2 trees."
+                    assert merged_child is not None, (
+                        "Something went wrong with the merge of at least 2 trees."
+                    )
                     new_children[res_name] = merged_child
                 else:
                     new_children[res_name] = renamed_child
@@ -366,33 +368,6 @@ class ShnitselDBRoot(Generic[DataType], TreeNode[CompoundGroup[DataType], DataTy
                 print(new_children)
 
                 return self.construct_copy(compounds=new_children)
-
-    def apply_data_attributes(self, properties: dict) -> "ShnitselDBRoot[DataType]":
-        """
-
-        Parameters
-        ----------
-        properties : dict
-            The attributes to set with their respective values.
-
-        Returns
-        -------
-        ShnitselDBRoot[DataType]
-            The tree after the update
-        """
-
-        props = {}
-
-        for k, v in properties.items():
-            if v is not None:
-                props[k] = v
-
-        def update_attrs(data: DataType, _props: dict) -> DataType:
-            if hasattr(data, 'attrs'):
-                getattr(data, 'attrs').update(props)
-            return data
-
-        return self.map_data(lambda x: update_attrs(x, props))
 
     @property
     def compounds(self) -> Mapping[Hashable, CompoundGroup[DataType]]:
@@ -448,44 +423,6 @@ class ShnitselDBRoot(Generic[DataType], TreeNode[CompoundGroup[DataType], DataTy
             if len(new_children) == 0 and not keep_empty_branches:
                 new_children = None
         return self.construct_copy(children=new_children, dtype=dtype)
-
-    def map_flat_group_data(
-        self, map_func: Callable[[Iterable[DataType]], ResType | None]
-    ) -> "ShnitselDBRoot[ResType]":
-        """Helper function to apply a mapping function to all flat group nodes.
-
-        Will only apply the mapping function to nodes of type `DataGroup` and only those who have exclusively `DataLeaf` children.
-
-        Parameters
-        ----------
-        map_func : Callable[[Iterable[DataType]], ResType  |  None]
-            Function mapping the data in the flat groups to a new result type
-
-        Returns
-        -------
-        ShnitselDBRoot[ResType]
-             A new tree structure, which will hold leaves with ResType data underneath each mapped group.
-        """
-
-        def extended_mapper(
-            flat_group: TreeNode[Any, DataType],
-        ) -> TreeNode[Any, ResType]:
-            assert isinstance(flat_group, DataGroup)
-            assert len(flat_group.subgroups) == 0
-            child_data = {k: v.data for k, v in flat_group.subleaves.items()}
-            # Actually perform the mapping over child data
-            res = map_func(child_data.values())
-
-            new_leaf = DataLeaf[ResType](name="reduced", data=res)
-            new_group = flat_group.construct_copy(children={new_leaf.name: new_leaf})
-            return new_group
-
-        def filter_flat_groups(node: TreeNode[Any, DataType]) -> bool:
-            return isinstance(node, DataGroup) and node.is_flat_group
-
-        return self.map_filtered_nodes(
-            filter_func=filter_flat_groups, map_func=extended_mapper
-        )
 
     def map_filtered_nodes(
         self,
@@ -548,54 +485,6 @@ class ShnitselDBRoot(Generic[DataType], TreeNode[CompoundGroup[DataType], DataTy
         }
         new_node = self.construct_copy(children=new_children)
         return new_node
-
-    def group_data_by_metadata(self) -> Self:
-        """Helper function to allow for grouping of data within the tree by the metadata
-        extracted from Trajectories.
-
-        Should only be called on trees where `DataType=Trajectory` or `DataType=Frames` or subtypes thereof.
-        Will fail due to an attribute error or yield an empty tree otherwise.
-
-        Returns
-        -------
-        Self
-            A tree where leaves are grouped to have similar metadata and only leaves with the same metadata are within the same gorup.
-        """
-        return self.group_children_by(
-            key_func=_trajectory_key_func, group_leaves_only=True
-        )
-
-
-def _trajectory_key_func(node: TreeNode) -> None | str | TrajectoryGroupingMetadata:
-    """Helper function to extract trajectory metadata of leaf nodes for trees with
-    appropriate data types.
-
-    If applied to other nodes may yield a `None` key or just their `name` attribute as a `str`.
-
-    Parameters
-    ----------
-    node : TreeNode
-        The node to extract the `TrajectoryGroupingMetadata` metadata from.
-        See `Trajectory.get_grouping_metadata()` for creation of the meta data
-        instance.
-
-    Returns
-    -------
-    None | str | TrajectoryGroupingMetadata
-        The key to use for the grouping of this node.
-    """
-    if isinstance(node, DataLeaf):
-        if not node.has_data:
-            # Do not group empty data
-            return None
-        else:
-            # Get grouping metadata
-            if isinstance(node.data, Trajectory) or isinstance(node.data, Frames):
-                return node.data.get_grouping_metadata()
-        # Don't attempt to group weird data types
-        return None
-    else:
-        return node.name
 
 
 ShnitselDB = ShnitselDBRoot
