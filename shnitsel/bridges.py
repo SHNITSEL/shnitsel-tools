@@ -178,6 +178,19 @@ def numbered_smiles_to_mol(smiles: str) -> rc.Mol:
     return set_atom_props(mol, molAtomMapNumber=False)
 
 
+def _most_stable_frame(atXYZ, obj) -> int:
+    """Find the frame, out of all the initial conditions,
+    with the lowest ground-state energy;
+    failing that, return the first frame in ``atXYZ``
+    """
+
+    if 'energy' not in obj or 'trajid' not in obj:
+        return atXYZ.isel(frame=0)
+    inicond_energy = obj['energy'].isel(state=0).groupby('trajid').first()
+    trajid = inicond_energy.idxmin().item()
+    return atXYZ.sel(trajid=trajid, time=0)
+
+
 def default_mol(
     obj,
     molAtomMapNumber: list | Literal[True] | None = None,
@@ -242,7 +255,8 @@ def default_mol(
     else:
         try:
             charge = obj.attrs.get('charge', atXYZ.attrs.get('charge', 0))
-            mol = to_mol(atXYZ.isel(frame=0), charge=charge)
+            atXYZ_frame = _most_stable_frame(atXYZ, obj)
+            mol = to_mol(atXYZ_frame, charge=charge)
         except (KeyError, ValueError):
             raise ValueError(
                 "Failed to get default mol, please set a smiles map. "
