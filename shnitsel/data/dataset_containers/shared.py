@@ -136,7 +136,7 @@ class ShnitselDataset(object):
         tolerance: int | float | Iterable[int | float] | None = None,
         drop: bool = False,
         **indexers_kwargs: Any,
-    ) -> Self:
+    ) -> "Self | ShnitselDataset":
         """Returns a new dataset with each data array indexed by tick labels
         along the specified dimension(s).
 
@@ -207,15 +207,17 @@ class ShnitselDataset(object):
 
         """
         # TODO: FIXME: Also select derived, base and cached variables?
-        return type(self)(
-            self._raw_dataset.sel(
-                indexers=indexers,
-                method=method,
-                tolerance=tolerance,
-                drop=drop,
-                **indexers_kwargs,
-            )
+        selres = self._raw_dataset.sel(
+            indexers=indexers,
+            method=method,
+            tolerance=tolerance,
+            drop=drop,
+            **indexers_kwargs,
         )
+        try:
+            return type(self)(selres)
+        except:
+            return ShnitselDataset(selres)
 
     def isel(
         self,
@@ -223,7 +225,7 @@ class ShnitselDataset(object):
         drop: bool = False,
         missing_dims: Literal["raise", "warn", "ignore"] = "raise",
         **indexers_kwargs: Any,
-    ) -> Self:
+    ) -> "Self | ShnitselDataset":
         """Returns a new dataset with each array indexed along the specified
         dimension(s).
 
@@ -323,14 +325,17 @@ class ShnitselDataset(object):
 
         """
         # TODO: FIXME: Also select derived, base and cached variables?
-        return type(self)(
-            self._raw_dataset.isel(
-                indexers=indexers,
-                drop=drop,
-                missing_dims=missing_dims,
-                **indexers_kwargs,
-            )
+
+        selres = self._raw_dataset.isel(
+            indexers=indexers,
+            drop=drop,
+            missing_dims=missing_dims,
+            **indexers_kwargs,
         )
+        try:
+            return type(self)(selres)
+        except:
+            return ShnitselDataset(selres)
 
     def groupby(self) -> Any:
         self._raw_dataset.groupby()
@@ -367,6 +372,10 @@ class ShnitselDataset(object):
             for source in self._attr_sources:
                 with suppress(KeyError):
                     return source[name]
+
+        if not name.startswith("_") and name in dir(self._raw_dataset):
+            return getattr(self._raw_dataset, name)
+
         raise AttributeError(
             f"{type(self).__name__!r} object has no attribute {name!r}"
         )
@@ -421,7 +430,8 @@ class ShnitselDataset(object):
             for item in source
             if isinstance(item, str)
         }
-        return sorted(set(dir(type(self))) | extra_attrs)
+        ds_attrs = {item for item in dir(self._raw_dataset) if not item.startswith("_")}
+        return sorted(set(dir(type(self))) | extra_attrs | ds_attrs)
 
     def _ipython_key_completions_(self) -> list[str]:
         """Provide method for the key-autocompletions in IPython.
@@ -434,6 +444,8 @@ class ShnitselDataset(object):
             for item in source
             if isinstance(item, str)
         }
+        ds_completion = self._raw_dataset._ipython_key_completions_()
+        items |= set(x for x in ds_completion if not x.startswith("_"))
         return list(items)
 
     # @overload
