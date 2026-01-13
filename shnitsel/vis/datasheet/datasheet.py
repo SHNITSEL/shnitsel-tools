@@ -114,9 +114,11 @@ class Datasheet:
                 # TODO: FIXME: Still need to deal with the appropriate grouping of ShnitselDB entries.
 
                 grouped_data = base_data.group_data_by_metadata()
-                assert (
-                    grouped_data is not None and isinstance(grouped_data, ShnitselDB)
-                ), "Grouping of the provided ShnitselDB did not yield any result. Please make sure your database is well formed and contains data."
+                assert grouped_data is not None and isinstance(
+                    grouped_data, ShnitselDB
+                ), (
+                    "Grouping of the provided ShnitselDB did not yield any result. Please make sure your database is well formed and contains data."
+                )
 
                 tree_res_concat: ShnitselDB[Frames | xr.Dataset] | None = (
                     grouped_data.map_filtered_nodes(
@@ -127,9 +129,9 @@ class Datasheet:
                         dtype=Frames,
                     )
                 )
-                assert (
-                    tree_res_concat is not None
-                ), "Aggregation of ShnitselDB yielded None. Please provide a database with data."
+                assert tree_res_concat is not None, (
+                    "Aggregation of ShnitselDB yielded None. Please provide a database with data."
+                )
 
                 datasheet_groups: list[tuple[str, Frames | xr.Dataset]] = list(
                     tree_res_concat.map_filtered_nodes(
@@ -149,7 +151,7 @@ class Datasheet:
                         col_state=col_state,
                     )
                     self.datasheet_pages[name].name = name
-            elif isinstance(base_data, Trajectory):
+            elif isinstance(base_data, (Trajectory, Frames, xr.Dataset)):
                 self.data_source = base_data
                 self.datasheet_pages[_Datasheet_default_page_key] = DatasheetPage(
                     self.data_source,
@@ -160,7 +162,7 @@ class Datasheet:
                 pass
             else:
                 raise TypeError(
-                    f"The provided (or read) data is neither Trajectory data nor a Trajectory or ShnitselDB object. Was {type(base_data)}"
+                    f"The provided (or read) data is neither Trajectory data nor a Trajectory/Frames or ShnitselDB object. Was {type(base_data)}"
                 )
 
     def _copy_data(self, old: Self):
