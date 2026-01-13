@@ -1,7 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from functools import cached_property
-from typing import Any, Literal
+from typing import Any, Literal, Self
 
 from ..trajectory_grouping_params import TrajectoryGroupingMetadata
 
@@ -170,9 +170,9 @@ class DataSeries(ShnitselDataset):
         charge = self._param_from_vars_or_attrs('charge')
         if charge is None:
             if 'state_charges' in self._raw_dataset:
-                return self._raw_dataset['state_charges'][0].item()
+                return float(self._raw_dataset['state_charges'][0].item())
             return 0
-        return charge
+        return float(charge)
 
     @charge.setter
     def charge(self, value):
@@ -183,9 +183,62 @@ class DataSeries(ShnitselDataset):
         float : float
             The charge in units of elementary charges.
         """
+        # TODO: FIXME: We probably do not want to support setters here!
         self._raw_dataset.attrs['charge'] = value
         self._raw_dataset['state_charges'].values[:] = value
-        
+
+    def set_charge(self, value: float | xr.DataArray) -> Self:
+        """Method to set the charge on a dataset, clear conflicting positions
+        of charge info on the dataset and return a new instance of the wrapped dataset.
+
+
+        Parameters
+        ----------
+        value : float | xr.DataArray
+            Either a single value (optionally wrapped in a DataArray already) to indicate
+            the charge of the full molecule in all states (will be set to coordinate `charge`) or a DataArray that represents
+            state-dependent charges (which will be set to `state_charges`)
+
+        Returns
+        -------
+        Self
+            The updated object as a copy.
+
+        Raises
+        ------
+        ValueError
+            If an unsupported `value` was provided.
+        """
+        new_attrs = dict(self._raw_dataset.attrs)
+        if 'charge' in new_attrs:
+            del new_attrs['charge']
+
+        tmp_ds = (
+            self._raw_dataset.drop_attrs(deep=False)
+            .assign_attrs(new_attrs)
+            .drop_vars('charge', errors='ignore')
+        )
+        if isinstance(value, (float | int)):
+            # Create a dummy, zero-dim
+            charge_da = xr.DataArray(
+                float(value),
+                dims=[],
+                attrs={'units': 'e', 'unitdim': 'charge'},
+                name='charge',
+            )
+
+            new_ds = tmp_ds.assign_coords(charge=charge_da)
+        elif isinstance(value, xr.DataArray):
+            if len(value.sizes) == 0:
+                # a scalar variable
+                new_ds = tmp_ds.assign_coords(charge=value)
+            else:
+                # This is a state_charge contender:
+                new_ds = tmp_ds.assign_coords(state_charges=value)
+        else:
+            raise ValueError("Unknown type for charge value: %s" % type(value))
+
+        return type(self)(new_ds)
 
     def _param_from_vars_or_attrs(self, key: str) -> Any | None:
         """Helper function to extract information either from a data var or from

@@ -65,32 +65,6 @@ class Trajectory(DataSeries):
         return "time"
 
     @property
-    def charge(self) -> float:
-        """The charge of the molecule if set on the trajectory data.
-        Loaded from `charge` attribute (or variable) or `state_charges` coordinate
-        if provided.
-
-        If no information is found, 0 is returned."""
-        charge = self._param_from_vars_or_attrs('charge')
-        if charge is None:
-            if 'state_charges' in self._raw_dataset:
-                return self._raw_dataset['state_charges'][0].item()
-            return 0
-        return charge
-
-    @charge.setter
-    def charge(self, value):
-        """Setter for the charge of a trajectory
-
-        Parameters
-        ----------
-        float : float
-            The charge in units of elementary charges.
-        """
-        self._raw_dataset.attrs['charge'] = value
-        self._raw_dataset['state_charges'].values[:] = value
-
-    @property
     def t_max(self) -> float:
         """Maximum time up to which the simulation could have run if not interrupted.
 
