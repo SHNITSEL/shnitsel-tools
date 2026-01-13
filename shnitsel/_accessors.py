@@ -110,6 +110,14 @@ class ShnitselAccessor:
         </div>
         """
 
+    def _ipython_key_completions_(self) -> list[str]:
+        """Provide method for the key-autocompletions in IPython.
+        See https://ipython.readthedocs.io/en/stable/config/integrating.html#tab-completion
+        For the details.
+        """
+
+        return list(self.suitable)
+
 
 class DAManualAccessor(ShnitselAccessor):
     pass
