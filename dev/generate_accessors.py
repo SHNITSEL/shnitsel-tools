@@ -21,7 +21,7 @@ def main():
         )
         from shnitsel.data import multi_indices
         import shnitsel.data.helpers as data_helpers
-        from shnitsel.geo import geocalc
+        from shnitsel.geo import geocalc, geomatch_exact
         from shnitsel.io.ase.write import write_ase_db
         from shnitsel.vis.plot import p3mhelpers
         from shnitsel.vis.plot import select
@@ -77,6 +77,7 @@ def main():
         geocalc.get_bla_chromophor,
         geocalc.get_bats,
         geocalc.kabsch,
+        geomatch_exact.get_bats_matching,
         # select
         select.FrameSelector,
         select.TrajSelector,

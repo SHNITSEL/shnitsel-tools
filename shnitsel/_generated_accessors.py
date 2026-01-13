@@ -29,6 +29,7 @@ from shnitsel.core.typedefs import DatasetOrArray
 from shnitsel.data.helpers import validate
 from shnitsel.data.multi_indices import assign_levels, expand_midx, flatten_levels, mdiff, mgroupby, msel, sel_trajids, sel_trajs, stack_trajs, unstack_trajs
 from shnitsel.geo.geocalc import angle, dihedral, distance, get_bats, get_bla_chromophor, get_bond_angles, get_bond_lengths, get_bond_torsions, get_pyramids, kabsch
+from shnitsel.geo.geomatch_exact import get_bats_matching
 from shnitsel.io.ase.write import write_ase_db
 from shnitsel.io.shnitsel.write import write_shnitsel_file
 from shnitsel.units.conversion import convert_dipole, convert_energy, convert_force, convert_length, convert_nacs, convert_time
@@ -81,6 +82,7 @@ class DataArrayAccessor(DAManualAccessor):
         'get_bla_chromophor',
         'get_bats',
         'kabsch',
+        'get_bats_matching',
         'FrameSelector',
         'TrajSelector',
         'frame3D',
@@ -262,6 +264,11 @@ class DataArrayAccessor(DAManualAccessor):
     def kabsch(self, reference_or_indexers: xarray.core.dataarray.DataArray | dict | None=None, **indexers_kwargs) -> DataArray:
         """Wrapper for :py:func:`shnitsel.geo.geocalc.kabsch`."""
         return kabsch(self._obj, reference_or_indexers=reference_or_indexers, **indexers_kwargs)
+
+    @needs(dims={'atom', 'direction'})
+    def get_bats_matching(self, l_smarts: list, signed: bool | None=None, ang: Literal=False) -> DataArray:
+        """Wrapper for :py:func:`shnitsel.geo.geomatch_exact.get_bats_matching`."""
+        return get_bats_matching(self._obj, l_smarts, signed=signed, ang=ang)
 
     def FrameSelector(self, data_var=None, dim=None, xname=None, yname=None, title='', allowed_ws_origin=None, webgl=True):
         """Wrapper for :py:func:`shnitsel.vis.plot.select.FrameSelector`."""
