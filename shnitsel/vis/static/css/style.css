@@ -1,0 +1,463 @@
+/* CSS stylesheet for displaying shnitel objects in notebooks. Modified from xarray style for compatibility */
+
+:root {
+  --st-font-color0: var(
+    --jp-content-font-color0,
+    var(--pst-color-text-base rgba(0, 0, 0, 1))
+  );
+  --st-font-color2: var(
+    --jp-content-font-color2,
+    var(--pst-color-text-base, rgba(0, 0, 0, 0.54))
+  );
+  --st-font-color3: var(
+    --jp-content-font-color3,
+    var(--pst-color-text-base, rgba(0, 0, 0, 0.38))
+  );
+  --st-border-color: var(
+    --jp-border-color2,
+    hsl(from var(--pst-color-on-background, white) h s calc(l - 10))
+  );
+  --st-disabled-color: var(
+    --jp-layout-color3,
+    hsl(from var(--pst-color-on-background, white) h s calc(l - 40))
+  );
+  --st-background-color: var(
+    --jp-layout-color0,
+    var(--pst-color-on-background, white)
+  );
+  --st-background-color-row-even: var(
+    --jp-layout-color1,
+    hsl(from var(--pst-color-on-background, white) h s calc(l - 5))
+  );
+  --st-background-color-row-odd: var(
+    --jp-layout-color2,
+    hsl(from var(--pst-color-on-background, white) h s calc(l - 15))
+  );
+}
+
+html[theme="dark"],
+html[data-theme="dark"],
+body[data-theme="dark"],
+body.vscode-dark {
+  --st-font-color0: var(
+    --jp-content-font-color0,
+    var(--pst-color-text-base, rgba(255, 255, 255, 1))
+  );
+  --st-font-color2: var(
+    --jp-content-font-color2,
+    var(--pst-color-text-base, rgba(255, 255, 255, 0.54))
+  );
+  --st-font-color3: var(
+    --jp-content-font-color3,
+    var(--pst-color-text-base, rgba(255, 255, 255, 0.38))
+  );
+  --st-border-color: var(
+    --jp-border-color2,
+    hsl(from var(--pst-color-on-background, #111111) h s calc(l + 10))
+  );
+  --st-disabled-color: var(
+    --jp-layout-color3,
+    hsl(from var(--pst-color-on-background, #111111) h s calc(l + 40))
+  );
+  --st-background-color: var(
+    --jp-layout-color0,
+    var(--pst-color-on-background, #111111)
+  );
+  --st-background-color-row-even: var(
+    --jp-layout-color1,
+    hsl(from var(--pst-color-on-background, #111111) h s calc(l + 5))
+  );
+  --st-background-color-row-odd: var(
+    --jp-layout-color2,
+    hsl(from var(--pst-color-on-background, #111111) h s calc(l + 15))
+  );
+}
+
+.st-wrap {
+  display: block !important;
+  min-width: 300px;
+  max-width: 700px;
+  line-height: 1.6;
+}
+
+.st-text-repr-fallback {
+  /* fallback to plain text repr when CSS is not injected (untrusted notebook) */
+  display: none;
+}
+
+.st-header {
+  padding-top: 6px;
+  padding-bottom: 6px;
+  margin-bottom: 4px;
+  border-bottom: solid 1px var(--st-border-color);
+}
+
+.st-header > div,
+.st-header > ul {
+  display: inline;
+  margin-top: 0;
+  margin-bottom: 0;
+}
+
+.st-obj-type,
+.st-obj-name,
+.st-group-name {
+  margin-left: 2px;
+  margin-right: 10px;
+}
+
+.st-group-name::before {
+  content: "📁";
+  padding-right: 0.3em;
+}
+
+.st-group-name,
+.st-obj-type {
+  color: var(--st-font-color2);
+}
+
+.st-sections {
+  padding-left: 0 !important;
+  display: grid;
+  grid-template-columns: 150px auto auto 1fr 0 20px 0 20px;
+  margin-block-start: 0;
+  margin-block-end: 0;
+}
+
+.st-section-item {
+  display: contents;
+}
+
+.st-section-item input {
+  display: inline-block;
+  opacity: 0;
+  height: 0;
+  margin: 0;
+}
+
+.st-section-item input + label {
+  color: var(--st-disabled-color);
+  border: 2px solid transparent !important;
+}
+
+.st-section-item input:enabled + label {
+  cursor: pointer;
+  color: var(--st-font-color2);
+}
+
+.st-section-item input:focus + label {
+  border: 2px solid var(--st-font-color0) !important;
+}
+
+.st-section-item input:enabled + label:hover {
+  color: var(--st-font-color0);
+}
+
+.st-section-summary {
+  grid-column: 1;
+  color: var(--st-font-color2);
+  font-weight: 500;
+}
+
+.st-section-summary > span {
+  display: inline-block;
+  padding-left: 0.5em;
+}
+
+.st-section-summary-in:disabled + label {
+  color: var(--st-font-color2);
+}
+
+.st-section-summary-in + label:before {
+  display: inline-block;
+  content: "►";
+  font-size: 11px;
+  width: 15px;
+  text-align: center;
+}
+
+.st-section-summary-in:disabled + label:before {
+  color: var(--st-disabled-color);
+}
+
+.st-section-summary-in:checked + label:before {
+  content: "▼";
+}
+
+.st-section-summary-in:checked + label > span {
+  display: none;
+}
+
+.st-section-summary,
+.st-section-inline-details {
+  padding-top: 4px;
+}
+
+.st-section-inline-details {
+  grid-column: 2 / -1;
+}
+
+.st-section-details {
+  display: none;
+  grid-column: 1 / -1;
+  margin-top: 4px;
+  margin-bottom: 5px;
+}
+
+.st-section-summary-in:checked ~ .st-section-details {
+  display: contents;
+}
+
+.st-group-box {
+  display: inline-grid;
+  grid-template-columns: 0px 20px auto;
+  width: 100%;
+}
+
+.st-group-box-vline {
+  grid-column-start: 1;
+  border-right: 0.2em solid;
+  border-color: var(--st-border-color);
+  width: 0px;
+}
+
+.st-group-box-hline {
+  grid-column-start: 2;
+  grid-row-start: 1;
+  height: 1em;
+  width: 20px;
+  border-bottom: 0.2em solid;
+  border-color: var(--st-border-color);
+}
+
+.st-group-box-contents {
+  grid-column-start: 3;
+}
+
+.st-array-wrap {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 20px auto;
+}
+
+.st-array-wrap > label {
+  grid-column: 1;
+  vertical-align: top;
+}
+
+.st-preview {
+  color: var(--st-font-color3);
+}
+
+.st-array-preview,
+.st-array-data {
+  padding: 0 5px !important;
+  grid-column: 2;
+}
+
+.st-array-data,
+.st-array-in:checked ~ .st-array-preview {
+  display: none;
+}
+
+.st-array-in:checked ~ .st-array-data,
+.st-array-preview {
+  display: inline-block;
+}
+
+.st-dim-list {
+  display: inline-block !important;
+  list-style: none;
+  padding: 0 !important;
+  margin: 0;
+}
+
+.st-dim-list li {
+  display: inline-block;
+  padding: 0;
+  margin: 0;
+}
+
+.st-dim-list:before {
+  content: "(";
+}
+
+.st-dim-list:after {
+  content: ")";
+}
+
+.st-dim-list li:not(:last-child):after {
+  content: ",";
+  padding-right: 5px;
+}
+
+.st-has-index {
+  font-weight: bold;
+}
+
+.st-var-list,
+.st-var-item {
+  display: contents;
+}
+
+.st-var-item > div,
+.st-var-item label,
+.st-var-item > .st-var-name span {
+  background-color: var(--st-background-color-row-even);
+  border-color: var(--st-background-color-row-odd);
+  margin-bottom: 0;
+  padding-top: 2px;
+}
+
+.st-var-item > .st-var-name:hover span {
+  padding-right: 5px;
+}
+
+.st-var-list > li:nth-child(odd) > div,
+.st-var-list > li:nth-child(odd) > label,
+.st-var-list > li:nth-child(odd) > .st-var-name span {
+  background-color: var(--st-background-color-row-odd);
+  border-color: var(--st-background-color-row-even);
+}
+
+.st-var-name {
+  grid-column: 1;
+}
+
+.st-var-dims {
+  grid-column: 2;
+}
+
+.st-var-dtype {
+  grid-column: 3;
+  text-align: right;
+  color: var(--st-font-color2);
+}
+
+.st-var-preview {
+  grid-column: 4;
+}
+
+.st-index-preview {
+  grid-column: 2 / 5;
+  color: var(--st-font-color2);
+}
+
+.st-var-name,
+.st-var-dims,
+.st-var-dtype,
+.st-preview,
+.st-attrs dt {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding-right: 10px;
+}
+
+.st-var-name:hover,
+.st-var-dims:hover,
+.st-var-dtype:hover,
+.st-attrs dt:hover {
+  overflow: visible;
+  width: auto;
+  z-index: 1;
+}
+
+.st-var-attrs,
+.st-var-data,
+.st-index-data {
+  display: none;
+  border-top: 2px dotted var(--st-background-color);
+  padding-bottom: 20px !important;
+  padding-top: 10px !important;
+}
+
+.st-var-attrs-in + label,
+.st-var-data-in + label,
+.st-index-data-in + label {
+  padding: 0 1px;
+}
+
+.st-var-attrs-in:checked ~ .st-var-attrs,
+.st-var-data-in:checked ~ .st-var-data,
+.st-index-data-in:checked ~ .st-index-data {
+  display: block;
+}
+
+.st-var-data > table {
+  float: right;
+}
+
+.st-var-data > pre,
+.st-index-data > pre,
+.st-var-data > table > tbody > tr {
+  background-color: transparent !important;
+}
+
+.st-var-name span,
+.st-var-data,
+.st-index-name div,
+.st-index-data,
+.st-attrs {
+  padding-left: 25px !important;
+}
+
+.st-attrs,
+.st-var-attrs,
+.st-var-data,
+.st-index-data {
+  grid-column: 1 / -1;
+}
+
+dl.st-attrs {
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: 125px auto;
+}
+
+.st-attrs dt,
+.st-attrs dd {
+  padding: 0;
+  margin: 0;
+  float: left;
+  padding-right: 10px;
+  width: auto;
+}
+
+.st-attrs dt {
+  font-weight: normal;
+  grid-column: 1;
+}
+
+.st-attrs dt:hover span {
+  display: inline-block;
+  background: var(--st-background-color);
+  padding-right: 10px;
+}
+
+.st-attrs dd {
+  grid-column: 2;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.st-icon-database,
+.st-icon-file-text2,
+.st-no-icon {
+  display: inline-block;
+  vertical-align: middle;
+  width: 1em;
+  height: 1.5em !important;
+  stroke-width: 0;
+  stroke: currentColor;
+  fill: currentColor;
+}
+
+.st-var-attrs-in:checked + label > .st-icon-file-text2,
+.st-var-data-in:checked + label > .st-icon-database,
+.st-index-data-in:checked + label > .st-icon-database {
+  color: var(--st-font-color0);
+  filter: drop-shadow(1px 1px 5px var(--st-font-color2));
+  stroke-width: 0.8px;
+}
