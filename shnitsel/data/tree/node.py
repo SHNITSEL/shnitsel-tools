@@ -207,7 +207,7 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
         return base
 
     _name: str | None
-    _dtype: type[DataType] | TypeForm[DataType] | None
+    _dtype: type[DataType] | UnionType | None
 
     _data: DataType | None
     _children: Mapping[Hashable, ChildType]
@@ -221,38 +221,31 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
         *,
         data: DataType | None = None,
         children: Mapping[Hashable, ChildType] | None = None,
-        dtype: type[DataType] | None = None,
+        dtype: type[DataType] | UnionType | None = None,
         **kwargs,
     ) -> Self:
         if dtype is not None:
-            dtype = typing.get_origin(dtype) | dtype
+            ndtype = typing.get_origin(dtype)
+            if ndtype is not None:
+                dtype = ndtype
+            assert dtype is not None
+
             filled_in_dtype = dtype
             if data is not None:
-                assert isinstance(
-                    data, dtype
-                ), "Provided data did not match provided dtype"
+                if isinstance(dtype, UnionType):
+                    assert isinstance(
+                        data, typing.get_args(dtype)
+                    ), "Provided data did not match provided dtype"
+                else:
+                    assert isinstance(
+                        data, dtype
+                    ), "Provided data did not match provided dtype"
         else:
             if data is not None:
                 # If we have data, try and use the type of that data
-                filled_in_dtype = type(data)
+                filled_in_dtype = type(data) or None
             else:
-                if children:
-                    # If we have children, try and construct the type from the basis type
-                    child_types_collection = set()
-
-                    for child in children.values():
-                        if child is not None and child.dtype is not None:
-                            child_types_collection.add(child.dtype)
-
-                    filled_in_dtype = None
-                    for ct in child_types_collection:
-                        if filled_in_dtype is None:
-                            filled_in_dtype = ct
-                        else:
-                            filled_in_dtype = filled_in_dtype | ct
-                else:
-                    # If nothing helps, don't add a dtype for this node
-                    filled_in_dtype = None
+                filled_in_dtype = TreeNode._dtype_guess_from_children(children)
 
         dtype = filled_in_dtype
         if data is not None:
@@ -278,16 +271,25 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
         try:
             obj = object.__new__(base_class)
         except TypeError:
+            logging.error(
+                "Failed to create object of type: %s because of generic type settings. You may have specified `dtype` parameters with generic aliases. (class parameter: %s)",
+                base_class,
+                cls,
+            )
             try:
                 obj = super().__new__(base_class)
             except TypeError as e:
                 # print(e)
                 # print(base_class)
                 logging.error(
-                    "Failed to create object of type: %s because of generic type settings. You may have specified `dtype` parameters with generic aliases.",
+                    "Failed to create object of type: %s because of generic type settings. You may have specified `dtype` parameters with generic aliases. (class parameter: %s)",
                     base_class,
+                    cls,
                 )
-                raise e
+                raise TypeError(
+                    "Failed to create object of type: %s because of generic type settings. You may have specified `dtype` parameters with generic aliases. (class parameter: %s)"
+                    % (base_class, cls)
+                ) from e
 
         obj.__init__(**kwargs)
 
@@ -318,35 +320,56 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
                 child._parent = self
 
         if dtype is not None:
+            ndtype = typing.get_origin(dtype)
+            if ndtype is not None:
+                dtype = ndtype
+            assert dtype is not None
+
             filled_in_dtype = dtype
             if data is not None:
-                assert isinstance(
-                    data, dtype
-                ), "Provided data did not match provided dtype"
+                if isinstance(dtype, UnionType):
+                    assert isinstance(
+                        data, typing.get_args(dtype)
+                    ), "Provided data did not match provided dtype"
+                else:
+                    assert isinstance(
+                        data, dtype
+                    ), "Provided data did not match provided dtype"
         else:
             if data is not None:
                 # If we have data, try and use the type of that data
                 filled_in_dtype = type(data)
             else:
-                if self._children:
-                    # If we have children, try and construct the type from the basis type
-                    child_types_collection = set()
-
-                    for child in self._children.values():
-                        if child is not None and child.dtype is not None:
-                            child_types_collection.add(child.dtype)
-
-                    filled_in_dtype = None
-                    for ct in child_types_collection:
-                        if filled_in_dtype is None:
-                            filled_in_dtype = ct
-                        else:
-                            filled_in_dtype = filled_in_dtype | ct
-                else:
-                    # If nothing helps, don't add a dtype for this node
-                    filled_in_dtype = None
+                filled_in_dtype = TreeNode._dtype_guess_from_children(self._children)
 
         self._dtype = filled_in_dtype
+
+    @staticmethod
+    def _dtype_guess_from_children(
+        children: Mapping | None,
+    ) -> type | UnionType | None:
+        if children:
+            # If we have children, try and construct the type from the basis type
+            child_types_collection: set[type | UnionType] = set()
+
+            for child in children.values():
+                if child is not None:
+                    cdtype = child.dtype
+                    if cdtype is not None:
+                        child_types_collection.add(cdtype)
+
+            filled_in_dtype = None
+            for ct in child_types_collection:
+                if filled_in_dtype is None:
+                    filled_in_dtype = ct
+                else:
+                    filled_in_dtype = filled_in_dtype | ct
+                    print(filled_in_dtype)
+        else:
+            # If nothing helps, don't add a dtype for this node
+            filled_in_dtype = None
+
+        return filled_in_dtype
 
     @overload
     def construct_copy(
