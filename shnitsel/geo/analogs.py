@@ -244,7 +244,8 @@ def combine_analogs(
         raise ValueError("Inconsistent formats")
 
     mols = [x.attrs['mol'] for x in analogs]
-    res = res.assign_attrs(
-        mol=mols[0],  # TODO: Try replacing with search pattern object
-    ).assign_coords(mols=('compound_', mols))
+    mol = mols[0]  # TODO: Try replacing with search pattern object
+    res = res.assign_attrs(mol=mol).assign_coords(mols=('compound_', mols))
+    if 'atXYZ' in res:
+        res['atXYZ'].attrs['mol'] = mol
     return res
