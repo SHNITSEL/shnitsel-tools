@@ -231,7 +231,7 @@ def get_inter_state(frames: Frames) -> InterState:
         logging.info(
             "Creating a new `statecomb` dimension because it was not yet set when calculating inter-state properties."
         )
-        frames = frames.assign_coords(get_statecomb_coordinate(frames.state))
+        frames = frames.assign_coords(statecomb=get_statecomb_coordinate(frames.state))
         frames['statecomb'].attrs['long_name'] = "State combinations"
 
     inter_state = frames.copy()
