@@ -478,10 +478,10 @@ class DatasheetPage:
 
         pca_components = self.pca_full_data.principal_components
 
-        print(f"{self.pca_full_data.inputs=}")
+        logging.debug(f"{self.pca_full_data.inputs=}")
 
         for i, component in enumerate(pca_components):
-            print(f"{i=}: {component=}")
+            logging.debug(f"{i=}: {component=}")
 
         return res
 
