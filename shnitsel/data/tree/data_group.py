@@ -1,5 +1,4 @@
 from dataclasses import dataclass, asdict
-from functools import cached_property
 from typing import Any, Callable, Generic, Hashable, Mapping, Self, TypeVar, overload
 from typing_extensions import TypeForm
 
@@ -165,7 +164,7 @@ class DataGroup(
             # We have new children and can extract the ResType from them
             new_dtype: type[ResType] | TypeForm[ResType] | None = dtype
 
-            return DataGroup[ResType](
+            return DataGroup(
                 children=children,
                 dtype=new_dtype,
                 **kwargs,
@@ -187,7 +186,7 @@ class DataGroup(
 
         return res
 
-    @cached_property
+    @property
     def is_flat_group(self) -> bool:
         """Boolean flag that is true if there are no more sub-groups beneath this group, thus making the children of this group exclusively data-nodes."""
         return len(self.subgroups) == 0
@@ -293,8 +292,8 @@ class DataGroup(
             else:
                 # Generate new group for this category
                 new_group_info = GroupInfo(str(key), group_attributes=key_dict)
-                new_group = DataGroup[DataType](
-                    group_info=new_group_info, children=group_child_dict
+                new_group = DataGroup(
+                    group_info=new_group_info, children=group_child_dict, dtype=self._dtype
                 )
                 for i in range(10000):
                     group_name_try = f"group_{i}"
@@ -351,11 +350,4 @@ class DataGroup(
         if not keep_empty_branches and new_children is None:
             return None
         else:
-            return DataGroup[ResType](
-                name=self._name,
-                group_info=self._group_info,
-                children=new_children,
-                level_name=self._level_name,
-                attrs=dict(self.attrs),
-                dtype=dtype,
-            )
+            return self.construct_copy(children=new_children)

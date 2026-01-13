@@ -163,7 +163,7 @@ class CompoundGroup(Generic[DataType], DataGroup[DataType]):
             ), "Children provided to `construct_copy` for compound group are not of type `DataGroup` or `DataLeaf"
             new_dtype: type[ResType] | TypeForm[ResType] | None = dtype
 
-            return CompoundGroup[ResType](
+            return CompoundGroup(
                 children=children,
                 dtype=new_dtype,
                 **kwargs,
@@ -226,15 +226,7 @@ class CompoundGroup(Generic[DataType], DataGroup[DataType]):
         if not keep_empty_branches and new_children is None:
             return None
         else:
-            return CompoundGroup[ResType](
-                name=self._name,
-                compound_info=self._compound_info,
-                group_info=self._group_info,
-                children=new_children,
-                level_name=self._level_name,
-                attrs=dict(self.attrs),
-                dtype=dtype,
-            )
+            return self.construct_copy(children=new_children)
 
     def add_data_group(
         self,

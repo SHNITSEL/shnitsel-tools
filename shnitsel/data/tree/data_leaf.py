@@ -119,7 +119,7 @@ class DataLeaf(Generic[DataType], TreeNode[None, DataType]):
                 **kwargs,
             )
         else:
-            return DataLeaf[ResType](
+            return DataLeaf(
                 data=data,
                 dtype=dtype,
                 **kwargs,
@@ -187,7 +187,7 @@ class DataLeaf(Generic[DataType], TreeNode[None, DataType]):
             return None
         else:
             # This yields a different kind of tree.
-            return DataLeaf[ResType](
+            return DataLeaf(
                 name=self.name, data=new_data, attrs=dict(self.attrs), dtype=dtype
             )
 
