@@ -1,9 +1,8 @@
 import abc
 from collections.abc import Iterable
 from dataclasses import dataclass
-from functools import cached_property
 import logging
-from types import UnionType
+from types import GenericAlias, UnionType
 from typing import (
     Any,
     Callable,
@@ -226,6 +225,7 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
         **kwargs,
     ) -> Self:
         if dtype is not None:
+            dtype = typing.get_origin(dtype) | dtype
             filled_in_dtype = dtype
             if data is not None:
                 assert isinstance(
@@ -262,13 +262,33 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
         if dtype is not None:
             kwargs['dtype'] = dtype
 
+        if isinstance(cls, GenericAlias):
+            cls = typing.get_origin(cls)
+
         base_class: type[Self] = cls
+
         if not hasattr(cls, "__configured_datatypes__") and dtype is not None:
+            if isinstance(cls, GenericAlias):
+                orig_class = typing.get_origin(cls)
+                cls = orig_class or cls
+
             base_class = cls[dtype]
 
         logging.debug("Creating object for %s", base_class)
+        try:
+            obj = object.__new__(base_class)
+        except TypeError:
+            try:
+                obj = super().__new__(base_class)
+            except TypeError as e:
+                # print(e)
+                # print(base_class)
+                logging.error(
+                    "Failed to create object of type: %s because of generic type settings. You may have specified `dtype` parameters with generic aliases.",
+                    base_class,
+                )
+                raise e
 
-        obj = object.__new__(base_class)
         obj.__init__(**kwargs)
 
         return obj
@@ -470,7 +490,7 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
     #         **kwargs,
     #     )
 
-    @cached_property
+    @property
     def path(self) -> str:
         if self._parent is None:
             return "/"
@@ -829,3 +849,12 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
         for child in self.children.values():
             if child is not None:
                 yield from child.collect_data()
+
+    def __str__(self) -> str:
+        return f"{type(self)}"
+
+    def __repr__(self) -> str:
+        return f"{type(self)}"
+
+    def _repr_html_(self) -> str:
+        return f"<h1>{type(self)}</h1>"
