@@ -27,6 +27,7 @@ __all__ = [
 
 
 def collapse_display():
+    """Collapse or omit verbose representations of Xarray objects"""
     import xarray as xr
     xr.set_options(
         display_expand_coords=False,
