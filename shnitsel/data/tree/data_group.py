@@ -30,6 +30,7 @@ class DataGroup(
 
     def __init__(
         self,
+        *,
         name: str | None = None,
         group_info: GroupInfo | None = None,
         children: Mapping[

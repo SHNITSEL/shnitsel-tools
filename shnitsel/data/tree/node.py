@@ -2,6 +2,7 @@ import abc
 from collections.abc import Iterable
 from dataclasses import dataclass
 from functools import cached_property
+import logging
 from types import UnionType
 from typing import (
     Any,
@@ -9,6 +10,7 @@ from typing import (
     Hashable,
     Mapping,
     Self,
+    Sequence,
     TypeVar,
     Generic,
     overload,
@@ -21,8 +23,12 @@ ChildType = TypeVar("ChildType", bound="TreeNode|None", covariant=True)
 DataType = TypeVar("DataType", covariant=True)
 NewDataType = TypeVar("NewDataType")
 NewChildType = TypeVar("NewChildType", bound="TreeNode|None")
-ResType = TypeVar("ResType")
+ResType = TypeVar("ResType", covariant=True)
 KeyType = TypeVar("KeyType")
+
+T = TypeVar("T")
+
+_class_cache = {}
 
 
 @dataclass
@@ -35,7 +41,111 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
     - `DataType`: What kind of data is expected within this tree if the data is not None.
     """
 
-    def __class_getitem__(cls, args: "TypeVar | tuple[TypeVar , ...]"):
+    @classmethod
+    def _get_extended_class_name(cls: type, datatypes: Sequence[type]) -> str:
+        dtype_string = "|".join([ot.__name__ for ot in datatypes])
+        resname = f"{cls.__name__}[{dtype_string}]"
+        return resname
+
+    @classmethod
+    def _create_extended_node_class(
+        cls: type[Self], datatypes: list[tuple[type, list[str], list[str]]]
+    ) -> type[Self]:
+        """Create a new version of the class with added methods for the datatypes."""
+
+        def make_mapped_method(method_name: str, docstring: str | None = None):
+            # def method(self, *args, **kw):
+            #     return getattr(object.__getattribute__(self, "_obj"), name)(*args, **kw)
+            def method_wrapper(self: TreeNode, *args, **kwargs):
+                # TODO: FIXME: deal with trees in the args?
+                def method_wrapper_internal(data):
+                    if hasattr(data, method_name):
+                        tmp_res = getattr(data, method_name)
+                        if callable(tmp_res):
+                            # We do not want callable types in the tree, that would be weird
+                            return tmp_res(*args, **kwargs)
+                        else:
+                            logging.warning(
+                                "Access of method %s on data at `%s` is clashing with non-callable property. The result will be skipped.",
+                                method_name,
+                                self.path,
+                            )
+                    return None
+
+                return self.map_data(method_wrapper_internal)
+                # return getattr(object.__getattribute__(self, "_obj"), name)(*args, **kw)
+
+            method_wrapper.__doc__ = docstring
+            return method_wrapper
+
+        def make_mapped_property(prop_name: str, docstring: str | None = None):
+            def prop_wrapper(self: TreeNode):
+                def acessor_wrapper(data):
+                    if hasattr(data, prop_name):
+                        tmp_res = getattr(data, prop_name)
+                        if not callable(tmp_res):
+                            # We do not want callable types in the tree, that would be weird
+                            return tmp_res
+                        else:
+                            logging.error(
+                                "Access of property %s would yield callable entries in the tree at `%s`, which is not supported. The result will be skipped.",
+                                prop_name,
+                                self.path,
+                            )
+                    return None
+
+                return self.map_data(acessor_wrapper)
+                # return getattr(object.__getattribute__(self, "_obj"), name)(*args, **kw)
+
+            return property(fget=prop_wrapper, doc=docstring)
+
+        namespace = {}
+        for key in dir(cls):
+            # Copy base class properties
+            namespace[key] = getattr(cls, key, None)
+            if namespace[key] is None:
+                del namespace[key]
+
+        # Patch in data class wrapper accessors
+        for otype, props, methods in datatypes:
+            # if hasattr(theclass, name):
+            # Do not override things we explicitly override
+
+            for prop in props:
+                if prop in namespace:
+                    # Do not override existing entries in namespace
+                    continue
+                prop_entry = getattr(otype, prop, None)
+                docstring = None
+                if prop_entry is not None:
+                    if hasattr(prop_entry, "__doc__"):
+                        docstring = getattr(prop_entry, "__doc__")
+                namespace[prop] = make_mapped_property(prop, docstring=docstring)
+
+            for method in methods:
+                if method in namespace:
+                    # Do not override existing entries in namespace
+                    continue
+                method_entry = getattr(otype, method, None)
+                docstring = None
+                if method_entry is not None:
+                    if hasattr(method_entry, "__doc__"):
+                        docstring = getattr(method_entry, "__doc__")
+                namespace[method] = make_mapped_method(method, docstring=docstring)
+
+            # if hasattr(theclass, name) and not hasattr(cls, name):
+            #     namespace[name] = make_method(name)
+        configured_datatypes = [ot for ot, _, _ in datatypes]
+        namespace["__configured_datatypes__"] = configured_datatypes
+        resname = cls._get_extended_class_name(configured_datatypes)
+        logging.debug(f"Creating patched node class {resname}")
+
+        # return type("%s(%s)" % (cls.__name__, theclass.__name__), (cls,), namespace)
+        return type(resname, (cls,), namespace)
+
+    def __class_getitem__(
+        cls: type[Self], args: "TypeVar | tuple[TypeVar , ...]"
+    ) -> type[Self]:
         # print(typing.get_args(cls))
         # print(typing.get_args(args))
         # print(f"{cls=}[{args=}]")
@@ -49,35 +159,52 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
             datatype_arg = None
 
         base = super().__class_getitem__(args)
+        # print(base, cls)
+        # if not issubclass(base, cls):
+        #     base = cls
+
         if datatype_arg is not None:
             if not isinstance(datatype_arg, TypeVar):
                 if isinstance(datatype_arg, type):
                     data_type_options = [datatype_arg]
                 elif isinstance(datatype_arg, UnionType):
-                    data_type_options = list(typing.get_args(datatype_arg))
+                    data_typeSelf_options = list(typing.get_args(datatype_arg))
 
                 # print(f"{part_types=}")
 
         if data_type_options is not None:
-            types_with_props_and_methods = []
-            for otype in data_type_options:
-                # Find non-private members
-                non_private_entries = [d for d in dir(otype) if not d.startswith("_")]
+            resname = cls._get_extended_class_name([ot for ot in data_type_options])
+            class_cache = getattr(cls, "__class_cache__", {})
+            if not resname in class_cache:
+                types_with_props_and_methods = []
+                for otype in data_type_options:
+                    # Find non-private members
+                    non_private_entries = [
+                        d for d in dir(otype) if not d.startswith("_")
+                    ]
 
-                public_properties = [
-                    d
-                    for d in non_private_entries
-                    if not callable(getattr(otype, d, None))
-                ]
-                public_funcs = [
-                    d for d in non_private_entries if callable(getattr(otype, d, None))
-                ]
+                    public_properties = [
+                        d
+                        for d in non_private_entries
+                        if not callable(getattr(otype, d, None))
+                    ]
+                    public_funcs = [
+                        d
+                        for d in non_private_entries
+                        if callable(getattr(otype, d, None))
+                    ]
 
-                types_with_props_and_methods.append(
-                    (otype, public_properties, public_funcs)
+                    types_with_props_and_methods.append(
+                        (otype, public_properties, public_funcs)
+                    )
+                logging.debug(
+                    "Creating new class for dtype fields and methods: %s",
+                    types_with_props_and_methods,
                 )
-            print(f"{types_with_props_and_methods=}")
-
+                resclass = cls._create_extended_node_class(types_with_props_and_methods)
+                class_cache[resname] = resclass
+                setattr(cls, "__class_cache__", class_cache)
+            return class_cache[resname]
         return base
 
     _name: str | None
@@ -90,17 +217,72 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
     _parent: Self | None
     _level_name: str | None
 
-    def __new__(cls, *args, **kwargs) -> Self:
-        return super().__new__(cls)
+    def __new__(
+        cls: type[Self],
+        *,
+        data: DataType | None = None,
+        children: Mapping[Hashable, ChildType] | None = None,
+        dtype: type[DataType] | None = None,
+        **kwargs,
+    ) -> Self:
+        if dtype is not None:
+            filled_in_dtype = dtype
+            if data is not None:
+                assert isinstance(
+                    data, dtype
+                ), "Provided data did not match provided dtype"
+        else:
+            if data is not None:
+                # If we have data, try and use the type of that data
+                filled_in_dtype = type(data)
+            else:
+                if children:
+                    # If we have children, try and construct the type from the basis type
+                    child_types_collection = set()
+
+                    for child in children.values():
+                        if child is not None and child.dtype is not None:
+                            child_types_collection.add(child.dtype)
+
+                    filled_in_dtype = None
+                    for ct in child_types_collection:
+                        if filled_in_dtype is None:
+                            filled_in_dtype = ct
+                        else:
+                            filled_in_dtype = filled_in_dtype | ct
+                else:
+                    # If nothing helps, don't add a dtype for this node
+                    filled_in_dtype = None
+
+        dtype = filled_in_dtype
+        if data is not None:
+            kwargs['data'] = data
+        if children is not None:
+            kwargs['children'] = children
+        if dtype is not None:
+            kwargs['dtype'] = dtype
+
+        base_class: type[Self] = cls
+        if not hasattr(cls, "__configured_datatypes__") and dtype is not None:
+            base_class = cls[dtype]
+
+        logging.debug("Creating object for %s", base_class)
+
+        obj = object.__new__(base_class)
+        obj.__init__(**kwargs)
+
+        return obj
 
     def __init__(
         self,
+        *,
         name: str | None,
         data: DataType | None = None,
         children: Mapping[Hashable, ChildType] | None = None,
         attrs: Mapping[str, Any] | None = None,
         level_name: str | None = None,
         dtype: type[DataType] | None = None,
+        **kwargs,
     ):
         self._name = name
         self._data = data
@@ -118,9 +300,9 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
         if dtype is not None:
             filled_in_dtype = dtype
             if data is not None:
-                assert isinstance(data, dtype), (
-                    "Provided data did not match provided dtype"
-                )
+                assert isinstance(
+                    data, dtype
+                ), "Provided data did not match provided dtype"
         else:
             if data is not None:
                 # If we have data, try and use the type of that data

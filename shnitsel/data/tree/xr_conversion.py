@@ -2,7 +2,6 @@ import logging
 from typing import TypeVar
 from typing_extensions import TypeForm
 import xarray as xr
-
 from shnitsel.data.helpers import dataclass_from_dict
 
 from ..dataset_containers.xr_convesion import (
@@ -116,6 +115,8 @@ def xarray_datatree_to_shnitsel_tree(
     ShnitselDBRoot | CompoundGroup | DataGroup | DataLeaf | None
         The converted type or `None` if the tree could not be converted.
     """
+    # print(f"tree conversion {node=} {type(node)=}")
+    # print(f"attrs: {node.attrs}")
     if (
         "_shnitsel_tree_indicator" not in node.attrs
         and _datatree_level_attribute_key not in node.attrs
@@ -229,6 +230,7 @@ def xarray_datatree_to_shnitsel_tree(
             "Provided tree did not have type hints and structure could not be mapped to shnitsel data structure."
         )
     else:
+        # print("annotated tree")
         datatree_level = node.attrs.get(_datatree_level_attribute_key)
         if datatree_level not in DataTreeLevelMap:
             raise ValueError(
@@ -265,12 +267,13 @@ def xarray_datatree_to_shnitsel_tree(
                     for child in converted_children.values()
                 ), "Malformed tree provided as input for tree root."
 
-                return ShnitselDBRoot(
+                root_res = ShnitselDBRoot(
                     name=node.name,
                     compounds=converted_children,  # type: ignore # The above assertion checks the correct type of the children
                     attrs=node.attrs,
                     dtype=dtype,
                 )
+                return root_res
 
             if mapped_level == DataTreeLevelMap["compound"]:
                 assert all(

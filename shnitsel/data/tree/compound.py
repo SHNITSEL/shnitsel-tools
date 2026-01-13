@@ -29,6 +29,7 @@ class CompoundGroup(Generic[DataType], DataGroup[DataType]):
 
     def __init__(
         self,
+        *,
         name: str | None = None,
         compound_info: CompoundInfo | None = None,
         group_info: GroupInfo | None = None,
@@ -54,7 +55,7 @@ class CompoundGroup(Generic[DataType], DataGroup[DataType]):
             level_name = DataTreeLevelMap['compound']
 
         super().__init__(
-            name,
+            name=name,
             group_info=group_info,
             attrs=attrs,
             level_name=level_name,

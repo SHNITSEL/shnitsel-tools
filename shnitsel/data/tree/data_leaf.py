@@ -28,7 +28,9 @@ class DataLeaf(Generic[DataType], TreeNode[None, DataType]):
     of delayed results for support of parallel processing or delayed loading from disc, etc.
     """
 
-    def __init__(self, name: str | None = None, data: DataType | None = None, **kwargs):
+    def __init__(
+        self, *, name: str | None = None, data: DataType | None = None, **kwargs
+    ):
         super().__init__(
             name=name, data=data, level_name=DataTreeLevelMap['data'], **kwargs
         )
@@ -215,12 +217,13 @@ class DelayedDataLeaf(DataLeaf[DataType]):
 
     def __init__(
         self,
+        *,
         name: str | None = None,
         data_provider: ProvidesDelayedData[DataType] | None = None,
         attrs: Mapping[str, Any] | None = None,
     ):
         data_dummy = None
-        super().__init__(name, data=data_dummy, attrs=attrs)
+        super().__init__(name=name, data=data_dummy, attrs=attrs)
 
         if data_provider is not None:
             self._data_is_set = True

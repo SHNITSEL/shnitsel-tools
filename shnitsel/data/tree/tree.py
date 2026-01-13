@@ -46,8 +46,25 @@ class ShnitselDBRoot(Generic[DataType], TreeNode[CompoundGroup[DataType], DataTy
         The basic tree node type that this root node represents. Allows for sharing of functions between different levels of the tree.
     """
 
+    def __new__(
+        cls,
+        *,
+        compounds: Mapping[Hashable, CompoundGroup[DataType]] | None = None,
+        **kwargs,
+    ):
+        if compounds is not None:
+            kwargs['children'] = compounds
+
+        kwargs['data'] = None
+
+        return TreeNode.__new__(
+            cls,
+            **kwargs,
+        )
+
     def __init__(
         self,
+        *,
         compounds: Mapping[Hashable, CompoundGroup[DataType]] | None = None,
         **kwargs,
     ):
@@ -176,7 +193,7 @@ class ShnitselDBRoot(Generic[DataType], TreeNode[CompoundGroup[DataType], DataTy
                 **kwargs,
             )
         else:
-            compound_candidates =kwargs["compounds"]
+            compound_candidates = kwargs["compounds"]
             assert all(
                 isinstance(child, CompoundGroup)
                 for child in compound_candidates.values()
@@ -278,7 +295,7 @@ class ShnitselDBRoot(Generic[DataType], TreeNode[CompoundGroup[DataType], DataTy
                 )
             else:
                 new_children[child_key] = child.construct_copy()
-        return type(self)(new_children)
+        return self.construct_copy(children=new_children)
 
     def set_compound_info(
         self, compound_info: CompoundInfo, overwrite_all: bool = False
@@ -430,8 +447,7 @@ class ShnitselDBRoot(Generic[DataType], TreeNode[CompoundGroup[DataType], DataTy
 
             if len(new_children) == 0 and not keep_empty_branches:
                 new_children = None
-
-        return ShnitselDBRoot[ResType](new_children)
+        return self.construct_copy(children=new_children, dtype=dtype)
 
     def map_flat_group_data(
         self, map_func: Callable[[Iterable[DataType]], ResType | None]
