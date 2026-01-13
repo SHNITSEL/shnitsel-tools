@@ -687,6 +687,34 @@ class StructureSelection:
 
         return self.copy_or_update(bonds_selected=new_selection, inplace=inplace)
 
+    def select_pw_dists(
+        self,
+        selected_only: bool = True,
+        inplace: bool = False,
+    ) -> Self:
+        """Helper function to select all pairwise distances between atoms in the current selection, even if they are outside of our bonds.
+
+        Args:
+            selected_only : boo, optional
+                Flag whether only pairwise distances in the selected atoms should be considered, by default True.
+            inplace (bool, optional): Whether the selection should be updated in-place. Defaults to False.
+
+        Returns:
+            StructureSelection: The updated selections
+        """
+
+        from itertools import permutations
+
+        if selected_only:
+            curr_atoms = self.atoms_selected
+        else:
+            curr_atoms = self.atoms
+
+        new_pw_pairs = list(permutations(curr_atoms, 2))
+        new_selection = self.bonds_selected.union(new_pw_pairs)
+
+        return self.copy_or_update(bonds_selected=new_selection, inplace=inplace)
+
     def select_bonds_by_atoms(
         self,
         atoms: Sequence[AtomDescriptor]
@@ -1441,9 +1469,9 @@ class StructureSelection:
             AssertionError: if self.mol is None, no mapping can be performed.
         """
         res: list[int] = []
-        assert (
-            self.mol is not None
-        ), 'No molecule set for this selection. Cannot resolve bond ids.'
+        assert self.mol is not None, (
+            'No molecule set for this selection. Cannot resolve bond ids.'
+        )
         for entry in bond_descriptors:
             bond = self.mol.GetBondBetweenAtoms(int(entry[0]), int(entry[1]))
             res.append(bond.GetIdx())
@@ -1494,9 +1522,9 @@ class StructureSelection:
         elif BLA_smarts is not None:
             logging.info("Using provided SMARTS for BLA detection")
 
-        assert (
-            self.mol is not None
-        ), "No Mol set for the selection. Cannot match patterns."
+        assert self.mol is not None, (
+            "No Mol set for the selection. Cannot match patterns."
+        )
 
         # Remove aromatic regions if present
         has_aromatic_bonds = any(bond.GetIsAromatic() for bond in self.mol.GetBonds())
@@ -1579,9 +1607,9 @@ class StructureSelection:
                         % (last_n)
                     )
 
-                assert (
-                    last_match is not None
-                ), 'An error occurred while attempting to retrieve the matched subgraph of the BLA chromophor.'
+                assert last_match is not None, (
+                    'An error occurred while attempting to retrieve the matched subgraph of the BLA chromophor.'
+                )
 
                 return self.copy_or_update(mol=new_mol, inplace=inplace).select_bats(
                     last_BLA, inplace=inplace
@@ -1620,15 +1648,15 @@ class StructureSelection:
     @staticmethod
     def _to_feature_level_str(ft: FeatureLevelOptions) -> FeatureLevelType:
         if isinstance(ft, str):
-            assert (
-                ft in FEATURE_LEVELS
-            ), f"Unknown feature level: {ft} supported are only {FEATURE_LEVELS}"
+            assert ft in FEATURE_LEVELS, (
+                f"Unknown feature level: {ft} supported are only {FEATURE_LEVELS}"
+            )
             return ft
         elif isinstance(ft, int):
             ft_offset = max(ft - 1, 0)
-            assert ft_offset < len(
-                FEATURE_LEVELS
-            ), f"Unknown feature level: {ft} supported are only 1-{len(FEATURE_LEVELS)}"
+            assert ft_offset < len(FEATURE_LEVELS), (
+                f"Unknown feature level: {ft} supported are only 1-{len(FEATURE_LEVELS)}"
+            )
             return FEATURE_LEVELS[ft_offset]
         else:
             raise ValueError(
@@ -1740,9 +1768,9 @@ class StructureSelection:
             The updated StructureSelection object with only non-redundant coordinates in bonds,
             angles and dihedrals.
         """
-        assert (
-            self.mol is not None
-        ), "Mol object of selection not set. Cannot filter for SMILES order."
+        assert self.mol is not None, (
+            "Mol object of selection not set. Cannot filter for SMILES order."
+        )
 
         def f(s):
             return ' '.join(str(x) for x in s)
