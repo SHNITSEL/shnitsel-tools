@@ -5,8 +5,11 @@ from typing import Collection, Hashable, Union
 import numpy as np
 import xarray as xr
 
+from shnitsel.data.dataset_containers.frames import Frames
 from shnitsel.data.multi_indices import midx_combs
 from shnitsel.core.typedefs import AtXYZ
+from shnitsel.data.trajectory_format import Trajectory
+from shnitsel.filtering.structure_selection import StructureSelection
 
 from ..core.typedefs import DataArrayOrVar, DimName
 
@@ -251,7 +254,9 @@ def relativize(da: xr.DataArray, **sel) -> xr.DataArray:
     return res
 
 
-def pwdists(atXYZ: AtXYZ, center_mean: bool = False) -> xr.DataArray:
+def pwdists(
+    atXYZ_source: AtXYZ | xr.Dataset | Trajectory | Frames, center_mean: bool = False
+) -> xr.DataArray:
     """
     Compute pairwise distances and standardize it by removing the mean
     and L2-normalization (if your features are vectors and you want magnitudes only,
@@ -259,24 +264,43 @@ def pwdists(atXYZ: AtXYZ, center_mean: bool = False) -> xr.DataArray:
 
     Parameters
     ----------
-    atXYZ : xr.DataArray | AtXYZ
+    atXYZ : xr.DataArray | AtXYZ | xr.Datset | Trajectory | Frames
         A DataArray containing the atomic positions;
-        must have a dimension called 'atom'
+        Alternatively a dataset, a trajectory or a frameset with the positional data to derive the
+        pairwise distances from.
     center_mean : bool, optional
         Subtract mean of calculated pairwise distances if `True`, by default `False`
     Returns
     -------
-        A DataArray holding pairwise distance vectors with the same dimensions as `atXYZ` but transposed and `atom` dimension replaced by a `atomcomb` dimension.
-        To obtain the length of pairwise distances, apply `keep_norming()` to the result.
+        A DataArray holding pairwise distance vectors with the same dimensions as
+        but with a `descriptor` dimension indexing the pairwise distances.
     """
+    from shnitsel.geo.geocalc import get_distances
 
-    res = atXYZ.pipe(subtract_combinations, 'atom', add_labels=True)
+    atxyz_ds: xr.Dataset
+    atxyz_da: xr.DataArray
+    if isinstance(atXYZ_source, xr.DataArray):
+        atxyz_ds = atXYZ_source.to_dataset()
+        atxyz_da = atXYZ_source
+    else:
+        atxyz_ds = atXYZ_source.dataset
+        atxyz_da = atXYZ_source.positions
 
-    res = norm(res)
+    struct_selection = StructureSelection.init_from_dataset(
+        atxyz_ds, default_selection=['atoms']
+    )
+
+    bats_distances = get_distances(
+        atxyz_da, structure_selection=struct_selection.select_pw_dists()
+    )
+
+    # res = atXYZ.pipe(subtract_combinations, 'atom', add_labels=True)
+
+    # res = norm(res)
     if center_mean:
-        res = center(res)
+        bats_distances = center(bats_distances)
 
-    return res
+    return bats_distances
 
 
 get_standardized_pairwise_dists = pwdists
