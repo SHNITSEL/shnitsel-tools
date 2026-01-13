@@ -74,7 +74,9 @@ def hops(frames, hop_types: list[tuple[int, int]] | None = None):
         for hop_from, hop_to in hop_types:
             acc |= (res.hop_from == hop_from) & (res.hop_to == hop_to)
         res = res.isel(frame=acc)
-    return res.drop_dims(['trajid_'], errors='ignore')
+    if hasattr(res, 'drop_dims'):
+        res = res.drop_dims(['trajid_'], errors='ignore')
+    return res
 
 
 def focus_hops(

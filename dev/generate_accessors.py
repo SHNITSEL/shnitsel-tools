@@ -92,6 +92,10 @@ def main():
         pca.pca,
         lda.lda,
         pls.pls,
+        # hops
+        hops.hops,
+        hops.focus_hops,
+        hops.assign_hop_time,
     ]
 
     ds_funcs = [

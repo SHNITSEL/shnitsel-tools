@@ -93,6 +93,9 @@ class DataArrayAccessor(DAManualAccessor):
         'pca',
         'lda',
         'pls',
+        'hops',
+        'focus_hops',
+        'assign_hop_time',
     ]
 
     def norm(self, dim: Hashable='direction', keep_attrs: bool | str | None=None) -> DataArray:
@@ -313,6 +316,18 @@ class DataArrayAccessor(DAManualAccessor):
     def pls(self, ydata_array: DataArray, n_components: int=2, common_dim: str | None=None) -> Dataset:
         """Wrapper for :py:func:`shnitsel.analyze.pls.pls`."""
         return pls(self._obj, ydata_array, n_components=n_components, common_dim=common_dim)
+
+    def hops(self, hop_types: list[tuple[int, int]] | None=None):
+        """Wrapper for :py:func:`shnitsel.analyze.hops.hops`."""
+        return hops(self._obj, hop_types=hop_types)
+
+    def focus_hops(self, hop_types: list[tuple[int, int]] | None=None, window: slice | None=None):
+        """Wrapper for :py:func:`shnitsel.analyze.hops.focus_hops`."""
+        return focus_hops(self._obj, hop_types=hop_types, window=window)
+
+    def assign_hop_time(self, hop_types: list[tuple[int, int]] | None=None, which: Literal='last'):
+        """Wrapper for :py:func:`shnitsel.analyze.hops.assign_hop_time`."""
+        return assign_hop_time(self._obj, hop_types=hop_types, which=which)
 
 
 class DatasetAccessor(DSManualAccessor):
