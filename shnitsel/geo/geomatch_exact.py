@@ -10,7 +10,7 @@ from shnitsel.geo.geocalc import get_bats
 from shnitsel.geo import geomatch
 
 
-def flag_exact(mol, l_smarts) -> dict:
+def flag_exact(mol: rc.Mol, l_smarts: list[str] | str) -> dict:
     """
     Compute and flag bonds, angles, and dihedrals in a single call,
     for multiple structural features
@@ -34,6 +34,8 @@ def flag_exact(mol, l_smarts) -> dict:
     requested, the returned dictionary will still contain the corresponding
     key, associated with an empty list.
     """
+    if isinstance(l_smarts, str):
+        l_smarts = [l_smarts]
     res = {'bonds': [], 'angles': [], 'dihedrals': []}
     for smarts in l_smarts:
         patt = rc.MolFromSmarts(smarts)
