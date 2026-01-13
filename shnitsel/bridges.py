@@ -40,8 +40,7 @@ def to_xyz(da: AtXYZ, comment='#', units='angstrom') -> str:
     """
     if 'units' not in da.attrs:
         warning(
-            "da.attrs['units'] is not set, "
-            "the output will contain unconverted values"
+            "da.attrs['units'] is not set, the output will contain unconverted values"
         )
     else:
         da = convert_length(da, to=units)
@@ -78,8 +77,7 @@ def traj_to_xyz(traj_atXYZ: AtXYZ, units='angstrom') -> str:
     """
     if 'units' not in traj_atXYZ.attrs:
         warning(
-            "da.attrs['units'] is not set, "
-            "the output will contain unconverted values"
+            "da.attrs['units'] is not set, the output will contain unconverted values"
         )
     else:
         traj_atXYZ = convert_length(traj_atXYZ, to=units)
@@ -91,7 +89,7 @@ def traj_to_xyz(traj_atXYZ: AtXYZ, units='angstrom') -> str:
     atNames = traj_atXYZ.atNames.values
     sxyz = np.strings.mod('% 13.9f', atXYZ)
     sxyz = atNames[None, :] + sxyz[:, :, 0] + sxyz[:, :, 1] + sxyz[:, :, 2]
-    atom_lines = np.broadcast_to([f'{traj_atXYZ.sizes['atom']}'], (sxyz.shape[0], 1))
+    atom_lines = np.broadcast_to([f'{traj_atXYZ.sizes["atom"]}'], (sxyz.shape[0], 1))
     if 'time' in traj_atXYZ.coords:
         time_values = np.atleast_1d(traj_atXYZ.coords['time'])
         comment_lines = np.strings.mod('# t=%.2f', time_values)[:, None]
@@ -160,9 +158,9 @@ def to_mol(
     rc.rdDetermineBonds.DetermineConnectivity(mol, useVdw=True, covFactor=covFactor)
     try:
         rc.rdDetermineBonds.DetermineBondOrders(mol, charge=(charge or 0))
-    except ValueError as err:
+    except ValueError:
         if charge is not None:
-            raise err
+            raise
     if to2D:
         rc.rdDepictor.Compute2DCoords(mol)  # type: ignore
     return set_atom_props(
@@ -231,12 +229,12 @@ def construct_default_mol(
         If the final approach fails
     """
     charge_int: int | None = None
-    atXYZ: xr.DataArray 
+    atXYZ: xr.DataArray
 
     if isinstance(obj, xr.Dataset):
         # TODO: FIXME: Make these internal attributes with double underscores so they don't get written out.
-        if 'mol' in obj.attrs:
-            return rc.Mol(obj.attrs['mol'])
+        if '__mol' in obj.attrs:
+            return rc.Mol(obj.attrs['__mol'])
         elif 'atXYZ' in obj:  # We have a frames Dataset
             atXYZ = obj['atXYZ']
         else:
@@ -245,13 +243,16 @@ def construct_default_mol(
         atXYZ = obj.positions
         if charge is None:
             charge = obj.charge
+            print(f'{charge=}')
     else:
         atXYZ = obj  # We have an atXYZ DataArray
-        
+
     if charge is not None:
         if isinstance(charge, float):
             charge = int(np.round(charge))
         charge_int = charge
+    if charge_int is None and 'charge' in obj.coords:
+        charge_int = int(np.round(obj.charge.item()))
     if charge_int is None and 'charge' in obj.attrs:
         charge_int = int(obj.attrs.get('charge', 0))
     if charge_int is None and 'state_charges' in obj.coords:
