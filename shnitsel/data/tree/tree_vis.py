@@ -1,6 +1,6 @@
 from functools import lru_cache, partial
 from importlib.resources import files
-from typing import TYPE_CHECKING, Literal, Mapping
+from typing import TYPE_CHECKING, Any, Callable, Hashable, Literal, Mapping
 import uuid
 from html import escape
 from .node import TreeNode
@@ -24,7 +24,23 @@ def _load_static_files():
     ]
 
 
-def _icon(icon_name: Literal['database', 'file-text2', 'folder']) -> str:
+def _icon(
+    icon_name: Literal[
+        'database',
+        'file-text2',
+        'folder',
+        'tree_struct',
+        'tree_database',
+        'molecule',
+        'molecule2',
+        'tree',
+        'file_dark',
+        'file_bright',
+        'file_bright2',
+        'folder_open',
+        'folder_closed',
+    ],
+) -> str:
     # icon_name should be defined in shnitsel/vis/static/html/icon-svg-inline.html
     return f"<svg class='icon st-{icon_name}'><use xlink:href='#icon-{icon_name}'></use></svg>"
 
@@ -52,14 +68,14 @@ def collapsible_section(
 
 
 def _mapping_section(
-    mapping,
-    name,
-    details_func,
+    mapping:Mapping[Hashable, Any],
+    name:str,
+    details_func:Callable,
     max_items_collapse: int = 5,
-    enabled=True,
+    enabled:bool=True,
+    expanded:bool = False
 ) -> str:
     n_items = len(mapping)
-    expanded = False
     collapsed = not expanded
 
     inline_details = ""
@@ -108,26 +124,27 @@ def summarize_tree_children(children: Mapping[str, TreeNode]) -> str:
 
 attr_section = partial(
     _mapping_section,
-    name="Attributes",
+    name=_icon('file-text2')+"&nbsp;Attributes",
     details_func=summarize_attrs,
     max_items_collapse=10,
 )
 
 root_children_section = partial(
     _mapping_section,
-    name="Compounds",
+    name=_icon('molecule2')+"&nbsp;Compounds",
     details_func=summarize_tree_children,
+    expanded=True,
 )
 
 groups_section = partial(
     _mapping_section,
-    name="Groups",
+    name=_icon('tree_struct')+"&nbsp;Groups",
     details_func=summarize_tree_children,
 )
 
 leaves_section = partial(
     _mapping_section,
-    name="Data",
+    name=_icon('file_dark')+"Data",
     details_func=summarize_tree_children,
 )
 
@@ -203,7 +220,7 @@ def datatree_child_repr(node: TreeNode, end: bool = False) -> str:
 
 def tree_repr(node: TreeNode) -> str:
     header_components = [
-        f"<div class='st-obj-type'>shnitsel.{type(node).__name__} (Level: {node._level_name or '?'}) </div>",
+        f"<div class='st-obj-type'>{_icon('tree_database')}&nbsp;shnitsel.{type(node).__name__} (Level: {node._level_name or '?'}) </div>",
     ]
     if node.name is not None:
         name = escape(repr(node.name))

@@ -444,6 +444,17 @@ dl.st-attrs {
 
 .st-icon-database,
 .st-icon-file-text2,
+.st-icon-shnitsel,
+.st-icon-tree_database,
+.st-icon-tree_struct,
+.st-icon-molecule,
+.st-icon-molecule2,
+.st-icon-tree,
+.st-icon-file_dark,
+.st-icon-file_bright,
+.st-icon-file_bright2,
+.st-icon-folder_open,
+.st-icon-folder_closed,
 .st-no-icon {
   display: inline-block;
   vertical-align: middle;
@@ -452,6 +463,21 @@ dl.st-attrs {
   stroke-width: 0;
   stroke: currentColor;
   fill: currentColor;
+}
+
+svg.icon{
+  display: inline-block;
+  width: 1em;
+  height: 1.5em !important;
+}
+
+.st-icon-file_dark{
+    fill:none;
+    stroke:#000000;
+    stroke-width:2;
+    stroke-linecap:round;
+    stroke-linejoin:round;
+    stroke-miterlimit:10;
 }
 
 .st-var-attrs-in:checked + label > .st-icon-file-text2,
