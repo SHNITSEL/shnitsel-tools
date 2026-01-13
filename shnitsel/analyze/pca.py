@@ -295,7 +295,7 @@ def pca(
 def pca(
     data: Trajectory
     | Frames
-    | ShnitselDB[Trajectory | Frames]
+    | TreeNode[Any, Trajectory | Frames]
     | xr.Dataset
     | xr.DataArray,
     dim: Hashable | None = None,
@@ -356,7 +356,7 @@ def pca(
     else:
         # We need to calculate features first.
 
-        if isinstance(data, ShnitselDB):
+        if isinstance(data, TreeNode):
 
             def traj_to_frame(x: Trajectory | Frames) -> Frames:
                 if isinstance(x, Trajectory) and not isinstance(x, Frames):
@@ -365,6 +365,8 @@ def pca(
 
             data_framed = data.map_data(traj_to_frame)
             data_grouped = data_framed.group_data_by_metadata()
+            print(f"{feature_selection=}")
+
             if feature_selection is not None:
 
                 def extract_features(x: Frames) -> xr.DataArray:
@@ -372,9 +374,13 @@ def pca(
             else:
 
                 def extract_features(x: Frames) -> xr.DataArray:
-                    return get_standardized_pairwise_dists(
-                        x.positions, center_mean=center_mean
-                    ).rename({'atomcomb': 'descriptor'})
+                    return (
+                        get_standardized_pairwise_dists(
+                            x.positions, center_mean=center_mean
+                        )
+                        # .swap_dims(atomcomb='descriptor')
+                        # .rename(atomcomb='descriptor')
+                    )
 
             # We extract the features either with the selection or with the
             # Pairwise distances approach
@@ -396,9 +402,13 @@ def pca(
 
                 inputs: DataGroup[xr.DataArray] = flat_group
                 # Extract feature arrays out of leaves
-                collected_features = flat_group.collect_data()
+                collected_features = list(flat_group.collect_data())
+                if collected_features and 'time' in collected_features[0].sizes:
+                    leading_dim = 'time'
+                else:
+                    leading_dim = 'frame'
                 # Concatenate features
-                glued_features = xr.concat(collected_features, dim='descriptor')
+                glued_features = xr.concat(collected_features, dim=leading_dim)
 
                 # Perform concatenated PCA
                 tmp_res = pca_direct(
@@ -449,7 +459,7 @@ def pca(
                     # Need to rename to ensure the relevant dimension is called `descriptor` and not `atomcomb`
                     feature_array = get_standardized_pairwise_dists(
                         data, center_mean=center_mean
-                    ).rename({'atomcomb': 'descriptor'})
+                    )#.rename({'atomcomb': 'descriptor'})
                 else:
                     feature_array = get_bats(
                         data, structure_selection=feature_selection
