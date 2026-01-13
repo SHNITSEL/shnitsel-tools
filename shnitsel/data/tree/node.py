@@ -385,7 +385,7 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
     def construct_copy(
         self,
         children: Mapping[Hashable, NewChildType] | None = None,
-        dtype: type[ResType] | TypeForm[ResType] | None = None,
+        dtype: type[ResType] | UnionType | None = None,
         data: None = None,
         **kwargs,
     ) -> "TreeNode[NewChildType, ResType]": ...
@@ -394,7 +394,7 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
     def construct_copy(
         self,
         children: None = None,
-        dtype: type[ResType] | TypeForm[ResType] | None = None,
+        dtype: type[ResType] | UnionType | None = None,
         data: ResType | None = None,
         **kwargs,
     ) -> "TreeNode[Any, ResType]": ...
@@ -405,7 +405,7 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
         children: Mapping[Hashable, ChildType]
         | Mapping[Hashable, NewChildType]
         | None = None,
-        dtype: type[ResType] | TypeForm[ResType] | None = None,
+        dtype: type[ResType] | UnionType | None = None,
         data: ResType | None = None,
         **kwargs,
     ) -> Self | "TreeNode[NewChildType, ResType]":
@@ -422,7 +422,7 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
         children : Mapping[str, NewChildType], optional
             A new set of children to replace the old mapping of children can be provided with this parameter.
             The data type can also be changed with appropriate typing here:
-        dtype : type[ResType] | TypeForm[ResType] | None, optional
+        dtype : type[ResType] | UnionType | None, optional
             An explicit argument to set the `dtype` property of the new subtree, by default None.
 
         Returns

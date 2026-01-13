@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from types import UnionType
 from typing import Any, Callable, Generic, Hashable, Mapping, Self, TypeVar, overload
 from typing_extensions import TypeForm
 
@@ -81,7 +82,7 @@ class CompoundGroup(Generic[DataType], DataGroup[DataType]):
     def construct_copy(
         self,
         children: None = None,
-        dtype: type[ResType] | TypeForm[ResType] | None = None,
+        dtype: type[ResType] | UnionType | None = None,
         data: ResType | None = None,
         **kwargs,
     ) -> "CompoundGroup[ResType]": ...
@@ -90,7 +91,7 @@ class CompoundGroup(Generic[DataType], DataGroup[DataType]):
     def construct_copy(
         self,
         children: Mapping[Hashable, NewChildType] | None = None,
-        dtype: type[ResType] | TypeForm[ResType] | None = None,
+        dtype: type[ResType] | UnionType | None = None,
         data: None = None,
         **kwargs,
     ) -> "CompoundGroup[ResType]": ...
@@ -108,7 +109,7 @@ class CompoundGroup(Generic[DataType], DataGroup[DataType]):
         children: Mapping[Hashable, "DataGroup[DataType]|DataLeaf[DataType]"]
         | Mapping[Hashable, NewChildType]
         | None = None,
-        dtype: type[ResType] | TypeForm[ResType] | None = None,
+        dtype: type[ResType] |UnionType | None = None,
         data: ResType | None = None,
         **kwargs,
     ) -> Self | "CompoundGroup[ResType]":
@@ -161,7 +162,7 @@ class CompoundGroup(Generic[DataType], DataGroup[DataType]):
             assert all(
                 isinstance(child, (DataGroup, DataLeaf)) for child in children.values()
             ), "Children provided to `construct_copy` for compound group are not of type `DataGroup` or `DataLeaf"
-            new_dtype: type[ResType] | TypeForm[ResType] | None = dtype
+            new_dtype: type[ResType] | UnionType | None = dtype
 
             return CompoundGroup(
                 children=children,

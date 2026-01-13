@@ -206,27 +206,27 @@ def has_same_structure(*trees: TreeNode) -> bool:
 @overload
 def tree_merge(
     *trees: ShnitselDBRoot[DataType],
-    res_data_type: type[DataType] | TypeForm[DataType] | None = None,
+    res_data_type: type[DataType] | UnionType | None = None,
 ) -> ShnitselDBRoot[DataType] | None: ...
 
 
 @overload
 def tree_merge(
     *trees: CompoundGroup[DataType],
-    res_data_type: type[DataType] | TypeForm[DataType] | None = None,
+    res_data_type: type[DataType] | UnionType | None = None,
 ) -> CompoundGroup[DataType] | None: ...
 
 
 @overload
 def tree_merge(
     *trees: DataGroup[DataType],
-    res_data_type: type[DataType] | TypeForm[DataType] | None = None,
+    res_data_type: type[DataType] | UnionType | None = None,
 ) -> DataGroup[DataType] | None: ...
 
 
 def tree_merge(
     *trees: ShnitselDBRoot[DataType] | CompoundGroup[DataType] | DataGroup[DataType],
-    res_data_type: type[DataType] | TypeForm[DataType] | None = None,
+    res_data_type: type[DataType] | UnionType | None = None,
 ) -> ShnitselDBRoot[DataType] | CompoundGroup[DataType] | DataGroup[DataType] | None:
     """Helper function to merge two trees at the same level.
     Data leaves on the same level will all be retained.

@@ -1,4 +1,5 @@
 from dataclasses import dataclass, asdict
+from types import UnionType
 from typing import Any, Callable, Generic, Hashable, Mapping, Self, TypeVar, overload
 from typing_extensions import TypeForm
 
@@ -89,7 +90,7 @@ class DataGroup(
     def construct_copy(
         self,
         children: None = None,
-        dtype: type[ResType] | TypeForm[ResType] | None = None,
+        dtype: type[ResType] | UnionType | None = None,
         data: ResType | None = None,
         **kwargs,
     ) -> "DataGroup[ResType]": ...
@@ -98,7 +99,7 @@ class DataGroup(
     def construct_copy(
         self,
         children: Mapping[Hashable, NewChildType] | None = None,
-        dtype: type[ResType] | TypeForm[ResType] | None = None,
+        dtype: type[ResType] | UnionType | None = None,
         data: None = None,
         **kwargs,
     ) -> "DataGroup[ResType]": ...
@@ -106,7 +107,7 @@ class DataGroup(
     # def construct_copy_(
     #     self,
     #     children: Mapping[Hashable, CompoundGroup[ResType]] | None = None,
-    #     dtype: type[ResType] | TypeForm[ResType] | None = None,
+    #     dtype: type[ResType] | UnionType | None = None,
     #     data: None = None,
     #     **kwargs,
     # ) -> Self | "ShnitselDBRoot[ResType]":
@@ -116,7 +117,7 @@ class DataGroup(
         children: Mapping[Hashable, "DataGroup[DataType]|DataLeaf[DataType]"]
         | Mapping[Hashable, NewChildType]
         | None = None,
-        dtype: type[ResType] | TypeForm[ResType] | None = None,
+        dtype: type[ResType] | UnionType | None = None,
         data: ResType | None = None,
         **kwargs,
     ) -> Self | "DataGroup[ResType]":

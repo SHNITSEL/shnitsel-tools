@@ -1,5 +1,6 @@
 from dataclasses import asdict
 import logging
+from types import UnionType
 from typing import (
     Any,
     Callable,
@@ -112,7 +113,7 @@ class ShnitselDBRoot(Generic[DataType], TreeNode[CompoundGroup[DataType], DataTy
     def construct_copy(
         self,
         children: None = None,
-        dtype: type[ResType] | TypeForm[ResType] | None = None,
+        dtype: type[ResType] | UnionType | None = None,
         data: ResType | None = None,
         **kwargs,
     ) -> "ShnitselDBRoot[ResType]": ...
@@ -121,7 +122,7 @@ class ShnitselDBRoot(Generic[DataType], TreeNode[CompoundGroup[DataType], DataTy
     def construct_copy(
         self,
         children: Mapping[Hashable, NewChildType] | None = None,
-        dtype: type[ResType] | TypeForm[ResType] | None = None,
+        dtype: type[ResType] | UnionType | None = None,
         data: None = None,
         **kwargs,
     ) -> "ShnitselDBRoot[ResType]": ...
@@ -138,7 +139,7 @@ class ShnitselDBRoot(Generic[DataType], TreeNode[CompoundGroup[DataType], DataTy
         children: Mapping[Hashable, CompoundGroup[DataType]]
         | Mapping[Hashable, NewChildType]
         | None = None,
-        dtype: type[ResType] | TypeForm[ResType] | None = None,
+        dtype: type[ResType] | UnionType | None = None,
         data: ResType | None = None,
         **kwargs,
     ) -> Self | "ShnitselDBRoot[ResType]":
@@ -148,7 +149,7 @@ class ShnitselDBRoot(Generic[DataType], TreeNode[CompoundGroup[DataType], DataTy
         -----------
         children: Mapping[Hashable, CompoundGroup[DataType]] Mapping[Hashable, CompoundGroup[ResType]], optional
             The mapping of children with a potentially new `DataType`. If not provided, will be copied from the current node's child nodes.
-        dtype: type[ResType] | TypeForm[ResType], optional
+        dtype: type[ResType] | UnionType, optional
             The data type of the data in the copy constructed tree.
         data: None, optional
             Data setting not supported on this type of node.
@@ -300,7 +301,7 @@ class ShnitselDBRoot(Generic[DataType], TreeNode[CompoundGroup[DataType], DataTy
         return self.construct_copy(children=new_children)
 
     def set_compound_info(
-        self, compound_info: CompoundInfo, overwrite_all: bool = False
+        self, compound_info: str| CompoundInfo, overwrite_all: bool = False
     ) -> Self:
         """Function to set the compound information on either all unknown compounds (`overwrite_all=False`) or for all trajectories in the tree
         creating a new CompoundGroup holding all trajectories. (if `overwrite_all=True`).
@@ -311,8 +312,8 @@ class ShnitselDBRoot(Generic[DataType], TreeNode[CompoundGroup[DataType], DataTy
 
         Parameters
         ----------
-        compound_info : CompoundInfo
-            The compound information to apply to either the unknown compounds or all data in the tree.
+        compound_info : str | CompoundInfo
+            Either the compound name as a string or the compound information to apply to either the unknown compounds or all data in the tree.
         overwrite_all : bool, optional
             Flag to control whether the compound group of all data should be overwritten, by default False
 
@@ -322,6 +323,9 @@ class ShnitselDBRoot(Generic[DataType], TreeNode[CompoundGroup[DataType], DataTy
             The updated database
         """
         from .support_functions import tree_merge
+
+        if isinstance(compound_info, str):
+            compound_info = CompoundInfo(compound_name=compound_info)
 
         if overwrite_all:
             new_compound: CompoundGroup[DataType] | None = tree_merge(
@@ -365,7 +369,7 @@ class ShnitselDBRoot(Generic[DataType], TreeNode[CompoundGroup[DataType], DataTy
                 else:
                     new_children[res_name] = renamed_child
 
-                print(new_children)
+                # print(new_children)
 
                 return self.construct_copy(compounds=new_children)
 

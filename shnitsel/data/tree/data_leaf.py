@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from types import UnionType
 from typing import (
     Any,
     Callable,
@@ -48,7 +49,7 @@ class DataLeaf(Generic[DataType], TreeNode[None, DataType]):
     def construct_copy(
         self,
         children: None = None,
-        dtype: type[ResType] | TypeForm[ResType] | None = None,
+        dtype: type[ResType] | UnionType | None = None,
         data: ResType | None = None,
         **kwargs,
     ) -> "DataLeaf[ResType]": ...
@@ -57,7 +58,7 @@ class DataLeaf(Generic[DataType], TreeNode[None, DataType]):
     def construct_copy(
         self,
         children: Mapping[Hashable, NewChildType] | None = None,
-        dtype: type[ResType] | TypeForm[ResType] | None = None,
+        dtype: type[ResType] | UnionType | None = None,
         data: None = None,
         **kwargs,
     ) -> "DataLeaf[ResType]": ...
@@ -75,7 +76,7 @@ class DataLeaf(Generic[DataType], TreeNode[None, DataType]):
         children: Mapping[Hashable, None]
         | Mapping[Hashable, NewChildType]
         | None = None,
-        dtype: type[ResType] | TypeForm[ResType] | None = None,
+        dtype: type[ResType] | UnionType | None = None,
         data: ResType | None = None,
         **kwargs,
     ) -> Self | "DataLeaf[ResType]":
