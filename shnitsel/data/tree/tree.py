@@ -167,9 +167,8 @@ class ShnitselDBRoot(Generic[DataType], TreeNode[CompoundGroup[DataType], DataTy
 
         new_dtype: (
             type[ResType]
-            | TypeForm[ResType]
+            | UnionType
             | type[DataType]
-            | TypeForm[DataType]
             | None
         ) = dtype
 
