@@ -365,7 +365,6 @@ def pca(
 
             data_framed = data.map_data(traj_to_frame)
             data_grouped = data_framed.group_data_by_metadata()
-            print(f"{feature_selection=}")
 
             if feature_selection is not None:
 
