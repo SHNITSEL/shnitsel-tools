@@ -105,7 +105,7 @@ def get_statecomb_coordinate(states: xr.DataArray) -> xr.Coordinates:
         The new coordinate having all non-ordered state combinations
     """
     return xr.Coordinates.from_pandas_multiindex(
-        pd.MultiIndex.from_tuples(combinations(states, 2), names=["statecomb_from", "statecomb_to"]),
+        pd.MultiIndex.from_tuples(combinations(states.values, 2), names=["statecomb_from", "statecomb_to"]),
         dim="statecomb",
     )
 
