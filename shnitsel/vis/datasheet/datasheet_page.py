@@ -476,10 +476,12 @@ class DatasheetPage:
         """
         res: dict[str, str] = {}
 
-        pca_raw = self.pca_info
+        pca_components = self.pca_full_data.principal_components
 
-        for component in pca_raw.components_:
-            print(component)
+        print(f"{self.pca_full_data.inputs=}")
+
+        for i, component in enumerate(pca_components):
+            print(f"{i=}: {component=}")
 
         return res
 
