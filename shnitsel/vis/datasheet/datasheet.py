@@ -156,6 +156,7 @@ class Datasheet:
                 self.datasheet_pages[_Datasheet_default_page_key] = DatasheetPage(
                     self.data_source,
                     spectra_times=spectra_times,
+                    feature_selection=feature_selection,
                     col_inter=col_inter,
                     col_state=col_state,
                 )
