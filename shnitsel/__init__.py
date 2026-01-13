@@ -24,3 +24,13 @@ __all__ = [
     'write_shnitsel_file',
     'write_ase_db',
 ]
+
+
+def collapse_display():
+    import xarray as xr
+    xr.set_options(
+        display_expand_coords=False,
+        display_expand_data_vars=False,
+        display_expand_attrs=False,
+        display_expand_data=False
+    )
