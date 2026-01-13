@@ -300,7 +300,7 @@ class ShnitselDBRoot(Generic[DataType], TreeNode[CompoundGroup[DataType], DataTy
         return self.construct_copy(children=new_children)
 
     def set_compound_info(
-        self, compound_info: str| CompoundInfo, overwrite_all: bool = False
+        self, compound: str| CompoundInfo, overwrite_all: bool = False
     ) -> Self:
         """Function to set the compound information on either all unknown compounds (`overwrite_all=False`) or for all trajectories in the tree
         creating a new CompoundGroup holding all trajectories. (if `overwrite_all=True`).
@@ -311,7 +311,7 @@ class ShnitselDBRoot(Generic[DataType], TreeNode[CompoundGroup[DataType], DataTy
 
         Parameters
         ----------
-        compound_info : str | CompoundInfo
+        compound : str | CompoundInfo
             Either the compound name as a string or the compound information to apply to either the unknown compounds or all data in the tree.
         overwrite_all : bool, optional
             Flag to control whether the compound group of all data should be overwritten, by default False
@@ -323,8 +323,10 @@ class ShnitselDBRoot(Generic[DataType], TreeNode[CompoundGroup[DataType], DataTy
         """
         from .support_functions import tree_merge
 
-        if isinstance(compound_info, str):
-            compound_info = CompoundInfo(compound_name=compound_info)
+        if isinstance(compound, str):
+            compound_info = CompoundInfo(compound_name=compound)
+        else:
+            compound_info = compound
 
         if overwrite_all:
             new_compound: CompoundGroup[DataType] | None = tree_merge(
