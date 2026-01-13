@@ -1,9 +1,30 @@
+import re
 from typing import Literal
 
 import xarray as xr
 import numpy as np
 
 from shnitsel.data.multi_indices import mdiff, sel_trajs
+
+
+def _standard_hop_spec(spec):
+    search = re.compile('(?P<state_from>.+)(?P<rel>(->)|(<>))(?P<state_to>.+)')
+    if not isinstance(spec, str):
+        return spec
+
+    subs = re.split(r',\s*', spec)
+
+    res = []
+    for sub in subs:
+        found = search.match(sub)
+        state_from = int(found.group('state_from'))
+        state_to = int(found.group('state_to'))
+        rel = found.group('rel')
+        if rel == '->':
+            res.append((state_from, state_to))
+        else:
+            res.extend([(state_from, state_to), (state_to, state_from)])
+    return res
 
 
 # TODO: type-hinting of appropriate generality for first argument
@@ -19,6 +40,11 @@ def hops(frames, hop_types: list[tuple[int, int]] | None = None):
         ``[(1, 2), (2, 1), (3, 1)]``
         to select only hops between states 1 and 2 as well as from
         3 to 1 (but not from 1 to 3).
+        Alternatively, hops may be specified as a single string
+        in the following style: ``'1<>2, 3->1'`` -- this specification
+        selects the same hops as in the previous example, with ``<>``
+        selecting hops in either direction and ``->`` being one-
+        directional.
 
     Returns
     -------
@@ -30,6 +56,7 @@ def hops(frames, hop_types: list[tuple[int, int]] | None = None):
         - ``hop_from``: the active state before the hop
         - ``hop_to``: the active state after the hop
     """
+    hop_types = _standard_hop_spec(hop_types)
     is_hop = mdiff(frames['astate']) != 0
 
     res = frames.isel(frame=is_hop)
