@@ -17,7 +17,7 @@ def _standard_hop_spec(spec):
     if not isinstance(spec, str):
         return spec
 
-    subs = re.split(r",\s*", spec)
+    subs = re.split(r"\s*,\s*", spec)
 
     res = []
     for sub in subs:
