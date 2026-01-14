@@ -368,7 +368,7 @@ def plot_clusters_insets(
     ax: Axes,
     loadings: xr.DataArray,
     clusters: list[list[int]],
-    mol: Mol,
+    mol: "Mol",
     min_angle: float = 10,
     inset_scale: float = 1,
     show_at_most: int | None = None,
