@@ -202,7 +202,7 @@ def _most_stable_frame(atXYZ, obj) -> int:
     return atXYZ.sel(trajid=trajid, time=0)
 
 
-def construct_default_mol(
+def default_mol(
     obj: xr.Dataset | xr.DataArray | Trajectory | Frames | rc.Mol,
     to2D: bool = True,
     charge: int | float | None = None,
@@ -326,6 +326,8 @@ def construct_default_mol(
             "contains a representative geometry, use "
             "frames.attrs['smiles_map'] = frames.atXYZ.isel(frame=i).st.get_smiles_map(charge=c)"
         )
+
+construct_default_mol = default_mol
 
 
 @needs(dims={'atom', 'direction'}, coords_or_vars={'atNames'}, not_dims={'frame'})
