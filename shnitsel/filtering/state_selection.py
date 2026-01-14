@@ -1,7 +1,8 @@
 from dataclasses import dataclass
 from itertools import combinations
 import logging
-from typing import Iterable, Self, Sequence, Literal
+import re
+from typing import Iterable, Self, Sequence, Literal, TypeAlias
 
 import numpy as np
 import xarray as xr
@@ -15,6 +16,8 @@ from ..core.typedefs import (
     StateCombInfo,
     MultiplicityLabel,
 )
+
+StateSelectionDescriptor: TypeAlias = Sequence[StateCombination] | Sequence[str] | str
 
 
 @dataclass
@@ -184,9 +187,9 @@ class StateSelection:
         Returns:
             StateSelection: A state selection object initially covering all states (and state combinations) present in the dataset.
         """
-        assert (
-            'state' in dataset.sizes
-        ), "No state information on the provided dataset. Cannot initialize state selection."
+        assert 'state' in dataset.sizes, (
+            "No state information on the provided dataset. Cannot initialize state selection."
+        )
 
         if 'states' in dataset.coords:
             states = list(int(n) for n in dataset.coords['states'].values)
@@ -286,6 +289,31 @@ class StateSelection:
             state_degeneracy_group=state_degeneracy_group,
             degeneracy_group_states=degeneracy_group_states,
         )
+
+    @classmethod
+    def init_from_descriptor(cls: type[Self], spec: StateSelectionDescriptor) -> Self:
+        pass
+
+    @staticmethod
+    def _standard_hop_spec(spec):
+        # TODO: FIXME: move to state_selection
+        search = re.compile("(?P<state_from>.+)(?P<rel>(->)|(<>))(?P<state_to>.+)")
+        if not isinstance(spec, str):
+            return spec
+
+        subs = re.split(r"\s*,\s*", spec)
+
+        res: list[StateCombination] = []
+        for sub in subs:
+            found = search.match(sub)
+            state_from = int(found.group("state_from"))
+            state_to = int(found.group("state_to"))
+            rel = found.group("rel")
+            if rel == "->":
+                res.append((state_from, state_to))
+            else:
+                res.extend([(state_from, state_to), (state_to, state_from)])
+        return res
 
     def filter_states(
         self,
