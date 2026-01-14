@@ -2,7 +2,7 @@ import xarray as xr
 
 from shnitsel._contracts import Needs
 
-from shnitsel.data.tree import tree_to_frames
+from shnitsel.data.tree_to_frames import tree_to_frames
 
 # CONVERTERS: dict[str, P.Converter] = {
 #     'convert_energy': P.convert_energy,
