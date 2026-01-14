@@ -3,7 +3,6 @@ from typing import Any, Callable, List, Literal, TypeVar
 import xarray as xr
 
 from shnitsel.data.tree import DataLeaf, TreeNode
-from shnitsel.data.trajectory_format import Trajectory
 from .tree.datatree_level import (
     _datatree_level_attribute_key,
     DataTreeLevelMap,
@@ -43,7 +42,7 @@ def aggregate_xr_over_levels(
     tree: TreeNode[Any, DataType],
     func: Callable[[TreeNode[Any, DataType]], R],
     level_name: Literal['root', 'compound', 'group', 'data'],
-    dtype: type[R] | UnionType | None = None
+    dtype: type[R] | UnionType | None = None,
 ) -> TreeNode[Any, R] | None:
     """Apply an aggregation function to every node at a level of a db structure
 
@@ -86,26 +85,28 @@ def aggregate_xr_over_levels(
         return None
 
 
-# TODO: FIXME: currently no path logic in tree.
-# def get_trajectories_with_path(subtree: T) -> List[tuple[str, Trajectory]]:
-#     """Function to get a list of all datasets in the tree with their respective path
+def get_data_with_path(subtree: TreeNode[Any, DataType]) -> List[tuple[str, DataType]]:
+    """Function to get a list of all data in a tree with their respective path
 
-#     Args:
-#         subtree (xr.DataTree): The subtree to generate the collection for.
+    Parameters
+    ----------
+    subtree : TreeNode[Any, DataType]
+        The subtree to generate the collection for.
 
-#     Returns:
-#         List[tuple[str, Trajectory]]: A list of tuples (path, dataset at that path) for all datasets in the respective subtree.
-#     """
-#     # TODO: FIXME: This needs to be a bit more generalized for trees with arbitrary data
+    Returns
+    -------
+    List[tuple[str, DataType]]
+        A list of tuples (path, data at that path) for all data in the subtree.
+    """
 
-#     res = []
-#     if subtree.has_data:
-#         # the tree will give us empty datasets instead of none if an attribute on the node has been set.
-#         res.append((subtree.path, subtree.dataset))
+    res = []
+    if subtree.has_data:
+        # the tree will give us empty datasets instead of none if an attribute on the node has been set.
+        res.append((subtree.path, subtree.data))
 
-#     for key, child in subtree.children.items():
-#         child_res = get_trajectories_with_path(child)
-#         if child_res is not None and len(child_res) > 0:
-#             res = res + child_res
+    for key, child in subtree.children.items():
+        child_res = get_data_with_path(child)
+        if child_res is not None and len(child_res) > 0:
+            res = res + child_res
 
-#     return res
+    return res
