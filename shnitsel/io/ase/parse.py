@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-from shnitsel.data.trajectory_format import Trajectory
+from shnitsel.data.dataset_containers import Frames, Trajectory
 from shnitsel.io.shared.helpers import LoadingParameters
 from shnitsel.io.shared.trajectory_setup import (
     RequiredTrajectorySettings,

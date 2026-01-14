@@ -2,7 +2,7 @@ import logging
 from typing import Any, List, Set, Tuple
 
 from shnitsel.data.shnitsel_db.db_function_decorator import dataset_to_tree_method
-from shnitsel.data.trajectory_format import Trajectory
+from shnitsel.data.dataset_containers import Frames, Trajectory
 import xarray as xr
 from shnitsel.units import standard_shnitsel_units
 from shnitsel.units.definitions import unit_dimensions

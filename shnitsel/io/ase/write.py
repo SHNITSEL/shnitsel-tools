@@ -8,7 +8,7 @@ import numpy as np
 import xarray as xr
 
 from shnitsel._contracts import needs
-from shnitsel.data.trajectory_format import Trajectory
+from shnitsel.data.dataset_containers import Frames, Trajectory
 
 
 def _prepare_for_write_schnetpack(

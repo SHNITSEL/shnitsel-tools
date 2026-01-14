@@ -1,8 +1,8 @@
 import os
 
 
-from shnitsel.data.shnitsel_db_format import ShnitselDB
-from shnitsel.data.trajectory_format import Trajectory
+from shnitsel.data.dataset_containers import Frames, Trajectory
+from shnitsel.data.tree.tree import ShnitselDB
 from shnitsel.io import read
 from shnitsel.io.shared.helpers import LoadingParameters
 from shnitsel.io.sharc.format_reader import SHARCFormatReader
@@ -26,7 +26,7 @@ class TestSHARC:
     def test_read_single_iconds_folder_direct(self):
         # Parse iconds data with direct method call
         path = "tutorials/test_data/sharc/iconds_butene/ICOND_00000"
-        iconds = SHARCFormatReader().read_trajectory(
+        iconds = SHARCFormatReader().read_data(
             path, loading_parameters=LoadingParameters()
         )
         assert isinstance(

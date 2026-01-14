@@ -1,6 +1,6 @@
 
-from shnitsel.data.shnitsel_db_format import ShnitselDB
-from shnitsel.data.trajectory_format import Trajectory
+from shnitsel.data.dataset_containers import Frames, Trajectory
+from shnitsel.data.tree.tree import ShnitselDB
 from shnitsel.io import read
 from shnitsel.io.sharc.format_reader import SHARCFormatReader
 from shnitsel.io import write_shnitsel_file
@@ -44,7 +44,7 @@ class TestSHARCTrajectories:
 
     def test_read_sharc_trajs_direct_v2_1(self):
         # parse trajectory data from SHARC output files
-        traj_frames_butene = SHARCFormatReader().read_trajectory(
+        traj_frames_butene = SHARCFormatReader().read_data(
             "tutorials/test_data/sharc/traj_butene_v2.1/TRAJ_00002"
         )
         assert isinstance(traj_frames_butene, Trajectory)
@@ -219,7 +219,7 @@ class TestSHARCTrajectories:
         ), "Resulting trajectory from SHARC trajectory does not satisfy the Shnitsel standard format"
 
         # Check charge
-        traj_frames_butene.map_over_trajectories(lambda ds: _charge_check(ds, 1))
+        traj_frames_butene.map_data(lambda ds: _charge_check(ds, 1))
 
     def test_read_sharc_wrapper_direct_v4_0(self):
         # Read trajectory bundle from a v4.0 directory. Needs to detect the charges
@@ -238,7 +238,7 @@ class TestSHARCTrajectories:
         ), "Resulting trajectory from SHARC trajectory does not satisfy the Shnitsel standard format"
 
         # Check charge
-        traj_frames_butene.map_over_trajectories(lambda ds: _charge_check(ds, 1))
+        traj_frames_butene.map_data(lambda ds: _charge_check(ds, 1))
 
         write_shnitsel_file(
             traj_frames_butene, "tutorials/test_data/sharc/traj_I01_v4.nc"

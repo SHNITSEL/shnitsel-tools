@@ -1,5 +1,6 @@
-from shnitsel.data.shnitsel_db_format import ShnitselDB
-from shnitsel.data.trajectory_format import Trajectory
+
+from shnitsel.data.dataset_containers import Frames, Trajectory
+from shnitsel.data.tree.tree import ShnitselDB
 from shnitsel.io import read
 from shnitsel.io.pyrai2md.format_reader import PyrAI2mdFormatReader
 from shnitsel.test_support.trajectory_verification import verify_trajectory_format
@@ -22,7 +23,7 @@ class TestPyrai2mdFunctionality:
 
     def test_read_pyrai2md_trajs_direct(self):
         # parse trajectory data directly from pyrai2md output
-        traj = PyrAI2mdFormatReader().read_trajectory(self.input_path + "traj1")
+        traj = PyrAI2mdFormatReader().read_data(self.input_path + "traj1")
         assert traj is not None, (
             f"Failed to load PyRAI2md trajectory from {self.input_path + 'traj1'}"
         )

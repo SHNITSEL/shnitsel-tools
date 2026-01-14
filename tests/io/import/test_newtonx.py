@@ -2,8 +2,8 @@ import pathlib
 
 import pytest
 
-from shnitsel.data.shnitsel_db_format import ShnitselDB
-from shnitsel.data.trajectory_format import Trajectory
+from shnitsel.data.dataset_containers import Frames, Trajectory
+from shnitsel.data.tree.tree import ShnitselDB
 from shnitsel.io.shnitsel.write import write_shnitsel_file
 from shnitsel.test_support.trajectory_verification import verify_trajectory_format
 
@@ -41,7 +41,7 @@ class TestNewtonX:
     )
     def test_nx_direct_R02_single_direct(self, path, add_props):
         # parse trajectory data from Newton-X output files
-        traj = NewtonXFormatReader().read_trajectory(path)
+        traj = NewtonXFormatReader().read_data(path)
         assert traj is not None, f"Failed to load NewtonX trajectory from {path}"
         assert isinstance(
             traj, Trajectory

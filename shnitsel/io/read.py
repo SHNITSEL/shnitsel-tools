@@ -9,8 +9,6 @@ from shnitsel.data.traj_combiner_methods import (
 )
 from shnitsel.data.dataset_containers import Trajectory, Frames
 
-# from shnitsel.data.trajectory_format import Trajectory
-# from shnitsel.data.shnitsel_db_format import ShnitselDB, build_shnitsel_db
 from shnitsel.data.tree import (
     ShnitselDB,
     CompoundGroup,

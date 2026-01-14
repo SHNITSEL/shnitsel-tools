@@ -8,8 +8,7 @@ import xarray as xr
 
 import numpy as np
 
-from shnitsel.core.typedefs import Frames
-from shnitsel.data.trajectory_format import Trajectory
+from shnitsel.data.dataset_containers import Frames, Trajectory
 from shnitsel.io.shared.helpers import LoadingParameters
 from shnitsel.io.shared.variable_flagging import mark_variable_assigned
 
