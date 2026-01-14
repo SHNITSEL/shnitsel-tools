@@ -2,7 +2,7 @@ import logging
 import os
 import timeit
 
-from shnitsel.data.trajectory_format import Trajectory
+from shnitsel.data.dataset_containers import Frames, Trajectory
 from shnitsel.io import read
 
 if __name__ == '__main__':
