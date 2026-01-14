@@ -658,7 +658,7 @@ def pick_clusters(
     radii = np.sqrt(points[:, 0] ** 2 + points[:, 1] ** 2)
     # center = stats.circmean(angles, high=180, low=-180)
 
-    picks, bins, edges = binning_with_min_entries(
+    picks, bins, edges = _binning_with_min_entries(
         num_bins=num_bins, angles=angles, radii=radii, return_bins_edges=True
     )
     # bins, edges = circbins(angles, nbins=4, center=center)
@@ -675,7 +675,7 @@ def pick_clusters(
     )
 
 
-def binning_with_min_entries(
+def _binning_with_min_entries(
     num_bins: int,
     angles: NDArray,
     radii: NDArray,
