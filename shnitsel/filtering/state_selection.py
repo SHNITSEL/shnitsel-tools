@@ -17,7 +17,14 @@ from ..core.typedefs import (
     MultiplicityLabel,
 )
 
-StateSelectionDescriptor: TypeAlias = Sequence[StateCombination] | Sequence[str] | str
+StateSelectionDescriptor: TypeAlias = (
+    Sequence[StateId | StateCombination] | Sequence[str] | str
+)
+
+_state_combs_pattern = re.compile(
+    r"(?P<state_from>.+)\s*(?P<rel>(->)|(<>))\s*(?P<state_to>.+)"
+)
+_state_id_pattern = re.compile(r"(?P<state>\d+)")
 
 
 @dataclass
@@ -212,7 +219,7 @@ class StateSelection:
             }
         else:
             logging.warning(
-                "No state types vailable on the dataset. Please assign them yourself."
+                "No state types available on the dataset. Please assign them yourself."
             )
             state_types = None
 
@@ -225,7 +232,7 @@ class StateSelection:
             }
         else:
             logging.warning(
-                "No state names vailable on the dataset. Please assign them yourself."
+                "No state names available on the dataset. Please assign them yourself."
             )
             state_names = None
 
@@ -238,7 +245,7 @@ class StateSelection:
             }
         else:
             logging.info(
-                "No state charges vailable on the dataset. Please assign them yourself."
+                "No state charges available on the dataset. Please assign them yourself."
             )
             state_charges = None
 
@@ -291,29 +298,128 @@ class StateSelection:
         )
 
     @classmethod
-    def init_from_descriptor(cls: type[Self], spec: StateSelectionDescriptor) -> Self:
-        pass
+    def init_from_descriptor(
+        cls: type[Self],
+        spec: StateSelectionDescriptor,
+    ) -> Self:
+        """Build a (rather rudimentary) state selection and
+        state combination selection from descriptors with no support for determination of
+        multiplicity groups and others but to simplify the process of providing a state selection
+        to function calls.
+
+        Parameters
+        ----------
+        cls : type[Self]
+            StateSelection class to use for construction.
+        spec : StateSelectionDescriptor
+            Either a single spec string, a Sequence of state ids or state id pairs
+            or a sequence of spec strings.
+            A selection of ``[(1, 2), (2, 1), (3, 1)]`` means
+            to select only transitions between states 1 and 2 as well as from
+            3 to 1 (but not from 1 to 3).
+            Alternatively, combinations may be specified as a single string
+            in the following style: ``'1<>2, 3->1'`` -- this specification
+            selects the same combinations as in the previous example, with ``<>``
+            selecting transitions in either direction and ``->`` being
+            one-directional.
+
+        Returns
+        -------
+        Self
+            A StateSelection built from the state specification.
+        """
+        states_coll: set[StateId] = set()
+        state_combs_coll: set[StateCombination] = set()
+
+        if isinstance(spec, str):
+            states, combs = StateSelection._standard_state_comb_spec(spec)
+            states_coll.update(states)
+            state_combs_coll.update(combs)
+        else:
+            for ispec in spec:
+                if isinstance(ispec, str):
+                    states, combs = StateSelection._standard_state_comb_spec(ispec)
+                    states_coll.update(states)
+                    state_combs_coll.update(combs)
+                elif isinstance(ispec, tuple):
+                    states_coll.update(ispec)
+                    if len(ispec) == 2:
+                        state_combs_coll.add(ispec)
+                else:
+                    states_coll.add(int(ispec))
+
+        ground_state_id = np.min(states_coll)
+
+        return cls(
+            states=list(states_coll),
+            ground_state_id=ground_state_id,
+            state_types=None,
+            state_charges=None,
+            state_names=None,
+            state_combinations=list(state_combs_coll),
+            state_combination_names=None,
+            state_degeneracy_group=None,
+            degeneracy_group_states=None,
+        )
 
     @staticmethod
-    def _standard_hop_spec(spec):
+    def _standard_state_comb_spec(
+        spec: str,
+    ) -> tuple[list[StateId], list[StateCombination]]:
+        """Support extracting states and state combinations from strings.
+
+        Parameters
+        ----------
+        spec : str
+            The spec string with a certain pattern.
+            A state selection holding states or state transitions that should be used
+            in analysis, e.g.:
+            A selection of ``[(1, 2), (2, 1), (3, 1)]`` means
+            to select only transitions between states 1 and 2 as well as from
+            3 to 1 (but not from 1 to 3).
+            Alternatively, combinations may be specified as a single string
+            in the following style: ``'1<>2, 3->1'`` -- this specification
+            selects the same hops as in the previous example, with ``<>``
+            selecting hops in either direction and ``->`` being one-
+            directional.
+
+        Returns
+        -------
+        tuple[list[StateId], list[StateCombination]]
+            _description_
+        """
         # TODO: FIXME: move to state_selection
-        search = re.compile("(?P<state_from>.+)(?P<rel>(->)|(<>))(?P<state_to>.+)")
         if not isinstance(spec, str):
             return spec
 
-        subs = re.split(r"\s*,\s*", spec)
+        sub_specs = re.split(r"\s*,\s*", spec)
 
-        res: list[StateCombination] = []
-        for sub in subs:
-            found = search.match(sub)
-            state_from = int(found.group("state_from"))
-            state_to = int(found.group("state_to"))
-            rel = found.group("rel")
-            if rel == "->":
-                res.append((state_from, state_to))
+        res_state: set[StateId] = set()
+        res_state_comb: set[StateCombination] = set()
+        for spec in sub_specs:
+            found = _state_combs_pattern.match(spec)
+            if found:
+                # TODO: FIXME: Deal with S, T, D, S0, and other state names that could be here
+                state_from = int(found.group("state_from"))
+                state_to = int(found.group("state_to"))
+                rel = found.group("rel")
+                res_state.add(state_from)
+                res_state.add(state_to)
+                if rel == "->":
+                    res_state_comb.add((state_from, state_to))
+                else:
+                    res_state_comb.update(
+                        [(state_from, state_to), (state_to, state_from)]
+                    )
             else:
-                res.extend([(state_from, state_to), (state_to, state_from)])
-        return res
+                found = _state_id_pattern.match(spec)
+                if found:
+                    state_id = found.group("state")
+                    # TODO: FIXME: Deal with S, T, D, S0, and other state names that could be here
+                    state = int(state_id)
+                    res_state.add(state)
+
+        return list(res_state), list(res_state_comb)
 
     def filter_states(
         self,
