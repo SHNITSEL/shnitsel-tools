@@ -5,6 +5,7 @@ from shnitsel._contracts import needs
 import xarray as xr
 
 from shnitsel.analyze.generic import get_standardized_pairwise_dists
+from shnitsel.data.dataset_containers import wrap_dataset
 from shnitsel.data.dataset_containers.frames import Frames
 from shnitsel.data.dataset_containers.trajectory import Trajectory
 from shnitsel.data.multi_indices import mdiff
@@ -165,10 +166,16 @@ def pca_and_hops(
         - hopping_point_masks
             The mask of the hopping point events. Can be used to only extract the hopping point PCA results from the projected input result in pca_res.
     """
+
+    wrapped_ds = wrap_dataset(frames)
+    assert isinstance(wrapped_ds, (Frames, Trajectory)), (
+        "provided frames data could not be considered trajectory or frameset data."
+    )
+
     if feature_selection is None:
         # Will default to pairwise distances
         pca_res = pca(
-            frames.positions,
+            wrapped_ds.positions,
             dim=None,
             feature_selection=None,
             n_components=n_components,
@@ -177,13 +184,13 @@ def pca_and_hops(
     else:
         # Perform a pca with feature extraction
         pca_res = pca(
-            frames.positions,
+            wrapped_ds.positions,
             dim=None,
             feature_selection=feature_selection,
             n_components=n_components,
         )
 
-    hops_positions = mdiff(frames.active_state) != 0
+    hops_positions = mdiff(wrapped_ds.active_state) != 0
 
     return pca_res, hops_positions
 
@@ -460,7 +467,7 @@ def pca(
                     # Need to rename to ensure the relevant dimension is called `descriptor` and not `atomcomb`
                     feature_array = get_standardized_pairwise_dists(
                         data, center_mean=center_mean
-                    )#.rename({'atomcomb': 'descriptor'})
+                    )  # .rename({'atomcomb': 'descriptor'})
                 else:
                     feature_array = get_bats(
                         data, structure_selection=feature_selection
