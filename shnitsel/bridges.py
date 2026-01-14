@@ -1,4 +1,5 @@
 """This submodule contains functions used to interface with other packages and programs, especially RDKit."""
+
 import logging
 from typing import Literal
 
@@ -189,7 +190,7 @@ def numbered_smiles_to_mol(smiles: str) -> rc.Mol:
     return set_atom_props(mol, molAtomMapNumber=False)
 
 
-def _most_stable_frame(atXYZ, obj) -> int:
+def _most_stable_frame(atXYZ, obj: xr.Dataset | Trajectory | Frames) -> xr.DataArray:
     """Find the frame, out of all the initial conditions,
     with the lowest ground-state energy;
     failing that, return the first frame in ``atXYZ``
@@ -265,11 +266,11 @@ def construct_default_mol(
         if '__mol' in obj.attrs:
             return rc.Mol(obj.attrs['__mol'])
         elif 'atXYZ' in obj:  # We have a frames Dataset
-            atXYZ = obj['atXYZ']
+            atXYZ = _most_stable_frame(obj['atXYZ'], obj)
         else:
             raise ValueError("Not enough information to construct molecule from object")
     elif isinstance(obj, (Trajectory, Frames)):
-        atXYZ = obj.positions
+        atXYZ = _most_stable_frame(obj.positions, obj)
         if charge is None:
             charge = obj.charge
             print(f'{charge=}')
@@ -316,7 +317,10 @@ def construct_default_mol(
         if charge_int != 0:
             logging.info(f"Creating molecule with {charge_int=}")
         return set_atom_props(
-            to_mol(atXYZ, charge=charge_int, to2D=to2D), molAtomMapNumber=molAtomMapNumber, atomNote=atomNote, atomLabel=atomLabel
+            to_mol(atXYZ, charge=charge_int, to2D=to2D),
+            molAtomMapNumber=molAtomMapNumber,
+            atomNote=atomNote,
+            atomLabel=atomLabel,
         )
     except (KeyError, ValueError) as e:
         logging.error(e)
@@ -348,3 +352,5 @@ def smiles_map(atXYZ_frame, charge=0, covFactor=1.5) -> str:
     """
     mol = to_mol(atXYZ_frame, charge=charge, covFactor=covFactor, to2D=True)
     return mol_to_numbered_smiles(mol)
+
+default_mol = construct_default_mol
