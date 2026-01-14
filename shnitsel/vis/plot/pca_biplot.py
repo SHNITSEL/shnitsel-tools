@@ -1,12 +1,15 @@
-from typing import Iterable, Sequence
+from math import ceil
+from typing import Any, Callable, Iterable, Sequence, TYPE_CHECKING
 
 from matplotlib.colors import Normalize, Colormap
 from matplotlib.figure import Figure, SubFigure
 import numpy as np
+from numpy.typing import NDArray
 import xarray as xr
 import matplotlib as mpl
 
 from matplotlib.axes import Axes
+from matplotlib.pyplot import subplot_mosaic
 
 from scipy import stats
 from sklearn.cluster import KMeans
@@ -18,13 +21,16 @@ from shnitsel.core.typedefs import Frames
 from .common import figax, extrude, mpl_imshow_png
 from ...rd import highlight_pairs
 
+if TYPE_CHECKING:
+    from rdkit.Chem import Mol
+
 
 def plot_noodleplot(
-    noodle: xr.DataArray,
+    noodle: NDArray | xr.DataArray,
     hops: xr.DataArray | None = None,
     fig: Figure | SubFigure | None = None,
     ax: Axes | None = None,
-    c: xr.DataArray | None = None,
+    c: NDArray | xr.DataArray | None = None,
     colorbar_label: str | None = None,
     cmap: str | Colormap | None = None,
     cnorm: Normalize | None = None,
@@ -35,23 +41,39 @@ def plot_noodleplot(
 ) -> Axes:
     """Create a `noodle` plot, i.e. a line or scatter plot of PCA-decomposed data.
 
-    Args:
-        noodle (xr.DataArray): PCA decomposed data.
-        hops (xr.DataArray, optional): DataArray holding hopping-point information of the trajectories. Defaults to None.
-        fig (Figure | SubFigure | None, optional): Figure to plot the graph into. Defaults to None.
-        ax (Axes, optional): The axes to plot into. Will be generated from `fig` if not provided. Defaults to None.
-        c (xr.DataArray, optional): The data to use for assigning the color to each individual data point. Defaults to None.
-        colorbar_label (str | None, optional): Label to plot next to the colorbar. If not provided will wither be taken from the `long_name` attribute or `name` attribute of the data or defaults to `t/fs`.
-        cmap (str | Colormap | None, optional): Colormap for plotting the datapoints. Defaults to None.
-        cnorm (Normalize | None, optional): Normalization method to map data to the colormap. Defaults to None.
-        cscale (_type_, optional): The colorbar scale mapping that is used for creating the colorbar gradient. Defaults to None.
-        noodle_kws (dict, optional): Keywords arguments for the noodle/PCA plot. Defaults to None.
-        hops_kws (dict, optional): Keyword arguments for plotting the hopping points. Defaults to None.
-        rasterized (bool, optional): Flag to control whether the plot will be rasterized. Defaults to True.
+    Parameters
+    ----------
+    noodle : NDArray | xr.DataArray
+        PCA decomposed data.
+    hops : xr.DataArray, optional
+        DataArray holding hopping-point information of the trajectories. Defaults to None.
+    fig : Figure | SubFigure | None, optional
+        Figure to plot the graph into. Defaults to None.
+    ax : Axes, optional
+        The axes to plot into. Will be generated from `fig` if not provided. Defaults to None.
+    c : xr.DataArray, optional
+        The data to use for assigning the color to each individual data point. Defaults to None.
+    colorbar_label : str | None, optional
+        Label to plot next to the colorbar. If not provided will wither be taken from the `long_name` attribute or `name` attribute of the data or defaults to `t/fs`.
+    cmap : str | Colormap | None, optional
+        Colormap for plotting the datapoints. Defaults to None.
+    cnorm : Normalize | None, optional
+        Normalization method to map data to the colormap. Defaults to None.
+    cscale : _type_, optional)
+        The colorbar scale mapping that is used for creating the colorbar gradient. Defaults to None.
+    noodle_kws : dict, optional
+        Keywords arguments for the noodle/PCA plot. Defaults to None.
+    hops_kws : dict, optional
+        Keyword arguments for plotting the hopping points. Defaults to None.
+    rasterized : bool, optional
+        Flag to control whether the plot will be rasterized. Defaults to True.
 
-    Returns:
-        Axes: The Axes after plotting to them
+    Returns
+    -------
+    Axes
+        The `:py:class:matplotlib.axes.Axes` after plotting to them
     """
+
     fig, ax = figax(fig=fig, ax=ax)
     if c is None:
         c = noodle['time']
@@ -62,9 +84,13 @@ def plot_noodleplot(
     if colorbar_label is not None:
         pass
     elif hasattr(c, 'attrs') and 'long_name' in c.attrs:
-        colorbar_label = c.attrs['long_name']
+        colorbar_label = str(c.attrs['long_name'])
+        if 'units' in c.attrs:
+            colorbar_label = f"{colorbar_label} / {c.attrs['units']}"
     elif hasattr(c, 'name') and c.name is not None:
         colorbar_label = str(c.name)
+        if 'units' in c.attrs:
+            colorbar_label = f"{colorbar_label} / {c.attrs['units']}"
     elif c_is_time:
         colorbar_label = '$t$ / fs'
 
@@ -72,19 +98,18 @@ def plot_noodleplot(
     if isinstance(cmap, str):
         cmap = mpl.colormaps[cmap]
     cnorm = cnorm or mpl.colors.Normalize(c.min(), c.max())  # type: ignore
-    cscale = cscale or mpl.cm.ScalarMappable(  # type: ignore
-        norm=cnorm, cmap=cmap
-    )
 
     # TODO: remove groupby? Needed only for line-plot or for legend
     # for trajid, traj in noodle.groupby('trajid'):
     #     ctraj = c.sel(trajid=trajid)
     noodle_kws = noodle_kws or {}
     noodle_kws = {'alpha': 0.5, 's': 0.2, **noodle_kws}
-    ax.scatter(
+    sc = ax.scatter(
         noodle.isel(PC=0),
         noodle.isel(PC=1),
-        c=cmap(cnorm(c)),
+        c=c,
+        cmap=cmap,
+        norm=cnorm,
         rasterized=rasterized,
         **noodle_kws,
     )
@@ -95,8 +120,7 @@ def plot_noodleplot(
         hops_kws = dict(s=0.5, c='limegreen') | (hops_kws or {})
         ax.scatter(hops.isel(PC=0), hops.isel(PC=1), rasterized=rasterized, **hops_kws)
 
-    # TODO facilitate custom colorbar
-    fig.colorbar(cscale, ax=ax, label=colorbar_label, pad=0.02)
+    fig.colorbar(sc, ax=ax, label=colorbar_label, pad=0.02)
 
     # Alternative layout solution
     # d = make_axes_locatable(ax)
@@ -107,54 +131,84 @@ def plot_noodleplot(
     return ax
 
 
-# TODO: finish later!
-def plot_noodleplot_lines(
-    noodle,  # hops,
-    ax=None,
-    cmap=None,
-    cnorm=None,
-    cscale=None,
-):
-    fig, ax = figax(ax=ax)
-    points = noodle.values
-    # One traj per line
-    for trajid, traj in noodle.groupby('trajid'):
-        segments = np.concatenate([points[:-1], points[1:]], axis=1)
-        lc = mpl.collections.LineCollection([[0, 0]])
-
-    segments
-    lc
-    return ax
+# TODO: implement plotting of noodleplot using multi-coloured lines
 
 
-def get_loadings(frames, center_mean=False):
+def get_loadings(frames: xr.Dataset, center_mean: bool = False) -> xr.DataArray:
+    """Get the loadings for the PCA of pairwise distances
+    for the positional data in ``frames``.
+
+    Parameters
+    ----------
+    frames : xr.Dataset
+        A Dataset with an 'atXYZ' data_var, which should have
+        'atom' and 'direction' dimensions.
+    center_mean :  bool, optional
+        Whether  centering of the mean should be should be applied, by default `False`
+
+    Returns
+    -------
+    xr.DataArray
+        A DataArray of loadings with dimensions
+        'PC' (principal component) and 'descriptor' (atom combination,
+        one for each pair of atoms).
+    """
     atXYZ = frames['atXYZ']
     descr = get_standardized_pairwise_dists(atXYZ, center_mean=center_mean)
-    _, pca_obj = pca(descr, 'atomcomb', return_pca_object=True)
+    _, pca_obj = pca(descr, 'descriptor', return_pca_object=True)
 
     return xr.DataArray(
         # data=pca_obj[-1].components_,
         data=pca_obj.components_,
-        dims=['PC', 'atomcomb'],
-        coords=dict(atomcomb=descr.atomcomb),
+        dims=['PC', 'descriptor'],
+        coords=dict(atomcomb=descr.descriptor),
         attrs={'natoms': frames.sizes['atom']},
     )
 
 
-def plot_loadings(ax, loadings):
+def plot_loadings(ax: Axes, loadings: xr.DataArray):
+    """Plot all loadings as arrows.
+
+    Parameters
+    ----------
+    ax : Axes
+        The :py:class:`matplotlib.pyplot.axes.Axes` object onto which to plot
+        the loadings.
+    loadings: xr.DataArray
+        A DataArray of PCA loadings including an 'descriptor' dimension;
+        as produced by :py:func:`shnitsel.vis.plot.pca_biplot.get_loadings`.
+    """
+    # TODO: FIXME: This needs to be reconciled ith pairwise distances using StructureSelection now.
+    raise NotImplementedError("Descriptor decomposition not implemented")
     for _, pcs in loadings.groupby('atomcomb'):
         assert len(pcs) == 2
         pc1, pc2 = pcs.item(0), pcs.item(1)
         ax.arrow(0, 0, pc1, pc2)
-        a1, a2 = int(pcs['from']), int(pcs['to'])
+        a1, a2 = int(pcs['atomcomb_from']), int(pcs['atomcomb_to'])
         ax.text(pc1, pc2, f"{a1},{a2}")
 
 
-def cluster_general(decider, n):
+def cluster_general(decider: Callable[[int, int], bool], n: int) -> list[list[int]]:
+    """Cluster indices iteratively according to a provided function.
+
+    Parameters
+    ----------
+    decider : Callable[[int, int], bool]
+        A function to decide whether two points can potentially share
+        a cluster.
+    n : int
+        The number of indices to cluster.
+
+    Returns
+    -------
+    list[list[int]]
+        A list of clusters, where each cluster is represented as a
+        list of indices.
+    """
     clustered = np.full((n,), False)
     clusters = []
     # for each item, if it has not been clustered,
-    # put those later item which have not yet been clustered
+    # put those later items which have not yet been clustered
     # in a cluster with it
     for i in range(n):
         if clustered[i]:
@@ -173,7 +227,26 @@ def cluster_general(decider, n):
     return clusters
 
 
-def cluster_loadings(loadings: xr.DataArray, cutoff=0.05):
+def cluster_loadings(loadings: xr.DataArray, cutoff: float = 0.05) -> list[list[int]]:
+    """Cluster loadings iteratively based on proximity on the
+    principal component manifold
+
+    Parameters
+    ----------
+    loadings : xr.DataArray
+        A DataArray of loadings
+    cutoff : float, optional
+        An upper bound on the possible distances between a point
+        in a cluster and other points, within which they will still
+        be assigned to the smae cluster, by default 0.05
+
+    Returns
+    -------
+    list[list[int]]
+        A list of clusters, where each cluster is represented as a
+        list of indices corresponding to ``loadings``.
+    """
+
     def dist(i, j, l):
         pc1, pc2 = l.isel(atomcomb=j).values - l.isel(atomcomb=i).values
         return (pc1**2 + pc2**2) ** 0.5
@@ -186,7 +259,30 @@ def cluster_loadings(loadings: xr.DataArray, cutoff=0.05):
     return cluster_general(decider, n)
 
 
-def plot_clusters(loadings, clusters, ax=None, labels=None):
+def plot_clusters(
+    loadings: xr.DataArray,
+    clusters: list[list[int]],
+    ax: Axes | None = None,
+    labels: list[str] | None = None,
+):
+    """Plot clusters of PCA loadings
+
+    Parameters
+    ----------
+    loadings
+        A DataArray of PCA loadings including an 'atomcomb' dimension;
+        as produced by :py:func:`shnitsel.vis.plot.pca_biplot.get_loadings`.
+    clusters
+        A list of clusters, where each cluster is represented as a
+        list of indices corresponding to ``loadings``; as produced
+        by :py:func:`shnitsel.vis.plot.pca_biplot.get_clusters`.
+    ax
+        The :py:class:`matplotlib.pyplot.axes.Axes` object onto which to plot
+        (If not provided, one will be created.)
+    labels
+        Labels for the loadings; if not provided, loadings will be labelled
+        according to indices of the atoms to which they relate.
+    """
     fig, ax = figax(ax=ax)
     for i, cluster in enumerate(clusters):
         acs = loadings.isel(atomcomb=cluster)
@@ -200,7 +296,7 @@ def plot_clusters(loadings, clusters, ax=None, labels=None):
         ax.text(x, y, s)
 
 
-def get_clusters_coords(loadings, atomcomb_clusters):
+def _get_clusters_coords(loadings, atomcomb_clusters):
     return np.array(
         [
             loadings.isel(atomcomb=c).mean(dim='atomcomb').values
@@ -209,18 +305,27 @@ def get_clusters_coords(loadings, atomcomb_clusters):
     )
 
 
-def calc_dist(point):
-    x, y = point
-    return (x**2 + y**2) ** 0.5
+def _separate_angles(points: NDArray, min_angle: float = 10) -> dict[int, float]:
+    """Group points based on their polar angles, and work out scale factors
+    by which to place labels along the ray from origin to point when annotating
+    points, intending to avoid overlaps between labels.
 
+    Parameters
+    ----------
+    points : NDArray
+        An array of shape (npoints, 2)
+    min_angle : float, optional
+        The minimal difference in argument (angle from positive x-axis, in degrees),
+        of two points, below which they will be considered part of the
+        same cluster; by default 10
 
-def calc_angle(point):
-    x, y = point
-    return float(np.degrees(np.arctan2(x, y)))
-
-
-def separate_angles(points, min_angle=10):
-    angles = [calc_angle(point) for point in points]
+    Returns
+    -------
+    dict[int, float]
+        A dictionary mapping from indices (corresponding to ``points``)
+        to scalefactors used to extrude the label away from the loading.
+    """
+    angles = [float(np.degrees(np.arctan2(x, y))) for x, y in points]
 
     def decider(i, j):
         nonlocal angles
@@ -230,6 +335,11 @@ def separate_angles(points, min_angle=10):
 
     angle_clusters = cluster_general(decider, len(angles))
     scalefactors = {}
+
+    def calc_dist(point):
+        x, y = point
+        return (x**2 + y**2) ** 0.5
+
     for angle_cluster in angle_clusters:
         if len(angle_cluster) < 2:
             continue
@@ -245,7 +355,7 @@ def separate_angles(points, min_angle=10):
     return scalefactors
 
 
-def filter_cluster_coords(coords, n):
+def _filter_cluster_coords(coords, n):
     radii = [(x**2 + y**2) ** 0.5 for x, y in coords]
     angles = [np.degrees(np.arctan2(x, y)) for x, y in coords]
     res = set(np.argsort(radii)[-(n - 2) :])
@@ -254,20 +364,52 @@ def filter_cluster_coords(coords, n):
     return res.union(np.argsort(splay)[-2:])
 
 
-def plot_clusters2(
-    ax, loadings, clusters, mol, min_angle=10, inset_scale=1, show_at_most=None
+def plot_clusters_insets(
+    ax: Axes,
+    loadings: xr.DataArray,
+    clusters: list[list[int]],
+    mol: Mol,
+    min_angle: float = 10,
+    inset_scale: float = 1,
+    show_at_most: int | None = None,
 ):
-    points = get_clusters_coords(loadings, clusters)
+    """Plot selected clusters of the loadings of a pairwise distance PCA,
+    and interpretations of those loadings, as highlighted molecular structures inset upon
+    the loadings plot.
+
+    Parameters
+    ----------
+    ax : Axes
+        The :py:class:`matplotlib.pyplot.axes.Axes` object onto which to plot
+        the loadings
+    loadings : xr.DataArray
+        A DataArray of PCA loadings including an 'atomcomb' dimension;
+        as produced by :py:func:`shnitsel.vis.plot.pca_biplot.get_loadings`.
+    clusters : list[list[int]]
+        A list of clusters, where each cluster is represented as a
+        list of indices corresponding to ``loadings``; as produced
+        by :py:func:`shnitsel.vis.plot.pca_biplot.get_clusters`.
+    mol : Mol
+        An RDKit ``Mol`` object to be used for structure display.
+    min_angle : float, optional
+        Where multiple clusters of loadings lie in similar directions from
+        the origin, they will be grouped together and only their member with the
+        greatest radius will be annotated with a highlighted structure.
+        This is the angle in degrees for the grouping behavior, by default 10.
+    inset_scale : float, optional
+        A factor by which to scale the size of the inset highlighted structures.
+    show_at_most : int, optional
+        Maximal number of clusters to show; if the number of clusters is greater than
+        this value, the clusters with smallest radius will be excluded so that only this
+        many remain.
+    """
+    points = _get_clusters_coords(loadings, clusters)
     if show_at_most is not None:
-        indices = filter_cluster_coords(points, show_at_most)
-        # clusters = [c for i, c in enumerate(clusters) if i in indices]
-        # points = [p for i, p in enumerate(points) if i in indices]
+        indices = _filter_cluster_coords(points, show_at_most)
     else:
         indices = range(len(clusters))
-    scalefactors = separate_angles(points, min_angle)
+    scalefactors = _separate_angles(points, min_angle)
 
-    # else:
-    # indices = range(len(clusters))
     for i, cluster in enumerate(clusters):
         acs = loadings.isel(atomcomb=cluster)
         x, y = acs.mean(dim='atomcomb')
@@ -293,14 +435,68 @@ def plot_clusters2(
         iax.set_anchor('SW')  # keep bottom-left corner of image at arrow tip!
 
         png = highlight_pairs(mol, acs.atomcomb.values)
-        # display(Image(png))  # DEBUG
         mpl_imshow_png(iax, png)
 
 
-def plot_clusters3(loadings, clusters, ax=None, labels=None, axs=None, mol=None):
+# Compatability with old notebooks:
+plot_clusters2 = plot_clusters_insets
+
+
+def _get_axs(clusters, labels):
+    naxs = min(len(clusters), len(labels))
+    ncols = ceil(naxs**0.5)
+    nblanks = naxs % ncols
+    flat = labels[:naxs] + [None] * nblanks
+    mosaic = np.array(flat).reshape(-1, ncols)
+    _, axs = subplot_mosaic(mosaic)
+    return axs
+
+
+def plot_clusters_grid(
+    loadings: xr.DataArray,
+    clusters: list[list[int]],
+    ax: Axes | None = None,
+    labels: list[str] | None = None,
+    axs: dict[Axes] | None = None,
+    mol: 'Mol | None' = None,
+):
+    """Plot selected clusters of the loadings of a pairwise distance PCA,
+    and interpretations of those loadings:
+
+        - On the left, a large plot of selected clusters of loadings indicated as arrows
+        - On the right, a grid of structures corresponding to
+        structures of loadings; the pairs involved in the cluster
+        are represented by colour-coding the atoms of the structures.
+
+    Parameters
+    ----------
+    loadings : xr.DataArray
+        A DataArray of PCA loadings including an 'atomcomb' dimension;
+        as produced by :py:func:`shnitsel.vis.plot.pca_biplot.get_loadings`.
+    clusters : list[list[int]]
+        A list of clusters, where each cluster is represented as a
+        list of indices corresponding to ``loadings``; as produced
+        by :py:func:`shnitsel.vis.plot.pca_biplot.get_clusters`.
+    ax : Axes, optional
+        The :py:class:`matplotlib.pyplot.axes.Axes` object onto which to plot
+        the loadings
+        (If not provided, one will be created.)
+    labels : list[str], optional
+        Labels for the loadings; if not provided, loadings will be labelled
+        according to indices of the atoms to which they relate.
+    axs : dict[Axes], optional
+        A dictionary mapping from plot labels to :py:class:`matplotlib.pyplot.axes.Axes`
+        objects
+        (If not provided, one will be created.)
+    mol : Mol, optional
+        An RDKit ``Mol`` object to be used for structure display
+    """
     fig, ax = figax(ax=ax)
     if labels is None:
         labels = list('abcdefghijklmnopqrstuvwxyz')
+
+    if axs is None:
+        axs = _get_axs(clusters, labels)
 
     for mol_ax in axs.values():
         mol_ax.axis('off')
@@ -322,24 +518,8 @@ def plot_clusters3(loadings, clusters, ax=None, labels=None, axs=None, mol=None)
             axs[s].set_title(s)
 
 
-##################
-# New stuff for angle binning!
-
-
-def get_mask(angles, theta1, theta2, seam=180):
-    if not theta1 <= theta2:
-        theta1, theta2 = theta2, theta1
-    if theta1 < seam and theta2 < seam:
-        mask = (angles > theta1) & (angles < theta2)
-    elif theta1 < seam and theta2 > seam:
-        mask = (angles > theta1) | (angles < theta2 - 360)
-    elif theta1 > seam and theta2 > seam:
-        mask = (angles > theta1 - 360) & (angles < theta2 - 360)
-    else:
-        print(theta1, theta2)
-        mask = []
-        raise ValueError()
-    return mask
+# Compatability with old notebooks:
+plot_clusters3 = plot_clusters_grid
 
 
 def circbins(
@@ -350,16 +530,16 @@ def circbins(
 
     Parameters
     ----------
-    angles
+    angles : np.ndarray
         Angles in degrees
-    num_bins, optional
+    num_bins : int, optional
         Number of bins to return, by default 4
 
     Returns
     -------
-    bins
+    bins : Sequence[np.ndarray]
         Indices of angles belonging to each bin as an np.ndarray
-    edges
+    edges : list[tuple[float, float]]
         Tuple giving a pair of boundary angles for each bin;
         the order of the bins corresponds to the order used in ``bins``
     """
@@ -384,7 +564,39 @@ def circbins(
     return bins, edges
 
 
-def plot_bin_edges(angles, radii, bins, edges, picks, ax, labels):
+def plot_bin_edges(
+    angles: NDArray,
+    radii: NDArray,
+    bins: list[Iterable[int]],
+    edges: list[tuple[float, float]],
+    picks: list[int],
+    ax: Axes,
+    labels: list[str],
+):
+    """Illustrate how angles have been binned.
+
+    Parameters
+    ----------
+    angles : NDArray
+        A 1D array of angles in degrees.
+    radii : NDArray
+        A 1D array of radii, with order corresponding
+        to ``angles``.
+    bins : list[Iterable[int]]
+        Lists of bins, each bin represented as a list
+        of indices.
+    edges : list[tuple[float, float]]
+        A pair of edges (angles in degrees) for each bin
+        in ``bins``.
+    picks : list[int]
+        A list of indices indicating which cluster has
+        been chosen from each bin.
+    ax : Axes
+        An matplotlib ``Axes`` object onto which to plot;
+        this should be set up with polar projection.
+    labels : list[str]
+        One label for each entry in ``picks``.
+    """
     rangles = np.radians(angles)
 
     for e in np.radians(edges):
@@ -403,10 +615,44 @@ def plot_bin_edges(angles, radii, bins, edges, picks, ax, labels):
     ax.set_rlabel_position(200)
 
 
-def pick_clusters(frames: Frames, num_bins: int, center_mean: bool = False):
+def pick_clusters(
+    frames: Frames | xr.Dataset, num_bins: int, center_mean: bool = False
+):
+    """Calculate pairwise-distance PCA, cluster the loadings
+    and pick a representative subset of the clusters.
+
+    Parameters
+    ----------
+    frames : Frames | xr.Dataset
+        An :py:class:`xarray.Dataset` with an 'atXYZ' variable
+        having an 'atom' dimension
+    num_bins : int
+        The number of bins to use when binning clusters of
+        loadings according to the angle they make to the x-axis
+        on the projection manifold
+    center_mean : bool, optional
+        Flag to apply mean centering before the analysis, by default Faule
+
+    Returns
+    -------
+        A dictionary with the following key-value pairs:
+
+            - loadings: the loadings of the PCA
+            - clusters: a list of clusters, where each cluster is represented as a
+        list of indices corresponding to ``loadings``; as produced
+        by :py:func:`shnitsel.vis.plot.pca_biplot.get_clusters`.
+            - picks: the cluster chosen from each bin of clusters
+            - angles: the angular argument (rotation from the positive x-axis) of each
+            cluster center
+            - center: the circular mean of the angle of all picked clusters
+            - radii: The distance of each cluster from the origin
+            - bins: Indices of angles belonging to each bin
+            - edges: Tuple giving a pair of boundary angles for each bin;
+        the order of the bins corresponds to the order used in ``bins``
+    """
     loadings = get_loadings(frames, center_mean)
     clusters = cluster_loadings(loadings)
-    points = get_clusters_coords(loadings, clusters)
+    points = _get_clusters_coords(loadings, clusters)
 
     angles = np.degrees(np.arctan2(points[:, 1], points[:, 0]))
     radii = np.sqrt(points[:, 0] ** 2 + points[:, 1] ** 2)
@@ -431,13 +677,15 @@ def pick_clusters(frames: Frames, num_bins: int, center_mean: bool = False):
 
 def binning_with_min_entries(
     num_bins: int,
-    angles: np.ndarray,
-    radii: np.ndarray,
+    angles: NDArray,
+    radii: NDArray,
     min_entries: int = 4,
     max_attempts: int = 10,
     return_bins_edges: bool = False,
-):
+) -> Sequence[int] | tuple[Sequence[int], Sequence[NDArray], list[tuple[float, float]]]:
     attempts = 0
+    bins: Sequence[NDArray]
+    edges: list[tuple[float, float]]
     bins, edges = circbins(angles=angles, num_bins=num_bins)
 
     # Repeat binning until all bins have at least 'min_entries' or exceed max_attempts
@@ -453,7 +701,7 @@ def binning_with_min_entries(
     if attempts >= max_attempts:
         print(f"Max attempts ({max_attempts}) reached. Returning current bins.")
 
-    picks = [bin[np.argmax(radii[bin])] for bin in bins]
+    picks: Sequence[int] = [bin[np.argmax(radii[bin])] for bin in bins]
 
     if return_bins_edges:
         return picks, bins, edges

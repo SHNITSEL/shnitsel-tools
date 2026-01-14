@@ -185,6 +185,12 @@ def keep_norming(
     -------
     xr.DataArray
         The resulting, normed array
+        
+    Notes
+    -----
+        The output of keep_norming is not necessarily >= 0; for example, if all dimensions
+        in ``da`` are in ``exclude``, the original object possibly containing negative values
+        will be returned unaltered.
     """
     if exclude is None:
         exclude = {'state', 'statecomb', 'frame', 'time'}
@@ -211,9 +217,11 @@ def replace_total(
     da : xr.DataArray
         An xr.DataArray to replace values within
     to_replace : np.ndarray | list
-        Values to search for and replace
+        Values to search for and replace -- these should be sortable, i.e. each pair of elements
+        must be comparable by ``<``
     value : np.ndarray | list
-        Values with which to replace the found occurrences of `to_replace`
+        Values with which to replace the found occurrences of `to_replace` -- the dtype of this argument determines
+        the dtype of the result
 
     Returns
     -------
@@ -240,7 +248,7 @@ def relativize(da: xr.DataArray, **sel) -> xr.DataArray:
     da :xr.DataArray
         The xr.DataArray from which to subtract the minimum
     **sel
-        If keyword parameters are present, the reference minimum is picked from the selection obtained with these parameters
+        If keyword parameters are present, the reference minimum is picked
         from those elements that remain after running :py:meth:`xarray.DataArray.sel`
         using the keyword parameters as arguments.
 

@@ -4,8 +4,11 @@ from matplotlib.axes import Axes
 from matplotlib.colors import Colormap
 from matplotlib.figure import Figure, SubFigure
 import numpy as np
+from numpy.typing import ArrayLike
 from scipy import stats
+import matplotlib as mpl
 import matplotlib.pyplot as plt
+import xarray as xr
 
 from shnitsel.analyze.pca import pca_and_hops
 from shnitsel.core.typedefs import Frames
@@ -36,18 +39,23 @@ def _fit_kdes(
 
     Parameters
     ----------
-        pca_data : xr.DataArray
-            The pca data for which KDEs should be fitted on the various ranges.
-        geo_property : xr.DataArray
-            The geometric property that the data should be clustered/filtered by.
-        geo_kde_ranges : Sequence[tuple[float, float]]
-            The sequence of (distinct) ranges of values of the geometric property
-            that the `pca_data` should be divided by.
+    pca_data : xr.DataArray
+        The pca data for which KDEs should be fitted on the various ranges.
+    geo_property : xr.DataArray
+        The geometric property that the data should be clustered/filtered by.
+    geo_kde_ranges : Sequence[tuple[float, float]]
+        The sequence of (distinct) ranges of values of the geometric property
+        that the `pca_data` should be divided by.
 
     Returns
     ----------
-        Sequence[stats.gaussian_kde]
-            The sequence of fitted KDEs for each range of `geo_kde_ranges`.
+    Sequence[stats.gaussian_kde]
+        The sequence of fitted KDEs (kernels) for each range of `geo_kde_ranges`.
+    Raises
+    ------
+    ValueError
+        If any of the ``geo_filter`` ranges is such that no points from
+        ``geo_prop`` fall within it
     """
     kernels = []
     for p1, p2 in geo_kde_ranges:
@@ -103,19 +111,19 @@ def _get_xx_yy(
 
     Parameters
     ----------
-        pca_data: xr.DataArray
-            The transformed pca data to get the supporting mesh grid for.
-        num_steps, optional : int
-            Number of intermediate steps to generate in the grid. Defaults to 500.
-        extension, optional : float
-            Excess overhang beyond minima and maxima in x and y direction
-            relative to their distance from the mean. Defaults to 0.1.
+    pca_data: xr.DataArray
+        The transformed pca data to get the supporting mesh grid for.
+    num_steps, optional : int
+        Number of intermediate steps to generate in the grid. Defaults to 500.
+    extension, optional : float
+        Excess overhang beyond minima and maxima in x and y direction
+        relative to their distance from the mean. Defaults to 0.1.
 
     Returns
     ----------
-        tuple[np.ndarray, np.ndarray]
-            First the numpy array holding x positions of a meshgrid
-            Then the array holding y positions of a meshgrid.
+    tuple[np.ndarray, np.ndarray]
+        First the numpy array holding x positions of a meshgrid
+        Then the array holding y positions of a meshgrid.
     """
     means: np.ndarray = pca_data.mean(dim='frame').values
     mins: np.ndarray = pca_data.min(dim='frame').values
@@ -141,26 +149,26 @@ def _fit_and_eval_kdes(
 
     Parameters
     ----------
-        pca_data: xr.DataArray
-            The transformed pca data to get the supporting mesh grid for and extract
-            the KDEs from.
-        geo_property : xr.DataArray
-            The geometric property that the data should be clustered/filtered by.
-        geo_kde_ranges : Sequence[tuple[float, float]]
-            The sequence of (distinct) ranges of values of the geometric property
-            that the `pca_data` should be divided by.
-        num_steps, optional : int
-            Number of intermediate steps to generate in the grid. Defaults to 500.
-        extension, optional : float
-            Excess overhang beyond minima and maxima in x and y direction
-            relative to their distance from the mean. Defaults to 0.1.
+    pca_data: xr.DataArray
+        The transformed pca data to get the supporting mesh grid for and extract
+        the KDEs from.
+    geo_property : xr.DataArray
+        The geometric property that the data should be clustered/filtered by.
+    geo_kde_ranges : Sequence[tuple[float, float]]
+        The sequence of (distinct) ranges of values of the geometric property
+        that the `pca_data` should be divided by.
+    num_steps, optional : int
+        Number of intermediate steps to generate in the grid. Defaults to 500.
+    extension, optional : float
+        Excess overhang beyond minima and maxima in x and y direction
+        relative to their distance from the mean. Defaults to 0.1.
 
     Returns
     ----------
-         tuple[np.ndarray, np.ndarray, Sequence[np.ndarray]]
-            First the numpy array holding x positions of a meshgrid.
-            Then the array holding y positions of a meshgrid.
-            Last the Sequence of KDE evaluations on the meshgrid for each filter range.
+        tuple[np.ndarray, np.ndarray, Sequence[np.ndarray]]
+        First the numpy array holding x positions of a meshgrid.
+        Then the array holding y positions of a meshgrid.
+        Last the Sequence of KDE evaluations on the meshgrid for each filter range.
     """
     # TODO: FIXME: We should be able to deal with a missing `frame` dimension.
     pca_data = pca_data.transpose(
@@ -182,6 +190,33 @@ def _plot_kdes(
     fig: Figure | SubFigure | None = None,
     ax: Axes | None = None,
 ):
+    """Plot contours of kernel density estimates
+
+    Parameters
+    ----------
+    xx : np.ndarray
+        An array of x values
+    yy : np.ndarray
+        An array of y values (must have the same shape as ``xx``)
+    Zs : Sequence[np.ndarray]
+        A list of arrays of z values (each array must have the same
+        shape as ``xx`` and ``yy``)
+    colors : Iterable, optional
+        A set of colours accepted by matplotlib (e.g. a colormap)
+    contour_levels : int | list[float], optional
+        Determines the number and positions of the contour lines / regions.
+        (Passed to ``matplotlib.pyplot.contour``)
+    contour_fill : bool, optional
+        Whether to fill in the outlined contours
+        (i.e. whether to use ``matplotlib.pyplot.contour`` or
+        ``matplotlib.pyplot.contourf``).
+    fig : Figure | SubFigure, optional
+        A matplotlib ``Figure`` object into which to draw
+        (if not provided, a new one will be created)
+    ax : Axes, optional
+        A matplotlib ``Axes`` object into which to draw
+        (if not provided, a new one will be created)
+    """
     fig, ax = figax(fig=fig, ax=ax)
     if colors is None:
         if len(Zs) == 2:
@@ -203,9 +238,13 @@ def biplot_kde(
     at4: int | None = None,
     geo_kde_ranges: Sequence[tuple[float, float]] | None = None,
     scatter_color_property: Literal['time', 'geo'] = 'time',
+    geo_cmap: str | None = 'PRGn',  # any valid cmap type
+    time_cmap: str | None = 'cividis',  # any valid cmap type
     contour_levels: int | list[float] | None = None,
+    contour_colors: list[str] | None = None,
     contour_fill: bool = True,
     num_bins: Literal[1, 2, 3, 4] = 4,
+    fig: mpl.figure.Figure | None = None,
     center_mean: bool = False,
 ):
     """\
@@ -234,11 +273,22 @@ def biplot_kde(
     scatter_color_property
         Must be one of 'time' or 'geo'. If 'time', the scatter-points will be colored based on the time coordinate;
         if 'geo', the scatter-points will be colored based on the relevant geometry feature (see above).
+    geo_cmap
+        The Colormap to use for the noodleplot, if ``scatter_color='geo'``; this also determines contour
+        colors unless ``contour_colors`` is set.
+    time_cmap
+        The Colormap to use for the noodleplot, if ``scatter_color='time'``.
     contour_fill
         Whether to plot filled contours (``contour_fill=True``, uses ``ax.contourf``)
         or just contour lines (``contour_fill=False``, uses ``ax.contour``).
+    contour_colors
+        An iterable (not a Colormap) of colours (in a format matplotlib will accept) to use for the contours.
+        By default, the ``geo_cmap`` will be used; this defaults to 'PRGn'.
     num_bins
         number of bins to be visualized, must be an integer between 1 and 4
+    fig
+        matplotlib.figure.Figure object into which the plot will be drawn;
+        if not provided, one will be created using ``plt.figure(layout='constrained')``
     center_mean
         Flag whether PCA data should be mean-centered before analysis. Defaults to False.
 
@@ -254,9 +304,9 @@ def biplot_kde(
     * Performs PCA on trajectory pairwise distances and visualizes clustering of structural changes.
     * Produces a figure with PCA projection, cluster analysis, and KDE plots.
     """
-    assert (
-        at1 is not None and at2 is not None
-    ), "Indices of first two atoms to `biplot_kde()` must not be None."
+    assert at1 is not None and at2 is not None, (
+        "Indices of first two atoms to `biplot_kde()` must not be None."
+    )
 
     if scatter_color_property not in {'time', 'geo'}:
         raise ValueError("`scatter_color` must be 'time' or 'geo'")
@@ -285,8 +335,11 @@ def biplot_kde(
                 geo_kde_ranges = [(0, 80), (110, 180)]
 
     # prepare layout
-    # TODO: this should probably be standardized somewhere.
-    fig, oaxs = plt.subplots(1, 2, layout='constrained', width_ratios=[3, 2])
+    if fig is None:
+        fig = plt.figure(layout='constrained')
+
+    oaxs = fig.subplots(1, 2, width_ratios=[3, 2])
+
     fig.set_size_inches(8.27, 11.69 / 3)  # a third of a page, spanning both columns
     gs = oaxs[0].get_subplotspec().get_gridspec()
     for ax in oaxs:
@@ -313,11 +366,20 @@ def biplot_kde(
     else:
         assert False
 
+    # noodleplot_c, noodleplot_cmap = {
+    #     'time': (None, time_cmap),
+    #     'geo': (geo_prop, geo_cmap),
+    # }[scatter_color_property]
+
+    # noodle_cnorm = mpl.colors.Normalize(noodleplot_c.min(), noodle_c.max())
+    # noodle_cscale = mpl.cm.ScalarMappable(norm=noodle_cnorm, cmap=noodle_cmap)
+
     pb.plot_noodleplot(
         pca_data,
         hops,
         c=noodleplot_c,
         cmap=noodleplot_cmap,
+        # cnorm=noodle_cnorm,
         ax=pcaax,
         noodle_kws=dict(alpha=1, marker='.'),
         hops_kws=dict(c='r', s=0.2),
@@ -326,7 +388,7 @@ def biplot_kde(
     # in case more clusters were found than we have room for:
     picks = picks[:4]
 
-    pb.plot_clusters3(
+    pb.plot_clusters_grid(
         loadings,
         [clusters[i] for i in picks],
         ax=pcaax,
@@ -334,6 +396,12 @@ def biplot_kde(
         mol=mol,
         labels=list('abcd'),
     )
+
+    if contour_colors is None:
+        contour_colors = plt.get_cmap(noodleplot_cmap)(
+            np.linspace(0, 1, len(contour_levels))
+        )
+
     xx, yy, Zs = kde_data
     _plot_kdes(
         xx, yy, Zs, contour_levels=contour_levels, contour_fill=contour_fill, ax=pcaax
@@ -342,7 +410,31 @@ def biplot_kde(
     return kde_data
 
 
-def plot_cdf_for_kde(z: np.ndarray, contour_level: float, ax: Axes | None = None):
+def plot_cdf_for_kde(
+    z: np.ndarray, contour_level: float, ax: Axes | None = None
+) -> float:
+    """Plot the cumulative density for a KDE, to show what
+    proportion of points are contained by contours at a
+    given density ``level``
+
+    Parameters
+    ----------
+    z : np.ndarray
+        The values from the kernel evaluated over the input
+        space
+    contour_level : float
+        The cumulative density corresponding to this level
+        will be marked on the graph
+    ax : Axes, optional
+        A :py:class:`matplotlib.axes.Axes` object into which
+        to plot. (If not provided, one will be created.)
+
+    Returns
+    -------
+    y
+        The proportion of points contained by contours placed
+        at density ``level``
+    """
     fig, ax = figax(ax=ax)
     bins, edges, _ = ax.hist(
         z,

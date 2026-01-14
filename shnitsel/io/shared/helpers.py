@@ -22,6 +22,10 @@ PathOptionsType = str | os.PathLike
 
 @dataclass
 class LoadingParameters:
+    """Class to hold certain parameters required at loading time at various points in the reading/
+    import pipeline
+    """
+
     # A dict containing the information, which input observable has which unit. If not provided, the loader will guess the units either based on the default values of that simulator or the data in `path`
     input_units: Dict[str, str] | None = None
     # Flag to set how errors during loading are reported
@@ -51,11 +55,20 @@ def make_uniform_path(
 ) -> pathlib.Path:
     """Unify the path options to alyways yield a pathlib.Path object
 
-    Args:
-        path (str | os.PathLike | pathlib.Path | None): path input of arbitrary type
+    Parameters
+    ----------
+    path : str | os.PathLike | pathlib.Path | None
+        path input of arbitrary type
 
-    Returns:
-        pathlib.Path|None: The converted path or None
+    Returns
+    -------
+    pathlib.Path|None
+        The converted path
+
+    Raises
+    ------
+    ValueError
+        If path was `None` or could not be converted
     """
     if path is None:
         raise ValueError("Cannot canonize path `None`. Please provide a valid path.")
@@ -74,9 +87,12 @@ class ConsistentValue(Generic[T]):
     Can be used to check consistency of a value across multiple datasets.
     The value is written to and read from the property `v` of the object.
 
-    Raises:
-        AttributeError: Will be raised if the value is read before first assignment if the object has not been created with ``weak=true``.
-        ValueError: If an inconsistent value is assigned to this instance, i.e. two different values have been assigned.
+    Raises
+    ------
+    AttributeError
+        Will be raised if the value is read before first assignment if the object has not been created with ``weak=true``.
+    ValueError
+        If an inconsistent value is assigned to this instance, i.e. two different values have been assigned.
 
     """
 
@@ -112,7 +128,7 @@ class ConsistentValue(Generic[T]):
         self._val = new_val
 
 
-def get_triangular(original_array):
+def get_triangular(original_array: np.ndarray):
     """
     get_triangular - get the upper triangle of a (nstat1 x nstat2 x natoms x 3) matrix
 
@@ -123,13 +139,13 @@ def get_triangular(original_array):
 
     Parameters
     ----------
-    original_array
+    original_array : np.ndarray
         4D numpy array of shape (nstat1, nstat2, natoms, 3) representing the input matrix
 
     Returns
     -------
-        upper_tril
-            3D numpy array of shape (len(cols), natoms, 3) representing the upper triangle of the input matrix
+    upper_tril : np.ndarray
+        3D numpy array of shape (len(cols), natoms, 3) representing the upper triangle of the input matrix
     """
     # Get the indices of the upper triangle
     nstat1, nstat2, natoms, xyz = original_array.shape
@@ -154,7 +170,7 @@ def dip_sep(dipoles: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
 
     Parameters
     ----------
-    dipoles
+    dipoles : np.ndarray
         3D numpy array of shape (nstates, nstates, 3) where
         the first axis represents state before transition,
         the second axis represents state after transition and
@@ -162,9 +178,9 @@ def dip_sep(dipoles: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
 
     Returns
     -------
-    dip_perm
+    dip_perm : np.ndarray
         2D numpy array of shape (nstates, 3)
-    dip_trans
+    dip_trans : np.ndarray
         2D numpy array of shape (math.comb(nstates, 2), 3)
         in the order e.g. (for nstates = 4)
         0->1, 0->2, 0->3, 1->2, 1->3, 2->3
@@ -185,11 +201,15 @@ def dip_sep(dipoles: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
 def random_trajid_assigner(path: pathlib.Path) -> int:
     """Function to generate a random id for a path.
 
-    Args:
-        path (pathlib.Path): Unused: the path we are generating for
+    Parameters
+    ----------
+    path : pathlib.Path
+        Unused: the path we are generating for
 
-    Returns:
-        int: the chosen trajectory id
+    Returns
+    -------
+    int
+        the chosen trajectory id
     """
 
     return random.randint(0, 2**31 - 1)

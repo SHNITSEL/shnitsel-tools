@@ -318,7 +318,9 @@ def pca(
     ----------
     da : xr.DataArray
         A DataArray with at least a dimension with a name matching `dim`
-    dim : Hashable
+        dtype should be integer or floating with no
+        ``nan`` or ``inf`` entries
+    dim
         The name of the array-dimension to reduce (i.e. the axis along which different
         features lie)
     n_components : int, optional

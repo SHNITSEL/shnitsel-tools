@@ -187,10 +187,15 @@ def assign_levels(
     Returns
     -------
         A new object (of the same type as `obj`) with the new level values replacing the old level values.
+
     Raises
     ------
     ValueError
         If levels are provided in both keyword and dictionary form.
+
+    Notes
+    -----
+    Propagates attrs irrespective of ``xarray.get_options()['keep_attrs']``
     """
     if levels_kwargs != {}:
         if levels is not None:
@@ -199,10 +204,12 @@ def assign_levels(
             )
         levels = levels_kwargs
     # Assignment of DataArrays fails. Workaround:
+    attrs_by_level = {}
     for lvl in levels:
         if isinstance(levels[lvl], xr.DataArray):
             lvl_dims = levels[lvl].dims
-            assert len(lvl_dims) == 1
+            assert len(lvl_dims) == 1  # Can't have multi-dimensional MultiIndex levels
+            attrs_by_level[lvl] = levels[lvl].attrs
             levels[lvl] = (lvl_dims[0], levels[lvl].data)
     lvl_names = list(levels.keys())
     midxs = set(
@@ -216,6 +223,8 @@ def assign_levels(
     if midxs:
         obj = obj.reset_index(*midxs)
     obj = obj.assign_coords(levels)
+    for lvl, attrs in attrs_by_level.items():
+        obj.coords[lvl].attrs = attrs
     if to_restore:
         obj = obj.set_xindex(to_restore)
     return obj

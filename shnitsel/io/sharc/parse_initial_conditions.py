@@ -8,7 +8,6 @@ import os
 import re
 from itertools import product
 from typing import Dict, List, NamedTuple, Any, Tuple
-from tqdm.auto import tqdm
 from shnitsel.io.shared.helpers import (
     PathOptionsType,
     dip_sep,

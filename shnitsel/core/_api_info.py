@@ -12,8 +12,9 @@ def internal():
     Stability of the function interface is not guaranteed.
     May modify the docstring of the function to signify that it is indeed intended for internal use only.
 
-    Returns:
-        The function with an internal annotation that its use should be internal.
+    Returns
+    -------
+    The function with an internal annotation that its use should be internal.
     """
 
     def decorator(
@@ -34,8 +35,9 @@ def API():
     Stability of the function interface will be maintained across minor versions unless stated explicitly
     May modify the docstring of the function to signify that it is indeed part of the public API
 
-    Returns:
-        The function with an internal annotation that its use may be public.
+    Returns
+    -------
+    The function with an internal annotation that its use may be public.
     """
 
     def decorator(

@@ -699,6 +699,6 @@ def get_spectra_groups(
 #         "Missing required dimensions"
 #     )
 #     # TODO: FIXME: This probably should not have to unstack here? We should just accept a tree and use each trajectory individually and then aggregate over trajectories?
-
 #     data = inter_state.unstack('frame')
 #     return apply_gauss_broadening(data.energy, data.fosc, agg_dim='active_trajectory')
+

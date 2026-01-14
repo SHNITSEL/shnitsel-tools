@@ -2,6 +2,8 @@ import xarray as xr
 
 from shnitsel._contracts import Needs
 
+from shnitsel.data.tree import tree_to_frames
+
 # CONVERTERS: dict[str, P.Converter] = {
 #     'convert_energy': P.convert_energy,
 #     'convert_forces': P.convert_forces,
@@ -11,6 +13,7 @@ from shnitsel._contracts import Needs
 
 DATASET_ACCESSOR_NAME = 'st'
 DATAARRAY_ACCESSOR_NAME = 'st'
+DATATREE_ACCESSOR_NAME = 'st'
 
 
 class ShnitselAccessor:
@@ -107,6 +110,14 @@ class ShnitselAccessor:
         </div>
         """
 
+    def _ipython_key_completions_(self) -> list[str]:
+        """Provide method for the key-autocompletions in IPython.
+        See https://ipython.readthedocs.io/en/stable/config/integrating.html#tab-completion
+        For the details.
+        """
+
+        return list(self.suitable)
+
 
 class DAManualAccessor(ShnitselAccessor):
     pass
@@ -176,3 +187,11 @@ class DAManualAccessor(ShnitselAccessor):
 
 class DSManualAccessor(ShnitselAccessor):
     pass
+
+
+class DataTreeAccessor:
+    def __init__(self, obj):
+        self._obj = obj
+
+    def to_frames(self, allow_inconsistent: set | None = None) -> xr.Dataset:
+        return tree_to_frames(self._obj, allow_inconsistent=allow_inconsistent)

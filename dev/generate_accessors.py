@@ -21,7 +21,7 @@ def main():
         )
         from shnitsel.data import multi_indices
         import shnitsel.data.helpers as data_helpers
-        from shnitsel.geo import geocalc
+        from shnitsel.geo import geocalc, geomatch_exact
         from shnitsel.io.ase.write import write_ase_db
         from shnitsel.vis.plot import p3mhelpers
         from shnitsel.vis.plot import select
@@ -74,8 +74,10 @@ def main():
         geocalc.get_bond_angles,
         geocalc.get_bond_torsions,
         geocalc.get_pyramids,
+        geocalc.get_bla_chromophor,
         geocalc.get_bats,
         geocalc.kabsch,
+        geomatch_exact.get_bats_matching,
         # select
         select.FrameSelector,
         select.TrajSelector,
@@ -90,6 +92,10 @@ def main():
         pca.pca,
         lda.lda,
         pls.pls,
+        # hops
+        hops.hops,
+        hops.focus_hops,
+        hops.assign_hop_time,
     ]
 
     ds_funcs = [
@@ -130,6 +136,9 @@ def main():
         hops.hops,
         hops.focus_hops,
         hops.assign_hop_time,
+        # select
+        select.FrameSelector,
+        select.TrajSelector,
     ]
 
     code = generate_class_code(

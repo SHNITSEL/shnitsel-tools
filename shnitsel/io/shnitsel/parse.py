@@ -87,8 +87,8 @@ def read_shnitsel_file(
     else:
         shnitsel_format_version = "v1.0"
 
-    if shnitsel_format_version in __SHNITSEL_READERS:
-        return __SHNITSEL_READERS[shnitsel_format_version](frames, loading_parameters)
+    if shnitsel_format_version in _SHNITSEL_READERS:
+        return _SHNITSEL_READERS[shnitsel_format_version](frames, loading_parameters)
     else:
         message = (
             "Attempting to load a shnitsel file with unknown format %(format_version)s. \n"
@@ -357,7 +357,7 @@ def _parse_shnitsel_file_v1_2(
         return _decode_shnitsel_v1_1_dataset(frames)
 
 
-__SHNITSEL_READERS: Dict[
+_SHNITSEL_READERS: Dict[
     str,
     Callable[
         [xr.Dataset | xr.DataTree, LoadingParameters | None], xr.Dataset | xr.DataTree

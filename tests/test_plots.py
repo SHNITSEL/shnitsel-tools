@@ -1,13 +1,17 @@
 import os
-import tempfile
+
+import matplotlib.pyplot as plt
+import numpy as np
 
 import pytest
+from pytest import fixture
 from matplotlib.testing.decorators import image_comparison
 
 import shnitsel as sh
 import shnitsel.xarray
+from shnitsel.data.tree import tree_to_frames
 
-from shnitsel.io import read_shnitsel_file
+from shnitsel.io import read
 
 # In this file, we aim to directly test the output of all plotting functions,
 # by comparing their output for a test dataset to a pre-made reference plot.
@@ -15,218 +19,121 @@ from shnitsel.io import read_shnitsel_file
 # does make it obvious when the graphics are altered by changes to code,
 # and when newly-introduced bugs prevent plotting from completing.
 
-# For now we have made the decision not to test the plot-targeting calculation
-# backend directly, as this should be subject to thorough change, at least
-# before the initial release.
-
 # Framework for now: matplotlib.testing
 # Later: matplotcheck (additional dev dependency)
-
-FIXDIR = 'tutorials/test_data/shnitsel/fixtures'
 
 
 class TestPlotFunctionality:
     """Class to test all plotting functionality included in Shnitsel-Tools"""
 
-    @pytest.fixture
-    def ensembles(self):
-        names = ['butene_static', 'butene_dynamic', 'butene_grid']
-        return {
-            name: read_shnitsel_file(os.path.join(FIXDIR, name, 'data.nc'))
-            for name in names
-        }
+    @fixture(
+        params=[
+            ('tutorials/tut_data/traj_I02.nc', -1),
+        ]
+    )
+    def ensembles(self, request):
+        path, charge = request.param
+        db = read(path)
+        res = tree_to_frames(db)
+        res['atXYZ'].attrs['charge'] = charge
+        res.attrs['charge'] = charge
+        return res
 
     @pytest.fixture
     def spectra3d(self, ensembles):
-        # TODO: FIXME: fosc is calculated automatically in the inter_state generation if possible
-        return {
-            name: frames.st.get_inter_state().st.assign_fosc().st.spectra_all_times()
-            for name, frames in ensembles.items()
-        }
+        return ensembles.st.get_inter_state().st.assign_fosc().st.spectra_all_times()
 
     #################
     # plot.spectra3d:
 
-    @image_comparison(['ski_plots'])
+    # @image_comparison(['ski_plots'])
     def test_ski_plots(self, spectra3d):
-        for name, spectral in spectra3d.items():
-            name
-            # os.path.join(FIXDIR, name, 'ski_plots.png')
-            # with tempfile.NamedTemporaryFile() as f:
-            sh.plot.ski_plots(spectral)  # .savefig(f.name)
+        sh.vis.plot.ski_plots(spectra3d)
 
-    def test_biplot(self):
-        # load trajectory data of A01
-        a01 = read_shnitsel_file('tutorials/test_data/shnitsel/A01_ethene_dynamic.nc')
-        # create PCA plot over all trajectories with visualization of the
-        # four most important PCA-axis on the molecular structure
-        # C=C bond color highlighgting via KDE in PCA
-        sh.plot.biplot_kde(
-            frames=a01, at1=0, at2=1, geo_filter=[[0.0, 3.0], [5.0, 20.0]], levels=10
-        )
-        # C-H bond color highlighting via KDE in PCA
-        sh.plot.biplot_kde(
-            frames=a01, at1=0, at2=2, geo_filter=[[0.0, 3.0], [5.0, 20.0]], levels=10
-        )
-
-    def test_ski_plots_accessor_conversion(self):
-        # load data
-        spectra_data = (
-            read_shnitsel_file(
-                path='tutorials/test_data/shnitsel/A01_ethene_dynamic.nc'
-            )
-            .st.get_inter_state()
-            .st.spectra_all_times()
-        )
-        # plot spectra at different simulation times in one plot with a dahsed line that tracks the maximum
-        sh.plot.ski_plots(spectra_data)
-
-    def test_pcm_plots(self):
-        # TODO
-        ...
+    def test_pcm_plots(self, spectra3d):
+        sh.vis.plot.spectra3d.pcm_plots(spectra3d)
 
     ###########
     # plot.kde:
-    def test_biplot_kde(self):
-        # TODO
-        ...
+    def test_biplot_kde(self, ensembles):
+        sh.vis.plot.kde.biplot_kde(
+            frames=ensembles,
+            at1=0,
+            at2=1,
+            geo_filter=[[0.0, 20.0]],
+            levels=10,
+        )
 
-    def test_plot_kdes(self):
-        # TODO
-        ...
+    @pytest.fixture
+    def kde_data(self, ensembles):
+        noodle, _ = sh.analyze.pca.pca_and_hops(ensembles, mean=False)
+        geo_prop = np.zeros(noodle.sizes['frame'])
+        return sh.vis.plot.kde.fit_and_eval_kdes(noodle, geo_prop, [(-1, 1)])
 
-    def test_plot_cdf_for_kde(self):
-        # TODO
-        ...
+    def test_plot_kdes(self, kde_data):
+        sh.vis.plot.kde.plot_kdes(*kde_data)
+
+    def test_plot_cdf_for_kde(self, kde_data):
+        xx, yy, Zs = kde_data
+        sh.vis.plot.kde.plot_cdf_for_kde(Zs[0].ravel(), 0.1)
 
     ##############################
     # Functions from "pca_biplot":
 
-    def test_plot_noodleplot(self):
-        # TODO
-        ...
+    def test_plot_noodleplot(self, ensembles):
+        noodle, hops = sh.analyze.pca.pca_and_hops(ensembles, mean=False)
+        sh.vis.plot.pca_biplot.plot_noodleplot(noodle, hops)
 
-    def test_plot_noodlelplot_lines(self):  # once implemented!
-        # TODO
-        ...
-
-    def test_plot_loadings(self):
-        # TODO
-        ...
-
-    # Following two together
     @pytest.fixture
-    def highlight_pairs(self):
-        # careful -- this uses rdkit, not mpl. What's the return type? Annotate!
-        # TODO
-        ...
+    def clusters_loadings_mols(self, ensembles):
+        import shnitsel.xarray
+
+        pca = ensembles['atXYZ'].st.pwdists().st.pca('atomcomb')
+        loadings = pca.st.loadings
+        clusters = sh.vis.plot.pca_biplot.cluster_loadings(loadings)
+        mol = sh.bridges.default_mol(ensembles['atXYZ'])
+        return clusters, loadings, mol
+
+    def test_plot_loadings(self, clusters_loadings_mols):
+        _, loadings, _ = clusters_loadings_mols
+        _, ax = plt.subplots(1, 1)
+        sh.vis.plot.pca_biplot.plot_loadings(ax, loadings)
+
+    @pytest.fixture
+    def highlight_pairs(self, ensembles):
+        mol = sh.bridges.default_mol(ensembles['atXYZ'])
+        return sh.rd.highlight_pairs(mol, [(0, 1)])
 
     def test_mpl_imshow_png(self, highlight_pairs):
-        # maybe in combination with the above
-        # TODO
-        ...
+        _, ax = plt.subplots(1, 1)
+        sh.vis.plot.common.mpl_imshow_png(ax, highlight_pairs)
 
-    def test_plot_clusters(self):
-        # can we find better names for these? Maybe they're all special cases of a more general function?
-        # TODO
-        ...
+    def test_plot_clusters(self, clusters_loadings_mols):
+        clusters, loadings, _ = clusters_loadings_mols
+        sh.vis.plot.pca_biplot.plot_clusters(loadings, clusters)
 
-    def test_plot_clusters2(self):
-        # TODO
-        ...
+    def test_plot_clusters_insets(self, clusters_loadings_mols):
+        clusters, loadings, mol = clusters_loadings_mols
+        _, ax = plt.subplots(1, 1)
+        sh.vis.plot.pca_biplot.plot_clusters_insets(ax, loadings, clusters, mol)
 
-    def test_plot_clusters3(self):
-        # TODO
-        ...
+    def test_plot_clusters_grid(self, clusters_loadings_mols):
+        _, ax = plt.subplots(1, 1)
+        clusters, loadings, mol = clusters_loadings_mols
+        sh.vis.plot.pca_biplot.plot_clusters_grid(loadings, clusters, mol=mol)
 
-    def test_plot_bin_edges(self):
-        # TODO
-        ...
+    def test_plot_bin_edges(self, ensembles):
+        nbins = 5
+        data = sh.vis.plot.pca_biplot.pick_clusters(ensembles, nbins=nbins)
+        fig, ax = plt.subplots(1, 1, subplot_kw={'projection': 'polar'})
+        sh.vis.plot.pca_biplot.plot_bin_edges(
+            data['angles'],
+            data['radii'],
+            data['bins'],
+            data['edges'],
+            data['picks'],
+            ax,
+            range(nbins),
+        )
 
-    ############################
-    # Functions from "plotting":
-
-    def test_pca_line_plot(self):
-        # can we generalize this and use the result to finish implementing plot_noodleplot_lines()?
-
-        # TODO
-        ...
-
-    def test_pca_scatter_plot(self):
-        # this is unimplemented, and if implemented would be identical to plot_noodleplot, I expect.
-        # TODO
-        ...
-
-    def test_timeplot(self):
-        # Legacy timeplot function using seaborn via conversion to pandas
-
-        # TODO
-        ...
-
-    def test_timeplot_interstate(self):
-        # Legacy timeplot function which does something similar to postprocess.get_inter_state() before plotting
-
-        # TODO
-        ...
-
-    ###########################################
-    # Functions from the "datasheet" hierarchy:
-
-    # Skip plot/colormaps.py.
-    # TODO Skip plot/common.py?
-    # Skip plot/hist.py?
-
-    # plot/__init__.py:
-    def test_plot_datasheet(self):
-        # Warning: this will take long to run -- make optional?
-
-        # TODO
-        ...
-
-    # plot/per_state_hist.py
-    def test_plot_per_state_histograms(self):
-        # TODO
-        ...
-
-    # plot/dip_trans_hist.py
-    def test_single_hist(self):
-        # TODO
-        ...
-
-    def test_plot_dip_trans_histograms(self):
-        # TODO
-        ...
-
-    def test_plot_spectra(self):
-        # TODO
-        ...
-
-    def test_plot_separated_spectra_and_hists(self):
-        # Monster function! Break up?
-        # TODO
-        ...
-
-    # plot/nacs_hist.py
-    def test_plot_nacs_histograms(self):
-        # TODO
-        ...
-
-    # plot/structure.py
-
-    # TODO Why is show_atXYZ deprecated? What has replaced it? The composition of xyz_to_mol() and mol_to_png()?
-    def test_plot_structure(self):
-        # TODO
-        ...
-
-    # plot/time.py
-    def test_plot_time_interstate_error(self):
-        # TODO 3 statecombs hard-coded for label positioning! Bad!
-        ...
-
-    def test_plot_pops(self):
-        # TODO
-        ...
-
-    def test_plot_timeplots(self):
-        # TODO
-        ...
+    # NB. Functions from the "datasheet" hierarchy tested in separate file

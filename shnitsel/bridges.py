@@ -1,6 +1,4 @@
 """This submodule contains functions used to interface with other packages and programs, especially RDKit."""
-
-from logging import warning
 import logging
 from typing import Literal
 
@@ -39,7 +37,7 @@ def to_xyz(da: AtXYZ, comment='#', units='angstrom') -> str:
         consider converting to angstrom first, as most tools will expect this.
     """
     if 'units' not in da.attrs:
-        warning(
+        logging.warning(
             "da.attrs['units'] is not set, the output will contain unconverted values"
         )
     else:
@@ -76,7 +74,7 @@ def traj_to_xyz(traj_atXYZ: AtXYZ, units='angstrom') -> str:
         consider converting to angstrom first, as most tools will expect this.
     """
     if 'units' not in traj_atXYZ.attrs:
-        warning(
+        logging.warning(
             "da.attrs['units'] is not set, the output will contain unconverted values"
         )
     else:
@@ -89,7 +87,7 @@ def traj_to_xyz(traj_atXYZ: AtXYZ, units='angstrom') -> str:
     atNames = traj_atXYZ.atNames.values
     sxyz = np.strings.mod('% 13.9f', atXYZ)
     sxyz = atNames[None, :] + sxyz[:, :, 0] + sxyz[:, :, 1] + sxyz[:, :, 2]
-    atom_lines = np.broadcast_to([f'{traj_atXYZ.sizes["atom"]}'], (sxyz.shape[0], 1))
+    atom_lines = np.broadcast_to([str(traj_atXYZ.sizes['atom'])], (sxyz.shape[0], 1))
     if 'time' in traj_atXYZ.coords:
         time_values = np.atleast_1d(traj_atXYZ.coords['time'])
         comment_lines = np.strings.mod('# t=%.2f', time_values)[:, None]
@@ -187,13 +185,30 @@ def numbered_smiles_to_mol(smiles: str) -> rc.Mol:
     for atom in mol.GetAtoms():
         # Renumbering with e.g. [3, 2, 0, 1] means atom 3 gets new index 0, not vice-versa!
         map_new_to_old[int(atom.GetProp("molAtomMapNumber"))] = atom.GetIdx()
-    return rc.RenumberAtoms(mol, map_new_to_old)
+    mol = rc.RenumberAtoms(mol, map_new_to_old)
+    return set_atom_props(mol, molAtomMapNumber=False)
+
+
+def _most_stable_frame(atXYZ, obj) -> int:
+    """Find the frame, out of all the initial conditions,
+    with the lowest ground-state energy;
+    failing that, return the first frame in ``atXYZ``
+    """
+
+    if 'energy' not in obj or 'trajid' not in obj:
+        return atXYZ.isel(frame=0)
+    inicond_energy = obj['energy'].isel(state=0).groupby('trajid').first()
+    trajid = inicond_energy.idxmin().item()
+    return atXYZ.sel(trajid=trajid, time=0)
 
 
 def construct_default_mol(
     obj: xr.Dataset | xr.DataArray | Trajectory | Frames | rc.Mol,
     to2D: bool = True,
     charge: int | float | None = None,
+    molAtomMapNumber: list[str] | Literal[True] | None = None,
+    atomNote: list[str] | Literal[True] | None = None,
+    atomLabel: list[str] | Literal[True] | None = None,
 ) -> rc.Mol:
     """Try many ways to get a representative Mol object for an ensemble:
 
@@ -206,7 +221,7 @@ def construct_default_mol(
 
     Parameters
     ----------
-    obj : xr.Dataset | xr.DataArray | rc.Mol
+    obj : xr.Dataset | xr.DataArray | Trajectory | Frames | rc.Mol
         An 'atXYZ' xr.DataArray with molecular geometries
         or an xr.Dataset containing the above as one of its variables
         or an rc.Mol object that will just be returned.
@@ -218,6 +233,13 @@ def construct_default_mol(
         Float will be converted to int and interpreted the same way.
         If not provided, will attempt to extract charge info from the xarray or Mol object and
         default to 0 charge if none can be found.
+    molAtomMapNumber : list[str] | Literal[True], optional
+        Set the ``molAtomMapNumber`` properties to values provided in a list,
+        or (if ``True`` is passed) set the properties to the respective atom indices
+    atomNote : list[str] | Literal[True], optional
+        Behaves like the ``molAtomMapNumber`` parameter above, but for the ``atomNote`` properties
+    atomLabel : list[str] | Literal[True], optional
+        Behaves like the ``molAtomMapNumber`` parameter above, but for the ``atomLabel`` properties
 
     Returns
     -------
@@ -227,6 +249,13 @@ def construct_default_mol(
     ------
     ValueError
         If the final approach fails
+
+    Notes
+    -----
+    If this function uses an existing ``Mol`` object, it returns a copy.
+    One consequence is that the decoration parameters
+    ``molAtomMapNumber``, ``atomNote`` and ``atomLabel``
+    do not affect the existing ``Mol`` object.
     """
     charge_int: int | None = None
     atXYZ: xr.DataArray
@@ -245,6 +274,8 @@ def construct_default_mol(
             charge = obj.charge
             print(f'{charge=}')
     else:
+        if '__mol' in obj.attrs:
+            return rc.Mol(obj.attrs['__mol'])
         atXYZ = obj  # We have an atXYZ DataArray
 
     if charge is not None:
@@ -262,10 +293,11 @@ def construct_default_mol(
         charge_int = 0
 
     # TODO: FIXME: Make these internal attributes with double underscores so they don't get written out.
-    if 'mol' in atXYZ.attrs:
-        return rc.Mol(obj.attrs['mol'])
+    if '__mol' in atXYZ.attrs:
+        return rc.Mol(obj.attrs['__mol'])
     elif 'smiles_map' in obj.attrs:
-        return numbered_smiles_to_mol(obj.attrs['smiles_map'])
+        logging.debug("default_mol: Using `obj.attrs['smiles_map']`")
+        mol = numbered_smiles_to_mol(obj.attrs['smiles_map'])
     elif 'smiles_map' in atXYZ.attrs:
         return numbered_smiles_to_mol(atXYZ.attrs['smiles_map'])
 
@@ -283,7 +315,9 @@ def construct_default_mol(
     try:
         if charge_int != 0:
             logging.info(f"Creating molecule with {charge_int=}")
-        return to_mol(atXYZ, charge=charge_int, to2D=to2D)
+        return set_atom_props(
+            to_mol(atXYZ, charge=charge_int, to2D=to2D), molAtomMapNumber=molAtomMapNumber, atomNote=atomNote, atomLabel=atomLabel
+        )
     except (KeyError, ValueError) as e:
         logging.error(e)
         raise ValueError(

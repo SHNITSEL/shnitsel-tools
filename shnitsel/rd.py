@@ -1,5 +1,6 @@
 """This module contains functions that accept an RDKit.Chem.Mol object;
 but *not* necessarily functions that *return* a Mol object."""
+
 from typing import Literal
 
 import rdkit.Chem as rc
@@ -14,30 +15,34 @@ import numpy as np
 
 
 def set_atom_props(
-    mol: rc.Mol, inplace: bool = False, **kws: list | Literal[True]
+    mol: rc.Mol, inplace: bool = False, **kws: list[str] | Literal[True]
 ) -> rc.Mol | None:
     """Set properties on atoms of an ``rdkit.Chem.Mol`` object
 
     Parameters
     ----------
-    mol
+    mol : rdkit.Chem.mol
         The ``Mol`` object
-    inplace, optional
+    inplace : bool, optional
         Whether to alter ``mol``; , by default False (returns a copy)
     **kws
         A mapping where parameter names represent the name of a property
-        and the arguments are either a list of values the atoms should be
-        set to, or simply ``True``, in which case the atom indices as
-        assigned by RDKit will be used as values.
+        and the arguments are either
+
+            - a list of str values the atoms should be set to;
+            - ``True``, in which case the atom indices as
+              assigned by RDKit will be used as values;
+            - ``False``, in which the property will be cleared on every atom.
 
     Returns
     -------
-        A copy of the ``Mol`` object, if ``inplace=False``, otherwise ``None``
+        A copy of the ``Mol`` object, if ``inplace=False``, otherwise the provided mol
 
     Raises
     ------
     ValueError
-        _description_
+        If the amount of values passed to the properties kwargs did not match the amount of
+        atoms in the mol.
     """
     if not inplace:
         mol = rc.Mol(mol)
@@ -47,6 +52,10 @@ def set_atom_props(
             continue
         elif vals is True:
             vals = range(natoms)
+        elif vals is False:
+            for atom in mol.GetAtoms():
+                atom.ClearProp(prop)
+            continue
         elif natoms != len(vals):
             raise ValueError(
                 f"{len(vals)} values were passed for {prop}, but 'mol' has {natoms} atoms"
@@ -54,8 +63,7 @@ def set_atom_props(
 
         for atom, val in zip(mol.GetAtoms(), vals):
             atom.SetProp(prop, str(val))
-    if not inplace:
-        return mol
+    return mol
 
 
 def mol_to_numbered_smiles(mol: rc.Mol) -> str:

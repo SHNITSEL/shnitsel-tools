@@ -21,14 +21,19 @@ def _true_upto(mask: xr.DataArray, dim: str) -> xr.DataArray:
     Returns array with values of `dim` coordinate up to which the values are all `true` or `-np.inf` if no
     frame is valid.
 
-    Args:
-        mask (xr.DataArray): The mask holding boolean flags whether criteria are fulfilled.
-        dim (str): The dimension along which to check continuous validity of criteria.
+    Parameters
+    ----------
+    mask : xr.DataArray
+        The mask holding boolean flags whether criteria are fulfilled.
+    dim : str
+        The dimension along which to check continuous validity of criteria.
 
-    Returns:
-        xr.DataArray: The point in time up to which the criterion is fulfilled.
+    Returns
+    -------
+    xr.DataArray
+        The point in time up to which the criterion is fulfilled.
     """
-    assert dim in mask.dims, 'Mask array is missing specified dimension %s' % dim
+    assert dim in mask.dims, "Mask array is missing specified dimension %s" % dim
     shifted_coord = np.concat([[-np.inf], mask.coords[dim].data])
     num_cum_valid_indices = mask.cumprod(dim).sum(dim).astype(int)
     res = np.take(shifted_coord, num_cum_valid_indices.data)
@@ -41,23 +46,35 @@ def _filter_mask_from_criterion_mask(mask: xr.DataArray) -> xr.DataArray:
     the criterion is fulfilled.
 
     Either holds a boolean `filter_mask` or a time values variable `good_upto` depending on
-    whether a `time` dimension is present.
+    whether a `time` dimension/coordinate is present.
 
+    Parameters
+    ----------
+    mask : xr.DataArray
+        The xarray holding the boolean flags whether a frame contains valid data for various criteria
 
+    Returns
+    -------
+    xr.DataArray
+        With name `filter_mask` which holds true boolean flags, whether a frame should be kept according to the respective criterion.
+        If a time dimension is present, also holds a `good_upto` coordinate, which maps
+        criteria to the time value at which the criterion is last fulfilled.
+        If the time dimension is missing, will just have boolean flags.
+        Also has a coordinate `good_throughout`, which indicates, whether the entire trajectory/frameset satisfies the criterion.
     """
     leading_dim: str
-    if 'time' in mask.dims:
-        leading_dim = 'time'
+    if "time" in mask.dims:
+        leading_dim = "time"
         good_upto = _true_upto(mask, leading_dim)
-        good_upto.name = 'good_upto'
+        good_upto.name = "good_upto"
         filter_mask = (mask.time < good_upto).astype(bool)
-        filter_mask.name = 'filter_mask'
+        filter_mask.name = "filter_mask"
         filter_mask = filter_mask.assign_coords(good_upto=good_upto)
     else:
         # We have independent frames. Don't try and conceive a `good up to this point` property
-        leading_dim = 'frame'
+        leading_dim = "frame"
         filter_mask = mask.copy()
-        filter_mask.name = 'filter_mask'
+        filter_mask.name = "filter_mask"
 
     good_throughout = mask.all(leading_dim)
 
@@ -80,10 +97,28 @@ def _filter_mask_from_dataset(ds: xr.Dataset) -> xr.DataArray:
     and with a coord called good_throughout
 
     The returned object has dimension {'criterion'}.
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        A Dataset containing either:
+            - a 'good_upto' data_var and a 'good_throughout' coordinate
+            - a 'filtranda' data_var with a 'threshold' coordinate
+
+    Returns
+    -------
+        A DataArray containing cutoff times (the same as the good_upto data_var)
+        and with a coord called good_throughout
+        The returned object has dimension {'criterion'}.
+
+    Raises
+    ------
+    ValueError
+        If there is no filtration information in the Dataset
     """
-    if 'good_upto' in ds.data_vars:
+    if "good_upto" in ds.data_vars:
         mask = (ds.coords["time"] <= ds["good_upto"]).astype(bool)
-        mask.name = 'filter_mask'
+        mask.name = "filter_mask"
         return mask
     elif "filter_mask" in ds.data_vars:
         mask = ds.data_vars["filter_mask"]
@@ -149,6 +184,15 @@ def _omit(frames_or_trajectory: TrajectoryOrFrames) -> TrajectoryOrFrames | None
         return None
 
 
+def _log_omit(before, after):
+    kept = set(after.trajid.values.tolist())
+    omitted = set(before.trajid.values.tolist()).difference(kept)
+    logging.info(
+        f"Kept {len(kept)} trajectories, IDs: {kept}; \n"
+        f"Dropped {len(omitted)} trajectories, IDs: {omitted}"
+    )
+
+
 def _truncate(frames_or_trajectory: TrajectoryOrFrames) -> TrajectoryOrFrames:
     """Perform a truncation, i.e. cut off the trajectory at its last continuously valid frame from the begining."""
     filter_mask_all_criteria = _filter_mask_from_dataset(
@@ -181,15 +225,15 @@ def _transect(trajectory: Trajectory, cutoff_time: float) -> Trajectory | None:
     else:
         working_dataset = trajectory.dataset
 
-    assert (
-        'time' in working_dataset.dims
-    ), 'Dataset has no coordinate `time` but time-based truncation has been requested, which cannot be performed!'
+    assert "time" in working_dataset.dims, (
+        "Dataset has no coordinate `time` but time-based truncation has been requested, which cannot be performed!"
+    )
 
     time_sliced_dataset = working_dataset.loc[{"time": slice(float(cutoff_time))}]
     good_upto = _filter_mask_from_dataset(time_sliced_dataset)
-    assert (
-        good_upto.name == 'good_upto'
-    ), "Despite a `time` dimension being present, the filter mask returned for the dataset was not a `good_upto` value."
+    assert good_upto.name == "good_upto", (
+        "Despite a `time` dimension being present, the filter mask returned for the dataset was not a `good_upto` value."
+    )
     # TODO: FIXME: We may want to accept the last time before `cutoff_time` to be true.
     is_trajectory_good = (good_upto >= cutoff_time).all("criterion").item()
     if is_trajectory_good:
@@ -230,8 +274,8 @@ def dispatch_filter(
         If an unsupported value for the `cut` parameter was provided.
     """
     if not frames_or_trajectory.has_variable(
-        'filtranda'
-    ) or not frames_or_trajectory.has_coordinate('thresholds'):
+        "filtranda"
+    ) or not frames_or_trajectory.has_coordinate("thresholds"):
         logging.warning(
             "Trajectory is missing the required variable `filtranda` (possibly because they could not be calculated) or the required coordinate `thresholds` for those filtranda. No filtering is performed."
         )
@@ -252,6 +296,7 @@ def dispatch_filter(
         #     "Cannot provide a `Frames` object to a `transect()` call. Unsupported operation."
         # )
         return _transect(frames_or_trajectory, transect_position)  # type: ignore # Must be Trajectory here or the _transect() call will error out anyway.
+
     else:
         raise ValueError(
             "`filter_method` should be one of {'truncate', 'omit', 'annotate'}, or a number, "
@@ -265,9 +310,33 @@ def dispatch_filter(
 
 
 def cum_max_quantiles(
-    filtranda_array: xr.DataArray, quantiles: Sequence[float] | None = None
+    filtranda_array: xr.Dataset | xr.DataArray, quantiles: Sequence[float] | None = None
 ) -> xr.DataArray:
-    # TODO: FIXME: I don't understand, what this is supposed to do. Why do we perform quantile extraction across trajectories?
+    """Quantiles of cumulative maxima
+
+    Parameters
+    ----------
+    filtranda_array : xr.DataArray
+        A DataArray, or a Dataset with a data_var 'filtranda';
+        either way, the Variable should have dimensions and
+        coordinates corresponding to a
+        (stacked or unstacked) ensemble of trajectories.
+    quantiles : Sequence[float], optional
+        Which quantiles to calculate,
+        by default ``[0.25, 0.5, 0.75, 0.9, 0.95, 0.99, 1]``
+
+    Returns
+    -------
+    xr.DataArray
+        A DataArray with 'quantile' and 'time' dimensions;
+        'frame' or 'trajid' dimensions will have been removed;
+        other dimensions remain unaffected.
+
+    See also
+    --------
+    The data returned by this function is intended for consumption by
+    :py:func:`shnitsel.vis.plot.filtration.check_thresholds`
+    """
     if quantiles is None:
         quantiles = [0.25, 0.5, 0.75, 0.9, 0.95, 0.99, 1]
 

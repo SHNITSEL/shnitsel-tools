@@ -118,16 +118,16 @@ def calc_confidence_interval_in_array_dimensions(
     res_da: xr.DataArray = xr.apply_ufunc(
         confidence_interval_aggregate_last_dim,
         data_array,
-        kwargs={'confidence': confidence},
-        output_core_dims=[['bound']],
+        kwargs={"confidence": confidence},
+        output_core_dims=[["bound"]],
         input_core_dims=[[dim]],
     )
     return res_da.assign_coords(  #
-        dict(bound=['lower', 'upper', 'mean'])
+        dict(bound=["lower", "upper", "mean"])
     )
 
 
-@needs(groupable={'time'}, dims={'frame'})
+@needs(groupable={"time"}, dims={"frame"})
 def time_grouped_confidence_interval(
     data_array: xr.DataArray, confidence: float = 0.9
 ) -> xr.Dataset:
@@ -140,28 +140,28 @@ def time_grouped_confidence_interval(
     Returns:
         xr.Dataset: A new Dataset, where variables 'lower', 'upper' and 'mean' contain the lower and upper bounds of the confidence interval in each time step and mean is the mean at each point in time.
     """
-    if 'frame' in data_array.dims:
+    if "frame" in data_array.dims:
         return (
-            data_array.groupby('time')
+            data_array.groupby("time")
             .map(
                 lambda x: calc_confidence_interval_in_array_dimensions(
-                    x, dim='frame', confidence=confidence
+                    x, dim="frame", confidence=confidence
                 )
             )
-            .to_dataset('bound')
+            .to_dataset("bound")
         )
-    elif 'time' in data_array.dims:
+    elif "time" in data_array.dims:
         return (
-            data_array.groupby('time')
-            .map(lambda x: xr.DataArray(np.array([x, x, x]), dims=['bound']))
-            .assign_coords(dict(bound=['lower', 'upper', 'mean']))
-            .to_dataset('bound')
+            data_array.groupby("time")
+            .map(lambda x: xr.DataArray(np.array([x, x, x]), dims=["bound"]))
+            .assign_coords(dict(bound=["lower", "upper", "mean"]))
+            .to_dataset("bound")
         )
     else:
         raise ValueError("Data contained neither time nor frame dimension.")
 
 
-@needs(dims={'state'})
+@needs(dims={"state"})
 def get_per_state(frames: Frames) -> PerState:
     """Isolate the standard per-state properties (energy, forces, permanent dipoles)
     from an xr.Dataset, and take their norm over all array dimensions other than 'state'
@@ -179,8 +179,8 @@ def get_per_state(frames: Frames) -> PerState:
     """
     # TODO: FIXME: Attributes need to be kept.
     # And why create a new dataset instead of amending the original one?
-    props_per = {'energy', 'forces', 'dip_perm'}.intersection(frames.keys())
-    per_base_props_to_norm = {'dip_perm', 'forces'}.intersection(frames.keys())
+    props_per = {"energy", "forces", "dip_perm"}.intersection(frames.keys())
+    per_base_props_to_norm = {"dip_perm", "forces"}.intersection(frames.keys())
 
     per_state = frames[props_per]
 
@@ -188,21 +188,21 @@ def get_per_state(frames: Frames) -> PerState:
         if prop in frames:
             per_state[str(prop) + "_norm"] = keep_norming(frames[prop])
 
-    if 'forces' in per_state:
-        per_state['forces'] = per_state['forces'].where(per_state['forces'] != 0)
-        per_state['forces'].attrs['long_name'] = r'$\mathbf{F}$'
+    if "forces" in per_state:
+        per_state["forces"] = per_state["forces"].where(per_state["forces"] != 0)
+        per_state["forces"].attrs["long_name"] = r"$\mathbf{F}$"
 
-    if 'energy' in per_state:
-        per_state['energy'].attrs['long_name'] = r'$E$'
+    if "energy" in per_state:
+        per_state["energy"].attrs["long_name"] = r"$E$"
 
-    if 'dip_perm' in per_state:
-        per_state['dip_perm'].attrs['long_name'] = r'$\mathbf{\mu}_i$'
-    
+    if "dip_perm" in per_state:
+        per_state["dip_perm"].attrs["long_name"] = r"$\mathbf{\mu}_i$"
+
     per_state.attrs.update(frames.attrs)
     return per_state
 
 
-@needs(dims={'state'}, coords={'state'})
+@needs(dims={"state"}, coords={"state"})
 def get_inter_state(frames: Frames) -> InterState:
     """Calculate inter-state properties of a dataset for certain observables.
 
@@ -217,9 +217,9 @@ def get_inter_state(frames: Frames) -> InterState:
         InterState: A Dataset containing interstate properties
     """
     prop: Hashable
-    inter_base_props = ['energy']
+    inter_base_props = ["energy"]
     available_inter_base_props = []
-    inter_base_props_to_norm = ['dip_trans', 'nacs', 'socs']
+    inter_base_props_to_norm = ["dip_trans", "nacs", "socs"]
     # TODO: Check that energy is actually the only inter-state property. We already have statecomb for nacs and dip_trans and astate is not state-dependent.
     for prop in inter_base_props:
         if prop in frames:
@@ -227,19 +227,19 @@ def get_inter_state(frames: Frames) -> InterState:
         else:
             warning(f"Dataset does not contain variable '{prop}'")
 
-    if 'statecomb' not in frames.sizes:
+    if "statecomb" not in frames.sizes:
         logging.info(
             "Creating a new `statecomb` dimension because it was not yet set when calculating inter-state properties."
         )
         statecomb_coords = get_statecomb_coordinate(frames.state)
         frames = frames.assign_coords(statecomb_coords)
-        frames['statecomb'].attrs['long_name'] = "State combinations"
+        frames["statecomb"].attrs["long_name"] = "State combinations"
 
     inter_state = frames.copy()
     for prop in available_inter_base_props:
-        if 'state' in frames[prop].dims and 'statecomb' not in frames[prop].dims:
+        if "state" in frames[prop].dims and "statecomb" not in frames[prop].dims:
             inter_state_res = subtract_combinations(
-                frames[prop], dim='state', add_labels=False
+                frames[prop], dim="state", add_labels=False
             )
             inter_state[str(prop) + "_interstate"] = inter_state_res
             inter_state[str(prop) + "_interstate"].attrs["long_name"] = (
@@ -271,18 +271,20 @@ def get_inter_state(frames: Frames) -> InterState:
     # inter_state = flatten_midx(inter_state, 'statecomb', state_renamer)
     # inter_state['statecomb'].attrs['long_name'] = "State combinations"
 
-    if {'energy_interstate', 'dip_trans'}.issubset(inter_state.variables.keys()):
+    if {"energy_interstate", "dip_trans"}.issubset(inter_state.variables.keys()):
         fosc_data = calculate_fosc(
             inter_state.energy_interstate, inter_state.dip_trans_norm
         )
         inter_state = inter_state.assign(fosc=fosc_data)
 
-    if 'energy_interstate' in inter_state:
-        inter_state['energy_interstate'] = convert_energy(
-            inter_state['energy_interstate'], to=energy.eV
+    if "energy_interstate" in inter_state:
+        inter_state["energy_interstate"] = convert_energy(
+            inter_state["energy_interstate"], to=energy.eV
         )
-        inter_state['energy_interstate'].attrs["long_name"] = (
+        inter_state["energy_interstate"].attrs["long_name"] = (
             "Energy delta between the energy levels of various states derived from `energy`"
         )
 
+    # TODO: FIXME: Consider whether the result should contain only statecomb
+    # inter_state = inter_state.drop_dims(['state'], errors='ignore')
     return inter_state
