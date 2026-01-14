@@ -195,12 +195,39 @@ def _most_stable_frame(atXYZ, obj: xr.Dataset | Trajectory | Frames) -> xr.DataA
     with the lowest ground-state energy;
     failing that, return the first frame in ``atXYZ``
     """
+    leading_dim: str
+    if isinstance(obj, (Frames, Trajectory)):
+        leading_dim = obj.leading_dimension
+    else:
+        if 'frame' in atXYZ.sizes:
+            leading_dim = 'frame'
+        elif 'time' in atXYZ.sizes:
+            leading_dim = 'time'
+        else:
+            logging.info("No leading dimension detected for atXYZ source")
+            return atXYZ
 
-    if 'energy' not in obj or 'trajid' not in obj:
-        return atXYZ.isel(frame=0)
-    inicond_energy = obj['energy'].isel(state=0).groupby('trajid').first()
-    trajid = inicond_energy.idxmin().item()
-    return atXYZ.sel(trajid=trajid, time=0)
+    if (
+        'energy' not in obj
+        or 'state' not in obj
+        or 'time' not in obj
+        or (
+            'trajid' not in obj.coords
+            and 'trajid_' not in obj.coords
+            and 'trajectory' not in obj.coords
+            and 'atrajectory' not in obj.coords
+        )
+    ):
+        return atXYZ.isel({leading_dim: 0})
+
+    if 'trajectory' in obj.sizes or 'atrajectory' in obj.sizes:
+        inicond_energy = obj.energy.isel(state=0).groupby('atrajectory').first()
+        trajid = inicond_energy.idxmin().item()
+        return atXYZ.sel({'atrajectory': trajid, 'time': 0})
+    else:
+        inicond_energy = obj.energy.isel(state=0).groupby('trajid').first()
+        trajid = inicond_energy.idxmin().item()
+        return atXYZ.sel({'trajid': trajid, 'time': 0})
 
 
 def construct_default_mol(
@@ -352,5 +379,6 @@ def smiles_map(atXYZ_frame, charge=0, covFactor=1.5) -> str:
     """
     mol = to_mol(atXYZ_frame, charge=charge, covFactor=covFactor, to2D=True)
     return mol_to_numbered_smiles(mol)
+
 
 default_mol = construct_default_mol
