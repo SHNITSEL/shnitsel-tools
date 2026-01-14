@@ -71,6 +71,11 @@ def main():
         geocalc_.angles.angle,
         geocalc_.distances.distance,
         geocalc.get_bats,
+        geocalc.get_distances,
+        geocalc.get_angles,
+        geocalc.get_dihedrals,
+        geocalc.get_pyramidalization,
+        geocalc.get_max_chromophor_BLA,
         alignment.kabsch,
         # geomatch_exact.get_bats_matching,
         ### select

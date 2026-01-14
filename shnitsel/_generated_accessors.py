@@ -33,9 +33,11 @@ from shnitsel.data.helpers import validate
 from shnitsel.data.multi_indices import assign_levels, expand_midx, flatten_levels, mdiff, mgroupby, msel, sel_trajids, sel_trajs, stack_trajs, unstack_trajs
 from shnitsel.geo.alignment import kabsch
 from shnitsel.geo.geocalc import get_bats
-from shnitsel.geo.geocalc_.angles import angle
-from shnitsel.geo.geocalc_.dihedrals import dihedral
-from shnitsel.geo.geocalc_.distances import distance
+from shnitsel.geo.geocalc_.angles import angle, get_angles
+from shnitsel.geo.geocalc_.bla_chromophor import get_max_chromophor_BLA
+from shnitsel.geo.geocalc_.dihedrals import dihedral, get_dihedrals
+from shnitsel.geo.geocalc_.distances import distance, get_distances
+from shnitsel.geo.geocalc_.pyramids import get_pyramidalization
 from shnitsel.io.ase.write import write_ase_db
 from shnitsel.io.shnitsel.write import write_shnitsel_file
 from shnitsel.units.conversion import convert_dipole, convert_energy, convert_force, convert_length, convert_nacs, convert_time
@@ -81,6 +83,11 @@ class DataArrayAccessor(DAManualAccessor):
         'angle',
         'distance',
         'get_bats',
+        'get_distances',
+        'get_angles',
+        'get_dihedrals',
+        'get_pyramidalization',
+        'get_max_chromophor_BLA',
         'kabsch',
         'FrameSelector',
         'TrajSelector',
@@ -232,6 +239,30 @@ class DataArrayAccessor(DAManualAccessor):
     def get_bats(self, structure_selection: shnitsel.filtering.structure_selection.StructureSelection | None=None, default_features: Sequence=['bonds', 'angles', 'dihedrals'], signed: bool=False, deg: Union=True) -> xarray.core.dataarray.DataArray | shnitsel.data.tree.tree.ShnitselDBRoot[DataArray]:
         """Wrapper for :py:func:`shnitsel.geo.geocalc.get_bats`."""
         return get_bats(self._obj, structure_selection=structure_selection, default_features=default_features, signed=signed, deg=deg)
+
+    @needs(dims={'atom', 'direction'})
+    def get_distances(self, structure_selection: shnitsel.filtering.structure_selection.StructureSelection | None=None) -> DataArray:
+        """Wrapper for :py:func:`shnitsel.geo.geocalc_.distances.get_distances`."""
+        return get_distances(self._obj, structure_selection=structure_selection)
+
+    @needs(dims={'atom', 'direction'})
+    def get_angles(self, structure_selection: shnitsel.filtering.structure_selection.StructureSelection | None=None, deg: Union=True, signed: bool=True) -> DataArray:
+        """Wrapper for :py:func:`shnitsel.geo.geocalc_.angles.get_angles`."""
+        return get_angles(self._obj, structure_selection=structure_selection, deg=deg, signed=signed)
+
+    @needs(dims={'atom', 'direction'})
+    def get_dihedrals(self, structure_selection: shnitsel.filtering.structure_selection.StructureSelection | None=None, deg: bool=True, signed: bool=True) -> DataArray:
+        """Wrapper for :py:func:`shnitsel.geo.geocalc_.dihedrals.get_dihedrals`."""
+        return get_dihedrals(self._obj, structure_selection=structure_selection, deg=deg, signed=signed)
+
+    def get_pyramidalization(self, structure_selection: shnitsel.filtering.structure_selection.StructureSelection | None=None, deg: bool=False, signed=True) -> DataArray:
+        """Wrapper for :py:func:`shnitsel.geo.geocalc_.pyramids.get_pyramidalization`."""
+        return get_pyramidalization(self._obj, structure_selection=structure_selection, deg=deg, signed=signed)
+
+    @needs(dims={'atom', 'direction'})
+    def get_max_chromophor_BLA(self, structure_selection: shnitsel.filtering.structure_selection.StructureSelection | None=None, SMARTS: str | None=None, num_double_bonds: int | None=None, allowed_chain_elements: str='#6,#7,#8,#15,#16', max_considered_BLA_double_bonds: int=50) -> DataArray:
+        """Wrapper for :py:func:`shnitsel.geo.geocalc_.bla_chromophor.get_max_chromophor_BLA`."""
+        return get_max_chromophor_BLA(self._obj, structure_selection=structure_selection, SMARTS=SMARTS, num_double_bonds=num_double_bonds, allowed_chain_elements=allowed_chain_elements, max_considered_BLA_double_bonds=max_considered_BLA_double_bonds)
 
     @needs(dims={'atom', 'direction'})
     def kabsch(self, reference_or_indexers: xarray.core.dataarray.DataArray | dict | None=None, **indexers_kwargs) -> DataArray:
