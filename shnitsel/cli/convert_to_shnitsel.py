@@ -179,7 +179,7 @@ def main():
         compound_info = CompoundInfo()
         if input_compound:
             compound_info.compound_name = input_compound
-            tree = tree.set_compound_info(compound_info=compound_info)
+            tree = tree.set_compound_info(compound=compound_info)
 
         if input_group:
             tree = tree.add_data_group(group_info=GroupInfo(group_name=input_group))
