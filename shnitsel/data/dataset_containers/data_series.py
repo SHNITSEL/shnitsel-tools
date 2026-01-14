@@ -28,6 +28,8 @@ class DataSeries(ShnitselDataset):
     # from .inter_state import InterState
 
     def __init__(self, ds: xr.Dataset):
+        assert 'state' in ds.dims
+        assert 'atom' in ds.dims
         super().__init__(ds)
 
     @cached_property
