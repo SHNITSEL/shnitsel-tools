@@ -5,10 +5,9 @@ from typing import Collection, Hashable, Union
 import numpy as np
 import xarray as xr
 
-from shnitsel.data.dataset_containers.frames import Frames
+from shnitsel.data.dataset_containers import Frames, Trajectory
 from shnitsel.data.multi_indices import midx_combs
 from shnitsel.core.typedefs import AtXYZ
-from shnitsel.data.trajectory_format import Trajectory
 from shnitsel.filtering.structure_selection import StructureSelection
 
 from ..core.typedefs import DataArrayOrVar, DimName
@@ -185,7 +184,7 @@ def keep_norming(
     -------
     xr.DataArray
         The resulting, normed array
-        
+
     Notes
     -----
         The output of keep_norming is not necessarily >= 0; for example, if all dimensions
