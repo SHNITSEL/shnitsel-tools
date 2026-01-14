@@ -165,7 +165,7 @@ def _assign_filter_mask(
 TrajectoryOrFrames = TypeVar("TrajectoryOrFrames", bound=Trajectory | Frames)
 
 
-def _omit(frames_or_trajectory: TrajectoryOrFrames) -> TrajectoryOrFrames | None:
+def omit(frames_or_trajectory: TrajectoryOrFrames) -> TrajectoryOrFrames | None:
     """If all filter criteria are fulfilled throughout, keep the trajectory.
     Otherwise return None to omit it.
 
@@ -193,7 +193,7 @@ def _log_omit(before, after):
     )
 
 
-def _truncate(frames_or_trajectory: TrajectoryOrFrames) -> TrajectoryOrFrames:
+def truncate(frames_or_trajectory: TrajectoryOrFrames) -> TrajectoryOrFrames:
     """Perform a truncation, i.e. cut off the trajectory at its last continuously valid frame from the begining."""
     filter_mask_all_criteria = _filter_mask_from_dataset(
         frames_or_trajectory.dataset
@@ -206,7 +206,7 @@ def _truncate(frames_or_trajectory: TrajectoryOrFrames) -> TrajectoryOrFrames:
     )
 
 
-def _transect(trajectory: Trajectory, cutoff_time: float) -> Trajectory | None:
+def transect(trajectory: Trajectory, cutoff_time: float) -> Trajectory | None:
     """Perform a transect, i.e. cut off the trajetory at time `cutoff_time` if it is valid until then
     or omit it, if it is not valid for long enough.
 
@@ -287,15 +287,15 @@ def dispatch_filter(
             frames_or_trajectory.dataset.assign({filter_mask.name: filter_mask})
         )
     elif filter_method == "truncate":
-        return _truncate(frames_or_trajectory)
+        return truncate(frames_or_trajectory)
     elif filter_method == "omit":
-        return _omit(frames_or_trajectory)
+        return omit(frames_or_trajectory)
     elif isinstance(filter_method, float):
         transect_position: float = filter_method
         # assert isinstance(frames_or_trajectory, Trajectory), (
         #     "Cannot provide a `Frames` object to a `transect()` call. Unsupported operation."
         # )
-        return _transect(frames_or_trajectory, transect_position)  # type: ignore # Must be Trajectory here or the _transect() call will error out anyway.
+        return transect(frames_or_trajectory, transect_position)  # type: ignore # Must be Trajectory here or the _transect() call will error out anyway.
 
     else:
         raise ValueError(
