@@ -10,8 +10,8 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import xarray as xr
 
-from shnitsel.analyze.pca import pca_and_hops
-from shnitsel.core.typedefs import Frames
+from shnitsel.analyze.pca import PCAResult, pca_and_hops
+from shnitsel.data.dataset_containers import Frames, Trajectory, wrap_dataset
 from shnitsel.geo.geocalc_.angles import angle
 from shnitsel.geo.geocalc_.dihedrals import dihedral
 from shnitsel.geo.geocalc_.distances import distance
@@ -136,7 +136,7 @@ def _get_xx_yy(
 
 
 def _fit_and_eval_kdes(
-    pca_data: xr.DataArray,
+    pca_data: PCAResult,
     geo_property: xr.DataArray,
     geo_kde_ranges: Sequence[tuple[float, float]],
     num_steps: int = 500,
@@ -171,12 +171,12 @@ def _fit_and_eval_kdes(
         Last the Sequence of KDE evaluations on the meshgrid for each filter range.
     """
     # TODO: FIXME: We should be able to deal with a missing `frame` dimension.
-    pca_data = pca_data.transpose(
+    pca_data_da = pca_data.projected_inputs.transpose(
         'frame', 'PC'
     )  # required order for the following 3 lines
 
-    xx, yy = _get_xx_yy(pca_data, num_steps=num_steps, extension=extension)
-    kernels = _fit_kdes(pca_data, geo_property, geo_kde_ranges)
+    xx, yy = _get_xx_yy(pca_data_da, num_steps=num_steps, extension=extension)
+    kernels = _fit_kdes(pca_data_da, geo_property, geo_kde_ranges)
     return xx, yy, _eval_kdes(kernels, xx, yy)
 
 
@@ -231,7 +231,7 @@ def _plot_kdes(
 
 
 def biplot_kde(
-    frames: Frames,
+    frames: xr.Dataset | Frames | Trajectory,
     at1: int = 0,
     at2: int = 1,
     at3: int | None = None,
@@ -314,23 +314,25 @@ def biplot_kde(
     if contour_levels is None:
         contour_levels = [0.08, 1]
 
+    wrapped_ds = wrap_dataset(frames)
+
     match at1, at2, at3, at4:
         case at1, at2, None, None:
             # compute distance between atoms at1 and at2
-            geo_prop = distance(frames['atXYZ'], at1, at2)
+            geo_prop = distance(wrapped_ds.positions, at1, at2)
             if not geo_kde_ranges:
                 geo_kde_ranges = [(0, 3), (5, 100)]
         case at1, at2, at3, None:
             # compute angle between vectors at1 - at2 and at2 - at3
             assert at3 is not None  # to satisfy the typechecker
-            geo_prop = angle(frames['atXYZ'], at1, at2, at3, deg=True)
+            geo_prop = angle(wrapped_ds.positions, at1, at2, at3, deg=True)
             if not geo_kde_ranges:
                 geo_kde_ranges = [(0, 80), (110, 180)]
         case at1, at2, at3, at4:
             # compute dihedral defined as angle between normals to planes (at1, at2, at3) and (at2, at3, at4)
             assert at3 is not None
             assert at4 is not None
-            geo_prop = dihedral(frames['atXYZ'], at1, at2, at3, at4, deg=True)
+            geo_prop = dihedral(wrapped_ds.positions, at1, at2, at3, at4, deg=True)
             if not geo_kde_ranges:
                 geo_kde_ranges = [(0, 80), (110, 180)]
 
@@ -350,11 +352,11 @@ def biplot_kde(
     structaxs = structsf.subplot_mosaic('ab\ncd')
 
     # prepare data
-    pca_data, hops = pca_and_hops(frames, center_mean=center_mean)
+    pca_data, hops = pca_and_hops(wrapped_ds, center_mean=center_mean)
     kde_data = _fit_and_eval_kdes(pca_data, geo_prop, geo_kde_ranges, num_steps=100)
-    d = pb.pick_clusters(frames, num_bins=num_bins, center_mean=center_mean)
+    d = pb.pick_clusters(wrapped_ds, num_bins=num_bins, center_mean=center_mean)
     loadings, clusters, picks = d['loadings'], d['clusters'], d['picks']
-    mol = construct_default_mol(frames)
+    mol = construct_default_mol(wrapped_ds)
     mol = set_atom_props(mol, atomLabel=True, atomNote=[''] * mol.GetNumAtoms())
 
     if scatter_color_property == 'time':
