@@ -272,14 +272,14 @@ class StructureSelection:
         Returns:
             StructureSelection: A structure selection object initially covering all atoms and structural features.
         """
-        filtered_dataset = frame.squeeze()
+        filtered_dataset = frame  # .squeeze()
 
         # if 'frame' in filtered_dataset.dims or 'time' in filtered_dataset.dims:
         #     raise ValueError(
         #         "The dataset should not contain frame or data but represent a single frame of data. \n"
         #         f"Had dimensions : {filtered_dataset.dims}"
         #     )
-
+        # print(filtered_dataset.charge)
         # TODO: FIXME: Consider the charges needing to be set from the dataset settings.s
         mol = construct_default_mol(
             filtered_dataset,
