@@ -554,11 +554,11 @@ def circbins(
         return np.c_[np.cos(x), np.sin(x)]
 
     kmeans = KMeans(n_clusters=num_bins)
-
-    labels = kmeans.fit_predict(proj(angles))
-
-    space = np.linspace(0, 360, num=10).astype(np.float64)
-    sample = kmeans.predict(proj(space).astype(np.float64))
+    raise NotImplementedError("Fix this type issue")
+    print(angles, angles.dtype)
+    labels = kmeans.fit_predict(proj(angles.astype(float)).astype(float))
+    space = np.linspace(0., 360., num=10).astype(float)
+    sample = kmeans.predict(proj(space).astype(float))
     mask = np.diff(sample) != 0
     mask = np.concat([mask, [sample[-1] == sample[0]]])
     edgeps = space[mask]
