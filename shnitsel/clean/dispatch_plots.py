@@ -1,6 +1,6 @@
 from typing import Literal, Sequence
 import xarray as xr
-from shnitsel.vis.plot.filtration import check_thresholds, validity_populations
+
 
 
 # This function is in a separate file to avoid a circular dependency
@@ -37,6 +37,7 @@ def dispatch_plots(
     ValueError
         If ``plot_populations`` is an invalid value
     """
+    from shnitsel.vis.plot.filtration import check_thresholds, validity_populations
     if plot_thresholds:
         if isinstance(plot_thresholds, Sequence):
             quantiles = plot_thresholds
