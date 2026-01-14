@@ -21,8 +21,8 @@ from shnitsel.core.typedefs import Frames
 from .common import figax, extrude, mpl_imshow_png
 from ...rd import highlight_pairs
 
-if TYPE_CHECKING:
-    from rdkit.Chem import Mol
+# if TYPE_CHECKING:
+from rdkit.Chem import Mol
 
 
 def plot_noodleplot(
