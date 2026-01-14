@@ -231,6 +231,7 @@ def _sanity_check_per_trajectory(
         "thresholds",
         "filter_mask",
         "good_upto",
+        "good_throughout",
         "criterion",
     ]
     prefix = "energy"
