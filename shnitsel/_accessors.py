@@ -187,11 +187,3 @@ class DAManualAccessor(ShnitselAccessor):
 
 class DSManualAccessor(ShnitselAccessor):
     pass
-
-
-class DataTreeAccessor:
-    def __init__(self, obj):
-        self._obj = obj
-
-    def to_frames(self, allow_inconsistent: set | None = None) -> xr.Dataset:
-        return tree_to_frames(self._obj, allow_inconsistent=allow_inconsistent)
