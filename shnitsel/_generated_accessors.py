@@ -22,7 +22,7 @@ from shnitsel.analyze.pls import pls, pls_ds
 from shnitsel.analyze.populations import PopulationStatistics, calc_classical_populations
 from shnitsel.analyze.spectra import get_spectra
 from shnitsel.analyze.stats import calc_confidence_interval, get_inter_state, get_per_state, time_grouped_confidence_interval
-from shnitsel.bridges import construct_default_mol, smiles_map, to_mol, to_xyz, traj_to_xyz
+from shnitsel.bridges import default_mol, smiles_map, to_mol, to_xyz, traj_to_xyz
 from shnitsel.clean import sanity_check
 from shnitsel.clean.common import TrajectoryOrFrames, omit, transect, true_upto, truncate
 from shnitsel.clean.filter_energy import calculate_energy_filtranda
@@ -60,7 +60,7 @@ class DataArrayAccessor(DAManualAccessor):
         'traj_to_xyz',
         'to_mol',
         'smiles_map',
-        'construct_default_mol',
+        'default_mol',
         'convert_energy',
         'convert_force',
         'convert_dipole',
@@ -142,9 +142,9 @@ class DataArrayAccessor(DAManualAccessor):
         """Wrapper for :py:func:`shnitsel.bridges.smiles_map`."""
         return smiles_map(self._obj, charge=charge, covFactor=covFactor)
 
-    def construct_default_mol(self, to2D: bool=True, charge: int | float | None=None, molAtomMapNumber: Union=None, atomNote: Union=None, atomLabel: Union=None) -> Mol:
-        """Wrapper for :py:func:`shnitsel.bridges.construct_default_mol`."""
-        return construct_default_mol(self._obj, to2D=to2D, charge=charge, molAtomMapNumber=molAtomMapNumber, atomNote=atomNote, atomLabel=atomLabel)
+    def default_mol(self, to2D: bool=True, charge: int | float | None=None, molAtomMapNumber: Union=None, atomNote: Union=None, atomLabel: Union=None) -> Mol:
+        """Wrapper for :py:func:`shnitsel.bridges.default_mol`."""
+        return default_mol(self._obj, to2D=to2D, charge=charge, molAtomMapNumber=molAtomMapNumber, atomNote=atomNote, atomLabel=atomLabel)
 
     def convert_energy(self, to: str, convert_from: str | None=None):
         """Wrapper for :py:func:`shnitsel.units.conversion.convert_energy`."""
@@ -303,7 +303,7 @@ class DatasetAccessor(DSManualAccessor):
         'get_per_state',
         'get_inter_state',
         'calc_classical_populations',
-        'construct_default_mol',
+        'default_mol',
         'flatten_levels',
         'expand_midx',
         'assign_levels',
@@ -358,9 +358,9 @@ class DatasetAccessor(DSManualAccessor):
         """Wrapper for :py:func:`shnitsel.analyze.populations.calc_classical_populations`."""
         return calc_classical_populations(self._obj)
 
-    def construct_default_mol(self, to2D: bool=True, charge: int | float | None=None, molAtomMapNumber: Union=None, atomNote: Union=None, atomLabel: Union=None) -> Mol:
-        """Wrapper for :py:func:`shnitsel.bridges.construct_default_mol`."""
-        return construct_default_mol(self._obj, to2D=to2D, charge=charge, molAtomMapNumber=molAtomMapNumber, atomNote=atomNote, atomLabel=atomLabel)
+    def default_mol(self, to2D: bool=True, charge: int | float | None=None, molAtomMapNumber: Union=None, atomNote: Union=None, atomLabel: Union=None) -> Mol:
+        """Wrapper for :py:func:`shnitsel.bridges.default_mol`."""
+        return default_mol(self._obj, to2D=to2D, charge=charge, molAtomMapNumber=molAtomMapNumber, atomNote=atomNote, atomLabel=atomLabel)
 
     def flatten_levels(self, idx_name: str, levels: Sequence[str], new_name: str | None=None, position: int=0, renamer: Callable | None=None) -> DatasetOrArray:
         """Wrapper for :py:func:`shnitsel.data.multi_indices.flatten_levels`."""

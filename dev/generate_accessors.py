@@ -46,7 +46,7 @@ def main():
         bridges.traj_to_xyz,
         bridges.to_mol,
         bridges.smiles_map,
-        bridges.construct_default_mol,
+        bridges.default_mol,
         ### postprocess converters
         units.convert_energy,
         units.convert_force,
@@ -103,7 +103,7 @@ def main():
         stats.get_per_state,
         stats.get_inter_state,
         populations.calc_pops,
-        bridges.construct_default_mol,
+        bridges.default_mol,
         ### xrhelpers
         multi_indices.flatten_levels,
         multi_indices.expand_midx,
