@@ -32,7 +32,8 @@ def _common_coords_attrs(tree, ensure_unique):
             [k for k in node.attrs if k not in exclude_attrs | ensure_unique]
         )
 
-        for varname, var in chain(node.data_vars.items(), node.coords.items()):
+        dsview = node['data']
+        for varname, var in chain(dsview.data_vars.items(), dsview.coords.items()):
             if varname not in dvauv:
                 dvauv[varname] = {}
             for k in var.attrs:
@@ -50,7 +51,7 @@ def _collect_values(tree, ensure_unique):
     coords = {k: ('trajid_', []) for k in coord_names}
     for node in tree.children.values():
         ds = (
-            node.to_dataset()
+            node['data']
             .expand_dims(trajid=[node.attrs['trajid']])
             .stack(frame=['trajid', 'time'])
             .drop_attrs()
@@ -65,7 +66,9 @@ def _collect_values(tree, ensure_unique):
                 unique_values[k][v] = []
             unique_values[k][v].append(node.attrs['trajid'])
 
-        for var_name, var in chain(node.data_vars.items(), node.coords.items()):
+        for var_name, var in chain(
+            node['data'].data_vars.items(), node['data'].coords.items()
+        ):
             for var_attr_name in dvauv[var_name]:
                 v = var.attrs.get(var_attr_name, MissingValue)
                 if v not in dvauv[var_name][var_attr_name]:
@@ -170,7 +173,7 @@ def tree_to_frames(tree, allow_inconsistent: set | None = None) -> xr.Dataset:
 
     Examples
     --------
-    >>> frames = tree_to_frames(dt['/unknown'], allow_inconsistent={'delta_t'})
+    >>> frames = tree_to_frames(dt['/cyclohexadiene'], allow_inconsistent={'delta_t'})
     """
     # TODO: Is there a guarantee that the tree structure follows the hierarchy
     # ShnitselDBRoot -> CompoundGroup -> TrajectoryData?

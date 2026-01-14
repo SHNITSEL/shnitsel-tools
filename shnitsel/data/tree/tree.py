@@ -491,5 +491,10 @@ class ShnitselDBRoot(Generic[DataType], TreeNode[CompoundGroup[DataType], DataTy
         new_node = self.construct_copy(children=new_children)
         return new_node
 
+    def to_frames(self, allow_inconsistent: set | None = None) -> Frames:
+        from shnitsel.data.tree_to_frames import tree_to_frames
+
+        return tree_to_frames(self, allow_inconsistent=allow_inconsistent)
+
 
 ShnitselDB = ShnitselDBRoot

@@ -287,3 +287,8 @@ class CompoundGroup(Generic[DataType], DataGroup[DataType]):
         new_group_key = find_child_key(ungrouped_data.keys(), new_group, "group")
         ungrouped_data[new_group_key] = new_group
         return self.construct_copy(children=ungrouped_data)
+
+    def to_frames(self, allow_inconsistent: set | None = None) -> "Frames":
+        from shnitsel.data.tree_to_frames import tree_to_frames
+
+        return tree_to_frames(self, allow_inconsistent=allow_inconsistent)
