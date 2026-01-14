@@ -15,8 +15,9 @@ from scipy import stats
 from sklearn.cluster import KMeans
 
 from shnitsel.analyze.generic import get_standardized_pairwise_dists
-from shnitsel.analyze.pca import pca
+from shnitsel.analyze.pca import PCAResult, pca
 from shnitsel.core.typedefs import Frames
+from shnitsel.data.dataset_containers import wrap_dataset, Trajectory
 
 from .common import figax, extrude, mpl_imshow_png
 from ...rd import highlight_pairs
@@ -134,13 +135,15 @@ def plot_noodleplot(
 # TODO: implement plotting of noodleplot using multi-coloured lines
 
 
-def get_loadings(frames: xr.Dataset, center_mean: bool = False) -> xr.DataArray:
+def get_loadings(
+    frames: xr.Dataset | Frames | Trajectory, center_mean: bool = False
+) -> xr.DataArray:
     """Get the loadings for the PCA of pairwise distances
     for the positional data in ``frames``.
 
     Parameters
     ----------
-    frames : xr.Dataset
+    frames : xr.Dataset | Frames | Trajectory
         A Dataset with an 'atXYZ' data_var, which should have
         'atom' and 'direction' dimensions.
     center_mean :  bool, optional
@@ -153,15 +156,16 @@ def get_loadings(frames: xr.Dataset, center_mean: bool = False) -> xr.DataArray:
         'PC' (principal component) and 'descriptor' (atom combination,
         one for each pair of atoms).
     """
-    atXYZ = frames['atXYZ']
-    descr = get_standardized_pairwise_dists(atXYZ, center_mean=center_mean)
-    _, pca_obj = pca(descr, 'descriptor', return_pca_object=True)
+    wrapped_ds = wrap_dataset(frames)
+
+    descr = get_standardized_pairwise_dists(wrapped_ds, center_mean=center_mean)
+    pca_res: PCAResult = pca(descr, 'descriptor')
 
     return xr.DataArray(
         # data=pca_obj[-1].components_,
-        data=pca_obj.components_,
+        data=pca_res.principal_components,
         dims=['PC', 'descriptor'],
-        coords=dict(atomcomb=descr.descriptor),
+        coords=dict(descriptor=descr.descriptor),
         attrs={'natoms': frames.sizes['atom']},
     )
 
@@ -180,7 +184,7 @@ def plot_loadings(ax: Axes, loadings: xr.DataArray):
     """
     # TODO: FIXME: This needs to be reconciled ith pairwise distances using StructureSelection now.
     raise NotImplementedError("Descriptor decomposition not implemented")
-    for _, pcs in loadings.groupby('atomcomb'):
+    for _, pcs in loadings.groupby('descriptor'):
         assert len(pcs) == 2
         pc1, pc2 = pcs.item(0), pcs.item(1)
         ax.arrow(0, 0, pc1, pc2)
@@ -248,14 +252,14 @@ def cluster_loadings(loadings: xr.DataArray, cutoff: float = 0.05) -> list[list[
     """
 
     def dist(i, j, l):
-        pc1, pc2 = l.isel(atomcomb=j).values - l.isel(atomcomb=i).values
+        pc1, pc2 = l.isel(descriptor=j).values - l.isel(descriptor=i).values
         return (pc1**2 + pc2**2) ** 0.5
 
     def decider(i, j):
         nonlocal loadings, cutoff, dist
         return dist(i, j, loadings) <= cutoff
 
-    n = loadings.sizes['atomcomb']
+    n = loadings.sizes['descriptor']
     return cluster_general(decider, n)
 
 
@@ -270,7 +274,7 @@ def plot_clusters(
     Parameters
     ----------
     loadings
-        A DataArray of PCA loadings including an 'atomcomb' dimension;
+        A DataArray of PCA loadings including an 'descriptor' dimension;
         as produced by :py:func:`shnitsel.vis.plot.pca_biplot.get_loadings`.
     clusters
         A list of clusters, where each cluster is represented as a
@@ -285,22 +289,22 @@ def plot_clusters(
     """
     fig, ax = figax(ax=ax)
     for i, cluster in enumerate(clusters):
-        acs = loadings.isel(atomcomb=cluster)
-        x, y = acs.mean(dim='atomcomb')
+        acs = loadings.isel(descriptor=cluster)
+        x, y = acs.mean(dim='descriptor')
         s = (
             labels[i]
             if labels is not None
-            else ' '.join([f'({a1},{a2})' for a1, a2 in acs.atomcomb.values])
+            else ' '.join([f'({a1},{a2})' for a1, a2 in acs.descriptor.values])
         )
         ax.arrow(0, 0, x, y)
         ax.text(x, y, s)
 
 
-def _get_clusters_coords(loadings, atomcomb_clusters):
+def _get_clusters_coords(loadings, descriptor_clusters):
     return np.array(
         [
-            loadings.isel(atomcomb=c).mean(dim='atomcomb').values
-            for c in atomcomb_clusters
+            loadings.isel(descriptor=c).mean(dim='descriptor').values
+            for c in descriptor_clusters
         ]
     )
 
@@ -383,7 +387,7 @@ def plot_clusters_insets(
         The :py:class:`matplotlib.pyplot.axes.Axes` object onto which to plot
         the loadings
     loadings : xr.DataArray
-        A DataArray of PCA loadings including an 'atomcomb' dimension;
+        A DataArray of PCA loadings including an 'descriptor' dimension;
         as produced by :py:func:`shnitsel.vis.plot.pca_biplot.get_loadings`.
     clusters : list[list[int]]
         A list of clusters, where each cluster is represented as a
@@ -411,8 +415,8 @@ def plot_clusters_insets(
     scalefactors = _separate_angles(points, min_angle)
 
     for i, cluster in enumerate(clusters):
-        acs = loadings.isel(atomcomb=cluster)
-        x, y = acs.mean(dim='atomcomb')
+        acs = loadings.isel(descriptor=cluster)
+        x, y = acs.mean(dim='descriptor')
         arrow_color = 'k' if i in indices else (0, 0, 0, 0.5)
         ax.arrow(
             0, 0, x, y, head_width=0.01, length_includes_head=True, color=arrow_color
@@ -434,7 +438,7 @@ def plot_clusters_insets(
         iax = ax.inset_axes([x2, y2, *inset_size], transform=ax.transData)
         iax.set_anchor('SW')  # keep bottom-left corner of image at arrow tip!
 
-        png = highlight_pairs(mol, acs.atomcomb.values)
+        png = highlight_pairs(mol, acs.descriptor.values)
         mpl_imshow_png(iax, png)
 
 
@@ -471,7 +475,7 @@ def plot_clusters_grid(
     Parameters
     ----------
     loadings : xr.DataArray
-        A DataArray of PCA loadings including an 'atomcomb' dimension;
+        A DataArray of PCA loadings including an 'descriptor' dimension;
         as produced by :py:func:`shnitsel.vis.plot.pca_biplot.get_loadings`.
     clusters : list[list[int]]
         A list of clusters, where each cluster is represented as a
@@ -502,8 +506,8 @@ def plot_clusters_grid(
         mol_ax.axis('off')
 
     for i, cluster in enumerate(clusters):
-        acs = loadings.isel(atomcomb=cluster)
-        x, y = acs.mean(dim='atomcomb')
+        acs = loadings.isel(descriptor=cluster)
+        x, y = acs.mean(dim='descriptor')
         s = labels[i]
         ax.arrow(0, 0, x, y, head_width=0.01, length_includes_head=True)
 
@@ -513,7 +517,7 @@ def plot_clusters_grid(
         ax.text(x2, y2, s)
 
         if axs is not None and mol is not None:
-            png = highlight_pairs(mol, acs.atomcomb.values)
+            png = highlight_pairs(mol, acs.descriptor.values)
             mpl_imshow_png(axs[s], png)
             axs[s].set_title(s)
 
@@ -553,8 +557,8 @@ def circbins(
 
     labels = kmeans.fit_predict(proj(angles))
 
-    space = np.linspace(0, 360, num=10)
-    sample = kmeans.predict(proj(space))
+    space = np.linspace(0, 360, num=10).astype(np.float64)
+    sample = kmeans.predict(proj(space).astype(np.float64))
     mask = np.diff(sample) != 0
     mask = np.concat([mask, [sample[-1] == sample[0]]])
     edgeps = space[mask]
@@ -650,7 +654,8 @@ def pick_clusters(
             - edges: Tuple giving a pair of boundary angles for each bin;
         the order of the bins corresponds to the order used in ``bins``
     """
-    loadings = get_loadings(frames, center_mean)
+    wrapped_ds = wrap_dataset(frames)
+    loadings = get_loadings(wrapped_ds, center_mean)
     clusters = cluster_loadings(loadings)
     points = _get_clusters_coords(loadings, clusters)
 
