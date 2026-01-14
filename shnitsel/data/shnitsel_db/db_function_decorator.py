@@ -1,7 +1,7 @@
 from functools import wraps
 import logging
 from typing import Any, Callable, Concatenate, Literal, ParamSpec, TypeVar
-from shnitsel.data.traj_combiner_methods import concat_trajs, layer_trajs
+from shnitsel.data.shnitsel_db_helpers import concat_subtree, layer_subtree
 from shnitsel.data.tree import ShnitselDB, TreeNode
 from shnitsel.data.shnitsel_db_helpers import (
     aggregate_xr_over_levels,
@@ -58,7 +58,6 @@ Param = ParamSpec("Param")
 RetType = TypeVar("RetType")
 DataType = TypeVar("DataType")
 T = TypeVar("T", bound=TreeNode)
-TrajType = TypeVar("TrajType", bound=Trajectory | Frames | xr.Dataset)
 
 
 def add_as_tree_method(
@@ -107,87 +106,6 @@ def add_as_tree_method(
 
 # sys.exit(0)
 
-
-def concat_subtree(
-    subtree: TreeNode[Any, TrajType], only_direct_children: bool = False
-) -> xr.Dataset:
-    """Helper function to concatenate the trajectories in a subtree into a multi-trajetctory dataset.
-
-    The resulting dataset has a new `frame` dimension along which we can iterate through all individual frames of all trajectories.
-
-    Parameters
-    ----------
-    subtree : TreeNode[Any, TrajType]
-        The subtree of the ShnitselDB datastructure
-    only_direct_children : bool, optional
-        Whether to only gather trajectories from direct children of this subtree.
-
-    Returns
-    -------
-    xr.Dataset
-        The resulting multi-trajectory dataset
-    """
-    if not only_direct_children:
-        trajectories = list(subtree.collect_data())
-    else:
-        trajectories = [
-            x.data for x in subtree.children.values() if x.is_leaf and x.has_data
-        ]
-
-    return concat_trajs(trajectories)
-
-
-def layer_subtree(
-    subtree: TreeNode[Any, Trajectory] | TreeNode[Any, xr.Dataset],
-    only_direct_children: bool = False,
-) -> xr.Dataset:
-    """Helper function to layer the trajectories in a subtree into a multi-trajetctory dataset.
-
-    The resulting dataset has a new `trajectory` dimension along which we can iterate through all individual frames of all trajectories.
-
-    Parameters
-    ----------
-    subtree : TreeNode[Any, TrajTrajectoryType]
-        The subtree of the ShnitselDB datastructure
-    only_direct_children : bool, optional
-        Whether to only gather trajectories from direct children of this subtree.
-
-    Returns
-    -------
-    xr.Dataset
-        The resulting multi-trajectory dataset
-    """
-    if not only_direct_children:
-        trajectories = list(subtree.collect_data())
-    else:
-        trajectories = [
-            x.data for x in subtree.children.values() if x.is_leaf and x.has_data
-        ]
-    return layer_trajs(trajectories)
-
-
-def list_subtree(
-    subtree: TreeNode[Any, DataType], only_direct_children: bool = False
-) -> list[DataType]:
-    """Helper function to collect the data in a subtree into a list.
-
-    Parameters
-    ----------
-    subtree : TreeNode[Any, DataType]
-        The subtree of the ShnitselDB datastructure holding the DataType entries to collect
-    only_direct_children : bool, optional
-        Whether to only gather trajectories from direct children of this subtree.
-
-    Returns
-    -------
-    list[DataType]
-        The resulting data/trajectory list
-    """
-    if not only_direct_children:
-        data = list(subtree.collect_data())
-    else:
-        data = [x.data for x in subtree.children.values() if x.is_leaf and x.has_data]
-    return data
 
 
 # TODO: FIXME: This currently does not work. Typing of the parameters for trees and callbacks are off.
