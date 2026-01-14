@@ -17,6 +17,7 @@ from typing import (
 import typing
 from typing_extensions import TypeForm
 from ..trajectory_grouping_params import TrajectoryGroupingMetadata
+from pathlib import Path
 
 
 ChildType = TypeVar("ChildType", bound="TreeNode|None", covariant=True)
@@ -526,6 +527,61 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
                 "?"
             return self._parent.path + str(parent_key) + "/"
 
+    def __len__(self) -> int:
+        """Returns the `size` of this node, i.e. how many children it has.
+
+        Be aware that this means that it will return 0 for Leaf nodes that may hold data.
+
+        Returns
+        -------
+        int
+            The number of children of this node
+        """
+        return len(self._children)
+
+    def __contains__(self, value: str | ChildType) -> bool:
+        if isinstance(value, str):
+            return value in self._children
+        else:
+            return value in self._children.values()
+
+    def __getitem__(
+        self, key: str | tuple[str]
+    ) -> "TreeNode[Any, DataType] | DataType | None":
+        path_parts: tuple
+        if isinstance(key, str):
+            path_parts = Path(key).parts
+        elif isinstance(key, tuple):
+            path_parts = key
+        else:
+            raise ValueError("Unsupported index type: %s", type(key))
+        
+        if len(path_parts) == 0:
+            return self
+
+        first_part = path_parts[0]
+        path_tail = tuple(path_parts[1:])
+        if first_part == '/':
+            return self.root[path_tail]
+        elif first_part == '.':
+            return self
+        else:
+            if self.has_data and first_part == 'data':
+                return self.data
+            elif first_part in self._children:
+                child_entry = self._children[first_part]
+                if child_entry is None:
+                    return None
+                else:
+                    return child_entry[path_tail]
+        return None
+
+    def __setitem__(self, key, value):
+        # self.daten[key] = value
+        raise AssertionError(
+            "Cannot set tree items with the array syntax. Would violate the "
+        )
+
     @property
     def is_leaf(self) -> bool:
         return len(self._children) == 0
@@ -535,7 +591,7 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
         return self._data is not None
 
     @property
-    def dtype(self) -> type[DataType] | TypeForm[DataType] | None:
+    def dtype(self) -> type[DataType] | UnionType | None:
         return self._dtype
 
     @property
@@ -548,6 +604,13 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
     @property
     def children(self) -> Mapping[Hashable, ChildType]:
         return self._children
+
+    @property
+    def root(self) -> "TreeNode[Any, DataType]":
+        if self._parent is None:
+            return self
+        else:
+            return self._parent.root
 
     @property
     def attrs(self) -> Mapping[str, Any]:
@@ -1039,7 +1102,7 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
         # return "<div>" + res + "</div>"
         from .tree_vis import tree_repr
 
-        #TODO: Consider options: https://github.com/etetoolkit/ete, https://treelib.readthedocs.io/en/latest/, https://plotly.com/python/tree-plots/
+        # TODO: Consider options: https://github.com/etetoolkit/ete, https://treelib.readthedocs.io/en/latest/, https://plotly.com/python/tree-plots/
         return tree_repr(self)
 
 
