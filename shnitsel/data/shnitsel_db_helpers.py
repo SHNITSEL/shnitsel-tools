@@ -1,3 +1,4 @@
+from types import UnionType
 from typing import Any, Callable, List, Literal, TypeVar
 import xarray as xr
 
@@ -8,8 +9,8 @@ from .tree.datatree_level import (
     DataTreeLevelMap,
 )
 
-T = TypeVar("T", bound=TreeNode)
 DataType = TypeVar("DataType")
+AggType = TypeVar("AggType")
 R = TypeVar("R", bound=xr.Dataset)
 
 
@@ -21,81 +22,66 @@ def unwrap_single_entry_in_tree(
     If multiple or none are found, it will return the original tree
     If a single entry was found, will return the dataset
 
-    Args:
-        root (xr.DataTree): Root of the subtree to parse
+    Parameters:
+    root : TreeNode[Any, DataType]
+        Root of the subtree to parse
 
-    Returns:
-        xr.Dataset|List[Any]|None: Returns None if no entry was found, a list instance if multiple entries were found or a single dataset if a single entry was found in the subtree
+    Returns
+    -------
+    DataType|TreeNode[Any, DataType]
+        Returns either the single point of data in the subtree or the full tree, if unwrapping would be unfeasible.
     """
 
-    def collect_single_data(
-        root: TreeNode[Any, DataType],
-    ) -> DataType | List[Any] | None:
-        """Returns the single dataset in the subtree
-
-        Args:
-            root (xr.DataTree): Root of the subtree to parse
-
-        Returns:
-            xr.Dataset|List[Any]|None: Returns None if no entry was found, a list instance if multiple entries were found or a single dataset if a single entry was found in the subtree
-        """
-        res = None
-
-        if root.has_data:
-            res = root.data
-
-        for c_k, child in root.children.items():
-            child_res = collect_single_data(child)
-            if child_res is None:
-                continue
-            elif isinstance(child_res, list):
-                return child_res
-            else:  # if isinstance(child_res, Trajectory):
-                if res is None:
-                    res = child_res
-                else:
-                    return []
-
-        return res
-
-    res_unwrap = collect_single_data(tree)
-    if res_unwrap is not None and not isinstance(res_unwrap, list):
-        return res_unwrap
+    data = list(tree.collect_data())
+    if len(data) == 1:
+        return data[0]
     else:
         return tree
 
 
 def aggregate_xr_over_levels(
-    tree: T, func: Callable[[T], R], level: Literal['root', 'compound', 'group', 'data']
-) -> T | None:
+    tree: TreeNode[Any, DataType],
+    func: Callable[[TreeNode[Any, DataType]], R],
+    level_name: Literal['root', 'compound', 'group', 'data'],
+    dtype: type[R] | UnionType | None = None
+) -> TreeNode[Any, R] | None:
     """Apply an aggregation function to every node at a level of a db structure
 
-    Args:
-        tree (T): The tree to aggregate at the specific level
-        func (callable): The function to apply to that subtree
-        level (str): The target level to apply the function `func` to. See `shnitsel_db.datatree_level.py` for values.
+    Parameters
+    ----------
+    tree : TreeNode[Any, DataType]
+        The tree to aggregate at the specific level
+    func : Callable[[TreeNode[Any, DataType]], R]
+        The function to apply to the subtree at the specified level
+    level_name : Literal['root', 'compound', 'group', 'data']
+        The target level to apply the function `func` to.
+        See `tree.datatree_level` for values.
+    dtype : type | UnionType, optional
+        The dtype of the resulting tree after aggregation.
 
-    Returns:
-        T: The resulting tree after applying the transform `func` to the subtrees.
+    Returns
+    -------
+    TreeNode[Any, R]
+        The resulting tree after applying the transform `func` to the subtrees.
     """
-    new_children = {}
+    new_children: dict[str, TreeNode[Any, R]] = {}
     drop_keys = []
 
-    if tree.is_level(DataTreeLevelMap[level]):
+    if tree.is_level(DataTreeLevelMap[level_name]):
         tmp_aggr: R = func(tree)
         tmp_label = f"aggregate of subtree({tree.name})"
         new_node = DataLeaf(name=tmp_label, data=tmp_aggr)
         new_children[tmp_label] = new_node
 
     for k, child in tree.children.items():
-        child_res = aggregate_xr_over_levels(child, func, level)
+        child_res = aggregate_xr_over_levels(child, func, level_name)
         if child_res is not None:
             new_children[k] = child_res
         else:
             drop_keys.append(k)
 
     if len(new_children) > 0:
-        return tree.construct_copy(children=new_children)
+        return tree.construct_copy(children=new_children, dtype=dtype)
     else:
         return None
 

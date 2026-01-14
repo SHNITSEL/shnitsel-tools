@@ -14,6 +14,16 @@ import xarray as xr
 
 _coordinate_meta_keys = ["trajid", "delta_t", "max_ts", "t_max", "completed", "nsteps"]
 
+class InconsistentAttributeError(ValueError):
+    pass
+
+
+class MultipleCompoundsError(ValueError):
+    pass
+
+
+class MissingValue:
+    """Sentinel value for ``tree_to_frames``."""
 
 @internal()
 def _check_matching_dimensions(

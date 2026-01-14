@@ -21,9 +21,12 @@ def set_variable_attributes(var: xr.DataArray, attrs: VariableInfoAttributes) ->
 
     This is meant to unify the keys under which information is stored in the shnitsel format.
 
-    Args:
-        var (xr.DataArray): The variable/DataArray to set attributes on
-        attrs (VariableInfoAttributes): The standardized set of attributes to assign to the variable
+    Parameters
+    ----------
+    var : xr.DataArray
+        The variable/DataArray to set attributes on
+    attrs : VariableInfoAttributes
+        The standardized set of attributes to assign to the variable
     """
 
     if attrs.long_name is not None:
