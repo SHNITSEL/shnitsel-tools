@@ -129,6 +129,9 @@ def calculate_bond_length_filtranda(
         An xr.DataArray of filtration targets stacked along the ``criterion`` dimension;
         one criterion per ``search_dict`` entry.
     """
+    if isinstance(frames, xr.Dataset):
+        frames = Frames(frames)
+
     if geometry_thresholds is None:
         # Assign default threshold rules.
         geometry_thresholds = GeometryFiltrationThresholds()

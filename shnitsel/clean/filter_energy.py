@@ -98,9 +98,9 @@ def calculate_energy_filtranda(
         criteria comprise epot_step and hop_epot_step, as well as
         etot_drift, etot_step and ekin_step if the input contains an e_kin variable
     """
-    if not isinstance(frames_or_trajectory, Frames) and not isinstance(
-        frames_or_trajectory, Trajectory
-    ):
+    if isinstance(frames_or_trajectory, xr.Dataset):
+        frames_or_trajectory = Frames(frames_or_trajectory)
+    elif not isinstance(frames_or_trajectory, (Frames, Trajectory)):
         message: str = 'Filtered dataset object is of type %s instead of the required types Frames or Trajectory'
         logging.warning(message, type(frames_or_trajectory))
         raise ValueError(message % type(frames_or_trajectory))
