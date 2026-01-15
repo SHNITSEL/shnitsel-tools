@@ -1,8 +1,9 @@
 import xarray as xr
 
 from shnitsel._contracts import Needs
+from shnitsel.data.shnitsel_db_helpers import concat_subtree
 
-from shnitsel.data.tree import tree_to_frames
+# from shnitsel.data.tree import tree_to_frames
 
 # CONVERTERS: dict[str, P.Converter] = {
 #     'convert_energy': P.convert_energy,
@@ -43,8 +44,7 @@ class ShnitselAccessor:
         if 'data_vars' in entry._fields:
             vars_ = set(getattr(self._obj, 'data_vars', []))
             if not vars_ >= (rvars := (entry.data_vars or set())):
-                reasons.append(
-                    f"is missing required data_vars {rvars - vars_}")
+                reasons.append(f"is missing required data_vars {rvars - vars_}")
         if not dims >= (rdims := (entry.dims or set())):
             reasons.append(f"is missing required dims {rdims - dims}")
         if not coords >= (rcoords := (entry.coords or set())):
@@ -194,4 +194,5 @@ class DataTreeAccessor:
         self._obj = obj
 
     def to_frames(self, allow_inconsistent: set | None = None) -> xr.Dataset:
-        return tree_to_frames(self._obj, allow_inconsistent=allow_inconsistent)
+        # return tree_to_frames(self._obj, allow_inconsistent=allow_inconsistent)
+        return concat_subtree(self._obj)
