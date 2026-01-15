@@ -44,7 +44,7 @@ def check_thresholds(ds_or_da, quantiles=None):
         filtranda['proportion'] = (
             good_throughout.sum('trajid') / good_throughout.sizes['trajid']
         )
-        quantiles['intercept'] = true_upto(quantiles < filtranda['thresholds'], 'time')
+        quantiles['intercept'] = _true_upto(quantiles < filtranda['thresholds'], 'time')
 
     fig, axs = plt.subplots(
         quantiles.sizes['criterion'],
@@ -141,7 +141,7 @@ def validity_populations(ds_or_da, intersections=True):
         filtranda = ds_or_da['filtranda'].copy()
     else:
         filtranda = ds_or_da.copy()
-    mask = cum_mask_from_filtranda(filtranda)
+    mask = _filter_mask_from_criterion_mask(filtranda)
     if 'thresholds' in mask.coords:
         mask = mask.drop('thresholds')
     if 'good_throughout' in mask.coords:
