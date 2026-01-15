@@ -1,3 +1,4 @@
+import logging
 from math import ceil
 from typing import Any, Callable, Iterable, Sequence, TYPE_CHECKING
 
@@ -115,8 +116,6 @@ def plot_noodleplot(
         **noodle_kws,
     )
 
-    print(noodle)
-
     ax.set_xlabel('PC1')
     ax.set_ylabel('PC2')
     if hops_mask is not None:
@@ -173,7 +172,6 @@ def get_loadings(
         descr = get_standardized_pairwise_dists(
             frames_or_pca_result, center_mean=center_mean
         )
-        # print(descr)
         pca_res = pca(descr, 'descriptor')
         attrs = {'natoms': wrapped_ds.sizes['atom']}
     else:
@@ -576,7 +574,6 @@ def circbins(
         return np.c_[np.cos(x), np.sin(x)]
 
     kmeans = KMeans(n_clusters=num_bins)
-    # print(angles, angles.dtype)
     labels = kmeans.fit_predict(proj(angles.astype(float)).astype(float))
     space = np.linspace(0.0, 360.0, num=10).astype(float)
     sample = kmeans.predict(proj(space).astype(float))
@@ -716,7 +713,7 @@ def binning_with_min_entries(
 
     # Repeat binning until all bins have at least 'min_entries' or exceed max_attempts
     while any(arr.size == 0 for arr in bins) and attempts < max_attempts:
-        print(
+        logging.info(
             f"Less than {min_entries} directions found, procedure repeated with another binning."
         )
         num_bins += 1  # Increase the number of bins
@@ -725,7 +722,7 @@ def binning_with_min_entries(
 
     # If max attempts were reached without satisfying condition
     if attempts >= max_attempts:
-        print(f"Max attempts ({max_attempts}) reached. Returning current bins.")
+        logging.warning(f"Max attempts ({max_attempts}) reached. Returning current bins.")
 
     picks: Sequence[int] = [bin[np.argmax(radii[bin])] for bin in bins]
 
