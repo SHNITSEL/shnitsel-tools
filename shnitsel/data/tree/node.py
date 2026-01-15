@@ -1022,6 +1022,25 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
             key_func=_trajectory_key_func, group_leaves_only=True
         )
 
+    def concat_subtree(self, only_direct_children: bool = False) -> "xr.Dataset":
+        """Concatenate the trajectories in a subtree into a multi-trajetctory dataset.
+
+        The resulting dataset has a new `frame` dimension along which we can iterate through all individual frames of all trajectories.
+
+        Parameters
+        ----------
+        only_direct_children : bool, optional
+            Whether to only gather trajectories from direct children of this subtree.
+
+        Returns
+        -------
+        xr.Dataset
+            The resulting multi-trajectory dataset
+        """
+        from shnitsel.data.shnitsel_db.db_function_decorator import concat_subtree
+
+        return concat_subtree(self)
+
     def __str__(self) -> str:
         """A basic representation of this node.
 
