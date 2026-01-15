@@ -8,6 +8,7 @@ def main():
         import shnitsel as st
         from shnitsel import bridges
         from shnitsel import clean
+        from shnitsel.clean import common, filter_energy, filter_geo
         from shnitsel import units
         from shnitsel.analyze import (
             generic,
@@ -21,7 +22,8 @@ def main():
         )
         from shnitsel.data import multi_indices
         import shnitsel.data.helpers as data_helpers
-        from shnitsel.geo import geocalc, geomatch_exact
+        from shnitsel.geo import geocalc
+        from shnitsel.geo.geocalc_ import angles, distances, dihedrals
         from shnitsel.io.ase.write import write_ase_db
         from shnitsel.vis.plot import p3mhelpers
         from shnitsel.vis.plot import select
@@ -46,7 +48,7 @@ def main():
         bridges.to_mol,
         bridges.smiles_map,
         bridges.construct_default_mol,
-        pca.pairwise_dists_pca,
+        pca.pca,
         # postprocess converters
         units.convert_energy,
         units.convert_force,
@@ -65,19 +67,19 @@ def main():
         multi_indices.sel_trajs,
         multi_indices.sel_trajids,
         # clean
-        clean.true_upto,
+        clean.sanity_check,
         # geom
-        geocalc.dihedral,
-        geocalc.angle,
-        geocalc.distance,
-        geocalc.get_bond_lengths,
-        geocalc.get_bond_angles,
-        geocalc.get_bond_torsions,
-        geocalc.get_pyramids,
-        geocalc.get_bla_chromophor,
+        dihedrals.dihedral,
+        angles.angle,
+        distances.distance,
+        geocalc.get_distances,
+        geocalc.get_angles,
+        geocalc.get_dihedrals,
+        geocalc.get_pyramidalization,
+        geocalc.get_max_chromophor_BLA,
         geocalc.get_bats,
         geocalc.kabsch,
-        geomatch_exact.get_bats_matching,
+        # geomatch_exact.get_bats_matching,
         # select
         select.FrameSelector,
         select.TrajSelector,
@@ -93,7 +95,8 @@ def main():
         lda.lda,
         pls.pls,
         # hops
-        hops.hops,
+        hops.hops_mask_from_active_state,
+        hops.filter_data_at_hops,
         hops.focus_hops,
         hops.assign_hop_time,
     ]
@@ -102,8 +105,8 @@ def main():
         # postprocess
         pca.pca_and_hops,
         data_helpers.validate,
-        spectra.assign_fosc,
-        spectra.ds_broaden_gauss,
+        spectra.get_fosc,
+        spectra.apply_gauss_broadening,
         stats.get_per_state,
         stats.get_inter_state,
         populations.calc_pops,
@@ -119,21 +122,23 @@ def main():
         multi_indices.stack_trajs,
         st.io.shnitsel.write_shnitsel_file,
         # plot
-        spectra.spectra_all_times,
+        spectra.get_spectra,
         # filtration
-        clean.energy_filtranda,
+        filter_energy.calculate_energy_filtranda,
+        filter_energy.filter_by_energy,
         clean.sanity_check,
-        clean.bond_length_filtranda,
-        clean.filter_by_length,
-        clean.omit,
-        clean.truncate,
-        clean.transect,
+        filter_geo.calculate_bond_length_filtranda,
+        filter_geo.filter_by_length,
+        common.omit,
+        common.truncate,
+        common.transect,
         # ase
         write_ase_db,
         # ml
         pls.pls_ds,
         # hops
-        hops.hops,
+        hops.hops_mask_from_active_state,
+        hops.filter_data_at_hops,
         hops.focus_hops,
         hops.assign_hop_time,
         # select
@@ -155,6 +160,8 @@ def main():
             'Sequence': 'typing',
             'Literal': 'typing',
             'Callable': 'typing',
+            'PCAResult' : 'shnitsel.analyze.pca',
+            'PopulationStatistics' : 'shnitsel.analyze.populations',
             'DataArrayGroupBy': 'xarray.core.groupby',
             'DatasetGroupBy': 'xarray.core.groupby',
             'needs': '._contracts',
@@ -164,6 +171,7 @@ def main():
             'nan': 'numpy',
         },
         plain_imports={
+            'shnitsel',
             'xarray as xr',
             'xarray',
             'collections',
