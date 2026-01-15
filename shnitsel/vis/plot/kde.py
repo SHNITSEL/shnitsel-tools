@@ -377,7 +377,7 @@ def biplot_kde(
     # noodle_cscale = mpl.cm.ScalarMappable(norm=noodle_cnorm, cmap=noodle_cmap)
 
     pb.plot_noodleplot(
-        pca_data,
+        pca_data.projected_inputs,
         hops,
         c=noodleplot_c,
         cmap=noodleplot_cmap,
@@ -389,6 +389,9 @@ def biplot_kde(
 
     # in case more clusters were found than we have room for:
     picks = picks[:4]
+
+    print(pca_data.projected_inputs)
+    print(pca_data.projected_inputs)
 
     pb.plot_clusters_grid(
         loadings,
