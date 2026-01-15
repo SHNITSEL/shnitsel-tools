@@ -20,6 +20,8 @@ import logging
 from typing import Sequence, TypeVar
 from typing_extensions import Literal
 
+from xarray import Dataset
+
 from shnitsel.bridges import construct_default_mol
 from shnitsel.core._api_info import API, internal
 from shnitsel.data.dataset_containers.frames import Frames
@@ -110,32 +112,31 @@ def sanity_check(
     If the input has a ``filtranda`` data_var, it is overwritten.
     If the input has a `criterion` dimension, it will be dropped.
     """
-
+    kws = dict(
+        filter_method=filter_method,
+        energy_thresholds=energy_thresholds,
+        geometry_thresholds=geometry_thresholds,
+        plot_populations=plot_populations,
+        plot_thresholds=plot_thresholds,
+        mol=mol,
+    )
     if isinstance(trajectory_or_frames, ShnitselDB):
         # TODO: FIXME: Deal with type error of return value of `map_data()`
         return trajectory_or_frames.map_data(
-            lambda x: _sanity_check_per_trajectory(
-                x,
-                filter_method=filter_method,
-                energy_thresholds=energy_thresholds,
-                geometry_thresholds=geometry_thresholds,
-                plot_populations=plot_populations,
-                plot_thresholds=plot_thresholds,
-                mol=mol,
-            ),
+            lambda x: _sanity_check_per_trajectory(x, **kws),
             keep_empty_branches=not drop_empty_trajectories,
         )
-    elif isinstance(trajectory_or_frames, Frames) or isinstance(
-        trajectory_or_frames, Trajectory
-    ):
-        return _sanity_check_per_trajectory(
-            trajectory_or_frames,
-            filter_method=filter_method,
-            energy_thresholds=energy_thresholds,
-            geometry_thresholds=geometry_thresholds,
-            plot_populations=plot_populations,
-            plot_thresholds=plot_thresholds,
-            mol=mol,
+    elif isinstance(trajectory_or_frames, (Frames, Trajectory)):
+        return _sanity_check_per_trajectory(trajectory_or_frames, **kws)
+    elif isinstance(trajectory_or_frames, Dataset):
+        # NOTE (thevro): _sanity_check_per_trajectory doesn't work on bare xr.Dataset
+        # For now, fix is applied here; could fix accessor class or the function instead
+        frames = Frames(trajectory_or_frames)
+        return _sanity_check_per_trajectory(frames, **kws)
+    else:
+        raise TypeError(
+            "sanity_check only supports ShnitselDB, Frames, Trajectory"
+            "and xr.Dataset types in trajectory_or_frames"
         )
 
 
