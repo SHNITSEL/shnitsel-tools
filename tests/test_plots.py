@@ -7,9 +7,12 @@ import pytest
 from pytest import fixture
 from matplotlib.testing.decorators import image_comparison
 
-import shnitsel as sh
+import shnitsel as st
+from shnitsel.analyze.pca import pca_and_hops
+from shnitsel.data.dataset_containers.frames import Frames
+from shnitsel.vis.plot.pca_biplot import cluster_loadings, plot_loadings
 import shnitsel.xarray
-from shnitsel.data.tree import tree_to_frames
+from shnitsel.bridges import default_mol
 
 from shnitsel.io import read
 
@@ -31,12 +34,10 @@ class TestPlotFunctionality:
             ('tutorials/tut_data/traj_I02.nc', -1),
         ]
     )
-    def ensembles(self, request):
+    def ensembles(self, request) -> Frames:
         path, charge = request.param
         db = read(path)
-        res = tree_to_frames(db)
-        res['atXYZ'].attrs['charge'] = charge
-        res.attrs['charge'] = charge
+        res = db.set_charge(charge).as_frames()
         return res
 
     @pytest.fixture
@@ -48,85 +49,112 @@ class TestPlotFunctionality:
 
     # @image_comparison(['ski_plots'])
     def test_ski_plots(self, spectra3d):
-        sh.vis.plot.ski_plots(spectra3d)
+        from shnitsel.vis.plot import ski_plots
+
+        ski_plots(spectra3d)
 
     def test_pcm_plots(self, spectra3d):
-        sh.vis.plot.spectra3d.pcm_plots(spectra3d)
+        from shnitsel.vis.plot.spectra3d import pcm_plots
+
+        pcm_plots(spectra3d)
 
     ###########
     # plot.kde:
     def test_biplot_kde(self, ensembles):
-        sh.vis.plot.kde.biplot_kde(
-            frames=ensembles,
+        from shnitsel.vis.plot.kde import biplot_kde
+
+        biplot_kde(
+            ensembles,
             at1=0,
             at2=1,
-            geo_filter=[[0.0, 20.0]],
-            levels=10,
+            geo_kde_ranges=[(0.0, 20.0)],
+            contour_levels=10,
         )
 
     @pytest.fixture
     def kde_data(self, ensembles):
-        noodle, _ = sh.analyze.pca.pca_and_hops(ensembles, mean=False)
-        geo_prop = np.zeros(noodle.sizes['frame'])
-        return sh.vis.plot.kde.fit_and_eval_kdes(noodle, geo_prop, [(-1, 1)])
+        from shnitsel.vis.plot.kde import _fit_and_eval_kdes
+
+        noodle, _ = pca_and_hops(ensembles, center_mean=False)
+        geo_prop = np.zeros(noodle.projected_inputs.sizes['frame'])
+        return _fit_and_eval_kdes(noodle, geo_prop, [(-1, 1)])
 
     def test_plot_kdes(self, kde_data):
-        sh.vis.plot.kde.plot_kdes(*kde_data)
+        from shnitsel.vis.plot.kde import _plot_kdes
+
+        _plot_kdes(*kde_data)
 
     def test_plot_cdf_for_kde(self, kde_data):
+        from shnitsel.vis.plot.kde import plot_cdf_for_kde
+
         xx, yy, Zs = kde_data
-        sh.vis.plot.kde.plot_cdf_for_kde(Zs[0].ravel(), 0.1)
+        plot_cdf_for_kde(Zs[0].ravel(), 0.1)
 
     ##############################
     # Functions from "pca_biplot":
 
     def test_plot_noodleplot(self, ensembles):
-        noodle, hops = sh.analyze.pca.pca_and_hops(ensembles, mean=False)
-        sh.vis.plot.pca_biplot.plot_noodleplot(noodle, hops)
+        from shnitsel.vis.plot.pca_biplot import plot_noodleplot
+
+        noodle, hops = pca_and_hops(ensembles, center_mean=False)
+        plot_noodleplot(noodle.projected_inputs, hops)
 
     @pytest.fixture
-    def clusters_loadings_mols(self, ensembles):
+    def clusters_loadings_mols(self, ensembles: Frames):
         import shnitsel.xarray
+        from shnitsel.analyze.pca import pca, PCAResult
 
-        pca = ensembles['atXYZ'].st.pwdists().st.pca('atomcomb')
-        loadings = pca.st.loadings
-        clusters = sh.vis.plot.pca_biplot.cluster_loadings(loadings)
-        mol = sh.bridges.default_mol(ensembles['atXYZ'])
+        pca_res: PCAResult = pca(ensembles)  # ['atXYZ'].st.pwdists().st.pca('atomcomb')
+        loadings = pca_res.principal_components
+        clusters = cluster_loadings(loadings)
+        mol = default_mol(ensembles)
         return clusters, loadings, mol
 
     def test_plot_loadings(self, clusters_loadings_mols):
         _, loadings, _ = clusters_loadings_mols
         _, ax = plt.subplots(1, 1)
-        sh.vis.plot.pca_biplot.plot_loadings(ax, loadings)
+        plot_loadings(ax, loadings)
 
     @pytest.fixture
     def highlight_pairs(self, ensembles):
-        mol = sh.bridges.default_mol(ensembles['atXYZ'])
-        return sh.rd.highlight_pairs(mol, [(0, 1)])
+        from shnitsel.rd import highlight_pairs
+
+        mol = default_mol(ensembles)
+        return highlight_pairs(mol, [(0, 1)])
 
     def test_mpl_imshow_png(self, highlight_pairs):
+        from shnitsel.vis.plot.common import mpl_imshow_png
+
         _, ax = plt.subplots(1, 1)
-        sh.vis.plot.common.mpl_imshow_png(ax, highlight_pairs)
+        mpl_imshow_png(ax, highlight_pairs)
 
     def test_plot_clusters(self, clusters_loadings_mols):
+        from shnitsel.vis.plot.pca_biplot import plot_clusters
+
         clusters, loadings, _ = clusters_loadings_mols
-        sh.vis.plot.pca_biplot.plot_clusters(loadings, clusters)
+        plot_clusters(loadings, clusters)
 
     def test_plot_clusters_insets(self, clusters_loadings_mols):
         clusters, loadings, mol = clusters_loadings_mols
+        from shnitsel.vis.plot.pca_biplot import plot_clusters_insets
+
         _, ax = plt.subplots(1, 1)
-        sh.vis.plot.pca_biplot.plot_clusters_insets(ax, loadings, clusters, mol)
+        plot_clusters_insets(ax, loadings, clusters, mol)
 
     def test_plot_clusters_grid(self, clusters_loadings_mols):
+        from shnitsel.vis.plot.pca_biplot import plot_clusters_grid
+
         _, ax = plt.subplots(1, 1)
         clusters, loadings, mol = clusters_loadings_mols
-        sh.vis.plot.pca_biplot.plot_clusters_grid(loadings, clusters, mol=mol)
+        plot_clusters_grid(loadings, clusters, mol=mol)
 
     def test_plot_bin_edges(self, ensembles):
+        from shnitsel.vis.plot.pca_biplot import plot_bin_edges, pick_clusters
+
         nbins = 5
-        data = sh.vis.plot.pca_biplot.pick_clusters(ensembles, nbins=nbins)
+        data = pick_clusters(ensembles, num_bins=nbins)
         fig, ax = plt.subplots(1, 1, subplot_kw={'projection': 'polar'})
-        sh.vis.plot.pca_biplot.plot_bin_edges(
+        plot_bin_edges(
             data['angles'],
             data['radii'],
             data['bins'],
