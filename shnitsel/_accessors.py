@@ -1,8 +1,13 @@
+from typing import Sequence
+
 import xarray as xr
 
 from shnitsel._contracts import Needs
 
-from shnitsel.data.tree import tree_to_frames
+from shnitsel.filtering.structure_selection import (
+    StructureSelection,
+    FeatureLevelOptions,
+)
 
 # CONVERTERS: dict[str, P.Converter] = {
 #     'convert_energy': P.convert_energy,
@@ -186,12 +191,54 @@ class DAManualAccessor(ShnitselAccessor):
 
 
 class DSManualAccessor(ShnitselAccessor):
-    pass
+    def struc_sel(
+        self,
+        default_selection: Sequence[FeatureLevelOptions] | None = None,
+        to2D: bool = True,
+        frame_index: int = 0,
+    ) -> StructureSelection:
+        """Create an initial StructureSelection object from a dataset using the entire structural information in it.
 
+        Parameters
+        ----------
+        frame (xr.Dataset)
+            Should only represent a single frame of data (i.e. no 'frame' dimension or of zero-size).
+        default_selection (Sequence[FeatureLevelOptions], optional)
+            List of features to activate as selected by default. Defaults to [ 'atoms', 'bonds', ].
+        to2D (bool, optional)
+            Flag to control whether a mol representation is converted to a 2d projection before use for visualization.
+        frame_index
+            Used to select a single frame (using ``.isel()``) if an object containing multiple frames is provided;
+            by default, the first frame is used.
 
-class DataTreeAccessor:
-    def __init__(self, obj):
-        self._obj = obj
+        Raises
+        ------
+        ValueError
+            If no structural information could be extracted from the dataset
 
-    def to_frames(self, allow_inconsistent: set | None = None) -> xr.Dataset:
-        return tree_to_frames(self._obj, allow_inconsistent=allow_inconsistent)
+        Returns
+        -------
+        StructureSelection
+            A structure selection object initially covering all atoms and structural features.
+
+        Notes
+        -----
+        The dataset (single frame) to extract the structure information out of must have
+        at least an `atXYZ` variable and a `atom` dimension.
+        Ideally, an `atom` coordinate for feature selection is also provided.
+        """
+
+        default_selection = default_selection or ['atoms', 'bonds']
+
+        if 'frame' in self._obj.dims:
+            frame = self._obj.isel(frame=frame_index)
+        elif 'time' in self._obj.dims:
+            frame = self._obj.isel(time=frame_index)
+        else:
+            frame = self.obj_
+
+        return StructureSelection.init_from_dataset(
+            frame,
+            default_selection=default_selection,
+            to2D=to2D,
+        )

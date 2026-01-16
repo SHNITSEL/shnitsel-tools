@@ -1,3 +1,6 @@
+from types import UnionType
+from typing import overload
+from matplotlib.pylab import TypeVar
 from .data_series import DataSeries
 from .shared import ShnitselDataset
 from .trajectory import Trajectory
@@ -16,10 +19,30 @@ __all__ = [
     "wrap_dataset",
 ]
 
+ConvertedType = TypeVar(
+    "ConvertedType",
+    bound=(Trajectory | Frames | DataSeries | ShnitselDataset | UnionType),
+)
+
+
+@overload
+def wrap_dataset(
+    ds: xr.Dataset | Trajectory | Frames | DataSeries | ShnitselDataset,
+    expected_types: type[ConvertedType],
+) -> ConvertedType: ...
+
+
+@overload
+def wrap_dataset(
+    ds: xr.Dataset | Trajectory | Frames | DataSeries | ShnitselDataset,
+    expected_types: None,
+) -> Trajectory | Frames | DataSeries | ShnitselDataset | xr.Dataset: ...
+
 
 def wrap_dataset(
     ds: xr.Dataset | Trajectory | Frames | DataSeries | ShnitselDataset,
-) -> Trajectory | Frames | DataSeries | ShnitselDataset | xr.Dataset:
+    expected_types: type[ConvertedType] | None,
+) -> ConvertedType | Trajectory | Frames | DataSeries | ShnitselDataset | xr.Dataset:
     """Helper function to wrap a generic xarray dataset in a wrapper container
 
     Parameters

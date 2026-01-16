@@ -15,7 +15,7 @@ from shnitsel.geo.geocalc_.helpers import (
 
 
 @needs(dims={'atom', 'direction'})
-def pyramidalization_angle_(
+def pyramidalization_angle(
     atXYZ: AtXYZ, x_index: int, a_index: int, b_index: int, c_index: int
 ) -> xr.DataArray:
     """Method to calculate the pyramidalization angle of a quadruple of atoms.
@@ -103,7 +103,7 @@ def get_pyramidalization(
         return _empty_descriptor_results(atXYZ)
 
     pyr_angles = [
-        pyramidalization_angle_(atXYZ, x, a, b, c)
+        pyramidalization_angle(atXYZ, x, a, b, c)
         for x, (a, b, c) in pyramid_descriptors
     ]
 

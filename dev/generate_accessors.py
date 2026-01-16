@@ -8,6 +8,7 @@ def main():
         import shnitsel as st
         from shnitsel import bridges
         from shnitsel import clean
+        from shnitsel.clean.common import true_upto, truncate, omit, transect
         from shnitsel import units
         from shnitsel.analyze import (
             generic,
@@ -21,7 +22,14 @@ def main():
         )
         from shnitsel.data import multi_indices
         import shnitsel.data.helpers as data_helpers
-        from shnitsel.geo import geocalc, geomatch_exact
+        from shnitsel.geo import geocalc, alignment  # , geomatch_exact
+        from shnitsel.geo.geocalc_ import (
+            dihedrals,
+            angles,
+            distances,
+            pyramids,
+            positions,
+        )
         from shnitsel.io.ase.write import write_ase_db
         from shnitsel.vis.plot import p3mhelpers
         from shnitsel.vis.plot import select
@@ -34,7 +42,7 @@ def main():
         raise
 
     da_funcs = [
-        # analyze
+        ### analyze
         generic.norm,
         generic.subtract_combinations,
         generic.keep_norming,
@@ -43,11 +51,12 @@ def main():
         stats.time_grouped_confidence_interval,
         bridges.to_xyz,
         bridges.traj_to_xyz,
+        # TODO: This should either only have `to_mol` or only have `default_mol`.
         bridges.to_mol,
         bridges.smiles_map,
-        bridges.construct_default_mol,
-        pca.pairwise_dists_pca,
-        # postprocess converters
+        # TODO: FIXME: We should fix the naming logic that changes this into `construct_default_mol`
+        bridges.default_mol,
+        ### postprocess converters
         units.convert_energy,
         units.convert_force,
         units.convert_dipole,
@@ -55,7 +64,7 @@ def main():
         units.convert_time,
         units.convert_nacs,
         units.convert_socs,
-        # midx
+        ### midx
         multi_indices.mdiff,
         multi_indices.flatten_levels,
         multi_indices.expand_midx,
@@ -64,51 +73,53 @@ def main():
         multi_indices.msel,
         multi_indices.sel_trajs,
         multi_indices.sel_trajids,
-        # clean
-        clean.true_upto,
-        # geom
-        geocalc.dihedral,
-        geocalc.angle,
-        geocalc.distance,
-        geocalc.get_bond_lengths,
-        geocalc.get_bond_angles,
-        geocalc.get_bond_torsions,
-        geocalc.get_pyramids,
-        geocalc.get_bla_chromophor,
+        ### clean
+        true_upto,
+        ### geom
+        distances.distance,
+        angles.angle,
+        dihedrals.dihedral,
+        pyramids.pyramidalization_angle,
         geocalc.get_bats,
-        geocalc.kabsch,
-        geomatch_exact.get_bats_matching,
-        # select
+        geocalc.get_distances,
+        geocalc.get_angles,
+        geocalc.get_dihedrals,
+        geocalc.get_pyramidalization,
+        geocalc.get_max_chromophor_BLA,
+        alignment.kabsch,
+        # geomatch_exact.get_bats_matching,
+        ### select
         select.FrameSelector,
         select.TrajSelector,
-        # p3mhelpers
+        ### p3mhelpers
         p3mhelpers.frame3D,
         p3mhelpers.frames3Dgrid,
         p3mhelpers.traj3D,
         p3mhelpers.trajs3Dgrid,
-        # vmd
+        ### vmd
         vmd.traj_vmd,
-        # ml
+        ### ml
         pca.pca,
         lda.lda,
         pls.pls,
-        # hops
+        ### hops
         hops.hops,
         hops.focus_hops,
         hops.assign_hop_time,
     ]
 
     ds_funcs = [
-        # postprocess
+        ### postprocess
         pca.pca_and_hops,
         data_helpers.validate,
-        spectra.assign_fosc,
-        spectra.ds_broaden_gauss,
+        # spectra.assign_fosc,
+        # spectra.ds_broaden_gauss,
+        spectra.get_spectra,
         stats.get_per_state,
         stats.get_inter_state,
         populations.calc_pops,
-        bridges.construct_default_mol,
-        # xrhelpers
+        bridges.default_mol,
+        ### xrhelpers
         multi_indices.flatten_levels,
         multi_indices.expand_midx,
         multi_indices.assign_levels,
@@ -118,25 +129,23 @@ def main():
         multi_indices.unstack_trajs,
         multi_indices.stack_trajs,
         st.io.shnitsel.write_shnitsel_file,
-        # plot
-        spectra.spectra_all_times,
-        # filtration
-        clean.energy_filtranda,
+        ### filtration
+        clean.filter_energy.calculate_energy_filtranda,
         clean.sanity_check,
-        clean.bond_length_filtranda,
+        clean.filter_geo.calculate_bond_length_filtranda,
         clean.filter_by_length,
-        clean.omit,
-        clean.truncate,
-        clean.transect,
-        # ase
+        omit,
+        truncate,
+        transect,
+        ### ase
         write_ase_db,
-        # ml
+        ### ml
         pls.pls_ds,
-        # hops
+        ### hops
         hops.hops,
         hops.focus_hops,
         hops.assign_hop_time,
-        # select
+        ### select
         select.FrameSelector,
         select.TrajSelector,
     ]
@@ -162,8 +171,10 @@ def main():
             'DSManualAccessor': '._accessors',
             'DatasetOrArray': 'shnitsel.core.typedefs',
             'nan': 'numpy',
+            'PopulationStatistics': 'shnitsel.analyze.populations',
         },
         plain_imports={
+            'shnitsel',
             'xarray as xr',
             'xarray',
             'collections',

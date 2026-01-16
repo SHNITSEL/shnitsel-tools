@@ -461,8 +461,8 @@ def plot_clusters_grid(
     clusters: list[list[int]],
     ax: Axes | None = None,
     labels: list[str] | None = None,
-    axs: dict[Axes] | None = None,
-    mol: 'Mol | None' = None,
+    axs: dict[str, Axes] | None = None,
+    mol: Mol | None = None,
 ):
     """Plot selected clusters of the loadings of a pairwise distance PCA,
     and interpretations of those loadings:
@@ -488,7 +488,7 @@ def plot_clusters_grid(
     labels : list[str], optional
         Labels for the loadings; if not provided, loadings will be labelled
         according to indices of the atoms to which they relate.
-    axs : dict[Axes], optional
+    axs : dict[str, Axes], optional
         A dictionary mapping from plot labels to :py:class:`matplotlib.pyplot.axes.Axes`
         objects
         (If not provided, one will be created.)
@@ -557,7 +557,7 @@ def circbins(
     raise NotImplementedError("Fix this type issue")
     print(angles, angles.dtype)
     labels = kmeans.fit_predict(proj(angles.astype(float)).astype(float))
-    space = np.linspace(0., 360., num=10).astype(float)
+    space = np.linspace(0.0, 360.0, num=10).astype(float)
     sample = kmeans.predict(proj(space).astype(float))
     mask = np.diff(sample) != 0
     mask = np.concat([mask, [sample[-1] == sample[0]]])
@@ -663,7 +663,7 @@ def pick_clusters(
     radii = np.sqrt(points[:, 0] ** 2 + points[:, 1] ** 2)
     # center = stats.circmean(angles, high=180, low=-180)
 
-    picks, bins, edges = binning_with_min_entries(
+    picks, bins, edges = _binning_with_min_entries(
         num_bins=num_bins, angles=angles, radii=radii, return_bins_edges=True
     )
     # bins, edges = circbins(angles, nbins=4, center=center)
@@ -680,7 +680,7 @@ def pick_clusters(
     )
 
 
-def binning_with_min_entries(
+def _binning_with_min_entries(
     num_bins: int,
     angles: NDArray,
     radii: NDArray,

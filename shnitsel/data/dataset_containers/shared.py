@@ -380,6 +380,9 @@ class ShnitselDataset(object):
             f"{type(self).__name__!r} object has no attribute {name!r}"
         )
 
+    def __contains__(self, a):
+        return self._raw_dataset.__contains__(a)
+
     def _repr_html_(self) -> Any:
         return self._raw_dataset._repr_html_()
 

@@ -13,7 +13,7 @@ from shnitsel.data.dataset_containers.trajectory import Trajectory
 ########################
 
 
-def _true_upto(mask: xr.DataArray, dim: str) -> xr.DataArray:
+def true_upto(mask: xr.DataArray, dim: str) -> xr.DataArray:
     """Helper function to assess whether a mask has only `true` entries up until a certain point
     along dimension `dim`.
     Used to check if criterion validity is maintained along the `time` dimension.
@@ -40,6 +40,7 @@ def _true_upto(mask: xr.DataArray, dim: str) -> xr.DataArray:
     # We only deal with individual trajectories
     return num_cum_valid_indices.copy(data=res)
 
+_true_upto = true_upto
 
 def _filter_mask_from_criterion_mask(mask: xr.DataArray) -> xr.DataArray:
     """Generate cutoff array from the mask, specifying for each criterion, up to which point
@@ -182,7 +183,7 @@ def omit(frames_or_trajectory: TrajectoryOrFrames) -> TrajectoryOrFrames | None:
         return frames_or_trajectory
     else:
         return None
-
+_omit = omit
 
 def _log_omit(before, after):
     kept = set(after.trajid.values.tolist())
@@ -204,7 +205,7 @@ def truncate(frames_or_trajectory: TrajectoryOrFrames) -> TrajectoryOrFrames:
             {frames_or_trajectory.leading_dim: filter_mask_all_criteria}
         )
     )
-
+_truncate = truncate
 
 def transect(trajectory: Trajectory, cutoff_time: float) -> Trajectory | None:
     """Perform a transect, i.e. cut off the trajetory at time `cutoff_time` if it is valid until then
@@ -240,7 +241,7 @@ def transect(trajectory: Trajectory, cutoff_time: float) -> Trajectory | None:
         return type(trajectory)(time_sliced_dataset)
     else:
         return None
-
+_transect = transect
 
 def dispatch_filter(
     frames_or_trajectory: TrajectoryOrFrames,

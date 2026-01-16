@@ -20,8 +20,11 @@ import logging
 from typing import Sequence, TypeVar
 from typing_extensions import Literal
 
+from xarray import Dataset
+
 from shnitsel.bridges import construct_default_mol
 from shnitsel.core._api_info import API, internal
+from shnitsel.data.dataset_containers import wrap_dataset
 from shnitsel.data.dataset_containers.frames import Frames
 from shnitsel.data.dataset_containers.trajectory import Trajectory
 from shnitsel.data.tree.tree import ShnitselDB
@@ -110,33 +113,21 @@ def sanity_check(
     If the input has a ``filtranda`` data_var, it is overwritten.
     If the input has a `criterion` dimension, it will be dropped.
     """
-
+    kws = dict(
+        filter_method=filter_method,
+        energy_thresholds=energy_thresholds,
+        geometry_thresholds=geometry_thresholds,
+        plot_populations=plot_populations,
+        plot_thresholds=plot_thresholds,
+        mol=mol,
+    )
     if isinstance(trajectory_or_frames, ShnitselDB):
-        # TODO: FIXME: Deal with type error of return value of `map_data()`
         return trajectory_or_frames.map_data(
-            lambda x: _sanity_check_per_trajectory(
-                x,
-                filter_method=filter_method,
-                energy_thresholds=energy_thresholds,
-                geometry_thresholds=geometry_thresholds,
-                plot_populations=plot_populations,
-                plot_thresholds=plot_thresholds,
-                mol=mol,
-            ),
+            lambda x: _sanity_check_per_trajectory(x, **kws),
             keep_empty_branches=not drop_empty_trajectories,
         )
-    elif isinstance(trajectory_or_frames, Frames) or isinstance(
-        trajectory_or_frames, Trajectory
-    ):
-        return _sanity_check_per_trajectory(
-            trajectory_or_frames,
-            filter_method=filter_method,
-            energy_thresholds=energy_thresholds,
-            geometry_thresholds=geometry_thresholds,
-            plot_populations=plot_populations,
-            plot_thresholds=plot_thresholds,
-            mol=mol,
-        )
+    else:
+        return _sanity_check_per_trajectory(trajectory_or_frames, **kws)
 
 
 @internal()
@@ -209,10 +200,15 @@ def _sanity_check_per_trajectory(
     If the input has a `criterion` dimension, it will be dropped.
     """
 
-    if mol is None:
-        mol = construct_default_mol(trajectory_or_frames.dataset)
+    wrapped_ds = wrap_dataset(trajectory_or_frames, Trajectory | Frames)
 
-    # TODO: FIXME: Figure out why dispatch_filter converts all data to float.
+    assert isinstance(wrapped_ds, (Trajectory, Frames)), (
+        "Data provided to `sanity_check()` is neither Trajectory nor Frame data."
+    )
+
+    if mol is None:
+        mol = construct_default_mol(wrapped_ds)
+
     # Perform energy filtering
     ds_energy = filter_by_energy(
         trajectory_or_frames,

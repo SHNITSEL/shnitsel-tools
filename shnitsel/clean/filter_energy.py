@@ -3,7 +3,7 @@ import logging
 from typing import Literal, Sequence, TypeVar
 
 import numpy as np
-from shnitsel.data.dataset_containers import Frames, Trajectory
+from shnitsel.data.dataset_containers import Frames, Trajectory, wrap_dataset
 import xarray as xr
 
 from shnitsel.data.multi_indices import mdiff
@@ -98,9 +98,9 @@ def calculate_energy_filtranda(
         criteria comprise epot_step and hop_epot_step, as well as
         etot_drift, etot_step and ekin_step if the input contains an e_kin variable
     """
-    if not isinstance(frames_or_trajectory, Frames) and not isinstance(
-        frames_or_trajectory, Trajectory
-    ):
+    if isinstance(frames_or_trajectory, xr.Dataset):
+        frames_or_trajectory = Frames(frames_or_trajectory)
+    elif not isinstance(frames_or_trajectory, (Frames, Trajectory)):
         message: str = 'Filtered dataset object is of type %s instead of the required types Frames or Trajectory'
         logging.warning(message, type(frames_or_trajectory))
         raise ValueError(message % type(frames_or_trajectory))
@@ -221,19 +221,9 @@ def filter_by_energy(
     If the input has a ``filtranda`` data_var, it is overwritten.
     """
 
-    analysis_data: Trajectory | Frames
-    if isinstance(frames_or_trajectory, xr.Dataset):
-        try:
-            analysis_data = Trajectory(frames_or_trajectory)
-        except:
-            try:
-                analysis_data = Frames(frames_or_trajectory)
-            except:
-                raise ValueError(
-                    "Filtered data is no DataSeries, i.e. not indexed by `time` or `frame` dimensions."
-                )
-    else:
-        analysis_data = frames_or_trajectory
+    analysis_data: Trajectory | Frames = wrap_dataset(
+        frames_or_trajectory, Trajectory | Frames
+    )
 
     if energy_thresholds is None:
         energy_thresholds = EnergyFiltrationThresholds()
@@ -251,7 +241,7 @@ def filter_by_energy(
     )
     filter_res = dispatch_filter(filtered_frames, filter_method)
 
-    if not isinstance(frames_or_trajectory, xr.Dataset):
-        return filter_res
-    else:
+    if isinstance(frames_or_trajectory, xr.Dataset):
         return filter_res.dataset
+    else:
+        return filter_res

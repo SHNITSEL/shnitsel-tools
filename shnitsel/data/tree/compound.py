@@ -109,7 +109,7 @@ class CompoundGroup(Generic[DataType], DataGroup[DataType]):
         children: Mapping[Hashable, "DataGroup[DataType]|DataLeaf[DataType]"]
         | Mapping[Hashable, NewChildType]
         | None = None,
-        dtype: type[ResType] |UnionType | None = None,
+        dtype: type[ResType] | UnionType | None = None,
         data: ResType | None = None,
         **kwargs,
     ) -> Self | "CompoundGroup[ResType]":
@@ -161,7 +161,9 @@ class CompoundGroup(Generic[DataType], DataGroup[DataType]):
         else:
             assert all(
                 isinstance(child, (DataGroup, DataLeaf)) for child in children.values()
-            ), "Children provided to `construct_copy` for compound group are not of type `DataGroup` or `DataLeaf"
+            ), (
+                "Children provided to `construct_copy` for compound group are not of type `DataGroup` or `DataLeaf"
+            )
             new_dtype: type[ResType] | UnionType | None = dtype
 
             return CompoundGroup(

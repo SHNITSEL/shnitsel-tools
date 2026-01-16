@@ -165,12 +165,7 @@ class ShnitselDBRoot(Generic[DataType], TreeNode[CompoundGroup[DataType], DataTy
         if 'level_name' not in kwargs:
             kwargs['level_name'] = str(self._level_name)
 
-        new_dtype: (
-            type[ResType]
-            | UnionType
-            | type[DataType]
-            | None
-        ) = dtype
+        new_dtype: type[ResType] | UnionType | type[DataType] | None = dtype
 
         if children is not None:
             if 'compounds' in kwargs and kwargs["compounds"] is not None:
@@ -300,7 +295,7 @@ class ShnitselDBRoot(Generic[DataType], TreeNode[CompoundGroup[DataType], DataTy
         return self.construct_copy(children=new_children)
 
     def set_compound_info(
-        self, compound: str| CompoundInfo, overwrite_all: bool = False
+        self, compound: str | CompoundInfo, overwrite_all: bool = False
     ) -> Self:
         """Function to set the compound information on either all unknown compounds (`overwrite_all=False`) or for all trajectories in the tree
         creating a new CompoundGroup holding all trajectories. (if `overwrite_all=True`).

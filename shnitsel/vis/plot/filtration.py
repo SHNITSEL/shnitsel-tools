@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 
 from shnitsel.clean.common import (
     cum_max_quantiles,
-    _true_upto,
+    true_upto,
     _filter_mask_from_criterion_mask,
 )
 
@@ -141,7 +141,7 @@ def validity_populations(ds_or_da, intersections=True):
         filtranda = ds_or_da['filtranda'].copy()
     else:
         filtranda = ds_or_da.copy()
-    mask = cum_mask_from_filtranda(filtranda)
+    mask = _filter_mask_from_criterion_mask(filtranda)
     if 'thresholds' in mask.coords:
         mask = mask.drop('thresholds')
     if 'good_throughout' in mask.coords:

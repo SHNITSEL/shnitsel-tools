@@ -5,6 +5,7 @@ import numpy as np
 import xarray as xr
 from rdkit.Chem import Mol
 
+from shnitsel.data.dataset_containers import wrap_dataset
 from shnitsel.data.dataset_containers.frames import Frames
 from shnitsel.data.dataset_containers.trajectory import Trajectory
 from shnitsel.filtering.structure_selection import StructureSelection
@@ -129,6 +130,9 @@ def calculate_bond_length_filtranda(
         An xr.DataArray of filtration targets stacked along the ``criterion`` dimension;
         one criterion per ``search_dict`` entry.
     """
+    if isinstance(frames, xr.Dataset):
+        frames = Frames(frames)
+
     if geometry_thresholds is None:
         # Assign default threshold rules.
         geometry_thresholds = GeometryFiltrationThresholds()
@@ -230,19 +234,9 @@ def filter_by_length(
     the `frames_or_trajectory` parameter along with all variables and coordinates tied to it.
     """
 
-    analysis_data: Trajectory | Frames
-    if isinstance(frames_or_trajectory, xr.Dataset):
-        try:
-            analysis_data = Trajectory(frames_or_trajectory)
-        except:
-            try:
-                analysis_data = Frames(frames_or_trajectory)
-            except:
-                raise ValueError(
-                    "Filtered data is no DataSeries, i.e. not indexed by `time` or `frame` dimensions."
-                )
-    else:
-        analysis_data = frames_or_trajectory
+    analysis_data: Trajectory | Frames = wrap_dataset(
+        frames_or_trajectory, Trajectory | Frames
+    )
 
     filtranda = calculate_bond_length_filtranda(
         analysis_data, geometry_thresholds=geometry_thresholds, mol=mol

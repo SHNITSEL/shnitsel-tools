@@ -177,27 +177,56 @@ def hops_mask_from_active_state(
                 )
             is_hop_mask &= type_filter
         return is_hop_mask
-    # hop_types = _standard_hop_spec(hop_types)
-    # is_hop = mdiff(frames['astate']) != 0
 
-    # res = frames.isel(frame=is_hop)
-    # tidxs = np.concat(
-    #     [np.arange(traj.sizes['frame']) for _, traj in frames.groupby('trajid')]
-    # )
-    # hop_tidx = tidxs[is_hop]
-    # res = res.assign_coords(
-    #     tidx=('frame', hop_tidx),
-    #     hop_from=(frames['astate'].shift({'frame': 1}, -1).isel(frame=is_hop)),
-    #     hop_to=res['astate'],
-    # )
-    # if hop_types is not None:
-    #     acc = np.full(res.sizes['frame'], False)
-    #     for hop_from, hop_to in hop_types:
-    #         acc |= (res.hop_from == hop_from) & (res.hop_to == hop_to)
-    #     res = res.isel(frame=acc)
-    # if hasattr(res, 'drop_dims'):
-    #     res = res.drop_dims(['trajid_'], errors='ignore')
-    # return res
+def hops(frames, hop_types: list[tuple[int, int]] | None = None):
+    """Select hops
+
+    Parameters
+    ----------
+    frames
+        An Xarray object (Dataset or DataArray) with a ``frames`` dimension
+    hop_types
+        A list of pairs of states, e.g.:
+        ``[(1, 2), (2, 1), (3, 1)]``
+        to select only hops between states 1 and 2 as well as from
+        3 to 1 (but not from 1 to 3).
+        Alternatively, hops may be specified as a single string
+        in the following style: ``'1<>2, 3->1'`` -- this specification
+        selects the same hops as in the previous example, with ``<>``
+        selecting hops in either direction and ``->`` being one-
+        directional.
+
+    Returns
+    -------
+    An indexed version of ``frames``, where each entry in the
+    ``frames`` dimension represents a hop.
+    The following coordinates are added along ``frames``:
+
+        - ``tidx``: the time-step index of the hop in its trajectory
+        - ``hop_from``: the active state before the hop
+        - ``hop_to``: the active state after the hop
+    """
+    hop_types = _standard_hop_spec(hop_types)
+    is_hop = mdiff(frames['astate']) != 0
+
+    res = frames.isel(frame=is_hop)
+    tidxs = np.concat(
+        [np.arange(traj.sizes['frame']) for _, traj in frames.groupby('trajid')]
+    )
+    hop_tidx = tidxs[is_hop]
+    res = res.assign_coords(
+        tidx=('frame', hop_tidx),
+        hop_from=(frames['astate'].shift({'frame': 1}, -1).isel(frame=is_hop)),
+        hop_to=res['astate'],
+    )
+    if hop_types is not None:
+        acc = np.full(res.sizes['frame'], False)
+        for hop_from, hop_to in hop_types:
+            acc |= (res.hop_from == hop_from) & (res.hop_to == hop_to)
+        res = res.isel(frame=acc)
+    if hasattr(res, 'drop_dims'):
+        res = res.drop_dims(['trajid_'], errors='ignore')
+    return res
 
 
 @overload
