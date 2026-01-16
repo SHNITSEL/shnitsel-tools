@@ -62,7 +62,7 @@ class DataArrayAccessor(DAManualAccessor):
         'traj_to_xyz',
         'to_mol',
         'smiles_map',
-        'default_mol',
+        'construct_default_mol',
         'convert_energy',
         'convert_force',
         'convert_dipole',
@@ -142,11 +142,16 @@ class DataArrayAccessor(DAManualAccessor):
         return traj_to_xyz(self._obj, units=units)
 
     @needs(dims={'atom', 'direction'}, coords_or_vars={'atNames'}, not_dims={'frame'})
+    def to_mol(self, charge: int | None=None, covFactor: float=1.2, to2D: bool=True, molAtomMapNumber: Union=None, atomNote: Union=None, atomLabel: Union=None) -> Mol:
+        """Wrapper for :py:func:`shnitsel.bridges.to_mol`."""
+        return to_mol(self._obj, charge=charge, covFactor=covFactor, to2D=to2D, molAtomMapNumber=molAtomMapNumber, atomNote=atomNote, atomLabel=atomLabel)
+
+    @needs(dims={'atom', 'direction'}, coords_or_vars={'atNames'}, not_dims={'frame'})
     def smiles_map(self, charge=0, covFactor=1.5) -> str:
         """Wrapper for :py:func:`shnitsel.bridges.smiles_map`."""
         return smiles_map(self._obj, charge=charge, covFactor=covFactor)
 
-    def default_mol(self, to2D: bool=True, charge: int | float | None=None, molAtomMapNumber: Union=None, atomNote: Union=None, atomLabel: Union=None) -> Mol:
+    def construct_default_mol(self, to2D: bool=True, charge: int | float | None=None, molAtomMapNumber: Union=None, atomNote: Union=None, atomLabel: Union=None) -> Mol:
         """Wrapper for :py:func:`shnitsel.bridges.construct_default_mol`."""
         return construct_default_mol(self._obj, to2D=to2D, charge=charge, molAtomMapNumber=molAtomMapNumber, atomNote=atomNote, atomLabel=atomLabel)
 
@@ -340,7 +345,7 @@ class DatasetAccessor(DSManualAccessor):
         'get_per_state',
         'get_inter_state',
         'calc_classical_populations',
-        'default_mol',
+        'construct_default_mol',
         'flatten_levels',
         'expand_midx',
         'assign_levels',
@@ -398,7 +403,7 @@ class DatasetAccessor(DSManualAccessor):
         """Wrapper for :py:func:`shnitsel.analyze.populations.calc_classical_populations`."""
         return calc_classical_populations(self._obj)
 
-    def default_mol(self, to2D: bool=True, charge: int | float | None=None, molAtomMapNumber: Union=None, atomNote: Union=None, atomLabel: Union=None) -> Mol:
+    def construct_default_mol(self, to2D: bool=True, charge: int | float | None=None, molAtomMapNumber: Union=None, atomNote: Union=None, atomLabel: Union=None) -> Mol:
         """Wrapper for :py:func:`shnitsel.bridges.construct_default_mol`."""
         return construct_default_mol(self._obj, to2D=to2D, charge=charge, molAtomMapNumber=molAtomMapNumber, atomNote=atomNote, atomLabel=atomLabel)
 
