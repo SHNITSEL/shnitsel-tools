@@ -1,11 +1,13 @@
 from dataclasses import dataclass
 import datetime
 from os import PathLike
+from typing import Mapping, Sequence
+from matplotlib.axes import Axes
 import numpy as np
 from timeit import default_timer as timer
 from matplotlib.backends.backend_pdf import PdfPages
 
-from matplotlib.figure import Figure
+from matplotlib.figure import Figure, SubFigure
 from tqdm import tqdm
 
 from shnitsel.data.tree.data_group import DataGroup
@@ -183,8 +185,12 @@ class Datasheet:
 
     def calc_all(self):
         """Method to precalculate all relevant properties on all (sub-)DatasheetPages"""
-        for k, page in self.datasheet_pages.items():
+        for page in self.datasheet_pages.values():
             page.calc_all()
+
+    @property
+    def pages(self) -> Mapping[str, DatasheetPage]:
+        return self.datasheet_pages
 
     def plot(
         self,
@@ -296,7 +302,86 @@ class Datasheet:
             include_per_state_hist (bool, optional): Flag to include per-state histograms. Defaults to False.
             borders (bool, optional): Whether the figures should have borders. Defaults to False.
         """
-        for key, page in self.datasheet_pages.items():
+        for page in self.datasheet_pages.values():
             page._test_subfigures(
                 include_per_state_hist=include_per_state_hist, borders=borders
             )
+
+    def plot_per_state_histograms(
+        self,
+        shape: tuple[int, int] | None = None,
+    ) -> Sequence[dict[str, Axes]]:
+        return [
+            page.plot_per_state_histograms(
+                state_selection=page.state_selection, shape=shape
+            )
+            for page in self.datasheet_pages.values()
+        ]
+
+    def plot_timeplots(self) -> Sequence[dict[str, Axes]]:
+        return [
+            page.plot_timeplots(state_selection=page.state_selection)
+            for page in self.datasheet_pages.values()
+        ]
+
+    def plot_separated_spectra_and_hists(
+        self,
+        current_multiplicity: int = 1,
+    ) -> Sequence[dict[str, Axes]]:
+        return [
+            page.plot_separated_spectra_and_hists(
+                state_selection=page.state_selection,
+                current_multiplicity=current_multiplicity,
+            )
+            for page in self.datasheet_pages.values()
+        ]
+
+    def plot_separated_spectra_and_hists_groundstate(
+        self,
+    ) -> Sequence[dict[str, Axes]]:
+        return [
+            page.plot_separated_spectra_and_hists_groundstate(
+                state_selection=page.state_selection
+            )
+            for page in self.datasheet_pages.values()
+        ]
+
+    def plot_nacs_histograms(
+        self,
+    ) -> Sequence[dict[str, Axes]]:
+        return [
+            page.plot_nacs_histograms(state_selection=page.state_selection)
+            for page in self.datasheet_pages.values()
+        ]
+
+    def plot_noodle(
+        self,
+    ) -> Sequence[Axes]:
+        return [
+            page.plot_noodle(state_selection=page.state_selection)
+            for page in self.datasheet_pages.values()
+        ]
+
+    def plot_energy_bands(
+        self,
+    ) -> Sequence[dict[str, Axes]]:
+        return [
+            page.plot_energy_bands(state_selection=page.state_selection)
+            for page in self.datasheet_pages.values()
+        ]
+
+    def plot_structure(
+        self,
+    ) -> Sequence[Axes]:
+        return [
+            page.plot_structure(state_selection=page.state_selection)
+            for page in self.datasheet_pages.values()
+        ]
+
+    def plot_pca_structure(
+        self,
+    ) -> Sequence[Axes]:
+        return [
+            page.plot_pca_structure(state_selection=page.state_selection)
+            for page in self.datasheet_pages.values()
+        ]
