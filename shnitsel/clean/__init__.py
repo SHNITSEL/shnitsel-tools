@@ -263,6 +263,10 @@ def _sanity_check_per_trajectory(
         )
     )
 
+    # If input was unwrapped, then unwrap result
+    if isinstance(trajectory_or_frames, Dataset):
+        return ds_tmp.dataset
+
     return ds_tmp
 
 
