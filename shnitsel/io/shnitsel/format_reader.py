@@ -6,7 +6,7 @@ from typing import TypeVar
 from typing_extensions import TypeForm
 
 from shnitsel.data.dataset_containers import Trajectory, Frames, InterState, PerState
-from shnitsel.data.dataset_containers.xr_convesion import xr_dataset_to_shnitsel_format
+from shnitsel.data.dataset_containers.xr_conversion import xr_dataset_to_shnitsel_format
 from shnitsel.data.tree.xr_conversion import xarray_datatree_to_shnitsel_tree
 from shnitsel.data.helpers import is_assignable_to
 from shnitsel.data.tree import (

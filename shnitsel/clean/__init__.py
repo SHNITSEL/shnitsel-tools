@@ -211,7 +211,7 @@ def _sanity_check_per_trajectory(
 
     # Perform energy filtering
     ds_energy = filter_by_energy(
-        trajectory_or_frames,
+        wrapped_ds,
         filter_method,
         energy_thresholds=energy_thresholds,
         plot_thresholds=plot_thresholds,
@@ -262,6 +262,10 @@ def _sanity_check_per_trajectory(
             }
         )
     )
+
+    # If input was unwrapped, then unwrap result
+    if isinstance(trajectory_or_frames, Dataset):
+        return ds_tmp.dataset
 
     return ds_tmp
 

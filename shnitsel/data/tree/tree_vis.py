@@ -5,6 +5,8 @@ import uuid
 from html import escape
 from .node import TreeNode
 from .datatree_level import DataTreeLevelMap
+from shnitsel.bridges import default_mol
+import rdkit
 
 STATIC_FILES = (
     ("shnitsel.vis.static.html", "icons-svg-inline.html"),
@@ -199,6 +201,18 @@ def datatree_child_repr(node: TreeNode, end: bool = False) -> str:
     sections = tree_node_sections(node, root=False)
     section_items = "".join(f"<li class='st-section-item'>{s}</li>" for s in sections)
 
+    if node.is_level('CompoundGroup'):
+        mol_data = node[list(node._children.keys())[0]].data
+        try:
+            mol_object = default_mol(mol_data)
+            mol = rdkit.Chem.Draw.rdMolDraw2D.MolToSVG(mol_object, width=100, height=60)
+            mol = ''.join(mol.split('\n')[1:])
+        except ValueError:
+            # default_mol didn't work
+            mol = ''
+    else:
+        mol = ''
+
     # TODO: Can we make the group name clickable to toggle the sections below?
     # This looks like it would require the input/label pattern used above.
     html = f"""
@@ -209,6 +223,7 @@ def datatree_child_repr(node: TreeNode, end: bool = False) -> str:
                 <div class='st-header'>
                     <div class='st-group-name'>{path}</div>
                 </div>
+                {mol}
                 <ul class='st-sections'>
                     {section_items}
                 </ul>
