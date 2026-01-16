@@ -1,8 +1,10 @@
 import pytest
 
 import shnitsel.clean as F
-from shnitsel.clean.common import cutoffs_from_filtranda
-from shnitsel.data.tree import tree_to_frames
+from shnitsel.clean.common import true_upto, _filter_mask_from_filtranda
+from shnitsel.clean.filter_energy import filter_by_energy, calculate_energy_filtranda
+from shnitsel.clean.filter_geo import filter_by_length, calculate_bond_length_filtranda
+from shnitsel.data.dataset_containers.frames import Frames
 from shnitsel.io import read
 
 
@@ -11,32 +13,43 @@ from shnitsel.io import read
         ('tutorials/tut_data/traj_I02.nc', -1),
     ]
 )
-def frames(request):
+def frames(request) -> Frames:
     path, charge = request.param
     db = read(path)
-    res = tree_to_frames(db)
-    res['atXYZ'].attrs['charge'] = charge
-    res.attrs['charge'] = charge
-    return res
+    res = db.set_charge(charge)
+    return res.as_frames()
 
 
 def test_filtranda(frames):
-    F.energy_filtranda(frames)
+    calculate_energy_filtranda(frames)
 
 
 @pytest.fixture
-def filtranda(frames):
-    return F.energy_filtranda(frames)
+def energy_filtranda(frames):
+    return calculate_energy_filtranda(frames)
 
 
 @pytest.fixture
-def ds_filtranda(frames, filtranda):
-    return frames.assign(filtranda=filtranda)
+def length_filtranda(frames):
+    return calculate_energy_filtranda(frames)
 
 
-def test_cutoffs_from_filtranda(filtranda):
-    cutoffs_from_filtranda(filtranda)
+@pytest.fixture
+def ds_filtranda(frames, energy_filtranda):
+    return frames.assign(filtranda=energy_filtranda)
 
 
-def test_cum_mask_from_filtranda(filtranda):
-    F.cum_mask_from_filtranda(filtranda)
+def test_cutoffs_from_filtranda(energy_filtranda):
+    true_upto(_filter_mask_from_filtranda(energy_filtranda), 'criterion')
+
+
+def test_mask_from_filtranda(filtranda):
+    _filter_mask_from_filtranda(filtranda)
+
+
+def test_filter_energy(frames):
+    filter_by_energy(frames)
+
+
+def test_filter_length(frames):
+    filter_by_length(frames)
