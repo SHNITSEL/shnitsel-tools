@@ -5,6 +5,7 @@ from typing import Literal
 
 import numpy as np
 from rdkit import Chem as rc
+from rdkit.Chem import rdDepictor
 
 from shnitsel._contracts import needs
 from shnitsel.data.dataset_containers import Frames, Trajectory
@@ -161,7 +162,7 @@ def to_mol(
         if charge is not None:
             raise
     if to2D:
-        rc.rdDepictor.Compute2DCoords(mol)  # type: ignore
+        rdDepictor.Compute2DCoords(mol)  # type: ignore
     return set_atom_props(
         mol, molAtomMapNumber=molAtomMapNumber, atomNote=atomNote, atomLabel=atomLabel
     )
