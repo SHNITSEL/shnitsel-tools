@@ -302,7 +302,7 @@ class DataArrayAccessor(DAManualAccessor):
     def traj_vmd(self, groupby='trajid'):
         """Wrapper for :py:func:`shnitsel.vis.vmd.traj_vmd`."""
         return traj_vmd(self._obj, groupby=groupby)
-default_mo
+
     def pca(self, dim: Optional=None, feature_selection: shnitsel.filtering.structure_selection.StructureSelection | None=None, n_components: int=2, center_mean: bool=False) -> Union:
         """Wrapper for :py:func:`shnitsel.analyze.pca.pca`."""
         return pca(self._obj, dim=dim, feature_selection=feature_selection, n_components=n_components, center_mean=center_mean)
