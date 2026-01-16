@@ -211,7 +211,7 @@ def _sanity_check_per_trajectory(
 
     # Perform energy filtering
     ds_energy = filter_by_energy(
-        trajectory_or_frames,
+        wrapped_ds,
         filter_method,
         energy_thresholds=energy_thresholds,
         plot_thresholds=plot_thresholds,
