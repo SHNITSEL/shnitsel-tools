@@ -1,4 +1,5 @@
-from pytest import fixture
+from pytest import fixture, raises
+
 
 from shnitsel.filtering.state_selection import StateSelection
 from shnitsel.io import read
@@ -12,8 +13,11 @@ from shnitsel.io import read
     ]
 )
 def data(request):
+    from shnitsel.data.tree.tree import ShnitselDB
+
     res = read(request.param)
-    return res
+    assert isinstance(res, ShnitselDB)
+    return res.as_stacked
 
 
 @fixture
@@ -31,14 +35,16 @@ class TestStateSelection:
         StateSelection.init_from_dataset(data)
 
     def test_init_from_descriptor(self, data):
-        ssel = StateSelection.init_from_descriptor(['1, 1->2, 3<>1', '2<>1'])
+        ssel = StateSelection.init_from_descriptor(['1, 1->2, 3<>1'])
         assert 1 in ssel.states
         assert 2 in ssel.states
         assert 3 in ssel.states
         assert (1, 2) in ssel.state_combinations
-        assert (2, 1) not in ssel.state_combinations
         assert (1, 3) in ssel.state_combinations and (3, 1) in ssel.state_combinations
-        assert (1, 2) in ssel.state_combinations and (2, 1) in ssel.state_combinations
+        assert (1, 2) in ssel.state_combinations and (
+            2,
+            1,
+        ) not in ssel.state_combinations
         assert (3, 2) not in ssel.state_combinations and (
             2,
             3,
@@ -72,13 +78,22 @@ class TestStateSelection:
         list(state_selection.state_info())
 
     def test_state_comb_name_assignment(self, state_selection: StateSelection):
-        state_selection.set_state_combination_names({(1, 2): "party_time"})
+        with raises(ValueError):
+            state_selection.set_state_combination_names({(1, 2): "party_time"})
+        state_selection.set_state_combination_names(
+            {sc: "party_time" for sc in state_selection.state_combinations}
+        )
 
     def test_state_name_assignment(self, state_selection: StateSelection):
-        state_selection.set_state_names({1: "carrot"})
+        with raises(ValueError):
+            state_selection.set_state_names({1: "carrot"})
+
+        state_selection.set_state_names({s: "carrot" for s in state_selection.states})
 
     def test_state_type_assignment(self, state_selection: StateSelection):
-        state_selection.set_state_types({1: 3})
+        with raises(ValueError):
+            state_selection.set_state_types({1: 3})
+        state_selection.set_state_types({s: 3 for s in state_selection.states})
 
     def test_filter_states(self, state_selection: StateSelection):
         state_selection.filter_states(

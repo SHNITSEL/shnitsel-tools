@@ -1,18 +1,21 @@
 import logging
+from types import UnionType
 from typing import TYPE_CHECKING, Any, Iterable, Sequence, TypeVar
 from typing_extensions import TypeForm
 
 import numpy as np
 
 from shnitsel.core._api_info import API, internal
-from shnitsel.data.tree import ShnitselDB, complete_shnitsel_tree
 from shnitsel.data.dataset_containers import Trajectory, Frames
-from shnitsel.data.dataset_containers.frames import MultiTrajectoryFrames
 import xarray as xr
+
+if TYPE_CHECKING:
+    from shnitsel.data.tree import ShnitselDB
 
 # TODO: FIXME: Set units on delta_t and t_max when converted into a variable
 
 _coordinate_meta_keys = ["trajid", "delta_t", "max_ts", "t_max", "completed", "nsteps"]
+
 
 class InconsistentAttributeError(ValueError):
     pass
@@ -24,6 +27,7 @@ class MultipleCompoundsError(ValueError):
 
 class MissingValue:
     """Sentinel value for ``tree_to_frames``."""
+
 
 @internal()
 def _check_matching_dimensions(
@@ -300,7 +304,7 @@ DataType = TypeVar("DataType")
 @API()
 def concat_trajs(
     datasets: Sequence[Trajectory | Frames | xr.Dataset],
-    dtype: type[DataType] | TypeForm[DataType] | None = None,
+    dtype: type[DataType] | UnionType | None = None,
 ) -> xr.Dataset:
     """Function to concatenate multiple trajectories along their `time` dimension.
 
@@ -315,6 +319,8 @@ def concat_trajs(
     ----------
     datasets : Iterable[Trajectory]
         Datasets representing the individual trajectories
+    dtype :  type[DataType] | UnionType | None
+        Type hint for the data to be included in the resulting container type.
 
     Raises
     ------
@@ -467,20 +473,24 @@ def concat_trajs(
 @API()
 def db_from_data(
     datasets: Sequence[DataType] | DataType,
-    dtype: type[DataType] | TypeForm[DataType] | None = None,
-) -> ShnitselDB[DataType]:  # noqa: F821
+    dtype: type[DataType] | UnionType | None = None,
+) -> "ShnitselDB[DataType]":  # noqa: F821
     """Function to merge multiple trajectories of the same molecule into a single ShnitselDB instance.
 
     Parameters
     ----------
     datasets : Sequence[DataType] | DataType
         The individual loaded data points, e.g. trajectories or a single data point/trajectory to turn into a tree.
+    dtype :  type[DataType] | UnionType | None
+        Type hint for the data to be included in the resulting tree.
 
     Returns
     -------
     ShnitselDB[DataType]
         The resulting ShnitselDB structure with a ShnitselDBRoot, CompoundGroup and DataGroup layers.
     """
+    from shnitsel.data.tree import ShnitselDB, complete_shnitsel_tree
+
     if isinstance(datasets, Sequence):
         if len(datasets) == 0:
             return ShnitselDB[DataType](dtype=dtype)
@@ -509,7 +519,7 @@ def db_from_data(
 @API()
 def layer_trajs(
     datasets: Sequence[xr.Dataset | Trajectory],
-    dtype: type[DataType] | TypeForm[DataType] | None = None,
+    dtype: type[DataType] | UnionType | None = None,
 ) -> xr.Dataset:
     """Function to combine trajectories into one Dataset by creating a new dimension 'trajectory' and indexing the different trajectories along that.
 
@@ -519,6 +529,8 @@ def layer_trajs(
     ----------
     datasets : Sequence[xr.Dataset | Trajectory]
         Datasets representing the individual trajectories
+    dtype :  type[DataType] | UnionType | None
+        Type hint for the data to be included in the resulting container type.
 
     Raises:
     ValueError
