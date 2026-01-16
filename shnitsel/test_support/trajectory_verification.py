@@ -2,7 +2,7 @@ import logging
 from typing import Any, List, Set, Tuple
 
 from shnitsel.data.shnitsel_db.db_function_decorator import dataset_to_tree_method
-from shnitsel.data.dataset_containers import Frames, Trajectory
+from shnitsel.data.dataset_containers import Frames, Trajectory, wrap_dataset
 import xarray as xr
 from shnitsel.units import standard_shnitsel_units
 from shnitsel.units.definitions import unit_dimensions
@@ -19,6 +19,8 @@ _optional_shnitsel_variables = [
     "state_names",
     "state_types",
     "state_charges",
+    "state_magnetic_number",
+    "state_degeneracy_group",
     "astate",
     "sdiag",
     "state2",
@@ -64,12 +66,12 @@ _optional_shnitsel_attributes = [
 
 
 def check_shnitsel_trajectory_data(
-    trajectory: Trajectory | xr.Dataset, report: bool = False
+    trajectory: Frames | Trajectory | xr.Dataset, report: bool = False
 ) -> Tuple[Set[str], Set[str], Set[str], Set[str]] | None:
     """Function to check whether all required and only denoted optional variables and meta information is available on a shnitsel-loaded trajectory.
 
     Args:
-        trajectory (Trajectory | xr.Dataset): The trajectory to check for the presence of variables and settings
+        trajectory ( Frames | Trajectory | xr.Dataset): The trajectory to check for the presence of variables and settings
         report (bool, optional): Whether to raise an error if discrepancies were found. Defaults to False.
 
     Raises:
@@ -135,34 +137,54 @@ def check_shnitsel_trajectory_data(
     )
 
 
-def _true_on_all_leaves(root: dict | bool) -> bool:
-    if isinstance(root, dict):
-        res = True
-        for k, v in root.items():
-            res = _true_on_all_leaves(v)
-        return res
-    elif isinstance(root, bool):
-        return root
-    else:
-        raise ValueError(f"Invalid entry of type {type(root)}")
-
-
-@dataset_to_tree_method(aggregate_post=_true_on_all_leaves, map_result_as_dict=True)
 def verify_trajectory_format(
     obj: Any, asserted_properties: List[str] | None = None
 ) -> bool:
-    return is_permitted_traj_result(obj) and has_required_properties(
-        obj, asserted_properties
-    )
+    """Verify whether the data in `obj` has all required properties of a ShnitselTools trajectory.
+
+    Parameters
+    ----------
+    obj : Any
+        Either a read trajectory (Trajectory|Frames|xr.Dataset) or a Tree structure with the appropriate
+        entries in its data nodes.
+    asserted_properties : List[str] | None, optional
+        The list of keys that are required to be in the trajectory, by default None
+
+    Returns
+    -------
+    bool
+        True if the format is as asserted.
+    """
+    from shnitsel.data.tree import TreeNode
+
+    if isinstance(obj, TreeNode):
+        return all(obj.map_data(verify_trajectory_format).collect_data())
+    else:
+        return is_permitted_traj_result(obj) and has_required_properties(
+            obj, asserted_properties
+        )
 
 
 def is_permitted_traj_result(obj: Any) -> bool:
+    """Check the type returned by the `read()` function.
+
+    Parameters
+    ----------
+    obj : Any
+        The object returned by `read`.
+
+    Returns
+    -------
+    bool
+        Whether the type is in agreement with the intended type model
+    """
+    from shnitsel.data.tree import ShnitselDB
+
     logging.debug(f"Obj has type: {type(obj)}")
-    type_check_result = (
-        isinstance(obj, xr.Dataset)
-        or isinstance(obj, Trajectory)
-        or (isinstance(obj, list) and (len(obj) == 0 or isinstance(obj[0], Trajectory)))
-    )
+    type_check_result = isinstance(
+        obj, (xr.Dataset, Trajectory, Frames, ShnitselDB)
+    ) or (isinstance(obj, list) and (len(obj) == 0 or isinstance(obj[0], Trajectory)))
+
     if not type_check_result:
         logging.error(
             "Object is not of type {xr.Dataset}, {Trajectory} or List of {Trajectory}."
@@ -171,14 +193,30 @@ def is_permitted_traj_result(obj: Any) -> bool:
 
 
 def has_required_properties(
-    traj: List[Trajectory] | Trajectory, asserted_properties: List[str] | None = None
+    traj: List[Trajectory | Frames | xr.Dataset] | Trajectory | Frames | xr.Dataset,
+    asserted_properties: List[str] | None = None,
 ) -> bool:
+    """Function to check whether a certain set of properties is set on the trajectory
+
+    Parameters
+    ----------
+    traj : List[Trajectory] | Trajectory
+        The parsed Trajectory object(s)
+    asserted_properties : List[str] | None, optional
+        The keys of properties that are required to be set on the trajectory, by default None
+
+    Returns
+    -------
+    bool
+        Whether all properties were present.
+    """
     res = True
     if isinstance(traj, list):
         for i_traj in traj:
             res = res and has_required_properties(i_traj)
         return res
     else:
+        wrapped_ds = wrap_dataset(traj, (Trajectory | Frames))
         # print(traj.variables.keys())
         # print(traj["atXYZ"].attrs.keys())
         assert check_shnitsel_trajectory_data(traj, report=True) is None
