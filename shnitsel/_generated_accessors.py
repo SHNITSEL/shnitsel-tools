@@ -232,7 +232,7 @@ class DataArrayAccessor(DAManualAccessor):
         """Wrapper for :py:func:`shnitsel.geo.geocalc_.dihedrals.dihedral`."""
         return dihedral(self._obj, a_index, b_index, c_index, d_index, deg=deg, full=full)
 
-    @needs(dims={'atom', 'direction'}default_mo)
+    @needs(dims={'atom', 'direction'})
     def pyramidalization_angle(self, x_index: int, a_index: int, b_index: int, c_index: int) -> DataArray:
         """Wrapper for :py:func:`shnitsel.geo.geocalc_.pyramids.pyramidalization_angle`."""
         return pyramidalization_angle(self._obj, x_index, a_index, b_index, c_index)
