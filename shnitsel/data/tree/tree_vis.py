@@ -202,14 +202,16 @@ def datatree_child_repr(node: TreeNode, end: bool = False) -> str:
     section_items = "".join(f"<li class='st-section-item'>{s}</li>" for s in sections)
 
     if node.is_level('CompoundGroup'):
-        mol_data = node[list(node._children.keys())[0]].data
-        try:
-            mol_object = default_mol(mol_data)
-            mol = rdkit.Chem.Draw.rdMolDraw2D.MolToSVG(mol_object, width=100, height=60)
-            mol = ''.join(mol.split('\n')[1:])
-        except ValueError:
-            # default_mol didn't work
-            mol = ''
+        mol_data = list(node.collect_data())
+        if len(mol_data)>0:
+            mol_source = mol_data[0]
+            try:
+                mol_object = default_mol(mol_source)
+                mol = rdkit.Chem.Draw.rdMolDraw2D.MolToSVG(mol_object, width=100, height=60)
+                mol = ''.join(mol.split('\n')[1:])
+            except ValueError:
+                # default_mol didn't work
+                mol = ''
     else:
         mol = ''
 
