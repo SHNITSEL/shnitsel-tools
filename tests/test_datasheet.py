@@ -17,31 +17,70 @@ def data(request):
 
 
 @fixture
-def sheet(data):
+def datasheet(data):
     return Datasheet(data)
 
 
 @fixture
-def page(sheet):
-    first_page_name = list(sheet.datasheet_pages)[0]
-    return sheet.datasheet_pages[first_page_name]
+def datasheet_with_structure(data):
+    from shnitsel.filtering.structure_selection import StructureSelection
+
+    features = StructureSelection.init_from_dataset(
+        next(data.collect_data()), ['bonds', 'dihedrals']
+    )
+    return Datasheet(data, feature_selection=features)
+
+
+@fixture
+def datasheet_with_states(data):
+    from shnitsel.filtering.state_selection import StateSelection
+
+    states = StateSelection.init_from_dataset(
+        next(data.collect_data()),
+    ).singlets_only()
+    return Datasheet(data, state_selection=states)
+
+
+@fixture
+def datasheet_page(datasheet):
+    return list(datasheet.pages.values())[0]
 
 
 class TestDatasheetFunctionality:
-    """Tests for the Datasheet utility class
-    """
+    """Tests for the Datasheet utility class"""
 
     def test_is_data_loaded(self, data):
         assert data is not None
 
-    def test_per_state_histograms(self, page):
-        page.plot_per_state_histograms()
+    def test_datasheet_from_file(self):
+        Datasheet('tutorials/tut_data/traj_I02.nc')
 
-    def test_nacs_histograms(self, page):
-        page.plot_nacs_histograms()
+    def test_per_state_histograms(self, datasheet_page):
+        datasheet_page.plot_per_state_histograms()
 
-    def test_timeplots(self, page):
-        page.plot_timeplots()
+    def test_nacs_histograms(self, datasheet_page):
+        datasheet_page.plot_nacs_histograms()
 
-    def test_datasheet_full(self, page):
-        page.plot()
+    def test_timeplots(self, datasheet_page):
+        datasheet_page.plot_timeplots()
+
+    def test_datasheet_page_plot(self, datasheet_page):
+        datasheet_page.plot()
+
+    def test_per_state_histograms_full(self, datasheet):
+        datasheet.plot_per_state_histograms()
+
+    def test_nacs_histograms_full(self, datasheet):
+        datasheet.plot_nacs_histograms()
+
+    def test_timeplots_full(self, datasheet):
+        datasheet.plot_timeplots()
+
+    def test_datasheet_full(self, datasheet):
+        datasheet.plot()
+
+    def test_datasheet_full_with_states(self, datasheet_with_states):
+        datasheet_with_states.plot()
+
+    def test_datasheet_full_with_features(self, datasheet_with_structure):
+        datasheet_with_structure.plot()
