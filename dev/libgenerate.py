@@ -3,7 +3,7 @@ from typing import Callable, Dict, List
 
 
 def generate_class_code(
-    classes: Dict[str, List[Callable]], imports, plain_imports
+    classes: Dict[str, List[Callable]], imports, plain_imports, name_overrides
 ) -> str:
     """
     Generate source code for a class with methods wrapping given functions, preserving
@@ -56,6 +56,7 @@ def generate_class_code(
     for class_name, functions in classes.items():
         for func in functions:
             imports[func.__name__] = func.__module__
+            func.__name__ = name_overrides.get(func.__name__, func.__name__)
 
         lines.append("")
 
@@ -158,4 +159,11 @@ def generate_class_code(
 
     import_str = "\n".join(import_lines)
 
-    return import_str + "\n\n" + "\n".join(lines)
+    # Rename functions
+    rename_lines = [
+        f"{new_name} = {old_name}\n{new_name}.__name__ = {new_name!r}"
+        for old_name, new_name in name_overrides.items()
+    ]
+    rename_str = '\n'.join(rename_lines)
+
+    return import_str + "\n\n" + rename_str + "\n\n" + "\n".join(lines)
