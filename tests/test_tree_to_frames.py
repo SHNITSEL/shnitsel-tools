@@ -1,7 +1,7 @@
 from pytest import fixture
 
 from shnitsel.io import read
-from shnitsel.data.tree import tree_to_frames
+# from shnitsel.data.tree import tree_to_frames
 
 
 @fixture(
@@ -17,4 +17,4 @@ def tree(request):
 
 
 def test_tree_to_frames(tree):
-    frames = tree_to_frames(tree)
+    frames = tree.as_frames()
