@@ -65,9 +65,7 @@ def generate_class_code(
             lines.append("    pass")
         else:
             lines.append("    _methods = [")
-            for func in functions:
-                lines.append(f"        {func.__name__!r},")
-
+            lines.extend([f"        {func.__name__!r}," for func in functions])
             lines.append("    ]\n")
 
             for func in functions:
@@ -146,9 +144,7 @@ def generate_class_code(
                 lines.append(method)
 
     # Generate import statements
-    import_lines = []
-    for module in sorted(plain_imports):
-        import_lines.append(f"import {module}")
+    import_lines = [f"import {module}" for module in sorted(plain_imports)]
 
     # Group imports by module
     module_imports = {}
