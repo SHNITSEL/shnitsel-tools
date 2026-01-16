@@ -450,6 +450,9 @@ class ShnitselDataset(object):
         ds_completion = self._raw_dataset._ipython_key_completions_()
         items |= set(x for x in ds_completion if not x.startswith("_"))
         return list(items)
+    
+    def __contains__(self, value):
+        return value in self._raw_dataset
 
     # @overload
     # def __getitem__(self, key: Hashable) -> DataArray: ...

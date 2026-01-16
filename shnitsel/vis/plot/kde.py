@@ -377,7 +377,7 @@ def biplot_kde(
     # noodle_cscale = mpl.cm.ScalarMappable(norm=noodle_cnorm, cmap=noodle_cmap)
 
     pb.plot_noodleplot(
-        pca_data,
+        pca_data.projected_inputs,
         hops,
         c=noodleplot_c,
         cmap=noodleplot_cmap,

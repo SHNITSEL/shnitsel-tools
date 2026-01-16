@@ -1,6 +1,5 @@
 from types import UnionType
-from typing import overload
-from matplotlib.pylab import TypeVar
+from typing import overload, TypeVar
 from .data_series import DataSeries
 from .shared import ShnitselDataset
 from .trajectory import Trajectory

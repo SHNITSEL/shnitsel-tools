@@ -15,9 +15,9 @@ from ._contracts import needs
 from numpy import nan, ndarray
 from rdkit.Chem.rdchem import Mol
 from shnitsel.analyze.generic import keep_norming, norm, pwdists, subtract_combinations
-from shnitsel.analyze.hops import assign_hop_time, focus_hops, hops
+from shnitsel.analyze.hops import assign_hop_time, filter_data_at_hops, focus_hops, hops_mask_from_active_state
 from shnitsel.analyze.lda import lda
-from shnitsel.analyze.pca import pca, pca_and_hops
+from shnitsel.analyze.pca import PCAResult, pca, pca_and_hops
 from shnitsel.analyze.pls import pls, pls_ds
 from shnitsel.analyze.populations import PopulationStatistics, calc_classical_populations
 from shnitsel.analyze.spectra import get_spectra
@@ -25,7 +25,7 @@ from shnitsel.analyze.stats import calc_confidence_interval, get_inter_state, ge
 from shnitsel.bridges import construct_default_mol, smiles_map, to_mol, to_xyz, traj_to_xyz
 from shnitsel.clean import sanity_check
 from shnitsel.clean.common import TrajectoryOrFrames, omit, transect, true_upto, truncate
-from shnitsel.clean.filter_energy import calculate_energy_filtranda
+from shnitsel.clean.filter_energy import calculate_energy_filtranda, filter_by_energy
 from shnitsel.clean.filter_geo import calculate_bond_length_filtranda, filter_by_length
 from shnitsel.core.typedefs import DataArrayOrVar, DatasetOrArray
 from shnitsel.data.dataset_containers.trajectory import Trajectory
@@ -62,7 +62,7 @@ class DataArrayAccessor(DAManualAccessor):
         'traj_to_xyz',
         'to_mol',
         'smiles_map',
-        'construct_default_mol',
+        'default_mol',
         'convert_energy',
         'convert_force',
         'convert_dipole',
@@ -100,7 +100,8 @@ class DataArrayAccessor(DAManualAccessor):
         'pca',
         'lda',
         'pls',
-        'hops',
+        'hops_mask_from_active_state',
+        'filter_data_at_hops',
         'focus_hops',
         'assign_hop_time',
     ]
@@ -139,11 +140,6 @@ class DataArrayAccessor(DAManualAccessor):
     def traj_to_xyz(self, units='angstrom') -> str:
         """Wrapper for :py:func:`shnitsel.bridges.traj_to_xyz`."""
         return traj_to_xyz(self._obj, units=units)
-
-    @needs(dims={'atom', 'direction'}, coords_or_vars={'atNames'}, not_dims={'frame'})
-    def to_mol(self, charge: int | None=None, covFactor: float=1.2, to2D: bool=True, molAtomMapNumber: Union=None, atomNote: Union=None, atomLabel: Union=None) -> Mol:
-        """Wrapper for :py:func:`shnitsel.bridges.to_mol`."""
-        return to_mol(self._obj, charge=charge, covFactor=covFactor, to2D=to2D, molAtomMapNumber=molAtomMapNumber, atomNote=atomNote, atomLabel=atomLabel)
 
     @needs(dims={'atom', 'direction'}, coords_or_vars={'atNames'}, not_dims={'frame'})
     def smiles_map(self, charge=0, covFactor=1.5) -> str:
@@ -236,7 +232,7 @@ class DataArrayAccessor(DAManualAccessor):
         """Wrapper for :py:func:`shnitsel.geo.geocalc_.dihedrals.dihedral`."""
         return dihedral(self._obj, a_index, b_index, c_index, d_index, deg=deg, full=full)
 
-    @needs(dims={'atom', 'direction'})
+    @needs(dims={'atom', 'direction'}default_mo)
     def pyramidalization_angle(self, x_index: int, a_index: int, b_index: int, c_index: int) -> DataArray:
         """Wrapper for :py:func:`shnitsel.geo.geocalc_.pyramids.pyramidalization_angle`."""
         return pyramidalization_angle(self._obj, x_index, a_index, b_index, c_index)
@@ -306,7 +302,7 @@ class DataArrayAccessor(DAManualAccessor):
     def traj_vmd(self, groupby='trajid'):
         """Wrapper for :py:func:`shnitsel.vis.vmd.traj_vmd`."""
         return traj_vmd(self._obj, groupby=groupby)
-
+default_mo
     def pca(self, dim: Optional=None, feature_selection: shnitsel.filtering.structure_selection.StructureSelection | None=None, n_components: int=2, center_mean: bool=False) -> Union:
         """Wrapper for :py:func:`shnitsel.analyze.pca.pca`."""
         return pca(self._obj, dim=dim, feature_selection=feature_selection, n_components=n_components, center_mean=center_mean)
@@ -319,9 +315,13 @@ class DataArrayAccessor(DAManualAccessor):
         """Wrapper for :py:func:`shnitsel.analyze.pls.pls`."""
         return pls(self._obj, ydata_array, n_components=n_components, common_dim=common_dim)
 
-    def hops(self, hop_types: list[tuple[int, int]] | None=None):
-        """Wrapper for :py:func:`shnitsel.analyze.hops.hops`."""
-        return hops(self._obj, hop_types=hop_types)
+    def hops_mask_from_active_state(self, hop_type_selection: shnitsel.filtering.state_selection.StateSelection | None=None) -> xarray.core.dataarray.DataArray | shnitsel.data.tree.tree.ShnitselDBRoot[DataArray]:
+        """Wrapper for :py:func:`shnitsel.analyze.hops.hops_mask_from_active_state`."""
+        return hops_mask_from_active_state(self._obj, hop_type_selection=hop_type_selection)
+
+    def filter_data_at_hops(self, hop_type_selection: shnitsel.filtering.state_selection.StateSelection | None=None) -> Union:
+        """Wrapper for :py:func:`shnitsel.analyze.hops.filter_data_at_hops`."""
+        return filter_data_at_hops(self._obj, hop_type_selection=hop_type_selection)
 
     def focus_hops(self, hop_types: list[tuple[int, int]] | None=None, window: slice | None=None):
         """Wrapper for :py:func:`shnitsel.analyze.hops.focus_hops`."""
@@ -340,7 +340,7 @@ class DatasetAccessor(DSManualAccessor):
         'get_per_state',
         'get_inter_state',
         'calc_classical_populations',
-        'construct_default_mol',
+        'default_mol',
         'flatten_levels',
         'expand_midx',
         'assign_levels',
@@ -350,7 +350,9 @@ class DatasetAccessor(DSManualAccessor):
         'unstack_trajs',
         'stack_trajs',
         'write_shnitsel_file',
+        'get_spectra',
         'calculate_energy_filtranda',
+        'filter_by_energy',
         'sanity_check',
         'calculate_bond_length_filtranda',
         'filter_by_length',
@@ -359,7 +361,8 @@ class DatasetAccessor(DSManualAccessor):
         'transect',
         'write_ase_db',
         'pls_ds',
-        'hops',
+        'hops_mask_from_active_state',
+        'filter_data_at_hops',
         'focus_hops',
         'assign_hop_time',
         'FrameSelector',
@@ -436,9 +439,18 @@ class DatasetAccessor(DSManualAccessor):
         """Wrapper for :py:func:`shnitsel.io.shnitsel.write.write_shnitsel_file`."""
         return write_shnitsel_file(self._obj, savepath, complevel=complevel)
 
+    @needs(coords={'statecomb', 'time'}, data_vars={'energy', 'fosc'})
+    def get_spectra(self, state_selection: shnitsel.filtering.state_selection.StateSelection | None=None, times: Union=None, rel_cutoff: float=0.01) -> Union:
+        """Wrapper for :py:func:`shnitsel.analyze.spectra.get_spectra`."""
+        return get_spectra(self._obj, state_selection=state_selection, times=times, rel_cutoff=rel_cutoff)
+
     def calculate_energy_filtranda(self, energy_thresholds: shnitsel.clean.filter_energy.EnergyFiltrationThresholds | None=None) -> DataArray:
         """Wrapper for :py:func:`shnitsel.clean.filter_energy.calculate_energy_filtranda`."""
         return calculate_energy_filtranda(self._obj, energy_thresholds=energy_thresholds)
+
+    def filter_by_energy(self, filter_method: Union='truncate', energy_thresholds: shnitsel.clean.filter_energy.EnergyFiltrationThresholds | None=None, plot_thresholds: Union=False, plot_populations: Literal=False) -> Optional:
+        """Wrapper for :py:func:`shnitsel.clean.filter_energy.filter_by_energy`."""
+        return filter_by_energy(self._obj, filter_method=filter_method, energy_thresholds=energy_thresholds, plot_thresholds=plot_thresholds, plot_populations=plot_populations)
 
     def sanity_check(self, filter_method: Union='truncate', energy_thresholds: shnitsel.clean.filter_energy.EnergyFiltrationThresholds | None=None, geometry_thresholds: shnitsel.clean.filter_geo.GeometryFiltrationThresholds | None=None, plot_thresholds: Union=False, plot_populations: Literal=False, mol: rdkit.Chem.rdchem.Mol | None=None, drop_empty_trajectories: bool=False) -> Union:
         """Wrapper for :py:func:`shnitsel.clean.sanity_check`."""
@@ -473,9 +485,13 @@ class DatasetAccessor(DSManualAccessor):
         """Wrapper for :py:func:`shnitsel.analyze.pls.pls_ds`."""
         return pls_ds(self._obj, xname, yname, n_components=n_components, common_dim=common_dim)
 
-    def hops(self, hop_types: list[tuple[int, int]] | None=None):
-        """Wrapper for :py:func:`shnitsel.analyze.hops.hops`."""
-        return hops(self._obj, hop_types=hop_types)
+    def hops_mask_from_active_state(self, hop_type_selection: shnitsel.filtering.state_selection.StateSelection | None=None) -> xarray.core.dataarray.DataArray | shnitsel.data.tree.tree.ShnitselDBRoot[DataArray]:
+        """Wrapper for :py:func:`shnitsel.analyze.hops.hops_mask_from_active_state`."""
+        return hops_mask_from_active_state(self._obj, hop_type_selection=hop_type_selection)
+
+    def filter_data_at_hops(self, hop_type_selection: shnitsel.filtering.state_selection.StateSelection | None=None) -> Union:
+        """Wrapper for :py:func:`shnitsel.analyze.hops.filter_data_at_hops`."""
+        return filter_data_at_hops(self._obj, hop_type_selection=hop_type_selection)
 
     def focus_hops(self, hop_types: list[tuple[int, int]] | None=None, window: slice | None=None):
         """Wrapper for :py:func:`shnitsel.analyze.hops.focus_hops`."""

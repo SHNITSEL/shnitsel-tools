@@ -300,7 +300,7 @@ def construct_default_mol(
         atXYZ = _most_stable_frame(obj.positions, obj)
         if charge is None:
             charge = obj.charge
-            print(f'{charge=}')
+            logging.debug(f'{charge=}')
     else:
         if '__mol' in obj.attrs:
             return rc.Mol(obj.attrs['__mol'])

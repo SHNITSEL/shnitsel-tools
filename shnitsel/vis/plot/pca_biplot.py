@@ -1,3 +1,4 @@
+import logging
 from math import ceil
 from typing import Any, Callable, Iterable, Sequence, TYPE_CHECKING
 
@@ -27,8 +28,8 @@ from rdkit.Chem import Mol
 
 
 def plot_noodleplot(
-    noodle: NDArray | xr.DataArray,
-    hops: xr.DataArray | None = None,
+    noodle: xr.DataArray,
+    hops_mask: xr.DataArray | None = None,
     fig: Figure | SubFigure | None = None,
     ax: Axes | None = None,
     c: NDArray | xr.DataArray | None = None,
@@ -44,9 +45,9 @@ def plot_noodleplot(
 
     Parameters
     ----------
-    noodle : NDArray | xr.DataArray
+    noodle : xr.DataArray
         PCA decomposed data.
-    hops : xr.DataArray, optional
+    hops_mask : xr.DataArray, optional
         DataArray holding hopping-point information of the trajectories. Defaults to None.
     fig : Figure | SubFigure | None, optional
         Figure to plot the graph into. Defaults to None.
@@ -117,9 +118,15 @@ def plot_noodleplot(
 
     ax.set_xlabel('PC1')
     ax.set_ylabel('PC2')
-    if hops is not None:
+    if hops_mask is not None:
         hops_kws = dict(s=0.5, c='limegreen') | (hops_kws or {})
-        ax.scatter(hops.isel(PC=0), hops.isel(PC=1), rasterized=rasterized, **hops_kws)
+        hops_noodle = noodle[hops_mask]
+        ax.scatter(
+            hops_noodle.isel(PC=0),
+            hops_noodle.isel(PC=1),
+            rasterized=rasterized,
+            **hops_kws,
+        )
 
     fig.colorbar(sc, ax=ax, label=colorbar_label, pad=0.02)
 
@@ -136,7 +143,8 @@ def plot_noodleplot(
 
 
 def get_loadings(
-    frames: xr.Dataset | Frames | Trajectory, center_mean: bool = False
+    frames_or_pca_result: xr.Dataset | Frames | Trajectory | PCAResult,
+    center_mean: bool = False,
 ) -> xr.DataArray:
     """Get the loadings for the PCA of pairwise distances
     for the positional data in ``frames``.
@@ -156,17 +164,29 @@ def get_loadings(
         'PC' (principal component) and 'descriptor' (atom combination,
         one for each pair of atoms).
     """
-    wrapped_ds = wrap_dataset(frames)
+    pca_res: PCAResult
+    attrs = {}
+    if not isinstance(frames_or_pca_result, PCAResult):
+        wrapped_ds = wrap_dataset(frames_or_pca_result)
 
-    descr = get_standardized_pairwise_dists(wrapped_ds, center_mean=center_mean)
-    pca_res: PCAResult = pca(descr, 'descriptor')
+        descr = get_standardized_pairwise_dists(
+            frames_or_pca_result, center_mean=center_mean
+        )
+        pca_res = pca(descr, 'descriptor')
+        attrs = {'natoms': wrapped_ds.sizes['atom']}
+    else:
+        pca_res = frames_or_pca_result
 
     return xr.DataArray(
         # data=pca_obj[-1].components_,
         data=pca_res.principal_components,
         dims=['PC', 'descriptor'],
-        coords=dict(descriptor=descr.descriptor),
-        attrs={'natoms': frames.sizes['atom']},
+        coords=dict(
+            descriptor=pca_res.inputs.descriptor,
+            descriptor_tex=pca_res.inputs.descriptor_tex,
+            feature_indices=pca_res.inputs.feature_indices,
+        ),
+        attrs=attrs,
     )
 
 
@@ -438,7 +458,7 @@ def plot_clusters_insets(
         iax = ax.inset_axes([x2, y2, *inset_size], transform=ax.transData)
         iax.set_anchor('SW')  # keep bottom-left corner of image at arrow tip!
 
-        png = highlight_pairs(mol, acs.descriptor.values)
+        png = highlight_pairs(mol, acs.feature_indices.values)
         mpl_imshow_png(iax, png)
 
 
@@ -517,7 +537,7 @@ def plot_clusters_grid(
         ax.text(x2, y2, s)
 
         if axs is not None and mol is not None:
-            png = highlight_pairs(mol, acs.descriptor.values)
+            png = highlight_pairs(mol, acs.feature_indices.values)
             mpl_imshow_png(axs[s], png)
             axs[s].set_title(s)
 
@@ -554,8 +574,6 @@ def circbins(
         return np.c_[np.cos(x), np.sin(x)]
 
     kmeans = KMeans(n_clusters=num_bins)
-    raise NotImplementedError("Fix this type issue")
-    print(angles, angles.dtype)
     labels = kmeans.fit_predict(proj(angles.astype(float)).astype(float))
     space = np.linspace(0.0, 360.0, num=10).astype(float)
     sample = kmeans.predict(proj(space).astype(float))
@@ -695,7 +713,7 @@ def _binning_with_min_entries(
 
     # Repeat binning until all bins have at least 'min_entries' or exceed max_attempts
     while any(arr.size == 0 for arr in bins) and attempts < max_attempts:
-        print(
+        logging.info(
             f"Less than {min_entries} directions found, procedure repeated with another binning."
         )
         num_bins += 1  # Increase the number of bins
@@ -704,7 +722,7 @@ def _binning_with_min_entries(
 
     # If max attempts were reached without satisfying condition
     if attempts >= max_attempts:
-        print(f"Max attempts ({max_attempts}) reached. Returning current bins.")
+        logging.warning(f"Max attempts ({max_attempts}) reached. Returning current bins.")
 
     picks: Sequence[int] = [bin[np.argmax(radii[bin])] for bin in bins]
 

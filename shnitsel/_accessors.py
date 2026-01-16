@@ -3,6 +3,7 @@ from typing import Sequence
 import xarray as xr
 
 from shnitsel._contracts import Needs
+from shnitsel.data.shnitsel_db_helpers import concat_subtree
 
 from shnitsel.filtering.structure_selection import (
     StructureSelection,
@@ -48,8 +49,7 @@ class ShnitselAccessor:
         if 'data_vars' in entry._fields:
             vars_ = set(getattr(self._obj, 'data_vars', []))
             if not vars_ >= (rvars := (entry.data_vars or set())):
-                reasons.append(
-                    f"is missing required data_vars {rvars - vars_}")
+                reasons.append(f"is missing required data_vars {rvars - vars_}")
         if not dims >= (rdims := (entry.dims or set())):
             reasons.append(f"is missing required dims {rdims - dims}")
         if not coords >= (rcoords := (entry.coords or set())):

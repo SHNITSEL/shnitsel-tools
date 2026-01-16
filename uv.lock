@@ -3793,6 +3793,7 @@ dependencies = [
     { name = "requests" },
     { name = "scikit-learn" },
     { name = "scipy" },
+    { name = "svgpathtools" },
     { name = "tqdm" },
     { name = "xarray" },
 ]
@@ -3837,7 +3838,7 @@ requires-dist = [
     { name = "fsspec" },
     { name = "grayskull", marker = "extra == 'dev'" },
     { name = "h5netcdf", specifier = ">=1.7.0" },
-    { name = "holoviews", marker = "extra == 'vis'" },
+    { name = "holoviews", marker = "extra == 'vis'", specifier = ">=1.22.1" },
     { name = "hypothesis", marker = "extra == 'dev'", specifier = ">=6" },
     { name = "jupyter", specifier = ">=1.0.0" },
     { name = "matplotlib", specifier = ">=3.10" },
@@ -3855,15 +3856,16 @@ requires-dist = [
     { name = "rdkit", specifier = ">=2025" },
     { name = "requests" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.5.3" },
-    { name = "scikit-learn", specifier = ">=1.5" },
+    { name = "scikit-learn", specifier = ">=1.8" },
     { name = "scipy", specifier = ">=1.16" },
     { name = "scipy-stubs", marker = "extra == 'dev'" },
-    { name = "seaborn", marker = "extra == 'vis'" },
+    { name = "seaborn", marker = "extra == 'vis'", specifier = ">=0.13.2" },
     { name = "sphinx", marker = "extra == 'dev'" },
     { name = "sphinx-autoapi", marker = "extra == 'dev'" },
     { name = "sphinx-autobuild", marker = "extra == 'dev'" },
     { name = "sphinx-autosummary-accessors", marker = "extra == 'dev'" },
     { name = "sphinx-design", marker = "extra == 'dev'" },
+    { name = "svgpathtools", specifier = ">=1.7.2" },
     { name = "tox", marker = "extra == 'dev'", specifier = ">=4.10.0" },
     { name = "tox-uv", marker = "extra == 'dev'", specifier = ">=1.29.0" },
     { name = "tqdm", specifier = ">=4.66.2" },
@@ -4082,6 +4084,29 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/8c/25/f1540879c8815387980e56f973e54605bd924612399ace31487f7444171c/stdlib_list-0.12.0.tar.gz", hash = "sha256:517824f27ee89e591d8ae7c1dd9ff34f672eae50ee886ea31bb8816d77535675", size = 60923, upload-time = "2025-10-24T19:21:22.849Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/3b/3d/2970b27a11ae17fb2d353e7a179763a2fe6f37d6d2a9f4d40104a2f132e9/stdlib_list-0.12.0-py3-none-any.whl", hash = "sha256:df2d11e97f53812a1756fb5510393a11e3b389ebd9239dc831c7f349957f62f2", size = 87615, upload-time = "2025-10-24T19:21:20.619Z" },
+]
+
+[[package]]
+name = "svgpathtools"
+version = "1.7.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numpy" },
+    { name = "scipy" },
+    { name = "svgwrite" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/3e/a0/06163182bdb00300a23e51b433a6ca5c881761e7dfbef432b4da44e3a84a/svgpathtools-1.7.2.tar.gz", hash = "sha256:5974daba24825e22f284ea10aa980d7d6f77a1ca55d914d80283e3ea8a7ac450", size = 2136092, upload-time = "2025-11-30T19:15:03.446Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/98/4b/9128c82796479426fba219a5b0da70bbf8f1f0b571a54cc7a420cea0e9c4/svgpathtools-1.7.2-py2.py3-none-any.whl", hash = "sha256:ecb1885f7c6363be2903f39d8584ed772bd055a2e92044f43d412780b1d4c283", size = 68346, upload-time = "2025-11-30T19:15:02.053Z" },
+]
+
+[[package]]
+name = "svgwrite"
+version = "1.4.3"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/16/c1/263d4e93b543390d86d8eb4fc23d9ce8a8d6efd146f9427364109004fa9b/svgwrite-1.4.3.zip", hash = "sha256:a8fbdfd4443302a6619a7f76bc937fc683daf2628d9b737c891ec08b8ce524c3", size = 189516, upload-time = "2022-07-14T14:05:26.107Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/84/15/640e399579024a6875918839454025bb1d5f850bb70d96a11eabb644d11c/svgwrite-1.4.3-py3-none-any.whl", hash = "sha256:bb6b2b5450f1edbfa597d924f9ac2dd099e625562e492021d7dd614f65f8a22d", size = 67122, upload-time = "2022-07-14T14:05:24.459Z" },
 ]
 
 [[package]]

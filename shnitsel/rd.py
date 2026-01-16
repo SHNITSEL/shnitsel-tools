@@ -90,15 +90,15 @@ def mol_to_numbered_smiles(mol: rc.Mol) -> str:
     return rc.MolToSmiles(mol)
 
 
-def highlight_pairs(mol: rc.Mol, pairs: list[tuple[int, int]]):
+def highlight_pairs(mol: rc.Mol, feature_indices: list[tuple[int, ...]]):
     """Highlight specified pairs of atoms in an image of an ``rdkit.Chem.Mol`` object
 
     Parameters
     ----------
-    mol
+    mol : rc.Mol
         The ``Mol`` object
-    pairs
-        A list of pairs of atom indices
+    feature_indices : list[tuple[int,...]]
+        A list of tuples of indices for various features.
 
     Returns
     -------
@@ -106,19 +106,21 @@ def highlight_pairs(mol: rc.Mol, pairs: list[tuple[int, int]]):
     """
     d = rdkit.Chem.Draw.rdMolDraw2D.MolDraw2DCairo(320, 240)
     # colors = iter(mpl.colormaps['tab10'](range(10)))
-    colors = iter(mpl.colormaps['rainbow'](np.linspace(0, 1, len(pairs))))
+    colors = iter(mpl.colormaps['rainbow'](np.linspace(0, 1, len(feature_indices))))
 
     acolors: dict[int, list[tuple[float, float, float]]] = {}
     bonds = {}
-    for a1, a2 in pairs:
-        if (bond := mol.GetBondBetweenAtoms(a1, a2)) is not None:
-            bonds[bond.GetIdx()] = [(1, 0.5, 0.5)]
-        else:
-            c = tuple(next(colors))
-            for a in [a1, a2]:
-                if a not in acolors:
-                    acolors[a] = []
-                acolors[a].append(c)
+    for feature in feature_indices:
+        if len(feature) == 2:
+            a1, a2 = feature
+            if (bond := mol.GetBondBetweenAtoms(a1, a2)) is not None:
+                bonds[bond.GetIdx()] = [(1, 0.5, 0.5)]
+            else:
+                c = tuple(next(colors))
+                for a in [a1, a2]:
+                    if a not in acolors:
+                        acolors[a] = []
+                    acolors[a].append(c)
 
     # d.drawOptions().fillHighlights = False
     d.drawOptions().setBackgroundColour((0.8, 0.8, 0.8, 0.5))

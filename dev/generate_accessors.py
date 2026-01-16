@@ -102,8 +102,9 @@ def main():
         pca.pca,
         lda.lda,
         pls.pls,
-        ### hops
-        hops.hops,
+        # hops
+        hops.hops_mask_from_active_state,
+        hops.filter_data_at_hops,
         hops.focus_hops,
         hops.assign_hop_time,
     ]
@@ -129,20 +130,24 @@ def main():
         multi_indices.unstack_trajs,
         multi_indices.stack_trajs,
         st.io.shnitsel.write_shnitsel_file,
-        ### filtration
+        # plot
+        spectra.get_spectra,
+        # filtration
         clean.filter_energy.calculate_energy_filtranda,
+        clean.filter_energy.filter_by_energy,
         clean.sanity_check,
         clean.filter_geo.calculate_bond_length_filtranda,
-        clean.filter_by_length,
+        clean.filter_geo.filter_by_length,
         omit,
         truncate,
         transect,
-        ### ase
+        # ase
         write_ase_db,
         ### ml
         pls.pls_ds,
-        ### hops
-        hops.hops,
+        # hops
+        hops.hops_mask_from_active_state,
+        hops.filter_data_at_hops,
         hops.focus_hops,
         hops.assign_hop_time,
         ### select
@@ -164,6 +169,8 @@ def main():
             'Sequence': 'typing',
             'Literal': 'typing',
             'Callable': 'typing',
+            'PCAResult' : 'shnitsel.analyze.pca',
+            'PopulationStatistics' : 'shnitsel.analyze.populations',
             'DataArrayGroupBy': 'xarray.core.groupby',
             'DatasetGroupBy': 'xarray.core.groupby',
             'needs': '._contracts',
