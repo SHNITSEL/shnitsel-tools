@@ -196,6 +196,9 @@ def main():
             'os',
             'pathlib',
         },
+        name_overrides={
+            'construct_default_mol': 'default_mol'
+        }
     )
     with open("../shnitsel/_generated_accessors.py", "w") as f:
         print(code, file=f)
