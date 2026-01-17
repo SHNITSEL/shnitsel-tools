@@ -555,6 +555,53 @@ def stack_trajs(unstacked: DatasetOrArray) -> DatasetOrArray:
     return res
 
 
+def is_stacked(obj):
+    """Test whether an object has stacked trajectories
+
+    Parameters
+    ----------
+    obj
+        An xarray Dataset/DataArray, or a wrapper around one
+
+    Returns
+    -------
+        True if ``obj`` shows signs of containing multiple
+        trajectories along the same dimension as used for the
+        time coordinate.
+    """
+    from shnitsel.data.dataset_containers.frames import Frames
+
+    TRAJECTORY_DIM_NAMES = {'trajid', 'atrajectory'}
+
+    is_wrapped_stacked = isinstance(obj, Frames)
+
+    c = obj.coords
+    traj_coord = c.get('trajid', c.get('atrajectory', c.get('trajectory')))
+    time_coord = c.get('time')
+    coords_share_dim = not set(traj_coord.dims).isdisjoint(time_coord.dims)
+    return is_wrapped_stacked or coords_share_dim
+
+
+def ensure_unstacked(obj):
+    """Unstack ``obj`` if it contains stacked trajectories
+
+    Parameters
+    ----------
+    obj
+        An xarray Dataset/DataArray, or a wrapper around one
+
+    Returns
+    -------
+    unstacked
+        The unstacked Dataset/DataArray
+    was_stacked
+        Whether ``obj`` had stacked trajectories
+    """
+    was_stacked = is_stacked(obj)
+    unstacked = unstack_trajs(obj) if was_stacked else obj
+    return unstacked, was_stacked
+
+
 @needs(dims={'frame'})
 def mdiff(da: xr.DataArray, dim: str | None = None) -> xr.DataArray:
     """Take successive differences along the `dim` dimension
