@@ -73,6 +73,8 @@ def main():
         multi_indices.msel,
         multi_indices.sel_trajs,
         multi_indices.sel_trajids,
+        multi_indices.stack_trajs,
+        multi_indices.unstack_trajs,
         ### clean
         true_upto,
         ### geom

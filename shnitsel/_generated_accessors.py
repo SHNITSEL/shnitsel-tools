@@ -81,6 +81,8 @@ class DataArrayAccessor(DAManualAccessor):
         'msel',
         'sel_trajs',
         'sel_trajids',
+        'stack_trajs',
+        'unstack_trajs',
         'true_upto',
         'distance',
         'angle',
@@ -220,6 +222,14 @@ class DataArrayAccessor(DAManualAccessor):
     def sel_trajids(self, trajids: npt.ArrayLike, invert=False) -> DatasetOrArray:
         """Wrapper for :py:func:`shnitsel.data.multi_indices.sel_trajids`."""
         return sel_trajids(self._obj, trajids, invert=invert)
+
+    def stack_trajs(self) -> DatasetOrArray:
+        """Wrapper for :py:func:`shnitsel.data.multi_indices.stack_trajs`."""
+        return stack_trajs(self._obj)
+
+    def unstack_trajs(self) -> DatasetOrArray:
+        """Wrapper for :py:func:`shnitsel.data.multi_indices.unstack_trajs`."""
+        return unstack_trajs(self._obj)
 
     def true_upto(self, dim: str) -> DataArray:
         """Wrapper for :py:func:`shnitsel.clean.common.true_upto`."""
