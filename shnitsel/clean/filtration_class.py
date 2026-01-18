@@ -1,3 +1,4 @@
+from shnitsel.data.multi_indices import ensure_unstacked
 from functools import cached_property
 import xarray as xr
 
@@ -9,7 +10,7 @@ class Filtration:
         # Setting subjects to filter
         self.subject_original = subject
         if isinstance(subject, xr.Dataset):
-            self.subject_wrapped = wrap_dataset(subject)
+            self.subject_wrapped = wrap_dataset(subject, expected_types=None)
             self.subject_dataset = subject
         elif isinstance(subject, ShnitselDataset):
             self.subject_wrapped = subject
@@ -80,7 +81,13 @@ class Filtration:
         # Otherwise we have a single trajectory.
         return self.subject_original if all_critera_fulfilled.item() else None
 
-    def transect(self, cutoff_time): ...
+    def transect(self, cutoff_time):
+        indexer = {"time": slice(float(cutoff_time))}
+        unstacked, _ = ensure_unstacked(self.subject_original)
+        unstacked_filtranda, _ = ensure_unstacked(self.filtranda)
+        sliced = unstacked.loc[indexer]
+        sliced_filtranda = unstacked_filtranda.loc[indexer]
+        return Filtration(sliced, sliced_filtranda).omit()
 
     # NOTE (thevro): The following is not a property because it can fail if there is no time dimension
     # def good_upto(self):
