@@ -32,7 +32,7 @@ class TestPlotFunctionality:
 
     @fixture(
         params=[
-            ('tutorials/tut_data/traj_I02.nc', -1),
+            ('tutorials/tut_data/traj_I02.nc', 1),
         ]
     )
     def ensembles(self, request) -> Frames:

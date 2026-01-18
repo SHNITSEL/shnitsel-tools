@@ -9,7 +9,7 @@ class TestAccessors:
 
     @pytest.fixture(
         params=[
-            ('tutorials/tut_data/traj_I02.nc', -1),
+            ('tutorials/tut_data/traj_I02.nc', 1),
         ]
     )
     def ds(self, request):
