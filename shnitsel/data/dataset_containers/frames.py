@@ -11,18 +11,18 @@ class Frames(DataSeries):
     _is_multi_trajectory: bool = False
 
     def __init__(self, ds: xr.Dataset):
-        assert (
-            "time" not in ds.dims
-        ), "Dataset has `time` dimension and cannot be considered a set of Frames"
-        assert (
-            "frame" in ds.dims or 'frame' in ds.coords
-        ), "Dataset is missing `frame` dimension and cannot be considered a set of Frames"
-        assert (
-            "atom" in ds.dims
-        ), "Dataset is missing `atom` dimension and cannot be considered a set of Frames"
-        assert (
-            "state" in ds.dims
-        ), "Dataset is missing `state` dimension and cannot be considered a set of Frames"
+        assert "time" not in ds.dims, (
+            "Dataset has `time` dimension and cannot be considered a set of Frames"
+        )
+        assert "frame" in ds.dims or 'frame' in ds.coords, (
+            "Dataset is missing `frame` dimension and cannot be considered a set of Frames"
+        )
+        assert "atom" in ds.dims, (
+            "Dataset is missing `atom` dimension and cannot be considered a set of Frames"
+        )
+        assert "state" in ds.dims, (
+            "Dataset is missing `state` dimension and cannot be considered a set of Frames"
+        )
         super().__init__(ds)
 
         # TODO: FIXME: This should be harmonized across all creation and use points. Make the frame-component `active_trajectory` and the per-trajectory property `trajectory`
@@ -35,6 +35,31 @@ class Frames(DataSeries):
         """The leading dimension along which consistent configurations are indexed.
         Usually `time` or `frame`."""
         return "frame"
+
+    @property
+    def trajid(self) -> int | str | None:
+        """Id of the trajectory. If assigned it is expected to be unique across the same input
+        but may clash with other trajectory ids if multiple separate imports are combined
+        or indepdendent simulation data is combined."""
+        trajid = super().trajid
+        if trajid is None:
+            # Try and get the own trajectory id from the active trajectory
+            tmp_atraj = self._param_from_vars_or_attrs('atrajectory')
+            if tmp_atraj is not None:
+                trajids = set(tmp_atraj)
+                if len(trajids) == 1:
+                    return trajids.pop()
+        return trajid
+
+    @property
+    def atrajectory(self) -> xr.DataArray | None:
+        """Ids of the active trajectory in this frameset if present"""
+        return self.coords['atrajectory']
+
+    @property
+    def active_trajectory(self) -> xr.DataArray | None:
+        """Ids of the active trajectory in this frameset if present"""
+        return self.atrajectory
 
     @property
     def is_multi_trajectory(self) -> bool:
