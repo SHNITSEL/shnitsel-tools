@@ -256,6 +256,7 @@ class DataSeries(ShnitselDataset):
         Any|None
             the value associated with the key that has been found
         """
+        # TODO: FIXME: Apply aliases here?
         if key in self._raw_dataset.data_vars:
             return self._raw_dataset.data_vars[key]
         if key in self._raw_dataset.coords:
