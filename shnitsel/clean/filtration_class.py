@@ -2,7 +2,7 @@ from functools import cached_property
 import xarray as xr
 
 from shnitsel.data.dataset_containers import wrap_dataset, ShnitselDataset
-
+from shnitsel.data.multi_indices import sel_trajs
 
 class Filtration:
     def __init__(self, subject, filtranda=None):
@@ -24,14 +24,15 @@ class Filtration:
             raise ValueError("The filtranda object should contain a 'thresholds' coord")
         self.thresholds = filtranda['thresholds']
 
-        self.trajectory_dim = (
+        self.leading_dim = self.subject_wrapped.leading_dim
+        self.trajectory_groupable = (
             'atrajectory'
-            if 'atrajectory' in self.subject_dataset.dims
+            if 'atrajectory' in self.subject_dataset.coords
             # If unstacked:
             else 'trajectory'
-            if {'time', 'trajectory'}.issubset(self.subject_dataset.dims)
+            if {'time', 'trajectory'}.issubset(self.subject_dataset.coords)
             else 'trajid'
-            if 'trajid' in self.subject_dataset.dims
+            if 'trajid' in self.subject_dataset.coords
             else ''
         )
 
@@ -41,14 +42,21 @@ class Filtration:
 
     @cached_property
     def cumulative_mask(self):
-        if self.trajectory_dim:
-            res = self.noncumulative_mask.groupby(self.trajectory_dim).cumprod()
+        if self.trajectory_groupable:
+            res = self.noncumulative_mask.groupby(self.trajectory_groupable).cumprod()
         else:
-            res = self.noncumulative_mask.cumprod(self.subject_wrapped.leading_dim)
+            res = self.noncumulative_mask.cumprod(self.leading_dim)
         return res.astype(bool)
-    
-    # @cached_property
-    # def good_throughout(self): ...
+
+    @cached_property
+    def good_throughout(self):
+        if self.trajectory_groupable:
+            res = self.noncumulative_mask.groupby(self.trajectory_groupable).all(
+                self.leading_dim
+            )
+        else:
+            res = self.noncumulative_mask.all(self.leading_dim)
+        return res.astype(bool)
 
     def truncate(self):
         """Perform a truncation, i.e. cut off the trajectory at its last continuously valid frame from the begining."""
@@ -59,8 +67,18 @@ class Filtration:
             )
         )
 
-    # def omit(self):
+    def omit(self):
+        all_critera_fulfilled = self.good_throughout.all('criterion')
+        if self.trajectory_groupable:
+            # x = self.trajectory_groupable
+            # mask = all_critera_fulfilled.sel({x: self.subject_dataset.coords[x]})
+            return type(self.subject_original)(
+                # self.subject_dataset.isel({self.leading_dim: mask.data})
+                sel_trajs(self.subject_dataset, all_critera_fulfilled)
+            )
 
+        # Otherwise we have a single trajectory.
+        return self.subject_original if all_critera_fulfilled.item() else None
 
     def transect(self, cutoff_time): ...
 
