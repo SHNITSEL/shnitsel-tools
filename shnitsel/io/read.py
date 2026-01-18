@@ -1,3 +1,4 @@
+from types import UnionType
 from typing_extensions import TypeForm
 from shnitsel.core._api_info import API, internal
 from shnitsel.core.typedefs import StateTypeSpecifier
@@ -43,6 +44,7 @@ from typing import (
     Literal,
     TYPE_CHECKING,
     TypeVar,
+    overload,
 )
 from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass
@@ -53,6 +55,196 @@ import pathlib
 from shnitsel.io.xr_io_compatibility import SupportsFromXrConversion
 
 DataType = TypeVar("DataType")
+
+
+# @overload
+# def read(
+#     path: PathOptionsType,
+#     kind: FormatIdentifierType | None = None,
+#     sub_pattern: str | None = None,
+#     multiple: bool = True,
+#     concat_method: Literal["db"] = "db",
+#     parallel: bool = True,
+#     error_reporting: Literal["log", "raise"] = "log",
+#     input_units: Dict[str, str] | None = None,
+#     input_state_types: StateTypeSpecifier
+#     | List[StateTypeSpecifier]
+#     | Callable[[xr.Dataset], xr.Dataset]
+#     | None = None,
+#     input_state_names: List[str] | Callable[[xr.Dataset], xr.Dataset] | None = None,
+#     input_trajectory_id_maps: Dict[str, int]
+#     | Callable[[pathlib.Path], int]
+#     | None = None,
+#     expect_dtype: type[DataType] | UnionType = Trajectory,
+# ) -> DataType | TreeNode[Any, DataType] | None: ...
+
+
+# @overload
+# def read(
+#     path: PathOptionsType,
+#     kind: FormatIdentifierType | None = None,
+#     sub_pattern: str | None = None,
+#     multiple: bool = True,
+#     concat_method: Literal["db"] = "db",
+#     parallel: bool = True,
+#     error_reporting: Literal["log", "raise"] = "log",
+#     input_units: Dict[str, str] | None = None,
+#     input_state_types: StateTypeSpecifier
+#     | List[StateTypeSpecifier]
+#     | Callable[[xr.Dataset], xr.Dataset]
+#     | None = None,
+#     input_state_names: List[str] | Callable[[xr.Dataset], xr.Dataset] | None = None,
+#     input_trajectory_id_maps: Dict[str, int]
+#     | Callable[[pathlib.Path], int]
+#     | None = None,
+#     expect_dtype: None = None,
+# ) -> TreeNode | None: ...
+
+
+# @overload
+# def read(
+#     path: PathOptionsType,
+#     kind: FormatIdentifierType | None = None,
+#     sub_pattern: str | None = None,
+#     multiple: bool = True,
+#     concat_method: Literal["list"] = "list",
+#     parallel: bool = True,
+#     error_reporting: Literal["log", "raise"] = "log",
+#     input_units: Dict[str, str] | None = None,
+#     input_state_types: StateTypeSpecifier
+#     | List[StateTypeSpecifier]
+#     | Callable[[xr.Dataset], xr.Dataset]
+#     | None = None,
+#     input_state_names: List[str] | Callable[[xr.Dataset], xr.Dataset] | None = None,
+#     input_trajectory_id_maps: Dict[str, int]
+#     | Callable[[pathlib.Path], int]
+#     | None = None,
+#     expect_dtype: type[DataType] | UnionType = Trajectory,
+# ) -> DataType | List[DataType | TreeNode[Any, DataType]] | None: ...
+
+
+# @overload
+# def read(
+#     path: PathOptionsType,
+#     kind: FormatIdentifierType | None = None,
+#     sub_pattern: str | None = None,
+#     multiple: bool = True,
+#     concat_method: Literal["list"] = "list",
+#     parallel: bool = True,
+#     error_reporting: Literal["log", "raise"] = "log",
+#     input_units: Dict[str, str] | None = None,
+#     input_state_types: StateTypeSpecifier
+#     | List[StateTypeSpecifier]
+#     | Callable[[xr.Dataset], xr.Dataset]
+#     | None = None,
+#     input_state_names: List[str] | Callable[[xr.Dataset], xr.Dataset] | None = None,
+#     input_trajectory_id_maps: Dict[str, int]
+#     | Callable[[pathlib.Path], int]
+#     | None = None,
+#     expect_dtype: None = None,
+# ) -> (
+#     ShnitselDataset
+#     | SupportsFromXrConversion
+#     | xr.Dataset
+#     | xr.DataArray
+#     | TreeNode
+#     | List[
+#         ShnitselDataset
+#         | SupportsFromXrConversion
+#         | xr.Dataset
+#         | xr.DataArray
+#         | TreeNode
+#     ]
+#     | None
+# ): ...
+
+
+# @overload
+# def read(
+#     path: PathOptionsType,
+#     kind: FormatIdentifierType | None = None,
+#     sub_pattern: str | None = None,
+#     multiple: bool = True,
+#     concat_method: Literal["layers"] = "layers",
+#     parallel: bool = True,
+#     error_reporting: Literal["log", "raise"] = "log",
+#     input_units: Dict[str, str] | None = None,
+#     input_state_types: StateTypeSpecifier
+#     | List[StateTypeSpecifier]
+#     | Callable[[xr.Dataset], xr.Dataset]
+#     | None = None,
+#     input_state_names: List[str] | Callable[[xr.Dataset], xr.Dataset] | None = None,
+#     input_trajectory_id_maps: Dict[str, int]
+#     | Callable[[pathlib.Path], int]
+#     | None = None,
+#     expect_dtype: type[DataType] | UnionType = Trajectory,
+# ) -> DataType | None: ...
+
+
+# @overload
+# def read(
+#     path: PathOptionsType,
+#     kind: FormatIdentifierType | None = None,
+#     sub_pattern: str | None = None,
+#     multiple: bool = True,
+#     concat_method: Literal["layers"] = "layers",
+#     parallel: bool = True,
+#     error_reporting: Literal["log", "raise"] = "log",
+#     input_units: Dict[str, str] | None = None,
+#     input_state_types: StateTypeSpecifier
+#     | List[StateTypeSpecifier]
+#     | Callable[[xr.Dataset], xr.Dataset]
+#     | None = None,
+#     input_state_names: List[str] | Callable[[xr.Dataset], xr.Dataset] | None = None,
+#     input_trajectory_id_maps: Dict[str, int]
+#     | Callable[[pathlib.Path], int]
+#     | None = None,
+#     expect_dtype: None = None,
+# ) -> ShnitselDataset | SupportsFromXrConversion | xr.Dataset | xr.DataArray | None: ...
+
+
+# @overload
+# def read(
+#     path: PathOptionsType,
+#     kind: FormatIdentifierType | None = None,
+#     sub_pattern: str | None = None,
+#     multiple: bool = True,
+#     concat_method: Literal["frames"] = "frames",
+#     parallel: bool = True,
+#     error_reporting: Literal["log", "raise"] = "log",
+#     input_units: Dict[str, str] | None = None,
+#     input_state_types: StateTypeSpecifier
+#     | List[StateTypeSpecifier]
+#     | Callable[[xr.Dataset], xr.Dataset]
+#     | None = None,
+#     input_state_names: List[str] | Callable[[xr.Dataset], xr.Dataset] | None = None,
+#     input_trajectory_id_maps: Dict[str, int]
+#     | Callable[[pathlib.Path], int]
+#     | None = None,
+#     expect_dtype: type[DataType] | UnionType = Trajectory,
+# ) -> DataType | Frames | None: ...
+
+
+# @overload
+# def read(
+#     path: PathOptionsType,
+#     kind: FormatIdentifierType | None = None,
+#     sub_pattern: str | None = None,
+#     multiple: bool = True,
+#     concat_method: Literal["frames",] = "frames",
+#     parallel: bool = True,
+#     error_reporting: Literal["log", "raise"] = "log",
+#     input_units: Dict[str, str] | None = None,
+#     input_state_types: StateTypeSpecifier
+#     | List[StateTypeSpecifier]
+#     | Callable[[xr.Dataset], xr.Dataset]
+#     | None = None,
+#     input_state_names: List[str] | Callable[[xr.Dataset], xr.Dataset] | None = None,
+#     input_trajectory_id_maps: Dict[str, int]
+#     | Callable[[pathlib.Path], int]
+#     | None = None,
+#     expect_dtype: None = None,
+# ) -> Frames | SupportsFromXrConversion | xr.Dataset | xr.DataArray | None: ...
 
 
 # def read_trajs(
@@ -79,7 +271,7 @@ def read(
     input_trajectory_id_maps: Dict[str, int]
     | Callable[[pathlib.Path], int]
     | None = None,
-    expect_dtype: type[DataType] | TypeForm[DataType] | None = None,
+    expect_dtype: type[DataType] | UnionType | None = None,
 ) -> (
     xr.Dataset
     | xr.DataArray
@@ -192,7 +384,7 @@ def read(
     input_trajectory_id_maps : dict[str, int]| Callable[[pathlib.Path], int], optional
         A dict mapping absolut posix paths to ids to be applied or a function to convert a path into an integer id to assign to the trajectory.
         If not provided, will be chosen either based on the last integer matched from the path or at random up to `2**31-1`.
-    expected_dtype: type[DataType] | TypeForm[DataType], optional
+    expected_dtype: type[DataType] | UnionType, optional
         An explicit type hint to control the output type of this function where template arguments are concerned.
         Will be explicitly set on `ShnitselDB` nodes.
         If not provided, may be inferred internally.
