@@ -10,7 +10,7 @@ from shnitsel.io import read
         ('./tutorials/test_data/shnitsel/traj_I02.nc', 1),
     ]
 )
-def ds(self, request):
+def data(request):
     from shnitsel.io import read
 
     path, charge = request.param
