@@ -5,7 +5,7 @@ from shnitsel.filtering.state_selection import StateSelection
 from shnitsel.io import read
 
 
-@pytest.fixture(
+@fixture(
     params=[
         ('tutorials/tut_data/traj_I02.nc', 1),
     ]
