@@ -85,7 +85,12 @@ def get_max_chromophor_BLA(
     if isinstance(atXYZ_source, TreeNode):
         return atXYZ_source.map_data(
             lambda x: get_max_chromophor_BLA(
-                x, structure_selection=structure_selection, deg=deg, signed=signed
+                x,
+                structure_selection=structure_selection,
+                SMARTS=SMARTS,
+                num_double_bonds=num_double_bonds,
+                allowed_chain_elements=allowed_chain_elements,
+                max_considered_BLA_double_bonds=max_considered_BLA_double_bonds,
             ),
             keep_empty_branches=True,
             dtype=xr.DataArray,
