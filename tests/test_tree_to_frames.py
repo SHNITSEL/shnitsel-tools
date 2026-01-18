@@ -16,5 +16,9 @@ def tree(request):
     return res
 
 
-def test_tree_to_frames(tree):
-    frames = tree.as_frames()
+def test_tree_to_stacked(tree):
+    frames = tree.as_stacked
+
+
+def test_tree_to_layered(tree):
+    layered = tree.as_layered
