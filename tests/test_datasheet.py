@@ -6,13 +6,14 @@ from shnitsel.vis.datasheet import Datasheet
 
 @fixture(
     params=[
-        'tutorials/tut_data/traj_I02.nc',
-        # 'tutorials/test_data/sharc/traj_I01_v3.0_triplets_nacs_socs',
-        # 'tutorials/test_data/newtonx/test_I01_v2.6',
+        ('tutorials/tut_data/traj_I02.nc', -1),
+        # 'tutorials/test_data/sharc/traj_I01_v3.0_triplets_nacs_socs',, -1),
+        # 'tutorials/test_data/newtonx/test_I01_v2.6',, -1),
     ]
 )
 def data(request):
-    res = read(request.param)
+    path, charge = request.param
+    res = read(path).set_charge(charge)
     return res
 
 
