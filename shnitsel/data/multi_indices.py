@@ -604,8 +604,10 @@ def is_stacked(obj):
     is_wrapped_stacked = isinstance(obj, Frames)
 
     c = obj.coords
-    traj_coord = c.get('trajid', c.get('atrajectory', c.get('trajectory')))
-    time_coord = c.get('time')
+    traj_coord = c.get(
+        'trajid', c.get('atrajectory', c.get('trajectory', xr.DataArray()))
+    )
+    time_coord = c.get('time', xr.DataArray())
     coords_share_dim = not set(traj_coord.dims).isdisjoint(time_coord.dims)
     return is_wrapped_stacked or coords_share_dim
 
