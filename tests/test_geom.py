@@ -1,3 +1,5 @@
+from shnitsel.data.dataset_containers.trajectory import Trajectory
+from shnitsel.data.tree.tree import ShnitselDB
 from shnitsel.io import read
 from shnitsel.geo.geocalc import (
     get_bats,
@@ -14,19 +16,19 @@ from pytest import fixture
 
 @fixture(
     params=[
-        ('tutorials/tut_data/traj_I02.nc', 1),
+        ('./tutorials/test_data/shnitsel/traj_I02.nc', 1),
     ]
 )
 def db(request):
     path, charge = request.param
-    db = read(path).set_charge(charge)
+    db = read(path, expect_dtype=ShnitselDB[Trajectory]).set_charge(charge)
     return db
 
 
 @fixture()
 def selection(db):
     return StructureSelection.init_from_dataset(
-        list(db.collect_datA())[0], ['bonds', 'angles', 'dihedrals', 'pyramids']
+        list(db.collect_data())[0], ['bonds', 'angles', 'dihedrals', 'pyramids']
     )
 
 
