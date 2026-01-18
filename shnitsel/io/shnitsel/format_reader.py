@@ -104,13 +104,13 @@ class ShnitselFormatReader(FormatReader):
         if not path_obj.exists() or not path_obj.is_file():
             message = "Path `%(path)s` does not constitute a Shnitsel style trajectory file. Does not exist or is not a file."
             logging.debug(message, {"path": path})
-            raise FileNotFoundError(message)
+            raise FileNotFoundError(message % {"path": path})
 
         if not path_obj.suffix.endswith(".nc"):
             message = "Path `%(path)s`` is not a NetCdf file (extension `.nc`)"
 
             logging.debug(message, {"path": path})
-            raise FileNotFoundError(message)
+            raise FileNotFoundError(message % {"path": path})
 
         return ShnitselFormatInformation("shnitsel", "0.1", None, path_obj)
 
