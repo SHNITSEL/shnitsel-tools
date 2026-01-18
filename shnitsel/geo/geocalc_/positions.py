@@ -1,7 +1,11 @@
+from typing import Any, overload
 from shnitsel._contracts import needs
 from shnitsel.core._api_info import API
 import xarray as xr
 
+from shnitsel.data.dataset_containers.frames import Frames
+from shnitsel.data.dataset_containers.trajectory import Trajectory
+from shnitsel.data.tree.node import TreeNode
 from shnitsel.filtering.structure_selection import FeatureTypeLabel, StructureSelection
 from shnitsel.geo.geocalc_.helpers import (
     _assign_descriptor_coords,
@@ -10,18 +14,36 @@ from shnitsel.geo.geocalc_.helpers import (
 )
 
 
+@overload
+def get_positions(
+    atXYZ_source: TreeNode[Any, Trajectory | Frames | xr.Dataset | xr.DataArray],
+    structure_selection: StructureSelection | None = None,
+) -> TreeNode[Any, xr.DataArray]: ...
+@overload
+def get_positions(
+    atXYZ_source: Trajectory | Frames | xr.Dataset | xr.DataArray,
+    structure_selection: StructureSelection | None = None,
+) -> xr.DataArray: ...
+
+
 @API()
 @needs(dims={'atom', 'direction'})
 def get_positions(
-    atXYZ: xr.DataArray, structure_selection: StructureSelection | None = None
-) -> xr.DataArray:
+    atXYZ_source: TreeNode[Any, Trajectory | Frames | xr.Dataset | xr.DataArray]
+    | Trajectory
+    | Frames
+    | xr.Dataset
+    | xr.DataArray,
+    structure_selection: StructureSelection | None = None,
+) -> TreeNode[Any, xr.DataArray] | xr.DataArray:
     """Return a descriptor-indexed set of positions for bats calculation.
 
     Parameters
     ----------
-    atXYZ
-        An :py:class:`xarray.DataArray` of molecular coordinates, with dimensions
-        of at least `atom` and `direction`
+    atXYZ_source
+        An :py:class:`xarray.DataArray` of molecular coordinates, with dimensions ``atom`` and
+        ``direction`` or another source of positional data like a trajectory, a frameset,
+        a dataset representing either of those or a tree structure holding such data.
     structure_selection, optional
         Object encapsulating feature selection on the structure whose positional information is provided in `atXYZ`.
         If this argument is omitted altogether, a default selection for all bonds within the structure is created.
@@ -30,6 +52,27 @@ def get_positions(
         An :py:class:`xarray.DataArray` of positions with dimension `descriptor` to index the positions along.
 
     """
+
+    if isinstance(atXYZ_source, TreeNode):
+        return atXYZ_source.map_data(
+            lambda x: get_positions(
+                x,
+                structure_selection=structure_selection,
+            ),
+            keep_empty_branches=True,
+            dtype=xr.DataArray,
+        )
+
+    structure_selection = _get_default_selection(
+        structure_selection, atXYZ_source=atXYZ_source, default_levels=['atoms']
+    )
+
+    atXYZ: xr.DataArray
+    if isinstance(atXYZ_source, xr.DataArray):
+        atXYZ = atXYZ_source
+    else:
+        atXYZ = atXYZ_source.atXYZ
+
     structure_selection = _get_default_selection(
         structure_selection, atXYZ_source=atXYZ, default_levels=['atoms']
     )

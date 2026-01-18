@@ -1,9 +1,13 @@
+from typing import Any, overload
 import xarray as xr
 import numpy as np
 
 from shnitsel._contracts import needs
 from shnitsel.core._api_info import API
 from shnitsel.core.typedefs import AtXYZ
+from shnitsel.data.dataset_containers.frames import Frames
+from shnitsel.data.dataset_containers.trajectory import Trajectory
+from shnitsel.data.tree.node import TreeNode
 from shnitsel.filtering.structure_selection import FeatureTypeLabel, StructureSelection
 from shnitsel.geo.geocalc_.algebra import normal, angle_, normalize
 
@@ -54,13 +58,35 @@ def pyramidalization_angle(
     return 0.5 * np.pi - angle_(orbital_aligned_normal, x - b)  # type: ignore # Cannot be a variable if provided with a DataArray
 
 
-@API()
+@overload
 def get_pyramidalization(
-    atXYZ: xr.DataArray,
+    atXYZ_source: TreeNode[Any, Trajectory | Frames | xr.Dataset | xr.DataArray],
     structure_selection: StructureSelection | None = None,
     deg: bool = False,
     signed=True,
-) -> xr.DataArray:
+) -> TreeNode[Any, xr.DataArray]: ...
+
+
+@overload
+def get_pyramidalization(
+    atXYZ_source: Trajectory | Frames | xr.Dataset | xr.DataArray,
+    structure_selection: StructureSelection | None = None,
+    deg: bool = False,
+    signed=True,
+) -> xr.DataArray: ...
+
+
+@API()
+def get_pyramidalization(
+    atXYZ_source: TreeNode[Any, Trajectory | Frames | xr.Dataset | xr.DataArray]
+    | Trajectory
+    | Frames
+    | xr.Dataset
+    | xr.DataArray,
+    structure_selection: StructureSelection | None = None,
+    deg: bool = False,
+    signed=True,
+) -> TreeNode[Any, xr.DataArray] | xr.DataArray:
     """Identify atoms with three bonds (using RDKit) and calculate the corresponding pyramidalization angles
     for each frame.
 
@@ -77,9 +103,8 @@ def get_pyramidalization(
 
     Parameters
     ----------
-    atXYZ
-        An :py:class:`xarray.DataArray` of molecular coordinates, with dimensions
-        ``frame``, ``atom`` and ``direction``
+    atXYZ_source
+        An :py:class:`xarray.DataArray` of molecular coordinates, with dimensions ``atom`` and ``direction`` or another source of positional data like a trajectory, a frameset, a dataset representing either of those or a tree structure holding such data.
     structure_selection, optional
         An optional argument to specify the substructures for which pyramidalization angles should be calculated.
         If not provided, will be generated using `_get_default_selection()` using the atXYZ data for the pyramids level.
@@ -93,9 +118,25 @@ def get_pyramidalization(
         An :py:class:`xarray.DataArray` of pyramidalizations with dimensions all dimensions but `atom` still intact and a new `descriptor` dimension introduced to index all the chosen quadruples for pyramidalization instead of the `atom` dimension.
 
     """
+
+    if isinstance(atXYZ_source, TreeNode):
+        return atXYZ_source.map_data(
+            lambda x: get_pyramidalization(
+                x, structure_selection=structure_selection, deg=deg, signed=signed
+            ),
+            keep_empty_branches=True,
+            dtype=xr.DataArray,
+        )
+
     structure_selection = _get_default_selection(
-        structure_selection, atXYZ_source=atXYZ, default_levels=['pyramids']
+        structure_selection, atXYZ_source=atXYZ_source, default_levels=['pyramids']
     )
+
+    atXYZ : xr.DataArray
+    if isinstance(atXYZ_source, xr.DataArray):
+        atXYZ = atXYZ_source
+    else:
+        atXYZ = atXYZ_source.atXYZ
 
     pyramid_descriptors = list(structure_selection.pyramids_selected)
 
@@ -127,7 +168,7 @@ def get_pyramidalization(
         feature_descriptors=pyramid_descriptors,
     )
 
-    pyr_res: xr.DataArray = pyr_res.set_xindex('descriptor')
+    pyr_res: xr.DataArray = pyr_res
     if deg:
         pyr_res *= 180 / np.pi
         pyr_res.attrs['units'] = 'degrees'

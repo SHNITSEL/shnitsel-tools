@@ -1,10 +1,13 @@
-from typing import Literal, Sequence
+from typing import Any, Literal, Sequence, overload
 from shnitsel._contracts import needs
 from shnitsel.core._api_info import API, internal
 import xarray as xr
 import numpy as np
 
 from shnitsel.core.typedefs import AtXYZ, DataArrayOrVar
+from shnitsel.data.dataset_containers.frames import Frames
+from shnitsel.data.dataset_containers.trajectory import Trajectory
+from shnitsel.data.tree.node import TreeNode
 from shnitsel.filtering.structure_selection import FeatureTypeLabel, StructureSelection
 from shnitsel.geo.geocalc_.algebra import angle_, dcross, ddot, normal
 from shnitsel.geo.geocalc_.helpers import (
@@ -97,22 +100,45 @@ def dihedral(
     return result
 
 
+@overload
+def get_dihedrals(
+    atXYZ_source: TreeNode[Any, Trajectory | Frames | xr.Dataset | xr.DataArray],
+    structure_selection: StructureSelection | None = None,
+    deg: bool = False,
+    signed=True,
+) -> TreeNode[Any, xr.DataArray]: ...
+
+
+@overload
+def get_dihedrals(
+    atXYZ_source: Trajectory | Frames | xr.Dataset | xr.DataArray,
+    structure_selection: StructureSelection | None = None,
+    deg: bool = False,
+    signed=True,
+) -> xr.DataArray: ...
+
+
 @API()
 @needs(dims={'atom', 'direction'})
 def get_dihedrals(
-    atXYZ: xr.DataArray,
+    atXYZ_source: TreeNode[Any, Trajectory | Frames | xr.Dataset | xr.DataArray]
+    | Trajectory
+    | Frames
+    | xr.Dataset
+    | xr.DataArray,
     structure_selection: StructureSelection | None = None,
     deg: bool = True,
     signed: bool = True,
-) -> xr.DataArray:
+) -> TreeNode[Any, xr.DataArray] | xr.DataArray:
     """Identify quadruples of bonded atoms (using RDKit) and calculate the corresponding proper bond torsion for each
     frame.
 
     Parameters
     ----------
-    atXYZ
-        An :py:class:`xarray.DataArray` of molecular coordinates, with dimensions
-        at least `atom` and `direction`
+    atXYZ_source
+        An :py:class:`xarray.DataArray` of molecular coordinates, with dimensions ``atom`` and
+        ``direction`` or another source of positional data like a trajectory, a frameset,
+        a dataset representing either of those or a tree structure holding such data.
     structure_selection, optional
         Object encapsulating feature selection on the structure whose positional information is provided in `atXYZ`.
         If this argument is omitted altogether, a default selection for all bonds within the structure is created.
@@ -128,9 +154,24 @@ def get_dihedrals(
         An :py:class:`xarray.DataArray` of bond torsions with dimension `descriptor` to index the dihedrals along.
     """
 
+    if isinstance(atXYZ_source, TreeNode):
+        return atXYZ_source.map_data(
+            lambda x: get_dihedrals(
+                x, structure_selection=structure_selection, deg=deg, signed=signed
+            ),
+            keep_empty_branches=True,
+            dtype=xr.DataArray,
+        )
+
     structure_selection = _get_default_selection(
-        structure_selection, atXYZ_source=atXYZ, default_levels=['dihedrals']
+        structure_selection, atXYZ_source=atXYZ_source, default_levels=['dihedrals']
     )
+
+    atXYZ: xr.DataArray
+    if isinstance(atXYZ_source, xr.DataArray):
+        atXYZ = atXYZ_source
+    else:
+        atXYZ = atXYZ_source.atXYZ
 
     dihedral_indices = list(structure_selection.dihedrals_selected)
 
@@ -139,8 +180,7 @@ def get_dihedrals(
 
     if isinstance(deg, bool):
         dihedral_arrs = [
-            dihedral(atXYZ, a, b, c, d, deg=deg, full=signed)
-            .expand_dims('descriptor')
+            dihedral(atXYZ, a, b, c, d, deg=deg, full=signed).expand_dims('descriptor')
             for a, b, c, d in dihedral_indices
         ]
 

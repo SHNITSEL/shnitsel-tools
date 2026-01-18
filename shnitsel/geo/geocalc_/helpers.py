@@ -19,7 +19,7 @@ from shnitsel.bridges import construct_default_mol
 def _get_default_selection(
     structure_selection: StructureSelection | None = None,
     mol: rc.Mol | None = None,
-    atXYZ_source: xr.Dataset | xr.DataArray | None = None,
+    atXYZ_source: xr.Dataset | xr.DataArray | Trajectory | Frames | None = None,
     charge_info: int | None = None,
     default_levels: Sequence[FeatureLevelOptions] = ['atoms', 'bonds'],
 ) -> StructureSelection:

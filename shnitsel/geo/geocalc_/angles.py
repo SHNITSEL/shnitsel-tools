@@ -1,9 +1,12 @@
-from typing import Literal, Sequence
+from typing import Any, Literal, Sequence, overload
 from shnitsel._contracts import needs
 from shnitsel.core._api_info import API
 import xarray as xr
 
 from shnitsel.core.typedefs import AtXYZ
+from shnitsel.data.dataset_containers.frames import Frames
+from shnitsel.data.dataset_containers.trajectory import Trajectory
+from shnitsel.data.tree.node import TreeNode
 from shnitsel.filtering.structure_selection import FeatureTypeLabel, StructureSelection
 from shnitsel.geo.geocalc_.algebra import angle_, angle_cos_sin_
 import numpy as np
@@ -78,39 +81,78 @@ def angle_cos_sin(
     return angle_cos_sin_(ab, cb)
 
 
+@overload
+def get_angles(
+    atXYZ_source: TreeNode[Any, Trajectory | Frames | xr.Dataset | xr.DataArray],
+    structure_selection: StructureSelection | None = None,
+    deg: bool = False,
+    signed=True,
+) -> TreeNode[Any, xr.DataArray]: ...
+
+
+@overload
+def get_angles(
+    atXYZ_source: Trajectory | Frames | xr.Dataset | xr.DataArray,
+    structure_selection: StructureSelection | None = None,
+    deg: bool = False,
+    signed=True,
+) -> xr.DataArray: ...
+
+
 @API()
 @needs(dims={'atom', 'direction'})
 def get_angles(
-    atXYZ: xr.DataArray,
+    atXYZ_source: TreeNode[Any, Trajectory | Frames | xr.Dataset | xr.DataArray]
+    | Trajectory
+    | Frames
+    | xr.Dataset
+    | xr.DataArray,
     structure_selection: StructureSelection | None = None,
     deg: bool | Literal['trig'] = True,
     signed: bool = True,
-) -> xr.DataArray:
+) -> TreeNode[Any, xr.DataArray] | xr.DataArray:
     """Identify triples of bonded atoms (using RDKit) and calculate bond angles for each frame.
 
-    Parameters
-    ----------
-    atXYZ
-        An :py:class:`xarray.DataArray` of molecular coordinates, with at least dimensions
-        `atom` and `direction`
+     Parameters
+     ----------
+     atXYZ_source
+         An :py:class:`xarray.DataArray` of molecular coordinates, with dimensions ``atom`` and
+         ``direction`` or another source of positional data like a trajectory, a frameset,
+         a dataset representing either of those or a tree structure holding such data.
     structure_selection, optional
-        Object encapsulating feature selection on the structure whose positional information is provided in `atXYZ`.
-        If this argument is omitted altogether, a default selection for all bonds within the structure is created.
-    deg, optional
-        Whether to return angles in degrees (as opposed to radians), by default True.
-        Can also be set to the string literal `trig` if sin and cos of the calculated angle should be returned instead.
-    signed, optional
-        Whether the result should be returned with a sign or just as an absolute value in the range. Only relevant for `trig` option in `deg`.
+         Object encapsulating feature selection on the structure whose positional information is provided in `atXYZ`.
+         If this argument is omitted altogether, a default selection for all bonds within the structure is created.
+     deg, optional
+         Whether to return angles in degrees (as opposed to radians), by default True.
+         Can also be set to the string literal `trig` if sin and cos of the calculated angle should be returned instead.
+     signed, optional
+         Whether the result should be returned with a sign or just as an absolute value in the range. Only relevant for `trig` option in `deg`.
 
 
-    Returns
-    -------
-        An :py:class:`xarray.DataArray` of bond angles with dimension `descriptor` to index the angles along.
+     Returns
+     -------
+         An :py:class:`xarray.DataArray` of bond angles with dimension `descriptor` to index the angles along.
 
     """
+
+    if isinstance(atXYZ_source, TreeNode):
+        return atXYZ_source.map_data(
+            lambda x: get_angles(
+                x, structure_selection=structure_selection, deg=deg, signed=signed
+            ),
+            keep_empty_branches=True,
+            dtype=xr.DataArray,
+        )
+
     structure_selection = _get_default_selection(
-        structure_selection, atXYZ_source=atXYZ, default_levels=['angles']
+        structure_selection, atXYZ_source=atXYZ_source, default_levels=['angles']
     )
+
+    atXYZ: xr.DataArray
+    if isinstance(atXYZ_source, xr.DataArray):
+        atXYZ = atXYZ_source
+    else:
+        atXYZ = atXYZ_source.atXYZ
 
     angle_indices = list(structure_selection.angles_selected)
 
@@ -125,9 +167,7 @@ def get_angles(
 
         angle_res = xr.concat(angle_arrs, dim='descriptor')
 
-        descriptor_tex = [
-            r"\theta_{%d,%d,%d}" % (a, b, c) for a, b, c in angle_indices
-        ]
+        descriptor_tex = [r"\theta_{%d,%d,%d}" % (a, b, c) for a, b, c in angle_indices]
         descriptor_name = [r'angle(%d,%d,%d)' % (a, b, c) for a, b, c in angle_indices]
         descriptor_type: list[FeatureTypeLabel] = ['angle'] * len(descriptor_tex)
 
