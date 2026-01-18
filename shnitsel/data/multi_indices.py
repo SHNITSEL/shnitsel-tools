@@ -350,6 +350,7 @@ def sel_trajs(
     TypeError
         If ``trajids_or_mask`` has a dtype other than integer or boolean
     """
+    # TODO: FIXME: This Function is currently broken in tests
     trajids_or_mask = np.atleast_1d(trajids_or_mask)
     trajids: npt.NDArray | xr.DataArray
     if np.issubdtype(trajids_or_mask.dtype, np.integer):
@@ -394,24 +395,26 @@ def sel_trajids(
     Raises
     ------
     KeyError
-        If some of the supplied trajectory IDs are not present in the ``trajid`` coordinate
+        If some of the supplied trajectory IDs are not present in the ``trajectory`` coordinate
     """
     trajids = np.atleast_1d(trajids)
     # check that all trajids are valid, as Dataset.sel() would
-    if not invert and not (np.isin(trajids, frames['trajid'])).all():
-        missing = trajids[~np.isin(trajids, frames['trajid'])]
+    if not invert and not (np.isin(trajids, frames['trajectory'])).all():
+        missing = trajids[~np.isin(trajids, frames['trajectory'])]
         raise KeyError(
             f"Of the supplied trajectory IDs, {len(missing)} were "
             f"not found in index 'trajid': {missing}"
         )
-    mask = frames['trajid'].isin(trajids)
+    mask = frames['trajectory'].isin(trajids)
     if invert:
         mask = ~mask
     res = frames.sel(frame=mask)
 
-    if 'trajid_' in frames.dims:
-        actually_selected = np.unique(res['trajid'])
-        res = res.sel(trajid_=actually_selected)
+    # TODO: FIXME: This needs to be made resilient to stacked and layered sets. Selecting from within the `frames` stack fails the test
+
+    if 'trajectory' in frames.dims:
+        actually_selected = np.unique(res['trajectory'])
+        res = res.sel(trajectory=actually_selected)
     return res
 
 
