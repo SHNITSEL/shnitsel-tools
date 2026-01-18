@@ -1,3 +1,4 @@
+from shnitsel.data.tree.node import TreeNode
 import shnitsel.xarray
 import xarray as xr
 import pytest
@@ -13,13 +14,11 @@ class TestAccessors:
     )
     def ds(self, request):
         from shnitsel.io import read
-        from shnitsel.data.tree import tree_to_frames
 
         path, charge = request.param
-        db = read(path)
-        res = tree_to_frames(db)
-        res['atXYZ'].attrs['charge'] = charge
-        res.attrs['charge'] = charge
+        db = read(path).set_charge(charge)
+        assert isinstance(db, TreeNode)
+        res = db.as_stacked
         return res
 
     def test_da_accessors(self, ds, subtests):
