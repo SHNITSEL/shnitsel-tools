@@ -26,7 +26,12 @@ class Frames(DataSeries):
         super().__init__(ds)
 
         # TODO: FIXME: This should be harmonized across all creation and use points. Make the frame-component `active_trajectory` and the per-trajectory property `trajectory`
-        if "trajectory" in ds.dims or "atrajectory" in ds.coords:
+        if (
+            "trajectory" in ds.dims
+            and ds.sizes["trajectory"] > 1
+            or "atrajectory" in ds.coords
+            and len(set(ds.coords["atrajectory"].values)) > 1
+        ):
             # Check if we have a dimension to select properties of different trajectories.
             self._is_multi_trajectory = True
 
@@ -46,7 +51,11 @@ class Frames(DataSeries):
             # Try and get the own trajectory id from the active trajectory
             tmp_atraj = self._param_from_vars_or_attrs('atrajectory')
             if tmp_atraj is not None:
-                trajids = set(tmp_atraj)
+                trajids = set(
+                    tmp_atraj.values
+                    if isinstance(tmp_atraj, xr.DataArray)
+                    else tmp_atraj
+                )
                 if len(trajids) == 1:
                     return trajids.pop()
         return trajid
