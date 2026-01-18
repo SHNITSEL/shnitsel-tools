@@ -2,9 +2,10 @@ import logging
 from typing import TypeVar
 import xarray as xr
 
+from shnitsel.data.dataset_containers.shared import ShnitselDataset
 from shnitsel.data.tree import TreeNode
 
-from shnitsel.data.dataset_containers import Trajectory, Frames
+from shnitsel.data.dataset_containers import Trajectory, Frames, wrap_dataset
 from shnitsel.io.shared.helpers import LoadingParameters
 from shnitsel.data.state_helpers import (
     default_state_name_assigner,
@@ -51,20 +52,21 @@ def finalize_loaded_trajectory(
             dataset = set_state_defaults(dataset, loading_parameters)
             # Clean up variables if the variables are not assigned yet.
             dataset = clean_unassigned_variables(dataset)
-            convert_all_units_to_shnitsel_defaults(dataset)
+            dataset = convert_all_units_to_shnitsel_defaults(dataset)
 
             if rebuild_type:
                 return rebuild_type(dataset)
             else:
-                try:
-                    return Trajectory(dataset)
-                except:
-                    try:
-                        return Frames(dataset)
-                    except:
-                        return dataset
+                return wrap_dataset(dataset, (Trajectory | Frames))
         else:
-            # TODO: FIXME: Should we post-process all individual trajectories just in case?
+            # Should we post-process all individual trajectories just in case?
+            if isinstance(dataset, TreeNode):
+                return dataset.map_data(
+                    lambda x: finalize_loaded_trajectory(
+                        x, loading_parameters=loading_parameters
+                    ),
+                    keep_empty_branches=True,
+                )
             return dataset
 
     return None
