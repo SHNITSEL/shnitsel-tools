@@ -46,7 +46,7 @@ def concat_subtree(
 
 
 def layer_subtree(
-    subtree: TreeNode[Any, Trajectory] | TreeNode[Any, xr.Dataset],
+    subtree: TreeNode[Any, Trajectory | Frames | xr.Dataset],
     only_direct_children: bool = False,
 ) -> xr.Dataset:
     """Helper function to layer the trajectories in a subtree into a multi-trajetctory dataset.
