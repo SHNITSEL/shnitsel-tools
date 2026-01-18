@@ -17,6 +17,7 @@ from .._contracts import needs
 
 DatasetOrArray = TypeVar("DatasetOrArray", bound=xr.Dataset | xr.DataArray)
 
+# TODO: FIXME: These functions occasionally return weird errors if provided with datasets of the wrong format
 
 @internal()
 def midx_combs(
