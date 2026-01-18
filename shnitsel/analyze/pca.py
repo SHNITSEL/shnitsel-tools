@@ -134,14 +134,35 @@ class PCAResult(
         )
 
 
-# TODO: Make signature consistent with `pca()` and standardize extraction of hops mask
-@needs(coords_or_vars={'atXYZ', 'astate'})
+@overload
+def pca_and_hops(
+    frames: TreeNode,
+    feature_selection: StructureSelection | None = None,
+    center_mean: bool = False,
+    n_components: int = 2,
+) -> TreeNode[Any, tuple[PCAResult, xr.DataArray]]: ...
+
+
+@overload
 def pca_and_hops(
     frames: Frames | Trajectory | xr.Dataset,
     feature_selection: StructureSelection | None = None,
     center_mean: bool = False,
     n_components: int = 2,
-) -> tuple[PCAResult, xr.DataArray]:
+) -> tuple[PCAResult, xr.DataArray]: ...
+
+
+# TODO: Make signature consistent with `pca()` and standardize extraction of hops mask
+@needs(coords_or_vars={'atXYZ', 'astate'})
+def pca_and_hops(
+    frames: #TreeNode[Any, Frames | Trajectory | xr.Dataset] | 
+    Frames
+    | Trajectory
+    | xr.Dataset,
+    feature_selection: StructureSelection | None = None,
+    center_mean: bool = False,
+    n_components: int = 2,
+) -> TreeNode[Any, tuple[PCAResult, xr.DataArray]] | tuple[PCAResult, xr.DataArray]:
     """
     Get PCA projectd data and a mask to provide information on which of the data points represent hopping points.
 
@@ -167,7 +188,21 @@ def pca_and_hops(
             The mask of the hopping point events. Can be used to only extract the hopping point PCA results from the projected input result in pca_res.
     """
 
-    wrapped_ds = wrap_dataset(frames)
+    # if isinstance(frames, TreeNode):
+    #     def tmp_f(x:Frames | Trajectory | xr.Dataset) -> tuple[PCAResult, xr.DataArray]:
+    #         return pca_and_hops(
+    #                         x,
+    #                         feature_selection=feature_selection,
+    #                         center_mean=center_mean,
+    #                         n_components=n_components,
+    #                     )
+        
+    #     return frames.map_data(
+    #         tmp_f,
+    #         keep_empty_branches=True
+    #     )
+
+    wrapped_ds = wrap_dataset(frames, Frames | Trajectory)
     assert isinstance(wrapped_ds, (Frames, Trajectory)), (
         "provided frames data could not be considered trajectory or frameset data."
     )
