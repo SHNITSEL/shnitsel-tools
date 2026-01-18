@@ -9,7 +9,6 @@ from typing_extensions import TypeForm
 from shnitsel.core.typedefs import StateTypeSpecifier
 from shnitsel.data.tree import ShnitselDB, CompoundGroup, DataGroup, DataLeaf
 from shnitsel.data.dataset_containers import Trajectory, Frames, InterState, PerState
-from shnitsel.data.tree.node import TreeNode
 from shnitsel.io.shared.helpers import (
     LoadingParameters,
     PathOptionsType,
@@ -277,7 +276,7 @@ class FormatReader(ABC):
 
         if res is not None:
             # NOTE: Do not post-process the tree like a single trajectory
-            if not isinstance(res, TreeNode):
+            if not isinstance(res, (xr.Dataset, Trajectory, Frames)):
                 logging.debug(
                     "Skipping trajectory finalization for non-trajectory object"
                 )
