@@ -10,6 +10,7 @@ from matplotlib.testing.decorators import image_comparison
 import shnitsel as st
 from shnitsel.analyze.pca import pca_and_hops
 from shnitsel.data.dataset_containers.frames import Frames
+from shnitsel.data.tree.node import TreeNode
 from shnitsel.vis.plot.pca_biplot import cluster_loadings, plot_loadings
 import shnitsel.xarray
 from shnitsel.bridges import default_mol
@@ -37,7 +38,8 @@ class TestPlotFunctionality:
     def ensembles(self, request) -> Frames:
         path, charge = request.param
         db = read(path)
-        res = db.set_charge(charge).as_frames()
+        assert isinstance(db, TreeNode)
+        res = db.set_charge(charge).as_stacked
         return res
 
     @pytest.fixture
