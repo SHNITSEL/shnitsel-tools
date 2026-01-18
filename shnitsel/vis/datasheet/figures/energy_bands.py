@@ -28,7 +28,7 @@ def plot_energy_bands(
     per_state: PerState,
     pca_data: xr.DataArray,
     state_selection: StateSelection,
-    hops=None,
+    hops_mask: xr.DataArray | None = None,
     fig: Figure | SubFigure | None = None,
     axs: dict[str, Axes] | None = None,
     colorbar_label: str | None = None,
@@ -40,22 +40,37 @@ def plot_energy_bands(
 ) -> dict[str, Axes]:
     """Helper function to plot energy band graphs as a function of the principal components in pca_data.
 
-    Args:
-        per_state (PerState): _description_
-        pca_data (xr.DataArray): _description_
-        state_selection (StateSelection): _description_
-        hops (_type_, optional): _description_. Defaults to None.
-        fig (Figure | SubFigure | None, optional): _description_. Defaults to None.
-        ax (dict[str, Axes], optional): _description_. Defaults to None.
-        colorbar_label (str | None, optional): _description_. Defaults to None.
-        cmap (str | Colormap | None, optional): _description_. Defaults to None.
-        cnorm (str | Normalize | None, optional): _description_. Defaults to None.
-        cscale (_type_, optional): _description_. Defaults to None.
-        band_kws (_type_, optional): _description_. Defaults to None.
-        hops_kws (_type_, optional): _description_. Defaults to None.
+    Parameters
+    ----------
+    per_state : PerState
+        _description_
+    pca_data : xr.DataArray
+        _description_
+    state_selection : StateSelection
+        _description_
+    hops_mask : xr.DataArray, optional
+        _description_. Defaults to None.
+    fig : Figure | SubFigure | None, optional
+        _description_. Defaults to None.
+    ax : dict[str, Axes], optional
+        _description_. Defaults to None.
+    colorbar_label : str | None, optional
+        _description_. Defaults to None.
+    cmap : str | Colormap | None, optional)
+        _description_. Defaults to None.
+    cnorm : str | Normalize | None, optional
+        _description_. Defaults to None.
+    cscale : _type_, optional)
+        _description_. Defaults to None.
+    band_kws : _type_, optional)
+        _description_. Defaults to None.
+    hops_kws : _type_, optional
+        _description_. Defaults to None.
 
-    Returns:
-        dict[str, Axes]: _description_
+    Returns
+    -------
+    dict[str, Axes]
+        _description_
     """
     assert axs is not None, "Could not acquire axes"
     # fig, ax = figax(fig=fig, ax=ax)

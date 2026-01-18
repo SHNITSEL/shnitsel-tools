@@ -17,28 +17,43 @@ from matplotlib.axes import Axes
 @needs(data_vars={'nacs'})
 def plot_nacs_histograms(
     inter_state: InterState,
-    hop_idxs,
+    hops_mask,
     state_selection: StateSelection,
     fig: Figure | SubFigure | None = None,
     axs: dict[str, Axes] | None = None,
 ) -> dict[str, Axes]:
     """Plot 2D histograms of NACS vs delta_E or dip_trans
 
-    Args:
-        inter_state (InterState): The dataset containing inter-state data including NACs
-        hop_idxs: Argument to specify, which frames should be selected for the histograms.
-        state_selection (StateSelection): State selection object to limit the states included in plotting and to provide state names.
-        fig (Figure | SubFigure, optional): Unused figure provided to the plot. Consumed by the figaxs_defaults decorator.
-        axs (dict[str, Axes]): Axes objects to plot to with the respective keys of the plot. Defaults to None.
+    Parameters
+    ----------
+    inter_state : InterState
+        The dataset containing inter-state data including NACs
+    hops_mask : xr.DataArray
+        Argument to specify, which frames should be selected for the histograms.
+    state_selection : StateSelection
+        State selection object to limit the states included in plotting and to provide state names.
+    fig : Figure | SubFigure, optional)
+        Unused figure provided to the plot. Consumed by the figaxs_defaults decorator.
+    axs : dict[str, Axes]
+        Axes objects to plot to with the respective keys of the plot. Defaults to None.
 
-    Returns:
-        dict[str, Axes]: The axes used for plotting indexed by the subfigure name
+    Returns
+    -------
+    dict[str, Axes]
+        The axes used for plotting indexed by the subfigure name
     """
     assert axs is not None, "No axes objects provided."
 
-    hop_filter_data = inter_state.dataset.sel(frame=hop_idxs)
+    if 'frame' in inter_state.dataset.dims:
+        leading_dim = 'frame'
+    elif 'time' in inter_state.dataset.dims:
+        leading_dim = 'time'
+    else:
+        raise ValueError("`inter_state` parameter is no data series.")
 
-    nacs_selection =state_selection.same_multiplicity_transitions()
+    hop_filter_data = inter_state.dataset.sel({leading_dim: hops_mask})
+
+    nacs_selection = state_selection.same_multiplicity_transitions()
 
     axs['nde'].set_ylabel(r'$|\Delta E|$ / eV')
     axs['nde'].minorticks_on()
