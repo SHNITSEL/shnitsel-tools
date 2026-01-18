@@ -1086,7 +1086,8 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
         """
         from shnitsel.data.shnitsel_db.db_function_decorator import layer_subtree
 
-        return Frames(layer_subtree(self, only_direct_children))
+        # TODO: FIXME: Convert to appropriate return type
+        return layer_subtree(self, only_direct_children)
 
     def __str__(self) -> str:
         """A basic representation of this node.
