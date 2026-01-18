@@ -6,7 +6,7 @@ from shnitsel.vis.datasheet import Datasheet
 
 @fixture(
     params=[
-        ('tutorials/tut_data/traj_I02.nc', 1),
+        ('tutorials/test_data/shnitsel/traj_I02.nc', 1),
         # 'tutorials/test_data/sharc/traj_I01_v3.0_triplets_nacs_socs',, 1),
         # 'tutorials/test_data/newtonx/test_I01_v2.6', 1),
     ]
@@ -54,16 +54,20 @@ class TestDatasheetFunctionality:
         assert data is not None
 
     def test_datasheet_from_file(self):
-        Datasheet('tutorials/tut_data/traj_I02.nc')
+        Datasheet('tutorials/test_data/shnitsel/traj_I02.nc')
 
     def test_per_state_histograms(self, datasheet_page):
-        datasheet_page.plot_per_state_histograms()
+        datasheet_page.plot_per_state_histograms(
+            state_selection=datasheet_page.state_selection
+        )
 
     def test_nacs_histograms(self, datasheet_page):
-        datasheet_page.plot_nacs_histograms()
+        datasheet_page.plot_nacs_histograms(
+            state_selection=datasheet_page.state_selection
+        )
 
     def test_timeplots(self, datasheet_page):
-        datasheet_page.plot_timeplots()
+        datasheet_page.plot_timeplots(state_selection=datasheet_page.state_selection)
 
     def test_datasheet_page_plot(self, datasheet_page):
         datasheet_page.plot()
