@@ -5,19 +5,20 @@ from shnitsel.filtering.state_selection import StateSelection
 from shnitsel.io import read
 
 
-@fixture(
+@pytest.fixture(
     params=[
-        'tutorials/tut_data/traj_I02.nc',
-        # 'tutorials/test_data/sharc/traj_I01_v3.0_triplets_nacs_socs',
-        # 'tutorials/test_data/newtonx/test_I01_v2.6',
+        ('tutorials/tut_data/traj_I02.nc', 1),
     ]
 )
-def data(request):
+def ds(self, request):
+    from shnitsel.io import read
+
+    path, charge = request.param
     from shnitsel.data.tree.tree import ShnitselDB
 
-    res = read(request.param)
+    res = read(path)
     assert isinstance(res, ShnitselDB)
-    return res.as_stacked
+    return res.set_charge(charge).as_stacked
 
 
 @fixture
