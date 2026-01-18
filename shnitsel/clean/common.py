@@ -7,7 +7,7 @@ import xarray as xr
 from shnitsel.data.dataset_containers.frames import Frames
 from shnitsel.data.dataset_containers.trajectory import Trajectory
 
-from shnitsel.data.multi_indices import ensure_unstacked
+from shnitsel.data.multi_indices import ensure_unstacked, stack_trajs
 
 ########################
 # Formats we will need #
@@ -34,6 +34,7 @@ def true_upto(mask: xr.DataArray, dim: str) -> xr.DataArray:
     xr.DataArray
         The point in time up to which the criterion is fulfilled.
     """
+    mask, was_stacked = ensure_unstacked(mask)
     assert dim in mask.dims, "Mask array is missing specified dimension %s" % dim
     shifted_coord = np.concat([[-np.inf], mask.coords[dim].data])
     num_cum_valid_indices = mask.cumprod(dim).sum(dim).astype(int)
