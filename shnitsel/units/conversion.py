@@ -178,9 +178,9 @@ def convert_all_units_to_shnitsel_defaults(data: xr.Dataset) -> xr.Dataset:
     new_vars = {}
 
     if "time" in data:
-        assert (
-            "units" in data["time"].attrs
-        ), "Dataset is missing `units` attribute on `time` coordinate"
+        assert "units" in data["time"].attrs, (
+            "Dataset is missing `units` attribute on `time` coordinate"
+        )
         time_unit = data["time"].attrs["units"]
     else:
         logging.warning(
@@ -193,6 +193,13 @@ def convert_all_units_to_shnitsel_defaults(data: xr.Dataset) -> xr.Dataset:
             if 'unitdim' in data[var_name].attrs:
                 conv_res = convert_datarray_with_unitdim_to_shnitsel_defaults(
                     data[var_name]
+                )
+
+                logging.debug(
+                    "Converting %s from unit %s to %s",
+                    var_name,
+                    data[var_name].attrs['units'],
+                    conv_res.attrs['units'],
                 )
 
                 if var_name in data.indexes:
@@ -226,6 +233,13 @@ def convert_all_units_to_shnitsel_defaults(data: xr.Dataset) -> xr.Dataset:
                         tmp = assign_levels(tmp, {str(coord_name): conv_res})
                         continue
 
+                logging.debug(
+                    "Converting coordinate %s from unit %s to %s",
+                    coord_name,
+                    data[coord_name].attrs['units'],
+                    conv_res.attrs['units'],
+                )
+
                 new_coords[coord_name] = conv_res
 
     # logging.debug("Converting Coords: " + str(list(new_coords.keys())))
@@ -239,11 +253,23 @@ def convert_all_units_to_shnitsel_defaults(data: xr.Dataset) -> xr.Dataset:
                 convert_from=time_unit,
                 to=tmp["time"].attrs["units"],
             )
+            logging.debug(
+                "Converting attribute %s from unit %s to %s",
+                "delta_t",
+                time_unit,
+                tmp["time"].attrs["units"],
+            )
         if "t_max" in tmp.attrs:
             tmp.attrs["t_max"] = convert_time.convert_value(
                 tmp.attrs["t_max"],
                 convert_from=time_unit,
                 to=tmp["time"].attrs["units"],
+            )
+            logging.debug(
+                "Converting attribute %s from unit %s to %s",
+                "t_max",
+                time_unit,
+                tmp["time"].attrs["units"],
             )
 
     return tmp
