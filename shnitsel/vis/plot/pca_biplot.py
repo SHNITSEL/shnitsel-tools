@@ -17,8 +17,7 @@ from sklearn.cluster import KMeans
 
 from shnitsel.analyze.generic import get_standardized_pairwise_dists
 from shnitsel.analyze.pca import PCAResult, pca
-from shnitsel.core.typedefs import Frames
-from shnitsel.data.dataset_containers import wrap_dataset, Trajectory
+from shnitsel.data.dataset_containers import wrap_dataset, Trajectory, Frames
 
 from .common import figax, extrude, mpl_imshow_png
 from ...rd import highlight_pairs
@@ -167,7 +166,7 @@ def get_loadings(
     pca_res: PCAResult
     attrs = {}
     if not isinstance(frames_or_pca_result, PCAResult):
-        wrapped_ds = wrap_dataset(frames_or_pca_result)
+        wrapped_ds = wrap_dataset(frames_or_pca_result, Frames | Trajectory)
 
         descr = get_standardized_pairwise_dists(
             frames_or_pca_result, center_mean=center_mean
@@ -637,6 +636,7 @@ def plot_bin_edges(
     ax.set_rlabel_position(200)
 
 
+# TODO: FIXME: This function does too much at once. It should either allow for general PCA configuration or allow for PCA results to be passed in. Only allowing pwdist pca is quite restrictive
 def pick_clusters(
     frames: Frames | xr.Dataset, num_bins: int, center_mean: bool = False
 ):
@@ -672,7 +672,7 @@ def pick_clusters(
             - edges: Tuple giving a pair of boundary angles for each bin;
         the order of the bins corresponds to the order used in ``bins``
     """
-    wrapped_ds = wrap_dataset(frames)
+    wrapped_ds = wrap_dataset(frames, Frames | Trajectory)
     loadings = get_loadings(wrapped_ds, center_mean)
     clusters = cluster_loadings(loadings)
     points = _get_clusters_coords(loadings, clusters)
@@ -722,7 +722,9 @@ def _binning_with_min_entries(
 
     # If max attempts were reached without satisfying condition
     if attempts >= max_attempts:
-        logging.warning(f"Max attempts ({max_attempts}) reached. Returning current bins.")
+        logging.warning(
+            f"Max attempts ({max_attempts}) reached. Returning current bins."
+        )
 
     picks: Sequence[int] = [bin[np.argmax(radii[bin])] for bin in bins]
 

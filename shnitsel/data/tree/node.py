@@ -15,7 +15,7 @@ from typing import (
     overload,
 )
 import typing
-from typing_extensions import TypeForm
+from typing_extensions import Literal, TypeForm
 
 from shnitsel.data.dataset_containers.frames import Frames
 from ..trajectory_grouping_params import TrajectoryGroupingMetadata
@@ -686,13 +686,31 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
         """
         ...
 
+    @overload
+    def map_data(
+        self,
+        func: Callable[[DataType], ResType | None],
+        recurse: bool,
+        keep_empty_branches: Literal[True] = True,
+        dtype: type[ResType] | UnionType | None = None,
+    ) -> "TreeNode[Any,ResType]": ...
+
+    @overload
+    def map_data(
+        self,
+        func: Callable[[DataType], ResType | None],
+        recurse: bool,
+        keep_empty_branches: bool = True,
+        dtype: type[ResType] | UnionType | None = None,
+    ) -> "TreeNode[Any,ResType]|None": ...
+
     @abc.abstractmethod
     def map_data(
         self,
         func: Callable[[DataType], ResType | None],
         recurse: bool = True,
         keep_empty_branches: bool = True,
-        dtype: type[ResType] | TypeForm[ResType] | None = None,
+        dtype: type[ResType] | UnionType | None = None,
     ) -> "TreeNode[Any,ResType]|None":
         """Helper function to apply a mapping function to all data in leaves of this tree
 

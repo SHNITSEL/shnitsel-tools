@@ -34,13 +34,13 @@ def wrap_dataset(
 @overload
 def wrap_dataset(
     ds: xr.Dataset | Trajectory | Frames | DataSeries | ShnitselDataset,
-    expected_types: None,
+    expected_types: None = None,
 ) -> Trajectory | Frames | DataSeries | ShnitselDataset | xr.Dataset: ...
 
 
 def wrap_dataset(
     ds: xr.Dataset | Trajectory | Frames | DataSeries | ShnitselDataset,
-    expected_types: type[ConvertedType] | None,
+    expected_types: type[ConvertedType] | UnionType | None = None,
 ) -> ConvertedType | Trajectory | Frames | DataSeries | ShnitselDataset | xr.Dataset:
     """Helper function to wrap a generic xarray dataset in a wrapper container
 

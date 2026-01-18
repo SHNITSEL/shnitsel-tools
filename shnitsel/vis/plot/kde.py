@@ -314,7 +314,7 @@ def biplot_kde(
     if contour_levels is None:
         contour_levels = [0.08, 1]
 
-    wrapped_ds = wrap_dataset(frames)
+    wrapped_ds = wrap_dataset(frames, Frames | Trajectory)
 
     match at1, at2, at3, at4:
         case at1, at2, None, None:
