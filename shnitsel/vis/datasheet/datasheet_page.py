@@ -495,7 +495,7 @@ class DatasheetPage:
         from shnitsel.analyze.hops import hops_mask_from_active_state
 
         mask = hops_mask_from_active_state(self.frames)
-        return self.pca_data[mask]
+        return mask  # self.pca_data[mask]
 
     @cached_property
     def structure_atXYZ(self) -> AtXYZ:
@@ -665,10 +665,12 @@ class DatasheetPage:
         state_selection: StateSelection,
         fig: Figure | SubFigure | None = None,
     ) -> dict[str, Axes]:
+        if not self.can['nacs_histograms']:
+            return {}
         start = timer()
         res = plot_nacs_histograms(
             self.inter_state,
-            self.hops.frame,
+            self.hops,
             fig=fig,
             state_selection=state_selection,
         )
@@ -680,7 +682,10 @@ class DatasheetPage:
         self,
         fig: Figure | SubFigure | None = None,
         state_selection: StateSelection | None = None,
-    ) -> Axes:
+    ) -> Axes | None:
+        if not self.can['noodle']:
+            return None
+        
         start = timer()
         res = plot_noodleplot(self.pca_data, self.hops, fig=fig)
         end = timer()
@@ -697,7 +702,7 @@ class DatasheetPage:
             self.per_state,
             self.pca_data,
             state_selection=state_selection,
-            hops=self.hops,
+            hops_mask=self.hops,
             fig=fig,
         )
         end = timer()
