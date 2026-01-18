@@ -143,10 +143,7 @@ def validity_populations(ds_or_da, intersections=True):
     else:
         filtranda = ds_or_da.copy()
     mask = _filter_mask_from_criterion_mask(filtranda)
-    if 'thresholds' in mask.coords:
-        mask = mask.drop('thresholds')
-    if 'good_throughout' in mask.coords:
-        mask = mask.drop('good_throughout')
+    mask = mask.drop_vars(['thresholds', 'good_throughout'], errors='ignore')
     mask = (
         mask.to_dataset('criterion')
         .assign({'total_population': mask.coords['is_frame']})
