@@ -1,9 +1,9 @@
 import logging
 from typing import Any, List, Set, Tuple
 
-from shnitsel.data.shnitsel_db.db_function_decorator import dataset_to_tree_method
 from shnitsel.data.dataset_containers import Frames, Trajectory, wrap_dataset
 import xarray as xr
+from shnitsel.data.tree.node import TreeNode
 from shnitsel.units import standard_shnitsel_units
 from shnitsel.units.definitions import unit_dimensions
 
@@ -138,7 +138,12 @@ def check_shnitsel_trajectory_data(
 
 
 def verify_trajectory_format(
-    obj: Any, asserted_properties: List[str] | None = None
+    obj: Trajectory
+    | Frames
+    | xr.Dataset
+    | List[Trajectory | Frames | xr.Dataset]
+    | TreeNode[Any, Trajectory | Frames | xr.Dataset],
+    asserted_properties: List[str] | None = None,
 ) -> bool:
     """Verify whether the data in `obj` has all required properties of a ShnitselTools trajectory.
 
@@ -158,7 +163,14 @@ def verify_trajectory_format(
     from shnitsel.data.tree import TreeNode
 
     if isinstance(obj, TreeNode):
-        return all(obj.map_data(verify_trajectory_format).collect_data())
+        mapped_checks = obj.map_data(
+            lambda x: verify_trajectory_format(
+                x, asserted_properties=asserted_properties
+            ),
+            keep_empty_branches=True,
+            dtype=bool,
+        )
+        return all(mapped_checks.collect_data())
     else:
         return is_permitted_traj_result(obj) and has_required_properties(
             obj, asserted_properties
@@ -183,11 +195,17 @@ def is_permitted_traj_result(obj: Any) -> bool:
     logging.debug(f"Obj has type: {type(obj)}")
     type_check_result = isinstance(
         obj, (xr.Dataset, Trajectory, Frames, ShnitselDB)
-    ) or (isinstance(obj, list) and (len(obj) == 0 or isinstance(obj[0], Trajectory)))
+    ) or (
+        isinstance(obj, list)
+        and (
+            len(obj) == 0
+            or all(isinstance(d, (Trajectory, Frames, xr.Dataset)) for d in obj)
+        )
+    )
 
     if not type_check_result:
         logging.error(
-            "Object is not of type {xr.Dataset}, {Trajectory} or List of {Trajectory}."
+            "Object is not of type {xr.Dataset}, {Trajectory}, {Frames} or List thereof."
         )
     return type_check_result
 
@@ -212,9 +230,7 @@ def has_required_properties(
     """
     res = True
     if isinstance(traj, list):
-        for i_traj in traj:
-            res = res and has_required_properties(i_traj)
-        return res
+        return all(has_required_properties(i_traj) for i_traj in traj)
     else:
         wrapped_ds = wrap_dataset(traj, (Trajectory | Frames))
         # print(traj.variables.keys())
@@ -253,17 +269,17 @@ def has_required_properties(
                     assert actual_unit == required_unit, (
                         f"Property {prop} has unit {actual_unit} instead of required unit {required_unit}"
                     )
-
-        for var in traj:
-            if "unitdim" in traj[var].attrs:
-                assert "units" in traj[var].attrs, (
-                    f"Variable {var} has property `unitdim` but no `units` set."
-                )
-                unit_dim = traj[var].attrs["unitdim"]
-                actual_unit = traj[var].attrs["units"]
-                required_unit = standard_shnitsel_units[unit_dim]
-                assert required_unit == "1" or actual_unit == required_unit, (
-                    f"Variable {var} has unit {actual_unit} instead of required unit {required_unit}."
-                )
+        for varset in [traj.data_vars, traj.coords]:
+            for var in varset:
+                if "unitdim" in traj[var].attrs:
+                    assert "units" in traj[var].attrs, (
+                        f"Variable {var} has property `unitdim` but no `units` set."
+                    )
+                    unit_dim = traj[var].attrs["unitdim"]
+                    actual_unit = traj[var].attrs["units"]
+                    required_unit = standard_shnitsel_units[unit_dim]
+                    assert required_unit == "1" or actual_unit == required_unit, (
+                        f"Variable {var} has unit {actual_unit} instead of required unit {required_unit}."
+                    )
 
         return True
