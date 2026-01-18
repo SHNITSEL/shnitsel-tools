@@ -7,7 +7,7 @@ from shnitsel.io import read
 
 @fixture(
     params=[
-        ('tutorials/tut_data/traj_I02.nc', 1),
+        ('./tutorials/test_data/shnitsel/traj_I02.nc', 1),
     ]
 )
 def ds(self, request):
