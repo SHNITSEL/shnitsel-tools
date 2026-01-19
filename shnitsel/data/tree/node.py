@@ -17,7 +17,8 @@ from typing import (
 import typing
 from typing_extensions import Literal, TypeForm
 
-from shnitsel.data.dataset_containers.frames import Frames
+from shnitsel.data.dataset_containers.multi_layered import MultiSeriesLayered
+from shnitsel.data.dataset_containers.multi_stacked import MultiSeriesStacked
 from ..trajectory_grouping_params import TrajectoryGroupingMetadata
 from pathlib import Path
 
@@ -1043,10 +1044,10 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
         )
 
     @property
-    def as_stacked(self) -> Frames:
+    def as_stacked(self) -> MultiSeriesStacked:
         return self.to_stacked()
 
-    def to_stacked(self, only_direct_children: bool = False) -> Frames:
+    def to_stacked(self, only_direct_children: bool = False) -> MultiSeriesStacked:
         """Stack the trajectories in a subtree into a multi-trajetctory dataset.
 
         The resulting dataset has a new `frame` dimension along which we can iterate through all individual frames of all trajectories.
@@ -1058,18 +1059,18 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
 
         Returns
         -------
-        Frames
-            The resulting multi-trajectory dataset
+        MultiSeriesStacked
+            The resulting multi-trajectory dataset stacked along a `frame` dimension
         """
         from shnitsel.data.shnitsel_db.db_function_decorator import concat_subtree
 
-        return Frames(concat_subtree(self, only_direct_children))
+        return MultiSeriesStacked(concat_subtree(self, only_direct_children))
 
     @property
-    def as_layered(self) -> Frames:
+    def as_layered(self) -> MultiSeriesLayered:
         return self.to_layered()
 
-    def to_layered(self, only_direct_children: bool = False) -> Frames:
+    def to_layered(self, only_direct_children: bool = False) -> MultiSeriesLayered:
         """Lazer the trajectories in a subtree into a multi-trajectory dataset.
 
         The resulting dataset has a new `trajectorz` dimension along which we can iterate through all individual frames of all trajectories.
@@ -1081,13 +1082,13 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
 
         Returns
         -------
-        Frames
-            The resulting multi-trajectory dataset
+        MultiSeriesLayered
+            The resulting multi-trajectory dataset layered along a `trajectory` dimension
         """
         from shnitsel.data.shnitsel_db.db_function_decorator import layer_subtree
 
         # TODO: FIXME: Convert to appropriate return type
-        return layer_subtree(self, only_direct_children)
+        return MultiSeriesLayered(layer_subtree(self, only_direct_children))
 
     def __str__(self) -> str:
         """A basic representation of this node.
