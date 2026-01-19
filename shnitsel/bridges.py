@@ -225,10 +225,12 @@ def _most_stable_frame(atXYZ, obj: xr.Dataset | Trajectory | Frames) -> xr.DataA
         inicond_energy = obj.energy.isel(state=0).groupby('atrajectory').first()
         trajid = inicond_energy.idxmin().item()
         return atXYZ.sel({'atrajectory': trajid, 'time': 0})
-    else:
+    elif 'trajid' in obj.coords:
         inicond_energy = obj.energy.isel(state=0).groupby('trajid').first()
         trajid = inicond_energy.idxmin().item()
         return atXYZ.sel({'trajid': trajid, 'time': 0})
+    else:
+        return atXYZ.isel({leading_dim: 0})
 
 
 def construct_default_mol(
