@@ -242,7 +242,9 @@ class ShnitselFormatReader(FormatReader):
             logging.error(
                 message, {"path": path, "v_e": v_e, "tb": traceback.format_exc()}
             )
-            raise FileNotFoundError(message)
+            raise FileNotFoundError(
+                message % {"path": path, "v_e": v_e, "tb": traceback.format_exc()}
+            )
 
         return loaded_dataset_or_tree  # type: ignore # We know that the result of read_shnitsel_file is meant to be a ShnitselDB or single Trajectory
 
