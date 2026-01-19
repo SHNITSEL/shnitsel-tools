@@ -12,7 +12,7 @@ from typing import Literal, Sequence, overload
 import xarray as xr
 
 from shnitsel.core._api_info import API
-from shnitsel.data.dataset_containers import Frames, Trajectory
+from shnitsel.data.dataset_containers import Frames, Trajectory, wrap_dataset
 from shnitsel.data.tree import ShnitselDB
 
 from shnitsel.filtering.structure_selection import (
@@ -127,8 +127,9 @@ def get_bats(
             position_data = atXYZ
             charge_info = None
         else:
-            position_data = atXYZ.atXYZ
-            charge_info = int(atXYZ.charge)
+            wrapped_ds = wrap_dataset(atXYZ, (Trajectory|Frames))
+            position_data = wrapped_ds.atXYZ
+            charge_info = int(wrapped_ds.charge)
 
         # TODO: FIXME: Example is not up to date
         structure_selection = _get_default_selection(
