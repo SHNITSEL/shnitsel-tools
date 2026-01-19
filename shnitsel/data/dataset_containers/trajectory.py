@@ -110,6 +110,8 @@ class Trajectory(DataSeries):
             trajid = self._param_from_vars_or_attrs('id')
         if trajid is None:
             trajid = self._param_from_vars_or_attrs('trajectory_id')
+        if trajid is None:
+            trajid = self._param_from_vars_or_attrs('trajectory')
         return trajid
 
     @property
