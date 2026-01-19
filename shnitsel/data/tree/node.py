@@ -2,6 +2,7 @@ import abc
 from collections.abc import Iterable
 from dataclasses import dataclass
 import logging
+import os
 from types import GenericAlias, UnionType
 from typing import (
     Any,
@@ -559,17 +560,28 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
         else:
             raise ValueError("Unsupported index type: %s", type(key))
 
+        print(path_parts)
+
         if len(path_parts) == 0:
             return self
 
         first_part = path_parts[0]
         path_tail = tuple(path_parts[1:])
-        if first_part == '/':
+        if first_part == os.path.sep:
+            # print("goto root")
             return self.root[path_tail]
         elif first_part == '.':
-            return self
+            # print("goto self")
+            return self[path_tail]
+        elif first_part == '..':
+            if self._parent is not None:
+                # print("goto parent")
+                return self._parent[path_tail]
+            # print("goto parent impossible")
+            return self[path_tail]
         else:
             if self.has_data and first_part == 'data':
+                # print("yield data")
                 return self.data
             elif first_part in self._children:
                 child_entry = self._children[first_part]
