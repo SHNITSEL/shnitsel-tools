@@ -597,7 +597,9 @@ def layer_trajs(
     # trajids = pd.Index(meta["trajid"], name="trajid")
     # coords_trajids = xr.Coordinates(indexes={"trajid": trajids})
     # breakpoint()
-    layers = xr.concat(datasets, dim="trajectory", combine_attrs="drop_conflicts")
+    layers = xr.concat(
+        datasets, dim="trajectory", combine_attrs="drop_conflicts", join="outer"
+    )
 
     # layers = layers.assign_coords(trajid=trajids)
 
