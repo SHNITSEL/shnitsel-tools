@@ -1,7 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from functools import cached_property
-from typing import Any, Literal
+from typing import Any, Literal, Self
 
 from ..trajectory_grouping_params import TrajectoryGroupingMetadata
 
@@ -29,18 +29,18 @@ class Trajectory(DataSeries):
     # from .inter_state import InterState
 
     def __init__(self, ds: xr.Dataset):
-        assert (
-            'frame' not in ds.dims
-        ), "Dataset has `frame` dimension and cannot be considered a Trajectory"
-        assert (
-            "time" in ds.dims or 'time' in ds.coords
-        ), "Dataset is missing `time` dimension and cannot be considered a Trajectory"
-        assert (
-            "atom" in ds.dims
-        ), "Dataset is missing `atom` dimension and cannot be considered a Trajectory"
-        assert (
-            "state" in ds.dims
-        ), "Dataset is missing `state` dimension and cannot be considered a Trajectory"
+        assert 'frame' not in ds.dims, (
+            "Dataset has `frame` dimension and cannot be considered a Trajectory"
+        )
+        assert "time" in ds.dims or 'time' in ds.coords, (
+            "Dataset is missing `time` dimension and cannot be considered a Trajectory"
+        )
+        assert "atom" in ds.dims, (
+            "Dataset is missing `atom` dimension and cannot be considered a Trajectory"
+        )
+        assert "state" in ds.dims, (
+            "Dataset is missing `state` dimension and cannot be considered a Trajectory"
+        )
         super().__init__(ds)
 
     @cached_property
@@ -57,6 +57,11 @@ class Trajectory(DataSeries):
             frame=["atrajectory", "time"]
         )
         return Frames(frame_ds)
+
+    @cached_property
+    def as_trajectory(self) -> Self:
+        """Idempotent conversion to Trajectory instance"""
+        return self
 
     @property
     def leading_dim(self) -> str:

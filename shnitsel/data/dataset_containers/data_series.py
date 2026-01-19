@@ -1,13 +1,17 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from functools import cached_property
-from typing import Any, Literal, Self
+from typing import Any, Literal, Self, TYPE_CHECKING
 
 from ..trajectory_grouping_params import TrajectoryGroupingMetadata
 
 
 from .shared import ShnitselDataset
 import xarray as xr
+
+if TYPE_CHECKING:
+    from .inter_state import InterState
+    from .per_state import PerState
 
 
 @dataclass
@@ -26,6 +30,8 @@ class DataSeries(ShnitselDataset):
     # from .frames import Frames
     # from .per_state import PerState
     # from .inter_state import InterState
+
+    _is_multi_trajectory: bool = False
 
     def __init__(self, ds: xr.Dataset):
         assert 'state' in ds.dims
@@ -400,14 +406,6 @@ class DataSeries(ShnitselDataset):
         return has_forces
 
     @property
-    def is_multi_trajectory(self) -> bool:
-        """Flag whether this is a multi-trajectory container.
-
-        Overwritten by child classes that combine multiple trajectories into one object
-        """
-        return False
-
-    @property
     def trajectory_input_path(self) -> str | None:
         """Input path from which the trajectory was loaded"""
         trajectory_input_path = self._param_from_vars_or_attrs('trajectory_input_path')
@@ -454,3 +452,11 @@ class DataSeries(ShnitselDataset):
             # TODO: FIXME: We should differentiate by all state attributes.
             num_states=len(self.state_ids),
         )
+
+    @property
+    def is_multi_trajectory(self) -> bool:
+        """Flag whether this is a multi-trajectory container.
+
+        Overwritten by child classes that combine multiple trajectories into one object
+        """
+        return self._is_multi_trajectory

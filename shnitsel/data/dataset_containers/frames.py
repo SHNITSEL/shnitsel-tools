@@ -1,13 +1,16 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import Sequence
+from functools import cached_property
+from typing import Self, Sequence, TYPE_CHECKING
 import xarray as xr
 from .data_series import DataSeries
+
+if TYPE_CHECKING:
+    from .trajectory import Trajectory
 
 
 @dataclass
 class Frames(DataSeries):
-    # TODO: FIXME: This should not be a subclass of Trajectory. It should have similar accessors, but probably from a different base class.
     _is_multi_trajectory: bool = False
 
     def __init__(self, ds: xr.Dataset):
@@ -34,6 +37,44 @@ class Frames(DataSeries):
         ):
             # Check if we have a dimension to select properties of different trajectories.
             self._is_multi_trajectory = True
+
+    @cached_property
+    def as_frames(self) -> Self:
+        """Idempotent conversion to Frame instance"""
+        return self
+
+    @cached_property
+    def as_trajectory(self) -> "Trajectory":
+        """Attempt to convert this dataset into a Trajectory instance.
+
+        Drops the `atrajectory` and `trajectory` dimensions of the Frameset and replaces the
+        `frame` dimension with a `time` dimension before conversion.
+
+        Returns
+        -------
+        Trajectory
+            The converted dataset underlying this Frameset.
+        """
+        from .trajectory import Trajectory
+
+        assert not self.is_multi_trajectory, (
+            "Cannot convert multi-trajectory frames to trajectory format"
+        )
+        assert 'time' in self.coords, (
+            "Frameset is lacking `time` coordinate for conversion to trajectory"
+        )
+
+        ds = self.dataset
+        trajid = self.trajectory_id
+
+        processed_ds = (
+            ds.unstack('frame')
+            .drop_vars('atrajectory')
+            .swap_dims({'frame': 'time'})
+            .isel(trajectory=0)
+        )
+
+        return Trajectory(processed_ds)
 
     @property
     def leading_dim(self) -> str:
@@ -69,32 +110,3 @@ class Frames(DataSeries):
     def active_trajectory(self) -> xr.DataArray | None:
         """Ids of the active trajectory in this frameset if present"""
         return self.atrajectory
-
-    @property
-    def is_multi_trajectory(self) -> bool:
-        return self._is_multi_trajectory
-
-
-@dataclass
-class MultiTrajectoryFrames(Frames):
-    _frame_sources: Sequence[Frames] | None = None
-
-    def __init__(self, framesets: Sequence[Frames]):
-        # TODO: FIXME: Concatenate frames into one single big frameset.
-        self._frame_sources = framesets
-        is_multi_trajectory = False
-        if len(framesets) > 1:
-            is_multi_trajectory = True
-        elif len(framesets) == 1 and framesets[0].is_multi_trajectory:
-            is_multi_trajectory = True
-
-        # TODO: FIXME: Make sure that concatenation would work. Convert variables to same unit, etc.
-
-        # Build the concatenated trajectory. May trigger exceptions
-        combined_dataset = xr.concat(
-            [frames.dataset for frames in framesets],
-            dim='frame',
-        )
-
-        super().__init__(combined_dataset)
-        self._is_multi_trajectory = is_multi_trajectory
