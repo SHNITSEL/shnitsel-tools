@@ -6,7 +6,6 @@ from shnitsel.data.dataset_containers.trajectory import Trajectory
 from shnitsel.data.dataset_containers.frames import Frames
 import xarray as xr
 
-from shnitsel.data.traj_combiner_methods import concat_trajs
 
 if TYPE_CHECKING:
     from .multi_layered import MultiSeriesLayered
@@ -37,6 +36,8 @@ class MultiSeriesStacked(Frames, MultiSeriesDataset):
             MultiSeriesDataset.__init__(self, framesets)
             self._is_multi_trajectory = framesets.sizes['trajectory'] > 1
         else:
+            from shnitsel.data.traj_combiner_methods import concat_trajs
+
             # TODO: FIXME: Stack frames into one single big frameset.
             is_multi_trajectory = False
             if len(framesets) > 1:
@@ -83,7 +84,9 @@ class MultiSeriesStacked(Frames, MultiSeriesDataset):
             ds: xr.Dataset = self.dataset
             datasets: Sequence[Frames | Trajectory] = [
                 wrap_dataset(
-                    ds.sel(trajectory=id).drop_dims('trajectory'),
+                    ds.sel(trajectory=id, atrajectory=id)
+                    .drop_dims(['trajectory', 'atrajectory'], errors="ignore")
+                    .drop_vars('atrajectory'),
                     expected_types=Trajectory | Frames,
                 )
                 for id in ds.coords['trajectory'].values
