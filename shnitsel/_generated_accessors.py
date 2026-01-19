@@ -30,7 +30,7 @@ from shnitsel.clean.filter_geo import calculate_bond_length_filtranda, filter_by
 from shnitsel.core.typedefs import DataArrayOrVar, DatasetOrArray
 from shnitsel.data.dataset_containers.trajectory import Trajectory
 from shnitsel.data.helpers import validate
-from shnitsel.data.multi_indices import assign_levels, expand_midx, flatten_levels, mdiff, mgroupby, msel, sel_trajids, sel_trajs, stack_trajs, unstack_trajs
+from shnitsel.data.multi_indices import assign_levels, expand_midx, flatten_levels, mdiff, mgroupby, msel, sel_trajs, stack_trajs, unstack_trajs
 from shnitsel.geo.alignment import kabsch
 from shnitsel.geo.geocalc import get_bats
 from shnitsel.geo.geocalc_.angles import angle, get_angles
@@ -80,7 +80,8 @@ class DataArrayAccessor(DAManualAccessor):
         'mgroupby',
         'msel',
         'sel_trajs',
-        'sel_trajids',
+        'stack_trajs',
+        'unstack_trajs',
         'true_upto',
         'distance',
         'angle',
@@ -216,10 +217,13 @@ class DataArrayAccessor(DAManualAccessor):
         """Wrapper for :py:func:`shnitsel.data.multi_indices.sel_trajs`."""
         return sel_trajs(self._obj, trajids_or_mask, invert=invert)
 
-    @needs(dims={'frame'}, coords_or_vars={'trajid'})
-    def sel_trajids(self, trajids: npt.ArrayLike, invert=False) -> DatasetOrArray:
-        """Wrapper for :py:func:`shnitsel.data.multi_indices.sel_trajids`."""
-        return sel_trajids(self._obj, trajids, invert=invert)
+    def stack_trajs(self) -> DatasetOrArray:
+        """Wrapper for :py:func:`shnitsel.data.multi_indices.stack_trajs`."""
+        return stack_trajs(self._obj)
+
+    def unstack_trajs(self) -> DatasetOrArray:
+        """Wrapper for :py:func:`shnitsel.data.multi_indices.unstack_trajs`."""
+        return unstack_trajs(self._obj)
 
     def true_upto(self, dim: str) -> DataArray:
         """Wrapper for :py:func:`shnitsel.clean.common.true_upto`."""

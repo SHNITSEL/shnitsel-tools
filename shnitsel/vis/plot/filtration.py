@@ -5,7 +5,7 @@ from shnitsel.clean.common import (
     true_upto,
     _filter_mask_from_criterion_mask,
 )
-
+from shnitsel.data.multi_indices import ensure_unstacked
 
 shnitsel_blue = (44 / 255, 62 / 255, 80 / 255)  # '#2c3e50'
 shnitsel_yellow = '#C4A000'
@@ -35,7 +35,8 @@ def check_thresholds(ds_or_da, quantiles=None):
         filtranda = ds_or_da['filtranda'].copy()
     else:
         filtranda = ds_or_da.copy()
-    quantiles = cum_max_quantiles(ds_or_da, quantiles=quantiles)
+
+    quantiles = cum_max_quantiles(filtranda, quantiles=quantiles)
 
     if 'thresholds' in filtranda.coords:
         good_throughout = (
@@ -142,10 +143,7 @@ def validity_populations(ds_or_da, intersections=True):
     else:
         filtranda = ds_or_da.copy()
     mask = _filter_mask_from_criterion_mask(filtranda)
-    if 'thresholds' in mask.coords:
-        mask = mask.drop('thresholds')
-    if 'good_throughout' in mask.coords:
-        mask = mask.drop('good_throughout')
+    mask = mask.drop_vars(['thresholds', 'good_throughout'], errors='ignore')
     mask = (
         mask.to_dataset('criterion')
         .assign({'total_population': mask.coords['is_frame']})

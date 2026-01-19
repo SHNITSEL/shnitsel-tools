@@ -318,7 +318,7 @@ def msel(obj: DatasetOrArray, **kwargs) -> DatasetOrArray:
 
 @needs(dims={'frame'}, coords_or_vars={'trajid'})
 def sel_trajs(
-    frames: DatasetOrArray,
+    obj: DatasetOrArray,
     trajids_or_mask: Sequence[int] | Sequence[bool],
     invert=False,
 ) -> DatasetOrArray:
@@ -326,7 +326,7 @@ def sel_trajs(
 
     Parameters
     ----------
-    frames
+    obj
         The :py:class:`xr.Dataset` from which a selection is to be drawn
     trajids_or_mask
         Either
@@ -352,31 +352,34 @@ def sel_trajs(
     """
     # TODO: FIXME: This Function is currently broken in tests
     trajids_or_mask = np.atleast_1d(trajids_or_mask)
+    if not is_stacked(obj):
+        return _sel_trajs_unstacked(obj, trajids_or_mask, invert)
     trajids: npt.NDArray | xr.DataArray
     if np.issubdtype(trajids_or_mask.dtype, np.integer):
         trajids = trajids_or_mask
     elif np.issubdtype(trajids_or_mask.dtype, bool):
         mask = trajids_or_mask
-        if 'trajid_' in frames.dims:
-            trajids = frames['trajid_'][mask]
+        if 'trajid_' in obj.dims:
+            trajids = obj['trajid_'][mask]
         else:
             raise NotImplementedError(
                 "Indexing trajids with a boolean mask is only supported when the "
-                "coordinate 'trajid_' is present"
+                "coordinate 'trajid_' is present, or if `frames` has unstacked trajectories "
+                "(i.e. separate dimesions for trajectory and time)"
             )
     else:
         raise TypeError(
             "Only indexing using a boolean mask or integer trajectory IDs is supported; "
             f"the detected dtype was {trajids_or_mask.dtype}"
         )
-    return sel_trajids(frames=frames, trajids=trajids, invert=invert)
+    return _sel_trajids(frames=obj, trajids=trajids, invert=invert)
 
 
 @needs(dims={'frame'}, coords_or_vars={'trajid'})
-def sel_trajids(
+def _sel_trajids(
     frames: DatasetOrArray, trajids: npt.ArrayLike, invert=False
 ) -> DatasetOrArray:
-    """Select trajectories using a list of trajectories IDs or a boolean mask;
+    """Select trajectories using a list of trajectories IDs;
     note that the trajectories may not be returned in the order specified.
 
     Parameters
@@ -416,6 +419,31 @@ def sel_trajids(
         actually_selected = np.unique(res['trajectory'])
         res = res.sel(trajectory=actually_selected)
     return res
+
+
+def _sel_trajs_unstacked(obj, indexer, invert):
+    traj_dim_name = (
+        'trajectory'
+        if 'trajectory' in obj.dims
+        else 'trajid'
+        if 'trajid' in obj.dims
+        else 'atrajectory'
+        if 'atrajectory' in obj.dims
+        else None
+    )
+    assert traj_dim_name is not None
+    if not invert:
+        return obj.loc[{traj_dim_name: indexer}]
+
+    if np.issubdtype(indexer.dtype, np.integer):
+        full_coord = obj.coords[traj_dim_name]
+        indexer = full_coord[~full_coord.isin(indexer)]
+    elif np.issubdtype(indexer.dtype, bool):
+        indexer = ~indexer
+    else:
+        raise ValueError(
+            "Could not invert selection, please provide integer labels or a boolean mask"
+        )
 
 
 @internal()
@@ -557,6 +585,55 @@ def stack_trajs(unstacked: DatasetOrArray) -> DatasetOrArray:
     if has_data_vars:
         res = res.assign(per_traj_vars).assign(per_time_vars)
     return res
+
+
+def is_stacked(obj):
+    """Test whether an object has stacked trajectories
+
+    Parameters
+    ----------
+    obj
+        An xarray Dataset/DataArray, or a wrapper around one
+
+    Returns
+    -------
+        True if ``obj`` shows signs of containing multiple
+        trajectories along the same dimension as used for the
+        time coordinate.
+    """
+    from shnitsel.data.dataset_containers.frames import Frames
+
+    TRAJECTORY_DIM_NAMES = {'trajid', 'atrajectory'}
+
+    is_wrapped_stacked = isinstance(obj, Frames)
+
+    c = obj.coords
+    traj_coord = c.get(
+        'trajid', c.get('atrajectory', c.get('trajectory', xr.DataArray()))
+    )
+    time_coord = c.get('time', xr.DataArray())
+    coords_share_dim = not set(traj_coord.dims).isdisjoint(time_coord.dims)
+    return is_wrapped_stacked or coords_share_dim
+
+
+def ensure_unstacked(obj):
+    """Unstack ``obj`` if it contains stacked trajectories
+
+    Parameters
+    ----------
+    obj
+        An xarray Dataset/DataArray, or a wrapper around one
+
+    Returns
+    -------
+    unstacked
+        The unstacked Dataset/DataArray
+    was_stacked
+        Whether ``obj`` had stacked trajectories
+    """
+    was_stacked = is_stacked(obj)
+    unstacked = unstack_trajs(obj) if was_stacked else obj
+    return unstacked, was_stacked
 
 
 @needs(dims={'frame'})

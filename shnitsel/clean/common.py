@@ -7,6 +7,7 @@ import xarray as xr
 from shnitsel.data.dataset_containers.frames import Frames
 from shnitsel.data.dataset_containers.trajectory import Trajectory
 
+from shnitsel.data.multi_indices import ensure_unstacked, stack_trajs
 
 ########################
 # Formats we will need #
@@ -33,6 +34,7 @@ def true_upto(mask: xr.DataArray, dim: str) -> xr.DataArray:
     xr.DataArray
         The point in time up to which the criterion is fulfilled.
     """
+    mask, was_stacked = ensure_unstacked(mask)
     assert dim in mask.dims, "Mask array is missing specified dimension %s" % dim
     shifted_coord = np.concat([[-np.inf], mask.coords[dim].data])
     num_cum_valid_indices = mask.cumprod(dim).sum(dim).astype(int)
@@ -182,6 +184,7 @@ def omit(frames_or_trajectory: TrajectoryOrFrames) -> TrajectoryOrFrames | None:
     if all_critera_fulfilled:
         return frames_or_trajectory
     else:
+        # FIXME (thevro): This doesn't work for MultiFrames aka. stacked
         return None
 _omit = omit
 
@@ -311,7 +314,7 @@ def dispatch_filter(
 
 
 def cum_max_quantiles(
-    filtranda_array: xr.Dataset | xr.DataArray, quantiles: Sequence[float] | None = None
+    filtranda_array: xr.DataArray, quantiles: Sequence[float] | None = None
 ) -> xr.DataArray:
     """Quantiles of cumulative maxima
 
@@ -338,6 +341,9 @@ def cum_max_quantiles(
     The data returned by this function is intended for consumption by
     :py:func:`shnitsel.vis.plot.filtration.check_thresholds`
     """
+    # NOTE (thevro): This function doesn't accept stacked, only unstacked (layered)
+    filtranda_array, _ = ensure_unstacked(filtranda_array)
+
     if quantiles is None:
         quantiles = [0.25, 0.5, 0.75, 0.9, 0.95, 0.99, 1]
 
