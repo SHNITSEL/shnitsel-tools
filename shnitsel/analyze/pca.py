@@ -124,6 +124,10 @@ class PCAResult(
     @property
     def projected_inputs(self) -> ResultType:
         return self._pca_inputs_projected
+    
+    @property
+    def results(self) -> ResultType:
+        return self.projected_inputs
 
     def project_array(self, other_da: xr.DataArray) -> xr.DataArray:
         return xr.apply_ufunc(
