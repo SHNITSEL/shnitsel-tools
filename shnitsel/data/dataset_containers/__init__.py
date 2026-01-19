@@ -1,9 +1,9 @@
 from types import UnionType
 from typing import get_args, overload, TypeVar
 
-from shnitsel.data.dataset_containers.multi_layered import MultiSeriesLayered
-from shnitsel.data.dataset_containers.multi_series import MultiSeriesDataset
-from shnitsel.data.dataset_containers.multi_stacked import MultiSeriesStacked
+from .multi_layered import MultiSeriesLayered
+from .multi_series import MultiSeriesDataset
+from .multi_stacked import MultiSeriesStacked
 from .data_series import DataSeries
 from .shared import ShnitselDataset
 from .trajectory import Trajectory
@@ -13,6 +13,9 @@ from .per_state import PerState
 import xarray as xr
 
 __all__ = [
+    "MultiSeriesDataset",
+    "MultiSeriesLayered",
+    "MultiSeriesStacked",
     "Trajectory",
     "Frames",
     "InterState",
