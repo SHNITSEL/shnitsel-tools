@@ -360,7 +360,7 @@ def biplot_kde(
         wrapped_ds, feature_selection=feature_selection, center_mean=center_mean
     )
     kde_data = _fit_and_eval_kdes(pca_data, geo_prop, geo_kde_ranges, num_steps=100)
-    d = pb.pick_clusters(wrapped_ds, num_bins=num_bins, center_mean=center_mean)
+    d = pb.pick_clusters(pca_data, num_bins=num_bins, center_mean=center_mean)
     loadings, clusters, picks = d['loadings'], d['clusters'], d['picks']
     mol = construct_default_mol(wrapped_ds)
     mol = set_atom_props(mol, atomLabel=True, atomNote=[''] * mol.GetNumAtoms())
@@ -395,6 +395,8 @@ def biplot_kde(
 
     # in case more clusters were found than we have room for:
     picks = picks[:4]
+
+    print(pca_data.explain_loadings())
 
     pb.plot_clusters_grid(
         loadings,
