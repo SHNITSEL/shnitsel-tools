@@ -177,4 +177,4 @@ def handle_records(records: list[logging.LogRecord], logger: logging.Logger | No
         if len(retained_severe_list) > 0:
             logger.info("Collected the following error messages:")
             for record in retained_severe_list:
-                logger.handle(record):
+                logger.handle(record)
