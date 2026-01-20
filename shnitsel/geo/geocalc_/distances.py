@@ -23,13 +23,19 @@ from .algebra import dnorm
 def distance(atXYZ: AtXYZ, i: int, j: int) -> xr.DataArray:
     """Method to calculate the various distances between atoms i and j throughout time
 
-    Args:
-        atXYZ (AtXYZ): Array with atom positions
-        i (int): Index of the first atom
-        j (int): Index of the second atom
+    Parameters
+    ----------
+    atXYZ : AtXYZ
+        Array with atom positions
+    i : int
+        Index of the first atom
+    j : int
+        Index of the second atom
 
-    Returns:
-        xr.DataArray: The resulting array holding the pairwise distance between i and j.
+    Returns
+    -------
+    xr.DataArray
+        The resulting array holding the pairwise distance between i and j.
     """
     a = atXYZ.isel(atom=i, drop=True)
     b = atXYZ.isel(atom=j, drop=True)
@@ -67,21 +73,18 @@ def get_distances(
 
     Parameters
     ----------
-    atXYZ_source
+    atXYZ_source : TreeNode[Any, Trajectory | Frames | xr.Dataset | xr.DataArray] | Trajectory | Frames | xr.Dataset | xr.DataArray
         An :py:class:`xarray.DataArray` of molecular coordinates, with dimensions ``atom`` and
         ``direction`` or another source of positional data like a trajectory, a frameset,
         a dataset representing either of those or a tree structure holding such data.
-    structure_selection, optional
+    structure_selection: StructureSelection, optional
         Object encapsulating feature selection on the structure whose positional information is provided in `atXYZ`.
         If this argument is omitted altogether, a default selection for all bonds within the structure is created.
+
     Returns
     -------
+    TreeNode[Any, xr.DataArray] | xr.DataArray
         An :py:class:`xarray.DataArray` of bond lengths/distances with dimension `descriptor` to index the distances along.
-
-    Raises
-    ------
-    UserWarning
-        If both `matches` and `mol` are specified.
     """
     if isinstance(atXYZ_source, TreeNode):
         return atXYZ_source.map_data(
