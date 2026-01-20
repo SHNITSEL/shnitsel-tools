@@ -37,12 +37,17 @@ def parse_newtonx(
 ) -> xr.Dataset:
     """Function to read a NewtonX trajectory directory into a Dataset with standard shnitsel annotations and units
 
-    Args:
-        pathlist (PathOptionsType): Path to the NewtonX trajectory output
-        loading_parameters (LoadingParameters | None, optional): Parameter settings for e.g. standard units or state names.
+    Parameters
+    ----------
+    pathlist : PathOptionsType
+        Path to the NewtonX trajectory output
+    loading_parameters : LoadingParameters | None, optional
+        Parameter settings for e.g. standard units or state names.
 
-    Returns:
-        xr.Dataset: The Dataset object containing all of the loaded data in default shnitsel units
+    Returns
+    -------
+    xr.Dataset
+        The Dataset object containing all of the loaded data in default shnitsel units
     """
 
     path_obj: pathlib.Path = make_uniform_path(traj_path)  # type: ignore
@@ -209,12 +214,17 @@ def parse_settings_from_nx_log(
 ) -> Tuple[NewtonXSettingsResult, dict[str, Any]]:
     """Function to parse key settings from the NewtonX RESULTS/nx.log file
 
-    Args:
-        f (TextIOWrapper): The input stream of lines from nx.log
+    Parameters
+    ----------
+    f : TextIOWrapper
+        The input stream of lines from nx.log
 
-    Returns:
-        NewtonXSettingsResult: Key setting parameters from nx.log
-        dict[str, Any]: A Dict of all relevant settings loaded from nx.log
+    Returns
+    -------
+    NewtonXSettingsResult
+        Key setting parameters from nx.log
+    dict[str, Any]
+        A Dict of all relevant settings loaded from nx.log
     """
     completed = True
     newtonx_version = "unknown"
@@ -279,13 +289,19 @@ def parse_en_data(
 ) -> xr.Dataset:
     """Function to read energy data from en.dat in case the reading from nx.log has not succeeded:
 
-    Args:
-        endata_path (pathlib.Path): Path to a RESULTS/en.dat file
-        dataset (xr.Dataset): The dataset to update
-        default_attributes (dict): Default attributes for the newtonx format
+    Parameters
+    ----------
+    endata_path : pathlib.Path
+        Path to a RESULTS/en.dat file
+    dataset : xr.Dataset
+        The dataset to update
+    default_attributes : dict
+        Default attributes for the newtonx format
 
-    Returns:
-        xr.Dataset: the updated dataset
+    Returns
+    -------
+    xr.Dataset
+        the updated dataset
     """
 
     endata = np.loadtxt(endata_path, ndmin=2)
@@ -325,12 +341,17 @@ def parse_en_data(
 def parse_dyn_out(f: TextIOWrapper, dataset: xr.Dataset) -> xr.Dataset:
     """Function to gather dynamics data (e_kin and velocities) from the RESULTS/dyn.out file, if it exists.
 
-    Args:
-        f (TextIOWrapper): The stream of lines from the dyn.out file
-        dataset (xr.Dataset): The dataset to write the data to
+    Parameters
+    ----------
+    f :TextIOWrapper
+        The stream of lines from the dyn.out file
+    dataset : xr.Dataset
+        The dataset to write the data to
 
-    Returns:
-        xr.Dataset: The updated dataset after the read
+    Returns
+    -------
+    xr.Dataset
+        The updated dataset after the read
     """
 
     natoms = dataset.sizes["atom"]
@@ -509,13 +530,21 @@ def parse_nx_log_data(
     Will return the total number of actual timesteps read and the resulting dataset.
     Usual read data includes: forces, active state ("astate")
 
-    Args:
-        f (TextIOWrapper): Input filestream of a nx.log file
-        dataset (xr.Dataset): The dataset to parse the data into
-        default_attributes (dict): Default attributes for the newtonx format
+    Parameters
+    ----------
+    f : TextIOWrapper
+        Input filestream of a nx.log file
+    dataset : xr.Dataset
+        The dataset to parse the data into
+    settings: NewtonXSettingsResult
+        The previously parsed settings
+    default_attributes :  dict
+        Default attributes for the newtonx format
 
-    Returns:
-        Tuple[int, xr.Dataset]: The total number of actual timesteps read and the resulting dataset after applying modifications.
+    Returns
+    -------
+    Tuple[int, xr.Dataset]
+        The total number of actual timesteps read and the resulting dataset after applying modifications.
     """
     # f should be after the setting
 
@@ -695,13 +724,18 @@ def parse_nx_misc_input_settings(
 ) -> tuple[dict, NewtonXSettingsResult]:
     """Function to parse various input settings from the newtonx trajectory directory.
 
-    Args:
-        path (pathlib.Path): The path of the base trajectory folder. Should Contain `RESULTS`, `control.dyn` and either `JOB_AD` or `JOB_NAD`
+    Parameters
+    ----------
+    path : pathlib.Path
+        The path of the base trajectory folder. Should Contain `RESULTS`, `control.dyn` and either `JOB_AD` or `JOB_NAD`
 
-    Returns:
-        Dict: The collected miscallenous settings. For specific settings, the keys "nx.log", "control.dyn"
-            allow for searching through specific settings if the files were present.
-        NewtonXSettingsResult: The combined key settings if they could be extracted.
+    Returns
+    -------
+    dict
+        The collected miscallenous settings. For specific settings, the keys "nx.log", "control.dyn"
+        allow for searching through specific settings if the files were present.
+    NewtonXSettingsResult
+        The combined key settings if they could be extracted.
     """
 
     res = {}
