@@ -16,7 +16,7 @@ from shnitsel.filtering.state_selection import StateSelection
 from shnitsel.filtering.structure_selection import StructureSelection
 
 from .datasheet_page import DatasheetPage
-from ...data.shnitsel_db.db_function_decorator import concat_subtree
+from ...data.shnitsel_db_helpers import concat_subtree
 from ...data.tree import ShnitselDB
 from ...data.shnitsel_db_helpers import (
     aggregate_xr_over_levels,

@@ -3,7 +3,7 @@ from typing import Sequence
 import xarray as xr
 
 from shnitsel._contracts import Needs
-from shnitsel.data.shnitsel_db_helpers import concat_subtree
+# from shnitsel.data.shnitsel_db_helpers import concat_subtree
 
 from shnitsel.filtering.structure_selection import (
     StructureSelection,

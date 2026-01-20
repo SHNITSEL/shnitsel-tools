@@ -1074,7 +1074,7 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
         MultiSeriesStacked
             The resulting multi-trajectory dataset stacked along a `frame` dimension
         """
-        from shnitsel.data.shnitsel_db.db_function_decorator import concat_subtree
+        from shnitsel.data.shnitsel_db_helpers import concat_subtree
 
         return MultiSeriesStacked(concat_subtree(self, only_direct_children))
 
