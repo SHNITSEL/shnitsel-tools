@@ -50,8 +50,10 @@ def _check_matching_dimensions(
     limited_dimensions : set[str], optional
         Optionally set a list of dimensions to which the analysis should be limited.
 
-    Returns:
-        bool: True if all non-excluded (possibly limited) dimensions match in size.  False otherwise.
+    Returns
+    -------
+    bool
+        True if all non-excluded (possibly limited) dimensions match in size.  False otherwise.
     """
     # TODO: FIXME: Should we check that the values are also the same?
 
@@ -404,6 +406,7 @@ def concat_trajs(
 
     # All units should be converted to same unit
     if not _check_matching_var_meta(datasets_pure):
+        # TODO: FIXME: Add message info which variable did not match.
         message = (
             "Variable meta attributes vary between different tajectories. "
             "This indicates inconsistencies like distinct units between trajectories. "
@@ -577,6 +580,7 @@ def layer_trajs(
 
     # All units should be converted to same unit
     if not _check_matching_var_meta(datasets_converted):
+        # TODO: FIXME: Add message info which variable did not match.
         message = (
             "Variable meta attributes vary between different tajectories. "
             "This indicates inconsistencies like distinct units between trajectories. "
