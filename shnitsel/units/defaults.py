@@ -11,12 +11,17 @@ def get_default_input_attributes(
 
     Used to set descriptions, long names, unit dimensions and unit names.
 
-    Args:
-        kind (Literal["sharc", "newtonx", "ase", "pyrai2md"]): The kind of input format to get default settings for
-        loading_parameters (LoadingParameters | None, optional): User-provided overrides for default setup. Defaults to None.
+    Parameters
+    ----------
+    kind : Literal["sharc", "newtonx", "ase", "pyrai2md"]
+        The kind of input format to get default settings for
+    loading_parameters : LoadingParameters | None, optional
+        User-provided overrides for default setup. Defaults to None.
 
-    Returns:
-        Dict[str, Dict[str, str]]: The resulting set of attributes for each individual supported observable in a dataset.
+    Returns
+    -------
+    dict[str, dict[str, str]]
+        The resulting set of attributes for each individual supported observable in a dataset.
     """
     format_default_units = standard_units_of_formats[kind]
 
