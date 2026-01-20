@@ -128,7 +128,7 @@ def dihedral(
         A ``DataArray`` containing dihedral angles (or the sin and cos thereof)
     """
     if isinstance(deg, bool):
-        result: xr.DataArray = dihedral_(
+        result: xr.DataArray = _dihedral_deg(
             atXYZ, a_index, b_index, c_index, d_index, full=full
         )
         if deg:
