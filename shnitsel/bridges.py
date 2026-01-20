@@ -173,7 +173,7 @@ def numbered_smiles_to_mol(smiles: str) -> rc.Mol:
 
     Parameters
     ----------
-    smiles
+    smiles : str
         A SMILES string in which each atom is associated with a mapping index,
         e.g. '[H:3][C:1]#[C:0][H:2]'
 
@@ -223,11 +223,11 @@ def _most_stable_frame(atXYZ, obj: xr.Dataset | Trajectory | Frames) -> xr.DataA
 
     if 'trajectory' in obj.sizes or 'atrajectory' in obj.sizes:
         inicond_energy = obj.energy.isel(state=0).groupby('atrajectory').first()
-        trajid = inicond_energy.idxmin().item()
-        return atXYZ.sel({'atrajectory': trajid, 'time': 0})
+        trajid = int(inicond_energy.idxmin().item())
+        return atXYZ.sel({'atrajectory': trajid}).isel(time=0)
     elif 'trajid' in obj.coords:
         inicond_energy = obj.energy.isel(state=0).groupby('trajid').first()
-        trajid = inicond_energy.idxmin().item()
+        trajid = int(inicond_energy.idxmin().item())
         return atXYZ.sel({'trajid': trajid, 'time': 0})
     else:
         return atXYZ.isel({leading_dim: 0})
