@@ -19,6 +19,7 @@ DatasetOrArray = TypeVar("DatasetOrArray", bound=xr.Dataset | xr.DataArray)
 
 # TODO: FIXME: These functions occasionally return weird errors if provided with datasets of the wrong format
 
+
 @internal()
 def midx_combs(
     values: pd.core.indexes.base.Index | list, name: str | None = None
@@ -26,15 +27,22 @@ def midx_combs(
     """Helper function to create a Multi-index based dimension coordinate for an xarray
     from all (unordered) pairwise combinations of entries in `values`
 
-    Args:
-        values (pd.core.indexes.base.Index | list): The source values to generate pairwise combinations for
-        name (str | None, optional): Optionally a name for the resulting combination dimension. Defaults to None.
+    Parameters
+    ----------
+    values : pd.core.indexes.base.Index | list
+        The source values to generate pairwise combinations for
+    name : str | None, optional
+        Optionally a name for the resulting combination dimension. Defaults to None.
 
-    Raises:
-        ValueError: If no name was provided and the name could not be extracted from the `values` parameter
+    Raises
+    ------
+    ValueError
+        If no name was provided and the name could not be extracted from the `values` parameter
 
-    Returns:
-        xr.Coordinates: The resulting coordinates object.
+    Returns
+    -------
+    xr.Coordinates
+        The resulting coordinates object.
     """
     if name is None:
         if hasattr(values, 'name'):
@@ -62,13 +70,19 @@ def flatten_midx(
 
     Has the option to provide a custom renaming function
 
-    Args:
-        obj (xr.Dataset | xr.DataArray): The object with the index intended to be flattened
-        idx_name (str): The name of the index to flatten.
-        renamer (callable | None, optional): An optional function to carry out the renaming of the combined entry from individual entries. Defaults to None.
+    Parameters
+    ----------
+    obj : xr.Dataset | xr.DataArray
+        The object with the index intended to be flattened
+    idx_name : str
+        The name of the index to flatten.
+    renamer : callable | None, optional
+        An optional function to carry out the renaming of the combined entry from individual entries. Defaults to None.
 
-    Returns:
-        xr.Dataset | xr.DataArray: The refactored object without the original index coordinates but with a combined index instead
+    Returns
+    -------
+    xr.Dataset | xr.DataArray
+        The refactored object without the original index coordinates but with a combined index instead
     """
     midx = obj.indexes[idx_name]
     to_drop = midx.names + [midx.name]
@@ -91,22 +105,23 @@ def flatten_levels(
 
     Parameters
     ----------
-    obj
+    obj : DatasetOrArray
         A Dataset or DataArray with at least one MultiIndex
-    idx_name
+    idx_name : str
         The name of the MultiIndex
-    levels
+    levels : Sequence[str]
         Which levels to flatten
-    new_name, optional
+    new_name : str, optional
         The name of the single resulting index, by default None
-    position, optional
+    position : int, optional
         The position of the resulting level in the MultiIndex, by default 0
-    renamer, optional
+    renamer : Callable, optional
         A Callable to compute the values in the new level as a
         function of the values in the original separate levels, by default None
 
     Returns
     -------
+    DatasetOrArray
         An object differing from ``obj`` only in the flattening of specified levels
 
     Raises
@@ -147,17 +162,18 @@ def expand_midx(
 
     Parameters
     ----------
-    obj
+    obj : DatasetOrArray
         A Dataset or DataArray with at least one MultiIndex
-    midx_name
+    midx_name : str
         The name of the MultiIndex
-    level_name
+    level_name : str
         The name of the new level
     value
         Values with to populate the new level
 
     Returns
     -------
+    DatasetOrArray
         An object differing from ``obj`` only in the addition of the MultiIndex level
     """
     midx = obj.indexes[midx_name]
@@ -178,15 +194,18 @@ def assign_levels(
 
     Parameters
     ----------
-    obj
+    obj : DatasetOrArray
         An ``xarray`` object with at least one MultiIndex
-    levels, optional
+    levels : dict[str, npt.ArrayLike], optional
         A mapping whose keys are the names of the levels and whose values are the
         levels to assign. The mapping will be passed to :py:meth:`xarray.DataArray.assign_coords`
         (or the :py:class:`xarray.Dataset` equivalent).
+    **levels_kwargs
+        Keyword arguments to define the levels by instead of providing them as a dict
 
     Returns
     -------
+    DatasetOrArray
         A new object (of the same type as `obj`) with the new level values replacing the old level values.
 
     Raises
@@ -242,13 +261,14 @@ def mgroupby(
 
     Parameters
     ----------
-    obj
+    obj : xr.Dataset | xr.DataArray
         The :py:mod:`xr` object to group
-    levels
+    levels : Sequence[str]
         Names of MultiIndex levels all belonging to the *same* MultiIndex
 
     Returns
     -------
+    DataArrayGroupBy | DatasetGroupBy
         The grouped object, which behaves as documented at :py:meth:`xr.Dataset.groupby`
         and `xr.DataArray.groupby` with the caveat that the specified levels have been
         "flattened" into a single Multiindex level of tuples.
@@ -282,9 +302,11 @@ def msel(obj: DatasetOrArray, **kwargs) -> DatasetOrArray:
 
     Parameters
     ----------
-    obj
+    obj : DatasetOrArray
         A Dataset or DataArray with at least one coordinate containing all
         the values given by the ``kwargs`` parameter name
+    **kwargs
+        Tuples of `key:value` pairs as keyword arguments to select from entries in a multi-index.
 
     Returns
     -------
@@ -306,6 +328,7 @@ def msel(obj: DatasetOrArray, **kwargs) -> DatasetOrArray:
     else:
         raise ValueError(f"Couldn't find a coordinate containing all keys {ks}")
     to_reset = list(set(levels) - {coord})
+    # TODO: FIXME: This does not work with a dataset input?
     # Construct selector
     selectee = xr.DataArray(vs, coords=[(coord, ks)])
     # Perform selection
@@ -320,26 +343,27 @@ def msel(obj: DatasetOrArray, **kwargs) -> DatasetOrArray:
 def sel_trajs(
     obj: DatasetOrArray,
     trajids_or_mask: Sequence[int] | Sequence[bool],
-    invert=False,
+    invert: bool = False,
 ) -> DatasetOrArray:
     """Select trajectories using a list of trajectories IDs or a boolean mask
 
     Parameters
     ----------
-    obj
+    obj : DatasetOrArray
         The :py:class:`xr.Dataset` from which a selection is to be drawn
-    trajids_or_mask
+    trajids_or_mask : Sequence[int] | Sequence[bool]
         Either
             - A sequences of integers representing trajectory IDs to be included, in which
               case the trajectories **may not be returned in the order specified**.
             - Or a sequence of booleans, each indicating whether the trajectory with an ID
               in the corresponding entry in the ``Dataset``'s ``trajid_`` coordinate
               should be included
-    invert, optional
+    invert:bool, optional
         Whether to invert the selection, i.e. return those trajectories not specified, by default False
 
     Returns
     -------
+    DatasetOrArray
         A new :py:class:`xr.Dataset` containing only the specified trajectories
 
     Raises
@@ -377,22 +401,23 @@ def sel_trajs(
 
 @needs(dims={'frame'}, coords_or_vars={'trajid'})
 def _sel_trajids(
-    frames: DatasetOrArray, trajids: npt.ArrayLike, invert=False
+    frames: DatasetOrArray, trajids: npt.ArrayLike, invert: bool = False
 ) -> DatasetOrArray:
     """Select trajectories using a list of trajectories IDs;
     note that the trajectories may not be returned in the order specified.
 
     Parameters
     ----------
-    frames
+    frames : DatasetOrArray
         The :py:class:`xr.Dataset` from which a selection is to be drawn
-    trajids
+    trajids : npt.ArrayLike
         A sequences of integers representing trajectory IDs to be included,
-    invert
+    invert :bool, optional
         Whether to invert the selection, i.e. return those trajectories not specified, by default False
 
     Returns
     -------
+    DatasetOrArray
         A new :py:class:`xr.Dataset` containing only the specified trajectories
 
     Raises
@@ -402,8 +427,8 @@ def _sel_trajids(
     """
     trajids = np.atleast_1d(trajids)
     # check that all trajids are valid, as Dataset.sel() would
-    if not invert and not (np.isin(trajids, frames['trajectory'])).all():
-        missing = trajids[~np.isin(trajids, frames['trajectory'])]
+    if not invert and not (np.isin(trajids, frames.coords['trajectory'])).all():
+        missing = trajids[~np.isin(trajids, frames.coords['trajectory'])]
         raise KeyError(
             f"Of the supplied trajectory IDs, {len(missing)} were "
             f"not found in index 'trajid': {missing}"
@@ -453,7 +478,7 @@ def unstack_trajs(frames: DatasetOrArray) -> DatasetOrArray:
 
     Parameters
     ----------
-    frames, DatasetOrArray
+    frames : DatasetOrArray
         An :py:class:`xarray.Dataset` with a ``frame`` dimension associated with
         a MultiIndex coordinate with levels named ``trajid`` and ``time``. The
         Dataset may also have a ``trajid_`` dimension used for variables and coordinates
@@ -462,6 +487,7 @@ def unstack_trajs(frames: DatasetOrArray) -> DatasetOrArray:
 
     Returns
     -------
+    DatasetOrArray
         An :py:class:`xarray.Dataset` with independent ``trajid`` and ``time``
         dimensions. Same type as `frames`
     """
@@ -526,12 +552,13 @@ def stack_trajs(unstacked: DatasetOrArray) -> DatasetOrArray:
 
     Parameters
     ----------
-    frames
+    frames : DatasetOrArray
         An :py:class:`xarray.Dataset` with independent ``trajid`` and ``time``
         dimensions.
 
     Returns
     -------
+    DatasetOrArray
         An :py:class:`xarray.Dataset` with a ``frame`` dimension associated with
         a MultiIndex coordinate with levels named ``trajid`` and ``time``. Those variables
         and coordinates which only depended on one of ``trajid``
