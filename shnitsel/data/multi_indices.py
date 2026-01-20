@@ -672,6 +672,9 @@ def mdiff(da: xr.DataArray, dim: str | None = None) -> xr.DataArray:
         input_core_dims=[[leading_dim]],
         output_core_dims=[[leading_dim]],
     )
-    if 'time' in da.dims:
-        res[{leading_dim: res['time'] == 0}] = 0
+    # TODO (thevro): The following was checking for a 'time' dim, and broke this
+    # function for MultiIndex. I think checking for a 'time' coord should work
+    # in every case.
+    if 'time' in da.coords:
+        res[{leading_dim: res.coords['time'] == 0}] = 0
     return res
