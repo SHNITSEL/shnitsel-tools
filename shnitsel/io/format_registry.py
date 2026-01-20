@@ -28,12 +28,17 @@ def register_format_reader(
 ) -> bool:
     """Function to register a new input format implementation with the io registry.
 
-    Args:
-        format_identifier (str): The string with which the format should be identified. E.g. 'newtonx' or 'sharc'. Must not already be in use. Identifiers already in use: 'nx', 'newtonx', 'sharc', 'pyrai2md', 'shnitsel'
-        reader_instance (FormatReader): An instance of an object of a format-specific subclass of `FormatReader` to handle io requests.
+    Parameters
+    ----------
+    format_identifier : str
+        The string with which the format should be identified. E.g. 'newtonx' or 'sharc'. Must not already be in use. Identifiers already in use: 'nx', 'newtonx', 'sharc', 'pyrai2md', 'shnitsel'
+    reader_instance : FormatReader
+        An instance of an object of a format-specific subclass of `FormatReader` to handle io requests.
 
-    Returns:
-        bool: Returns True if registration was successful. False if there was a clash with an existing format declaration.
+    Returns
+    -------
+    bool
+        Returns True if registration was successful. False if there was a clash with an existing format declaration.
     """
 
     if format_identifier in REGISTERED_READERS:
@@ -58,7 +63,9 @@ def register_format_reader(
 def get_available_io_handlers() -> Mapping[str, FormatReader]:
     """Function to access the list of available input reader classes.
 
-    Returns:
-        Mapping[str, FormatReader]: The mapping from format identifier to actual io handler for the various supported formats.
+    Returns
+    -------
+    Mapping[str, FormatReader]
+        The mapping from format identifier to actual io handler for the various supported formats.
     """
     return REGISTERED_READERS
