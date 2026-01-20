@@ -25,16 +25,24 @@ def dataclass_from_dict(datatype: type[T], d: List | Dict | T) -> T:
 
     Mainly used for serialization or storage of data in the DataTree db structure.
 
-    Args:
-        datatype (Type[T]): The dataclass type to restore
-        d (List|Dict|T): The datasource to convert back into the Dataclass instance.
+    Parameters
+    ----------
+    datatype : Type[T]
+        The dataclass type to restore
+    d : List|Dict|T
+        The datasource to convert back into the Dataclass instance.
 
-    Raises:
-        ValueError: If value decoding fails during reconstruction
-        TypeError: If some type mismatch occurs between the provided dict and the target type
+    Raises
+    ------
+    ValueError
+        If value decoding fails during reconstruction
+    TypeError
+        If some type mismatch occurs between the provided dict and the target type
 
-    Returns:
-        T: A resonstructed `datatype` instance.
+    Returns
+    -------
+    T
+        A resonstructed `datatype` instance.
     """
     if isinstance(d, list):
         (inner,) = datatype.__args__  # type: ignore
