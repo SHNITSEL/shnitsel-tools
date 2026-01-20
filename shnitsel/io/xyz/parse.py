@@ -7,14 +7,18 @@ from shnitsel.data.atom_helpers import get_atom_number_from_symbol
 
 
 @internal()
-def parse_xyz(f: TextIOWrapper) -> Tuple[List[str], List[int], np.ndarray]:
+def parse_xyz(f: TextIOWrapper) -> tuple[list[str], list[int], np.ndarray]:
     """Read the inputs from a text file stream into a tuple of atom names, atom numbers and positions.
 
-    Args:
-        f (TextIOWrapper): The File wrapper providing the contents of a `.xyz` file
+    Parameters
+    ----------
+    f : TextIOWrapper
+        The File wrapper providing the contents of a `.xyz` file
 
-    Returns:
-        Tuple[List[str], List[int], np.ndarray]: The tuple of (atom_symbols, atom_numbers, atom_positions), where the latter has dimensions [timestep][atom][direction]
+    Returns
+    -------
+    tuple[list[str], list[int], np.ndarray]
+        The tuple of (atom_symbols, atom_numbers, atom_positions), where the latter has dimensions [timestep][atom][direction]
     """
 
     # TODO: f has to be an open file, I assume?
@@ -58,13 +62,19 @@ def parse_xyz(f: TextIOWrapper) -> Tuple[List[str], List[int], np.ndarray]:
 def get_dipoles_per_xyz(file: TextIOWrapper, n: int, m: int) -> np.ndarray:
     """Read full dipole matrix from an xyz file
 
-    Args:
-        file (TextIOWrapper): Wrapper providing the contents of an `.xyz` file
-        n (int): First index length of the dipole matrix
-        m (int): Second index length of the dipole matrix
+    Parameters
+    ----------
+    file : TextIOWrapper
+        Wrapper providing the contents of an `.xyz` file
+    n : int
+        First index length of the dipole matrix
+    m : int
+        Second index length of the dipole matrix
 
-    Returns:
-        np.ndarray: The matrix of the dipole contents
+    Returns
+    -------
+    np.ndarray
+        The matrix of the dipole contents
     """
     dip = np.zeros((n, m))
     for istate in range(n):
