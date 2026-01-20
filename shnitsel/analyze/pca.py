@@ -9,9 +9,12 @@ import xarray as xr
 from shnitsel.analyze.generic import get_standardized_pairwise_dists
 from shnitsel.data.dataset_containers import wrap_dataset
 from shnitsel.data.dataset_containers.frames import Frames
+from shnitsel.data.dataset_containers.multi_series import MultiSeriesDataset
+from shnitsel.data.dataset_containers.multi_stacked import MultiSeriesStacked
 from shnitsel.data.dataset_containers.trajectory import Trajectory
 from shnitsel.data.multi_indices import mdiff
 from sklearn.decomposition import PCA as sk_PCA
+from .hops import hops_mask_from_active_state
 
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.pipeline import Pipeline
@@ -290,7 +293,7 @@ def pca_and_hops(
 
 @overload
 def pca_and_hops(
-    frames: Frames | Trajectory | xr.Dataset,
+    frames: Frames | Trajectory | MultiSeriesDataset | xr.Dataset,
     feature_selection: StructureSelection | None = None,
     center_mean: bool = False,
     n_components: int = 2,
@@ -302,7 +305,7 @@ def pca_and_hops(
 def pca_and_hops(
     frames:
     # TreeNode[Any, Frames | Trajectory | xr.Dataset] |
-    Frames | Trajectory | xr.Dataset,
+    Frames | Trajectory | MultiSeriesDataset | xr.Dataset,
     feature_selection: StructureSelection | None = None,
     center_mean: bool = False,
     n_components: int = 2,
@@ -312,7 +315,7 @@ def pca_and_hops(
 
     Parameters
     ----------
-    frames : xr.Dataset
+    frames : xr.Dataset | Frames | Trajectory | MultiSeriesDataset
         A Dataset containing 'atXYZ' and 'astate' variables
     feature_selection : StructureSelection, optional
         An optional selection of features to calculate and base the PCA fitting on.
@@ -346,15 +349,15 @@ def pca_and_hops(
     #         keep_empty_branches=True
     #     )
 
-    wrapped_ds = wrap_dataset(frames, Frames | Trajectory)
-    assert isinstance(wrapped_ds, (Frames, Trajectory)), (
+    wrapped_ds = wrap_dataset(frames, Frames | Trajectory | MultiSeriesDataset)
+    assert isinstance(wrapped_ds, (Frames, Trajectory, MultiSeriesDataset)), (
         "provided frames data could not be considered trajectory or frameset data."
     )
 
     if feature_selection is None:
         # Will default to pairwise distances
         pca_res = pca(
-            wrapped_ds.positions,
+            wrapped_ds,
             dim=None,
             feature_selection=None,
             n_components=n_components,
@@ -363,32 +366,33 @@ def pca_and_hops(
     else:
         # Perform a pca with feature extraction
         pca_res = pca(
-            wrapped_ds.positions,
+            wrapped_ds,
             dim=None,
             feature_selection=feature_selection,
             n_components=n_components,
+            center_mean=center_mean,
         )
 
-    hops_positions = mdiff(wrapped_ds.active_state) != 0
+    hops_mask = hops_mask_from_active_state(wrapped_ds)
 
-    return pca_res, hops_positions
+    return pca_res, hops_mask
 
 
 @overload
 def pca(
-    data: ShnitselDB[Trajectory | Frames],
+    data: TreeNode[Any, Trajectory | Frames | MultiSeriesDataset],
     dim: None = None,
     feature_selection: StructureSelection | None = None,
     n_components: int = 2,
     center_mean: bool = False,
-) -> ShnitselDB[PCAResult[DataGroup[xr.DataArray], DataGroup[xr.DataArray]]]:
+) -> TreeNode[Any, PCAResult[DataGroup[xr.DataArray], DataGroup[xr.DataArray]]]:
     """Specialization for the pca being mapped over grouped data in a ShnitselDB tree structure"""
     ...
 
 
 @overload
 def pca(
-    data: Trajectory | Frames | xr.Dataset | xr.DataArray,
+    data: Trajectory | Frames | MultiSeriesDataset | xr.Dataset | xr.DataArray,
     dim: None = None,
     feature_selection: StructureSelection | None = None,
     n_components: int = 2,
@@ -402,7 +406,8 @@ def pca(
 def pca(
     data: Trajectory
     | Frames
-    | ShnitselDB[Trajectory | Frames]
+    | MultiSeriesDataset
+    | ShnitselDB[Trajectory | Frames | MultiSeriesDataset]
     | xr.Dataset
     | xr.DataArray,
     dim: None = None,
@@ -481,7 +486,8 @@ def pca(
 def pca(
     data: Trajectory
     | Frames
-    | TreeNode[Any, Trajectory | Frames]
+    | MultiSeriesDataset
+    | TreeNode[Any, Trajectory | Frames | MultiSeriesDataset]
     | xr.Dataset
     | xr.DataArray,
     dim: Hashable | None = None,
@@ -490,7 +496,7 @@ def pca(
     center_mean: bool = False,
 ) -> (
     PCAResult[xr.DataArray, xr.DataArray]
-    | ShnitselDB[PCAResult[DataGroup[xr.DataArray], DataGroup[xr.DataArray]]]
+    | TreeNode[Any, PCAResult[DataGroup[xr.DataArray], DataGroup[xr.DataArray]]]
 ):
     """
     Function to perform a PCA decomposition on the `data` of various origins and formats.
@@ -546,18 +552,23 @@ def pca(
 
         if isinstance(data, TreeNode):
 
-            def traj_to_frame(x: Trajectory | Frames) -> Frames:
+            def traj_to_frame(
+                x: Trajectory | Frames | MultiSeriesDataset,
+            ) -> Frames | None:
                 if isinstance(x, Trajectory) and not isinstance(x, Frames):
                     return x.as_frames
-                return x
+                else:
+                    return x.as_stacked
 
-            data_framed = data.map_data(traj_to_frame)
+            data_framed : TreeNode[Any, Frames] = data.map_data(traj_to_frame)
             data_grouped = data_framed.group_data_by_metadata()
 
             if feature_selection is not None:
 
                 def extract_features(x: Frames) -> xr.DataArray:
-                    return get_bats(x.positions, structure_selection=feature_selection)
+                    return get_bats(
+                        x.positions, structure_selection=feature_selection, deg='trig'
+                    )
             else:
 
                 def extract_features(x: Frames) -> xr.DataArray:
