@@ -1,12 +1,15 @@
 """This module contains functions that accept an RDKit.Chem.Mol object;
 but *not* necessarily functions that *return* a Mol object."""
 
-from typing import Literal
+from typing import Literal, Sequence, TYPE_CHECKING
 
 import rdkit.Chem as rc
 import rdkit.Chem.rdDetermineBonds  # noqa: F401
 import matplotlib as mpl
 import numpy as np
+
+if TYPE_CHECKING:
+    from shnitsel.filtering.structure_selection import FeatureDescriptor
 
 #################################################
 # Functions for converting RDKit objects to
@@ -90,14 +93,14 @@ def mol_to_numbered_smiles(mol: rc.Mol) -> str:
     return rc.MolToSmiles(mol)
 
 
-def highlight_pairs(mol: rc.Mol, feature_indices: list[tuple[int, ...]]):
+def highlight_pairs(mol: rc.Mol, feature_indices: Sequence["FeatureDescriptor"]):
     """Highlight specified pairs of atoms in an image of an ``rdkit.Chem.Mol`` object
 
     Parameters
     ----------
     mol : rc.Mol
         The ``Mol`` object
-    feature_indices : list[tuple[int,...]]
+    feature_indices : Sequence[FeatureDescriptor]
         A list of tuples of indices for various features.
 
     Returns
@@ -109,15 +112,59 @@ def highlight_pairs(mol: rc.Mol, feature_indices: list[tuple[int, ...]]):
     colors = iter(mpl.colormaps['rainbow'](np.linspace(0, 1, len(feature_indices))))
 
     acolors: dict[int, list[tuple[float, float, float]]] = {}
-    bonds = {}
+    bonds: dict[int, list[tuple[float, float, float]]] = {}
     for feature in feature_indices:
-        if len(feature) == 2:
-            a1, a2 = feature
-            if (bond := mol.GetBondBetweenAtoms(a1, a2)) is not None:
-                bonds[bond.GetIdx()] = [(1, 0.5, 0.5)]
-            else:
-                c = tuple(next(colors))
-                for a in [a1, a2]:
+        c = tuple(next(colors))
+        if isinstance(feature, int):
+            # Position
+            a = feature
+            if a not in acolors:
+                acolors[a] = []
+            acolors[a].append(c)
+        elif isinstance(feature, tuple):
+            flen = len(feature)
+            if flen == 2:
+                if isinstance(feature[1], int):
+                    # Bond
+                    a1, a2 = feature
+                    if (bond := mol.GetBondBetweenAtoms(a1, a2)) is not None:
+                        bondid = bond.GetIdx()
+                        if bondid not in bonds:
+                            bonds[bondid] = []
+                        bonds[bond.GetIdx()].append(c)
+                    else:
+                        for a in [a1, a2]:
+                            if a not in acolors:
+                                acolors[a] = []
+                            acolors[a].append(c)
+                elif isinstance(feature[1], tuple):
+                    # pyramid
+                    a1, (a2, a3, a4) = feature
+                    # Mark bonds
+                    for other in (a2, a3, a4):
+                        if (bond := mol.GetBondBetweenAtoms(a1, other)) is not None:
+                            bondid = bond.GetIdx()
+                            if bondid not in bonds:
+                                bonds[bondid] = []
+                            bonds[bond.GetIdx()].append(c)
+                    # Mark all atoms
+                    for a in [a1, a2, a3, a4]:
+                        if a not in acolors:
+                            acolors[a] = []
+                        acolors[a].append(c)
+            elif flen == 3 or flen == 4:
+                # angle or dihedral
+                # Mark bonds
+                for i in range(flen - 1):
+                    a1, a2 = feature[i], feature[i + 1]
+                    if (bond := mol.GetBondBetweenAtoms(a1, a2)) is not None:
+                        bondid = bond.GetIdx()
+                        if bondid not in bonds:
+                            bonds[bondid] = []
+                        bonds[bond.GetIdx()].append(c)
+
+                # Mark all atoms
+                for a in feature:
                     if a not in acolors:
                         acolors[a] = []
                     acolors[a].append(c)
