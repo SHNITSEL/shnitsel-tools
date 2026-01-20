@@ -12,6 +12,7 @@ import xarray as xr
 
 from shnitsel.analyze.pca import PCAResult, pca_and_hops
 from shnitsel.data.dataset_containers import Frames, Trajectory, wrap_dataset
+from shnitsel.filtering.structure_selection import StructureSelection
 from shnitsel.geo.geocalc_.angles import angle
 from shnitsel.geo.geocalc_.dihedrals import dihedral
 from shnitsel.geo.geocalc_.distances import distance
@@ -202,7 +203,7 @@ def _plot_kdes(
         A list of arrays of z values (each array must have the same
         shape as ``xx`` and ``yy``)
     colors : Iterable, optional
-        A set of colours accepted by matplotlib (e.g. a colormap)
+        A set of colours accepted by matplotlib (e.g. a colormap) of at least the same length as Zs
     contour_levels : int | list[float], optional
         Determines the number and positions of the contour lines / regions.
         (Passed to ``matplotlib.pyplot.contour``)
@@ -236,6 +237,7 @@ def biplot_kde(
     at2: int = 1,
     at3: int | None = None,
     at4: int | None = None,
+    feature_selection: StructureSelection | None = None,
     geo_kde_ranges: Sequence[tuple[float, float]] | None = None,
     scatter_color_property: Literal['time', 'geo'] = 'time',
     geo_cmap: str | None = 'PRGn',  # any valid cmap type
@@ -262,6 +264,8 @@ def biplot_kde(
         A dataset containing trajectory frames with atomic coordinates.
     at1, at2, at3, at4: int
         Indices of the first, second, third and fourth atoms for geometric property calculation.
+    feature_selection: StructureSelection, optional
+        An optional selection of features/structure to use for the PCA analysis.
     geo_kde_ranges
         A Sequence of tuples representing ranges. A KDE is plotted for each range, indicating the distribution of
         points for which the value of the geometry feature falls in that range.
@@ -352,7 +356,9 @@ def biplot_kde(
     structaxs = structsf.subplot_mosaic('ab\ncd')
 
     # prepare data
-    pca_data, hops = pca_and_hops(wrapped_ds, center_mean=center_mean)
+    pca_data, hops_mask = pca_and_hops(
+        wrapped_ds, feature_selection=feature_selection, center_mean=center_mean
+    )
     kde_data = _fit_and_eval_kdes(pca_data, geo_prop, geo_kde_ranges, num_steps=100)
     d = pb.pick_clusters(wrapped_ds, num_bins=num_bins, center_mean=center_mean)
     loadings, clusters, picks = d['loadings'], d['clusters'], d['picks']
@@ -378,7 +384,7 @@ def biplot_kde(
 
     pb.plot_noodleplot(
         pca_data.projected_inputs,
-        hops,
+        hops_mask,
         c=noodleplot_c,
         cmap=noodleplot_cmap,
         # cnorm=noodle_cnorm,
@@ -406,7 +412,13 @@ def biplot_kde(
 
     xx, yy, Zs = kde_data
     _plot_kdes(
-        xx, yy, Zs, contour_levels=contour_levels, contour_fill=contour_fill, ax=pcaax
+        xx,
+        yy,
+        Zs,
+        colors=contour_colors,
+        contour_levels=contour_levels,
+        contour_fill=contour_fill,
+        ax=pcaax,
     )
 
     return kde_data
