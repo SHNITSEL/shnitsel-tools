@@ -1,5 +1,3 @@
-
-
 from typing import Iterable, Literal
 from shnitsel._contracts import needs
 import xarray as xr
@@ -8,20 +6,28 @@ import numpy as np
 from shnitsel.core._api_info import API
 from shnitsel.core.typedefs import AtXYZ
 
+
 @API()
 @needs(dims={'atom'})
 def get_centered_geometry(atXYZ: AtXYZ, by_mass: Literal[False] = False) -> AtXYZ:
     """Helper function to set the center of the geometry (i.e. mean along the `atom` axis) to zero.
 
-    Args:
-        atXYZ (AtXYZ): Array of positional data
-        by_mass (Literal[False], optional): Flag whether the centering/average should be center of mass or just plain average of positions. Defaults to False.
+    Parameters
+    ----------
+    atXYZ : AtXYZ
+        Array of positional data
+    by_mass : Literal[False], optional
+        Flag whether the centering/average should be center of mass or just plain average of positions. Defaults to False.
 
-    Raises:
-        NotImplementedError: Centering the COM instead of the mean is currently not implemented.
+    Raises
+    ------
+    NotImplementedError
+        Centering the COM instead of the mean is currently not implemented.
 
-    Returns:
-        AtXYZ: Resulting positions after centering.
+    Returns
+    -------
+    AtXYZ
+        Resulting positions after centering.
     """
     if by_mass:
         raise NotImplementedError
@@ -35,18 +41,19 @@ def rotational_procrustes_(
 
     Parameters
     ----------
-    A
+    A : np.ndarray
         The geometries to process with shape
         ``(n_geometries, n_points, n_coordinates)``
-    B
+    B : np.ndarray
         The reference geometry with shape
         ``(n_points, n_coordinates)``
-    weight, optional
+    weight : Iterable[float], optional
         How much importance should be given to the alignment of
         each point, by default equal importance
 
     Returns
     -------
+    np.ndarray
         An array with the same shape as A
     """
     from scipy.linalg import svd
@@ -81,23 +88,24 @@ def rotational_procrustes(
 
     Parameters
     ----------
-    A
+    A : xr.DataArray
         The geometries to process
-    B
+    B : xr.DataArray
         The reference geometry
-    dim0, optional
+    dim0 : str, optional
         The name of the dimension over points to be rotated;
         must be present in ``A`` and ``B`; by default 'atom'
-    dim1, optional
+    dim1 : str, optional
         The name of the dimension over the coordinates of the aforementioned
         points; must be present in ``A`` and ``B`; by default 'direction'
-    weight, optional
+    weight : Iterable[float], optional
         How much importance should be given to the alignment of
         each point (atom), by default equal importance
 
     Returns
     -------
-        An xr.DataArray with the same shape as ``A``
+    xr.DataArray
+        An xr.DataArray with the same shape as ``A`` but with entries aligned to the overall geometry of ``B``
     """
     return xr.apply_ufunc(
         rotational_procrustes_,
@@ -119,10 +127,10 @@ def kabsch(
 
     Parameters
     ----------
-    atXYZ
+    atXYZ : xr.DataArray
         The geometries to process (with dims 'atom', 'direction')
 
-    reference_or_indexers, optional
+    reference_or_indexers : xr.DataArray | dict, optional
         Either a reference geometry (with dims 'atom', 'direction')
         or an indexer dictionary which will be passed to ``atXYZ.sel()``
 
@@ -131,6 +139,7 @@ def kabsch(
 
     Returns
     -------
+    xr.DataArray
         The aligned geometries
 
     Raises
