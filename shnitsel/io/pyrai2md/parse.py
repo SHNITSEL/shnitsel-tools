@@ -47,12 +47,17 @@ def parse_pyrai2md(
 ) -> xr.Dataset:
     """Function to read a trajector of the PyrAI2md format.
 
-    Args:
-        pathlist (PathOptionsType): Path to the directory containing a PyrAI2md output file list
-        loading_parameters (LoadingParameters | None, optional): Parameter settings for e.g. standard units or state names.
+    Parameters
+    ----------
+    pathlist : PathOptionsType
+        Path to the directory containing a PyrAI2md output file list
+    loading_parameters : LoadingParameters | None, optional
+        Parameter settings for e.g. standard units or state names.
 
-    Returns:
-        xr.Dataset: The Dataset object containing all of the loaded data in default shnitsel units
+    Returns
+    -------
+    xr.Dataset
+        The Dataset object containing all of the loaded data in default shnitsel units
     """
 
     # TODO: FIXME: Pyrai2md has a different understanding of the number of triplets: It states per state whether it is singlet, doublet, triplet, no further multiplicities are considered.
@@ -155,12 +160,17 @@ def parse_md_energies(
 
     Returns the number of discovered time steps and the resulting trajectory
 
-    Args:
-        path (pathlib.Path): The path to a "*.md.energies" file.
-        trajectory_in (xr.Dataset): The trajectory to store the data in
+    Parameters
+    ----------
+    path : pathlib.Path
+        The path to a "*.md.energies" file.
+    trajectory_in : xr.Dataset
+        The trajectory to store the data in
 
-    Returns:
-        Tuple[xr.Dataset, int, np.ndarray]: The resulting state of the trajectory after reading and the number of time steps actually found in the data. Finally, the actual values of absolute time read from the energy file for each step
+    Returns
+    -------
+    Tuple[xr.Dataset, int, np.ndarray]
+        The resulting state of the trajectory after reading and the number of time steps actually found in the data. Finally, the actual values of absolute time read from the energy file for each step
     """
     df = pd.read_csv(path, sep=r"\s+", header=None, skiprows=1).set_index(0)
     df.index.name = "time"
@@ -182,14 +192,18 @@ def parse_md_energies(
     return trajectory_in, num_ts, times
 
 
-def read_pyrai2md_settings_from_log(f: TextIOWrapper) -> Dict[str, Any]:
+def read_pyrai2md_settings_from_log(f: TextIOWrapper) -> dict[str, Any]:
     """Function to read the settings from a pyrai2md log file.
 
-    Args:
-        f (TextIOWrapper): The input file stream.
+    Parameters
+    ----------
+    f : TextIOWrapper
+        The input file stream.
 
-    Returns:
-        Dict[str, Any]: The resulting dictionary of settings
+    Returns
+    -------
+    dict[str, Any]
+        The resulting dictionary of settings
     """
     settings: Dict[str, Any] = {}
     settings["global"] = {}
@@ -326,17 +340,26 @@ def parse_observables_from_log(
     To calculate the NACs accurately, the trajectory requires state-energy data to be set so that we can
     renormalize the NACs data with energy deltas.
 
-    Args:
-        f (TextIOWrapper): The file input stream from which the log is read
-        trajectory_in (xr.Dataset): The initial trajectory state
+    Parameters
+    ----------
+    f : TextIOWrapper
+        The file input stream from which the log is read
+    trajectory_in : xr.Dataset
+        The initial trajectory state
 
-    Raises:
-        ValueError: If no state information could be read from an iteration's output in a frame
-        ValueError: Number of steps could not be read from the trajectory input
-        ValueError: Multiple end messages found in log.
+    Raises
+    ------
+    ValueError
+        If no state information could be read from an iteration's output in a frame
+    ValueError
+        Number of steps could not be read from the trajectory input
+    ValueError
+        Multiple end messages found in log.
 
-    Returns:
-        Tuple[xr.Dataset,int]: The updated trajectory and the true final time step seen in the log
+    Returns
+    -------
+    Tuple[xr.Dataset,int]
+        The updated trajectory and the true final time step seen in the log
     """
     # Read MD settings:
     #  &md
