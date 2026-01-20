@@ -1,4 +1,4 @@
-from typing import Any, overload
+from typing import Any, Literal, overload
 import xarray as xr
 import numpy as np
 
@@ -70,7 +70,7 @@ def pyramidalization_angle(
 def get_pyramidalization(
     atXYZ_source: TreeNode[Any, Trajectory | Frames | xr.Dataset | xr.DataArray],
     structure_selection: StructureSelection | None = None,
-    deg: bool = False,
+    deg: bool | Literal['trig'] = True,
     signed=True,
 ) -> TreeNode[Any, xr.DataArray]: ...
 
@@ -79,7 +79,7 @@ def get_pyramidalization(
 def get_pyramidalization(
     atXYZ_source: Trajectory | Frames | xr.Dataset | xr.DataArray,
     structure_selection: StructureSelection | None = None,
-    deg: bool = False,
+    deg: bool | Literal['trig'] = True,
     signed=True,
 ) -> xr.DataArray: ...
 
@@ -92,8 +92,8 @@ def get_pyramidalization(
     | xr.Dataset
     | xr.DataArray,
     structure_selection: StructureSelection | None = None,
-    deg: bool = False,
-    signed : bool =True,
+    deg: bool | Literal['trig'] = True,
+    signed: bool = True,
 ) -> TreeNode[Any, xr.DataArray] | xr.DataArray:
     """Identify atoms with three bonds (using RDKit) and calculate the corresponding pyramidalization angles
     for each frame.
@@ -116,8 +116,9 @@ def get_pyramidalization(
     structure_selection : StructureSelection, optional
         An optional argument to specify the substructures for which pyramidalization angles should be calculated.
         If not provided, will be generated using `_get_default_selection()` using the atXYZ data for the pyramids level.
-    deg : bool, optional
-        Whether to return angles in degrees (as opposed to radians), by default False
+    deg : bool | Literal['trig'] = True, optional
+        Whether to return angles in degrees (as opposed to radians), by default False.
+        Alternatively with the option `trig`, this will yield the sin and cos of each pyramidalization angle instead.
     signed : bool, optional
         Whether the result should be returned with a sign or just as an absolute value. Defaults to True, yielding the signed pyramidalization.
 
@@ -141,7 +142,7 @@ def get_pyramidalization(
         structure_selection, atXYZ_source=atXYZ_source, default_levels=['pyramids']
     )
 
-    atXYZ : xr.DataArray
+    atXYZ: xr.DataArray
     if isinstance(atXYZ_source, xr.DataArray):
         atXYZ = atXYZ_source
     else:
