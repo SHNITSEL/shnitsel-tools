@@ -83,7 +83,7 @@ def _dihedral_trig_(
 
     Returns
     -------
-    xr.DataArray | xr.Variable 
+    xr.DataArray | xr.Variable
         The array of dihedral angels between the four input indices.
     """
     a = atXYZ.sel(atom=a_index, drop=True)
@@ -105,7 +105,7 @@ def dihedral(
     c_index: int,
     d_index: int,
     *,
-    deg:  bool | Literal['trig'] = True,
+    deg: bool | Literal['trig'] = True,
     full: bool = False,
 ) -> xr.DataArray:
     """Calculate all dihedral angles between the atoms specified.
@@ -144,8 +144,8 @@ def dihedral(
             d_index,
         )
         return result
-    elif deg =='trig':
-
+    elif deg == 'trig':
+        raise NotImplementedError("Trigonometric dihedrals not yet supported")
 
 
 @overload
