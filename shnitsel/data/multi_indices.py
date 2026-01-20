@@ -672,9 +672,18 @@ def mdiff(da: xr.DataArray, dim: str | None = None) -> xr.DataArray:
         input_core_dims=[[leading_dim]],
         output_core_dims=[[leading_dim]],
     )
-    # TODO (thevro): The following was checking for a 'time' dim, and broke this
-    # function for MultiIndex. I think checking for a 'time' coord should work
-    # in every case.
-    if 'time' in da.coords:
-        res[{leading_dim: res.coords['time'] == 0}] = 0
+
+    # If the index of `dim` is a MultiIndex, we set the output to zero at boundaries
+    if hasattr(da.indexes[leading_dim], 'names'):
+        mask = np.zeros_like(da.coords[leading_dim], dtype=bool)
+        for level_name in set(da.indexes[leading_dim].names) - {'time'}:
+            level = da.coords[level_name]
+            # Using manual comparison of shifted values (rather than np.diff)
+            # to allow for non-subtractable level entries:
+            right_shift = level.shift({leading_dim: 1}, level[0])
+            left_shift = level.shift({leading_dim: -1}, level[-1])
+            mask |= left_shift != right_shift
+
+        res[{leading_dim: mask}] = 0
+
     return res
