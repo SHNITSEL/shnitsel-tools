@@ -23,13 +23,20 @@ def label_plot_grid(
 ):
     """Helper function to add labels to rows and columns of a grid of suplots
 
-    Args:
-        fig (Figure | SubFigure): The figure holding the subgrid to label
-        row_headers (list[str], optional): List of labels for rows. Defaults to None.
-        col_headers (list[str], optional): List of labels for columns. Defaults to None.
-        row_pad (int, optional): Padding applied to the rows. Defaults to 1.
-        col_pad (int, optional): Padding applied to the columns. Defaults to 5.
-        rotate_row_headers (bool, optional): Flag to rotate the Row labels by 90 degrees. Defaults to True.
+    Parameters
+    ----------
+    fig : Figure | SubFigure
+        The figure holding the subgrid to label
+    row_headers : list[str], optional
+        List of labels for rows. Defaults to None.
+    col_headers : list[str], optional
+        List of labels for columns. Defaults to None.
+    row_pad : int, optional
+        Padding applied to the rows. Defaults to 1.
+    col_pad : int, optional
+        Padding applied to the columns. Defaults to 5.
+    rotate_row_headers : bool, optional
+        Flag to rotate the Row labels by 90 degrees. Defaults to True.
     """
     # Based on https://stackoverflow.com/a/25814386
 
@@ -76,10 +83,14 @@ def figaxs_defaults(
 ):
     """Decorator to automatically create a mosaic of subfigures and provide the axes to the decorated function if only a figure is provided.
 
-    Args:
-        mosaic (list[HashableList[Hashable]]): Matrix of keys, where the individual subplots should go
-        scale_factors (Sequence[float] , optional): Sequence of scale factors for the individual plots. Defaults to None.
-        height_ratios (Sequence[float] , optional): Height ratios of the individual plots. Defaults to None.
+    Parameters
+    ----------
+    mosaic : list[HashableList[Hashable]]
+        Matrix of keys, where the individual subplots should go
+    scale_factors : Sequence[float], optional
+        Sequence of scale factors for the individual plots. Defaults to None.
+    height_ratios : Sequence[float], optional
+        Height ratios of the individual plots. Defaults to None.
     """
 
     def decorator(func):
@@ -118,15 +129,23 @@ def centertext(
 
     Optionally removes ticks in the dimensions `x` or `y`.
 
-    Args:
-        text (str): Message to center in the frame
-        ax (Axes): Axes to plot the text into
-        clearticks (str, optional): String of all dimensions to clear the ticks for (may contain `x` and/or `y`). Defaults to 'y'.
-        background_color (ColorType|None, optional): Color argument to set for the background of the plot
-        color (ColorType|None, optional): Color argument to set for font on the plot
+    Parameters
+    ----------
+    text : str
+        Message to center in the frame
+    ax : Axes
+        Axes to plot the text into
+    clearticks : str, optional
+        String of all dimensions to clear the ticks for (may contain `x` and/or `y`). Defaults to 'y'.
+    background_color : ColorType|None, optional
+        Color argument to set for the background of the plot
+    color : ColorType|None, optional
+        Color argument to set for font on the plot
 
-    Returns:
-        Text: The Text object created by a call to `.text()` on the `ax` object.
+    Returns
+    -------
+    Text
+        The Text object created by a call to `.text()` on the `ax` object.
     """
     if 'x' in clearticks:
         ax.tick_params(axis='x', labelbottom=False)

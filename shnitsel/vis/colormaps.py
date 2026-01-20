@@ -59,11 +59,15 @@ default_lower_triplet_transition_colors = {
 def get_default_singlet_state_colormap(num_singlets: int) -> list:
     """Get a list of per-state colors for this number of singlets.
 
-    Args:
-        num_singlets (int): The number of maximum singlet states to consider
+    Parameters
+    ----------
+    num_singlets : int
+            The number of maximum singlet states to consider
 
-    Returns:
-        list: The list of colors for each of these states
+    Returns
+    -------
+    list
+        The list of colors for each of these states
     """
     if num_singlets <= len(default_lower_singlet_colors):
         colors = [hex2rgb(x) for x in default_lower_singlet_colors][:num_singlets]
@@ -82,12 +86,17 @@ def get_default_doublet_state_colormap(
 ) -> list:
     """Get a list of per-state colors for this number of doublets.
 
-    Args:
-        num_doublets (int): The number of doublets to generate colors for
-        degeneracy_groups (dict[int, int], optional): Degeneracy group indices to make sure different groups have the most distinct colors. If not set, all states will be considered different.s
+    Parameters
+    ----------
+    num_doublets : int
+            The number of doublets to generate colors for
+    degeneracy_groups : dict[int, int], optional
+            Degeneracy group indices to make sure different groups have the most distinct colors. If not set, all states will be considered different.s
 
-    Returns:
-        list: The list of colors for each of these states
+    Returns
+    -------
+    list
+        The list of colors for each of these states
     """
     # colors = list(default_doublet_state_colormap(np.linspace(0, 1.0, num=num_doublets)))
     return _get_default_degenerate_state_map(
@@ -101,12 +110,17 @@ def get_default_triplet_state_colormap(
 ) -> list:
     """Get a list of per-state colors for this number of triplets.
 
-    Args:
-        num_triplets (int): The number of triplets to generate colors for
-        degeneracy_groups (dict[int, int], optional): Degeneracy group indices to make sure different groups have the most distinct colors. If not set, all states will be considered different.
+    Parameters
+    ----------
+    num_triplets : int
+            The number of triplets to generate colors for
+    degeneracy_groups : dict[int, int], optional
+            Degeneracy group indices to make sure different groups have the most distinct colors. If not set, all states will be considered different.
 
-    Returns:
-        list: The list of colors for each of these states
+    Returns
+    -------
+    list
+        The list of colors for each of these states
     """
     # colors = list(default_triplet_state_colormap(np.linspace(0, 1.0, num=num_triplets)))
     return _get_default_degenerate_state_map(
@@ -131,13 +145,19 @@ def _get_default_degenerate_state_map(
 ) -> list:
     """Helper function to try and spread colors most strongly between different degeneracy groups.
 
-    Args:
-        num_states (int): _description_
-        colormap (Colormap): _description_
-        degeneracy_groups (list[int] | None, optional): _description_. Defaults to None.
+    Parameters
+    ----------
+    num_states : int
+            Number of states in total
+    colormap : Colormap
+            The colormap to use for the interstate colors
+    degeneracy_groups : list[int] | None, optional
+            The index of the degeneracy group for each state, only if there may be overlap. Defaults to None.
 
-    Returns:
-        list: _description_
+    Returns
+    -------
+    list
+        The default mapping for degenerate states
     """
 
     if degeneracy_groups is not None:
@@ -197,13 +217,19 @@ def get_default_state_colormap(
 ) -> list[str]:
     """Get default state colormap for a number of states of a specific multiplicity
 
-    Args:
-        num_states (int): Number of states in this multiplicity
-        multiplicity (int, optional): The multiplicity to get the colors for. Defaults to 1, i.e. Singlets.
-        degeneracy_groups (list[int], optional): Degeneracy group indices to make sure different groups have the most distinct colors. If not set, all states will be considered different.
+    Parameters
+    ----------
+    num_states : int
+            Number of states in this multiplicity
+    multiplicity : int, optional
+            The multiplicity to get the colors for. Defaults to 1, i.e. Singlets.
+    degeneracy_groups : list[int], optional
+            Degeneracy group indices to make sure different groups have the most distinct colors. If not set, all states will be considered different.
 
-    Returns:
-        list[str]: The string representations of per-state colors
+    Returns
+    -------
+    list[str]
+        The string representations of per-state colors
     """
     base = None
     if multiplicity == 1:
@@ -240,12 +266,17 @@ def get_default_interstate_colormap_same_mult(
 ) -> dict[tuple[int, int], str]:
     """Function to generate a default inter-state colormap between states of the same multiplicity
 
-    Args:
-        multiplicity (int): _description_
-        colors (dict[int, str]): _description_
+    Parameters
+    ----------
+    multiplicity : int
+            The state multiplicity in this set
+    colors : dict[int, str]
+            The colors do use as a basis for the states individually.
 
-    Returns:
-        dict[tuple[int,int], str]: _description_
+    Returns
+    -------
+    dict[tuple[int,int], str]
+        Default interstate colors for states within the same multiplicity
     """
 
     mapped_colors = {k: hex2rgb(v) for k, v in colors.items()}
@@ -283,12 +314,17 @@ def get_default_interstate_colormap_inter_mult(
 ) -> dict[tuple[int, int], str]:
     """Function to generate a default inter-state colormap between states of the differents multiplicity
 
-    Args:
-        colors_mult_1 (dict[int, str]): State color map of the first state multiplicity
-        colors_mult_2 (dict[int, str]): State color map of the second state multiplicity
+    Parameters
+    ----------
+    colors_mult_1 : dict[int, str]
+            State color map of the first state multiplicity
+    colors_mult_2 : dict[int, str]
+            State color map of the second state multiplicity
 
-    Returns:
-        dict[tuple[int,int], str]: Resulting inter-state colormap
+    Returns
+    -------
+    dict[tuple[int,int], str]
+        Resulting inter-state colormap
     """
 
     mapped_colors_1 = {k: hex2rgb(v) for k, v in colors_mult_1.items()}

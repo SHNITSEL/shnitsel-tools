@@ -10,32 +10,41 @@ from .common import figaxs_defaults, centertext
 from .hist import create_marginals, calc_truncation_maximum
 
 from matplotlib.axes import Axes
+import xarray as xr
 
 
 @figaxs_defaults(mosaic=[['ntd'], ['nde']], scale_factors=(1 / 3, 1 / 3))
 @needs(data_vars={'socs'})
 def plot_socs_histograms(
     inter_state: InterState,
-    hop_idxs,
+    hops_mask: xr.DataArray,
     state_selection: StateSelection,
     fig: Figure | SubFigure | None = None,
     axs: dict[str, Axes] | None = None,
 ) -> dict[str, Axes]:
     """Plot 2D histograms of NACS vs delta_E or dip_trans
 
-    Args:
-        inter_state (InterState): The dataset containing inter-state data including NACs
-        hop_idxs: Argument to specify, which frames should be selected for the histograms.
-        state_selection (StateSelection): State selection object to limit the states included in plotting and to provide state names.
-        fig (Figure | SubFigure, optional): Unused figure provided to the plot. Consumed by the figaxs_defaults decorator.
-        axs (dict[str, Axes]): Axes objects to plot to with the respective keys of the plot. Defaults to None.
+    Parameters
+    ----------
+    inter_state : InterState
+            The dataset containing inter-state data including NACs
+    hop_idxs: 
+        Argument to specify, which frames should be selected for the histograms.
+    state_selection : StateSelection
+        State selection object to limit the states included in plotting and to provide state names.
+    fig : Figure | SubFigure, optional
+        Unused figure provided to the plot. Consumed by the figaxs_defaults decorator.
+    axs : dict[str, Axes]
+        Axes objects to plot to with the respective keys of the plot. Defaults to None.
 
-    Returns:
-        dict[str, Axes]: The axes used for plotting indexed by the subfigure name
+    Returns
+    -------
+    dict[str, Axes]
+        The axes used for plotting indexed by the subfigure name
     """
     assert axs is not None, "No axes objects provided."
 
-    hop_filter_data = inter_state.sel(frame=hop_idxs)
+    hop_filter_data = inter_state.sel(frame=hops_mask)
     axs['nde'].set_ylabel(r'$\Delta E$ / eV')
     axs['nde'].minorticks_on()
     axs['nde'].set_xlabel(r"$\|\mathrm{NAC}_{i,j}\|_2$")

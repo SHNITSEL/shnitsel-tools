@@ -7,9 +7,10 @@ from matplotlib.lines import Line2D
 import matplotlib.pyplot as plt
 import numpy as np
 
+from shnitsel.data.dataset_containers.inter_state import InterState
 from shnitsel.filtering.state_selection import StateSelection
 
-from ....core.typedefs import InterState, SpectraDictType
+from ....core.typedefs import SpectraDictType
 from ....units.definitions import energy
 
 from .common import figaxs_defaults
@@ -30,17 +31,26 @@ def single_dip_trans_hist(
 ):
     """Function to plot a single histogram of interstate dip_trans data.
 
-    Args:
-        interstate (InterState): Inter-state Dataset
-        sc_label (str): Label to use for the state combination.
-        state_labels (tuple[str,str]): Labels for the individual states.
-        color (str): Color for the histogram of this state combination.
-        bins (int, optional): Number of bins for the histogram. Defaults to 100.
-        ax (Axes, optional): Axes object to plot into. Defaults to None.
-        cmap (str, optional): Colormap to use. Defaults to None.
-        cnorm (str, optional): Norming method to apply to the colormap. Defaults to None.
+    Parameters
+    ----------
+    interstate : InterState
+        Inter-state Dataset
+    sc_label : str
+        Label to use for the state combination.
+    state_labels : tuple[str,str]
+        Labels for the individual states.
+    color : str): Color for the histogram of this state combination.
+    bins : int, optional
+        Number of bins for the histogram. Defaults to 100.
+    ax : Axes, optional
+        Axes object to plot into. Defaults to None.
+    cmap : str, optional
+        Colormap to use. Defaults to None.
+    cnorm : str, optional
+        Norming method to apply to the colormap. Defaults to None.
 
-    Returns:
+    Returns
+    -------
         ?: The result of ax.hist2d will be returned
     """
     if ax is None:
@@ -93,14 +103,21 @@ def plot_dip_trans_histograms(
 ) -> list:
     """function to plot all relevant histograms for the provided inter_state data
 
-    Args:
-        inter_state (InterState): Inter-state data to get the transitional dipole data from.
-        state_selection (StateSelection): State selection object to limit the states included in plotting and to provide state names.
-        axs (Axes, optional): Axes objects to plot into. If not provided, will be created.
-        cnorm (str, optional): Optional specification of a colormap norm method. Defaults to None.
+    Parameters
+    ----------
+    inter_state : InterState
+        Inter-state data to get the transitional dipole data from.
+    state_selection : StateSelection
+        State selection object to limit the states included in plotting and to provide state names.
+    axs : Axes, optional
+        Axes objects to plot into. If not provided, will be created.
+    cnorm : str, optional
+        Optional specification of a colormap norm method. Defaults to None.
 
-    Returns:
-        list: The list of the results of hist2d() calls for the provided data in inter_state
+    Returns
+    -------
+    list
+        The list of the results of hist2d() calls for the provided data in inter_state
     """
     if axs is None:
         state_combs = list(state_selection.combination_info())
@@ -147,17 +164,27 @@ def plot_spectra(
 ) -> Axes:
     """Create the spectra plot of the system denoted by the results in spectra.
 
-    Args:
-        spectra (SpectraDictType): The spectra (t, state combination) -> fosc data to plot. t is expected in fs.
-        ax (Axes, optional): Axis object to plot into. If not provided, will be created.
-        lim_num_sc (int, optional): Maximum number of state combinations to consider for the plot.
-        state_selection (StateSelection): State selection object to limit the states included in plotting and to provide state names.
-        cmap (str | Colormap, optional): Optional specification of a desired colormap. Defaults to None.
-        cnorm (str | Normalize, optional): Optional specification of a colormap norm method. Defaults to None.
-        mark_peaks (bool, optional): Flag whether peaks should be clearly marked. Defaults to False.
+    Parameters
+    ----------
+    spectra : SpectraDictType
+        The spectra (t, state combination) -> fosc data to plot. t is expected in fs.
+    ax : Axes, optional
+        Axis object to plot into. If not provided, will be created.
+    lim_num_sc : int, optional
+        Maximum number of state combinations to consider for the plot.
+    state_selection : StateSelection
+        State selection object to limit the states included in plotting and to provide state names.
+    cmap : str | Colormap, optional
+        Optional specification of a desired colormap. Defaults to None.
+    cnorm : str | Normalize, optional
+        Optional specification of a colormap norm method. Defaults to None.
+    mark_peaks : bool, optional
+        Flag whether peaks should be clearly marked. Defaults to False.
 
-    Returns:
-        Axes: The axes object into which the graph was plotted
+    Returns
+    -------
+    Axes
+        The axes object into which the graph was plotted
     """
     if ax is None:
         _, ax = plt.subplots(1, 1)
@@ -255,16 +282,25 @@ def plot_separated_spectra_and_hists(
 ):
     """Create separate spectra plots for ground and excited states.
 
-    Args:
-        inter_state (InterState): The interstate data to use for the spectra plots
-        spectra_groups (tuple[SpectraDictType, SpectraDictType]): Spectra separated into `ground` state spectra and `excited` spectra.
-        state_selection (StateSelection): State selection object to limit the states included in plotting and to provide state names.
-        fig (Figure| SubFigure): A figure, consumed by the automatic axes generation. Not used by the function itself.
-        axs (dict[str,Axes], optional): Axis dictionary object to plot into.
-        cb_spec_vlines (bool, optional): Whether to mark spectral lines in the energy spectrum. Defaults to True.
+    Parameters
+    ----------
+    inter_state : InterState
+        The interstate data to use for the spectra plots
+    spectra_groups : tuple[SpectraDictType, SpectraDictType]
+        Spectra separated into `ground` state spectra and `excited` spectra.
+    state_selection : StateSelection
+        State selection object to limit the states included in plotting and to provide state names.
+    fig : Figure| SubFigure
+        A figure, consumed by the automatic axes generation. Not used by the function itself.
+    axs : dict[str,Axes], optional
+        Axis dictionary object to plot into.
+    cb_spec_vlines : bool, optional
+        Whether to mark spectral lines in the energy spectrum. Defaults to True.
 
-    Returns:
-        dict[str, Axes]: The axes dict loc='upper right', bbox_to_anchor=(1.1, 1.1))after plotting to it.
+    Returns
+    -------
+    dict[str, Axes]
+        The axes dict loc='upper right', bbox_to_anchor=(1.1, 1.1))after plotting to it.
     """
     assert axs is not None, "Could not acquire axes for plotting"
     ground, excited = spectra_groups
@@ -418,20 +454,31 @@ def plot_separated_spectra_and_hists_groundstate(
     """Function to plot separated spectra and histograms of ground state data only.
 
 
-    Args:
-        inter_state (InterState): Inter-State dataset containing energy differences
-        spectra_groups (tuple[SpectraDictType, SpectraDictType]): Tuple holding the spectra groups of ground-state transitions and excited-state transitions.
-        state_selection (StateSelection): State selection object to limit the states included in plotting and to provide state names.
-        fig (Figure | SubFigure | None, optional): Figure to plot the graphs to. Defaults to None.
-        axs (dict[str, Axes] | None, optional): Dict of named axes to plot to. Defaults to None.
-        cb_spec_vlines (bool, optional): Flag to enable vertical lines in the time-dependent spectra. Defaults to True.
-        scmap (Colormap, optional): State combination colormap. Defaults to plt.get_cmap('turbo').
+    Parameters
+    ----------
+    inter_state : InterState
+        Inter-State dataset containing energy differences
+    spectra_groups : tuple[SpectraDictType, SpectraDictType]
+        Tuple holding the spectra groups of ground-state transitions and excited-state transitions.
+    state_selection : StateSelection
+        State selection object to limit the states included in plotting and to provide state names.
+    fig : Figure | SubFigure | None, optional
+        Figure to plot the graphs to. Defaults to None.
+    axs : dict[str, Axes] | None, optional
+        Dict of named axes to plot to. Defaults to None.
+    cb_spec_vlines : bool, optional
+        Flag to enable vertical lines in the time-dependent spectra. Defaults to True.
+    scmap : Colormap, optional
+        State combination colormap. Defaults to plt.get_cmap('turbo').
 
-    Raises:
-        ValueError: _description_
+    Raises
+    ------
+    AssertionError
+        Could not acquire axes to plot to
 
-    Returns:
-        dict[str, Axes]: _description_
+    Returns
+    -------
+        dict[str, Axes]: The named axes after plotting
     """
     assert axs is not None, "Could not acquire axes to plot to."
     ground, excited = spectra_groups

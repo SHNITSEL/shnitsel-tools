@@ -24,15 +24,23 @@ def plot_per_state_histograms(
 ) -> dict[str, Axes]:
     """Function to plot the per-state energy, forces and permanent dipole histogram plots.
 
-    Args:
-        per_state (PerState): A dataset with per-state observable data.
-        state_selection (StateSelection): State selection object to limit the states included in plotting and to provide state names.
-        axs (dict[str, Axes] | None, optional): The map of subplot-axes. Keys identify the subplots (`energy`, `forces`, `dip_perm`) and the values are the axes to plot the subplot to. Defaults to None.
-        shape tuple[int, int] | None, optional): Optional argument to reshape the per-state plots into another arrangement of rows and columns. First argument number of rows, second the number of columns.
-        fig (Figure | SubFigure | None, optional): Figure to generated axes from. Defaults to None.
+    Parameters
+    ----------
+    per_state : PerState
+        A dataset with per-state observable data.
+    state_selection (StateSelection
+        State selection object to limit the states included in plotting and to provide state names.
+    axs : dict[str, Axes] | None, optional
+        The map of subplot-axes. Keys identify the subplots (`energy`, `forces`, `dip_perm`) and the values are the axes to plot the subplot to. Defaults to None.
+    shape : tuple[int, int] | None, optional
+        Optional argument to reshape the per-state plots into another arrangement of rows and columns. First argument number of rows, second the number of columns.
+    fig : Figure | SubFigure | None, optional
+        Figure to generated axes from. Defaults to None.
 
-    Returns:
-        dict[str, Axes]: The axes dictionary after plotting.
+    Returns
+    -------
+    dict[str, Axes]
+        The axes dictionary after plotting.
     """
     assert axs is not None, "Could not obtain axes for plotting the graphs."
 
