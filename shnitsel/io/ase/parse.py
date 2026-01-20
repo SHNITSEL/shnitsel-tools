@@ -23,6 +23,8 @@ from shnitsel.data.atom_helpers import get_atom_number_from_symbol
 dummy_leading_dim: str = "leading_dim_unknown"
 multi_level_prefix: str = "_MultiIndex_levels_for_"
 
+# FIXME: Add other wrapped formats and add tree support for ASE
+
 
 def shapes_from_metadata(
     db_meta: dict, db_format: Literal['spainn', 'schnet'] | None = None
@@ -31,17 +33,26 @@ def shapes_from_metadata(
 
     If conflicting information on the db_format is provided and present in the database, en error will be raised.
 
-    Args:
-        db_meta (dict): The metadata dict of an ASE database.
-        db_format (Literal['spainn', 'schnet'] | None, optional): The requested format of the database. Defaults to None.
+    Parameters
+    ----------
+    db_meta : dict
+        The metadata dict of an ASE database.
+    db_format : Literal['spainn', 'schnet'] | None, optional
+        The requested format of the database. Defaults to None.
 
-    Return:
-        dict[str, list[str]]: Dict of data_var shapes
-        dict[str, list[str]]: Dict of coordinate shapes
-        str: The name of the leading dimension. Should be `frame` or `time`, but can be `leading_dim_unknown` if unknown
+    Returns
+    -------
+    dict[str, list[str]]
+        Dict of data_var shapes
+    dict[str, list[str]]
+        Dict of coordinate shapes
+    str
+        The name of the leading dimension. Should be `frame` or `time`, but can be `leading_dim_unknown` if unknown
 
-    Raises:
-        ValueError: If a db_format of database was requested that conflicts with the format of the database.
+    Raises
+    ------
+    ValueError
+        If a db_format of database was requested that conflicts with the format of the database.
     """
 
     if "__shnitsel_meta" in db_meta:
@@ -185,14 +196,20 @@ def apply_dataset_meta_from_db_metadata(
     Checks size of resulting dimensions if specified in db metadata.
     Further initializes the multi indices if specified in the metadata.
 
-    Args:
-        dataset (Trajectory): Trajectory dataset parsed from ASE db
-        db_meta (dict): Metadata from the trajectory db file
-        default_attrs (dict): Attributes to apply to variables by default
+    Parameters
+    ----------
+    dataset : Trajectory
+        Trajectory dataset parsed from ASE db
+    db_meta : dict
+        Metadata from the trajectory db file
+    default_attrs : dict
+        Attributes to apply to variables by default
 
 
-    Returns:
-        Trajectory: Dataset with attributes set from from db metadata and dimension sizes asserted
+    Returns
+    -------
+    Trajectory
+        Dataset with attributes set from from db metadata and dimension sizes asserted
     """
     if "__shnitsel_meta" in db_meta:
         if isinstance(db_meta["__shnitsel_meta"], str):
@@ -504,7 +521,7 @@ def apply_dataset_meta_from_db_metadata(
 
     return dataset
 
-
+# TODO: FIXME: Check the return type and Tree interaction
 def read_ase(
     db_path: pathlib.Path,
     db_format: Literal['spainn', 'schnet'] | None = None,
@@ -523,6 +540,7 @@ def read_ase(
 
     Returns
     -------
+    xr.Dataset
         An `xr.Dataset` of frames
 
     Raises
