@@ -22,12 +22,18 @@ def setup_queue_handler(
     Returns the queue (which is created if not provided), the QueueHandler and the Logger object specified.
     Can be used for cleanup in `collect_and_clean_queue_handler()`.
 
-    Args:
-        queue (multiprocessing.Queue | None): Optionally the queue to use for the message collection. Will be created if not provided.
-        logger_name (str, optional): The name of the logger to use for the collection. Defaults to 'multiprocessing_logger'.
+    Parameters
+    ----------
+    queue : multiprocessing.Queue | None
+        Optionally the queue to use for the message collection. Will be created if not provided.
+    logger_name : str, optional
+        The name of the logger to use for the collection. Defaults to 'multiprocessing_logger'.
 
-    Returns:
-        tuple[multiprocessing.Queue, logging.handlers.QueueHandler, logging.Logger, list[logging.Handler]]: The tuple of Queue, QueueHandler and Logger that has been registered with each other. Finally the original set of handlers registered with the logger that should be restored afterwards
+    Returns
+    -------
+    tuple[multiprocessing.Queue, logging.handlers.QueueHandler, logging.Logger, list[logging.Handler]]
+        The tuple of Queue, QueueHandler and Logger that has been registered with each other. 
+        Finally the original set of handlers registered with the logger that should be restored afterwards
     """
     if queue is None:
         queue = Queue(-1)
@@ -55,15 +61,23 @@ def collect_and_clean_queue_handler(
 ) -> list[logging.LogRecord] | None:
     """Helper function to clean up registered queue handler and optionally collect all messages collected in the queue.
 
-    Args:
-        queue (multiprocessing.Queue): The queue to retrieve log records from.
-        handler (logging.handlers.QueueHandler | None, optional): The queue handler previously registered that should now be removed. Defaults to None.
-        logger (logging.Logger | None, optional): The logger that the queue handler has been registered to and should be removed from now. Defaults to None.
-        original_handlers (list[logging.Handler] | None, optional): List of original handlers to restore to the logger. If not provided or empty, none will be applied. Defaults to None.
-        doCollect (bool, optional): Flag to make the function collect all messages in the queue and return them as the result list. Defaults to False.
+    Parameters
+    ----------
+    queue : multiprocessing.Queue
+        The queue to retrieve log records from.
+    handler : logging.handlers.QueueHandler | None, optional
+        The queue handler previously registered that should now be removed. Defaults to None.
+    logger : logging.Logger | None, optional
+        The logger that the queue handler has been registered to and should be removed from now. Defaults to None.
+    original_handlers : list[logging.Handler] | None, optional
+        List of original handlers to restore to the logger. If not provided or empty, none will be applied. Defaults to None.
+    doCollect : bool, optional
+        Flag to make the function collect all messages in the queue and return them as the result list. Defaults to False.
 
-    Returns:
-        list[logging.LogRecord] | None: Either the list of collected LogRecords if `doCollect=True` or None otherwise.
+    Returns
+    -------
+    list[logging.LogRecord] | None
+        Either the list of collected LogRecords if `doCollect=True` or None otherwise.
     """
     # Add poison pill to queue
     queue.put(None, block=False)
@@ -108,9 +122,12 @@ def handle_records(records: list[logging.LogRecord], logger: logging.Logger | No
     If the debug level of the provided logger (which defaults to the root logger) is debug, all messages will be passed on.
     Otherwise, all records of level warning or below will be compressed, i.e. each message string of each log level only presented once.
 
-    Args:
-        records (list[logging.LogRecord]): The list of collected log records to be handled and compressed.
-        logger (logging.Logger | None): The logger to handle the collected records with. Defaults to the root logger if not provided.
+    Parameters
+    ----------
+    records : list[logging.LogRecord]
+        The list of collected log records to be handled and compressed.
+    logger : logging.Logger | None
+        The logger to handle the collected records with. Defaults to the root logger if not provided.
     """
     # print("Handling collected records... " + str(len(records)))
     if logger is None:
@@ -160,4 +177,4 @@ def handle_records(records: list[logging.LogRecord], logger: logging.Logger | No
         if len(retained_severe_list) > 0:
             logger.info("Collected the following error messages:")
             for record in retained_severe_list:
-                logger.handle(record)
+                logger.handle(record):
