@@ -10,12 +10,17 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import xarray as xr
 
+from shnitsel.analyze.hops import hops_mask_from_active_state
 from shnitsel.analyze.pca import PCAResult, pca_and_hops
 from shnitsel.data.dataset_containers import Frames, Trajectory, wrap_dataset
+from shnitsel.data.dataset_containers.multi_layered import MultiSeriesLayered
+from shnitsel.data.dataset_containers.multi_stacked import MultiSeriesStacked
 from shnitsel.filtering.structure_selection import StructureSelection
 from shnitsel.geo.geocalc_.angles import angle
 from shnitsel.geo.geocalc_.dihedrals import dihedral
 from shnitsel.geo.geocalc_.distances import distance
+
+from rdkit.Chem import Mol
 
 # from shnitsel.geo.geocalc import distance, angle, dihedral
 from . import pca_biplot as pb
@@ -237,6 +242,7 @@ def biplot_kde(
     at2: int = 1,
     at3: int | None = None,
     at4: int | None = None,
+    pca_data: PCAResult | None = None,
     feature_selection: StructureSelection | None = None,
     geo_kde_ranges: Sequence[tuple[float, float]] | None = None,
     scatter_color_property: Literal['time', 'geo'] = 'time',
@@ -264,6 +270,9 @@ def biplot_kde(
         A dataset containing trajectory frames with atomic coordinates.
     at1, at2, at3, at4: int
         Indices of the first, second, third and fourth atoms for geometric property calculation.
+    pca_data : PCAResult, optional
+        A PCA result to use for the analysis. If not provided, will perform PCA analysis based on `feature_selection` or a
+        generic pairwise distance PCA.
     feature_selection: StructureSelection, optional
         An optional selection of features/structure to use for the PCA analysis.
     geo_kde_ranges
@@ -318,7 +327,9 @@ def biplot_kde(
     if contour_levels is None:
         contour_levels = [0.08, 1]
 
-    wrapped_ds = wrap_dataset(frames, Frames | Trajectory)
+    wrapped_ds = wrap_dataset(
+        frames, Frames | Trajectory | MultiSeriesStacked | MultiSeriesLayered
+    )
 
     match at1, at2, at3, at4:
         case at1, at2, None, None:
@@ -355,14 +366,23 @@ def biplot_kde(
     structsf = fig.add_subfigure(gs[1])
     structaxs = structsf.subplot_mosaic('ab\ncd')
 
-    # prepare data
-    pca_data, hops_mask = pca_and_hops(
-        wrapped_ds, feature_selection=feature_selection, center_mean=center_mean
-    )
+    if pca_data is None:
+        # prepare data
+        pca_data, hops_mask = pca_and_hops(
+            wrapped_ds, feature_selection=feature_selection, center_mean=center_mean
+        )
+    else:
+        hops_mask = hops_mask_from_active_state(wrapped_ds)
+
     kde_data = _fit_and_eval_kdes(pca_data, geo_prop, geo_kde_ranges, num_steps=100)
     d = pb.pick_clusters(pca_data, num_bins=num_bins, center_mean=center_mean)
     loadings, clusters, picks = d['loadings'], d['clusters'], d['picks']
-    mol = construct_default_mol(wrapped_ds)
+
+    if feature_selection is None or feature_selection.mol is None:
+        mol = construct_default_mol(wrapped_ds)
+    else:
+        mol = Mol(feature_selection.mol)
+
     mol = set_atom_props(mol, atomLabel=True, atomNote=[''] * mol.GetNumAtoms())
 
     if scatter_color_property == 'time':
