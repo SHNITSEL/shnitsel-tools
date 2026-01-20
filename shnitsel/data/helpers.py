@@ -1,7 +1,8 @@
 import dataclasses
 import logging
 import math
-from typing import Dict, List, Literal, TypeVar
+from types import UnionType
+from typing import Dict, List, Literal, Sequence, TypeVar, get_args
 from typing_extensions import TypeForm
 import xarray as xr
 import numpy as np
@@ -59,13 +60,12 @@ def dataclass_from_dict(datatype: type[T], d: List | Dict | T) -> T:
 
 
 def is_assignable_to(
-    actual_type: type[ActualDataType] | TypeForm[ActualDataType],
-    expected_dtype: type[DataType] | TypeForm[DataType] | None,
+    actual_type: type[ActualDataType] | UnionType,
+    expected_dtype: type[DataType] | UnionType | None,
 ) -> bool:
     """Helper function to check whether a certain type can be considered assignable to
     another type, effectively a more general `is_subclass` function.
 
-    _extended_summary_
 
     Parameters
     ----------
@@ -86,54 +86,64 @@ def is_assignable_to(
     if expected_dtype is None:
         return True
 
-    # TODO: FIXME: Implement some form of type checking.
-    return True
+    allowed_types: Sequence[type]
+    if isinstance(expected_dtype, UnionType):
+        allowed_types = list(get_args(expected_dtype))
+    else:
+        allowed_types = [expected_dtype]
+
+    if isinstance(actual_type, UnionType):
+        return all(
+            any(issubclass(x, y) for y in allowed_types) for x in get_args(actual_type)
+        )
+    else:
+        return any(issubclass(actual_type, y) for y in allowed_types)
 
 
-# TODO: deprecate
-@needs(coords={"ts"})
-def ts_to_time(
-    data: DatasetOrArray,
-    delta_t: float | None = None,
-    old: Literal["drop", "to_var", "keep"] = "drop",
-) -> DatasetOrArray:
-    assert old in {"drop", "to_var", "keep"}
+# # TODO: deprecate
+# @needs(coords={"ts"})
+# def ts_to_time(
+#     data: DatasetOrArray,
+#     delta_t: float | None = None,
+#     old: Literal["drop", "to_var", "keep"] = "drop",
+# ) -> DatasetOrArray:
+#     assert old in {"drop", "to_var", "keep"}
 
-    if delta_t is None:
-        if "delta_t" in data:  # could be coord or var
-            # ensure unique
-            arr_delta_t = np.unique(data["delta_t"])
-            assert len(arr_delta_t.shape) == 1
-            if arr_delta_t.shape[0] > 1:
-                msg = "`delta_t` varies between the trajectories. Please separate the trajectories into groups"
-                raise ValueError(msg)
-            delta_t = arr_delta_t.item()
-            data = data.drop_vars("delta_t")
+#     if delta_t is None:
+#         if "delta_t" in data:  # could be coord or var
+#             # ensure unique
+#             arr_delta_t = np.unique(data["delta_t"])
+#             assert len(arr_delta_t.shape) == 1
+#             if arr_delta_t.shape[0] > 1:
+#                 msg = "`delta_t` varies between the trajectories. Please separate the trajectories into groups"
+#                 raise ValueError(msg)
+#             delta_t = arr_delta_t.item()
+#             data = data.drop_vars("delta_t")
 
-        if "delta_t" in data.attrs:
-            if (
-                delta_t is not None  # If we already got delta_t from var/coord
-                and data.attrs["delta_t"] != delta_t
-            ):
-                msg = "'delta_t' attribute inconsistent with variable/coordinate"
-                raise ValueError(msg)
-            delta_t = data.attrs["delta_t"]
+#         if "delta_t" in data.attrs:
+#             if (
+#                 delta_t is not None  # If we already got delta_t from var/coord
+#                 and data.attrs["delta_t"] != delta_t
+#             ):
+#                 msg = "'delta_t' attribute inconsistent with variable/coordinate"
+#                 raise ValueError(msg)
+#             delta_t = data.attrs["delta_t"]
 
-        if delta_t is None:  # neither var/coord nor attr
-            msg = "Could not extract `delta_t` from `data`; please pass explicitly"
-            raise ValueError(msg)
+#         if delta_t is None:  # neither var/coord nor attr
+#             msg = "Could not extract `delta_t` from `data`; please pass explicitly"
+#             raise ValueError(msg)
 
-    data = data.reset_index("frame").assign_coords(time=data.coords["ts"] * delta_t)
-    if old in {"drop", "to_var"}:
-        new_levels = list((set(data.indexes["frame"].names) - {"ts"}) | {"time"})
-        data = data.reset_index("frame").set_xindex(new_levels)
-    if old == "drop":
-        data = data.drop_vars("ts")
+#     data = data.reset_index("frame").assign_coords(time=data.coords["ts"] * delta_t)
+#     if old in {"drop", "to_var"}:
+#         new_levels = list((set(data.indexes["frame"].names) - {"ts"}) | {"time"})
+#         data = data.reset_index("frame").set_xindex(new_levels)
+#     if old == "drop":
+#         data = data.drop_vars("ts")
 
-    data["time"].attrs.update((dict(units="fs", long_name="$t$", tex_name="t")))
-    data.attrs["delta_t"] = delta_t
+#     data["time"].attrs.update((dict(units="fs", long_name="$t$", tex_name="t")))
+#     data.attrs["delta_t"] = delta_t
 
-    return data
+#     return data
 
 
 def setup_frames(
