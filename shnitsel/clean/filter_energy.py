@@ -145,7 +145,15 @@ def calculate_energy_filtranda(
         if e_pot_active is not None:
             e_tot = e_pot_active + e_kin
             res["etot_step"] = mdiff(e_tot)
-            res["etot_drift"] = e_tot - e_tot.item(0)
+            # FIXME (thevro): Use more general way to determine correct groupby spec, if any
+            if 'trajid' in e_tot.coords:
+                res["etot_drift"] = e_tot.groupby('trajid').map(lambda x: x - x.item(0))
+            elif 'atrajectory' in e_tot.coords:
+                res["etot_drift"] = e_tot.groupby('atrajectory').map(
+                    lambda x: x - x.item(0)
+                )
+            else:
+                res["etot_drift"] = e_tot - e_tot.item(0)
     else:
         e_kin = None
         logging.warning("data does not contain kinetic energy variable ('e_kin')")
