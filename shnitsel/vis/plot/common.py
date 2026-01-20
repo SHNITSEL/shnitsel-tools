@@ -76,12 +76,17 @@ def figax(
     """
     Create figure and axes-object if an axes-object is not supplied.
 
-    Args:
-        fig (Figure | SubFigure | None, optional): The optional figure to use as a basis for `ax` if the latter is not provided. Defaults to None.
-        ax (Axes | None, optional): The axes object provided. Will be used to populate `fig` if provided.. Defaults to None.
+    Parameters
+    ----------
+    fig : Figure | SubFigure | None, optional
+        The optional figure to use as a basis for `ax` if the latter is not provided. Defaults to None.
+    ax : Axes | None, optional
+        The axes object provided. Will be used to populate `fig` if provided.. Defaults to None.
 
-    Returns:
-        tuple[Figure | SubFigure, Axes]: A complete combination of figure and axes.
+    Returns
+    -------
+    tuple[Figure | SubFigure, Axes]
+        A complete combination of figure and axes.
     """
     if fig is None and ax is None:
         fig, ax = plt.subplots(1, 1)
@@ -111,7 +116,8 @@ def extrude(
 
     Returns
     -------
-        tuple[float, float]: The position at the end of the extrusion, where the origin-ray through (x,y) intersects the boundary of the axes.
+    tuple[float, float]
+        The position at the end of the extrusion, where the origin-ray through (x,y) intersects the boundary of the axes.
     """
     # for extrusion, flip negative rays into quadrant 1
     if x < 0:
