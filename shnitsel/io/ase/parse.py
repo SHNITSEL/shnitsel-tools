@@ -10,7 +10,6 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-from shnitsel.data.dataset_containers import Frames, Trajectory
 from shnitsel.io.shared.helpers import LoadingParameters
 from shnitsel.io.shared.trajectory_setup import (
     RequiredTrajectorySettings,
@@ -161,35 +160,11 @@ def shapes_from_metadata(
     return shapes, coord_shapes, leading_dim_name
 
 
-def _json_deserialize_ndarray(value: str) -> Any:
-    if isinstance(value, str):
-        value_d = json.loads(value)
-    else:
-        value_d = value
-
-    try:
-        # if isinstance(value_d, dict):
-        #     print("Is a dict")
-        # if "__ndarray" in value_d:
-        config = value_d["__ndarray"]
-
-        entries = config["entries"]
-        dtype_descr = np.dtype([tuple(i) for i in config["dtype"]])
-
-        return np.array(entries, dtype=dtype_descr)
-    except TypeError as e:
-        pass
-    except KeyError as e:
-        pass
-
-    return value
-
-
 def apply_dataset_meta_from_db_metadata(
-    dataset: Trajectory,
+    dataset: xr.Dataset,
     db_meta: dict,
     default_attrs: dict,
-) -> Trajectory:
+) -> xr.Dataset:
     """Apply attributes from db metadata and perform some validation checks on the result.
 
     Loads remaining missing coordinate variables from db metadata if available.
@@ -198,8 +173,8 @@ def apply_dataset_meta_from_db_metadata(
 
     Parameters
     ----------
-    dataset : Trajectory
-        Trajectory dataset parsed from ASE db
+    dataset : xr.Dataset
+        Trajectory/Frames dataset parsed from ASE db
     db_meta : dict
         Metadata from the trajectory db file
     default_attrs : dict
@@ -208,7 +183,7 @@ def apply_dataset_meta_from_db_metadata(
 
     Returns
     -------
-    Trajectory
+    xr.Dataset
         Dataset with attributes set from from db metadata and dimension sizes asserted
     """
     if "__shnitsel_meta" in db_meta:
@@ -521,7 +496,8 @@ def apply_dataset_meta_from_db_metadata(
 
     return dataset
 
-# TODO: FIXME: Check the return type and Tree interaction
+
+# TODO: FIXME: Check the return type and tree interaction
 def read_ase(
     db_path: pathlib.Path,
     db_format: Literal['spainn', 'schnet'] | None = None,
@@ -541,7 +517,7 @@ def read_ase(
     Returns
     -------
     xr.Dataset
-        An `xr.Dataset` of frames
+        An `xr.Dataset` of frames. Potentially with a `time` coordinate.
 
     Raises
     ------
@@ -721,12 +697,18 @@ def read_ase(
         # Only rename if a variable with the dimension was created. Otherwise an error would trigger in rename
         if leading_dimension_name in frames.dims:
             if leading_dimension_rename_target is None:
-                if "time" in coord_vars and "trajid" not in coord_vars:
+                if (
+                    "time" in coord_vars
+                    and "trajid" not in coord_vars
+                    and "trajid_" not in coord_vars
+                    and "atrajectory" not in coord_vars
+                    and "trajectory" not in coord_vars
+                ):
                     leading_dimension_rename_target = "time"
                 else:
                     leading_dimension_rename_target = "frame"
 
-            frames = frames.rename(
+            frames = frames.swap_dims(
                 {leading_dimension_name: leading_dimension_rename_target}
             )
 
@@ -736,6 +718,8 @@ def read_ase(
     shnitsel_default_order = [
         "frame",
         "trajid",
+        "trajid_",
+        "trajectory",
         "time",
         "state",
         "statecomb",
