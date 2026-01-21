@@ -8,6 +8,7 @@ from shnitsel.data.dataset_containers.frames import Frames
 import xarray as xr
 import json
 
+from shnitsel.data.tree.node import TreeNode
 from shnitsel.data.tree.xr_conversion import (
     data_to_xarray_dataset,
     tree_to_xarray_datatree,
@@ -73,11 +74,15 @@ def _prepare_dataset(dataset: xr.Dataset) -> xr.Dataset:
 
     Also removed internal settings and re-encodes multi-indices
 
-    Args:
-        dataset (xr.Dataset): Dataset to process
+    Parameters
+    ----------
+    dataset : xr.Dataset
+        Dataset to process
 
-    Returns:
-        xr.Dataset: A copy of the Dataset with internal attributes removed, attributes appropriately encoded and multi-indices re-encoded.
+    Returns
+    -------
+    xr.Dataset
+        A copy of the Dataset with internal attributes removed, attributes appropriately encoded and multi-indices re-encoded.
     """
     cleaned_ds = dataset.copy()  # Shallow copy to avoid adding attrs etc. to original
 
@@ -165,15 +170,20 @@ def encode_attrs(obj):
         logging.debug(f"Stripping attribute {attr}")
 
 
-def _dataset_to_encoding(dataset: xr.Dataset, complevel: int) -> Dict[Hashable, Any]:
+def _dataset_to_encoding(dataset: xr.Dataset, complevel: int) -> dict[Hashable, Any]:
     """Generate encoding information for NetCDF4 encoding from a dataset
 
-    Args:
-        dataset (xr.Dataset): Dataset to generate encoding information for
-        complevel (int): The compression level to apply to arrays
+    Parameters
+    ----------
+    dataset : xr.Dataset
+        Dataset to generate encoding information for
+    complevel : int
+        The compression level to apply to arrays
 
-    Returns:
-        Dict[Hashable, Any]: Resulting encoding settings
+    Returns
+    -------
+    dict[Hashable, Any]
+        Resulting encoding settings
     """
     encoding = {
         var: {"compression": "gzip", "compression_opts": complevel} for var in dataset
@@ -187,7 +197,7 @@ def write_shnitsel_file(
     | Trajectory
     | Frames
     | SupportsToXrConversion
-    | ShnitselDB[Trajectory | Frames | SupportsToXrConversion],
+    | TreeNode[Any, Trajectory | Frames | SupportsToXrConversion],
     savepath: PathOptionsType,
     complevel: int = 9,
 ):
@@ -198,7 +208,7 @@ def write_shnitsel_file(
 
     Parameters
     ----------
-    dataset : xr.Dataset | Trajectory | SupportsToXrConversion | ShnitselDB[Trajectory | Frames | SupportsToXrConversion]
+    dataset : xr.Dataset | Trajectory | SupportsToXrConversion | TreeNode[Any, Trajectory | Frames | SupportsToXrConversion]
         The dataset or trajectory to write (omit if using accessor).
     savepath : PathOptionsType
         The path at which to save the trajectory file.
@@ -216,7 +226,7 @@ def write_shnitsel_file(
     if not savepath_obj.name.endswith(".nc"):
         savepath_obj = savepath_obj.parent / (savepath_obj.name + ".nc")
 
-    if isinstance(dataset, ShnitselDB):
+    if isinstance(dataset, TreeNode):
         tmp_res = tree_to_xarray_datatree(dataset)
         if tmp_res is None:
             raise ValueError("Tree could not be converted to netcdf conforming format.")

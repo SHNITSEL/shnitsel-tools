@@ -11,6 +11,7 @@ from shnitsel._contracts import needs
 from shnitsel.data.dataset_containers import Frames, Trajectory
 
 
+# TODO: FIXME: Add support for other dataset types
 def _prepare_for_write_schnetpack(
     traj: Trajectory, leading_dim_name: Literal['frame', 'time']
 ) -> Trajectory:
@@ -18,12 +19,17 @@ def _prepare_for_write_schnetpack(
 
     Combines the dipole variables into one entry.
 
-    Args:
-        traj (Trajectory): The Dataset to transform into a SchnetPack conforming format.
-        leading_dim_name (Literal['frame', 'time']): The name of the leading dimension identifying different frames within the dataset. Depending on the setup, this should be 'frame' or 'time'.
+    Parameters
+    ----------
+    traj : Trajectory
+        The Dataset to transform into a SchnetPack conforming format.
+    leading_dim_name : Literal['frame', 'time']
+        The name of the leading dimension identifying different frames within the dataset. Depending on the setup, this should be 'frame' or 'time'.
 
-    Returns:
-        Trajectory: The transformed dataset
+    Returns
+    -------
+    Trajectory
+        The transformed dataset
     """
     # Recombine permanent and transition dipoles, as schnetpack expects
     dipoles: np.ndarray | xr.DataArray | None = None
@@ -79,11 +85,15 @@ def _collect_metadata(traj: Trajectory, keys_to_write: Iterable[str]) -> dict[st
 
     Extracts info from attributes and variables to set up the dict.
 
-    Args:
-        traj (Trajectory): The Dataset to extract the metadata from.
+    Parameters
+    ----------
+    traj : Trajectory
+        The Dataset to extract the metadata from.
 
-    Returns:
-        dict[str, Any]: The resulting metadata dictionary.
+    Returns
+    -------
+    dict[str, Any]
+        The resulting metadata dictionary.
     """
     # Define metadata information (dictionary)
     metadata: dict[str, Any] = {}
@@ -198,29 +208,40 @@ def _collect_metadata(traj: Trajectory, keys_to_write: Iterable[str]) -> dict[st
     return metadata
 
 
+# TODO: FIXME: Check the return type and Tree interaction
 @needs(data_vars=set(["energy", "atNames", "atNums", "atXYZ"]))
 def write_ase_db(
     traj: Trajectory,
     db_path: str,
-    db_format: Literal['schnet', 'spainn'] | None,
+    db_format: Literal['schnet', 'spainn'] | None = None,
     keys_to_write: Collection | None = None,
     preprocess: bool = True,
 ):
     """Function to write a Dataset into a ASE db in either SchNet or SPaiNN format.
 
-    Args:
-        traj (Trajectory): The Dataset to be written to an ASE db style database
-        db_path (str): Path to write the database to
-        db_format (Literal["schnet", "spainn";] | None): Format of the target database. Used to control order of dimensions in data arrays. Can be either "schnet" or "spainn".
-        keys_to_write (Collection | None, optional): Optional parameter to restrict which data variables to . Defaults to None.
-        preprocess (bool, optional): _description_. Defaults to True.
+    Parameters
+    ----------
+    traj : Trajectory
+        The Dataset to be written to an ASE db style database
+    db_path : str
+        Path to write the database to
+    db_format : Literal["schnet", "spainn";] | None, optional
+        Format of the target database. Used to control order of dimensions in data arrays. Can be either "schnet" or "spainn".
+    keys_to_write : Collection | None, optional
+        Optional parameter to restrict which data variables to . Defaults to None.
+    preprocess : bool, optional
+        Whether to apply preprocessing of the data. Defaults to True.
 
-    Raises:
-        ValueError: If neither `frame` nor `time` dimension is present on the dataset.
-        ValueError: If the `db_format` is neither `schnet`, `spainn` nor None
+    Raises
+    ------
+    ValueError
+        If neither `frame` nor `time` dimension is present on the dataset.
+    ValueError
+        If the `db_format` is neither `schnet`, `spainn` nor None
 
-    Notes:
-        See `https://spainn-md.readthedocs.io/en/latest/userguide/data_pipeline.html#generate-a-spainn-database` for details on SPaiNN format.
+    Notes
+    -----
+    See `https://spainn-md.readthedocs.io/en/latest/userguide/data_pipeline.html#generate-a-spainn-database` for details on SPaiNN format.
     """
     leading_dim_name: Literal['frame', 'time']
 

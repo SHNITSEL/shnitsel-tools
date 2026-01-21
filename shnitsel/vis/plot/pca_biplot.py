@@ -87,7 +87,7 @@ def plot_noodleplot(
     elif hasattr(c, 'attrs') and 'long_name' in c.attrs:
         colorbar_label = str(c.attrs['long_name'])
         if 'units' in c.attrs:
-            colorbar_label = f"{colorbar_label} / {c.attrs['units']}"
+            colorbar_label = f"${colorbar_label}$ / {c.attrs['units']}"
     elif hasattr(c, 'name') and c.name is not None:
         colorbar_label = str(c.name)
         if 'units' in c.attrs:
@@ -638,16 +638,16 @@ def plot_bin_edges(
 
 # TODO: FIXME: This function does too much at once. It should either allow for general PCA configuration or allow for PCA results to be passed in. Only allowing pwdist pca is quite restrictive
 def pick_clusters(
-    frames: Frames | xr.Dataset, num_bins: int, center_mean: bool = False
+    frames: Frames | xr.Dataset | PCAResult, num_bins: int, center_mean: bool = False
 ):
     """Calculate pairwise-distance PCA, cluster the loadings
     and pick a representative subset of the clusters.
 
     Parameters
     ----------
-    frames : Frames | xr.Dataset
+    frames : Frames | xr.Dataset | PCAResult
         An :py:class:`xarray.Dataset` with an 'atXYZ' variable
-        having an 'atom' dimension
+        having an 'atom' dimension to calculate a pwdist PCA on or the result of a previously executed PCA.
     num_bins : int
         The number of bins to use when binning clusters of
         loadings according to the angle they make to the x-axis
@@ -672,8 +672,11 @@ def pick_clusters(
             - edges: Tuple giving a pair of boundary angles for each bin;
         the order of the bins corresponds to the order used in ``bins``
     """
-    wrapped_ds = wrap_dataset(frames, Frames | Trajectory)
-    loadings = get_loadings(wrapped_ds, center_mean)
+    if isinstance(frames, PCAResult):
+        loadings = frames.loadings
+    else:
+        wrapped_ds = wrap_dataset(frames, Frames | Trajectory)
+        loadings = get_loadings(wrapped_ds, center_mean)
     clusters = cluster_loadings(loadings)
     points = _get_clusters_coords(loadings, clusters)
 

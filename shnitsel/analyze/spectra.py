@@ -1,6 +1,6 @@
 from itertools import product
 import logging
-from typing import Iterable, Literal, Sequence, overload
+from typing import Any, Iterable, Literal, Sequence, overload
 
 import numpy as np
 import xarray as xr
@@ -9,6 +9,7 @@ from shnitsel.core._api_info import internal
 from shnitsel.data.dataset_containers.frames import Frames
 from shnitsel.data.dataset_containers.inter_state import InterState
 from shnitsel.data.dataset_containers.trajectory import Trajectory
+from shnitsel.data.tree.node import TreeNode
 from shnitsel.data.tree.tree import ShnitselDB
 from shnitsel.filtering.state_selection import StateSelection
 from shnitsel.units.definitions import energy, dipole
@@ -28,15 +29,21 @@ def _calculate_fosc(
 ) -> xr.DataArray:
     """Internal function to actually calculate the oscillator frequency for energies and transition dipoles.
 
-    Args:
-        energy_interstate (DataArray): The Array of Energies in the system.
-        dip_trans_norm (DataArray): The array of associated norm of transition dipoles in the system.
+    Parameters
+    ----------
+    energy_interstate : DataArray
+        The Array of Energies in the system.
+    dip_trans_norm : DataArray
+        The array of associated norm of transition dipoles in the system.
 
 
-    Returns:
-        DataArray: The resulting oscillation frequency (f_osc) array.
+    Returns
+    -------
+    DataArray
+        The resulting oscillation frequency (f_osc) array.
 
-    Notes:
+    Notes
+    -----
         We use the following unitless form of f_osc:
         $$f_{osc} = \\frac{2}{3} \\frac{m_e}{\\hbar^2} \\cdot \\Delta E \\cdot \\frac{\\mu^2}{e^2}$$
     """
@@ -58,12 +65,17 @@ def calculate_fosc(
 ) -> xr.DataArray:
     """Function to obtain a dataarray containing the oscillator strength as a dataarray.
 
-    Args:
-        energy_interstate (DataArray): The array of inter-state energies (delta_E) in the system.
-        dip_trans_norm (DataArray): The array of associated transition dipoles in the system with their norm calculated across the direction dimension.
+    Parameters
+    ----------
+    energy_interstate : DataArray
+        The array of inter-state energies (delta_E) in the system.
+    dip_trans_norm : DataArray
+        The array of associated transition dipoles in the system with their norm calculated across the direction dimension.
 
-    Returns:
-        DataArray: The resulting datarray of oscillator strength f_osc
+    Returns
+    -------
+    DataArray
+        The resulting datarray of oscillator strength f_osc
     """
     assert energy_interstate.values.shape == dip_trans_norm.values.shape, (
         f"Energy and dip_trans do not have the same shapes: {energy_interstate.values.shape} <-> {dip_trans_norm.values.shape}"
@@ -94,8 +106,8 @@ def get_fosc(
     data: Trajectory
     | Frames
     | InterState
-    | ShnitselDB[Trajectory | Frames | InterState],
-) -> xr.DataArray | ShnitselDB[xr.DataArray]:
+    | TreeNode[Any, Trajectory | Frames | InterState],
+) -> xr.DataArray | TreeNode[Any, xr.DataArray]:
     """Function to calculate the strength of the oscillator for state-to-state transitions.
 
     If provided a simple data type like a Trajectory of Frames, will extract InterState information from it.
@@ -108,7 +120,7 @@ def get_fosc(
     data :  Trajectory
             | Frames
             | InterState
-            | ShnitselDB[Trajectory | Frames | InterState]
+            |TreeNode[Any, Trajectory | Frames | InterState]
         The data from which interstate information can be deduced (transition dipoles and energy deltas).
         Alternatively, the interstate information can be provided directly.
         The data can also be supplied in a hierarchical tree format. In that case, the operation will be applied to data entries
@@ -116,11 +128,11 @@ def get_fosc(
 
     Returns
     -------
-    xr.DataArray | ShnitselDB[Trajectory | Frames | InterState]
+    xr.DataArray | TreeNode[Any, Trajectory | Frames | InterState]
         Either the array of fosc values for simple input structures or the tree structure with the fosc results for individual data entries after mapping
         over the tree.
     """
-    if isinstance(data, ShnitselDB):
+    if isinstance(data, TreeNode):
         return data.map_data(get_fosc)
     else:
         # Trajectory, Frames or Interstate
@@ -263,11 +275,11 @@ def get_fosc_gauss_broadened(
     | InterState
     | Trajectory
     | Frames
-    | ShnitselDB[InterState | Trajectory | Frames | xr.Dataset],
+    | TreeNode[Any, InterState | Trajectory | Frames | xr.Dataset],
     width_in_eV: float = 0.5,
     nsamples: int = 1000,
     max_energy_range: float | None = None,
-) -> xr.DataArray | ShnitselDB[xr.DataArray]:
+) -> xr.DataArray | TreeNode[Any, xr.DataArray]:
     """Function to get the broadened spectrum of the interstate energy and oscillator strength data to plot
     a nice and smooth spectrum.
 
@@ -275,7 +287,7 @@ def get_fosc_gauss_broadened(
 
     Parameters
     ----------
-    interstate_data_source : InterState | Trajectory | Frames | xr.Dataset | ShnitselDB[InterState  |  Trajectory  |  Frames  |  xr.Dataset]
+    interstate_data_source : InterState | Trajectory | Frames | xr.Dataset | TreeNode[Any, InterState  |  Trajectory  |  Frames  |  xr.Dataset]
         Interstate dataset or source for such data with `energy_interstate` and `fosc` information.
             If provided as Frames or Trajectory, must provide `energy` and `dip_trans` data.
             If provided as tree, operation will be mapped over data.
@@ -288,10 +300,10 @@ def get_fosc_gauss_broadened(
 
     Returns
     -------
-    xr.DataArray | ShnitselDB[xr.DataArray]
+    xr.DataArray | TreeNode[Any, xr.DataArray]
         Resulting broadened spectrum statistics either of the dataset input or mapped over the entire input tree
     """
-    if isinstance(interstate_data_source, ShnitselDB):
+    if isinstance(interstate_data_source, TreeNode):
         return interstate_data_source.map_data(get_fosc_gauss_broadened)
     else:
         interstate_dataset: xr.Dataset
@@ -339,18 +351,18 @@ def get_spectrum_at_time(
     interstate_data: InterState
     | xr.Dataset
     | Sequence[InterState | xr.Dataset]
-    | ShnitselDB[InterState | xr.Dataset],
+    | TreeNode[Any, InterState | xr.Dataset],
     t: float,
     sc: StateCombination,
     rel_cutoff: float = 0.01,
-) -> xr.DataArray | ShnitselDB[xr.DataArray] | None:
+) -> xr.DataArray | TreeNode[Any, xr.DataArray] | None:
     """Function to calculate a gaussian-smoothed spectrum of an interstate dataset at one specific point in time and for one specific state transition
 
     _extended_summary_
 
     Parameters
     ----------
-    interstate_data : InterState | xr.Dataset | Sequence[InterState | xr.Dataset ] | ShnitselDB[InterState | xr.Dataset]
+    interstate_data : InterState | xr.Dataset | Sequence[InterState | xr.Dataset ] | TreeNode[Any, InterState | xr.Dataset]
         An InterState dataset with fosc and energy data.
         Alternatively, a sequence of Interstate data or a hierarchical set of interstate data.
     t : float
@@ -367,7 +379,7 @@ def get_spectrum_at_time(
         If broadening across trajectories could not be performed, just returns the fosc array.
         If a sequence of interstate data was provided, aggregation will be performed across
         the spectra of the different datasets.
-    ShnitselDB[xr.DataArray]
+    TreeNode[Any, xr.DataArray]
         Hierarchically mapped data, where spectrum calculation was performed across flat groups.
         If a hierarchical tree set was provided, the data will be grouped and aggregation performed across the spectra of data within the same group
     None
@@ -378,7 +390,7 @@ def get_spectrum_at_time(
     ValueError
         Unsupported type provided.
     """
-    if isinstance(interstate_data, ShnitselDB):
+    if isinstance(interstate_data, TreeNode):
         interstate_data_grouped = interstate_data.group_data_by_metadata()
         # mapped_spectrum_data = interstate_data_grouped.map_data(
         #     lambda x: get_spectrum_at_time(x, t, sc, 0.0)
@@ -388,6 +400,7 @@ def get_spectrum_at_time(
             lambda x: get_spectrum_at_time(list(x), t, sc, rel_cutoff=rel_cutoff)
         )
         return spectrum_tree
+
     elif isinstance(interstate_data, Sequence):
         spectra_results: list[xr.DataArray] = []
         for traj_data in interstate_data:
@@ -501,11 +514,11 @@ def get_spectra(
     interstate_data: InterState
     | xr.Dataset
     | Sequence[InterState | xr.Dataset]
-    | ShnitselDB[InterState | xr.Dataset],
+    | TreeNode[Any, InterState | xr.Dataset],
     state_selection: StateSelection | None = None,
     times: Iterable[float] | Literal['all'] | None = None,
     rel_cutoff: float = 0.01,
-) -> SpectraDictType | ShnitselDB[SpectraDictType]:
+) -> SpectraDictType | TreeNode[Any, SpectraDictType]:
     """Function to calculate (gauss-broadened) spectra at multiple (or all) points in time
 
     Uses strength of oscillator (`fosc`) and energy deltas (`energy_interstate`) to calculate
@@ -515,7 +528,7 @@ def get_spectra(
 
     Parameters
     ----------
-    interstate : InterState | xr.Dataset | Sequence[InterState | xr.Dataset] | ShnitselDB[InterState | xr.Dataset]
+    interstate : InterState | xr.Dataset | Sequence[InterState | xr.Dataset] | TreeNode[Any, InterState | xr.Dataset]
         The data source for interstate data that needs to provide interstate energy differenses and fosc data,
         which can be derived from `energy_interstate` and `dip_trans`.
         If the necessary data is not provided, an error will be raised.
@@ -541,14 +554,14 @@ def get_spectra(
         The resulting spectrum as a mapping from `(t,sc)` pairs to the resulting, broadened spectrum.
         The first item in the key is the time at which the spectrum was extracted.
         The second item is the state combination descriptor for which it was calculated.
-    ShnitselDB[SpectraDictType]
+    TreeNode[Any, SpectraDictType]
         If a hierarchical input is provided, the spectra results will be provided in hierarchical structure with one result for every grouped set of data.
     """
     if times is None:
         # TODO: FIXME: Make choice of times more sophisticated
         times = [0, 10, 20, 30]
 
-    if isinstance(interstate_data, ShnitselDB):
+    if isinstance(interstate_data, TreeNode):
         interstate_data_grouped = interstate_data.group_data_by_metadata()
 
         spectrum_tree = interstate_data_grouped.map_flat_group_data(
@@ -701,4 +714,3 @@ def get_spectra_groups(
 #     # TODO: FIXME: This probably should not have to unstack here? We should just accept a tree and use each trajectory individually and then aggregate over trajectories?
 #     data = inter_state.unstack('frame')
 #     return apply_gauss_broadening(data.energy, data.fosc, agg_dim='active_trajectory')
-

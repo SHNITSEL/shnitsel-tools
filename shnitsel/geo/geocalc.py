@@ -6,7 +6,7 @@
 """
 
 import logging
-from typing import Literal, Sequence, overload
+from typing import Any, Literal, Sequence, overload
 
 
 import xarray as xr
@@ -15,6 +15,7 @@ from shnitsel.core._api_info import API
 from shnitsel.data.dataset_containers import Frames, Trajectory, wrap_dataset
 from shnitsel.data.tree import ShnitselDB
 
+from shnitsel.data.tree.node import TreeNode
 from shnitsel.filtering.structure_selection import (
     FeatureLevelType,
     StructureSelection,
@@ -45,6 +46,7 @@ def get_bats(
     deg: bool | Literal['trig'] = True,
 ) -> xr.DataArray: ...
 
+
 @overload
 def get_bats(
     atXYZ: ShnitselDB[Trajectory | Frames | AtXYZ],
@@ -58,25 +60,25 @@ def get_bats(
 @API()
 @needs(dims={'atom', 'direction'})
 def get_bats(
-    atXYZ: Trajectory | Frames | ShnitselDB[Trajectory | Frames] | AtXYZ,
+    atXYZ: Trajectory | Frames | TreeNode[Any, Trajectory | Frames] | AtXYZ,
     structure_selection: StructureSelection | None = None,
     default_features: Sequence[FeatureLevelType] = ['bonds', 'angles', 'dihedrals'],
     signed: bool = False,
     deg: bool | Literal['trig'] = True,
-) -> xr.DataArray | ShnitselDB[xr.DataArray]:
+) -> xr.DataArray | TreeNode[Any, xr.DataArray]:
     """Get bond lengths, angles and torsions/dihedrals.
 
     Parameters
     ----------
-    atXYZ
+    atXYZ : Trajectory | Frames | TreeNode[Any, Trajectory | Frames] | AtXYZ
         The positional data of atoms to use.
-    structure_selection, optional: StructureSelection
+    structure_selection: StructureSelection, optional
         A feature selection to use. Can specify which features (positions, distances,
         angles, torsions or pyramidalizations) to include in the result.
         If not set, will be initialized to a default selection of all molecule-internal features
         as specified by the structure in the first frame of `atXYZ` and the features
         listed in `default_features`.
-    default_features, optional: Sequence[FeatureLevelType]
+    default_features : Sequence[FeatureLevelType], optional
         If no `structure_selection` object is provided, will select all features of these levels
         within the structure encoded in `atXYZ`.
         Options are
@@ -86,19 +88,20 @@ def get_bats(
         - `dihedrals` for torsion angles of bonds
         - `pyramids` for pyramidalization angles in the molecule.
         Defaults to using bonds, angles and dihedrals/torsions.
-    signed, optional
+    signed: bool, optional
         Whether to distinguish between clockwise and anticlockwise rotation,
         when returning angles as opposed to cosine & sine values;
         by default, do not distinguish.
         NB. This applies only to the dihedrals, not to the three-center angles.
         The latter are always unsigned.
-    deg, optional: bool or Literal['trig']
+    deg : bool or Literal['trig'], optional
         If True (the default), returns angles in degrees.
         If False, returns angles in radians.
         If set to 'trig' returns sines and cosines;
 
     Returns
     -------
+    xr.DataArray | TreeNode[Any, xr.DataArray]
         An :py:class:`xarray.DataArray` containing bond lengths, angles and tensions.
 
     Examples
@@ -109,7 +112,7 @@ def get_bats(
         >>> geom.get_bats(frames['atXYZ'])
     """
 
-    if isinstance(atXYZ, ShnitselDB):
+    if isinstance(atXYZ, TreeNode):
         return atXYZ.map_data(
             lambda x: get_bats(
                 x,
@@ -127,7 +130,7 @@ def get_bats(
             position_data = atXYZ
             charge_info = None
         else:
-            wrapped_ds = wrap_dataset(atXYZ, (Trajectory|Frames))
+            wrapped_ds = wrap_dataset(atXYZ, (Trajectory | Frames))
             position_data = wrapped_ds.atXYZ
             charge_info = int(wrapped_ds.charge)
 
@@ -162,7 +165,7 @@ def get_bats(
                 get_dihedrals(
                     position_data,
                     structure_selection=structure_selection,
-                    deg=deg if isinstance(deg, bool) else True,
+                    deg=deg,
                     signed=signed,
                 )
             )
@@ -171,6 +174,7 @@ def get_bats(
                 get_pyramidalization(
                     position_data,
                     structure_selection=structure_selection,
+                    deg=deg,
                     signed=signed,
                 )
             )

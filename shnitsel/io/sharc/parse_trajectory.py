@@ -44,12 +44,17 @@ def read_traj(
 ) -> xr.Dataset:
     """Function to read a single SHARC trajectory directory
 
-    Args:
-        traj_path (PathOptionsType): The path to load the trajectory form
-        loading_parameters (LoadingParameters | None, optional): Parameter settings for e.g. standard units or state names.
+    Parameters
+    ----------
+    traj_path : PathOptionsType
+        The path to load the trajectory form
+    loading_parameters : LoadingParameters | None, optional
+        Parameter settings for e.g. standard units or state names.
 
-    Returns:
-        xr.Dataset: The parsed SHARC directory as a Dataset
+    Returns
+    -------
+    xr.Dataset
+        The parsed SHARC directory as a Dataset
     """
     # TODO: FIXME: use loading_parameters to configure units and state names
 
@@ -347,16 +352,20 @@ def read_traj(
     return trajectory
 
 
-def parse_output_settings(f: TextIOWrapper) -> Dict[str, Any]:
+def parse_output_settings(f: TextIOWrapper) -> dict[str, Any]:
     """Function to parse settings from the `output.dat` file as far as they are available.
 
     Read settings and other info from the file.
 
-    Args:
-        f (TextIOWrapper): File wrapper providing the `output.dat` file contents
+    Parameters
+    ----------
+    f : TextIOWrapper
+        File wrapper providing the `output.dat` file contents
 
-    Returns:
-        Dict[str, Any]: A key-value dictionary, where the keys are the names of the settings
+    Returns
+    -------
+    dict[str, Any]
+        A key-value dictionary, where the keys are the names of the settings
     """
     settings = {}
     for line in f:
@@ -378,16 +387,21 @@ def parse_output_settings(f: TextIOWrapper) -> Dict[str, Any]:
     return settings
 
 
-def parse_output_listings(path: pathlib.Path) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+def parse_output_listings(path: pathlib.Path) -> tuple[dict[str, Any], dict[str, Any]]:
     """Function to parse settings from the `output.lis` file as far as they are available.
 
     This is used to read the delta_t variable if it hasn't been set otherwise.
 
-    Args:
-        path (pathlib.Path): Path to the `output.lis` file.
+    Parameters
+    ----------
+    path : pathlib.Path
+        Path to the `output.lis` file.
 
-    Returns:
-        Tuple[Dict[str, Any], Dict[str, Any]]: First, a key-value dictionary, where the keys are the names of the settings like delta_t, nsteps and t_max. Then a key_value dictionary with names of variables and their values extracted from the file.
+    Returns
+    -------
+    tuple[dict[str, Any], dict[str, Any]]
+        First, a key-value dictionary, where the keys are the names of the settings like delta_t, nsteps and t_max. 
+        Then a key_value dictionary with names of variables and their values extracted from the file.
     """
     settings = {}
     variables = {}
@@ -418,11 +432,15 @@ def parse_output_log(f: TextIOWrapper) -> Dict[str, Any]:
 
     This is used to read the version of sharc and input settings if unavailable elsewhere.
 
-    Args:
-        f (TextIOWrapper): The file input stream from `output.log`
+    Parameters
+    ----------
+    f : TextIOWrapper
+        The file input stream from `output.log`
 
-    Returns:
-        Dict[str, Any]: A key-value dictionary, where the keys are the names of the settings like delta_t, t_max, or version.
+    Returns
+    -------
+    dict[str, Any]
+        A key-value dictionary, where the keys are the names of the settings like delta_t, t_max, or version.
     """
     settings = {}
 
@@ -465,15 +483,22 @@ def parse_trajout_dat(
 ) -> Tuple[bool, int, xr.Dataset]:
     """Function to parse the contents of an 'output.dat' in a sharc trajectory output directory into a Dataset.
 
-    Args:
-        f (TextIOWrapper): A file wrapper providing the contents of 'output.dat'.
-        nsteps (int | None, optional): The number of maximum steps expected. Defaults to None.
+    Parameters
+    ----------
+    f : TextIOWrapper
+        A file wrapper providing the contents of 'output.dat'.
+    nsteps : int | None, optional
+        The number of maximum steps expected. Defaults to None.
 
-    Raises:
-        ValueError: Raised if not enough steps are found in the output.dat file
+    Raises
+    ------
+    ValueError
+        Raised if not enough steps are found in the output.dat file
 
-    Returns:
-        xr.Dataset: A flag to indicate if the full trajectory has been read, the number of steps that acutally were read and the full dataset with unit attributes and further helpful attributes applied.
+    Returns
+    -------
+    xr.Dataset
+        A flag to indicate if the full trajectory has been read, the number of steps that acutally were read and the full dataset with unit attributes and further helpful attributes applied.
     """
     settings = parse_output_settings(f)
     nsteps = trajectory_in.sizes["time"]
@@ -756,15 +781,19 @@ def parse_trajout_xyz(
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Read atom names, atom numbers and positions for each time step up until a maximum of `nsteps` from an `output.xyz` file and returm them.
 
-    Args:
-        nsteps (int): The maximum number of steps to be read
-        f (TextIOWrapper): The input file wrapper providing the contents of an `output.xyz` file.
+    Parameters
+    ----------
+    nsteps : int
+        The maximum number of steps to be read
+    f : TextIOWrapper
+        The input file wrapper providing the contents of an `output.xyz` file.
 
-    Returns:
-        Tuple[np.ndarray, np.ndarray, np.ndarray]:
-            Tuple of (atom_names, atom_numbers, atom_positions) as numpy arrays.
-            Only atom_positions has the first index indicate the time step, the second the atom and the third the direction.
-            Other entries are 1d arrays.
+    Returns
+    -------
+    Tuple[np.ndarray, np.ndarray, np.ndarray]
+        Tuple of (atom_names, atom_numbers, atom_positions) as numpy arrays.
+        Only atom_positions has the first index indicate the time step, the second the atom and the third the direction.
+        Other entries are 1d arrays.
     """
     # TODO: FIXME: inputs in xyz appear to be in angstrom contrary to Bohr in .log and .dat
     first = next(f)
@@ -793,16 +822,20 @@ def parse_trajout_xyz(
     return (atNames, atNums, atXYZ)
 
 
-def parse_input_settings(input_lines: List[str]) -> Dict[str, Any]:
+def parse_input_settings(input_lines: list[str]) -> dict[str, Any]:
     """Function to parse settings from the `input` file.
 
     Can be provided the contents of the file as found in the `output.log` file.
 
-    Args:
-        input_lines (List[str]): The lines of the input file.
+    Parameters
+    ----------
+    input_lines : list[str]
+        The lines of the input file.
 
-    Returns:
-        Dict[str, Any]: A key-value dictionary, where the keys are the first words in each line
+    Returns
+    -------
+    dict[str, Any]
+        A key-value dictionary, where the keys are the first words in each line
     """
     settings = {}
     for line in input_lines:

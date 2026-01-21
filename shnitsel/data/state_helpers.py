@@ -22,11 +22,15 @@ singlet_state_pattern_re = re.compile(r"^S(?P<state_mult_index>\d+)$")
 def default_state_type_assigner(dataset: xr.Dataset) -> xr.Dataset:
     """Function to assign default state types to states independent of the format.
 
-    Args:
-        dataset (xr.Dataset): The dataset to assign the states to
+    Parameters
+    ----------
+    dataset : xr.Dataset
+        The dataset to assign the states to
 
-    Returns:
-        xr.Dataset: The dataset after the assignment
+    Returns
+    -------
+    xr.Dataset
+        The dataset after the assignment
     """
     # If state types have already been set, do not touch them
     if is_variable_assigned(dataset.state_types):
@@ -76,11 +80,15 @@ def default_state_name_assigner(dataset: xr.Dataset) -> xr.Dataset:
     State names for Singlets are (S0, S1, S2, S3, S4...) higher-order multiplicities start with index 1 (no suffix for momentum in default naming due to lack of information).
     Prefixes for singlets, doublets and triplets are `S`, `D`, `T`. Higher-order states are not considered.
 
-    Args:
-        dataset (xr.Dataset): The dataset to assign the states to
+    Parameters
+    ----------
+    dataset : xr.Dataset
+        The dataset to assign the states to
 
-    Returns:
-        xr.Dataset: The dataset after the assignment
+    Returns
+    -------
+    xr.Dataset
+        The dataset after the assignment
     """
     # Do not touch previously set names
     if is_variable_assigned(dataset.state_names):
@@ -158,14 +166,20 @@ def set_sharc_state_type_and_name_defaults(
     State names for Singlets are (S0, S1, S2, S3, S4...) higher-order multiplicities start with index 1 and have a suffix depending on the angular momentum (+,none, -).
     Prefixes for singlets, doublets and triplets are `S`, `D`, `T`. Higher-order states are named with the pattern `S[<multiplicity>]<label index in multiplicity>::<angular momentum index>`.
 
-    Args:
-        dataset (xr.Dataset): The input dataset to set the states on
-        multiplicity_counts (List[int] | int): The list of amount of states of different multiplicities or the number of singlet states
-        multiplicity_charges (List | int | float, optional): The list of charges of different states or the charge to apply to all states.
-                If not set, no charge will be set for all states
+    Parameters
+    ----------
+    dataset : xr.Dataset
+        The input dataset to set the states on
+    multiplicity_counts : List[int] | int
+        The list of amount of states of different multiplicities or the number of singlet states
+    multiplicity_charges : List | int | float, optional
+        The list of charges of different states or the charge to apply to all states.
+            If not set, no charge will be set for all states
 
-    Returns:
-        xr.Dataset: The dataset with state types, names and charges applied.
+    Returns
+    -------
+    xr.Dataset
+        The dataset with state types, names and charges applied.
     """
     if not isinstance(multiplicity_counts, list):
         multiplicity_counts = [multiplicity_counts]
@@ -265,11 +279,15 @@ def set_sharc_state_type_and_name_defaults(
 def state_name_to_tex_label(statename: str) -> str:
     """Function to translate default state naming conventions into a general latex-subcscrip/-superscript label.
 
-    Args:
-        statename (str): Statename as per Shnitsel default convention.
+    Parameters
+    ----------
+    statename : str
+        Statename as per Shnitsel default convention.
 
-    Returns:
-        str: A LaTeX representation of the state label
+    Returns
+    -------
+    str
+        A LaTeX representation of the state label
     """
     singlet_match = singlet_state_pattern_re.match(statename)
     if singlet_match:

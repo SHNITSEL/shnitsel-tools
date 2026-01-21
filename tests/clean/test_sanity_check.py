@@ -10,7 +10,7 @@ from shnitsel.io import read
 
 @pytest.fixture(
     params=[
-        ('tutorials/tut_data/traj_I02.nc', -1),
+        ('tutorials/test_data/shnitsel/traj_I02.nc', -1),
     ]
 )
 def frames(request) -> Frames:

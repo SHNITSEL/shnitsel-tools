@@ -1,4 +1,4 @@
-from typing import Any, overload
+from typing import Any, Literal, overload
 import xarray as xr
 import numpy as np
 
@@ -30,15 +30,23 @@ def pyramidalization_angle(
     pyramidalization angle accordingt to `https://doi.org/10.1063/5.0008368`, where the existence and derivation
     of such an angle is shown.
 
-    Args:
-        atXYZ (AtXYZ): Array with atom positions
-        x_index (int): Index of the center atom in the pyramidalization
-        a_index (int): Index of the first atom bonded to the `x`-atom
-        b_index (int): Index of the second atom bonded to the `x`-atom
-        c_index (int): Index of the third atom bonded to the `x`-atom
+    Parameters
+    ----------
+    atXYZ : AtXYZ
+        Array with atom positions
+    x_index : int
+        Index of the center atom in the pyramidalization
+    a_index : int
+        Index of the first atom bonded to the `x`-atom
+    b_index : int
+        Index of the second atom bonded to the `x`-atom
+    c_index : int
+        Index of the third atom bonded to the `x`-atom
 
-    Returns:
-        xr.DataArray: The array of pyramidalization angles
+    Returns
+    -------
+    xr.DataArray
+        The array of pyramidalization angles
     """
     # TODO: FIXME: Not sure if this is correct. This definition depends on the choice abc. Should b be the center molecule?
 
@@ -62,7 +70,7 @@ def pyramidalization_angle(
 def get_pyramidalization(
     atXYZ_source: TreeNode[Any, Trajectory | Frames | xr.Dataset | xr.DataArray],
     structure_selection: StructureSelection | None = None,
-    deg: bool = False,
+    deg: bool | Literal['trig'] = True,
     signed=True,
 ) -> TreeNode[Any, xr.DataArray]: ...
 
@@ -71,7 +79,7 @@ def get_pyramidalization(
 def get_pyramidalization(
     atXYZ_source: Trajectory | Frames | xr.Dataset | xr.DataArray,
     structure_selection: StructureSelection | None = None,
-    deg: bool = False,
+    deg: bool | Literal['trig'] = True,
     signed=True,
 ) -> xr.DataArray: ...
 
@@ -84,8 +92,8 @@ def get_pyramidalization(
     | xr.Dataset
     | xr.DataArray,
     structure_selection: StructureSelection | None = None,
-    deg: bool = False,
-    signed=True,
+    deg: bool | Literal['trig'] = True,
+    signed: bool = True,
 ) -> TreeNode[Any, xr.DataArray] | xr.DataArray:
     """Identify atoms with three bonds (using RDKit) and calculate the corresponding pyramidalization angles
     for each frame.
@@ -103,18 +111,20 @@ def get_pyramidalization(
 
     Parameters
     ----------
-    atXYZ_source
+    atXYZ_source : TreeNode[Any, Trajectory | Frames | xr.Dataset | xr.DataArray] | Trajectory | Frames | xr.Dataset | xr.DataArray
         An :py:class:`xarray.DataArray` of molecular coordinates, with dimensions ``atom`` and ``direction`` or another source of positional data like a trajectory, a frameset, a dataset representing either of those or a tree structure holding such data.
-    structure_selection, optional
+    structure_selection : StructureSelection, optional
         An optional argument to specify the substructures for which pyramidalization angles should be calculated.
         If not provided, will be generated using `_get_default_selection()` using the atXYZ data for the pyramids level.
-    deg, optional
-        Whether to return angles in degrees (as opposed to radians), by default False
-    signed, optional
+    deg : bool | Literal['trig'] = True, optional
+        Whether to return angles in degrees (as opposed to radians), by default False.
+        Alternatively with the option `trig`, this will yield the sin and cos of each pyramidalization angle instead.
+    signed : bool, optional
         Whether the result should be returned with a sign or just as an absolute value. Defaults to True, yielding the signed pyramidalization.
 
     Returns
     -------
+    TreeNode[Any, xr.DataArray] | xr.DataArray
         An :py:class:`xarray.DataArray` of pyramidalizations with dimensions all dimensions but `atom` still intact and a new `descriptor` dimension introduced to index all the chosen quadruples for pyramidalization instead of the `atom` dimension.
 
     """
@@ -132,7 +142,7 @@ def get_pyramidalization(
         structure_selection, atXYZ_source=atXYZ_source, default_levels=['pyramids']
     )
 
-    atXYZ : xr.DataArray
+    atXYZ: xr.DataArray
     if isinstance(atXYZ_source, xr.DataArray):
         atXYZ = atXYZ_source
     else:

@@ -17,7 +17,14 @@ from .spectra import calculate_fosc
 
 from .._contracts import needs
 
-from ..core.typedefs import DimName, Frames, InterState, PerState
+from ..core.typedefs import DimName
+
+from ..data.dataset_containers import (
+    Frames,
+    Trajectory,
+    MultiSeriesDataset,
+    wrap_dataset,
+)
 
 
 #####################################################
@@ -33,15 +40,22 @@ def calc_confidence_interval(
 
     The result is a numpy array with stacked entries with the lower and upper limits of the confidence interval.
 
-    Args:
-        a (npt.NDArray): The Numpy array to calculate the confidence interval for.
-        confidence (float, optional): The confidence level to get the confidence interval for. Defaults to 0.95.
+    Parameters
+    ----------
+    a : npt.NDArray
+        The Numpy array to calculate the confidence interval for.
+    confidence : float, optional
+        The confidence level to get the confidence interval for. Defaults to 0.95.
 
-    Raises:
-        ValueError: Raised if the provided `data_array` is not one-dimensional
+    Raises
+    ------
+    ValueError
+        Raised if the provided `data_array` is not one-dimensional
 
-    Returns:
-        npt.NDArray: Numpy array with lower and upper bounds of the confidence interval
+    Returns
+    -------
+    npt.NDArray
+        Numpy array with lower and upper bounds of the confidence interval
     """
     if np.array(data_array).ndim != 1:
         raise ValueError("This function accepts 1D input only")
@@ -81,12 +95,17 @@ def confidence_interval_aggregate_last_dim(
 
     For our purposes, this should amount to the trajectory being averaged over.
 
-    Args:
-        data_array (npt.NDArray): The numpy data array to calculate the confidence interval for.
-        confidence (float, optional): The confidence level to use for calculations. Defaults to 0.95.
+    Parameters
+    ----------
+    data_array : npt.NDArray
+        The numpy data array to calculate the confidence interval for.
+    confidence : float, optional
+        The confidence level to use for calculations. Defaults to 0.95.
 
-    Returns:
-        npt.NDArray: A numpy array with (lower_bound,upper_bound,mean) of the confidence interval in the last dimension. Otherwise same shape as data_array.
+    Returns
+    -------
+    npt.NDArray
+        A numpy array with (lower_bound,upper_bound,mean) of the confidence interval in the last dimension. Otherwise same shape as data_array.
     """
     outer_shape = tuple(data_array.shape[:-1])
     res = np.full(outer_shape + (3,), np.nan)
@@ -107,13 +126,19 @@ def calc_confidence_interval_in_array_dimensions(
 
     The dimension denoted by `dim` will be aggregated across.
 
-    Args:
-        data_array (xr.DataArray): Input data to have confidence intervals calculated for.
-        dim (DimName): Dimension to calculate the confidence interval data from.
-        confidence (float, optional): Confidence level for Confidence interval calculation. Defaults to 0.95.
+    Parameters
+    ----------
+    data_array : xr.DataArray
+        Input data to have confidence intervals calculated for.
+    dim : DimName
+        Dimension to calculate the confidence interval data from.
+    confidence : float, optional
+        Confidence level for Confidence interval calculation. Defaults to 0.95.
 
-    Returns:
-        xr.DataArray: DataArray with coordinate `bound` with values 'lower', 'upper', and 'mean', which refer to the lower and the upper bound of the confidence interval of this and
+    Returns
+    -------
+    xr.DataArray
+        DataArray with coordinate `bound` with values 'lower', 'upper', and 'mean', which refer to the lower and the upper bound of the confidence interval of this and
     """
     res_da: xr.DataArray = xr.apply_ufunc(
         confidence_interval_aggregate_last_dim,
@@ -133,12 +158,17 @@ def time_grouped_confidence_interval(
 ) -> xr.Dataset:
     """Function to calculate the per-time confidence interval of a DataArray that is groupable by the `time` coordinate.
 
-    Args:
-        data_array (xr.DataArray): Data Array for whose data the confidence intervals should be calculated
-        confidence (float, optional): The confidence level to calculate the interval bounds for. Defaults to 0.9.
+    Parameters
+    ----------
+    data_array : xr.DataArray
+        Data Array for whose data the confidence intervals should be calculated
+    confidence : float, optional
+        The confidence level to calculate the interval bounds for. Defaults to 0.9.
 
-    Returns:
-        xr.Dataset: A new Dataset, where variables 'lower', 'upper' and 'mean' contain the lower and upper bounds of the confidence interval in each time step and mean is the mean at each point in time.
+    Returns
+    -------
+    xr.Dataset
+        A new Dataset, where variables 'lower', 'upper' and 'mean' contain the lower and upper bounds of the confidence interval in each time step and mean is the mean at each point in time.
     """
     if "frame" in data_array.dims:
         return (
@@ -162,19 +192,21 @@ def time_grouped_confidence_interval(
 
 
 @needs(dims={"state"})
-def get_per_state(frames: Frames) -> PerState:
+def get_per_state(
+    frames: Frames | Trajectory | MultiSeriesDataset | xr.Dataset,
+) -> xr.Dataset:
     """Isolate the standard per-state properties (energy, forces, permanent dipoles)
     from an xr.Dataset, and take their norm over all array dimensions other than 'state'
     so that the resulting variables can be easily plotted against another.
 
     Parameters
     ----------
-    frames
+    frames : Frames | Trajectory | MultiSeriesDataset | xr.Dataset
         An xr.Dataset object containing at least 'energy', 'forces' and 'dip_perm' variables
 
     Returns
     -------
-    PerState
+    xr.Dataset
         An xr.Dataset object containing only 'energy', 'forces' and 'dip_perm' variables
     """
     # TODO: FIXME: Attributes need to be kept.
@@ -203,18 +235,24 @@ def get_per_state(frames: Frames) -> PerState:
 
 
 @needs(dims={"state"}, coords={"state"})
-def get_inter_state(frames: Frames) -> InterState:
+def get_inter_state(
+    frames: Frames | Trajectory | MultiSeriesDataset | xr.Dataset,
+) -> xr.Dataset:
     """Calculate inter-state properties of a dataset for certain observables.
 
     Currently calculates inter-state levels of energy differences.
     Will calculate Differences between the values of these observables indexed by state.
     If no `statecomb` dimension exists, will create one.
 
-    Args:
-        frames (Frames): The basis Dataset to calculate the interstate properties for
+    Parameters
+    ----------
+    frames : Frames | Trajectory | MultiSeriesDataset | xr.Dataset
+        The basis Dataset to calculate the interstate properties for
 
-    Returns:
-        InterState: A Dataset containing interstate properties
+    Returns
+    -------
+    xr.Dataset
+        A Dataset containing interstate properties
     """
     prop: Hashable
     inter_base_props = ["energy"]

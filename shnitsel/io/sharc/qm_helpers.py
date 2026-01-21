@@ -4,17 +4,22 @@ import numpy as np
 import xarray as xr
 
 
-def read_molcas_qm_info(dataset: xr.Dataset, qm_path: pathlib.Path) -> Dict[str, Any]:
+def read_molcas_qm_info(dataset: xr.Dataset, qm_path: pathlib.Path) -> dict[str, Any]:
     """An attempt to read QM-interface info from SHARC 2.x and 3.0 MOLCAS interface data.
 
     Used to determine the charge of the molecule.
 
-    Args:
-        dataset (xr.Dataset): Input set to access certain features of the setup
-        qm_path (pathlib.Path): Path to the QM/ folder in the simulation directory
+    Parameters
+    ----------
+    dataset : xr.Dataset
+        Input set to access certain features of the setup
+    qm_path : pathlib.Path
+        Path to the QM/ folder in the simulation directory
 
-    Returns:
-        Dict[str, Any]: Resulting settings.
+    Returns
+    -------
+    dict[str, Any]
+        Resulting settings.
     """
     resources_file = qm_path / "MOLCAS.resources"
     template_file = qm_path / "MOLCAS.template"
@@ -82,17 +87,22 @@ def read_molcas_qm_info(dataset: xr.Dataset, qm_path: pathlib.Path) -> Dict[str,
     return res
 
 
-def read_columbus_qm_info(dataset: xr.Dataset, qm_path: pathlib.Path) -> Dict[str, Any]:
+def read_columbus_qm_info(dataset: xr.Dataset, qm_path: pathlib.Path) -> dict[str, Any]:
     """An attempt to read QM-interface info from SHARC 2.x and 3.0 COLUMBUS interface data.
 
     Used to determine the charge of the molecule.
 
-    Args:
-        dataset (xr.Dataset): Input set to access certain features of the setup
-        qm_path (pathlib.Path): Path to the QM/ folder in the simulation directory
+    Parameters
+    ----------
+    dataset : xr.Dataset
+        Input set to access certain features of the setup
+    qm_path : pathlib.Path
+        Path to the QM/ folder in the simulation directory
 
-    Returns:
-        Dict[str, Any]: Resulting settings.
+    Returns
+    -------
+    dict[str, Any]
+        Resulting settings.
     """
     resources_file = qm_path / "COLUMBUS.resources"
     template_dir: Optional[pathlib.Path] = None

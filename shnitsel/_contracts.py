@@ -36,20 +36,32 @@ def needs(
     Callable[Concatenate[DatasetOrArray, P], T],
 ]:
     """
-    Decorator to add information about required data in an initial argument of a function that can be applied to a Dataset or a DataArray
+    Decorator to add information about required data in an initial argument of a function that can be applied to a Dataset 
+    or a DataArray.
 
-    Args:
-        to_be (Literal['da', 'ds', None] , optional): Whether the initial argument needs to be a DataArray or a Dataset. Defaults to None.
-        dims (set[str] | None, optional): A list of dimensions that need to be present. Defaults to None.
-        coords (set[str] | None, optional): A list of coordinates that need to be present. Defaults to None.
-        data_vars (set[str] | None, optional): A list of data variables that need to be present. Defaults to None.
-        groupable (set[str] | None, optional): A list of coordinates by which the data needs to be groupable. Defaults to None.
-        coords_or_vars (set[str] | None, optional): A list of entries that can either be present as a coordinate or a variable. Defaults to None.
-        name (str | None, optional): Whether the data needs to have an attribute `name` set. Defaults to None.
-        not_dims (set[str] | None, optional): A list of dimensions that must not be present on the data. Defaults to None.
+    Parameters
+    ----------
+    to_be : Literal['da', 'ds', None] , optional
+            Whether the initial argument needs to be a DataArray or a Dataset. Defaults to None.
+    dims : set[str] | None, optional
+            A list of dimensions that need to be present. Defaults to None.
+    coords : set[str] | None, optional
+            A list of coordinates that need to be present. Defaults to None.
+    data_vars : set[str] | None, optional
+            A list of data variables that need to be present. Defaults to None.
+    groupable : set[str] | None, optional
+            A list of coordinates by which the data needs to be groupable. Defaults to None.
+    coords_or_vars : set[str] | None, optional
+            A list of entries that can either be present as a coordinate or a variable. Defaults to None.
+    name : str | None, optional
+            Whether the data needs to have an attribute `name` set. Defaults to None.
+    not_dims : set[str] | None, optional
+            A list of dimensions that must not be present on the data. Defaults to None.
 
-    Returns:
-        Callable[[Callable[P,T]], Callable[P,T]]: A descriptor that does not change the method signature but sets a `_needs` property of the function object for later use.
+    Returns
+    -------
+    Callable[[Callable[P,T]], Callable[P,T]]
+        A descriptor that does not change the method signature but sets a `_needs` property of the function object for later use.
     """
 
     def decorator(

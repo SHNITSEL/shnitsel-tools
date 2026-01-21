@@ -67,19 +67,30 @@ _optional_shnitsel_attributes = [
 
 def check_shnitsel_trajectory_data(
     trajectory: Frames | Trajectory | xr.Dataset, report: bool = False
-) -> Tuple[Set[str], Set[str], Set[str], Set[str]] | None:
-    """Function to check whether all required and only denoted optional variables and meta information is available on a shnitsel-loaded trajectory.
+) -> tuple[set[str], set[str], set[str], set[str]] | None:
+    """Function to check whether all required and only denoted optional variables and meta information is available 
+    on a shnitsel-loaded trajectory.
 
-    Args:
-        trajectory ( Frames | Trajectory | xr.Dataset): The trajectory to check for the presence of variables and settings
-        report (bool, optional): Whether to raise an error if discrepancies were found. Defaults to False.
+    Parameters
+    ----------
+    trajectory : Frames | Trajectory | xr.Dataset
+        The trajectory to check for the presence of variables and settings
+    report : bool, optional
+        Whether to raise an error if discrepancies were found. Defaults to False.
 
-    Raises:
-        ValueError: If missing variables or attributes or unexpected variables or attributes are encountered in the provided trajectory and ``report=True`` is set.
+    Raises
+    ------
+    ValueError
+        If missing variables or attributes or unexpected variables or attributes are encountered in the provided 
+        trajectory and ``report=True`` is set.
 
-    Returns:
-        Tuple[Set[str], Set[str], Set[str], Set[str]]: The sets of missing required variables, present unexpected variables, missing required attributes and present unexpected attributes.
-        None: No discrepancies found.
+    Returns
+    -------
+    tuple[set[str], set[str], set[str], set[str]]
+        The sets of missing required variables, present unexpected variables, missing required attributes and present 
+        unexpected attributes.
+    None
+        No discrepancies found.
     """
     missing_required_vars = _required_shnitsel_variables.copy()
     unexpected_vars = []

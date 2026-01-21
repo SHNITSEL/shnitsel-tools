@@ -817,17 +817,26 @@ def identify_or_check_input_kind(
     """Function to identify/guess which kind of input type the current path has if no kind was provided.
     If a kind_hint is provided, it will verify, if the path actually is of that kind
 
-    Args:
-        path (PathOptionsType): Path to a directory to be checked whether it can be read by available input readers
-        kind_hint (str | None): If set, the input format specified by the user. Only that reader's result will be used eventually.
+    Parameters
+    ----------
+    path : PathOptionsType
+        Path to a directory to be checked whether it can be read by available input readers
+    kind_hint : str | None
+        If set, the input format specified by the user. Only that reader's result will be used eventually.
 
-    Raises:
-        FileNotFoundError: If the `path` is not valid
-        ValueError: If the specified reader for `kind_hint` does not confirm validity of the directory
-        ValueError: If multiple readers match and no `kind_hint` was provided.
+    Raises
+    ------
+    FileNotFoundError
+        If the `path` is not valid
+    ValueError
+        If the specified reader for `kind_hint` does not confirm validity of the directory
+    ValueError
+        If multiple readers match and no `kind_hint` was provided.
 
-    Returns:
-        FormatInformation | None: The `FormatInformation` returned by the only successful check or None if no reader matched
+    Returns
+    -------
+    FormatInformation | None
+        The `FormatInformation` returned by the only successful check or None if no reader matched
     """
     # TODO: FIXME: Add ASE loading capability
 
@@ -925,14 +934,21 @@ def _per_traj(
 ) -> Trajres:
     """Internal function to carry out loading of trajectories to allow for parallel processing with a ProcessExecutor.
 
-    Args:
-        trajdir (pathlib.Path): The path to read a single trajectory from
-        reader (FormatReader): The reader instance to use for reading from that directory `path`.
-        format_info (FormatInformation): FormatInformation obtained from previous checks of the format.
-        base_loading_parameters (LoadingParameters): Settings for Loading individual trajectories like initial units and mappings of parameter names to Shnitsel variable names.
+    Parameters
+    ----------
+    trajdir : pathlib.Path
+        The path to read a single trajectory from
+    reader : FormatReader
+        The reader instance to use for reading from that directory `path`.
+    format_info : FormatInformation
+        FormatInformation obtained from previous checks of the format.
+    base_loading_parameters : LoadingParameters
+        Settings for Loading individual trajectories like initial units and mappings of parameter names to Shnitsel variable names.
 
-    Returns:
-        Trajres|None: Either the successfully loaded trajectory in a wrapper, or the wrapper containing error information
+    Returns
+    -------
+    Trajres|None
+        Either the successfully loaded trajectory in a wrapper, or the wrapper containing error information
     """
     queue, handler, logger, original_handlers = setup_queue_handler(None, 'root')
     base_loading_parameters.logger = logger

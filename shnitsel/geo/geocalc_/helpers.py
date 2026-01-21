@@ -25,17 +25,27 @@ def _get_default_selection(
 ) -> StructureSelection:
     """Get a default selection object from any accessible data if possible.
 
-    Args:
-        structure_selection (StructureSelection | None, optional): A potential already provided structure/feature selection. Defaults to None. If provided, will be returned back.
-        mol (rc.Mol | None, optional): An optional instance of an RDKit molecule. Used to construct a StructureSelection instance if `structure_selection` is None. Defaults to None.
-        atXYZ (xr.DataArray | None, optional): An xr.DataArray holding positional data of a molecule. Only the first frame will be used to create a default mol if `structure_selection` and `mol` were not provided. Defaults to None.
-        default_levels (Sequence[FeatureLevelOptions], optional): the desired default levels included in the selection that may be recreated if none was provided. Defaults to 'atoms' and 'bonds'.
+    Parameters
+    ----------
+    structure_selection : StructureSelection | None, optional
+        A potential already provided structure/feature selection. Defaults to None. 
+        If provided, will be returned back.
+    mol : rc.Mol | None, optional
+        An optional instance of an RDKit molecule. Used to construct a StructureSelection instance if `structure_selection` is None. Defaults to None.
+    atXYZ : xr.DataArray | None, optional
+        An xr.DataArray holding positional data of a molecule. Only the first frame will be used to create a default mol if `structure_selection` and `mol` were not provided. Defaults to None.
+    default_levels : Sequence[FeatureLevelOptions], optional
+        the desired default levels included in the selection that may be recreated if none was provided. Defaults to 'atoms' and 'bonds'.
 
-    Raises:
-        ValueError: _description_
+    Raises
+    ------
+    ValueError
+        Not enough data provided to construct a default selection from.
 
-    Returns:
-        StructureSelection: The initialized default structure selection.
+    Returns
+    -------
+    StructureSelection
+        The initialized default structure selection.
     """
 
     if structure_selection is not None:
@@ -56,11 +66,15 @@ def _get_default_selection(
 def _empty_descriptor_results(atXYZ: AtXYZ) -> xr.DataArray:
     """Get an empty result with no 'atom' dimension but a zero-length 'descriptor' dimension in its stead.
 
-    Args:
-        atXYZ (AtXYZ): The positional input to model the descriptor result after (shape- and coordinate-wise)
+    Parameters
+    ----------
+    atXYZ : AtXYZ
+        The positional input to model the descriptor result after (shape- and coordinate-wise)
 
-    Returns:
-        xr.DataArray: The empty descriptor DataArray of the desired shape.
+    Returns
+    -------
+    xr.DataArray
+        The empty descriptor DataArray of the desired shape.
     """
     res = atXYZ.isel(atom=[], direction=0, drop=True).rename({'atom': 'descriptor'})
     return _assign_descriptor_coords(res, [], [], [], [])
@@ -75,15 +89,23 @@ def _assign_descriptor_coords(
 ) -> xr.DataArray:
     """Helper function to assign all descriptor coordinates to keys of the same name
 
-    Args:
-        obj (xr.DataArray): The object to assign the new coordinates to. Should have a 'descriptor' dimension.
-        feature_descriptors (Sequence[FeatureDescriptor]): The indices of the atoms involved as a sequence of arbitrary tuples (see `FeatureDescriptor`).
-        feature_type (Sequence[FeatureTypeLabel]): The list of feature types.
-        feature_tex_label (Sequence[str]): Tex labels for the respective feature for more elaborate output.
-        feature_name (Sequence[str]): A simple ascii type name to be able to lookup features easier.
+    Parameters
+    ----------
+    obj : xr.DataArray
+        The object to assign the new coordinates to. Should have a 'descriptor' dimension.
+    feature_descriptors : Sequence[FeatureDescriptor]
+        The indices of the atoms involved as a sequence of arbitrary tuples (see `FeatureDescriptor`).
+    feature_type : Sequence[FeatureTypeLabel]
+        The list of feature types.
+    feature_tex_label : Sequence[str]
+        Tex labels for the respective feature for more elaborate output.
+    feature_name : Sequence[str]
+        A simple ascii type name to be able to lookup features easier.
 
-    Returns:
-        xr.DataArray: The resulting DataArray with the new coordinates assigned.
+    Returns
+    -------
+    xr.DataArray
+        The resulting DataArray with the new coordinates assigned.
     """
 
     feature_descriptors_np = np.empty((len(feature_descriptors),), dtype='O')
@@ -107,11 +129,15 @@ def _assign_descriptor_coords(
 def _remove_atom_coords(da: xr.DataArray) -> xr.DataArray:
     """Helper function to remove all standard atom-related coordinates.
 
-    Args:
-        da (xr.DataArray): The data array to clean of all the atom-related coordinates.
+    Parameters
+    ----------
+    da : xr.DataArray
+        The data array to clean of all the atom-related coordinates.
 
-    Returns:
-        xr.DataArray: The cleaned array.
+    Returns
+    -------
+    xr.DataArray
+        The cleaned array.
     """
 
     if 'atom' in da.dims:

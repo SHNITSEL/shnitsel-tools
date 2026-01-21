@@ -35,6 +35,7 @@ def read_shnitsel_file(
 
     Returns
     -------
+    xr.Dataset | xr.DataTree | None
         An :py:class:`xarray.Dataset` with any MultiIndex restored.
         A :py:class:`ShnitselDB` with any MultiIndex restored and attributes decoded.
 
@@ -107,12 +108,17 @@ def _parse_shnitsel_file_v1_0(
 
     Will print a warning that you should be using shnitsel v1.1 files to have full type information.
 
-    Args:
-        frames (xr.Dataset): The loaded Dataset from the netcdf file that needs to be post-processed.
-        loading_parameters (LoadingParameters | None, optional): Optional loading parameters for setting units. Defaults to None.
+    Parameters
+    ----------
+    frames : xr.Dataset
+        The loaded Dataset from the netcdf file that needs to be post-processed.
+    loading_parameters : LoadingParameters | None, optional
+        Optional loading parameters for setting units. Defaults to None.
 
-    Returns:
-        xr.Dataset: The post-processed shnitsel trajectory
+    Returns
+    -------
+    xr.Dataset
+        The post-processed shnitsel trajectory
     """
     if not isinstance(frames, xr.Dataset):
         raise ValueError(
@@ -158,11 +164,15 @@ def _parse_shnitsel_file_v1_0(
 def _decode_shnitsel_v1_1_dataset(dataset: xr.Dataset) -> xr.Dataset:
     """Function to decode encoded attributes and MultiIndices of a dataset
 
-    Args:
-        dataset (xr.Dataset): The dataset to process
+    Parameters
+    ----------
+    dataset : xr.Dataset
+        The dataset to process
 
     Returns
-        xr.Dataset: Copy of the dataset with attributes and MultiIndex instances decoded
+    -------
+    xr.Dataset
+        Copy of the dataset with attributes and MultiIndex instances decoded
     """
     if "__attrs_json_encoded" in dataset.attrs:
         del dataset.attrs["__attrs_json_encoded"]
@@ -235,7 +245,20 @@ def _decode_shnitsel_v1_1_dataset(dataset: xr.Dataset) -> xr.Dataset:
     return dataset
 
 
-def decode_attrs(obj):
+def decode_attrs(obj: xr.Dataset | xr.DataArray):
+    """Helper function to decode attributes of an object
+    that may have been serialized during the writing process.
+
+    Parameters
+    ----------
+    obj : xr.Dataset
+        The object whose attributes should be decoded
+
+    Returns
+    -------
+    xr.Dataset | xr.DataArray
+        The same type as the input but with deserialized attributes
+    """
     if "__attrs_json_encoded" in obj.attrs:
         del obj.attrs["__attrs_json_encoded"]
 
@@ -268,6 +291,18 @@ def decode_attrs(obj):
 
 
 def _decode_shnitsel_v1_1_datatree(datatree: xr.DataTree) -> xr.DataTree:
+    """Decoder for v1.1 versions of shnitsel datatree formats.
+
+    Parameters
+    ----------
+    datatree : xr.DataTree
+        The Datatree as read from the file.
+
+    Returns
+    -------
+    xr.DataTree
+        The datatree after initial processing and decoding of attributes
+    """
     res = datatree.copy()
     if res.has_data:
         res.dataset = _decode_shnitsel_v1_1_dataset(res.dataset)
@@ -277,7 +312,19 @@ def _decode_shnitsel_v1_1_datatree(datatree: xr.DataTree) -> xr.DataTree:
     )
 
 
-def _decode_shnitsel_v1_2_datatree(datatree: xr.DataTree) -> xr.DataTree:
+def _decode_shnitsel_v1_2_datatree(datatree: xr.DataTree) -> xr.DataTree:    
+    """Decoder for v1.2 versions of shnitsel datatree formats.
+
+    Parameters
+    ----------
+    datatree : xr.DataTree
+        The Datatree as read from the file.
+
+    Returns
+    -------
+    xr.DataTree
+        The datatree after initial processing and decoding of attributes
+    """
     res = datatree.copy()
     if res.has_data:
         res.dataset = _decode_shnitsel_v1_1_dataset(res.dataset)
@@ -294,12 +341,17 @@ def _parse_shnitsel_file_v1_1(
 ) -> T:
     """Internal function to parse the revised shnitsel format v1.1 with better attribute encoding and more extensive unit declarations.
 
-    Args:
-        frames (xr.Dataset|xr.DataTree): The loaded Dataset from the netcdf file that needs to be post-processed.
-        loading_parameters (LoadingParameters | None, optional): Optional loading parameters for setting units. Defaults to None.
+    Parameters
+    ----------
+    frames : xr.Dataset|xr.DataTree
+        The loaded Dataset or tree from the netcdf file that needs to be post-processed.
+    loading_parameters : LoadingParameters | None, optional
+        Optional loading parameters for setting units. Defaults to None.
 
-    Returns:
-        xr.Dataset: The post-processed shnitsel trajectory
+    Returns
+    -------
+    xr.Dataset
+        The post-processed shnitsel trajectory
     """
     from shnitsel.data.tree import (
         complete_shnitsel_tree,
@@ -328,12 +380,17 @@ def _parse_shnitsel_file_v1_2(
 ) -> T:
     """Internal function to parse the revised shnitsel format v1.2 with better attribute encoding and more extensive unit declarations using the DataTree format.
 
-    Args:
-        frames (xr.DataTree): The loaded Dataset from the netcdf file that needs to be post-processed.
-        loading_parameters (LoadingParameters | None, optional): Optional loading parameters for setting units. Defaults to None.
+    Parameters
+    ----------
+    frames : xr.DataTree
+        The loaded Dataset from the netcdf file that needs to be post-processed.
+    loading_parameters : LoadingParameters | None, optional
+        Optional loading parameters for setting units. Defaults to None.
 
-    Returns:
-        xr.DataTree: The post-processed shnitsel trajectory
+    Returns
+    -------
+    xr.DataTree
+        The post-processed shnitsel trajectory
     """
     from shnitsel.data.tree import (
         complete_shnitsel_tree,

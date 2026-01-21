@@ -1,4 +1,6 @@
-from typing import Any, Generic, Hashable, TypeVar, overload
+from typing import Any, Generic, Hashable, Mapping, TypeVar, overload
+
+import numpy as np
 
 from shnitsel import _state
 from shnitsel._contracts import needs
@@ -7,9 +9,12 @@ import xarray as xr
 from shnitsel.analyze.generic import get_standardized_pairwise_dists
 from shnitsel.data.dataset_containers import wrap_dataset
 from shnitsel.data.dataset_containers.frames import Frames
+from shnitsel.data.dataset_containers.multi_series import MultiSeriesDataset
+from shnitsel.data.dataset_containers.multi_stacked import MultiSeriesStacked
 from shnitsel.data.dataset_containers.trajectory import Trajectory
 from shnitsel.data.multi_indices import mdiff
 from sklearn.decomposition import PCA as sk_PCA
+from .hops import hops_mask_from_active_state
 
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.pipeline import Pipeline
@@ -20,6 +25,7 @@ from shnitsel.data.tree.node import TreeNode
 from shnitsel.data.tree.tree import ShnitselDB
 from shnitsel.filtering.structure_selection import StructureSelection
 from shnitsel.geo.geocalc import get_bats
+from shnitsel.analyze.generic import norm
 
 OriginType = TypeVar('OriginType')
 ResultType = TypeVar('ResultType')
@@ -70,12 +76,15 @@ class PCAResult(
             assert isinstance(pca_projected_inputs, xr.DataArray), (
                 "If inputs are provided as a single data array, the results must also be a single data array"
             )
+            coord_initial = [
+                pca_projected_inputs.coords['PC'],
+                pca_inputs.coords[pca_dimension],
+            ]
             self._pca_components = xr.DataArray(
                 pca_object.components_,
-                coords=[
-                    pca_projected_inputs.coords['PC'],
-                    pca_inputs.coords[pca_dimension],
-                ],
+                coords=coord_initial,
+            ).assign_coords(
+                PCAResult.get_extra_coords_for_loadings(pca_inputs, pca_dimension)
             )
         elif isinstance(pca_inputs, TreeNode):
             assert isinstance(pca_projected_inputs, TreeNode), (
@@ -89,13 +98,18 @@ class PCAResult(
             assert isinstance(outputs_collected, xr.DataArray), (
                 "Tree-shaped results of PCA are not of data type xr.DataArray"
             )
+            coord_initial = [
+                outputs_collected[0].coords['PC'],
+                inputs_collected[0].coords[pca_dimension],
+            ]
 
             self._pca_components = xr.DataArray(
                 pca_object.components_,
-                coords=[
-                    outputs_collected[0].coords['PC'],
-                    inputs_collected[0].coords[pca_dimension],
-                ],
+                coords=coord_initial,
+            ).assign_coords(
+                PCAResult.get_extra_coords_for_loadings(
+                    inputs_collected[0], pca_dimension
+                )
             )
         self._pca_object = pca_object
         self._pca_inputs_projected = pca_projected_inputs
@@ -122,12 +136,123 @@ class PCAResult(
         return self._pca_components
 
     @property
+    def loadings(self) -> xr.DataArray:
+        return self._pca_components
+
+    @property
     def projected_inputs(self) -> ResultType:
         return self._pca_inputs_projected
-    
+
     @property
     def results(self) -> ResultType:
         return self.projected_inputs
+
+    def get_most_significant_loadings(
+        self, top_n_per: int = 5, top_n_total: int = 5
+    ) -> tuple[Mapping[Hashable, xr.DataArray], xr.DataArray]:
+        """Function to retrieve the most significant loadings in the
+        PCA result for each individual component and in total.
+
+        You can configure the amount of
+
+        Parameters
+        ----------
+        top_n_per : int, optional
+            Number of top (most significant absolute loading) n loadings per component, by default 5
+        top_n_total : int, optional
+            Number of overall top (i.e. most significant by 2-norm of their loadings across all PC) n features across all components, by default 5
+
+        Returns
+        -------
+        tuple[Mapping[Hashable, xr.DataArray], xr.DataArray]
+            First the mapping of each PC to the array holding the data of all their most significant loadings.
+            Second the overall most significant loadings across all components.
+        """
+        loadings = self.loadings
+
+        per_pc_results = {}
+        for pc in loadings.PC.values:
+            component = loadings.sel(PC=pc)
+            # print(component)
+            # print(component.values)
+
+            top_n_per_local = min(component.sizes[self.pca_mapped_dimension], top_n_per)
+
+            abs_loading = np.abs(component)
+            top_arg_indices = np.argpartition(abs_loading, -top_n_per_local)[
+                -top_n_per_local:
+            ]
+            top_arg_coords = component.coords[self.pca_mapped_dimension].values[
+                top_arg_indices
+            ]
+
+            # print(top_arg_indices)
+            # print(top_arg_coords)
+
+            per_pc_results[pc] = component.sel(
+                {self.pca_mapped_dimension: top_arg_coords}
+            )
+
+        top_n_total_local = min(loadings.sizes[self.pca_mapped_dimension], top_n_total)
+        total_abs_loadings = norm(loadings, dim='PC')
+
+        top_arg_indices = np.argpartition(total_abs_loadings, -top_n_total_local)[
+            -top_n_total_local:
+        ]
+        top_arg_coords = loadings.coords[self.pca_mapped_dimension].values[
+            top_arg_indices
+        ]
+
+        # print(top_arg_indices)
+        # print(top_arg_coords)
+        total_pc_results = loadings.sel({self.pca_mapped_dimension: top_arg_coords})
+        # print(component.feature_indices)
+        return per_pc_results, total_pc_results
+
+    def explain_loadings(self, top_n_per: int = 5, top_n_total: int = 5) -> str:
+        """Generate a textual explanation of the top influential loadings in the PCA result.
+
+        Tries to put the results of `get_most_significant_loadings()` into a textual form.
+
+        Parameters
+        ----------
+        top_n_per : int, optional
+            Number of top (most significant absolute loading) n loadings per component, by default 5
+        top_n_total : int, optional
+            Number of overall top (i.e. most significant by 2-norm of their loadings across all PC) n features across all components, by default 5
+
+        Returns
+        -------
+        str
+            A text describing the results of the principal components analysis.
+        """
+        per_top, total_top = self.get_most_significant_loadings(
+            top_n_per=top_n_per, top_n_total=top_n_total
+        )
+
+        explanation: str = ""
+
+        total_expl = f"Maximum contributing features overall:\n"
+        for feature, indices, coeff in zip(
+            total_top.descriptor.values,
+            total_top.feature_indices.values,
+            norm(total_top, dim='PC').values,
+        ):
+            total_expl += f" {feature} (weight: {coeff}) (Idxs: {indices}) \n"
+        explanation += total_expl + "\n\n"
+
+        for pc in per_top:
+            loadings = per_top[pc]
+
+            pc_expl = f"Maximum contributing features to component {pc} :\n"
+            for feature, indices, coeff in zip(
+                loadings.descriptor.values,
+                loadings.feature_indices.values,
+                loadings.values,
+            ):
+                pc_expl += f" {feature}  (weight: {coeff}) (Idxs: {indices}) \n"
+            explanation += pc_expl + "\n"
+        return explanation
 
     def project_array(self, other_da: xr.DataArray) -> xr.DataArray:
         return xr.apply_ufunc(
@@ -136,6 +261,25 @@ class PCAResult(
             input_core_dims=[[self._pca_dimension]],
             output_core_dims=[['PC']],
         )
+
+    @staticmethod
+    def get_extra_coords_for_loadings(
+        data: xr.DataArray, dim: Hashable
+    ) -> Mapping[Hashable, xr.DataArray]:
+        # coords = {'PC': pca_res.coords['PC']}
+        # coords.update(
+        #     {
+        #         key: coord
+        #         for key, coord in data.coords.items()
+        #         if dim in coord.dims and key != dim
+        #     }
+        # )
+        coords = {
+            key: coord
+            for key, coord in data.coords.items()
+            if dim in coord.dims and key != dim
+        }
+        return coords
 
 
 @overload
@@ -149,7 +293,7 @@ def pca_and_hops(
 
 @overload
 def pca_and_hops(
-    frames: Frames | Trajectory | xr.Dataset,
+    frames: Frames | Trajectory | MultiSeriesDataset | xr.Dataset,
     feature_selection: StructureSelection | None = None,
     center_mean: bool = False,
     n_components: int = 2,
@@ -159,10 +303,9 @@ def pca_and_hops(
 # TODO: Make signature consistent with `pca()` and standardize extraction of hops mask
 @needs(coords_or_vars={'atXYZ', 'astate'})
 def pca_and_hops(
-    frames: #TreeNode[Any, Frames | Trajectory | xr.Dataset] | 
-    Frames
-    | Trajectory
-    | xr.Dataset,
+    frames:
+    # TreeNode[Any, Frames | Trajectory | xr.Dataset] |
+    Frames | Trajectory | MultiSeriesDataset | xr.Dataset,
     feature_selection: StructureSelection | None = None,
     center_mean: bool = False,
     n_components: int = 2,
@@ -172,7 +315,7 @@ def pca_and_hops(
 
     Parameters
     ----------
-    frames : xr.Dataset
+    frames : xr.Dataset | Frames | Trajectory | MultiSeriesDataset
         A Dataset containing 'atXYZ' and 'astate' variables
     feature_selection : StructureSelection, optional
         An optional selection of features to calculate and base the PCA fitting on.
@@ -200,21 +343,21 @@ def pca_and_hops(
     #                         center_mean=center_mean,
     #                         n_components=n_components,
     #                     )
-        
+
     #     return frames.map_data(
     #         tmp_f,
     #         keep_empty_branches=True
     #     )
 
-    wrapped_ds = wrap_dataset(frames, Frames | Trajectory)
-    assert isinstance(wrapped_ds, (Frames, Trajectory)), (
+    wrapped_ds = wrap_dataset(frames, Frames | Trajectory | MultiSeriesDataset)
+    assert isinstance(wrapped_ds, (Frames, Trajectory, MultiSeriesDataset)), (
         "provided frames data could not be considered trajectory or frameset data."
     )
 
     if feature_selection is None:
         # Will default to pairwise distances
         pca_res = pca(
-            wrapped_ds.positions,
+            wrapped_ds,
             dim=None,
             feature_selection=None,
             n_components=n_components,
@@ -223,32 +366,33 @@ def pca_and_hops(
     else:
         # Perform a pca with feature extraction
         pca_res = pca(
-            wrapped_ds.positions,
+            wrapped_ds,
             dim=None,
             feature_selection=feature_selection,
             n_components=n_components,
+            center_mean=center_mean,
         )
 
-    hops_positions = mdiff(wrapped_ds.active_state) != 0
+    hops_mask = hops_mask_from_active_state(wrapped_ds)
 
-    return pca_res, hops_positions
+    return pca_res, hops_mask
 
 
 @overload
 def pca(
-    data: ShnitselDB[Trajectory | Frames],
+    data: TreeNode[Any, Trajectory | Frames | MultiSeriesDataset],
     dim: None = None,
     feature_selection: StructureSelection | None = None,
     n_components: int = 2,
     center_mean: bool = False,
-) -> ShnitselDB[PCAResult[DataGroup[xr.DataArray], DataGroup[xr.DataArray]]]:
+) -> TreeNode[Any, PCAResult[DataGroup[xr.DataArray], DataGroup[xr.DataArray]]]:
     """Specialization for the pca being mapped over grouped data in a ShnitselDB tree structure"""
     ...
 
 
 @overload
 def pca(
-    data: Trajectory | Frames | xr.Dataset | xr.DataArray,
+    data: Trajectory | Frames | MultiSeriesDataset | xr.Dataset | xr.DataArray,
     dim: None = None,
     feature_selection: StructureSelection | None = None,
     n_components: int = 2,
@@ -262,7 +406,8 @@ def pca(
 def pca(
     data: Trajectory
     | Frames
-    | ShnitselDB[Trajectory | Frames]
+    | MultiSeriesDataset
+    | ShnitselDB[Trajectory | Frames | MultiSeriesDataset]
     | xr.Dataset
     | xr.DataArray,
     dim: None = None,
@@ -341,7 +486,8 @@ def pca(
 def pca(
     data: Trajectory
     | Frames
-    | TreeNode[Any, Trajectory | Frames]
+    | MultiSeriesDataset
+    | TreeNode[Any, Trajectory | Frames | MultiSeriesDataset]
     | xr.Dataset
     | xr.DataArray,
     dim: Hashable | None = None,
@@ -350,7 +496,7 @@ def pca(
     center_mean: bool = False,
 ) -> (
     PCAResult[xr.DataArray, xr.DataArray]
-    | ShnitselDB[PCAResult[DataGroup[xr.DataArray], DataGroup[xr.DataArray]]]
+    | TreeNode[Any, PCAResult[DataGroup[xr.DataArray], DataGroup[xr.DataArray]]]
 ):
     """
     Function to perform a PCA decomposition on the `data` of various origins and formats.
@@ -406,18 +552,23 @@ def pca(
 
         if isinstance(data, TreeNode):
 
-            def traj_to_frame(x: Trajectory | Frames) -> Frames:
+            def traj_to_frame(
+                x: Trajectory | Frames | MultiSeriesDataset,
+            ) -> Frames | None:
                 if isinstance(x, Trajectory) and not isinstance(x, Frames):
                     return x.as_frames
-                return x
+                else:
+                    return x.as_stacked
 
-            data_framed = data.map_data(traj_to_frame)
+            data_framed : TreeNode[Any, Frames] = data.map_data(traj_to_frame)
             data_grouped = data_framed.group_data_by_metadata()
 
             if feature_selection is not None:
 
                 def extract_features(x: Frames) -> xr.DataArray:
-                    return get_bats(x.positions, structure_selection=feature_selection)
+                    return get_bats(
+                        x.positions, structure_selection=feature_selection, deg='trig'
+                    )
             else:
 
                 def extract_features(x: Frames) -> xr.DataArray:
@@ -565,12 +716,28 @@ def pca_direct(data: xr.DataArray, dim: Hashable, n_components: int = 2) -> PCAR
         input_core_dims=[[dim]],
         output_core_dims=[['PC']],
     )
-    loadings = xr.DataArray(
-        pipeline[-1].components_, coords=[pca_res.coords['PC'], data.coords[dim]]
-    )
 
     if _state.DATAARRAY_ACCESSOR_REGISTERED:
         # TODO: Potentially remove? The new result type holds way more data/information
+
+        coord_initial = [pca_res.coords['PC'], data.coords[dim]]
+        # coords = {'PC': pca_res.coords['PC']}
+        # coords.update(
+        #     {
+        #         key: coord
+        #         for key, coord in data.coords.items()
+        #         if dim in coord.dims and key != dim
+        #     }
+        # )
+        coords = {
+            key: coord
+            for key, coord in data.coords.items()
+            if dim in coord.dims and key != dim
+        }
+
+        loadings = xr.DataArray(
+            pipeline[-1].components_, coords=coord_initial
+        ).assign_coords(coords)
 
         def use_to_transform(other_da: xr.DataArray):
             return xr.apply_ufunc(

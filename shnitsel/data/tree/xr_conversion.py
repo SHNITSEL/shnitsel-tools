@@ -1,8 +1,9 @@
 import logging
-from typing import TypeVar
+from typing import Any, TypeVar
 from typing_extensions import TypeForm
 import xarray as xr
 from shnitsel.data.helpers import dataclass_from_dict
+from shnitsel.data.tree.node import TreeNode
 
 from ..dataset_containers.xr_conversion import (
     data_to_xarray_dataset,
@@ -20,12 +21,7 @@ DataType = TypeVar("DataType")
 
 
 def tree_to_xarray_datatree(
-    node: (
-        ShnitselDBRoot[DataType]
-        | CompoundGroup[DataType]
-        | DataGroup[DataType]
-        | DataLeaf[DataType]
-    ),
+    node: (TreeNode[Any, DataType]),
 ) -> xr.DataTree | None:
     """Helper function to convert a ShnitselDB tree format to xarray.DataTree format
     so that we can use the xarray functions to write a netcdf file.
@@ -36,7 +32,7 @@ def tree_to_xarray_datatree(
 
     Parameters
     ----------
-    node : ShnitselDBRoot[DataType] | CompoundGroup[DataType] | DataGroup[DataType] | DataLeaf[DataType]
+    node : TreeNode[Any, DataType]
         The root node of a subtree to be converted to a `xr.DataTree` structure.
 
     Returns
@@ -124,9 +120,9 @@ def xarray_datatree_to_shnitsel_tree(
         # Conversion of arbitrary tree without type hints.
         # We do not need to support this, but we will do our best.
         if node.has_data:
-            assert (
-                len(node.children) == 0
-            ), "no children must be provided at `data` level."
+            assert len(node.children) == 0, (
+                "no children must be provided at `data` level."
+            )
 
             metadata = node.attrs.get("_shnitsel_io_meta", {})
             remaining_node_meta = dict(node.attrs)
@@ -239,9 +235,9 @@ def xarray_datatree_to_shnitsel_tree(
             )
         mapped_level = DataTreeLevelMap[datatree_level]
         if mapped_level == DataTreeLevelMap["data"]:
-            assert (
-                len(node.children) == 0
-            ), "no children must be provided at `data` level."
+            assert len(node.children) == 0, (
+                "no children must be provided at `data` level."
+            )
 
             metadata = node.attrs.get("_shnitsel_io_meta", {})
             remaining_node_meta = dict(node.attrs)

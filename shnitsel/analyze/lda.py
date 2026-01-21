@@ -11,15 +11,22 @@ def lda(
 ) -> xr.DataArray:
     """Linear discriminant analysis performed on the data in `data_array` along `dim` in a total of `n_components
 
-    Args:
-        data_array (xr.Dataset): The data to perform LDA on.
-        dim (str): The dimension to perform LDA along. Will be transposed to the back of all dimensions to then perform the LDA. this should lead to
-        cats (str | xr.DataArray): Categories, either provided as the name of the variable in dataset where they are stored or as a named
-            xr.DataArray. Should have dimension `dim`.
-        n_components (int, optional): The number of best main components to retrieve eventually. Defaults to 2.
+    Parameters
+    ----------
+    data_array : xr.Dataset
+        The data to perform LDA on.
+    dim : str
+        The dimension to perform LDA along. Will be transposed to the back of all dimensions to then perform the LDA. this should lead to
+    cats : str | xr.DataArray
+        Categories, either provided as the name of the variable in dataset where they are stored or as a named
+        xr.DataArray. Should have dimension `dim`.
+    n_components : int, optional
+        The number of best main components to retrieve eventually. Defaults to 2.
 
-    Returns:
-        xr.DataArray: The results of the LDA as a DataArray with the categories written to a variables if they weren't there before.
+    Returns
+    -------
+    xr.DataArray
+        The results of the LDA as a DataArray with the categories written to a variables if they weren't there before.
     """
 
     if isinstance(cats, str):

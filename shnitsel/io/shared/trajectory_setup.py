@@ -363,11 +363,15 @@ def create_initial_dataset(
 def fill_missing_dataset_variables(ds: xr.Dataset) -> xr.Dataset:
     """Helper function to fill in missing variables in datasets that we need for initialization.
 
-    Args:
-        ds (xr.Dataset): The dataset to complete with state variables and atom variables
+    Parameters
+    ----------
+    ds : xr.Dataset
+        The dataset to complete with state variables and atom variables
 
-    Returns:
-        xr.Dataset: The completed dataset with default variables applied.
+    Returns
+    -------
+    xr.Dataset
+        The completed dataset with default variables applied.
     """
     from shnitsel.units.defaults import get_default_input_attributes
 

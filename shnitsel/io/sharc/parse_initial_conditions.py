@@ -52,18 +52,23 @@ def nans(*dims):
 
 def list_iconds(
     iconds_path: str | os.PathLike = "./iconds/", glob_expr: str = "**/ICOND_*"
-) -> List[IcondPath]:
+) -> list[IcondPath]:
     """Retrieve a list of all potential initial condition directories to be parsed given the input path and matching patter.
 
-    Args:
-        iconds_path (str | os.PathLike, optional): The path where to look for initial condition directories. Defaults to './iconds/'.
-        glob_expr (str, optional): The pattern for finding initial conditions. Defaults to '**/ICOND_*'.
+    Parameters
+    ----------
+    iconds_path : str | os.PathLike, optional
+        The path where to look for initial condition directories. Defaults to './iconds/'.
+    glob_expr : str, optional
+        The pattern for finding initial conditions. Defaults to '**/ICOND_*'.
 
     Raises:
         FileNotFoundError: If no directories match the pattern.
 
-    Returns:
-        List[IcondPath]: The list of Tuples of the parsed ID and the full path of the initial conditions
+    Returns
+    -------
+    list[IcondPath]
+        The list of Tuples of the parsed ID and the full path of the initial conditions
     """
     path_obj: pathlib.Path = make_uniform_path(iconds_path)
 
@@ -92,14 +97,18 @@ def list_iconds(
     return [IcondPath(int(ipath.name[6:]), ipath) for ipath in icond_paths]
 
 
-def dims_from_QM_out(f: TextIOWrapper) -> Tuple[int | None, int | None]:
+def dims_from_QM_out(f: TextIOWrapper) -> tuple[int | None, int | None]:
     """Function to also read the relevant dimensions (number of atoms, number of states) from WM.out
 
-    Args:
-        f (TextIOWrapper): The QM.out file to read from
+    Parameters
+    ----------
+    f : TextIOWrapper
+        The QM.out file to read from
 
-    Returns:
-        Tuple[int,int]: First the number of states, second the number of atoms or respectively None if not found.
+    Returns
+    -------
+    tuple[int,int]
+        First the number of states, second the number of atoms or respectively None if not found.
     """
     # faced with redundancy, use it to ensure consistency
     nstates = ConsistentValue("nstates", weak=True)
@@ -123,17 +132,23 @@ def dims_from_QM_out(f: TextIOWrapper) -> Tuple[int | None, int | None]:
     return nstates.v, natoms.v
 
 
-def dims_from_QM_log(log: TextIOWrapper) -> Tuple[int, int, int, int, int]:
+def dims_from_QM_log(log: TextIOWrapper) -> tuple[int, int, int, int, int]:
     """Function to retrieve the listed number of states and the number of atoms from the Qm.log file of initial conditions
 
-    Args:
-        log (TextIOWrapper): Input file handle to read the log file contents from
+    Parameters
+    ----------
+    log : TextIOWrapper
+        Input file handle to read the log file contents from
 
-    Raises:
-        ValueError: If the log file contains an inconsistently structured Line about states but does neither specify Singlet nor Triplet states.
+    Raises
+    ------
+    ValueError
+        If the log file contains an inconsistently structured Line about states but does neither specify Singlet nor Triplet states.
 
-    Returns:
-        Tuple[int,int,int,int,int]: First the number of states, then the number of atoms. This is followed by the number of singlet, doublet and triplet states (if available). If a value is not available, it will default to 0.
+    Returns
+    -------
+    tuple[int,int,int,int,int]
+        First the number of states, then the number of atoms. This is followed by the number of singlet, doublet and triplet states (if available). If a value is not available, it will default to 0.
     """
     nstates = ConsistentValue("nstates", weak=True)
     nstates_singlet = ConsistentValue("nstates_singlet", weak=True)
@@ -223,21 +238,28 @@ def dims_from_QM_log(log: TextIOWrapper) -> Tuple[int, int, int, int, int]:
     return num_states, num_atoms, num_singlets, num_doublets, num_triplets
 
 
-def check_dims(pathlist: List[pathlib.Path]) -> Tuple[int, int, int, int, int]:
+def check_dims(pathlist: List[pathlib.Path]) -> tuple[int, int, int, int, int]:
     """Function to obtain the number of atoms and states across all input paths.
 
     Will only return the tuple of (number_states, number_atoms) if these numbers are consistent across all paths.
     Otherwise, an error will be raised.
 
-    Args:
-        pathlist (Sequence[pathlib.Path]): The list of paths belonging to the same system to check for consistent dimensions
+    Parameters
+    ----------
+    pathlist : Sequence[pathlib.Path]
+        The list of paths belonging to the same system to check for consistent dimensions
 
-    Raises:
-        FileNotFoundError: If the number of valid input paths in pathlist is zero, a FileNotFoundError is raised
-        ValueError: If the number of states and the number of atoms does not agree across all systems a ValueError is raised
+    Raises
+    ------
+    FileNotFoundError
+        If the number of valid input paths in pathlist is zero, a FileNotFoundError is raised
+    ValueError
+        If the number of states and the number of atoms does not agree across all systems a ValueError is raised
 
-    Returns:
-        Tuple[int, int, int, int, int]: The number of states and the number of atoms, then the number of singlets, doublets and triplets in this order
+    Returns
+    -------
+    tuple[int, int, int, int, int]
+        The number of states and the number of atoms, then the number of singlets, doublets and triplets in this order
     """
 
     nstates = ConsistentValue("nstates", ignore_none=True)
@@ -295,19 +317,25 @@ def check_dims(pathlist: List[pathlib.Path]) -> Tuple[int, int, int, int, int]:
 def finalize_icond_dataset(
     dataset: xr.Dataset,
     loading_parameters: LoadingParameters,
-    default_format_attributes: Dict[str, Dict[str, Any]],
+    default_format_attributes: dict[str, dict[str, Any]],
 ) -> xr.Dataset:
     """Function to expand the initial conditions dataset with a time dimension.
 
     Also sets the default unit on the time dimension based on `default_format_attributes`.
 
-    Args:
-        dataset (xr.Dataset): The initial conditions dataset. Should not have a "time" dimension yet.
-        loading_parameters (LoadingParameters): Loading parameters to override units
-        default_format_attributes(Dict[str, Dict[str, Any]]): Default attributes to set on variables, mostly used to set the time dimension attributes
+    Parameters
+    ----------
+    dataset : xr.Dataset)
+        The initial conditions dataset. Should not have a "time" dimension yet.
+    loading_parameters : LoadingParameters)
+        Loading parameters to override units
+    default_format_attributes : dict[str, dict[str, Any]]
+        Default attributes to set on variables, mostly used to set the time dimension attributes
 
-    Returns:
-        xr.Dataset: The modified dataset
+    Returns
+    -------
+    xr.Dataset
+        The modified dataset
     """
 
     if "time" not in dataset.coords:
@@ -329,12 +357,17 @@ def read_iconds_individual(
 ) -> xr.Dataset:
     """Function to read initial a single initial condition directory into a Dataset with standard shnitsel annotations and units
 
-    Args:
-        path (PathOptionsType): The path to a initial conditions directory
-        loading_parameters (LoadingParameters | None, optional): Parameter settings for e.g. standard units or state names.
+    Parameters
+    ----------
+    path : PathOptionsType
+        The path to a initial conditions directory
+    loading_parameters : LoadingParameters | None, optional
+        Parameter settings for e.g. standard units or state names.
 
-    Returns:
-        xr.Dataset: The Dataset object containing all of the loaded data from the initial condition in default shnitsel units
+    Returns
+    -------
+    xr.Dataset
+        The Dataset object containing all of the loaded data from the initial condition in default shnitsel units
     """
     from ...units.definitions import length
 
@@ -491,22 +524,28 @@ def read_iconds_individual(
     )
 
 
-def parse_QM_in(qm_in: TextIOWrapper) -> Dict[str, Any]:
+def parse_QM_in(qm_in: TextIOWrapper) -> dict[str, Any]:
     """Function to read settings of initial conditions from QM.in file.
 
     Will attempt to read key settings and initial positions that would usually be read form QM.log.
 
-    Args:
-        qm_in (TextIOWrapper): File stream of the found `QM.in` file containing some key settings and positional information.
+    Parameters
+    ----------
+    qm_in : TextIOWrapper
+        File stream of the found `QM.in` file containing some key settings and positional information.
 
-    Raises:
-        FileNotFoundError: If parts of the file are malformed or missing.
+    Raises
+    ------
+    FileNotFoundError
+        If parts of the file are malformed or missing.
 
-    Returns:
-        Dict[str, Any]: the resulting settings in a key-value pair. Contains `num_atoms`, `num_states`, `atNames` and `atXYZ`.
+    Returns
+    -------
+    dict[str, Any]
+        the resulting settings in a key-value pair. Contains `num_atoms`, `num_states`, `atNames` and `atXYZ`.
     """
 
-    info: Dict[str, Any] = {}
+    info: dict[str, Any] = {}
 
     # Example format:
     # 12
@@ -595,19 +634,25 @@ def parse_QM_in(qm_in: TextIOWrapper) -> Dict[str, Any]:
     return info
 
 
-def parse_QM_log(log: TextIOWrapper) -> Dict[str, Any]:
+def parse_QM_log(log: TextIOWrapper) -> dict[str, Any]:
     """Function to parse main information from the QM.log file
 
-    Args:
-        log (TextIOWrapper): Input file wrapper to read the information from
+    Parameters
+    ----------
+    log : TextIOWrapper
+        Input file wrapper to read the information from
 
-    Raises:
-        ValueError: If there are neither singlet nor triplet states listed in the QM.log file
+    Raises
+    ------
+    ValueError
+        If there are neither singlet nor triplet states listed in the QM.log file
 
-    Returns:
-        Dict[str, Any]: Dictionary with key information about the system
+    Returns
+    -------
+    dict[str, Any]
+        Dictionary with key information about the system
     """
-    info: Dict[str, Any] = {}
+    info: dict[str, Any] = {}
     for line in log:
         if line.startswith("SHARC_version") or line.startswith("Version"):
             version_num = line.split()[1]
@@ -676,9 +721,12 @@ def parse_QM_log_geom(f: TextIOWrapper, out: xr.Dataset):
 
     f must be the contents of a `QM.log` file.
 
-    Args:
-        f (TextIOWrapper): File wrapper for a `QM.log` file's contents
-        out (xr.Dataset): The dataset to write the resulting geometry to
+    Parameters
+    ----------
+    f : TextIOWrapper
+        File wrapper for a `QM.log` file's contents
+    out : xr.Dataset
+        The dataset to write the resulting geometry to
     """
 
     # NB. Geometry is indeed in bohrs!
@@ -754,15 +802,18 @@ def _read_dim_or_transition_identification_line(f: TextIOWrapper, main_version: 
     """Function to optionally read the current state id or transition identification line.
 
     Only for versions 3.0 and up do we need to read the identification.
-    Args:
-        f (TextIOWrapper): Input stream of text file
-        main_version (int): The main sharc version to switch the behavior
+    Parameters
+    ----------
+    f : TextIOWrapper
+        Input stream of text file
+    main_version : int
+        The main sharc version to switch the behavior
 
-    Raises:
-        ValueError: _description_
 
-    Returns:
-        _type_: _description_
+    Returns
+    -------
+    _type_
+        _description_
     """
     # TODO: FIXME: This function could be used for debugging, currently not used.
     if main_version < 3:
@@ -785,13 +836,19 @@ def parse_QM_out(
 
     if ``out=None`` is provided, a new Dataset is constructed and returned by the function
 
-    Args:
-        f (TextIOWrapper): File input of the QM.out file to parse the data from
-        out (xr.Dataset ): Target Dataset to write the loaded data into. Defaults to None.
-        loading_parameters (LoadingParameters,optional): Optional loading parameters to override variable mappings and units.
+    Parameters
+    ----------
+    f : TextIOWrapper
+        File input of the QM.out file to parse the data from
+    out : xr.Dataset
+        Target Dataset to write the loaded data into. Defaults to None.
+    loading_parameters : LoadingParameters, optional
+        Optional loading parameters to override variable mappings and units.
 
-    Returns:
-        xr.Dataset | None: If a new Dataset was constructed instead of being written to `out`, it will be returned.
+    Returns
+    -------
+    xr.Dataset | None
+        If a new Dataset was constructed instead of being written to `out`, it will be returned.
     """
     res: xr.Dataset = out
 
@@ -931,14 +988,20 @@ def iconds_to_frames(iconds: xr.Dataset) -> xr.Dataset:
 
     Will exempt atNames and atNums from the rearrangement.
 
-    Args:
-        iconds (xr.Dataset): input dataset to replace the dimension in
+    Parameters
+    ----------
+    iconds : xr.Dataset
+        input dataset to replace the dimension in
 
-    Raises:
-        ValueError: Raised if at least one array has size 0 in one coordinate
+    Raises
+    ------
+    ValueError
+        Raised if at least one array has size 0 in one coordinate
 
-    Returns:
-        xr.Dataset: The transformed dataset
+    Returns
+    -------
+    xr.Dataset
+        The transformed dataset
     """
     for name, var in iconds.data_vars.items():
         shape = var.data.shape

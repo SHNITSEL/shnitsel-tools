@@ -1,13 +1,16 @@
 from functools import cached_property
 import logging
-from typing import Iterable, overload
+from typing import Any, Iterable, overload
 
 import numpy as np
 import xarray as xr
 
 from shnitsel.core._api_info import API, internal
+from shnitsel.data.dataset_containers import wrap_dataset
+from shnitsel.data.dataset_containers.multi_series import MultiSeriesDataset
 from shnitsel.data.dataset_containers.trajectory import Trajectory
 from shnitsel.data.dataset_containers.frames import Frames
+from shnitsel.data.tree.node import TreeNode
 from shnitsel.data.tree.tree import ShnitselDB
 from shnitsel.units.definitions import time, unit_dimensions
 
@@ -81,11 +84,15 @@ class PopulationStatistics:
 
         Does not use the partial QM coefficients of the states.
 
-        Args:
-            frames (Frames): The dataset holding the active state information in a variable `astate`.
+        Parameters
+        ----------
+        frames : Frames
+            The dataset holding the active state information in a variable `astate`.
 
-        Returns:
-            xr.DataArray: The array holding the absolute number of trajectories in each respective state.
+        Returns
+        -------
+        xr.DataArray
+            The array holding the absolute number of trajectories in each respective state.
         """
         # TODO: FIXME: Make this able to deal with ShnitselDB/tree data directly. This should not be too much of an issue?
         data = frames.active_state
@@ -150,7 +157,7 @@ def calc_classical_populations(
 
     Parameters
     ----------
-    data : ShnitselDB[Trajectory  |  Frames]
+    data : ShnitselDB[Trajectory | Frames]
         The tree-structured trajectory data
 
     Returns
@@ -184,23 +191,29 @@ def calc_classical_populations(
 @API()
 @needs(dims={'frame', 'state'}, coords={'time'}, data_vars={'astate'})
 def calc_classical_populations(
-    frames: ShnitselDB[Trajectory | Frames | xr.Dataset]
+    frames: TreeNode[Any, Trajectory | Frames | MultiSeriesDataset | xr.Dataset]
     | Trajectory
     | Frames
+    | MultiSeriesDataset
     | xr.Dataset,
-) -> PopulationStatistics | ShnitselDB[PopulationStatistics]:
+) -> PopulationStatistics | TreeNode[Any, PopulationStatistics]:
     """Function to calculate classical state populations from the active state information in `astate` of the dataset `frames.
 
     Does not use the partial QM coefficients of the states.
 
-    Args:
-        frames (Frames): The dataset holding the active state information in a variable `astate`.
+    Parameters
+    ----------
+    frames : Frames
+        The dataset holding the active state information in a variable `astate`.
 
-    Returns:
-        PopulationStatistics: The object holding population statistics (absolute+relative) in each respective state.
-        ShnitselDB[PopulationStatistics]: The tree holding the hierarchical population statistics for each flat group in the tree with compatible metadata.
+    Returns
+    -------
+    PopulationStatistics
+        The object holding population statistics (absolute+relative) in each respective state.
+    ShnitselDB[PopulationStatistics]
+        The tree holding the hierarchical population statistics for each flat group in the tree with compatible metadata.
     """
-    if isinstance(frames, ShnitselDB):
+    if isinstance(frames, TreeNode):
         # TODO: convert the shnitsel db subtrees to frames and perform some aggregation
 
         # Calculation for trajcectory:
@@ -215,27 +228,25 @@ def calc_classical_populations(
         # pops = xr.DataArray(
         #     populations, dims=['time', 'state'], coords={'time': data.coords['time']}
         # )
-        db: ShnitselDB[Trajectory | Frames | xr.Dataset] = (
+        db: TreeNode[Any, MultiSeriesDataset | Trajectory | Frames | xr.Dataset] = (
             frames.group_data_by_metadata()
         )
 
         def _map_prepare(
-            frames: Trajectory | Frames | xr.Dataset,
+            frames: MultiSeriesDataset | Trajectory | Frames | xr.Dataset,
         ) -> PopulationStatistics:
-            if isinstance(frames, xr.Dataset):
-                try:
-                    frames = Trajectory(frames)
-                except:
-                    try:
-                        frames = Frames(frames)
-                    except:
-                        raise ValueError(
-                            "Input dataset could not be considered a Trajectory or a Frameset."
-                        )
-            if isinstance(frames, Trajectory) and not isinstance(frames, Frames):
-                frames = frames.as_frames
+            wrapped_ds = wrap_dataset(frames, MultiSeriesDataset | Trajectory | Frames)
+            pop_frames: Frames
+            if isinstance(wrapped_ds, Trajectory) and not isinstance(
+                wrapped_ds, Frames
+            ):
+                pop_frames = frames.as_frames
+            elif isinstance(wrapped_ds, MultiSeriesDataset):
+                pop_frames = wrapped_ds.as_stacked
+            else:
+                pop_frames = wrapped_ds
 
-            return PopulationStatistics(frames)
+            return PopulationStatistics(pop_frames)
 
         mapped_pop_data = db.map_data(_map_prepare, keep_empty_branches=False)
 
@@ -267,10 +278,6 @@ def calc_classical_populations(
                         time_values = res_abs.time
                     else:
                         res_abs = res_abs.pad(
-                            ShnitselDB[Trajectory | Frames | xr.Dataset]
-                            | Trajectory
-                            | Frames
-                            | xr.Dataset,
                             {'time': (0, new_timelen - res_timelen)},
                             constant_values=0.0,
                             keep_attrs=True,
@@ -292,20 +299,12 @@ def calc_classical_populations(
         return reduced_pop_data
     else:
         eventual_frames: Frames
-        if isinstance(frames, xr.Dataset):
-            # Convert to Trajectory or Frames if provided a Dataset
-            if 'time' in frames.dims:
-                eventual_frames = Trajectory(frames).as_frames
-            elif 'frame' in frames.dims:
-                eventual_frames = Frames(frames)
-            else:
-                raise ValueError(
-                    "Dataset had neither `time` nor `frame` coordinate. Cannot calculate population statistics"
-                )
-        elif isinstance(frames, Trajectory):
-            eventual_frames = frames.as_frames
+
+        wrapped_dataset = wrap_dataset(frames, Trajectory | Frames | MultiSeriesDataset)
+        if isinstance(wrapped_dataset, MultiSeriesDataset):
+            eventual_frames = wrapped_dataset.as_stacked
         else:
-            eventual_frames = frames
+            eventual_frames = wrapped_dataset.as_frames
 
         population_results = PopulationStatistics(eventual_frames)
         return population_results

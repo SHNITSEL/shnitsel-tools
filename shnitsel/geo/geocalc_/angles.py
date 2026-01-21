@@ -29,15 +29,23 @@ def angle(
 
     Can return results in radian (default) and degrees (if `deg=True`)
 
-    Args:
-        atXYZ (AtXYZ): DataArray with positions
-        a_index (int): Index of first atom.
-        b_index (int): Index of second center atom comprising the angle.
-        c_index (int): Index of third atom.
-        deg (bool, optional): Flag whether the results should be in degrees instead of radian. Defaults to False.
+    Parameters
+    ----------
+    atXYZ : AtXYZ
+        DataArray with positions
+    a_index : int
+        Index of first atom.
+    b_index : int
+        Index of second center atom comprising the angle.
+    c_index : int
+        Index of third atom.
+    deg : bool, optional
+        Flag whether the results should be in degrees instead of radian. Defaults to False.
 
-    Returns:
-        xr.DataArray: The resulting angles between the denoted atoms.
+    Returns
+    -------
+    xr.DataArray
+        The resulting angles between the denoted atoms.
     """
     a = atXYZ.isel(atom=a_index, drop=True)
     b = atXYZ.isel(atom=b_index, drop=True)
@@ -57,21 +65,28 @@ def angle(
 
 @API()
 @needs(dims={'atom'})
-def angle_cos_sin(
+def angle_cos_sin( 
     atXYZ: AtXYZ, a_index: int, b_index: int, c_index: int, *, deg: bool = False
 ) -> tuple[xr.DataArray, xr.DataArray]:
     """Method to calculate the cosine and sine of the angle between atoms with indices `a_index`, `b_index`, and `c_index` in the positions DataArray throughout time.
     The `b_index` specifies the center atom at which the angle is located.
     The other two indices specify the legs of the angle.
 
-    Args:
-        atXYZ (AtXYZ): DataArray with positions
-        a_index (int): Index of first atom.
-        b_index (int): Index of second center atom comprising the angle.
-        c_index (int): Index of third atom.
+    Parameters
+    ----------
+    atXYZ : AtXYZ
+        DataArray with positions
+    a_index : int
+        Index of first atom.
+    b_index : int
+        Index of second center atom comprising the angle.
+    c_index : int
+        Index of third atom.
 
-    Returns:
-        xr.DataArray: The resulting angles between the denoted atoms.
+    Returns
+    -------
+    xr.DataArray
+        The resulting angles between the denoted atoms.
     """
     a = atXYZ.isel(atom=a_index)
     b = atXYZ.isel(atom=b_index)
@@ -85,7 +100,7 @@ def angle_cos_sin(
 def get_angles(
     atXYZ_source: TreeNode[Any, Trajectory | Frames | xr.Dataset | xr.DataArray],
     structure_selection: StructureSelection | None = None,
-    deg: bool = False,
+    deg: bool | Literal['trig'] = True,
     signed=True,
 ) -> TreeNode[Any, xr.DataArray]: ...
 
@@ -94,7 +109,7 @@ def get_angles(
 def get_angles(
     atXYZ_source: Trajectory | Frames | xr.Dataset | xr.DataArray,
     structure_selection: StructureSelection | None = None,
-    deg: bool = False,
+    deg: bool | Literal['trig'] = True,
     signed=True,
 ) -> xr.DataArray: ...
 
@@ -113,25 +128,26 @@ def get_angles(
 ) -> TreeNode[Any, xr.DataArray] | xr.DataArray:
     """Identify triples of bonded atoms (using RDKit) and calculate bond angles for each frame.
 
-     Parameters
-     ----------
-     atXYZ_source
+    Parameters
+    ----------
+    atXYZ_source : xr.DataArray | TreeNode[Any, Trajectory | Frames | xr.Dataset | xr.DataArray] | Trajectory | Frames | xr.Dataset
          An :py:class:`xarray.DataArray` of molecular coordinates, with dimensions ``atom`` and
          ``direction`` or another source of positional data like a trajectory, a frameset,
          a dataset representing either of those or a tree structure holding such data.
-    structure_selection, optional
+    structure_selection: StructureSelection, optional
          Object encapsulating feature selection on the structure whose positional information is provided in `atXYZ`.
          If this argument is omitted altogether, a default selection for all bonds within the structure is created.
-     deg, optional
+    deg: bool | Literal['trig'], optional
          Whether to return angles in degrees (as opposed to radians), by default True.
          Can also be set to the string literal `trig` if sin and cos of the calculated angle should be returned instead.
-     signed, optional
+    signed: bool, optional
          Whether the result should be returned with a sign or just as an absolute value in the range. Only relevant for `trig` option in `deg`.
 
 
-     Returns
-     -------
-         An :py:class:`xarray.DataArray` of bond angles with dimension `descriptor` to index the angles along.
+    Returns
+    -------
+    TreeNode[Any, xr.DataArray] | xr.DataArray
+        An :py:class:`xarray.DataArray` of bond angles with dimension `descriptor` to index the angles along.
 
     """
 

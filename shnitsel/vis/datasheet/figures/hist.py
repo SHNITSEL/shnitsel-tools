@@ -15,13 +15,19 @@ def calc_truncation_maximum(data, rel_cutoff: float = 0.01, bins: int = 1000) ->
 
     Helps to limit outliers.
 
-    Args:
-        data: The data that should be histogrammed and filtered.
-        rel_cutoff (float, optional): Factor relative to the frequency maximum that should be used for determining the cutoff. Defaults to 0.01.
-        bins (int, optional): How many bins should be used for getting the correct threshold location. Defaults to 1000.
+    Parameters
+    ----------
+    data
+        The data that should be histogrammed and filtered.
+    rel_cutoff : float, optional
+        Factor relative to the frequency maximum that should be used for determining the cutoff. Defaults to 0.01.
+    bins : int, optional
+        How many bins should be used for getting the correct threshold location. Defaults to 1000.
 
-    Returns:
-        float: Upper cutoff position to stay above the `rel_cutoff` relative threshold.
+    Returns
+    -------
+    float
+        Upper cutoff position to stay above the `rel_cutoff` relative threshold.
     """
     freqs, edges = np.histogram(
         data, bins=bins, range=(np.nanmin(data), np.nanmax(data))
@@ -38,13 +44,19 @@ def truncate_from_above(
     """Helper function to truncate the `data` array on the upper end by a threshold
     such that the histogram frequency stays above `rel_cutoff*max(frequency)` and is below this relative cutoff above the cutoff.
 
-    Args:
-        data: The data that should be histogrammed and filtered.
-        rel_cutoff (float, optional): Factor relative to the frequency maximum that should be used for determining the cutoff. Defaults to 0.01.
-        bins (int, optional): How many bins should be used for getting the correct threshold location. Defaults to 1000.
+    Parameters
+    ----------
+    data
+        The data that should be histogrammed and filtered.
+    rel_cutoff : float, optional
+        Factor relative to the frequency maximum that should be used for determining the cutoff. Defaults to 0.01.
+    bins : int, optional
+        How many bins should be used for getting the correct threshold location. Defaults to 1000.
 
-    Returns:
-        npt.NDArray: The filtered data array
+    Returns
+    -------
+    npt.NDArray
+        The filtered data array
     """
     sup = calc_truncation_maximum(data, rel_cutoff=rel_cutoff, bins=bins)
     plot_data = data[data <= sup]
@@ -58,11 +70,15 @@ def create_marginals(ax: Axes) -> tuple[Axes, Axes]:
 
     Generally used for plotting dimension-specific histograms next to xy-plots.
 
-    Args:
-        ax (Axes): Axes to create marginal plots inside of
+    Parameters
+    ----------
+    ax : Axes
+        Axes to create marginal plots inside of
 
-    Returns:
-        tuple[Axes, Axes]: Resulting pair of outset axes.
+    Returns
+    -------
+    tuple[Axes, Axes
+        Resulting pair of outset axes.
     """
     axx = ax.inset_axes((0.0, 1.05, 1.0, 0.25), sharex=ax)
     axy = ax.inset_axes((1.05, 0.0, 0.25, 1.0), sharey=ax)
@@ -78,12 +94,17 @@ def create_marginals_dict(axs: dict[str, Axes], label: str) -> dict[str, Axes]:
     """Function to add a set of marginal axes with `create_marginals()` for the axes at key `label` in `axs`
     and add the marginal axes back into the dict with appended `x` and `y` suffixes.
 
-    Args:
-        axs (dict[str, Axes]): Dict of axes from which to pick the axis object and amend with marginal axes.
-        label (str): Key in `axs` for which the marginal axes should be created.
+    Parameters
+    ----------
+    axs : dict[str, Axes]
+        Dict of axes from which to pick the axis object and amend with marginal axes.
+    label : str
+        Key in `axs` for which the marginal axes should be created.
 
-    Returns:
-        dict[str, Axes]: `axs` but with the new marginal axes inserted at `{label}x` and `{label}y.
+    Returns
+    -------
+    dict[str, Axes]
+        `axs` but with the new marginal axes inserted at `{label}x` and `{label}y.
     """
     ax = axs[label]
     axx, axy = create_marginals(ax)
