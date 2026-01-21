@@ -17,6 +17,34 @@ def mark_variable_assigned(var: xr.DataArray) -> None:
     var.attrs["__assigned"] = True
 
 
+def mark_dataset_for_cleanup(ds: xr.Dataset) -> None:
+    """
+    Function to set a flag on the dataset to remove all unassigned variables
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        The variable to set the flag on to mark it as assigned to.
+    """
+    ds.attrs["__shnitsel_setup_for_cleanup"] = True
+
+
+def is_marked_for_cleanup(ds: xr.Dataset) -> bool:
+    """
+    Function to set a flag on the dataset to remove all unassigned variables
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        The variable to check the cleanup flag on
+
+    Returns
+    -------
+    Whether a cleanup flag is set on a dataset.
+    """
+    return ds.attrs.get("__shnitsel_setup_for_cleanup", False)
+
+
 def is_variable_assigned(var: xr.DataArray) -> bool:
     """
     Function to check a flag on a variable in a dataset whether it has been assigned with actual values.
@@ -57,16 +85,17 @@ def clean_unassigned_variables(dataset: xr.Dataset) -> xr.Dataset:
         left over from the dummy setup process being removed.
     """
 
-    if dataset.attrs.get("_shnitsel_setup_for_cleanup", False):
-        unset_vars = []
-        for var in dataset.variables:
-            if is_variable_assigned(dataset[var]):
-                # Remove tags
-                del dataset[var].attrs["__assigned"]
-            else:
-                unset_vars.append(var)
+    unset_vars = []
+    for var in dataset.variables:
+        if is_variable_assigned(dataset[var]):
+            # Remove tags
+            del dataset[var].attrs["__assigned"]
+        else:
+            unset_vars.append(var)
 
+    if is_marked_for_cleanup(dataset):
         logging.debug(f"Dropping unset variables: {unset_vars}")
         dataset = dataset.drop_vars(unset_vars)
-        del dataset.attrs["_shnitsel_setup_for_cleanup"]
+        del dataset.attrs["__shnitsel_setup_for_cleanup"]
+
     return dataset

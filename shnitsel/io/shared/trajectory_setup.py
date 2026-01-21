@@ -10,7 +10,10 @@ import numpy as np
 
 from shnitsel.data.dataset_containers.shared import ShnitselDataset
 from shnitsel.io.shared.helpers import LoadingParameters
-from shnitsel.io.shared.variable_flagging import mark_variable_assigned
+from shnitsel.io.shared.variable_flagging import (
+    mark_dataset_for_cleanup,
+    mark_variable_assigned,
+)
 
 TrajType = TypeVar("TrajType", bound=xr.Dataset | ShnitselDataset)
 
@@ -123,9 +126,7 @@ def assign_required_settings(
     del kv_dict['max_ts']
 
     return type(dataset)(
-        dataset.drop_vars(drop_keys)
-        .assign_attrs(kv_dict)
-        .ds.assign_coords(**new_coords)
+        dataset.drop_vars(drop_keys).assign_attrs(kv_dict).assign_coords(**new_coords)
     )
 
 
@@ -413,6 +414,8 @@ def create_initial_dataset(
         mark_variable_assigned(res_dataset["to"])
     if "state_charges" in res_dataset:
         mark_variable_assigned(res_dataset.state_charges)
+
+    mark_dataset_for_cleanup(res_dataset)
 
     res_dataset = res_dataset.set_coords(isolated_keys)
     res_dataset.attrs["_shnitsel_setup_for_cleanup"] = True
