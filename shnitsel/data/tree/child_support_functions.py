@@ -35,7 +35,11 @@ def find_child_key(
     """
     from .data_leaf import DataLeaf
 
-    name_candidate = new_child.name
+    try:
+        name_candidate = new_child.name
+    except:
+        name_candidate = None
+
     if name_candidate is None:
         if isinstance(new_child, DataLeaf) and new_child.has_data:
             name_candidate = get_data_name_candidate(new_child.data)
@@ -52,7 +56,7 @@ def find_child_key(
             return new_candidate
 
     raise OverflowError(
-        "Could not find a new child name in `1000` attempts that was not already in use."
+        "Could not find a new child name that was not already in use in `1000` attempts."
     )
 
 
