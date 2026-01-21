@@ -1,5 +1,5 @@
 import logging
-from typing import TypeVar
+from typing import Any, TypeVar, overload
 import xarray as xr
 
 from shnitsel.data.dataset_containers.shared import ShnitselDataset
@@ -18,13 +18,34 @@ from shnitsel.io.shared.variable_flagging import (
 from shnitsel.units.conversion import convert_all_units_to_shnitsel_defaults
 
 NodeType = TypeVar("NodeType", bound=TreeNode)
-DataType = TypeVar("DataType", bound=xr.Dataset | Trajectory | Frames)
+DataType = TypeVar("DataType", bound=xr.Dataset | ShnitselDataset)
+
+
+@overload
+def finalize_loaded_trajectory(
+    dataset: TreeNode[Any, DataType],
+    loading_parameters: LoadingParameters | None,
+) -> TreeNode[Any, DataType]: ...
+
+
+@overload
+def finalize_loaded_trajectory(
+    dataset: DataType,
+    loading_parameters: LoadingParameters | None,
+) -> DataType: ...
+
+
+@overload
+def finalize_loaded_trajectory(
+    dataset: None,
+    loading_parameters: LoadingParameters | None,
+) -> None: ...
 
 
 def finalize_loaded_trajectory(
-    dataset: DataType | NodeType | None,
+    dataset: xr.Dataset | ShnitselDataset | TreeNode[Any, DataType] | None,
     loading_parameters: LoadingParameters | None,
-) -> DataType | Trajectory | Frames | NodeType | None:
+) -> xr.Dataset | ShnitselDataset | TreeNode[Any, xr.Dataset | ShnitselDataset] | None:
     """Function to apply some final postprocessing common to all input routines that allow reading of single trajectories from input formats.
 
     Parameters
@@ -42,10 +63,17 @@ def finalize_loaded_trajectory(
         default values and conversions applied.
     """
     if dataset is not None:
+        if isinstance(dataset, TreeNode):
+            return dataset.map_data(
+                lambda x: finalize_loaded_trajectory(
+                    x, loading_parameters=loading_parameters
+                ),
+                keep_empty_branches=True,
+            )
         # logging.debug(f"Finalizing: {repr(dataset)}")
-        if isinstance(dataset, (xr.Dataset, Trajectory, Frames)):
+        elif isinstance(dataset, (xr.Dataset, ShnitselDataset)):
             rebuild_type = None
-            if isinstance(dataset, (Trajectory, Frames)):
+            if isinstance(dataset, ShnitselDataset):
                 rebuild_type = type(dataset)
                 dataset = dataset.dataset
 
@@ -53,22 +81,14 @@ def finalize_loaded_trajectory(
             # Clean up variables if the variables are not assigned yet.
             dataset = clean_unassigned_variables(dataset)
             dataset = convert_all_units_to_shnitsel_defaults(dataset)
+            dataset = normalize_dataset(dataset)
 
             if rebuild_type:
                 return rebuild_type(dataset)
             else:
                 return wrap_dataset(dataset, (Trajectory | Frames))
         else:
-            # Should we post-process all individual trajectories just in case?
-            if isinstance(dataset, TreeNode):
-                return dataset.map_data(
-                    lambda x: finalize_loaded_trajectory(
-                        x, loading_parameters=loading_parameters
-                    ),
-                    keep_empty_branches=True,
-                )
             return dataset
-
     return None
 
 
@@ -113,7 +133,7 @@ def set_state_defaults(
     return dataset
 
 
-def normalize_dataset(ds: xr.Dataset) -> xr.Dataset:
+def normalize_dataset(ds: xr.Dataset | ShnitselDataset) -> xr.Dataset:
     """Helper method to perform some standardized renaming operations as well as some
     restructuring, e.g. if a multi-index is missing.
 
@@ -129,6 +149,16 @@ def normalize_dataset(ds: xr.Dataset) -> xr.Dataset:
     xr.Dataset
         The renamed dataset.
     """
+    if isinstance(ds, ShnitselDataset):
+        ds = ds.dataset
+
+    if not isinstance(ds, xr.Dataset):
+        logging.error(
+            "Normalization only supports xr.Dataset or ShnitselDataset entries not %s",
+            type(ds),
+        )
+        return ds
+
     # Rename legacy uses of `trajid` and `trajid_`
     if 'trajid' in ds.dims:
         ds = ds.swap_dims(trajid='trajectory')
@@ -159,12 +189,18 @@ def normalize_dataset(ds: xr.Dataset) -> xr.Dataset:
     else:
         time_unit = 'fs'
 
-    for var, has_unit in [('delta_t', True), ('max_ts', False), ('t_max', True)]:
+    for var, has_unit, var_type in [
+        ('delta_t', True, float),
+        ('max_ts', False, int),
+        ('t_max', True, float),
+    ]:
         if var not in ds.coords:
             if var in ds.data_vars:
                 ds = ds.set_coords(var)
             elif var in ds.attrs:
-                dt_arr = xr.DataArray(float(ds.attrs.get(var, -1)), dims=(), name=var)
+                dt_arr = xr.DataArray(
+                    var_type(ds.attrs.get(var, -1)), dims=(), name=var
+                ).astype(var_type)
                 ds = ds.assign_coords(delta_t=dt_arr)
 
             if has_unit and var in ds and 'units' not in ds.delta_t.attrs:
