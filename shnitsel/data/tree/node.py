@@ -699,38 +699,49 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
         """
         ...
 
-    @overload
-    def map_data(
-        self,
-        func: Callable[[DataType], ResType | None],
-        recurse: bool,
-        keep_empty_branches: Literal[True] = True,
-        dtype: type[ResType] | UnionType | None = None,
-        *args,
-        **kwargs,
-    ) -> "TreeNode[Any,ResType]": ...
+    # @overload
+    # def map_data(
+    #     self,
+    #     func: Callable,
+    #     *args,
+    #     recurse: bool,
+    #     keep_empty_branches: Literal[True] = True,
+    #     dtype: type[ResType] | None = None,
+    #     **kwargs,
+    # ) -> "TreeNode[Any,ResType]": ...
 
-    @overload
-    def map_data(
-        self,
-        func: Callable[[DataType], ResType | None],
-        recurse: bool,
-        keep_empty_branches: bool = True,
-        dtype: type[ResType] | UnionType | None = None,
-        *args,
-        **kwargs,
-    ) -> "TreeNode[Any,ResType]|None": ...
+    # @overload
+    # def map_data(
+    #     self,
+    #     func: Callable[..., ResType],
+    #     *args,
+    #     recurse: bool,
+    #     keep_empty_branches: Literal[True] = True,
+    #     dtype: UnionType | None = None,
+    #     **kwargs,
+    # ) -> "TreeNode[Any,ResType]": ...
+
+    # @overload
+    # def map_data(
+    #     self,
+    #     func: Callable[..., ResType | None],
+    #     *args,
+    #     recurse: bool,
+    #     keep_empty_branches: Literal[False] = False,
+    #     dtype: type[ResType] | UnionType | None = None,
+    #     **kwargs,
+    # ) -> "TreeNode[Any,ResType] | None": ...
 
     @abc.abstractmethod
     def map_data(
         self,
-        func: Callable[[DataType], ResType | None],
+        func: Callable,
         *args,
         recurse: bool = True,
         keep_empty_branches: bool = True,
         dtype: type[ResType] | UnionType | None = None,
         **kwargs,
-    ) -> "TreeNode[Any,ResType]|None":
+    ) -> "TreeNode[Any,ResType]|TreeNode|None":
         """Helper function to apply a mapping function to all data in leaves of this tree
 
         The function `func` is applied to all `DataLeaf` instances with `data` within them.
