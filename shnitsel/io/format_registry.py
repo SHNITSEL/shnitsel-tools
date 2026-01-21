@@ -1,6 +1,8 @@
 import logging
 from typing import Literal, Mapping, TypeAlias
 
+from shnitsel.io.ase.format_reader import ASEFormatReader
+
 from .format_reader_base import FormatReader
 from .pyrai2md.format_reader import PyrAI2mdFormatReader
 from .sharc.format_reader import SHARCFormatReader
@@ -69,3 +71,7 @@ def get_available_io_handlers() -> Mapping[str, FormatReader]:
         The mapping from format identifier to actual io handler for the various supported formats.
     """
     return REGISTERED_READERS
+
+
+# Register additional format readers
+register_format_reader('ase', ASEFormatReader())
