@@ -422,7 +422,11 @@ class ShnitselDBRoot(Generic[DataType], TreeNode[CompoundGroup[DataType], DataTy
                 k: res
                 for k, v in self._children.items()
                 if v is not None
-                and (res := v.map_data(func, recurse, keep_empty_branches, dtype=dtype, *args, **kwargs))
+                and (
+                    res := v.map_data(
+                        func, recurse, keep_empty_branches, dtype=dtype, *args, **kwargs
+                    )
+                )
                 is not None
             }
 
@@ -433,7 +437,7 @@ class ShnitselDBRoot(Generic[DataType], TreeNode[CompoundGroup[DataType], DataTy
     def map_filtered_nodes(
         self,
         filter_func: Callable[[TreeNode[Any, DataType]], bool],
-        map_func: Callable[[TreeNode[Any, DataType]], TreeNode[Any, ResType]],
+        map_func: Callable[[TreeNode[Any, DataType]], TreeNode[Any, ResType] | None],
         dtype: type[ResType] | TypeForm[ResType] | None = None,
     ) -> "ShnitselDBRoot[ResType]":
         """Override of the filter method to make the type explicit when the base class method is unclear about the specific node type
@@ -446,7 +450,7 @@ class ShnitselDBRoot(Generic[DataType], TreeNode[CompoundGroup[DataType], DataTy
         ----------
         filter_func : Callable[[TreeNode[Any, DataType]], bool]
             Function to filter out, to which subtrees, `map_func` should be applied. If result is `True`, the subtree will be mapped.
-        map_func : Callable[[TreeNode[Any, DataType]], TreeNode[Any, ResType]]
+        map_func : Callable[[TreeNode[Any, DataType]], TreeNode[Any, ResType] | None]
             The mapping function to be applied to all subtrees for which `filter_func` returns `True` at their root node.
 
         Returns
