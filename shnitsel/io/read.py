@@ -43,6 +43,7 @@ from typing import (
     Callable,
     Literal,
     TYPE_CHECKING,
+    Sequence,
     TypeVar,
     overload,
 )
@@ -252,6 +253,7 @@ DataType = TypeVar("DataType")
 def read(
     path: PathOptionsType,
     kind: FormatIdentifierType | None = None,
+    *,
     sub_pattern: str | None = None,
     multiple: bool = True,
     concat_method: Literal[
@@ -277,18 +279,13 @@ def read(
     | xr.DataArray
     | ShnitselDataset
     | SupportsFromXrConversion
-    | TreeNode
-    | List[
-        ShnitselDataset
-        | SupportsFromXrConversion
-        | xr.Dataset
-        | xr.DataArray
-        | TreeNode
+    | TreeNode[
+        Any,
+        ShnitselDataset | SupportsFromXrConversion | xr.Dataset | xr.DataArray,
     ]
-    | DataType
-    | List[DataType | TreeNode[Any, DataType]]
     | TreeNode[Any, DataType]
-    | None
+    | Sequence[xr.Dataset | ShnitselDataset | SupportsFromXrConversion | xr.DataArray]
+    | DataType
 ):
     """Read all trajectories from a folder of trajectory folder.
 
@@ -531,19 +528,21 @@ def read_folder_multi(
     parallel: bool = True,
     error_reporting: Literal["log", "raise"] = "log",
     base_loading_parameters: LoadingParameters | None = None,
-    expect_dtype: type[DataType] | TypeForm[DataType] | None = None,
+    expect_dtype: type[DataType] | UnionType | None = None,
 ) -> (
-    list[Trajectory]
-    | list[xr.Dataset]
-    | list[xr.DataArray]
-    | list[Trajectory | Frames]
-    | list[DataType]
-    | list[ShnitselDB[Trajectory | Frames]]
-    | list[
-        ShnitselDB[DataType]
-        | CompoundGroup[DataType]
-        | DataGroup[DataType]
-        | DataLeaf[DataType]
+    Sequence[
+        xr.Dataset
+        | xr.DataArray
+        | ShnitselDataset
+        | SupportsFromXrConversion
+        | TreeNode[
+            Any, ShnitselDataset | SupportsFromXrConversion | xr.Dataset | xr.DataArray
+        ]
+        | TreeNode[Any, DataType]
+        | Sequence[
+            xr.Dataset | ShnitselDataset | SupportsFromXrConversion | xr.DataArray
+        ]
+        | DataType
     ]
     | None
 ):
@@ -695,14 +694,38 @@ def read_folder_multi(
         fitting_reader = READERS[fitting_kind]
 
         input_set_params = [
-            (trajpath, fitting_reader, formatinfo, base_loading_parameters)
+            (
+                trajpath,
+                fitting_reader,
+                formatinfo,
+                base_loading_parameters,
+                expect_dtype,
+            )
             for trajpath, formatinfo in fitting_paths
         ]
-        input_paths, input_readers, input_format_info, input_loading_params = zip(
-            *input_set_params
-        )
+        (
+            input_paths,
+            input_readers,
+            input_format_info,
+            input_loading_params,
+            expected_type,
+        ) = zip(*input_set_params)
         log_messages: list[logging.LogRecord] = []
-        res_trajectories = []
+        res_trajectories: Sequence[
+            xr.Dataset
+            | xr.DataArray
+            | ShnitselDataset
+            | SupportsFromXrConversion
+            | TreeNode[
+                Any,
+                ShnitselDataset | SupportsFromXrConversion | xr.Dataset | xr.DataArray,
+            ]
+            | TreeNode[Any, DataType]
+            | Sequence[
+                xr.Dataset | ShnitselDataset | SupportsFromXrConversion | xr.DataArray
+            ]
+            | DataType
+        ] = []
         if parallel:
             with ProcessPoolExecutor(max_workers=os.cpu_count()) as executor:
                 for result in tqdm(
@@ -712,6 +735,7 @@ def read_folder_multi(
                         input_readers,
                         input_format_info,
                         input_loading_params,
+                        expected_type,
                     ),
                     total=len(input_set_params),
                 ):
@@ -740,8 +764,9 @@ def read_folder_multi(
 
         # TODO: FIXME: Check if trajid is actually set?
         res_trajectories.sort(
-            key=lambda x: x.attrs["trajid"]
-            if "trajid" in x.attrs
+            key=lambda x: x.attrs.get("trajid", x.attrs.get("trajectory_id", 0))
+            if isinstance(x, xr.Dataset | ShnitselDataset)
+            and ("trajid" in x.attrs or "trajectory_id" in x.attrs)
             else np.random.randint(0, high=100000)
         )
         return res_trajectories
@@ -753,20 +778,53 @@ def read_single(
     kind: FormatIdentifierType | None,
     error_reporting: Literal["log", "raise"] = "log",
     base_loading_parameters: LoadingParameters | None = None,
-    expect_dtype: type[DataType] | TypeForm[DataType] | None = None,
+    expect_dtype: type[DataType] | UnionType | None = None,
 ) -> (
-    Trajectory
-    | Frames
-    | DataType
+    xr.Dataset
+    | xr.DataArray
+    | ShnitselDataset
     | SupportsFromXrConversion
-    | ShnitselDB
-    | ShnitselDB[DataType]
-    | CompoundGroup[DataType]
-    | DataGroup[DataType]
-    | DataLeaf[DataType]
-    | xr.Dataset
+    | TreeNode[
+        Any, ShnitselDataset | SupportsFromXrConversion | xr.Dataset | xr.DataArray
+    ]
+    | TreeNode[Any, DataType]
+    | Sequence[xr.Dataset | ShnitselDataset | SupportsFromXrConversion | xr.DataArray]
+    | DataType
     | None
 ):
+    """Helper function to read input from a single input path.
+
+    May yield complex and iterable data structures depending on the input format.
+
+    Parameters
+    ----------
+    path : PathOptionsType
+        Path to a directory to be checked whether it can be read by available input readers
+    kind_hint : str | None
+        If set, the input format specified by the user. Only that reader's result will be used eventually.
+
+    Raises
+    ------
+    FileNotFoundError
+        If the `path` is not valid
+    TypeError
+        If the `expected_dtype` does not match the data parsed from file.
+
+    Returns
+    -------
+    xr.Dataset
+    | xr.DataArray
+    | ShnitselDataset
+    | SupportsFromXrConversion
+    | TreeNode[
+        Any, ShnitselDataset | SupportsFromXrConversion | xr.Dataset | xr.DataArray
+    ]
+    | TreeNode[Any, DataType]
+    | Sequence[xr.Dataset | ShnitselDataset | SupportsFromXrConversion]
+    | DataType
+    | None
+        The data that has been read from the `path` location.
+    """
     queue, handler, logger, original_handlers = setup_queue_handler(None, 'root')
 
     if base_loading_parameters is None:
@@ -922,7 +980,17 @@ def identify_or_check_input_kind(
 class Trajres:
     path: pathlib.Path
     misc_error: tuple[Exception, Any] | Iterable[tuple[Exception, Any]] | None
-    data: xr.Dataset | SupportsFromXrConversion | ShnitselDataset | TreeNode | None
+    data: (
+        xr.Dataset
+        | xr.DataArray
+        | ShnitselDataset
+        | SupportsFromXrConversion
+        | TreeNode
+        | Sequence[
+            xr.Dataset | ShnitselDataset | SupportsFromXrConversion | xr.DataArray
+        ]
+        | None
+    )
     log_records: list[logging.LogRecord] | None
 
 
@@ -931,6 +999,7 @@ def _per_traj(
     reader: FormatReader,
     format_info: FormatInformation,
     base_loading_parameters: LoadingParameters,
+    expect_dtype: type | UnionType | None = None,
 ) -> Trajres:
     """Internal function to carry out loading of trajectories to allow for parallel processing with a ProcessExecutor.
 
@@ -954,7 +1023,12 @@ def _per_traj(
     base_loading_parameters.logger = logger
 
     try:
-        ds = reader.read_data(trajdir, format_info, base_loading_parameters)
+        ds = reader.read_data(
+            trajdir,
+            format_info=format_info,
+            loading_parameters=base_loading_parameters,
+            expect_dtype=expect_dtype,
+        )
 
         if isinstance(ds, (xr.Dataset, Trajectory, Frames)):
             if ds is not None and not ds.attrs.get("completed", False):
