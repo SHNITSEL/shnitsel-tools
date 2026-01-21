@@ -1,6 +1,7 @@
 import logging
 from typing import Any
 
+from shnitsel.data.dataset_containers.shared import ShnitselDataset
 from shnitsel.io.xr_io_compatibility import (
     SupportsToXrConversion,
     SupportsFromXrConversion,
@@ -91,15 +92,7 @@ def data_to_xarray_dataset(
 def xr_dataset_to_shnitsel_format(
     raw_data: xr.Dataset,
     metadata: dict[str, Any],
-) -> (
-    Trajectory
-    | Frames
-    | InterState
-    | PerState
-    | xr.Dataset
-    | xr.DataArray
-    | SupportsFromXrConversion
-):
+) -> ShnitselDataset | xr.Dataset | xr.DataArray | SupportsFromXrConversion:
     """Function to support abstract deserialization of various types that could appear
     in a shnitsel style hierarchical tree structure.
 

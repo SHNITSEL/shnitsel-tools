@@ -5,15 +5,19 @@ import pathlib
 import re
 import sys
 import traceback
-from typing import TypeVar
+from types import UnionType
+from typing import Any, Sequence, TypeVar
 from typing_extensions import TypeForm
 from shnitsel.data.dataset_containers import Trajectory, Frames
 
+from shnitsel.data.dataset_containers.shared import ShnitselDataset
+from shnitsel.data.tree.node import TreeNode
 from shnitsel.io.shared.helpers import (
     LoadingParameters,
     PathOptionsType,
     make_uniform_path,
 )
+from shnitsel.io.xr_io_compatibility import SupportsFromXrConversion
 from ..format_reader_base import FormatInformation, FormatReader
 from .parse import parse_pyrai2md
 
@@ -138,10 +142,23 @@ class PyrAI2mdFormatReader(FormatReader):
     def read_from_path(
         self,
         path: pathlib.Path,
+        *,
         format_info: FormatInformation,
         loading_parameters: LoadingParameters | None = None,
-        expect_dtype: type[DataType] | TypeForm[DataType] | None = None,
-    ) -> xr.Dataset | Trajectory | Frames | None:
+        expect_dtype: type[DataType] | UnionType | None = None,
+    ) -> (
+        xr.Dataset
+        | xr.DataArray
+        | ShnitselDataset
+        | SupportsFromXrConversion
+        | TreeNode[
+            Any, ShnitselDataset | SupportsFromXrConversion | xr.Dataset | xr.DataArray
+        ]
+        | TreeNode[Any, DataType]
+        | Sequence[xr.Dataset | ShnitselDataset | SupportsFromXrConversion]
+        | DataType
+        | None
+    ):
         """Read a PyrAI2MD-style trajcetory from path at `path`.
         Implements `FormatReader.read_from_path()`.
 

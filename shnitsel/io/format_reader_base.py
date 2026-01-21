@@ -3,12 +3,15 @@ from dataclasses import dataclass
 import logging
 import pathlib
 import re
-from typing import Callable, TypeVar
+from types import UnionType
+from typing import Any, Callable, Sequence, TypeVar
 from typing_extensions import TypeForm
 
 from shnitsel.core.typedefs import StateTypeSpecifier
+from shnitsel.data.dataset_containers.shared import ShnitselDataset
 from shnitsel.data.tree import ShnitselDB, CompoundGroup, DataGroup, DataLeaf
 from shnitsel.data.dataset_containers import Trajectory, Frames, InterState, PerState
+from shnitsel.data.tree.node import TreeNode
 from shnitsel.io.shared.helpers import (
     LoadingParameters,
     PathOptionsType,
@@ -117,21 +120,20 @@ class FormatReader(ABC):
     def read_from_path(
         self,
         path: pathlib.Path,
+        *,
         format_info: FormatInformation,
         loading_parameters: LoadingParameters | None = None,
-        expect_dtype: type[DataType] | TypeForm[DataType] | None = None,
-    ) -> (
+        expect_dtype: type[DataType] | UnionType | None = None,
+    )  -> (
         xr.Dataset
-        | Trajectory
-        | Frames
-        | PerState
-        | InterState
+        | xr.DataArray
+        | ShnitselDataset
         | SupportsFromXrConversion
-        | ShnitselDB[SupportsFromXrConversion]
-        | ShnitselDB[DataType]
-        | CompoundGroup[DataType]
-        | DataGroup[DataType]
-        | DataLeaf[DataType]
+        | TreeNode[
+            Any, ShnitselDataset | SupportsFromXrConversion | xr.Dataset | xr.DataArray
+        ]
+        | TreeNode[Any, DataType]
+        | Sequence[xr.Dataset | ShnitselDataset | SupportsFromXrConversion]
         | DataType
         | None
     ):
@@ -144,35 +146,40 @@ class FormatReader(ABC):
 
         Parameters
         ----------
-            path : pathlib.Path
-                Path to either the input file or input folder to be read.
-            format_info : FormatInformation
-                Format information previously constructed by `check_path_for_format_info()`.
-                If None, will be constructed by calling `Self.check_path_for_format_info()` first.
-            loading_parameters : LoadingParameters|None, optional
-                Loading parameters to e.g. override default state names, units or configure the error reporting behavior
+        path : pathlib.Path
+            Path to either the input file or input folder to be read.
+        format_info : FormatInformation
+            Format information previously constructed by `check_path_for_format_info()`.
+            If None, will be constructed by calling `Self.check_path_for_format_info()` first.
+        loading_parameters : LoadingParameters|None, optional
+            Loading parameters to e.g. override default state names, units or configure the error reporting behavior
+        expect_dtype: type[DataType] | UnionType, optional
+            Optionally a datatype to constrain which types can be returned from the input call.
+            If they do not match, an error may trigger.
 
         Raises
         ------
-            FileNotFoundError
-                If required files were not found, i.e. if the path does not actually constitute input data of the denoted format
-            ValueError
-                If the `format_info` provided by the user conflicts with the requirements of the format
-            Valueerror
-                If neither `path` nor `format_info` are provided
+        FileNotFoundError
+            If required files were not found, i.e. if the path does not actually constitute input data of the denoted format
+        ValueError
+            If the `format_info` provided by the user conflicts with the requirements of the format
+        Valueerror
+            If neither `path` nor `format_info` are provided
+        TypeError
+            Formats can choose to raise a TypeError if the parsed input does not yield an object of type `expected_dtype`.
 
         Returns
         -------
-            xr.Dataset
-                The parsed dataset imported from the underlying data format.
-            ShnitselDB[DataType]
-            | CompoundGroup[DataType]
-            | DataGroup[DataType]
-            | DataLeaf[DataType]
-            | DataType
-                Data resulting from reading data with hierarchical or arbitrary data contents.
-            None
-                If the reading of data failed for arbitrary reasons.
+        xr.Dataset
+        | ShnitselDataset
+        | SupportsFromXrConversion
+        | TreeNode[Any, ShnitselDataset | SupportsFromXrConversion | xr.Dataset]
+        | TreeNode[Any, DataType]
+        | Sequence[xr.Dataset | ShnitselDataset | SupportsFromXrConversion]
+        | DataType
+            Data resulting from reading data with hierarchical or arbitrary data contents.
+        None
+            If the reading of data failed for arbitrary reasons.
         """
         ...
 
@@ -467,7 +474,9 @@ class FormatReader(ABC):
                         assert (
                             "state" not in dataset.sizes
                             or len(state_types_override) == dataset.sizes["state"]
-                        ), "Length of provided state type list did not match length of state array in loaded dataset."
+                        ), (
+                            "Length of provided state type list did not match length of state array in loaded dataset."
+                        )
                         dataset = dataset.assign_coords(
                             {
                                 "state_types": (

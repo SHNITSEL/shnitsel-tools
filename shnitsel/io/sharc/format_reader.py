@@ -3,16 +3,20 @@ import logging
 import pathlib
 import re
 import traceback
-from typing import TypeVar
+from types import UnionType
+from typing import Any, Sequence, TypeVar
 from typing_extensions import TypeForm
 
 from shnitsel.data.dataset_containers.frames import Frames
+from shnitsel.data.dataset_containers.shared import ShnitselDataset
 from shnitsel.data.dataset_containers.trajectory import Trajectory
+from shnitsel.data.tree.node import TreeNode
 from shnitsel.io.shared.helpers import (
     LoadingParameters,
     PathOptionsType,
     make_uniform_path,
 )
+from shnitsel.io.xr_io_compatibility import SupportsFromXrConversion
 from ..format_reader_base import FormatInformation, FormatReader
 from .parse_trajectory import read_traj
 from .parse_initial_conditions import read_iconds_individual
@@ -219,10 +223,23 @@ class SHARCFormatReader(FormatReader):
     def read_from_path(
         self,
         path: pathlib.Path,
+        *,
         format_info: FormatInformation,
         loading_parameters: LoadingParameters | None = None,
-        expect_dtype: type[DataType] | TypeForm[DataType] | None = None,
-    ) -> xr.Dataset | Trajectory | Frames | None:
+        expect_dtype: type[DataType] | UnionType | None = None,
+    ) -> (
+        xr.Dataset
+        | xr.DataArray
+        | ShnitselDataset
+        | SupportsFromXrConversion
+        | TreeNode[
+            Any, ShnitselDataset | SupportsFromXrConversion | xr.Dataset | xr.DataArray
+        ]
+        | TreeNode[Any, DataType]
+        | Sequence[xr.Dataset | ShnitselDataset | SupportsFromXrConversion]
+        | DataType
+        | None
+    ):
         """Read a SHARC-style trajcetory from path at `path`.
         Implements `FormatReader.read_from_path()`.
 
@@ -236,7 +253,7 @@ class SHARCFormatReader(FormatReader):
             Format information on the provided `path` that has been previously parsed.
         loading_parameters : LoadingParameters | None, optional
             Loading parameters to e.g. override default state names, units or configure the error reporting behavior, by default None
-        expect_dtype : type[DataType] | TypeForm[DataType] | None, optional
+        expect_dtype : type[DataType] | UnionType | None, optional
             An optional parameter to specify the return type.
             For this class, it should be `xr.Dataset`, `Trajectory` or `Frames`, by default None
 
