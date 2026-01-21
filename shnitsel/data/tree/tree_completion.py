@@ -1,3 +1,4 @@
+from types import UnionType
 from typing import Any, Sequence, TypeVar
 from typing_extensions import TypeForm
 
@@ -26,7 +27,7 @@ def build_shnitsel_db(
     | Sequence[DataGroup[DataType] | DataLeaf[DataType]]
     | Sequence[TreeNode[Any, DataType]]
     | Sequence[DataType],
-    dtype: type[DataType] | TypeForm[DataType] | None = None,
+    dtype: type[DataType] | UnionType | None = None,
 ) -> ShnitselDBRoot[DataType]:
     """
     Function to generate a full -- i.e. up to ShnitselDBRoot -- Shnitsel DB structure.
@@ -37,7 +38,7 @@ def build_shnitsel_db(
     ----------
     data : ShnitselDBRoot[DataType] | CompoundGroup[DataType] | DataGroup[DataType] | DataLeaf[DataType] | DataType | Sequence[CompoundGroup[DataType]] | Sequence[DataGroup[DataType]  |  DataLeaf[DataType]] | Sequence[DataType]
         Input data to be wrapped in a ShnitselDB format
-    dtype :  type[DataType] | TypeForm[DataType], optional
+    dtype :  type[DataType] | UnionType, optional
         The datatype that data in this tree should have.
         If not provided will be inferred from the data in the tree.
 
