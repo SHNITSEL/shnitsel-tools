@@ -1,5 +1,5 @@
 import logging
-from typing import Callable, Dict
+from typing import Callable, Dict, Mapping
 from pandas import MultiIndex
 import xarray as xr
 import shnitsel.units.definitions as definitions
@@ -175,6 +175,24 @@ convert_velocity = Converter(
 
 
 def convert_all_units_to_shnitsel_defaults(data: xr.Dataset) -> xr.Dataset:
+    """Helper function to convert all variables and coordinates with units in the dataset to
+    shnitsel defaults.
+
+    Parameters
+    ----------
+    data : xr.Dataset
+        The dataset to convert to defaults.
+
+    Returns
+    -------
+    xr.Dataset
+        The converted dataset.
+
+    Raises
+    ------
+    ValueError
+        If conversion is performed on a multi-index, an error may occur if the index does not support the replacement of its levels.
+    """
     new_vars = {}
 
     if "time" in data:
@@ -275,6 +293,153 @@ def convert_all_units_to_shnitsel_defaults(data: xr.Dataset) -> xr.Dataset:
     return tmp
 
 
+def convert_to_target_units(
+    data: xr.Dataset, unit_map: str | Mapping[str, str | None] | None
+) -> xr.Dataset:
+    """Helper function to convert units of variables and coordinates on a dataset to
+    target units.
+
+    If no target units are specified, will convert to the units set as default by shnitsel tools.
+
+    Parameters
+    ----------
+    data : xr.Dataset
+        The dataset to perform the conversion on.
+    units : str | Mapping[str, str] | None
+        Either a unit to convert all variables to or a mapping between variables that should be converted and their target unit.
+        Set a target unit of `None` to convert to shnitsel default.
+
+    Returns
+    -------
+    xr.Dataset
+        The resulting dataset after conversion.
+
+    Raises
+    ------
+    ValueError
+        If conversion of a multi-index level fails.
+    ValueError
+        If a global target unit could not be applied to all arrays in the Dataset.
+    """
+    if unit_map is None:
+        return convert_all_units_to_shnitsel_defaults(data)
+    new_vars = {}
+
+    if "time" in data:
+        assert "units" in data["time"].attrs, (
+            "Dataset is missing `units` attribute on `time` coordinate"
+        )
+        time_unit = data["time"].attrs["units"]
+    else:
+        logging.warning(
+            f"Missing `time` coordinate on input dataset. Available variables: {[str(x) for x in data.variables.keys()]}"
+        )
+        time_unit = None
+
+    global_conversion = isinstance(unit_map, str)
+    global_unit = unit_map if global_conversion else None
+
+    with xr.set_options(keep_attrs=True):
+        for var_name in data.data_vars:
+            if (global_conversion or var_name in unit_map) and 'unitdim' in data[
+                var_name
+            ].attrs:
+                conv_res = convert_datarray_with_unitdim(
+                    data[var_name],
+                    global_unit if global_conversion else unit_map[str(var_name)],
+                )
+
+                logging.debug(
+                    "Converting %s from unit %s to %s",
+                    var_name,
+                    data[var_name].attrs['units'],
+                    conv_res.attrs['units'],
+                )
+
+                if var_name in data.indexes:
+                    var_index = data.indexes[var_name]
+                    if isinstance(var_index, MultiIndex):
+                        raise ValueError(
+                            "We do not support MultiIndices on non-coordinate variables."
+                        )
+
+                new_vars[var_name] = conv_res
+
+    # logging.debug("Converting Data: " + str(list(new_vars.keys())))
+    # NOTE: For some reason, sometimes, assigning multiple variables at once resulted in all of them being filled with NaN values.
+    # NOTE: It may be an issue of setting the coordinate "time" before setting the variables. Split setting variables and coordinates
+    tmp = data.assign(new_vars)
+
+    new_coords = {}
+
+    with xr.set_options(keep_attrs=True):
+        for coord_name in data.coords:
+            if (global_conversion or coord_name in unit_map) and 'unitdim' in data[
+                coord_name
+            ].attrs:
+                conv_res = convert_datarray_with_unitdim(
+                    data[coord_name],
+                    global_unit if global_conversion else unit_map[str(coord_name)],
+                )
+
+                if coord_name in data.indexes:
+                    coord_index = data.indexes[coord_name]
+                    if isinstance(coord_index, MultiIndex):
+                        from shnitsel.data.multi_indices import assign_levels
+
+                        tmp = assign_levels(tmp, {str(coord_name): conv_res})
+                        continue
+
+                logging.debug(
+                    "Converting coordinate %s from unit %s to %s",
+                    coord_name,
+                    data[coord_name].attrs['units'],
+                    conv_res.attrs['units'],
+                )
+
+                new_coords[coord_name] = conv_res
+
+    # logging.debug("Converting Coords: " + str(list(new_coords.keys())))
+    # NOTE: Alignment screws us over if we convert the time before assigning the other variables.
+    tmp = tmp.assign_coords(new_coords)
+
+    if time_unit is not None:
+        target_time_unit = str(
+            (global_unit if global_conversion else unit_map["delta_t"])
+            or tmp["time"].attrs["units"]
+        )
+        if "delta_t" in tmp.attrs and (
+            global_conversion or "delta_t" in unit_map or 'time' in tmp
+        ):
+            tmp.attrs["delta_t"] = convert_time.convert_value(
+                tmp.attrs["delta_t"],
+                convert_from=time_unit,
+                to=target_time_unit,
+            )
+            logging.debug(
+                "Converting attribute %s from unit %s to %s",
+                "delta_t",
+                time_unit,
+                target_time_unit,
+            )
+        if "t_max" in tmp.attrsand(
+            global_conversion or "t_max" in unit_map or 'time' in tmp
+        ):
+            tmp.attrs["t_max"] = convert_time.convert_value(
+                tmp.attrs["t_max"],
+                convert_from=time_unit,
+                to=target_time_unit,
+            )
+            logging.debug(
+                "Converting attribute %s from unit %s to %s",
+                "t_max",
+                time_unit,
+                target_time_unit,
+            )
+
+    return tmp
+
+
 _CONVERTERS: Dict[str, Callable[[xr.DataArray, str], xr.DataArray]] = {
     definitions.unit_dimensions.energy: convert_energy,
     definitions.unit_dimensions.force: convert_force,
@@ -291,15 +456,48 @@ _CONVERTERS: Dict[str, Callable[[xr.DataArray, str], xr.DataArray]] = {
 def convert_datarray_with_unitdim_to_shnitsel_defaults(
     data: xr.DataArray,
 ) -> xr.DataArray:
+    """Helper function to convert a data array to default values for
+    shnitsel units.
+
+    Parameters
+    ----------
+    data : xr.DataArray
+        The array to convert
+
+    Returns
+    -------
+    xr.DataArray
+        The converted or untouched array if no conversion was necessary
+    """
+    return convert_datarray_with_unitdim(data, None)
+
+
+def convert_datarray_with_unitdim(
+    data: xr.DataArray, target_unit: str | None = None
+) -> xr.DataArray:
+    """Helper function to convert a dataarray with a unit dimension to
+    either a target unit or a shnitsel default unit.
+
+    Parameters
+    ----------
+    data : xr.DataArray
+        The array to convert
+    target_unit : str | None, optional
+        The target unit, by default None which applies shnitsel default units
+
+    Returns
+    -------
+    xr.DataArray
+        The converted or untouched array if no conversion was necessary
+    """
     if 'unitdim' in data.attrs:
         unit_dimension = data.attrs['unitdim']
-
-        if (
-            unit_dimension in definitions.standard_shnitsel_units
-            and unit_dimension in _CONVERTERS
-        ):
-            return _CONVERTERS[unit_dimension](
-                data, definitions.standard_shnitsel_units[unit_dimension]
-            )
-
+        if unit_dimension in _CONVERTERS:
+            if target_unit is None:
+                if unit_dimension in definitions.standard_shnitsel_units:
+                    return _CONVERTERS[unit_dimension](
+                        data, definitions.standard_shnitsel_units[unit_dimension]
+                    )
+            else:
+                return _CONVERTERS[unit_dimension](data, target_unit)
     return data
