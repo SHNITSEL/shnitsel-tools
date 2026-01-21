@@ -8,7 +8,9 @@ from typing import Any, Callable, Sequence, TypeVar
 from typing_extensions import TypeForm
 
 from shnitsel.core.typedefs import StateTypeSpecifier
+from shnitsel.data.dataset_containers.data_series import DataSeries
 from shnitsel.data.dataset_containers.shared import ShnitselDataset
+from shnitsel.data.helpers import is_assignable_to
 from shnitsel.data.tree import ShnitselDB, CompoundGroup, DataGroup, DataLeaf
 from shnitsel.data.dataset_containers import Trajectory, Frames, InterState, PerState
 from shnitsel.data.tree.node import TreeNode
@@ -25,7 +27,10 @@ from shnitsel.data.state_helpers import (
 
 import xarray as xr
 
-from shnitsel.io.shared.trajectory_finalization import finalize_loaded_trajectory
+from shnitsel.io.shared.trajectory_finalization import (
+    finalize_loaded_trajectory,
+    normalize_dataset,
+)
 from shnitsel.io.shared.trajectory_setup import (
     OptionalTrajectorySettings,
     assign_optional_settings,
@@ -48,6 +53,7 @@ class FormatInformation:
 _default_trajid_pattern_regex = re.compile(r"(?P<trajid>\d+)")
 
 DataType = TypeVar("DataType")
+TrajType = TypeVar("TrajType", bound=xr.Dataset | ShnitselDataset)
 
 
 class FormatReader(ABC):
@@ -124,7 +130,7 @@ class FormatReader(ABC):
         format_info: FormatInformation,
         loading_parameters: LoadingParameters | None = None,
         expect_dtype: type[DataType] | UnionType | None = None,
-    )  -> (
+    ) -> (
         xr.Dataset
         | xr.DataArray
         | ShnitselDataset
@@ -133,7 +139,7 @@ class FormatReader(ABC):
             Any, ShnitselDataset | SupportsFromXrConversion | xr.Dataset | xr.DataArray
         ]
         | TreeNode[Any, DataType]
-        | Sequence[xr.Dataset | ShnitselDataset | SupportsFromXrConversion]
+        | Sequence[xr.Dataset | ShnitselDataset | SupportsFromXrConversion | xr.DataArray]
         | DataType
         | None
     ):
@@ -188,20 +194,20 @@ class FormatReader(ABC):
         path: PathOptionsType | None,
         format_info: FormatInformation | None = None,
         loading_parameters: LoadingParameters | None = None,
-        expect_dtype: type[DataType] | TypeForm[DataType] | None = None,
+        expect_dtype: type[DataType] | UnionType | None = None,
     ) -> (
         xr.Dataset
-        | Trajectory
-        | Frames
-        | ShnitselDB[
-            Trajectory | Frames | InterState | PerState | SupportsFromXrConversion
-        ]
+        | xr.DataArray
+        | ShnitselDataset
         | SupportsFromXrConversion
+        | TreeNode[
+            Any, ShnitselDataset | SupportsFromXrConversion | xr.Dataset | xr.DataArray
+        ]
+        | TreeNode[Any, DataType]
+        | Sequence[
+            xr.Dataset | ShnitselDataset | SupportsFromXrConversion | xr.DataArray
+        ]
         | DataType
-        | ShnitselDB[DataType]
-        | CompoundGroup[DataType]
-        | CompoundGroup[DataType]
-        | CompoundGroup[DataType]
         | None
     ):
         """
@@ -278,69 +284,109 @@ class FormatReader(ABC):
             raise FileNotFoundError(f"Path at {path_obj} does not exist.")
 
         res = self.read_from_path(
-            path_obj, format_info, loading_parameters, expect_dtype=expect_dtype
+            path_obj,
+            format_info=format_info,
+            loading_parameters=loading_parameters,
+            expect_dtype=expect_dtype,
         )
 
         if res is not None:
+
+            def finalize_single_trajectory(temp_traj: TrajType) -> TrajType:
+                """Helper function to perform some final standardization steps on a
+                single, simple dataset.
+
+                It cannot be directly applied to tree structures. Needs to be mapped over
+                the simple data in a Tree.
+
+                Parameters
+                ----------
+                temp_traj : TrajType
+                    The trajectory/dataset to process into standardized format.
+
+                Returns
+                -------
+                TrajType
+                    The dataset having been processed into standardized format.
+                """
+
+                if not isinstance(temp_traj, xr.Dataset | ShnitselDataset):
+                    return temp_traj
+
+                rebuild_type = type(temp_traj)
+                if not isinstance(temp_traj, xr.Dataset):
+                    temp_traj = temp_traj.dataset
+                # Set some optional settings.
+                optional_settings = OptionalTrajectorySettings()
+                if "trajectory_input_path" not in temp_traj.attrs:
+                    # Do not overwrite original path
+                    optional_settings.trajectory_input_path = path_obj.as_posix()
+
+                temp_traj = assign_optional_settings(temp_traj, optional_settings)
+
+                # If trajid has been extracted from the input path, set it
+                if format_info is not None:
+                    if "trajid" not in temp_traj and "trajectory_id" not in temp_traj:
+                        # If trajid has been extracted from the input path, set it
+                        if loading_parameters.trajectory_id is not None:
+                            # the trajectory_id assignment should have been transformed into a callable
+                            traj_id_assigner: Callable[[pathlib.Path], int] = (
+                                loading_parameters.trajectory_id
+                            )  # type: ignore
+                            optional_settings.trajectory_id = traj_id_assigner(
+                                format_info.path
+                                if format_info.path is not None
+                                else path_obj
+                            )
+
+                            if (
+                                traj_id_assigner == random_trajid_assigner
+                                and format_info.trajid is not None
+                            ):
+                                optional_settings.trajectory_id = format_info.trajid
+                        elif format_info.trajid is not None:
+                            optional_settings.trajectory_id = format_info.trajid
+
+                    # Assign state types if provided
+                    if loading_parameters.state_types is not None:
+                        keep_type_attrs = temp_traj.state_types.attrs
+                        state_types_assigner: Callable[[xr.Dataset], xr.Dataset] = (
+                            loading_parameters.state_types
+                        )  # type: ignore
+                        temp_traj = state_types_assigner(temp_traj)
+                        temp_traj.state_types.attrs.update(keep_type_attrs)
+
+                    # Assign state names if provided
+                    if loading_parameters.state_names is not None:
+                        keep_name_attrs = temp_traj.state_names.attrs
+                        state_names_assigner: Callable[[xr.Dataset], xr.Dataset] = (
+                            loading_parameters.state_names
+                        )  # type: ignore
+                        temp_traj = state_names_assigner(temp_traj)
+                        temp_traj.state_names.attrs.update(keep_name_attrs)
+
+                temp_traj = rebuild_type(
+                    assign_optional_settings(temp_traj, optional_settings)
+                )
+
+                return finalize_loaded_trajectory(temp_traj, loading_parameters)
+
             # NOTE: Do not post-process the tree like a single trajectory
-            if not isinstance(res, (xr.Dataset, Trajectory, Frames)):
+            if not isinstance(res, (xr.Dataset, ShnitselDataset)):
+                if isinstance(res, TreeNode):
+                    data_type: type | UnionType | None = res.dtype
+                    if data_type is None or is_assignable_to(
+                        data_type, xr.Dataset | ShnitselDataset
+                    ):
+                        return res.map_data(finalize_single_trajectory)
+
                 logging.debug(
                     "Skipping trajectory finalization for non-trajectory object"
                 )
                 return res
+            else:
+                return finalize_single_trajectory(res)
 
-            # Set some optional settings.
-            optional_settings = OptionalTrajectorySettings()
-            if "trajectory_input_path" not in res.attrs:
-                # Do not overwrite original path
-                optional_settings.trajectory_input_path = path_obj.as_posix()
-
-            assign_optional_settings(res, optional_settings)
-
-            # If trajid has been extracted from the input path, set it
-            if format_info is not None:
-                if "trajid" not in res:
-                    # If trajid has been extracted from the input path, set it
-                    if loading_parameters.trajectory_id is not None:
-                        # the trajectory_id assignment should have been transformed into a callable
-                        traj_id_assigner: Callable[[pathlib.Path], int] = (
-                            loading_parameters.trajectory_id
-                        )  # type: ignore
-                        optional_settings.trajid = traj_id_assigner(
-                            format_info.path
-                            if format_info.path is not None
-                            else path_obj
-                        )
-
-                        if (
-                            traj_id_assigner == random_trajid_assigner
-                            and format_info.trajid is not None
-                        ):
-                            optional_settings.trajid = format_info.trajid
-                    elif format_info.trajid is not None:
-                        optional_settings.trajid = format_info.trajid
-
-                # Assign state types if provided
-                if loading_parameters.state_types is not None:
-                    keep_type_attrs = res.state_types.attrs
-                    state_types_assigner: Callable[[xr.Dataset], xr.Dataset] = (
-                        loading_parameters.state_types
-                    )  # type: ignore
-                    res = state_types_assigner(res)
-                    res.state_types.attrs.update(keep_type_attrs)
-
-                # Assign state names if provided
-                if loading_parameters.state_names is not None:
-                    keep_name_attrs = res.state_names.attrs
-                    state_names_assigner: Callable[[xr.Dataset], xr.Dataset] = (
-                        loading_parameters.state_names
-                    )  # type: ignore
-                    res = state_names_assigner(res)
-                    res.state_names.attrs.update(keep_name_attrs)
-
-            assign_optional_settings(res, optional_settings)
-
-            return finalize_loaded_trajectory(res, loading_parameters)
         else:
             return res
 
