@@ -589,6 +589,13 @@ def read_ase(
 
                 tmp_data_in["trajid"].append(row_atoms.info["trajid"])
 
+            if "trajectory" in row_atoms.info:
+                if "trajid" not in tmp_data_in:
+                    tmp_data_in["trajid"] = []
+                    leading_dimension_rename_target = "frame"
+
+                tmp_data_in["trajid"].append(row_atoms.info["trajectory"])
+
             found_rows += 1
 
     # If there are no valid rows, raise a ValueError

@@ -1,64 +1,72 @@
 import json
+import logging
 import os
 from typing import Any, Collection, Iterable, Literal
 
 from ase import Atoms
 from ase.db import connect
+from ase.db.core import Database
 import numpy as np
 import xarray as xr
 
 from shnitsel._contracts import needs
-from shnitsel.data.dataset_containers import Frames, Trajectory
+from shnitsel.data.dataset_containers import Frames, Trajectory, wrap_dataset
+from shnitsel.data.dataset_containers.data_series import DataSeries
+from shnitsel.data.dataset_containers.multi_series import MultiSeriesDataset
+from shnitsel.data.tree.node import TreeNode
 
 
-# TODO: FIXME: Add support for other dataset types
 def _prepare_for_write_schnetpack(
-    traj: Trajectory, leading_dim_name: Literal['frame', 'time']
-) -> Trajectory:
+    traj: DataSeries, leading_dim_name: Literal['frame', 'time']
+) -> xr.Dataset:
     """Helper function to perform some preprocessing on the dataset before writing to a SchnetPack compatible database.
 
     Combines the dipole variables into one entry.
 
     Parameters
     ----------
-    traj : Trajectory
+    traj : DataSeries
         The Dataset to transform into a SchnetPack conforming format.
     leading_dim_name : Literal['frame', 'time']
         The name of the leading dimension identifying different frames within the dataset. Depending on the setup, this should be 'frame' or 'time'.
 
     Returns
     -------
-    Trajectory
+    xr.Dataset
         The transformed dataset
     """
     # Recombine permanent and transition dipoles, as schnetpack expects
     dipoles: np.ndarray | xr.DataArray | None = None
-    traj = traj.copy(deep=False)
+    working_ds = traj.dataset.copy(deep=False)
     dip_attributes = {}
     if 'dipoles' in traj:
-        dipoles = traj['dipoles'].data
-        dip_attributes = traj['dipoles'].attrs
+        dipoles = working_ds['dipoles'].data
+        dip_attributes = working_ds['dipoles'].attrs
         # Special case: We already found a dipoles variable
-        return traj
+        return working_ds
     elif 'dip_perm' in traj and 'dip_trans' in traj:
         dip_perm = (
-            traj['dip_perm'].transpose(leading_dim_name, 'state', 'direction').data
+            working_ds['dip_perm']
+            .transpose(leading_dim_name, 'state', 'direction')
+            .data
         )
         dip_trans = (
-            traj['dip_trans'].transpose(leading_dim_name, 'statecomb', 'direction').data
+            working_ds['dip_trans']
+            .transpose(leading_dim_name, 'statecomb', 'direction')
+            .data
         )
         dipoles = np.concat((dip_perm, dip_trans), axis=1)
-        dip_attributes = traj['dip_perm'].attrs
+        dip_attributes = working_ds['dip_perm'].attrs
 
-        del traj['dip_perm'], traj['dip_trans']
+        del working_ds['dip_perm'], working_ds['dip_trans']
     elif 'dip_perm' in traj:
         dipoles = traj['dip_perm'].data
         dip_attributes = traj['dip_perm'].attrs
-        del traj['dip_perm']
+        del working_ds['dip_perm']
     elif 'dip_trans' in traj:
         dipoles = traj['dip_trans']
         dip_attributes = traj['dip_trans'].attrs
-        del traj['dip_trans']
+        del working_ds['dip_trans']
 
     if dipoles is not None:
         # Change some attributes before assigning
@@ -67,28 +75,34 @@ def _prepare_for_write_schnetpack(
             "Combined dipole moment containing both permanent and transitional dipole information (if available)"
         )
 
-        traj['dipoles'] = (
+        working_ds['dipoles'] = (
             [leading_dim_name, 'state_or_statecomb', 'direction'],
             dipoles,
             dip_attributes,
         )
 
-    return traj
+    return working_ds
 
 
 def _ndarray_to_json_ser(value):
     return {"__ndarray": {"entries": value.tolist(), "dtype": value.dtype}}
 
 
-def _collect_metadata(traj: Trajectory, keys_to_write: Iterable[str]) -> dict[str, Any]:
+def _collect_metadata(
+    traj: DataSeries,
+    keys_to_write: Collection[str],
+) -> dict[str, Any]:
     """Helper function to generate the SPaiNN Metadata dict from a Trajectory struct.
 
     Extracts info from attributes and variables to set up the dict.
+    We expect trees to have been converted to common units before this is invoked.
 
     Parameters
     ----------
     traj : Trajectory
         The Dataset to extract the metadata from.
+    keys_to_write: Collection[str], optional
+        The keys of variables to write to the db.
 
     Returns
     -------
@@ -173,6 +187,7 @@ def _collect_metadata(traj: Trajectory, keys_to_write: Iterable[str]) -> dict[st
         }
         for varname in traj.variables.keys()
     }
+
     shnitsel_meta["coords"] = {
         coordname: {
             "values": traj[coordname].values.tolist(),
@@ -211,18 +226,21 @@ def _collect_metadata(traj: Trajectory, keys_to_write: Iterable[str]) -> dict[st
 # TODO: FIXME: Check the return type and Tree interaction
 @needs(data_vars=set(["energy", "atNames", "atNums", "atXYZ"]))
 def write_ase_db(
-    traj: Trajectory,
+    traj: xr.Dataset | DataSeries | TreeNode[Any, DataSeries | xr.Dataset],
     db_path: str,
     db_format: Literal['schnet', 'spainn'] | None = None,
-    keys_to_write: Collection | None = None,
+    keys_to_write: Collection[str] | None = None,
     preprocess: bool = True,
+    force: bool = False,
 ):
     """Function to write a Dataset into a ASE db in either SchNet or SPaiNN format.
 
     Parameters
     ----------
-    traj : Trajectory
-        The Dataset to be written to an ASE db style database
+    traj : xr.Dataset | DataSeries | TreeNode[Any, DataSeries | xr.Dataset]
+        The Dataset to be written to an ASE db style database. Can also be in tree format.
+        If provided as a tree, the data must be consistent with each other, i.e. all coordinates except for the leading dimension must match.
+        Inconsistencies
     db_path : str
         Path to write the database to
     db_format : Literal["schnet", "spainn";] | None, optional
@@ -231,40 +249,68 @@ def write_ase_db(
         Optional parameter to restrict which data variables to . Defaults to None.
     preprocess : bool, optional
         Whether to apply preprocessing of the data. Defaults to True.
+    force: bool, optional
+        A flag to force overwriting of an existing database at the position denoted by `db_path`.
 
     Raises
     ------
     ValueError
         If neither `frame` nor `time` dimension is present on the dataset.
     ValueError
+        If an unsupported data type was provided as an input.
+    ValueError
         If the `db_format` is neither `schnet`, `spainn` nor None
+    ValueError
+        If the data in a provided tree is inconsistent.
 
     Notes
     -----
     See `https://spainn-md.readthedocs.io/en/latest/userguide/data_pipeline.html#generate-a-spainn-database` for details on SPaiNN format.
     """
-    leading_dim_name: Literal['frame', 'time']
+    leading_dim_name: Literal['frame', 'time'] | None
 
-    if "frame" in traj.dims:
-        leading_dim_name = 'frame'
-    elif "time" in traj.dims:
-        leading_dim_name = 'time'
+    # TODO: FIXME: Do we really want to tabula rasa existing databases?
+    if os.path.exists(db_path):
+        if force:
+            logging.info("Removing database at `{db_path}` before write.")
+            os.remove(db_path)
+        else:
+            msg = "The database at `%s` already exists. To avoid data loss, write will not proceed. If you wish to overwrite the existing databse, please set `force=True` on the call to `write_ase_db()`"
+            logging.error(
+                msg,
+                db_path,
+            )
+            raise FileExistsError(msg % db_path)
+    converted_traj: DataSeries
+    if isinstance(traj, TreeNode):
+        converted_traj = traj.map_data(
+            lambda x: wrap_dataset(x, DataSeries).convert(), dtype=DataSeries
+        ).as_stacked  # type: ignore
     else:
-        raise ValueError(
-            "Neither `frame` nor `time` dimension present in dataset. No leading dimension differentiating between frames could be identified."
-        )
+        converted_traj = wrap_dataset(traj, DataSeries).convert()
+
+    leading_dim_name: Literal['frame', 'time'] = converted_traj.leading_dimension
+
+    assert leading_dim_name in {'frame', 'time'}, (
+        "Neither `frame` nor `time` dimension present in dataset. No leading dimension differentiating between frames could be identified."
+    )
 
     if preprocess:
-        traj = _prepare_for_write_schnetpack(traj, leading_dim_name)
+        working_dataset = _prepare_for_write_schnetpack(
+            converted_traj, leading_dim_name
+        )
+    else:
+        working_dataset = converted_traj.dataset
 
     statedims = ['state', 'statecomb', 'full_statecomb', 'state_or_statecomb']
+
     if db_format == 'schnet':
         order = [leading_dim_name, *statedims, 'atom', 'direction']
-        traj = traj.transpose(*order, missing_dims='ignore')
+        working_dataset = working_dataset.transpose(*order, missing_dims='ignore')
     elif db_format == 'spainn':
-        traj['energy'] = traj['energy'].expand_dims('tmp', axis=1)
+        working_dataset['energy'] = working_dataset['energy'].expand_dims('tmp', axis=1)
         order = [leading_dim_name, 'tmp', 'atom', *statedims, 'direction']
-        traj = traj.transpose(*order, missing_dims='ignore')
+        working_dataset = working_dataset.transpose(*order, missing_dims='ignore')
     elif db_format is None:
         # leave the axis orders as they are
         pass
@@ -273,12 +319,8 @@ def write_ase_db(
             f"'db_format' should be one of 'schnet', 'spainn' or None, not '{db_format}'"
         )
 
-    # TODO: FIXME: Do we really want to tabula rasa existing databases?
-    if os.path.exists(db_path):
-        os.remove(db_path)
-
     # Restrict, which data variables are written.
-    data_var_keys = set([str(x) for x in traj.data_vars.keys()])
+    data_var_keys = set([str(x) for x in working_dataset.data_vars.keys()])
     if not keys_to_write:
         keys_to_write = data_var_keys
     else:
@@ -286,65 +328,78 @@ def write_ase_db(
     keys_to_write = keys_to_write.difference(['atNames', 'velocities', 'atXYZ'])
 
     with connect(db_path, type='db') as db:
+        # This performs an implicit type check
+        wrapped_input = wrap_dataset(working_dataset, Trajectory | Frames)
+
         # FIXME: Metadata is only required for SPaiNN, but it seems to me like there is no harm in applying it to SchNarc as well.
-        meta_dict = _collect_metadata(traj, keys_to_write)
-        meta_dict['n_steps'] = traj.sizes[leading_dim_name]
+        meta_dict = _collect_metadata(wrapped_input, keys_to_write)
+        meta_dict['n_steps'] = wrapped_input.sizes[wrapped_input.leading_dim]
+
         if db_format is not None:
             meta_dict["__shnitsel_meta"]["db_format"] = db_format
 
-        meta_dict["__shnitsel_meta"]['shnitsel_leading_dim'] = leading_dim_name
+        if isinstance(wrapped_input, MultiSeriesDataset):
+            meta_dict["__shnitsel_meta"]['multi_set_data'] = True
+        else:
+            meta_dict["__shnitsel_meta"]['multi_set_data'] = False
+
         meta_dict["__shnitsel_meta"] = json.dumps(meta_dict["__shnitsel_meta"])
 
         db.metadata = meta_dict
 
-        for i, frame in traj.groupby(leading_dim_name):
-            # Remove leading dimension
-            frame = frame.squeeze(leading_dim_name)
+        _write_trajectory_to_db(
+            wrapped_input,
+            db,
+            # path="/", # Was supposed to help with trees.
+            keys_to_write=keys_to_write,
+        )
 
-            # Set a few key parameters from our input parsing functions
-            kv_pairs = {}
-            if "delta_t" in traj.variables:
-                kv_pairs["delta_t"] = traj["delta_t"].values
-            else:
-                kv_pairs["delta_t"] = traj.attrs["delta_t"]
 
-            if "input_format" in traj.variables:
-                kv_pairs["input_format"] = traj["input_format"].values
-            else:
-                kv_pairs["input_format"] = traj.attrs["input_format"]
+def _write_trajectory_to_db(
+    traj: Trajectory | Frames,
+    db: Database,
+    # path: str,
+    keys_to_write: Collection[str],
+):
+    # Set a few key parameters from our input parsing functions
+    kv_pairs = {}
+    kv_pairs["delta_t"] = float(traj.delta_t)
+    kv_pairs["input_format"] = traj.input_format
+    kv_pairs["input_type"] = traj.input_type
+    kv_pairs["input_format_version"] = traj.input_format_version
 
-            if "input_type" in traj.variables:
-                kv_pairs["input_type"] = traj["input_type"].values
-            else:
-                kv_pairs["input_type"] = traj.attrs["input_type"]
+    for i, frame in traj.groupby(traj.leading_dim):
+        # Remove leading dimension
+        # frame = frame.squeeze(leading_dim_name)
+        info: dict[str, float | str]
 
-            if "input_format_version" in traj.variables:
-                kv_pairs["input_format_version"] = traj["input_format_version"].values
-            else:
-                kv_pairs["input_format_version"] = traj.attrs["input_format_version"]
+        if "time" in frame:
+            float_time = float(frame["time"])
+            # print(frame["time"], "-->", float_time)
+            info = {"time": float_time}
+        else:
+            info = {}
 
-            if "time" in frame:
-                float_time = float(frame["time"])
-                # print(frame["time"], "-->", float_time)
-                info = {"time": float_time}
-            else:
-                info = {}
+        if "trajid" in frame:
+            int_id = int(frame["trajid"])
+        elif "atrajectory" in frame:
+            int_id = int(frame["atrajectory"])
+        elif "trajectory" in frame:
+            int_id = int(frame["trajectory"])
+        else:
+            int_id = 0
+        info["trajectory"] = str(int_id)  # path + str(int_id)
 
-            if "trajid" in frame:
-                int_id = int(frame["trajid"])
-                # print(frame["trajid"], "-->", int_id)
-                info["trajid"] = int_id
-
-            # Actually output the entry
-            db.write(
-                Atoms(
-                    symbols=frame['atNames'].values,
-                    positions=frame['atXYZ'].values,
-                    # numbers=frame['atNums'],
-                    velocities=frame["velocities"] if "velocities" in frame else None,
-                    # info={"frame_attrs": info_attrs},
-                    info=info,
-                ),
-                key_value_pairs=kv_pairs,
-                data={k: frame[k].data for k in keys_to_write},
-            )
+        # Actually output the entry
+        db.write(
+            Atoms(
+                symbols=frame['atNames'].values,
+                positions=frame['atXYZ'].values,
+                # numbers=frame['atNums'],
+                velocities=frame["velocities"] if "velocities" in frame else None,
+                # info={"frame_attrs": info_attrs},
+                info=info,
+            ),
+            key_value_pairs=kv_pairs,
+            data={k: frame[k].data for k in keys_to_write},
+        )
