@@ -1,16 +1,18 @@
 from dataclasses import asdict, dataclass
 from itertools import combinations, permutations
 import math
-from typing import Dict, List, Literal, Tuple
+from typing import Dict, List, Literal, Tuple, TypeVar
 
 import pandas as pd
 import xarray as xr
 
 import numpy as np
 
-from shnitsel.data.dataset_containers import Frames, Trajectory
+from shnitsel.data.dataset_containers.shared import ShnitselDataset
 from shnitsel.io.shared.helpers import LoadingParameters
 from shnitsel.io.shared.variable_flagging import mark_variable_assigned
+
+TrajType = TypeVar("TrajType", bound=xr.Dataset | ShnitselDataset)
 
 
 @dataclass
@@ -40,7 +42,7 @@ class OptionalTrajectorySettings:
     """
 
     has_forces: bool | Literal["all", "active_only"] | None = None
-    trajid: int | None = None
+    trajectory_id: int | None = None
     is_multi_trajectory: bool | None = None
     trajectory_input_path: str | None = None
 
@@ -52,26 +54,84 @@ class OptionalTrajectorySettings:
 
 
 def assign_required_settings(
-    dataset: xr.Dataset | Trajectory | Frames, settings: RequiredTrajectorySettings
-) -> None:
+    dataset: TrajType, settings: RequiredTrajectorySettings
+) -> TrajType:
     """
     Function to assign all required settings to the dataset.
+    Some of the settings may be applied to a coordinate variable of zero-dimensional shape instead.
 
     Just a handy tool so all values are assigned because all fields in `settings` should be assigned upon its creation
 
     Parameters
     ----------
-    dataset : xr.Dataset | Trajectory | Frames
+    dataset : xr.Dataset | ShnitselDataset
         The dataset/trajectory to write the required settings into
     settings : RequiredTrajectorySettings
         The fully assigned settings object containing all keys and values to be assigned.
     """
-    dataset.attrs.update(asdict(settings))
+    kv_dict = dict(asdict(settings))
+
+    if 'time' in dataset.coords:
+        time_unit = dataset.time.attrs.get('units', 'fs')
+    else:
+        time_unit = 'fs'
+
+    drop_keys = []
+    new_coords = {}
+    for var, var_type, attrs in [
+        (
+            'delta_t',
+            float,
+            {
+                'long_name': 'The simulation time step between frames',
+                'unitdim': 'time',
+                'units': time_unit,
+            },
+        ),
+        (
+            'max_ts',
+            int,
+            {
+                'long_name': 'The maximum time step found in the simulation data during import.'
+            },
+        ),
+        (
+            't_max',
+            float,
+            {
+                'long_name': 'The maximum configured time for a simulation to run',
+                'unitdim': 'time',
+                'units': time_unit,
+            },
+        ),
+    ]:
+        if var in dataset.coords:
+            if var_type(dataset[var]) == var_type(kv_dict[var]):
+                # Correct value already set, no need to move things around
+                continue
+            else:
+                drop_keys.append(var)
+
+        new_coords[var] = xr.DataArray(
+            var_type(kv_dict[var]), dims=(), name=var, attrs=attrs
+        ).astype(var_type)
+
+    # Do not also set the metadata as attrs if we set it as variable.
+    # Keeping it all consistent would be a mess.
+    del kv_dict['t_max']
+    del kv_dict['delta_t']
+    del kv_dict['max_ts']
+
+    return type(dataset)(
+        dataset.drop_vars(drop_keys)
+        .assign_attrs(kv_dict)
+        .ds.assign_coords(**new_coords)
+    )
 
 
 def assign_optional_settings(
-    dataset: xr.Dataset | Trajectory | Frames, settings: OptionalTrajectorySettings
-) -> None:
+    dataset: TrajType, settings: OptionalTrajectorySettings
+) -> TrajType:
     """
     Function to assign all assigned optional settings to a dataset.
 
@@ -84,10 +144,8 @@ def assign_optional_settings(
     settings : OptionalTrajectorySettings
         The dataclass object that has all optional setting keys with optional values. Only assigned settings (not None) will be inserted.
     """
-    kv_dict = asdict(settings)
-    for k, v in kv_dict.items():
-        if v is not None:
-            dataset.attrs[k] = v
+    kv_dict = {k: v for k, v in asdict(settings).items() if v is not None}
+    return type(dataset)(dataset.assign_attrs(**kv_dict))
 
 
 def get_statecomb_coordinate(states: xr.DataArray) -> xr.Coordinates:
@@ -104,7 +162,9 @@ def get_statecomb_coordinate(states: xr.DataArray) -> xr.Coordinates:
         The new coordinate having all non-ordered state combinations
     """
     return xr.Coordinates.from_pandas_multiindex(
-        pd.MultiIndex.from_tuples(combinations(states.values, 2), names=["statecomb_from", "statecomb_to"]),
+        pd.MultiIndex.from_tuples(
+            combinations(states.values, 2), names=["statecomb_from", "statecomb_to"]
+        ),
         dim="statecomb",
     )
 
