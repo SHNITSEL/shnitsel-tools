@@ -760,9 +760,9 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
     def map_filtered_nodes(
         self,
         filter_func: Callable[["TreeNode[Any, DataType]"], bool],
-        map_func: Callable[["TreeNode[Any, DataType]"], "TreeNode[Any, ResType]"],
+        map_func: Callable[["TreeNode[Any, DataType]"], "TreeNode[Any, ResType]|None"],
         dtype: type[ResType] | TypeForm[ResType] | None = None,
-    ) -> "TreeNode[Any, ResType]":
+    ) -> "TreeNode[Any, ResType]|None":
         """Map nodes using `map_func()` if the filter function `filter_func` picks them as relevant.
 
         If the node is not picked by `filter_func` a copy will be created with its children being recursively mapped
@@ -773,7 +773,7 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
         ----------
         filter_func : Callable[[TreeNode[Any, DataType]], bool]
             Filter function to apply to nodes in the current subtree of any kind. Must return `True` for all nodes to which `map_func` should be applied.
-        map_func : Callable[[TreeNode[Any, DataType]], TreeNode[Any, ResType]]
+        map_func : Callable[[TreeNode[Any, DataType]], TreeNode[Any, ResType]|None]
             Mapping function that transforms a selected node of a certain datatype to a consistent new data type `RestType`.
         dtype : type[ResType] | TypeForm[ResType] | None, optional
             Optional parameter to explicitly specify the `dtype` for the resulting tree, by default None.
@@ -782,17 +782,21 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
         -------
         TreeNode[Any, ResType]
             A new subtree with the data type changed and select subtrees mapped.
+        None
+            If the node was filtered and the map function returned None
         """
         # from .data_group import DataGroup
         from .data_leaf import DataLeaf
         # from .compound import CompoundGroup
         # from .tree import ShnitselDBRoot
 
+        new_node: TreeNode[Any, ResType] | None
+
         if filter_func(self):
             new_node = map_func(self)
         else:
             if isinstance(self, DataLeaf):
-                new_node: TreeNode[Any, ResType] = self.construct_copy(
+                new_node = self.construct_copy(
                     data=self._data,  # type: ignore # If the user gives us a conflicting type that does not include unmapped leaves, it is their problem.
                     dtype=dtype,  # type: ignore # Same as in the prior line
                 )
@@ -810,7 +814,7 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
                     )
                     is not None
                 }
-                new_node: TreeNode[Any, ResType] = self.construct_copy(
+                new_node = self.construct_copy(
                     children=new_children,
                     dtype=dtype,  # type: ignore # By mapping the children, we are sure that they now also hold the resulting datatype.
                 )
@@ -1047,7 +1051,7 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
 
         return self.map_filtered_nodes(
             filter_func=filter_flat_groups, map_func=extended_mapper
-        )
+        )  # type: ignore
 
     def group_data_by_metadata(self) -> Self | None:
         """Helper function to allow for grouping of data within the tree by the metadata
