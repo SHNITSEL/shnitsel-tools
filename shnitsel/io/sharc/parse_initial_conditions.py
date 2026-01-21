@@ -468,7 +468,7 @@ def read_iconds_individual(
         ntriplets * 3,  # Factor 2 to make consistent with other tools
     )
 
-    assign_required_settings(iconds, required_settings)
+    iconds = assign_required_settings(iconds, required_settings)
 
     optional_settings = OptionalTrajectorySettings(
         has_forces=is_variable_assigned(iconds["forces"]),
@@ -515,7 +515,7 @@ def read_iconds_individual(
 
         iconds = set_sharc_state_type_and_name_defaults(iconds, multiplicities, charges)
 
-    assign_optional_settings(iconds, optional_settings)
+    iconds = assign_optional_settings(iconds, optional_settings)
 
     return finalize_icond_dataset(
         iconds,

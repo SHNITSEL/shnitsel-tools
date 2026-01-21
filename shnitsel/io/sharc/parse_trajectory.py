@@ -299,7 +299,7 @@ def read_traj(
         * 3,  # To agree with numbering conventions of the other systems, we need to multiply by 3.
     )
 
-    assign_required_settings(trajectory, required_settings)
+    trajectory = assign_required_settings(trajectory, required_settings)
 
     optional_settings = OptionalTrajectorySettings(
         has_forces=is_variable_assigned(trajectory["forces"]),
@@ -347,7 +347,7 @@ def read_traj(
         trajectory = set_sharc_state_type_and_name_defaults(
             trajectory, state_multiplicities, charges
         )
-    assign_optional_settings(trajectory, optional_settings)
+    trajectory =assign_optional_settings(trajectory, optional_settings)
 
     return trajectory
 

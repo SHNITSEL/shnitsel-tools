@@ -183,7 +183,7 @@ def parse_newtonx(
         0,
         0,
     )
-    assign_required_settings(trajectory, required_settings)
+    trajectory = assign_required_settings(trajectory, required_settings)
 
     # TODO: FIXME: Check if newtonx always prints only the active state forces or sometimes may include other forces.
     optional_settings = OptionalTrajectorySettings(
@@ -192,7 +192,7 @@ def parse_newtonx(
         else None,
         misc_input_settings=misc_settings,
     )
-    assign_optional_settings(trajectory, optional_settings)
+    trajectory = assign_optional_settings(trajectory, optional_settings)
 
     return trajectory
 

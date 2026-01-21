@@ -316,7 +316,13 @@ def apply_dataset_meta_from_db_metadata(
     # print(dataset["time"])
     # print(dataset["trajid"])
 
-    delta_t = dataset.attrs["delta_t"] if "delta_t" in dataset.attrs else None
+    delta_t = (
+        float(dataset.attrs["delta_t"])
+        if "delta_t" in dataset.attrs
+        else float(dataset.delta_t)
+        if "delta_t" in dataset.coords
+        else None
+    )
     if delta_t is None:
         # Try and extract from time info
         if "time" in dataset:
@@ -355,10 +361,16 @@ def apply_dataset_meta_from_db_metadata(
 
     # miscallaneous properties:
     extract_settings = RequiredTrajectorySettings(
-        t_max=dataset.attrs["t_max"] if "t_max" in dataset.attrs else -1,
+        t_max=dataset.attrs["t_max"]
+        if "t_max" in dataset.attrs
+        else float(dataset.t_max)
+        if "t_max" in dataset.coords
+        else -1,
         delta_t=delta_t,
         max_ts=dataset.attrs["max_ts"]
         if "max_ts" in dataset.attrs
+        else int(dataset.max_ts)
+        if "max_ts" in dataset.coords
         else (
             dataset.sizes["time"]
             if "time" in dataset.sizes
@@ -381,7 +393,7 @@ def apply_dataset_meta_from_db_metadata(
         num_triplets=num_triplets,
     )
 
-    assign_required_settings(dataset, extract_settings)
+    dataset = assign_required_settings(dataset, extract_settings)
 
     # Fix derived coordinates if they are missing
     if "state" in dataset.dims:
