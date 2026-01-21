@@ -1,6 +1,7 @@
 import abc
 from collections.abc import Iterable
 from dataclasses import dataclass
+from functools import update_wrapper, wraps
 import logging
 import os
 from types import GenericAlias, UnionType
@@ -63,7 +64,8 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
             #     return getattr(object.__getattribute__(self, "_obj"), name)(*args, **kw)
             def method_wrapper(self: TreeNode, *args, **kwargs):
                 # TODO: FIXME: deal with trees in the args?
-                def method_wrapper_internal(data):
+                def internally_mapped_method(data, *iargs, **ikwargs):
+                    # There should never be arguments set directly on this method call.
                     if hasattr(data, method_name):
                         tmp_res = getattr(data, method_name)
                         if callable(tmp_res):
@@ -77,7 +79,7 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
                             )
                     return None
 
-                return self.map_data(method_wrapper_internal)
+                return self.map_data(internally_mapped_method)
                 # return getattr(object.__getattribute__(self, "_obj"), name)(*args, **kw)
 
             method_wrapper.__doc__ = docstring
@@ -132,11 +134,14 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
                     # Do not override existing entries in namespace
                     continue
                 method_entry = getattr(otype, method, None)
-                docstring = None
-                if method_entry is not None:
-                    if hasattr(method_entry, "__doc__"):
-                        docstring = getattr(method_entry, "__doc__")
-                namespace[method] = make_mapped_method(method, docstring=docstring)
+                if callable(method_entry):
+                    docstring = None
+                    if method_entry is not None:
+                        if hasattr(method_entry, "__doc__"):
+                            docstring = getattr(method_entry, "__doc__")
+                    namespace[method] = update_wrapper(
+                        make_mapped_method(method, docstring=docstring), method_entry
+                    )
 
             # if hasattr(theclass, name) and not hasattr(cls, name):
             #     namespace[name] = make_method(name)
@@ -699,47 +704,72 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
         """
         ...
 
-    # @overload
-    # def map_data(
-    #     self,
-    #     func: Callable,
-    #     *args,
-    #     recurse: bool,
-    #     keep_empty_branches: Literal[True] = True,
-    #     dtype: type[ResType] | None = None,
-    #     **kwargs,
-    # ) -> "TreeNode[Any,ResType]": ...
+    @overload
+    def map_data(
+        self,
+        func: Callable[..., ResType | None] | Callable[..., ResType],
+        *args,
+        keep_empty_branches: Literal[True] = True,
+        dtype: type[ResType],
+        **kwargs,
+    ) -> "TreeNode[Any,ResType]": ...
 
-    # @overload
-    # def map_data(
-    #     self,
-    #     func: Callable[..., ResType],
-    #     *args,
-    #     recurse: bool,
-    #     keep_empty_branches: Literal[True] = True,
-    #     dtype: UnionType | None = None,
-    #     **kwargs,
-    # ) -> "TreeNode[Any,ResType]": ...
+    @overload
+    def map_data(
+        self,
+        func: Callable[..., ResType | None] | Callable[..., ResType],
+        *args,
+        keep_empty_branches: Literal[False],
+        dtype: type[ResType],
+        **kwargs,
+    ) -> "TreeNode[Any,ResType]|None": ...
 
-    # @overload
-    # def map_data(
-    #     self,
-    #     func: Callable[..., ResType | None],
-    #     *args,
-    #     recurse: bool,
-    #     keep_empty_branches: Literal[False] = False,
-    #     dtype: type[ResType] | UnionType | None = None,
-    #     **kwargs,
-    # ) -> "TreeNode[Any,ResType] | None": ...
+    @overload
+    def map_data(
+        self,
+        func: Callable[..., ResType | None] | Callable[..., ResType],
+        *args,
+        keep_empty_branches: Literal[False],
+        dtype: None = None,
+        **kwargs,
+    ) -> "TreeNode[Any,ResType]|None": ...
 
-    @abc.abstractmethod
+    @overload
+    def map_data(
+        self,
+        func: Callable[..., ResType | None] | Callable[..., ResType],
+        *args,
+        keep_empty_branches: Literal[True] = True,
+        dtype: None = None,
+        **kwargs,
+    ) -> "TreeNode[Any,ResType]": ...
+
+    @overload
     def map_data(
         self,
         func: Callable,
         *args,
-        recurse: bool = True,
+        keep_empty_branches: Literal[False],
+        dtype: None = None,
+        **kwargs,
+    ) -> "TreeNode|None": ...
+
+    @overload
+    def map_data(
+        self,
+        func: Callable,
+        *args,
+        keep_empty_branches: Literal[True] = True,
+        dtype: None = None,
+        **kwargs,
+    ) -> "TreeNode": ...
+
+    def map_data(
+        self,
+        func: Callable[..., ResType | None],
+        *args,
         keep_empty_branches: bool = True,
-        dtype: type[ResType] | UnionType | None = None,
+        dtype: type[ResType] | None = None,
         **kwargs,
     ) -> "TreeNode[Any,ResType]|TreeNode|None":
         """Helper function to apply a mapping function to all data in leaves of this tree
@@ -751,11 +781,9 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
         ----------
         func : Callable[[DataType], ResType  |  None]
             The mapping function to apply to data in this subtree.
-        recurse : bool, optional
-            Whether to automatically recurse into children of the current node, by default True
         keep_empty_branches : bool, optional
             Flag to control whether branches/subtrees without any data in them should be truncated, by default False to keep the same structure
-        dtype : type[ResType] | UnionType | None, optional
+        dtype : type[ResType] | None, optional
             Optional parameter to explicitly specify the `dtype` for the resulting tree, by default None
         *args
             Positional arguments to pass to the call to `func`
@@ -767,12 +795,45 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
         TreeNode[Any,ResType]|None
             The resulting node after the subtree has been mapped or None if truncation is active and the subtree has no data after mapping.
         """
+        if not self.is_leaf:
+            new_children: dict[Hashable, TreeNode[Any, ResType]] = {
+                k: res
+                for k, v in self._children.items()
+                if v is not None
+                and (
+                    res := v.map_data(
+                        func,
+                        *args,
+                        keep_empty_branches=keep_empty_branches,
+                        dtype=dtype,
+                        **kwargs,
+                    )
+                )
+                is not None
+            }
+
+            if len(new_children) == 0 and not keep_empty_branches:
+                return None
+            else:
+                return self.construct_copy(children=new_children, dtype=dtype)
+        else:
+            # Map data in leaves
+            if self.has_data:
+                new_data = func(self.data, *args, **kwargs)
+            else:
+                new_data = None
+
+            if not keep_empty_branches and new_data is None:
+                return None
+            else:
+                # This yields a different kind of tree.
+                return self.construct_copy(data=new_data, dtype=dtype)
 
     def map_filtered_nodes(
         self,
         filter_func: Callable[["TreeNode[Any, DataType]"], bool],
         map_func: Callable[["TreeNode[Any, DataType]"], "TreeNode[Any, ResType]|None"],
-        dtype: type[ResType] | TypeForm[ResType] | None = None,
+        dtype: type[ResType] | None = None,
     ) -> "TreeNode[Any, ResType]|None":
         """Map nodes using `map_func()` if the filter function `filter_func` picks them as relevant.
 
@@ -786,7 +847,7 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
             Filter function to apply to nodes in the current subtree of any kind. Must return `True` for all nodes to which `map_func` should be applied.
         map_func : Callable[[TreeNode[Any, DataType]], TreeNode[Any, ResType]|None]
             Mapping function that transforms a selected node of a certain datatype to a consistent new data type `RestType`.
-        dtype : type[ResType] | TypeForm[ResType] | None, optional
+        dtype : type[ResType] | None, optional
             Optional parameter to explicitly specify the `dtype` for the resulting tree, by default None.
 
         Returns
