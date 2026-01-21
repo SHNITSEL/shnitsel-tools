@@ -5,6 +5,7 @@ from typing import (
     Callable,
     Generic,
     Hashable,
+    Literal,
     Mapping,
     Protocol,
     Self,
@@ -111,9 +112,9 @@ class DataLeaf(Generic[DataType], TreeNode[None, DataType]):
             kwargs['attrs'] = self._attrs
 
         if data is None:
-            assert (
-                dtype is None
-            ), "Cannot reassign data type if new data entry is not provided"
+            assert dtype is None, (
+                "Cannot reassign data type if new data entry is not provided"
+            )
             return type(self)(
                 data=self._data,
                 dtype=self._dtype,
@@ -152,12 +153,36 @@ class DataLeaf(Generic[DataType], TreeNode[None, DataType]):
         """
         return self.construct_copy()
 
+    @overload
     def map_data(
         self,
         func: Callable[[DataType], ResType | None],
+        recurse: bool,
+        keep_empty_branches: Literal[True] = True,
+        dtype: type[ResType] | UnionType | None = None,
+        *args,
+        **kwargs,
+    ) -> "DataLeaf[ResType]": ...
+
+    @overload
+    def map_data(
+        self,
+        func: Callable[[DataType], ResType | None],
+        recurse: bool,
+        keep_empty_branches: bool = True,
+        dtype: type[ResType] | UnionType | None = None,
+        *args,
+        **kwargs,
+    ) -> "DataLeaf[ResType]|None": ...
+
+    def map_data(
+        self,
+        func: Callable[[DataType], ResType | None],
+        *args,
         recurse: bool = True,
-        keep_empty_branches: bool = False,
-        dtype: type[ResType] | TypeForm[ResType] | None = None,
+        keep_empty_branches: bool = True,
+        dtype: type[ResType] | UnionType | None = None,
+        **kwargs,
     ) -> "DataLeaf[ResType] | None":
         """Specialization of the `map_data()` method for leaf nodes.
 
@@ -171,8 +196,12 @@ class DataLeaf(Generic[DataType], TreeNode[None, DataType]):
             Ignored by this level, by default True
         keep_empty_branches : bool, optional
             If set to True and the result of the mapping is `None` for this node, it will be dropped and `None` returned, by default False
-        dtype : type[ResType] | TypeForm[ResType] | None, optional
-            Optional specific type parameter for the result of this mapping, by default None
+        dtype : type[ResType] | UnionType | None, optional
+            Optional parameter to explicitly specify the `dtype` for the resulting tree, by default None
+        *args
+            Positional arguments to pass to the call to `func`
+        **kwargs
+            Keyword-style arguments to pass to the call to `func`
 
         Returns
         -------
@@ -180,7 +209,7 @@ class DataLeaf(Generic[DataType], TreeNode[None, DataType]):
             The new DataLeaf with the updated data or None if no data could be obtained from the mapping and `keep_empty_branches=True`.
         """
         if self.has_data:
-            new_data = func(self.data)
+            new_data = func(self.data, *args, **kwargs)
         else:
             new_data = None
 

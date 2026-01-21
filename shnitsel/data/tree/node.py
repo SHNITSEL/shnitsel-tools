@@ -706,6 +706,8 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
         recurse: bool,
         keep_empty_branches: Literal[True] = True,
         dtype: type[ResType] | UnionType | None = None,
+        *args,
+        **kwargs,
     ) -> "TreeNode[Any,ResType]": ...
 
     @overload
@@ -715,15 +717,19 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
         recurse: bool,
         keep_empty_branches: bool = True,
         dtype: type[ResType] | UnionType | None = None,
+        *args,
+        **kwargs,
     ) -> "TreeNode[Any,ResType]|None": ...
 
     @abc.abstractmethod
     def map_data(
         self,
         func: Callable[[DataType], ResType | None],
+        *args,
         recurse: bool = True,
         keep_empty_branches: bool = True,
         dtype: type[ResType] | UnionType | None = None,
+        **kwargs,
     ) -> "TreeNode[Any,ResType]|None":
         """Helper function to apply a mapping function to all data in leaves of this tree
 
@@ -738,8 +744,12 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
             Whether to automatically recurse into children of the current node, by default True
         keep_empty_branches : bool, optional
             Flag to control whether branches/subtrees without any data in them should be truncated, by default False to keep the same structure
-        dtype : type[ResType] | TypeForm[ResType] | None, optional
+        dtype : type[ResType] | UnionType | None, optional
             Optional parameter to explicitly specify the `dtype` for the resulting tree, by default None
+        *args
+            Positional arguments to pass to the call to `func`
+        **kwargs
+            Keyword-style arguments to pass to the call to `func`
 
         Returns
         -------

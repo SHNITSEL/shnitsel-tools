@@ -306,9 +306,11 @@ class DataGroup(
     def map_data(
         self,
         func: Callable[[DataType], ResType | None],
+        *args,
         recurse: bool = True,
-        keep_empty_branches: bool = False,
-        dtype: type[ResType] | TypeForm[ResType] | None = None,
+        keep_empty_branches: bool = True,
+        dtype: type[ResType] | UnionType | None = None,
+        **kwargs,
     ) -> "DataGroup[ResType]|None":
         """Function to map the data in this subtree using a map function `func` and build a new tree
         with the same structure (if `keep_empty_branches=True`) but mapped data.
@@ -325,8 +327,12 @@ class DataGroup(
             Flag to control whether empty branches should be omitted. If set to False, branches with no data and only empty children will be
             truncated. Only nodes with at least one child with mapped data will be kept. If True, the resulting tree will have the same
             structure as the input tree, by default False
-        dtype : type[ResType] | TypeForm[ResType] | None, optional
-            Optional specific type parameter for the result of this mapping, by default None
+        dtype : type[ResType] | UnionType | None, optional
+            Optional parameter to explicitly specify the `dtype` for the resulting tree, by default None
+        *args
+            Positional arguments to pass to the call to `func`
+        **kwargs
+            Keyword-style arguments to pass to the call to `func`
 
         Returns
         -------
@@ -341,7 +347,7 @@ class DataGroup(
                 k: res
                 for k, v in self._children.items()
                 if v is not None
-                and (res := v.map_data(func, recurse, keep_empty_branches, dtype=dtype))
+                and (res := v.map_data(func, recurse, keep_empty_branches, dtype=dtype, *args, **kwargs))
                 is not None
             }
 
