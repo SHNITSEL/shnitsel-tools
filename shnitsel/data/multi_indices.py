@@ -470,9 +470,12 @@ def _sel_trajs_unstacked(obj, indexer, invert):
             "Could not invert selection, please provide integer labels or a boolean mask"
         )
 
+class dtype_NA:
+    """A sentinel value for the ``fill_value`` param in
+    :py:func:`shnitsel.data.multi_indices.unstack_trajs`"""
 
 @internal()
-def unstack_trajs(frames: DatasetOrArray) -> DatasetOrArray:
+def unstack_trajs(frames: DatasetOrArray, fill_value=dtype_NA) -> DatasetOrArray:
     """Unstack the ``frame`` MultiIndex so that ``trajid`` and ``time`` become
     separate dims. Wraps the :py:meth:`xarray.Dataset.unstack` method.
 
@@ -484,6 +487,9 @@ def unstack_trajs(frames: DatasetOrArray) -> DatasetOrArray:
         Dataset may also have a ``trajid_`` dimension used for variables and coordinates
         that store information pertaining to each trajectory in aggregate; this will be
         aligned along the ``trajid`` dimension of the unstacked Dataset.
+    fill_value
+        The value used to fill in entries that were unspecified in
+        stacked format; by default, the dtype's NA value will be used.
 
     Returns
     -------
@@ -531,10 +537,13 @@ def unstack_trajs(frames: DatasetOrArray) -> DatasetOrArray:
     if 'time_' in per_time_coords:
         del per_time_coords['time_']
 
+    # NOTE: We use this kws approach to avoid importing the default value for fill_value
+    # in xr's unstack, which is their internal `xarray.core.dtypes.NA`.
+    kws = {'fill_value': fill_value} if fill_value is not dtype_NA else {}
     res = (
         frames.drop_vars(to_drop)
         .assign_coords({'is_frame': ('frame', np.ones(frames.sizes['frame']))})
-        .unstack('frame')
+        .unstack('frame', **kws)
         .assign_coords(per_traj_coords)
         .assign_coords(per_time_coords)
     )
@@ -643,13 +652,16 @@ def is_stacked(obj):
     return is_wrapped_stacked or coords_share_dim
 
 
-def ensure_unstacked(obj):
+def ensure_unstacked(obj, fill_value=dtype_NA):
     """Unstack ``obj`` if it contains stacked trajectories
 
     Parameters
     ----------
     obj
         An xarray Dataset/DataArray, or a wrapper around one
+    fill_value
+        The value used to fill in entries that were unspecified in
+        stacked format; by default, the dtype's NA value will be used.
 
     Returns
     -------
@@ -659,7 +671,7 @@ def ensure_unstacked(obj):
         Whether ``obj`` had stacked trajectories
     """
     was_stacked = is_stacked(obj)
-    unstacked = unstack_trajs(obj) if was_stacked else obj
+    unstacked = unstack_trajs(obj, fill_value=fill_value) if was_stacked else obj
     return unstacked, was_stacked
 
 
