@@ -35,7 +35,7 @@ def true_upto(mask: xr.DataArray, dim: str) -> xr.DataArray:
     xr.DataArray
         The point in time up to which the criterion is fulfilled.
     """
-    mask, was_stacked = ensure_unstacked(mask)
+    mask, was_stacked = ensure_unstacked(mask.astype(bool), fill_value=False)
     assert dim in mask.dims, "Mask array is missing specified dimension %s" % dim
     shifted_coord = np.concat([[-np.inf], mask.coords[dim].data])
     num_cum_valid_indices = mask.cumprod(dim).sum(dim).astype(int)
