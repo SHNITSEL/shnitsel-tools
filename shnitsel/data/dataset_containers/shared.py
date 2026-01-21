@@ -3,6 +3,11 @@ from dataclasses import dataclass
 from typing import Any, Hashable, Iterable, Literal, Mapping, Self
 import xarray as xr
 
+from shnitsel.units.conversion import (
+    convert_all_units_to_shnitsel_defaults,
+    convert_to_target_units,
+)
+
 
 @dataclass
 class ShnitselDataset(object):
@@ -337,9 +342,6 @@ class ShnitselDataset(object):
         except:
             return ShnitselDataset(selres)
 
-    def groupby(self) -> Any:
-        self._raw_dataset.groupby()
-
     # @property
     # def _attr_sources(self) -> Iterable[Mapping[Hashable, Any]]:
     #     """Places to look-up items for attribute-style access"""
@@ -453,6 +455,34 @@ class ShnitselDataset(object):
         ds_completion = self._raw_dataset._ipython_key_completions_()
         items |= set(x for x in ds_completion if not x.startswith("_"))
         return list(items)
+
+    def convert(self, varname: str | None = None, unit: str | None = None) -> Self:
+        """Convert an entry in this dataset to a specific unit.
+
+        Returns a copy of the dataset with the entry updated.
+
+        Parameters
+        ----------
+        varname : str, optional
+            Optionally the name of a single variable. If not provided, will apply to all variables.
+        unit : str | None
+            The target unit to convert to.
+            If not set, Will convert to default shnitsel units.
+
+        Returns
+        -------
+        Self
+            The updated dataset with converted units.
+        """
+        if varname is None and unit is None:
+            return type(self)(convert_all_units_to_shnitsel_defaults(self._raw_dataset))
+        if varname is None and unit is not None:
+            return type(self)(convert_to_target_units(self._raw_dataset, unit))
+        if varname is not None:
+            return type(self)(
+                convert_to_target_units(self._raw_dataset, {varname: unit})
+            )
+        return self
 
     # @overload
     # def __getitem__(self, key: Hashable) -> DataArray: ...
