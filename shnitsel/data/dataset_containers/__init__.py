@@ -33,7 +33,7 @@ ConvertedType = TypeVar(
 
 @overload
 def wrap_dataset(
-    ds: xr.Dataset | ShnitselDataset,
+    ds: xr.Dataset | Trajectory | Frames | DataSeries | ShnitselDataset,
     expected_types: type[ConvertedType],
 ) -> ConvertedType: ...
 
@@ -47,7 +47,7 @@ def wrap_dataset(
 
 def wrap_dataset(
     ds: xr.Dataset | ShnitselDataset,
-    expected_types: type[ConvertedType] | UnionType | None = None,
+    expected_types: type[ConvertedType] | None = None,
 ) -> ConvertedType | ShnitselDataset | xr.Dataset:
     """Helper function to wrap a generic xarray dataset in a wrapper container
 
