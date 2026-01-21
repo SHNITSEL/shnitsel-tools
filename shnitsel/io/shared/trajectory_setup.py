@@ -15,7 +15,7 @@ from shnitsel.io.shared.variable_flagging import (
     mark_variable_assigned,
 )
 
-TrajType = TypeVar("TrajType", bound=xr.Dataset | ShnitselDataset)
+TrajType = TypeVar("TrajType", bound=xr.Dataset)
 
 
 @dataclass
@@ -125,9 +125,8 @@ def assign_required_settings(
     del kv_dict['delta_t']
     del kv_dict['max_ts']
 
-    return type(dataset)(
-        dataset.drop_vars(drop_keys).assign_attrs(kv_dict).assign_coords(**new_coords)
-    )
+    res = dataset.drop_vars(drop_keys).assign_attrs(kv_dict).assign_coords(**new_coords)
+    return res if isinstance(dataset, xr.Dataset) else wrap_dataset(res)
 
 
 def assign_optional_settings(
@@ -146,7 +145,8 @@ def assign_optional_settings(
         The dataclass object that has all optional setting keys with optional values. Only assigned settings (not None) will be inserted.
     """
     kv_dict = {k: v for k, v in asdict(settings).items() if v is not None}
-    return type(dataset)(dataset.assign_attrs(**kv_dict))
+    res = dataset.assign_attrs(kv_dict)
+    return res if isinstance(dataset, xr.Dataset) else wrap_dataset(res)
 
 
 def get_statecomb_coordinate(states: xr.DataArray) -> xr.Coordinates:

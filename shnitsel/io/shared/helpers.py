@@ -119,8 +119,8 @@ class ConsistentValue(Generic[T]):
         if self.defined and new_val != self._val:
             raise ValueError(
                 f"""inconsistent assignment to {self.name}:
-    current value: {type(self._val).__name__} = {repr(self._val)}
-    new value:  {type(new_val).__name__} = {repr(new_val)}
+current value: {type(self._val).__name__} = {repr(self._val)}
+new value:  {type(new_val).__name__} = {repr(new_val)}
 """
             )
 

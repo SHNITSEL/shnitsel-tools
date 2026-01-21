@@ -315,9 +315,11 @@ class FormatReader(ABC):
                 if not isinstance(temp_traj, xr.Dataset | ShnitselDataset):
                     return temp_traj
 
-                rebuild_type = type(temp_traj)
+                rebuild_type = None
                 if not isinstance(temp_traj, xr.Dataset):
+                    rebuild_type = type(temp_traj)
                     temp_traj = temp_traj.dataset
+
                 # Set some optional settings.
                 optional_settings = OptionalTrajectorySettings()
                 if "trajectory_input_path" not in temp_traj.attrs:
@@ -367,9 +369,9 @@ class FormatReader(ABC):
                         temp_traj = state_names_assigner(temp_traj)
                         temp_traj.state_names.attrs.update(keep_name_attrs)
 
-                temp_traj = rebuild_type(
-                    assign_optional_settings(temp_traj, optional_settings)
-                )
+                temp_traj = assign_optional_settings(temp_traj, optional_settings)
+                if rebuild_type is not None:
+                    temp_traj = rebuild_type(temp_traj)
 
                 return finalize_loaded_trajectory(temp_traj, loading_parameters)
 

@@ -86,7 +86,7 @@ def finalize_loaded_trajectory(
             if rebuild_type:
                 return rebuild_type(dataset)
             else:
-                return wrap_dataset(dataset, (Trajectory | Frames))
+                return wrap_dataset(dataset)
         else:
             return dataset
     return None
