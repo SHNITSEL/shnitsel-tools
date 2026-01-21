@@ -37,9 +37,9 @@ def default_state_type_assigner(dataset: xr.Dataset) -> xr.Dataset:
         return dataset
 
     # Try and extract the state types from the number of different states
-    nsinglets = dataset.attrs["num_singlets"]
-    ndoublets = dataset.attrs["num_doublets"]
-    ntriplets = dataset.attrs["num_triplets"]
+    nsinglets = dataset.attrs.get("num_singlets", -1)
+    ndoublets = dataset.attrs.get("num_doublets", -1)
+    ntriplets = dataset.attrs.get("num_triplets", -1)
 
     if nsinglets >= 0 and ndoublets >= 0 and ntriplets >= 0:
         # logging.debug(f"S/D/T = {nsinglets}/{ndoublets}/{ntriplets}")
@@ -67,9 +67,7 @@ def default_state_type_assigner(dataset: xr.Dataset) -> xr.Dataset:
                 dataset.state_magnetic_number[:nsinglets] = 0.0
                 mark_variable_assigned(dataset.state_magnetic_number)
             if not is_variable_assigned(dataset.state_degeneracy_group):
-                dataset.state_degeneracy_group[:nsinglets] = (
-                    dataset.state[:nsinglets]
-                )
+                dataset.state_degeneracy_group[:nsinglets] = dataset.state[:nsinglets]
                 mark_variable_assigned(dataset.state_degeneracy_group)
     return dataset
 
