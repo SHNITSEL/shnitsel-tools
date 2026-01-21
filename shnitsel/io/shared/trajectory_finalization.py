@@ -111,3 +111,64 @@ def set_state_defaults(
     if not is_variable_assigned(dataset.state_names):
         dataset = default_state_name_assigner(dataset)
     return dataset
+
+
+def normalize_dataset(ds: xr.Dataset) -> xr.Dataset:
+    """Helper method to perform some standardized renaming operations as well as some
+    restructuring, e.g. if a multi-index is missing.
+
+    May also convert some legacy attributes to promoted dimensionless variables.
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        Dataset to normalize according to current Shnitsel standards
+
+    Returns
+    -------
+    xr.Dataset
+        The renamed dataset.
+    """
+    # Rename legacy uses of `trajid` and `trajid_`
+    if 'trajid' in ds.dims:
+        ds = ds.swap_dims(trajid='trajectory')
+    if 'trajid_' in ds.dims:
+        ds = ds.swap_dims(trajid='trajectory')
+
+    if 'trajid' in ds.coords:
+        if 'trajectory' not in ds.coords['trajid'].dims:
+            ds = ds.rename(trajid="atrajectory")
+        else:
+            ds = ds.rename(trajid="trajectory")
+
+    if 'trajid_' in ds.coords:
+        if 'trajectory' not in ds.coords['trajid_'].dims:
+            ds = ds.rename(trajid_="atrajectory")
+        else:
+            ds = ds.rename(trajid_="trajectory")
+
+    # Check if frameset has a multi-index
+    if 'frame' in ds.dims and 'time' in ds.coords and 'frame' not in ds.xindexes:
+        if 'frame' in ds.coords['time'].dims:
+            # Make frame a multi-index
+            ds = ds.set_xindex('frame')
+
+    # Turn delta_t and t_max and max_ts into a variable
+    if 'time' in ds.coords:
+        time_unit = ds.time.attrs.get('units', 'fs')
+    else:
+        time_unit = 'fs'
+
+    for var, has_unit in [('delta_t', True), ('max_ts', False), ('t_max', True)]:
+        if var not in ds.coords:
+            if var in ds.data_vars:
+                ds = ds.set_coords(var)
+            elif var in ds.attrs:
+                dt_arr = xr.DataArray(float(ds.attrs.get(var, -1)), dims=(), name=var)
+                ds = ds.assign_coords(delta_t=dt_arr)
+
+            if has_unit and var in ds and 'units' not in ds.delta_t.attrs:
+                ds.delta_t.attrs['unitdim'] = 'time'
+                ds.delta_t.attrs['units'] = time_unit
+
+    return ds
