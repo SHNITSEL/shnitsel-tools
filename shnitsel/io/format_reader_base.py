@@ -139,7 +139,9 @@ class FormatReader(ABC):
             Any, ShnitselDataset | SupportsFromXrConversion | xr.Dataset | xr.DataArray
         ]
         | TreeNode[Any, DataType]
-        | Sequence[xr.Dataset | ShnitselDataset | SupportsFromXrConversion | xr.DataArray]
+        | Sequence[
+            xr.Dataset | ShnitselDataset | SupportsFromXrConversion | xr.DataArray
+        ]
         | DataType
         | None
     ):
