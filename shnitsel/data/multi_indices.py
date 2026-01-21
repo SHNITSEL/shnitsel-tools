@@ -708,8 +708,7 @@ def mdiff(da: xr.DataArray, dim: str | None = None) -> xr.DataArray:
             # Using manual comparison of shifted values (rather than np.diff)
             # to allow for non-subtractable level entries:
             right_shift = level.shift({leading_dim: 1}, level[0])
-            left_shift = level.shift({leading_dim: -1}, level[-1])
-            mask |= left_shift != right_shift
+            mask |= level != right_shift
 
         res[{leading_dim: mask}] = 0
 
