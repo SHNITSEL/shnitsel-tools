@@ -668,10 +668,18 @@ def read_folder_multi(
             logging.debug(f"Did not find any appropriate matches for {relevant_kind}")
 
     if len(fitting_kinds) == 0:
-        message = f"Did not detect any matching subdirectories or files for any input format in {path}"
-        logging.error(message)
+        raise_msg: str
+        if kind is not None:
+            message = f"Did not detect any matching subdirectories or files for input format %s in `%s`."
+            logging.error(message, kind, path)
+            raise_msg = message % (kind, path)
+        else:
+            message = f"Did not detect any matching subdirectories or files for any supported input format in `%s`."
+            logging.error(message, path)
+            raise_msg = message % path
+
         if error_reporting == "raise":
-            raise FileNotFoundError(message)
+            raise FileNotFoundError(raise_msg)
         else:
             return None
     elif len(fitting_kinds) > 1:
@@ -679,7 +687,9 @@ def read_folder_multi(
         message = (
             f"Detected subdirectories or files of different input formats in {path} with no input format specified. \n"
             f"Detected formats are: {fitting_kinds}. \n"
-            f"Please ensure only one format matches subdirectories in the path or denote a specific format out of {available_formats}."
+            f"Please ensure only one format matches subdirectories in the path or denote a specific format out of {available_formats}. \n"
+            "You can import data from different import formats via multiple calls to `read()` and subsequent merging e.g. with `tree_merge()`.\n"
+            "Specify your desired input format with the `kind` parameter of `read()`."
         )
         logging.error(message)
         if error_reporting == "raise":
@@ -947,7 +957,7 @@ def identify_or_check_input_kind(
             else:
                 message += "\n It also didn't satisfy the conditions of any of the other known formats."
 
-            logging.warning(message)
+            logging.info(message)
             # raise ValueError(
             #     f"The path `{path}` is not of the denoted format {kind_hint}."
             # )
