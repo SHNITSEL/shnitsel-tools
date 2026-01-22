@@ -9,6 +9,7 @@ from rdkit.Chem import rdDepictor
 
 from shnitsel._contracts import needs
 from shnitsel.data.dataset_containers import Frames, Trajectory
+from shnitsel.data.dataset_containers.shared import ShnitselDataset
 from shnitsel.rd import set_atom_props, mol_to_numbered_smiles
 from .core.typedefs import AtXYZ
 from .units.conversion import convert_length
@@ -100,7 +101,7 @@ def traj_to_xyz(traj_atXYZ: AtXYZ, units='angstrom') -> str:
 
 @needs(dims={'atom', 'direction'}, coords_or_vars={'atNames'}, not_dims={'frame'})
 def to_mol(
-    atXYZ_frame: AtXYZ | xr.Dataset | Trajectory | Frames,
+    atXYZ_frame: AtXYZ | xr.Dataset | ShnitselDataset,
     charge: int | None = None,
     covFactor: float = 1.2,
     to2D: bool = True,
@@ -143,7 +144,7 @@ def to_mol(
     atXYZ_da_frame: xr.DataArray
     if isinstance(atXYZ_frame, xr.Dataset):
         atXYZ_da_frame = atXYZ_frame.atXYZ
-    elif isinstance(atXYZ_frame, (Trajectory, Frames)):
+    elif isinstance(atXYZ_frame, ShnitselDataset):
         atXYZ_da_frame = atXYZ_frame.positions
     elif isinstance(atXYZ_frame, xr.DataArray):
         atXYZ_da_frame = atXYZ_frame
