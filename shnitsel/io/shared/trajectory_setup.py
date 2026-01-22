@@ -8,9 +8,14 @@ import xarray as xr
 
 import numpy as np
 
+from shnitsel.data.atom_helpers import (
+    get_atom_number_from_symbol,
+    get_symbol_from_atom_number,
+)
 from shnitsel.data.dataset_containers.shared import ShnitselDataset
 from shnitsel.io.shared.helpers import LoadingParameters
 from shnitsel.io.shared.variable_flagging import (
+    is_variable_assigned,
     mark_dataset_for_cleanup,
     mark_variable_assigned,
 )
@@ -500,6 +505,11 @@ def fill_missing_dataset_variables(ds: xr.Dataset) -> xr.Dataset:
 
     default_format_attributes = get_default_input_attributes("shnitsel", None)
 
+    for var in ds.data_vars:
+        mark_variable_assigned(ds[var])
+    for var in ds.coords:
+        mark_variable_assigned(ds[var])
+
     var_data = {
         varname: (
             dims,
@@ -524,6 +534,23 @@ def fill_missing_dataset_variables(ds: xr.Dataset) -> xr.Dataset:
 
     res_dataset = ds.assign(var_data)
 
+    if "atNums" in var_data and "atNames" not in var_data:
+        nums = [get_atom_number_from_symbol(x) for x in ds.atNames.values]
+        res_dataset = res_dataset.assign(
+            atNums=(res_dataset.atNums.dims, nums, res_dataset.atNums.attrs)
+        )
+        mark_variable_assigned(res_dataset["atNums"])
+
+    if "atNames" in var_data and "atNums" not in var_data:
+        names = [get_symbol_from_atom_number(x) for x in ds.atNums.values]
+        res_dataset = res_dataset.assign(
+            atNames=(res_dataset.atNames.dims, names, res_dataset.atNames.attrs)
+        )
+        mark_variable_assigned(res_dataset["atNames"])
+
     res_dataset = res_dataset.set_coords(isolated_keys)
+
+    if var_data:
+        mark_dataset_for_cleanup(res_dataset)
 
     return res_dataset
