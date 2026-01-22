@@ -376,14 +376,15 @@ def _write_trajectory_to_db(
     for i, frame in traj.groupby(traj.leading_dim):
         # Remove leading dimension
         frame = frame.squeeze(traj.leading_dim)
-        info: dict[str, float | str]
+        local_kv: dict[str, float | str] = dict(kv_pairs)
 
         if "time" in frame:
             float_time = float(frame["time"])
             # print(frame["time"], "-->", float_time)
-            info = {"time": float_time}
-        else:
-            info = {}
+            # info = {"time": float_time}
+            local_kv["time"] = float_time
+        # else:
+        #     info = {}
 
         if "trajid" in frame:
             int_id = int(frame["trajid"])
@@ -393,7 +394,31 @@ def _write_trajectory_to_db(
             int_id = int(frame["trajectory"])
         else:
             int_id = 0
-        info["trajectory"] = int_id  # path + str(int_id)
+        # info["trajectory"] = int_id  # path + str(int_id)
+        local_kv["trajectory"] = int_id
+
+        for coordname in frame.coords:
+            if frame.coords[coordname].size == 1:
+                if coordname in frame.indexes:
+                    index = frame.indexes[coordname]
+                    if coordname == index.name and len(index.names):
+                        continue
+
+                if coordname not in {
+                    'trajid',
+                    'trajid_',
+                    'trajectory',
+                    'atrajectory',
+                    'time',
+                }:
+                    if coordname not in local_kv:
+                        coord_data = frame.coords[coordname].item()
+                        if isinstance(coord_data, (str, int, float, bool)):
+                            local_kv[coordname] = coord_data
+
+        # NOTE: I Contrary to the ASE documentation, the info-dict is not written to DB and therefore not restored
+        # upon read.
+        # print(info)
 
         # Actually output the entry
         db.write(
@@ -403,8 +428,8 @@ def _write_trajectory_to_db(
                 # numbers=frame['atNums'],
                 velocities=frame["velocities"] if "velocities" in frame else None,
                 # info={"frame_attrs": info_attrs},
-                info=info,
+                # info=info,
             ),
-            key_value_pairs=kv_pairs,
+            key_value_pairs=local_kv,
             data={k: frame[k].data for k in keys_to_write},
         )
