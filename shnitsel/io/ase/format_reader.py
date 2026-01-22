@@ -191,36 +191,9 @@ class ASEFormatReader(FormatReader):
         """
         try:
             # TODO: FIXME: Something is funky with type checks here.
-            loaded_dataset_or_collection = read_ase(
+            loaded_dataset_collection_or_tree = read_ase(
                 path, loading_parameters=loading_parameters
             )
-
-            if isinstance(loaded_dataset_or_collection, xr.Dataset):
-                loaded_ds = loaded_dataset_or_collection.attrs.get(
-                    "_shnitsel_io_meta", {}
-                )
-
-                normalized_wrapped_ds = wrap_dataset(
-                    normalize_dataset(loaded_ds),
-                    Trajectory | Frames | MultiSeriesStacked,
-                )
-
-                if expect_dtype is None:
-                    return normalized_wrapped_ds
-                elif expect_dtype == xr.Dataset:
-                    # Do not convert
-                    return normalized_wrapped_ds.dataset
-                else:
-                    if is_assignable_to(type(normalized_wrapped_ds), expect_dtype):
-                        return normalized_wrapped_ds
-                    else:
-                        # Conversion did not yield appropriate result
-                        logging.error(
-                            "Could not convert result of type %s to expected type %s. Returning bare ase-i/o result",
-                            type(normalized_wrapped_ds),
-                            expect_dtype,
-                        )
-                        return normalized_wrapped_ds
         except FileNotFoundError as fnf_e:
             raise fnf_e
         except ValueError as v_e:
@@ -232,7 +205,7 @@ class ASEFormatReader(FormatReader):
                 message % {"path": path, "v_e": v_e, "tb": traceback.format_exc()}
             )
 
-        return loaded_dataset_or_tree  # type: ignore # We know that the result of read_shnitsel_file is meant to be a ShnitselDB or single Trajectory
+        return loaded_dataset_collection_or_tree  # type: ignore # We know that the result of read_shnitsel_file is meant to be a ShnitselDB or single Trajectory
 
     def get_units_with_defaults(
         self, unit_overrides: dict[str, str] | None = None

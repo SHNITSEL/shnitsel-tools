@@ -305,11 +305,11 @@ def write_ase_db(
     statedims = ['state', 'statecomb', 'full_statecomb', 'state_or_statecomb']
 
     if db_format == 'schnet':
-        order = [leading_dim_name, *statedims, 'atom', 'direction']
+        order = [leading_dim_name, ..., *statedims, 'atom', 'direction']
         working_dataset = working_dataset.transpose(*order, missing_dims='ignore')
     elif db_format == 'spainn':
         working_dataset['energy'] = working_dataset['energy'].expand_dims('tmp', axis=1)
-        order = [leading_dim_name, 'tmp', 'atom', *statedims, 'direction']
+        order = [leading_dim_name, ..., 'tmp', 'atom', *statedims, 'direction']
         working_dataset = working_dataset.transpose(*order, missing_dims='ignore')
     elif db_format is None:
         # leave the axis orders as they are
@@ -363,6 +363,9 @@ def _write_trajectory_to_db(
 ):
     # Set a few key parameters from our input parsing functions
     kv_pairs = {}
+    kv_pairs["charge"] = float(traj.charge)
+    kv_pairs["max_ts"] = int(traj.max_timestep)
+    kv_pairs["t_max"] = float(traj.t_max)
     kv_pairs["delta_t"] = float(traj.delta_t)
     kv_pairs["input_format"] = traj.input_format
     kv_pairs["input_type"] = traj.input_type
@@ -370,7 +373,7 @@ def _write_trajectory_to_db(
 
     for i, frame in traj.groupby(traj.leading_dim):
         # Remove leading dimension
-        # frame = frame.squeeze(leading_dim_name)
+        frame = frame.squeeze(traj.leading_dim)
         info: dict[str, float | str]
 
         if "time" in frame:
