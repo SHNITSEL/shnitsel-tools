@@ -846,7 +846,7 @@ def read_single(
         res_format = identify_or_check_input_kind(path, kind)
         if res_format is not None:
             READERS = get_available_io_handlers()
-            reader = READERS[res_format.format_name]
+            reader = READERS[res_format.format_name.lower()]
             # TODO: FIXME: Rename to more general read_data()?
             trajectory = reader.read_data(
                 path, res_format, base_loading_parameters, expect_dtype=expect_dtype
@@ -933,9 +933,9 @@ def identify_or_check_input_kind(
 
             if kind_hint is not None and reader_kind == kind_hint:
                 is_specified_kind_satisfied = True
-                new_specified_kind = res_format_info.format_name
+                new_specified_kind = res_format_info.format_name.lower()
 
-            resulting_format_info[res_format_info.format_name] = res_format_info
+            resulting_format_info[res_format_info.format_name.lower()] = res_format_info
 
         except FileNotFoundError as fn_e:
             # If required files were not found, i.e. if the path does not actually constitute input data of the denoted format

@@ -43,7 +43,9 @@ def register_format_reader(
         Returns True if registration was successful. False if there was a clash with an existing format declaration.
     """
 
-    if format_identifier in REGISTERED_READERS:
+    normalized_identifier = format_identifier.lower()
+
+    if normalized_identifier in REGISTERED_READERS:
         logging.error(
             "Format %s already mapped to an io class. Cannot reassign.",
             format_identifier,
@@ -58,7 +60,7 @@ def register_format_reader(
         )
         return False
 
-    REGISTERED_READERS[format_identifier] = reader_instance
+    REGISTERED_READERS[normalized_identifier] = reader_instance
     return True
 
 
