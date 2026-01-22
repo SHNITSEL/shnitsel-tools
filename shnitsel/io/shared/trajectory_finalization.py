@@ -163,7 +163,7 @@ def normalize_dataset(ds: xr.Dataset | ShnitselDataset) -> xr.Dataset:
     if 'trajid' in ds.dims:
         ds = ds.swap_dims(trajid='trajectory')
     if 'trajid_' in ds.dims:
-        ds = ds.swap_dims(trajid='trajectory')
+        ds = ds.swap_dims(trajid_='trajectory')
 
     if 'trajid' in ds.coords:
         if (
@@ -210,14 +210,15 @@ def normalize_dataset(ds: xr.Dataset | ShnitselDataset) -> xr.Dataset:
             if var in ds.data_vars:
                 ds = ds.set_coords(var)
             elif var in ds.attrs:
-                dt_arr = xr.DataArray(
+                new_array = xr.DataArray(
                     var_type(ds.attrs.get(var, -1)), dims=(), name=var
                 ).astype(var_type)
-                ds = ds.assign_coords(delta_t=dt_arr)
+                ds = ds.assign_coords({var: new_array})
 
-            if has_unit and var in ds and 'units' not in ds.delta_t.attrs:
-                ds.delta_t.attrs['unitdim'] = 'time'
-                ds.delta_t.attrs['units'] = time_unit
+            if has_unit and var in ds and 'units' not in ds[var].attrs:
+                ds[var].attrs['unitdim'] = 'time'
+                ds[var].attrs['units'] = time_unit
+
 
     if 'astate' in ds.data_vars:
         ds = ds.set_coords("astate")
