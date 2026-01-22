@@ -565,8 +565,6 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
         else:
             raise ValueError("Unsupported index type: %s", type(key))
 
-        print(path_parts)
-
         if len(path_parts) == 0:
             return self
 
