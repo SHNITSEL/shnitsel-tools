@@ -118,6 +118,7 @@ def assign_required_settings(
         new_coords[var] = xr.DataArray(
             var_type(kv_dict[var]), dims=(), name=var, attrs=attrs
         ).astype(var_type)
+        mark_variable_assigned(new_coords[var])
 
     # Do not also set the metadata as attrs if we set it as variable.
     # Keeping it all consistent would be a mess.
@@ -125,7 +126,11 @@ def assign_required_settings(
     del kv_dict['delta_t']
     del kv_dict['max_ts']
 
-    res = dataset.drop_vars(drop_keys).assign_attrs(kv_dict).assign_coords(**new_coords)
+    res = dataset.drop_vars(drop_keys).assign_attrs(kv_dict).assign_coords(new_coords)
+
+    # for key in new_coords.keys():
+    #     mark_variable_assigned(res.coords[key])
+
     return res if isinstance(dataset, xr.Dataset) else wrap_dataset(res)
 
 
