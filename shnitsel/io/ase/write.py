@@ -369,7 +369,9 @@ def _write_trajectory_to_db(
     kv_pairs["delta_t"] = float(traj.delta_t)
     kv_pairs["input_format"] = traj.input_format
     kv_pairs["input_type"] = traj.input_type
-    kv_pairs["input_format_version"] = traj.input_format_version
+    # NOTE: This guard prefix was introduced, because ASE kept interpreting
+    # The 2.0 version string as a string convertible to float and refused to work.
+    kv_pairs["input_format_version"] = f"v__{traj.input_format_version}"
 
     for i, frame in traj.groupby(traj.leading_dim):
         # Remove leading dimension
@@ -391,7 +393,7 @@ def _write_trajectory_to_db(
             int_id = int(frame["trajectory"])
         else:
             int_id = 0
-        info["trajectory"] = str(int_id)  # path + str(int_id)
+        info["trajectory"] = int_id  # path + str(int_id)
 
         # Actually output the entry
         db.write(

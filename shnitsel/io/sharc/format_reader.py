@@ -272,7 +272,7 @@ class SHARCFormatReader(FormatReader):
 
         if expect_dtype is not None:
             logging.debug(
-                "The NewtonX format reader only supports dtypes `Trajectory`, `Frames` or `xr.Dataset` "
+                "The SHARC format reader only supports dtypes `Trajectory`, `Frames` or `xr.Dataset` "
             )
 
         is_dynamic = False

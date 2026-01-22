@@ -867,9 +867,11 @@ def read_ase(
                 row_vars["input_type"] = float(kv_pairs["input_type"])
                 row_shapes['input_type'] = (1,)
             if "input_format_version" in kv_pairs:
-                row_vars["input_format_version"] = float(
-                    kv_pairs["input_format_version"]
-                )
+                vals = str(kv_pairs["input_format_version"])
+                guard_prefix = "v__"
+                if vals.startswith(guard_prefix):
+                    vals = vals[len(guard_prefix) :]
+                row_vars["input_format_version"] = vals
                 row_shapes['input_format_version'] = (1,)
 
             found_rows += 1
