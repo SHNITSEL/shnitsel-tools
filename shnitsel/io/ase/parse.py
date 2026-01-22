@@ -381,7 +381,8 @@ def apply_dataset_meta_from_db_metadata(
                 # due to a split during deserialization
                 skip_index = False
                 for dim in coorddict['dims']:
-                    if dim in dataset.dims and dataset.sizes[dim] != len(
+                    # Don't introduce new dimensions
+                    if dim not in dataset.dims or dataset.sizes[dim] != len(
                         coorddict["values"]
                     ):
                         skip_index = True
@@ -754,11 +755,11 @@ def apply_dataset_meta_from_db_metadata(
                 continue
             dim_length = dimdict["length"] if "length" in dimdict else -1
             if dim_length >= 0:
-                if dim_length != dataset.sizes[dimname]:
+                if dimname not in dataset.dims or dim_length != dataset.sizes[dimname]:
                     msg = "Size of dimension %(dimname)s in dataset parsed from ASE database has length inconsistent with metadata of ASE file. Was %(ds_dim_size)d but metadata specifies %(dim_spec)d"
                     params = {
                         'dimname': dimname,
-                        'ds_dim_size': dataset.sizes[dimname],
+                        'ds_dim_size': dataset.sizes.get(dimname, -1),
                         'dim_spec': dim_length,
                     }
                     logging.info(msg, params)
@@ -847,6 +848,7 @@ def read_ase(
             "input_format",
             "input_type",
             "input_format_version",
+            "completed",
         ]
         keys_change_is_mismatch = (
             [
