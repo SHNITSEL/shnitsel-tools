@@ -366,9 +366,12 @@ def concat_trajs(
     if len(datasets_pure) == 0:
         raise ValueError("No trajectories were provided.")
 
+    is_multi_trajectory = len(datasets_pure) > 1
+
     # Check that we do not have pre-existing multi-trajectory datasets
     for ds in datasets_pure:
         if ds.is_multi_trajectory:
+            is_multi_trajectory = True
             # TODO: FIXME: This should actually not be a problem. Look into this
             logging.error(
                 "Multi-trajectory dataset provided to concat() function. Aborting."
@@ -483,7 +486,7 @@ def concat_trajs(
     # if TYPE_CHECKING:
     #     assert isinstance(frames, Trajectory)
 
-    frames.attrs["is_multi_trajectory"] = True
+    frames.attrs["is_multi_trajectory"] = is_multi_trajectory
 
     return frames
 
