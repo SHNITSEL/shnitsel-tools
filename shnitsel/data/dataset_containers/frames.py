@@ -17,7 +17,10 @@ class Frames(DataSeries):
         assert "time" not in ds.dims, (
             "Dataset has `time` dimension and cannot be considered a set of Frames"
         )
-        assert "frame" in ds.dims or 'frame' in ds.coords, (
+        if "frame" not in ds.dims and "frame" in ds.coords:
+            curr_fdim = ds.coords["frame"].dims[0]
+            ds = ds.swap_dims({curr_fdim: "frame"})
+        assert "frame" in ds.dims, (
             "Dataset is missing `frame` dimension and cannot be considered a set of Frames"
         )
         assert "atom" in ds.dims, (
@@ -67,12 +70,27 @@ class Frames(DataSeries):
         ds = self.dataset
         trajid = self.trajectory_id
 
+        if (
+            "frame" in ds.indexes
+            and ds.indexes["frame"].names is not len(ds.indexes["frame"].names) > 1
+        ):
+            processed_ds = ds.unstack('frame')
+        else:
+            processed_ds = ds
+
         processed_ds = (
-            ds.unstack('frame')
-            .drop_vars('atrajectory')
+            processed_ds.drop_vars('atrajectory', errors='ignore')
             .swap_dims({'frame': 'time'})
-            .isel(trajectory=0)
+            .isel(trajectory=0, missing_dims="ignore")
         )
+
+        if trajid is not None:
+            trajid = xr.DataArray(
+                trajid,
+                dims=[],
+                attrs={'long_name': "The id of the indexed/current trajectory"},
+            )
+            processed_ds = processed_ds.assign_coords(trajectory=trajid)
 
         return Trajectory(processed_ds)
 
@@ -90,15 +108,18 @@ class Frames(DataSeries):
         trajid = super().trajid
         if trajid is None:
             # Try and get the own trajectory id from the active trajectory
-            tmp_atraj = self._param_from_vars_or_attrs('atrajectory')
-            if tmp_atraj is not None:
-                trajids = set(
-                    tmp_atraj.values
-                    if isinstance(tmp_atraj, xr.DataArray)
-                    else tmp_atraj
-                )
-                if len(trajids) == 1:
-                    return trajids.pop()
+            trajid = self._param_from_vars_or_attrs('atrajectory')
+
+        if trajid is not None and not isinstance(trajid, (int, str)):
+            trajids = set(
+                trajid.values[:].tolist()
+                if isinstance(trajid, xr.DataArray)
+                else trajid
+            )
+
+            if len(trajids) == 1:
+                return trajids.pop()
+
         return trajid
 
     @property
