@@ -36,6 +36,27 @@ multi_level_prefix: str = "_MultiIndex_levels_for_"
 
 # FIXME: Add other wrapped formats and add tree support for ASE
 
+SUPPORTED_COORD_KEYS = {
+    "direction",
+    "atNames",
+    "atNums",
+    "state_names",
+    "state_types",
+    "state_charges",
+    "astate",
+    "sdiag",
+    "time",
+    "atrajectory",
+    "trajid",
+    "from",
+    "to",
+    "full_statecomb_from",
+    "full_statecomb_to",
+    "trajectory",
+    "trajid_",
+    "charge",
+}
+
 
 def complete_shapes_guesses_from_variables(
     tmp_vars: dict[str, np.ndarray],
@@ -356,6 +377,18 @@ def apply_dataset_meta_from_db_metadata(
         coords_data = shnitsel_meta["coords"]
         for coordname, coorddict in coords_data.items():
             if coordname not in dataset.coords:
+                # We do not want to attempt to overwrite an existing coordinate that may be different
+                # due to a split during deserialization
+                skip_index = False
+                for dim in coorddict['dims']:
+                    if dim in dataset.dims and dataset.sizes[dim] != len(
+                        coorddict["values"]
+                    ):
+                        skip_index = True
+                        break
+                if skip_index:
+                    continue
+
                 dataset = dataset.assign_coords(
                     {
                         coordname: (
@@ -377,6 +410,36 @@ def apply_dataset_meta_from_db_metadata(
                 index_levels = v["level_names"]
                 index_tuples = v["index_tuples"]
                 index_tuples = [tuple(x) for x in index_tuples]
+
+                index_len = len(index_tuples)
+
+                skip_index = False
+
+                if index_name in dataset.coords:
+                    # and dataset.coords[index_name].size != len(index_tuples):
+                    # We do not want to attempt to overwrite an existing coordinate that may have been split during deserialization
+                    skip_index = True
+                    continue
+
+                if index_name in dataset.dims:
+                    # If the multi-index dimension already exists, don't try and overwrite existing levels.
+                    for level in index_levels:
+                        # if level in dataset.coords:
+                        #     print(
+                        #         f"{level=} {dataset.coords[level].size=} != {index_len=}"
+                        #     )
+                        if (
+                            level in dataset.coords
+                            and dataset.coords[level].size != index_len
+                        ):
+                            skip_index = True
+                            break
+
+                if skip_index:
+                    continue
+
+                # print(f"{index_name=} not in {dataset.coords.keys()}")
+
                 # Stack the existing dimensions instead of setting an xindex
 
                 # tuples = list(
@@ -451,30 +514,31 @@ def apply_dataset_meta_from_db_metadata(
     if "var_meta" in shnitsel_meta:
         vars_dict = shnitsel_meta["var_meta"]
         for varname, vardict in vars_dict.items():
-            if "attrs" in vardict:
-                var_attrs = vardict["attrs"]
-                if varname == "dipoles" and (
-                    "dip_perm" in dataset or "dip_trans" in dataset
-                ):
-                    # Dipoles should have been split back up and the names should be updated accordingly
-                    if "dip_perm" in dataset:
-                        dataset["dip_perm"].attrs.update(var_attrs)
-                        if "dip_perm" in default_attrs:
-                            dataset["dip_perm"]["long_name"] = default_attrs[
-                                "dip_perm"
-                            ]["long_name"]
-                    if "dip_trans" in dataset:
-                        dataset["dip_trans"].attrs.update(var_attrs)
-                        if "dip_trans" in default_attrs:
-                            dataset["dip_trans"]["long_name"] = default_attrs[
-                                "dip_trans"
-                            ]["long_name"]
-                else:
-                    dataset[varname].attrs.update(var_attrs)
+            if varname in dataset:
+                if "attrs" in vardict:
+                    var_attrs = vardict["attrs"]
+                    if varname == "dipoles" and (
+                        "dip_perm" in dataset or "dip_trans" in dataset
+                    ):
+                        # Dipoles should have been split back up and the names should be updated accordingly
+                        if "dip_perm" in dataset:
+                            dataset["dip_perm"].attrs.update(var_attrs)
+                            if "dip_perm" in default_attrs:
+                                dataset["dip_perm"]["long_name"] = default_attrs[
+                                    "dip_perm"
+                                ]["long_name"]
+                        if "dip_trans" in dataset:
+                            dataset["dip_trans"].attrs.update(var_attrs)
+                            if "dip_trans" in default_attrs:
+                                dataset["dip_trans"]["long_name"] = default_attrs[
+                                    "dip_trans"
+                                ]["long_name"]
+                    else:
+                        dataset[varname].attrs.update(var_attrs)
 
     if "_distance_unit" in db_meta:
-        if "atXYZ" in dataset and "unit" not in dataset["atXYZ"].attrs:
-            dataset["atXYZ"].attrs["unit"] = db_meta["_distance_unit"]
+        if "atXYZ" in dataset:  # and "units" not in dataset["atXYZ"].attrs:
+            dataset["atXYZ"].attrs["units"] = db_meta["_distance_unit"]
 
     if "_property_unit_dict" in db_meta:
         unit_dict = db_meta["_property_unit_dict"]
@@ -685,6 +749,9 @@ def apply_dataset_meta_from_db_metadata(
             if dimname == "tmp" or dimname == "state_or_statecomb":
                 # Skip artificial dimensions
                 continue
+            if dimname == "time" or dimname == "frame":
+                # Skip leading dimensions that may have been split
+                continue
             dim_length = dimdict["length"] if "length" in dimdict else -1
             if dim_length >= 0:
                 if dim_length != dataset.sizes[dimname]:
@@ -694,13 +761,20 @@ def apply_dataset_meta_from_db_metadata(
                         'ds_dim_size': dataset.sizes[dimname],
                         'dim_spec': dim_length,
                     }
-                    logging.error(msg, params)
-                    raise ValueError(msg % params)
+                    logging.info(msg, params)
+                    # raise ValueError(msg % params)
 
     if "est_level" not in dataset.attrs:
         if 'ReferenceMethod' in db_meta:
-            # TODO: FIXME: Possibly split up into basis and method?
-            dataset.attrs["est_level"] = db_meta['ReferenceMethod']
+            parts = str(db_meta['ReferenceMethod']).strip().split("/")
+            if len(parts) >= 2:
+                dataset.attrs["est_level"] = parts[0]
+                if "theory_basis_set" not in dataset.attrs:
+                    dataset.attrs["theory_basis_set"] = parts[1]
+            else:
+                dataset.attrs["est_level"] = str(db_meta['ReferenceMethod'])
+                if "theory_basis_set" not in dataset.attrs:
+                    dataset.attrs["theory_basis_set"] = "unknown"
 
     return dataset
 
@@ -814,41 +888,50 @@ def read_ase(
                 row_vars['velocities'] = row_atoms.get_velocities()
                 row_shapes['velocities'] = (len(row_vars['velocities']),)
 
-            if "time" in row_atoms.info:
-                row_vars["time"] = float(row_atoms.info["time"])
+            # if "time" in row_atoms.info:
+            #     row_vars["time"] = float(row_atoms.info["time"])
+            #     row_shapes['time'] = (1,)
+
+            if "time" in kv_pairs:
+                row_vars["time"] = float(kv_pairs["time"])
                 row_shapes['time'] = (1,)
 
-            if "trajid" in row_atoms.info:
-                row_vars["atrajectory"] = int(row_atoms.info["trajid"])
-                row_shapes['atrajectory'] = (1,)
+            # if "trajid" in row_atoms.info:
+            #     row_vars["atrajectory"] = int(row_atoms.info["trajid"])
+            #     row_shapes['atrajectory'] = (1,)
             if "trajid" in kv_pairs:
                 row_vars["trajid"] = float(kv_pairs["trajid"])
                 row_shapes['trajid'] = (1,)
-
-            if "trajectory" in row_atoms.info:
-                row_vars["atrajectory"] = int(row_atoms.info["trajectory"])
-                row_shapes['atrajectory'] = (1,)
+            # if "trajectory" in row_atoms.info:
+            #     row_vars["atrajectory"] = int(row_atoms.info["trajectory"])
+            #     row_shapes['atrajectory'] = (1,)
             if "trajectory" in kv_pairs:
-                row_vars["trajectory"] = float(kv_pairs["trajectory"])
-                row_shapes['trajectory'] = (1,)
+                row_vars["atrajectory"] = float(kv_pairs["trajectory"])
+                row_shapes['atrajectory'] = (1,)
+            # if "atrajectory" in row_atoms.info:
+            #     row_vars["atrajectory"] = int(row_atoms.info["atrajectory"])
+            #     row_shapes['atrajectory'] = (1,)
+            if "atrajectory" in kv_pairs:
+                row_vars["atrajectory"] = float(kv_pairs["atrajectory"])
+                row_shapes['atrajectory'] = (1,)
 
-            if "delta_t" in row_atoms.info:
-                row_vars["delta_t"] = float(row_atoms.info["delta_t"])
-                row_shapes['delta_t'] = (1,)
+            # if "delta_t" in row_atoms.info:
+            #     row_vars["delta_t"] = float(row_atoms.info["delta_t"])
+            #     row_shapes['delta_t'] = (1,)
             if "delta_t" in kv_pairs:
                 row_vars["delta_t"] = float(kv_pairs["delta_t"])
                 row_shapes['delta_t'] = (1,)
 
-            if "t_max" in row_atoms.info:
-                row_vars["t_max"] = float(row_atoms.info["t_max"])
-                row_shapes['t_max'] = (1,)
+            # if "t_max" in row_atoms.info:
+            #     row_vars["t_max"] = float(row_atoms.info["t_max"])
+            #     row_shapes['t_max'] = (1,)
             if "t_max" in kv_pairs:
                 row_vars["t_max"] = float(kv_pairs["t_max"])
                 row_shapes['t_max'] = (1,)
 
-            if "max_ts" in row_atoms.info:
-                row_vars["max_ts"] = int(row_atoms.info["max_ts"])
-                row_shapes['max_ts'] = (1,)
+            # if "max_ts" in row_atoms.info:
+            #     row_vars["max_ts"] = int(row_atoms.info["max_ts"])
+            #     row_shapes['max_ts'] = (1,)
             if "max_ts" in kv_pairs:
                 row_vars["max_ts"] = float(kv_pairs["max_ts"])
                 row_shapes['max_ts'] = (1,)
@@ -861,10 +944,10 @@ def read_ase(
                 row_shapes['charge'] = (1,)
 
             if "input_format" in kv_pairs:
-                row_vars["input_format"] = float(kv_pairs["input_format"])
+                row_vars["input_format"] = str(kv_pairs["input_format"])
                 row_shapes['input_format'] = (1,)
             if "input_type" in kv_pairs:
-                row_vars["input_type"] = float(kv_pairs["input_type"])
+                row_vars["input_type"] = str(kv_pairs["input_type"])
                 row_shapes['input_type'] = (1,)
             if "input_format_version" in kv_pairs:
                 vals = str(kv_pairs["input_format_version"])
@@ -873,6 +956,22 @@ def read_ase(
                     vals = vals[len(guard_prefix) :]
                 row_vars["input_format_version"] = vals
                 row_shapes['input_format_version'] = (1,)
+
+            for sup_coord in SUPPORTED_COORD_KEYS:
+                if sup_coord in kv_pairs:
+                    if (
+                        sup_coord
+                        not in {
+                            'trajid',
+                            'trajid_',
+                            'trajectory',
+                            'atrajectory',
+                            'time',
+                        }
+                        and sup_coord not in row_vars
+                    ):
+                        row_vars[sup_coord] = kv_pairs[sup_coord]
+                        row_shapes[sup_coord] = (1,)
 
             found_rows += 1
 
@@ -894,12 +993,17 @@ def read_ase(
                             key not in curr_set_vars
                             or row_vars[key] != curr_set_vars[key][-1]
                         ):
-                            print(
-                                f"Mismatch in var {key=}: {row_vars[key]=} != {curr_set_vars[key][-1]=}"
+                            logging.debug(
+                                f" Mismatch in var {key=}: {row_vars[key]=} != {curr_set_vars[key][-1]=}"
                             )
                             # E.g. Atoms have changed. Indicates a completely different compound.
                             # Trajectory changed
                             is_mismatched = True
+                            break
+                        # else:
+                        # print(
+                        #     f"{key=}: {row_vars.get(key,'~')=} != {curr_set_vars.get(key,'~')=}"
+                        # )
 
             if is_mismatched:
                 if curr_set_shapes is not None and curr_set_vars is not None:
@@ -964,10 +1068,32 @@ def read_ase(
             leading_dimension_rename_target,
         )
 
-        attrs = {}
+        ds_attrs = {}
+
+        int_data_keys = [
+            "state_types",
+            "astate",
+            "sdiag",
+            "trajid",
+            "atrajectory",
+            "trajectory",
+            "trajid_",
+            "state",
+            "atom",
+        ]
 
         for k, data_array in stacked_tmp_data.items():
-            if k in local_var_shapes:
+            if k in contract_keys_coords:
+                # Deal with coordinates that should be 0-dimensional
+                coord_vars[k] = (
+                    [],
+                    data_array[0],
+                    ase_default_attrs.get(k, None),
+                )
+            elif k in contract_keys_attrs:
+                # Deal with attributes that should be 0-dimensional
+                ds_attrs[k] = data_array[0]
+            elif k in local_var_shapes:
                 # if str(k) == "socs":
                 #     raise ValueError(
                 #         f"Read variable {k} with shape: {shapes[k]} and numpy shape: {data_array.shape}"
@@ -1002,21 +1128,11 @@ def read_ase(
                             ase_default_attrs.get(k, None),
                         )
                     else:
-                        coord_vars["trajectory"] = (
-                            [],
-                            data_array[0],
-                            ase_default_attrs.get(k, None),
-                        )
-                elif k in contract_keys_coords:
-                    # Deal with coordinates that should be 0-dimensional
-                    coord_vars[k] = (
-                        [],
-                        data_array[0],
-                        ase_default_attrs.get(k, None),
-                    )
-                elif k in contract_keys_attrs:
-                    # Deal with attributes that should be 0-dimensional
-                    attrs[k] = data_array[0]
+                        coord_vars["trajectory"] = xr.DataArray(
+                            dims=[],
+                            data=data_array[0],
+                            attrs=ase_default_attrs.get(k, None),
+                        ).astype(int)
                 else:
                     coord_vars[k] = (
                         local_coord_shapes[k],
@@ -1028,6 +1144,15 @@ def read_ase(
                     "Dropping data entry %(key)s due to missing shape information",
                     {'key': k},
                 )
+            if k in int_data_keys:
+                if k in coord_vars:
+                    ldims, ldata, lattrs = coord_vars[k]
+                    # print(f"{k=} -> {coord_vars[k]=}")
+                    coord_vars[k] = xr.DataArray(
+                        dims=ldims,
+                        data=ldata,
+                        attrs=lattrs,
+                    ).astype(int)
 
             # atXYZ = np.stack([row.positions for row in db.select()])
             # data_vars['atXYZ'] = ['frame', 'atom', 'direction'], atXYZ
@@ -1065,7 +1190,7 @@ def read_ase(
         # print(data_vars["atXYZ"][1].shape)
         # print(data_vars["atXYZ"][1].shape)
         # print(coord_vars["frame"])
-        frames = xr.Dataset(data_vars, coord_vars, attrs=attrs)
+        frames = xr.Dataset(data_vars, coord_vars, attrs=ds_attrs)
 
         # Set flags to mark as assigned
         for k in coord_vars.keys():
@@ -1127,8 +1252,10 @@ def read_ase(
             "charge", frames.charge if "charge" in frames.coords else None
         )
         needs_charge_guess = initial_charge is None
+        initial_positions = frames.atXYZ.isel(frame=0) * 2
 
-        print(f"Initial charge: {initial_charge}")
+        # print(f"Initial charge: {initial_charge}")
+        # print(f"Initial positions: {initial_positions=}")
 
         if initial_charge is not None:
             logging.info(
@@ -1136,9 +1263,9 @@ def read_ase(
                 str(initial_charge),
             )
             try:
-                construct_default_mol(frames, charge=int(round(initial_charge)))
+                to_mol(initial_positions, charge=int(round(initial_charge)))
             except Exception as e:
-                print(e)
+                # print(e)
                 logging.info(
                     "Initial charge guess `%s` did not yield correct molecule structure. Will be recalculated recalculation.",
                     str(initial_charge),
@@ -1146,7 +1273,7 @@ def read_ase(
                 needs_charge_guess = True
 
         if needs_charge_guess:
-            print(f"Making a guess after: {initial_charge=}")
+            # print(f"Making a guess after: {initial_charge=}")
             if "charge" in frames.attrs:
                 del frames.attrs["charge"]
             if "charge" not in frames.coords:
@@ -1156,18 +1283,17 @@ def read_ase(
 
             attempt_order = [0, 1, -1, 2, -2, 3, -3, 4, -4, 5, -5]
             for charge_guess in attempt_order:
-                print(f"Current guess: {charge_guess=}")
                 try:
-                    construct_default_mol(frames, charge=int(round(charge_guess)))
+                    to_mol(initial_positions, charge=int(round(charge_guess)))
                     frames.coords["charge"].values = charge_guess
                     needs_charge_guess = False
                     break
                 except Exception as e:
-                    print(e)
                     continue
+
             if needs_charge_guess:
                 logging.warning(
-                    "Could not derive charge for molecule read from ASE database initial guess was %s. Removing charge property for now.",
+                    "Could not derive charge for molecule read from ASE database initial guess was %s. Removing charge property for now. Please assign manually with `set_charge(charge)`",
                     str(initial_charge),
                 )
                 frames.drop_vars("charge", errors="ignore")
