@@ -8,6 +8,8 @@ import xarray as xr
 import sys
 
 from shnitsel.core._api_info import internal
+from shnitsel.io.shared.trajectory_finalization import normalize_dataset
+from shnitsel.io.shared.trajectory_setup import fill_missing_dataset_variables
 from ...data.tree.datatree_level import _datatree_level_attribute_key
 
 from shnitsel.io.shared.variable_flagging import mark_variable_assigned
@@ -130,35 +132,63 @@ def _parse_shnitsel_file_v1_0(
         "You should either regenerate the shnitsel file from the input data with a later version of the shnitsel-tools package or attempt to retrieve a later version of the file."
     )
 
+    # Rename time coordinate to same name everywhere
+    tcoord = None
+    if "time" in frames.coords:
+        tcoord = "time"
+        if "units" not in frames.time.attrs:
+            logging.warning("Guessing time dimension to be unitless. (units=`1`)")
+            frames.time.attrs.update({"units": "1", "unitdim": "time"})
+    elif "ts" in frames.coords:
+        logging.info(
+            "Renaming 'ts' dimension to 'time' to make trajectory conform to standard shnitsel format."
+        )
+        frames = frames.rename({"ts": "time"})
+        if "delta_t" in frames.attrs:
+            frames.time.values *= float(frames.attrs["delta_t"])
+            logging.warning("Guessing time unit to be `fs`")
+            frames.time.attrs.update({"units": "fs", "unitdim": "time"})
+        else:
+            logging.warning("Guessing time dimension to be unitless. (units=`1`)")
+            frames.time.attrs.update({"units": "1", "unitdim": "time"})
+        tcoord = "time"
+
     # Restore MultiIndexes
     indicator = "_MultiIndex_levels_from_attrs"
+    level_prefix = "_MultiIndex_levels_for_"
     if frames.attrs.get(indicator, False):
         # New way: get level names from attrs
         del frames.attrs[indicator]
         for k, v in frames.attrs.items():
-            if k.startswith("_MultiIndex_levels_for_"):
-                frames = frames.set_xindex(v)
+            if k.startswith(level_prefix):
+                index_name = k[len(level_prefix) :]
+                # print(f"Index {index_name=} : levels={v}")
+                if len(set([frames.coords[level_name].size for level_name in v])) == 1:
+                    # all levels have the same length:
+                    frames = frames.set_xindex(v)
+                    mark_variable_assigned(frames[index_name])
+
                 del frames.attrs[k]
     else:
-        # TODO: FIXME: rename time trajectory to same name everywhere
         # Old way: hardcoded level names
-        tcoord = None
-        if "time" in frames.coords:
-            tcoord = "time"
-        elif "ts" in frames.coords:
-            logging.info(
-                "Renaming 'ts' dimension to 'time' to make trajectory conform to standard shnitsel format."
-            )
-            frames = frames.rename({"ts": "time"})
-            tcoord = "time"
 
-        if tcoord is not None and tcoord in frames.coords and "trajid_" in frames:
-            frames = frames.set_xindex(["trajid_", tcoord])
+        if tcoord is not None and tcoord in frames.coords and "trajid" in frames:
+            # Clear existing indexes before setting the multi-index
+            if tcoord in frames.indexes:
+                frames = frames.reset_index(tcoord)
+            if "trajid" in frames.indexes:
+                frames = frames.reset_index("trajid")
+
+            frames = frames.set_xindex(["trajid", tcoord])
 
         if "from" in frames.coords and "to" in frames.coords:
+            if "from" in frames.indexes:
+                frames = frames.reset_index("from")
+            if "to" in frames.indexes:
+                frames = frames.reset_index("to")
             frames = frames.set_xindex(["from", "to"])
 
-    return frames
+    return normalize_dataset(fill_missing_dataset_variables(frames))
 
 
 def _decode_shnitsel_v1_1_dataset(dataset: xr.Dataset) -> xr.Dataset:
@@ -212,52 +242,79 @@ def _decode_shnitsel_v1_1_dataset(dataset: xr.Dataset) -> xr.Dataset:
                     str(attr), dataset[data_var].attrs[attr]
                 )
 
+    # Rename time coordinate to same name everywhere
+    tcoord = None
+    if "time" in dataset.coords:
+        tcoord = "time"
+        if "units" not in dataset.time.attrs:
+            logging.warning("Guessing time dimension to be unitless. (units=`1`)")
+            dataset.time.attrs.update({"units": "1", "unitdim": "time"})
+    elif "ts" in dataset.coords:
+        logging.info(
+            "Renaming 'ts' dimension to 'time' to make trajectory conform to standard shnitsel format."
+        )
+        frames = dataset.rename({"ts": "time"})
+        if "delta_t" in frames.attrs:
+            frames.time.values *= float(frames.attrs["delta_t"])
+            logging.warning("Guessing time unit to be `fs`")
+            frames.time.attrs.update({"units": "fs", "unitdim": "time"})
+        else:
+            logging.warning("Guessing time dimension to be unitless. (units=`1`)")
+            frames.time.attrs.update({"units": "1", "unitdim": "time"})
+        tcoord = "time"
+
     # Restore MultiIndexes
     indicator = "_MultiIndex_levels_from_attrs"
+    level_prefix = "_MultiIndex_levels_for_"
     if dataset.attrs.get(indicator, False):
         # New way: get level names from attrs
         del dataset.attrs[indicator]
         for k, v in dataset.attrs.items():
-            if k.startswith("_MultiIndex_levels_for_"):
-                index_name = k[len("_MultiIndex_levels_for_") :]
-                dataset = dataset.set_xindex(v)
-                del dataset.attrs[k]
-                mark_variable_assigned(dataset[index_name])
-    else:
-        # TODO: FIXME: rename time trajectory to same name everywhere
-        # Old way: hardcoded level names
-        tcoord = None
-        if "time" in dataset.coords:
-            tcoord = "time"
-        elif "ts" in dataset.coords:
-            logging.info(
-                "Renaming 'ts' dimension to 'time' to make trajectory conform to standard shnitsel format."
-            )
-            dataset = dataset.rename({"ts": "time"})
-            tcoord = "time"
+            if k.startswith(level_prefix):
+                index_name = k[len(level_prefix) :]
+                # print(f"Index {index_name=} : levels={v}")
+                if len(set([dataset.coords[level_name].size for level_name in v])) == 1:
+                    # all levels have the same length:
+                    dataset = dataset.set_xindex(v)
+                    mark_variable_assigned(dataset[index_name])
 
-        if tcoord is not None and tcoord in dataset.coords and "trajid_" in dataset:
-            dataset = dataset.set_xindex(["trajid_", tcoord])
+                del dataset.attrs[k]
+    else:
+        # Old way: hardcoded level names
+        if tcoord is not None and tcoord in dataset.coords and "trajid" in dataset:
+            # Clear existing indexes before setting the multi-index
+            if tcoord in dataset.indexes:
+                dataset = dataset.reset_index(tcoord)
+            if "trajid" in dataset.indexes:
+                dataset = dataset.reset_index("trajid")
+            dataset = dataset.set_xindex(["trajid", tcoord])
 
         if "from" in dataset.coords and "to" in dataset.coords:
+            if "from" in dataset.indexes:
+                dataset = dataset.reset_index("from")
+            if "to" in dataset.indexes:
+                dataset = dataset.reset_index("to")
             dataset = dataset.set_xindex(["from", "to"])
 
-    return dataset
+    return normalize_dataset(fill_missing_dataset_variables(dataset))
 
 
-def decode_attrs(obj: xr.Dataset | xr.DataArray):
+XRAttrType = TypeVar("XRAttrType", bound=xr.Dataset | xr.DataArray | xr.DataTree)
+
+
+def decode_attrs(obj: XRAttrType) -> XRAttrType:
     """Helper function to decode attributes of an object
     that may have been serialized during the writing process.
 
     Parameters
     ----------
-    obj : xr.Dataset
+    obj : xr.Dataset | xr.DataArray | xr.DataTree
         The object whose attributes should be decoded
 
     Returns
     -------
-    xr.Dataset | xr.DataArray
-        The same type as the input but with deserialized attributes
+    xr.Dataset | xr.DataArray | xr.DataTree
+        The same type as the input `obj` but with deserialized attributes
     """
     if "__attrs_json_encoded" in obj.attrs:
         del obj.attrs["__attrs_json_encoded"]
@@ -312,7 +369,7 @@ def _decode_shnitsel_v1_1_datatree(datatree: xr.DataTree) -> xr.DataTree:
     )
 
 
-def _decode_shnitsel_v1_2_datatree(datatree: xr.DataTree) -> xr.DataTree:    
+def _decode_shnitsel_v1_2_datatree(datatree: xr.DataTree) -> xr.DataTree:
     """Decoder for v1.2 versions of shnitsel datatree formats.
 
     Parameters
