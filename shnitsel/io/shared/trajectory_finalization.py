@@ -166,16 +166,22 @@ def normalize_dataset(ds: xr.Dataset | ShnitselDataset) -> xr.Dataset:
         ds = ds.swap_dims(trajid='trajectory')
 
     if 'trajid' in ds.coords:
-        if 'trajectory' not in ds.coords['trajid'].dims:
+        if (
+            'trajectory' not in ds.coords['trajid'].dims
+            or "frame" in ds.coords['trajid'].dims
+        ):
             ds = ds.rename(trajid="atrajectory")
         else:
             ds = ds.rename(trajid="trajectory")
 
     if 'trajid_' in ds.coords:
-        if 'trajectory' not in ds.coords['trajid_'].dims:
-            ds = ds.rename(trajid_="atrajectory")
+        if (
+            'trajectory' not in ds.coords['trajid_'].dims
+            or "frame" in ds.coords['trajid_'].dims
+        ):
+            ds = ds.rename_vars(trajid_="atrajectory")
         else:
-            ds = ds.rename(trajid_="trajectory")
+            ds = ds.rename_vars(trajid_="trajectory")
 
     # Check if frameset has a multi-index
     if 'frame' in ds.dims and 'time' in ds.coords and 'frame' not in ds.xindexes:
@@ -185,7 +191,13 @@ def normalize_dataset(ds: xr.Dataset | ShnitselDataset) -> xr.Dataset:
 
     # Turn delta_t and t_max and max_ts into a variable
     if 'time' in ds.coords:
+        if 'units' not in ds.time.attrs:
+            logging.warning(
+                "The imported dataset does not have a time unit set. We will assume the unit to be `fs`."
+            )
         time_unit = ds.time.attrs.get('units', 'fs')
+        ds.time.attrs['units'] = time_unit
+        ds.time.attrs['unitdim'] = "time"
     else:
         time_unit = 'fs'
 
