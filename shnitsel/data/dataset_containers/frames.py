@@ -85,12 +85,12 @@ class Frames(DataSeries):
         )
 
         if trajid is not None:
-            trajid = xr.DataArray(
+            trajid_coord = xr.DataArray(
                 trajid,
                 dims=[],
                 attrs={'long_name': "The id of the indexed/current trajectory"},
             )
-            processed_ds = processed_ds.assign_coords(trajectory=trajid)
+            processed_ds = processed_ds.assign_coords(trajectory=trajid_coord)
 
         return Trajectory(processed_ds)
 

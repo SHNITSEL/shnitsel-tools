@@ -277,12 +277,13 @@ class DataSeries(ShnitselDataset):
         It may actually have run to this time."""
         t_max: float | str | None = self._param_from_vars_or_attrs('t_max')
         if t_max is None:
-            t_max = -1
-        if isinstance(t_max, str):
-            t_max = float(t_max)
-        if not isinstance(t_max, float):
-            t_max = -1
-        return t_max
+            return -1
+        elif isinstance(t_max, xr.DataArray):
+            if t_max.sizes:
+                return t_max.astype(float)
+            else:
+                return float(t_max)
+        return float(t_max)
 
     @property
     def delta_t(self) -> float:
@@ -290,16 +291,12 @@ class DataSeries(ShnitselDataset):
         delta_t = self._param_from_vars_or_attrs('delta_t')
         if delta_t is None:
             delta_t = -1
-        if isinstance(delta_t, str):
-            delta_t = float(delta_t)
-        if not isinstance(delta_t, float):
-            delta_t = -1
-        return delta_t
-
-    @property
-    def trajectory_id(self) -> int | str | None:
-        """An alias for `trajid` with a more telling name"""
-        return self.trajid
+        elif isinstance(delta_t, xr.DataArray):
+            if delta_t.sizes:
+                return delta_t.astype(float)
+            else:
+                return float(delta_t)
+        return float(delta_t)
 
     @property
     def trajid(self) -> int | str | None:
@@ -308,12 +305,19 @@ class DataSeries(ShnitselDataset):
         or indepdendent simulation data is combined."""
         trajid = self._param_from_vars_or_attrs('trajid')
         if trajid is None:
+            trajid = self._param_from_vars_or_attrs('trajid_')
+        if trajid is None:
             trajid = self._param_from_vars_or_attrs('id')
         if trajid is None:
-            trajid = self._param_from_vars_or_attrs('trajectory')
-        if trajid is None:
             trajid = self._param_from_vars_or_attrs('trajectory_id')
+        if trajid is None:
+            trajid = self._param_from_vars_or_attrs('trajectory')
         return trajid
+
+    @property
+    def trajectory_id(self) -> int | str | None:
+        """An alias for `trajid` with a more telling name"""
+        return self.trajid
 
     @property
     def max_timestep(self) -> int:
