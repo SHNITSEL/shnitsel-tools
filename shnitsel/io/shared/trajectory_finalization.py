@@ -207,4 +207,9 @@ def normalize_dataset(ds: xr.Dataset | ShnitselDataset) -> xr.Dataset:
                 ds.delta_t.attrs['unitdim'] = 'time'
                 ds.delta_t.attrs['units'] = time_unit
 
+    if 'astate' in ds.data_vars:
+        ds = ds.set_coords("astate")
+    if 'sdiag' in ds.data_vars:
+        ds = ds.set_coords("sdiag")
+
     return ds
