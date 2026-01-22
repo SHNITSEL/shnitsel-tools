@@ -310,6 +310,8 @@ class DataSeries(ShnitselDataset):
         if trajid is None:
             trajid = self._param_from_vars_or_attrs('id')
         if trajid is None:
+            trajid = self._param_from_vars_or_attrs('trajectory')
+        if trajid is None:
             trajid = self._param_from_vars_or_attrs('trajectory_id')
         return trajid
 
