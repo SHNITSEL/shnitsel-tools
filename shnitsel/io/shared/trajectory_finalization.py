@@ -161,18 +161,20 @@ def normalize_dataset(ds: xr.Dataset | ShnitselDataset) -> xr.Dataset:
 
     # Rename legacy uses of `trajid` and `trajid_`
     if 'trajid' in ds.dims:
-        ds = ds.swap_dims(trajid='trajectory')
+        ds = ds.rename_dims(trajid='trajectory')
     if 'trajid_' in ds.dims:
-        ds = ds.swap_dims(trajid_='trajectory')
+        ds = ds.rename_dims(trajid_='trajectory')
 
     if 'trajid' in ds.coords:
+        # print(ds.time)
         if (
             'trajectory' not in ds.coords['trajid'].dims
             or "frame" in ds.coords['trajid'].dims
         ):
-            ds = ds.rename(trajid="atrajectory")
+            ds = ds.rename_vars(trajid="atrajectory")
         else:
-            ds = ds.rename(trajid="trajectory")
+            ds = ds.rename_vars(trajid="trajectory")
+        # print(ds.time)
 
     if 'trajid_' in ds.coords:
         if (
@@ -183,11 +185,22 @@ def normalize_dataset(ds: xr.Dataset | ShnitselDataset) -> xr.Dataset:
         else:
             ds = ds.rename_vars(trajid_="trajectory")
 
+    if (
+        "trajectory" in ds.dims
+        and "trajectory" in ds.coords
+        and "trajectory" not in ds.indexes
+    ):
+        ds = ds.set_xindex("trajectory")
+
+    # print(f"Normalization: multiindex {ds.time}")
     # Check if frameset has a multi-index
     if 'frame' in ds.dims and 'time' in ds.coords and 'frame' not in ds.xindexes:
         if 'frame' in ds.coords['time'].dims:
             # Make frame a multi-index
-            ds = ds.set_xindex('frame')
+            if "atrajectory" in ds.coords and "frame" in ds.atrajectory.dims:
+                ds = ds.set_xindex(["time", "atrajectory"])
+            else:
+                ds = ds.set_xindex('frame')
 
     # Turn delta_t and t_max and max_ts into a variable
     if 'time' in ds.coords:
@@ -218,7 +231,6 @@ def normalize_dataset(ds: xr.Dataset | ShnitselDataset) -> xr.Dataset:
             if has_unit and var in ds and 'units' not in ds[var].attrs:
                 ds[var].attrs['unitdim'] = 'time'
                 ds[var].attrs['units'] = time_unit
-
 
     if 'astate' in ds.data_vars:
         ds = ds.set_coords("astate")
