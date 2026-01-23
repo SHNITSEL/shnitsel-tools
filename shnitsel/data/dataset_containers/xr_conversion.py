@@ -7,7 +7,7 @@ from shnitsel.io.xr_io_compatibility import (
     SupportsFromXrConversion,
     get_registered_input_handler,
 )
-from . import Trajectory, Frames, InterState, PerState
+from . import Trajectory, Frames, InterState, PerState, wrap_dataset
 import xarray as xr
 
 
@@ -173,18 +173,5 @@ def xr_dataset_to_shnitsel_format(
                 return PerState(direct_perstate_data=raw_data)
             except AssertionError:
                 pass
-
-        if "frame" in raw_data.dims:
-            try:
-                return Frames(raw_data)
-            except AssertionError:
-                pass
-
-        if "time" in raw_data.dims:
-            try:
-                return Trajectory(raw_data)
-            except AssertionError:
-                pass
-
-        # Did not find matching shnitsel type to wrap
-        return raw_data
+        # Try our best to wrap it in any type
+        return wrap_dataset(raw_data)
