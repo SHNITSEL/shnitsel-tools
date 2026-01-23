@@ -211,6 +211,7 @@ class ShnitselDataset(object):
             Tutorial material on basics of indexing
 
         """
+        from shnitsel.data.dataset_containers import wrap_dataset
         # TODO: FIXME: Also select derived, base and cached variables?
         selres = self._raw_dataset.sel(
             indexers=indexers,
@@ -222,7 +223,7 @@ class ShnitselDataset(object):
         try:
             return type(self)(selres)
         except:
-            return ShnitselDataset(selres)
+            return wrap_dataset(selres)  # type: ignore # Without a target type, datasets will be at least a ShnitselDataset
 
     def isel(
         self,
@@ -329,6 +330,7 @@ class ShnitselDataset(object):
             Tutorial material on basics of indexing
 
         """
+        from shnitsel.data.dataset_containers import wrap_dataset
         # TODO: FIXME: Also select derived, base and cached variables?
 
         selres = self._raw_dataset.isel(
@@ -340,7 +342,7 @@ class ShnitselDataset(object):
         try:
             return type(self)(selres)
         except:
-            return ShnitselDataset(selres)
+            return wrap_dataset(selres)  # type: ignore # Without a target type, the wrap result will be at least ShnitselDataset
 
     # @property
     # def _attr_sources(self) -> Iterable[Mapping[Hashable, Any]]:
