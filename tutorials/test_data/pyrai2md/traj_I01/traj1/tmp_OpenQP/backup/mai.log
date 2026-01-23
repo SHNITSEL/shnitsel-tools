@@ -1,0 +1,159 @@
+
+   PyOQP started at 2025-11-18 11:09:49
+
+
+          ***********************************************************
+          *                                                         *
+          *             OpenQP: Open Quantum Platform               *
+          *                                                         *
+          *                Version: 1.0 Aug, 2024                   *
+          *                                                         *
+          ***********************************************************
+          *     The most efficient implementation of MRSF-TDDFT.    *
+          ***********************************************************
+          *                                                         *
+          *   OpenQP was initiated by Prof. Cheol Ho Choi in 2012.  *
+          *                                                         *
+          *   It has since been developed by:                       *
+          *   Dr. Vladimir Mironov                                  *
+          *   Dr. Konstantin Komarov                                *
+          *   Mr. Igor Gerasimov                                    *
+          *   Dr. Hiroya Nakata                                     *
+          *   Dr. Mohsen Mazaherifar                                *
+          *   Mr. Alireza Lashkaripour                              *
+          *                                                         *
+          *   In 2024, Prof. Jingbai Li at Hoffmann Institute of    *
+          *   Advanced Materials began developing PyOQP.            *
+          *                                                         *
+          ***********************************************************
+
+                     Job Details:
+                      Start Time: Tue Nov 18 11:09:49 2025    
+                      Host: f1029.nhr.fau.de            
+                      Resources Allocated:
+                        OpenMP Threads:    1
+
+   ==============================================
+   PyOQP: Entering Electronic Energy Calculation
+   ==============================================
+
+   PyOQP natom:                        6
+   PyOQP charge:                       1
+    
+
+                    ++++++++++++++++++++++++++++++++++++++++
+                      MODULE: apply_basis 
+                      Setting up basis set information
+                    ++++++++++++++++++++++++++++++++++++++++
+
+     Basis Sets options
+     ------------------
+     Basis Sets: 6-31g
+     Number of Shells  =      18     Number of Primitives  =      44
+     Number of Basis Set functions  =      26
+     Maximum Angluar Momentum =       1
+
+
+     ====================== Basis Set Details ======================
+
+                 Exponent             Normalized Coefficient
+     C 
+          S
+                3.04752E+03                5.36345E-01
+                4.57370E+02                9.89452E-01
+                1.03949E+02                1.59728E+00
+                2.92102E+01                2.07919E+00
+                9.28666E+00                1.77417E+00
+                3.16393E+00                6.12580E-01
+          S
+                7.86827E+00               -3.99556E-01
+                1.88129E+00               -1.84155E-01
+                5.44249E-01                5.16390E-01
+          P
+                7.86827E+00                1.29608E+00
+                1.88129E+00                9.93754E-01
+                5.44249E-01                4.95953E-01
+          S
+                1.68714E-01                1.87618E-01
+          P
+                1.68714E-01                1.54128E-01
+     N 
+          S
+                4.17351E+03                6.78998E-01
+                6.27458E+02                1.25043E+00
+                1.42902E+02                2.02036E+00
+                4.02343E+01                2.64421E+00
+                1.28202E+01                2.26500E+00
+                4.39044E+00                7.79188E-01
+          S
+                1.16264E+01               -5.15875E-01
+                2.71628E+00               -2.55023E-01
+                7.72218E-01                6.72735E-01
+          P
+                1.16264E+01                2.06805E+00
+                2.71628E+00                1.61001E+00
+                7.72218E-01                7.64490E-01
+          S
+                2.12031E-01                2.22695E-01
+          P
+                2.12031E-01                2.05088E-01
+     H 
+          S
+                1.87311E+01                2.14935E-01
+                2.82539E+00                3.64571E-01
+                6.40122E-01                4.15051E-01
+          S
+                1.61278E-01                1.81381E-01
+     H 
+          S
+                1.87311E+01                2.14935E-01
+                2.82539E+00                3.64571E-01
+                6.40122E-01                4.15051E-01
+          S
+                1.61278E-01                1.81381E-01
+     H 
+          S
+                1.87311E+01                2.14935E-01
+                2.82539E+00                3.64571E-01
+                6.40122E-01                4.15051E-01
+          S
+                1.61278E-01                1.81381E-01
+     H 
+          S
+                1.87311E+01                2.14935E-01
+                2.82539E+00                3.64571E-01
+                6.40122E-01                4.15051E-01
+          S
+                1.61278E-01                1.81381E-01
+
+     ==================== End of Basis Set Data ====================
+
+                    ++++++++++++++++++++++++++++++++++++++++
+                       MODULE: int1e
+                       Computing H, S and T Matrices
+                    ++++++++++++++++++++++++++++++++++++++++
+
+                     ================================
+                     Cartesian Coordinate in Angstrom
+                     ================================
+        ATOM     ZNUC           X              Y              Z
+      --------------------------------------------------------------
+          1      6.0     0.064781060    -0.127690821    -0.142984033
+          2      7.0    -0.023769218     0.076381548     1.462165513
+          3      1.0     0.942358144    -0.192821052    -0.844279123
+          4      1.0     0.583739888     0.518369848     2.043576274
+          5      1.0    -1.092444325    -0.516868772     1.736005290
+          6      1.0    -0.841767086     0.742119796    -0.630524675
+
+ ...... End Of One Electron Integrals ......
+
+
+                    ++++++++++++++++++++++++++++++++++++++++
+                       MODULE: Guess_Huckel
+                       Initial guess using Huckel theory
+                    ++++++++++++++++++++++++++++++++++++++++
+
+ ...... End of initial orbital guess ......
+
+   Step  CPU time (seconds):      0.151   Wall time (seconds):      0.326
+   Total CPU time (seconds):    258.025   Wall time (seconds):    291.585
