@@ -386,7 +386,9 @@ class ShnitselDataset(object):
         return self._raw_dataset.__contains__(a)
 
     def _repr_html_(self) -> Any:
-        return self._raw_dataset._repr_html_()
+        from .dataset_vis import shnitsel_dataset_repr
+
+        return shnitsel_dataset_repr(self)
 
     def __getitem__(self, key):
         return self._raw_dataset[key]
