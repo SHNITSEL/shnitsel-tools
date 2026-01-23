@@ -28,12 +28,16 @@ class MultiSeriesLayered(MultiSeriesDataset):
             assert 'trajectory' in framesets.dims, (
                 "Layered dataset must have `trajectory` dimension"
             )
-            assert 'atrajectory' not in framesets.dims, (
-                "Layered dataset must not have `atrajectory` dimension"
+            assert 'atrajectory' not in framesets.coords, (
+                "Layered dataset must not have `atrajectory` coordinate"
             )
             assert 'time' in framesets.dims or 'frame' in framesets.dims, (
                 "Layered dataset must have `time` or 'frame' dimension"
             )
+            if 'frame' in framesets.coords and 'frame' in framesets.indexes:
+                assert 'trajectory' not in framesets.indexes['frame'].names, (
+                    "Layered dataset must not have `frames` dimension as a multi-index on `trajectory` dimension"
+                )
 
             MultiSeriesDataset.__init__(self, framesets)
             self._is_multi_trajectory = framesets.sizes['trajectory'] > 1
