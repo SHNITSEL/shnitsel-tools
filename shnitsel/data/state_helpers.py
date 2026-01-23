@@ -122,9 +122,9 @@ def default_state_name_assigner(dataset: xr.Dataset) -> xr.Dataset:
         mark_variable_assigned(dataset.state_names)
         # logging.debug(f"Default name set on type basis: {repr(dataset)}")
     else:
-        nsinglets = dataset.attrs["num_singlets"]
-        ndoublets = dataset.attrs["num_doublets"]
-        ntriplets = dataset.attrs["num_triplets"]
+        nsinglets = dataset.attrs.get("num_singlets",-1)
+        ndoublets = dataset.attrs.get("num_doublets",-1)
+        ntriplets = dataset.attrs.get("num_triplets",-1)
 
         if nsinglets >= 0 and ndoublets >= 0 and ntriplets >= 0:
             logging.warning(
