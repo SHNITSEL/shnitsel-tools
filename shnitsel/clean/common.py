@@ -4,6 +4,7 @@ from typing import Literal, Sequence, TypeVar
 import numpy as np
 import xarray as xr
 
+from shnitsel.core.typedefs import DimName
 from shnitsel.data.dataset_containers import wrap_dataset
 from shnitsel.data.dataset_containers.frames import Frames
 from shnitsel.data.dataset_containers.trajectory import Trajectory
@@ -339,7 +340,10 @@ def dispatch_filter(
 
 
 def cum_max_quantiles(
-    filtranda_array: xr.DataArray, quantiles: Sequence[float] | None = None
+    filtranda_array: xr.DataArray,
+    quantiles: Sequence[float] | None = None,
+    cum_dim: DimName = "time",
+    group_dim: DimName = "trajectory",
 ) -> xr.DataArray:
     """Quantiles of cumulative maxima
 
@@ -353,12 +357,16 @@ def cum_max_quantiles(
     quantiles : Sequence[float], optional
         Which quantiles to calculate,
         by default ``[0.25, 0.5, 0.75, 0.9, 0.95, 0.99, 1]``
+    cum_dim : DimName, optional
+        The dimension along which to accumulate the maxima, by default `time`
+    group_dim : DimName, optional
+        The key/dimension along which to calculate the quantiles of the maxima, by default `trajectory`.
 
     Returns
     -------
     xr.DataArray
-        A DataArray with 'quantile' and 'time' dimensions;
-        'frame' or 'trajid' dimensions will have been removed;
+        A DataArray with 'quantile' and 'cum_dim' dimensions;
+        'group_dim' dimension will have been removed to calculate quantiles;
         other dimensions remain unaffected.
 
     See also
@@ -373,10 +381,10 @@ def cum_max_quantiles(
         quantiles = [0.25, 0.5, 0.75, 0.9, 0.95, 0.99, 1]
 
     filtranda_array = filtranda_array.fillna(0)
-    time_axis = filtranda_array.get_axis_num("time")
+    time_axis = filtranda_array.get_axis_num(cum_dim)
 
     cum_max = filtranda_array.copy(
         data=np.maximum.accumulate(filtranda_array.data, axis=time_axis)
     )
     # TODO: FIXME: Rewrite this to allow for accumulation across collection of trajectories, not only stacked.
-    return cum_max.quantile(quantiles, "trajid")
+    return cum_max.quantile(quantiles, group_dim)
