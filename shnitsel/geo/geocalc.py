@@ -1,8 +1,8 @@
 """\
-    This module will contain two types of closely-related functionality:
-    - generic geometry functions
-    - functions that use RDKit to identify internal coordinates, and then the above to calculate the values
-    Currently, the first category of function is found under postprocess
+    This module contains functionality to calculate certain geometric features from positional
+    data found within datasets. 
+    Through the use of structural selection support from the `shnitsel.filtration` module,
+    specifically `StructureSelection`, the set of featueres to calculate can be restricted.
 """
 
 import logging
@@ -35,6 +35,18 @@ from .geocalc_.dihedrals import get_dihedrals
 from .geocalc_.pyramids import get_pyramidalization
 from .geocalc_.bla_chromophor import get_max_chromophor_BLA
 from .alignment import get_centered_geometry, kabsch
+
+__all__ = [
+    "get_bats",
+    "get_positions",
+    "get_distances",
+    "get_angles",
+    "get_dihedrals",
+    "get_pyramidalization",
+    "get_max_chromophor_BLA",
+    "get_centered_geometry",
+    "kabsch",
+]
 
 
 @overload
@@ -107,9 +119,9 @@ def get_bats(
     Examples
     --------
         >>> import shnitsel as st
-        >>> from shnitsel.core import geom
-        >>> frames = st.open_frames('/tmp/A03_filtered.nc')
-        >>> geom.get_bats(frames['atXYZ'])
+        >>> from shnitsel.geo import geocalc
+        >>> data = st.read('/test_data/shnitsel/traj_I02.nc')
+        >>> geocalc.get_bats(data)
     """
 
     if isinstance(atXYZ, TreeNode):
