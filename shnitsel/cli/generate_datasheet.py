@@ -34,7 +34,7 @@ def main():
     )
 
     argument_parser.add_argument(
-        "input_path",
+        "output_path",
         help="The path to place the fully generated datasheet into. Should have a `.pdf` extension or will be extended by `.pdf`",
     )
 
@@ -68,6 +68,16 @@ def main():
         type=str,
         default=None,
         help="Optionally an indication of the kind of input you are trying to read, `shnitsel`, `sharc`, `newtonx`, `pyrai2md`, `ase`. Will be guessed based on directory contents if not provided. If not set, the `read()` operation may fail if ambiguous trajectory formats are found within the folder.",
+    )
+
+
+    argument_parser.add_argument(
+        "--charge",
+        "-ch",
+        required=False,
+        type=int,
+        default=None,
+        help="Optional parameter to specify the charge of your imported molecule if it has not been set in the input. Must be an integer and is in units of electron charges (e)",
     )
 
     # argument_parser.add_argument(
@@ -118,13 +128,15 @@ def main():
     input_group: str | None = args.group_name
     input_compound: str | None = args.compound_name
 
+    charge = args.charge
+
     # input_est_level = args.est_level
     # input_basis_set = args.basis_set
 
     # output_path = args.output_path
     loglevel = args.loglevel
 
-    force_sequential = args.force_sequential
+    # force_sequential = args.force_sequential
     force_write = args.force_write
 
     found_file_at_beginning = False
@@ -172,7 +184,7 @@ def main():
         sub_pattern=input_path_pattern,
         concat_method="db",
         kind=input_kind,
-        parallel=not force_sequential,
+        parallel=True,  # not force_sequential,
     )
 
     if tree is None:
@@ -185,6 +197,8 @@ def main():
         )
         sys.exit(1)
     else:
+        if charge is not None:
+            tree =tree.set_charge(charge)
         if isinstance(tree, TreeNode):
             if not isinstance(tree, ShnitselDB):
                 tree = complete_shnitsel_tree(tree)
