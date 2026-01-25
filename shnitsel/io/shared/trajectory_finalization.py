@@ -97,7 +97,7 @@ def finalize_loaded_trajectory(
                 try:
                     charge_guess = guess_molecular_charge(res_dataset)
                     if charge_guess != 0:
-                        logging.warning(
+                        logging.info(
                             "A charge of %d e was guessed for the loaded trajectory with id %s. "
                             "If this was not correct, please set the charge manually using `.set_charge(<charge>)`",
                             charge_guess,
