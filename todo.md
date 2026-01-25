@@ -3,8 +3,8 @@
 ## Primary TODO:
 
 - I/O:
-  - [ ] Add option to guess the charge with RDKit if not set
-  - [ ] Improve support for writing complex trees to ASE
+  - [x] Add option to guess the charge with RDKit if not set
+  - [ ] Add support for writing complex trees to ASE (currently only stackable trees supported)
 - Tree improvement
   - [ ] Tree function wrappers with tree parameters for non-tree parameters in unwrapped function
   - [ ] Renaming/restructuring support of tree structure
@@ -21,11 +21,11 @@
   - [ ] Add more wrapper types for support function returns
 - StructureSelection
   - [ ] Options in function signatures (provide directly a SMARTs string, deal with trees, etc.)
-  - [ ] Add merge/subtract/intersect operations
+  - [x] Add merge/subtract/intersect operations
   - [ ] Fix non-redundant coordinates
 - StateSelection
   - [ ] Add Support for textual representation of state selection
-  - [ ] Add merge/subtract/intersect operations
+  - [x] Add merge/subtract/intersect operations
 - Visualization support
   - [ ] Add generic `plot()` function to various types
   - [ ] Add option for plots from tree hierarchies
