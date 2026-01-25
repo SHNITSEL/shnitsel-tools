@@ -61,6 +61,14 @@ def main():
     )
 
     argument_parser.add_argument(
+        "-ch",
+        "--charge",
+        default=None,
+        type=int,
+        help="The charge of the molecule/compound/system in units of electron charges (e).",
+    )
+
+    argument_parser.add_argument(
         "--kind",
         "-k",
         required=False,
@@ -115,6 +123,8 @@ def main():
     input_path_pattern = args.pattern
     input_group: str | None = args.group_name
     input_compound = args.compound_name
+
+    input_charge = args.charge
 
     input_est_level = args.est_level
     input_basis_set = args.basis_set
@@ -175,6 +185,10 @@ def main():
     else:
         if not isinstance(tree, ShnitselDB):
             tree = complete_shnitsel_tree(tree)
+
+        if input_charge is not None:
+            # Set trajectory charge if specified
+            tree = tree.set_charge(input_charge)
 
         compound_info = CompoundInfo()
         if input_compound:
