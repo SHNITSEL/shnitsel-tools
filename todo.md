@@ -1,26 +1,61 @@
-# Missing files
+# General TODO:
 
-We are currently suffering from missing input files for tests:
-- TODO: Add tests for conversion
-- TODO: Mask array to only consider relevant data. Would allow us to limit atom, timestep, etc. Should probably be generated at loading time and not really stored.
-- TODO: Make it possible to merge a trajectory into an already multi-trajectory. May be necessary for some users or for us extending datasets in the future.
-- TODO: FIXME: Improve error collection for multi-trajectory parsing.
-- TODO: FIXME: Improve errors and warnings texts
-- Do NewtonX/PyrAI2md have charge information? SHARC 4.0 has charge info. -> Not that we know of. Probably hidden in QM interface. Add annotation tools for users to change charges on trajectories.
-- TODO: Allow setting charge in annotation script? 
-- TODO: FIXME: Do not unwrap a single trajectory being read in a multi-trajectory setup. Behavior is quite unexpected.
-- TODO: Add benchmark for parallelized loading to compare to sequential loading
-- TODO: FIXME: Shape mismatch between DCM in PyRAI2md and default trajectory setup
-- TODO: Support reading SHARC netcdf output files
+## Primary TODO:
 
-- TODO: Add command line tools for annotation and inspection of trajectories/netcdf files
-- TODO: Add tutorial for further CLI tools
-- TODO: Add tox for testing shnitsel with different python versions?
+- I/O:
+  - [ ] Add option to guess the charge with RDKit if not set
+  - [ ] Improve support for writing complex trees to ASE
+- Tree improvement
+  - [ ] Tree function wrappers with tree parameters for non-tree parameters in unwrapped function
+  - [ ] Renaming/restructuring support of tree structure
+  - [ ] Selection functions on the tree (`compound=?`, `group=?`, `<grouping_param>=?`)
+  - [ ] Pattern matching in the `getitem()` method, i.e. `db['/I01/**/data']` `db["/I01/*/{1-20}"]`
+- (De)serialization:
+  - [ ] Implementation of Supports(To/From)XrConversion for various (wrapper) types
+  - [ ] Tutorial on how to add own types
+- Wrapper types:
+  - [ ] Add supported Shnitsel-tools functions as direct methods on wrapper types
+  - [ ] Improve Visualization/helper text
+  - [ ] Add DataArray wrapper
+    - [ ] Add specifically an `AtXYZ`/`Positions` Wrapper type.
+  - [ ] Add more wrapper types for support function returns
+- StructureSelection
+  - [ ] Options in function signatures (provide directly a SMARTs string, deal with trees, etc.)
+  - [ ] Add merge/subtract/intersect operations
+  - [ ] Fix non-redundant coordinates
+- StateSelection
+  - [ ] Add Support for textual representation of state selection
+  - [ ] Add merge/subtract/intersect operations
+- Visualization support
+  - [ ] Add generic `plot()` function to various types
+  - [ ] Add option for plots from tree hierarchies
+- [ ] Add tutorial for further CLI tools
+- Dimension reduction:
+  - [ ] Refactor PLS
+  - [ ] Refactor LDA
+- [ ] Clustering support
+- Datasheet
+  - [ ] Improve documentation
+  - DatasheetPage:
+    - [ ] Improve PCA Page
+    - [ ] Improve default settings for datasheet and pages.
 
-- TODO: Implement structure selection methods in structure selection.
-- TODO: Rework Tree structure to use lightweight tree class and only use DataTree for load/save. Allows for better type hints and more versatile data storage
+## Secondary TODO:
+- [ ] Add tests for conversion
+- [ ] Mask array to only consider relevant data. Would allow us to limit atom, timestep, etc. Should probably be generated at loading time and not really stored.
+- [ ] Make it possible to merge a trajectory into an already multi-trajectory. May be necessary for some users or for us extending datasets in the future.
+- Do NewtonX/PyrAI2md have charge information? SHARC 4.0 has charge info. -> Not that we know of. Probably hidden in QM interface.
 
+- [ ] Add command line tools for annotation and inspection of trajectories/netcdf files
+- [ ] Add tox for testing shnitsel with different python versions
 
+## Tertiary TODO:
+
+- [ ] Profiling of key functions like `get_bats()`
+- [ ] FIXME: Shape mismatch between DCM in PyRAI2md and default trajectory setup
+- [ ] Support reading SHARC netcdf output files
+
+### Profiling notes:
 python -m cProfile ./shnitsel/cli/convert_to_shnitsel.py tutorials/test_data/sharc/iconds_butene/ -o tutorials/test_data/playground/iconds_butene.nc -c butene -est bravo -basis gulasch -log debug > tutorials/test_data/playground/iconds_butene.profile.log
 python -m cProfile ./shnitsel/cli/convert_to_shnitsel.py tutorials/test_data/playground/C02_sc-mCy_C4N2H9/init -o tutorials/test_data/playground/C02_sc-mCy_C4N2H9.nc -c C02 -est bravo -basis gulasch -log debug > tutorials/test_data/playground/C02.profile.log
 python -m cProfile ./shnitsel/cli/convert_to_shnitsel.py tutorials/test_data/playground/C01_sc-Cy_C3N2H7/init -o tutorials/test_data/playground/C01_sc-Cy_C3N2H7.nc -c C01 -est bravo -basis gulasch -log debug > tutorials/test_data/playground/C02.profile.log
