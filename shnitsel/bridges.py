@@ -241,6 +241,7 @@ def construct_default_mol(
     molAtomMapNumber: list[str] | Literal[True] | None = None,
     atomNote: list[str] | Literal[True] | None = None,
     atomLabel: list[str] | Literal[True] | None = None,
+    silent_mode: bool = False,
 ) -> rc.Mol:
     """Try many ways to get a representative Mol object for an ensemble:
 
@@ -272,6 +273,9 @@ def construct_default_mol(
         Behaves like the ``molAtomMapNumber`` parameter above, but for the ``atomNote`` properties
     atomLabel : list[str] | Literal[True], optional
         Behaves like the ``molAtomMapNumber`` parameter above, but for the ``atomLabel`` properties
+    silent_mode: bool, optional
+        Flag to disable logging outputs. Used for internal constructions of molecular structures.
+        By default, status of mol construction is logged (i.e. ``silent_mode=False``).
 
     Returns
     -------
@@ -304,7 +308,8 @@ def construct_default_mol(
         atXYZ = _most_stable_frame(obj.positions, obj)
         if charge is None:
             charge = obj.charge
-            logging.debug(f'{charge=}')
+            if not silent_mode:
+                logging.debug(f'{charge=}')
     else:
         if '__mol' in obj.attrs:
             return rc.Mol(obj.attrs['__mol'])
@@ -321,31 +326,35 @@ def construct_default_mol(
     if charge_int is None and 'state_charges' in obj.coords:
         charge_int = int(obj.state_charges[0].item())
     if charge_int is None:
-        logging.info("Assuming molecular charge as 0")
+        if not silent_mode:
+            logging.info("Assuming molecular charge as 0")
         charge_int = 0
 
     # TODO: FIXME: Make these internal attributes with double underscores so they don't get written out.
     if '__mol' in atXYZ.attrs:
         return rc.Mol(obj.attrs['__mol'])
     elif 'smiles_map' in obj.attrs:
-        logging.debug("default_mol: Using `obj.attrs['smiles_map']`")
+        if not silent_mode:
+            logging.debug("default_mol: Using `obj.attrs['smiles_map']`")
         mol = numbered_smiles_to_mol(obj.attrs['smiles_map'])
     elif 'smiles_map' in atXYZ.attrs:
         return numbered_smiles_to_mol(atXYZ.attrs['smiles_map'])
 
     if 'frame' in atXYZ.dims:
-        logging.info("Picking first frame for molecule construction")
+        if not silent_mode:
+            logging.info("Picking first frame for molecule construction")
         atXYZ = atXYZ.isel(frame=0)
         if 'frame' in atXYZ.dims:
             atXYZ = atXYZ.squeeze('frame')
     if 'time' in atXYZ.dims:
-        logging.info("Picking first time step for molecule construction")
+        if not silent_mode:
+            logging.info("Picking first time step for molecule construction")
         atXYZ = atXYZ.isel(time=0)
         if 'time' in atXYZ.dims:
             atXYZ = atXYZ.squeeze('time')
 
     try:
-        if charge_int != 0:
+        if charge_int != 0 and not silent_mode:
             logging.info(f"Creating molecule with {charge_int=}")
         return set_atom_props(
             to_mol(atXYZ, charge=charge_int, to2D=to2D),
@@ -354,7 +363,8 @@ def construct_default_mol(
             atomLabel=atomLabel,
         )
     except (KeyError, ValueError) as e:
-        logging.error(e)
+        if not silent_mode:
+            logging.error(e)
         raise ValueError(
             "Failed to get default mol, please set a smiles map. "
             "For example, if the compound has charge c and frame i "

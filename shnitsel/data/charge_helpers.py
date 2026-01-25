@@ -40,7 +40,9 @@ def guess_molecular_charge(
     """
 
     try:
-        initial_attempt = construct_default_mol(atXYZ_source, charge=0)
+        initial_attempt = construct_default_mol(
+            atXYZ_source, charge=0, silent_mode=True
+        )
         logging.info(
             "RDKit returned a self-consistent molecular structure for charge=0. Assuming molecule to be uncharged."
         )
@@ -62,7 +64,7 @@ def guess_molecular_charge(
                 charge_guess = sign * abs_val
                 try:
                     charged_attempt = construct_default_mol(
-                        atXYZ_source, charge=charge_guess
+                        atXYZ_source, charge=charge_guess, silent_mode=True
                     )
                     logging.info(
                         "RDKit returned a self-consistent molecular structure for charge = %d. Assuming that molecular charge. Use `.set_charge(<charge>)` to set the charge if the value is not what you expected.",
