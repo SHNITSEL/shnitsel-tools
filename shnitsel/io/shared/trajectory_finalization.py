@@ -2,6 +2,7 @@ import logging
 from typing import Any, TypeVar, overload
 import xarray as xr
 
+from shnitsel.data.charge_helpers import guess_molecular_charge
 from shnitsel.data.dataset_containers.shared import ShnitselDataset
 from shnitsel.data.tree import TreeNode
 
@@ -75,18 +76,64 @@ def finalize_loaded_trajectory(
             rebuild_type = None
             if isinstance(dataset, ShnitselDataset):
                 rebuild_type = type(dataset)
-                dataset = dataset.dataset
-
-            dataset = set_state_defaults(dataset, loading_parameters)
-            # Clean up variables if the variables are not assigned yet.
-            dataset = clean_unassigned_variables(dataset)
-            dataset = convert_all_units_to_shnitsel_defaults(dataset)
-            dataset = normalize_dataset(dataset)
-
-            if rebuild_type:
-                return rebuild_type(dataset)
+                res_dataset = dataset.dataset
             else:
-                return wrap_dataset(dataset)
+                res_dataset = dataset
+
+            res_dataset = set_state_defaults(res_dataset, loading_parameters)
+            # Clean up variables if the variables are not assigned yet.
+            res_dataset = clean_unassigned_variables(res_dataset)
+            res_dataset = convert_all_units_to_shnitsel_defaults(res_dataset)
+            res_dataset = normalize_dataset(res_dataset)
+
+            charge_guess: int | None = None
+
+            # If charge is not set, guess it if we have positional data.
+            if "atXYZ" in dataset and (
+                "charge" not in dataset
+                or isinstance(dataset, ShnitselDataset)
+                and not dataset.has_coordinate("charge")
+            ):
+                try:
+                    charge_guess = guess_molecular_charge(res_dataset)
+                    if charge_guess != 0:
+                        logging.warning(
+                            "A charge of %d e was guessed for the loaded trajectory with id %s. "
+                            "If this was not correct, please set the charge manually using `.set_charge(<charge>)`",
+                            charge_guess,
+                            str(
+                                dataset.trajectory_id
+                                if isinstance(dataset, ShnitselDataset)
+                                else dataset.attrs.get(
+                                    "trajid",
+                                    dataset.attrs.get(
+                                        "trajectory_id", "<unidentified>"
+                                    ),
+                                )
+                            ),
+                        )
+                except (RuntimeError, ValueError) as e:
+                    logging.debug(
+                        "During the guessing of molecular a charge, the following exception was encountered: %s",
+                        e,
+                    )
+                    logging.warning(
+                        "The loaded trajectory did not contain charge information and a self-consistent charge could not be guessed. "
+                    )
+            if rebuild_type:
+                tmp_res = rebuild_type(res_dataset)
+            else:
+                tmp_res = wrap_dataset(res_dataset)
+
+            # Set the charge guess result if we got a result.
+            if charge_guess is not None:
+                if isinstance(tmp_res, ShnitselDataset):
+                    return tmp_res.set_charge(charge_guess)
+                else:
+                    tmp_res.attrs["charge"] = charge_guess
+                    return tmp_res
+            else:
+                return tmp_res
         else:
             return dataset
     return None
