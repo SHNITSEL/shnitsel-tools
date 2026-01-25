@@ -101,6 +101,86 @@ class ShnitselDataset(object):
             raise KeyError("No coordinate `atom_numbers` provided for the trajectory")
         return self.dataset.coords["atom_numbers"]
 
+    @property
+    def charge(self) -> float:
+        """The charge of the molecule if set on the trajectory data.
+        Loaded from `charge` attribute (or variable) or `state_charges` coordinate
+        if provided.
+
+        If no information is found, 0 is returned."""
+        charge = self._param_from_vars_or_attrs('charge')
+        if charge is None:
+            if 'state_charges' in self._raw_dataset:
+                return float(self._raw_dataset['state_charges'][0].item())
+            return 0
+        return float(charge)
+
+    @charge.setter
+    def charge(self, value):
+        """Setter for the charge of a trajectory
+
+        Parameters
+        ----------
+        float : float
+            The charge in units of elementary charges.
+        """
+        # TODO: FIXME: We probably do not want to support setters here!
+        self._raw_dataset.attrs['charge'] = value
+        self._raw_dataset['state_charges'].values[:] = value
+
+    def set_charge(self, value: float | xr.DataArray) -> Self:
+        """Method to set the charge on a dataset, clear conflicting positions
+        of charge info on the dataset and return a new instance of the wrapped dataset.
+
+
+        Parameters
+        ----------
+        value : float | xr.DataArray
+            Either a single value (optionally wrapped in a DataArray already) to indicate
+            the charge of the full molecule in all states (will be set to coordinate `charge`) or a DataArray that represents
+            state-dependent charges (which will be set to `state_charges`)
+
+        Returns
+        -------
+        Self
+            The updated object as a copy.
+
+        Raises
+        ------
+        ValueError
+            If an unsupported `value` was provided.
+        """
+        new_attrs = dict(self._raw_dataset.attrs)
+        if 'charge' in new_attrs:
+            del new_attrs['charge']
+
+        tmp_ds = (
+            self._raw_dataset.drop_attrs(deep=False)
+            .assign_attrs(new_attrs)
+            .drop_vars('charge', errors='ignore')
+        )
+        if isinstance(value, (float, int)):
+            # Create a dummy, zero-dim
+            charge_da = xr.DataArray(
+                float(value),
+                dims=[],
+                attrs={'units': 'e', 'unitdim': 'charge'},
+                name='charge',
+            )
+
+            new_ds = tmp_ds.assign_coords(charge=charge_da)
+        elif isinstance(value, xr.DataArray):
+            if len(value.sizes) == 0:
+                # a scalar variable
+                new_ds = tmp_ds.assign_coords(charge=value)
+            else:
+                # This is a state_charge contender:
+                new_ds = tmp_ds.assign_coords(state_charges=value)
+        else:
+            raise ValueError("Unknown type for charge value: %s" % type(value))
+
+        return type(self)(new_ds)
+
     # TODO: Forward all unmet requests to dataset.
 
     @property
@@ -212,6 +292,7 @@ class ShnitselDataset(object):
 
         """
         from shnitsel.data.dataset_containers import wrap_dataset
+
         # TODO: FIXME: Also select derived, base and cached variables?
         selres = self._raw_dataset.sel(
             indexers=indexers,
