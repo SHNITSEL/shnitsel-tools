@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from itertools import combinations
 import logging
-from typing import Iterator, Literal, Self, Sequence, TypeAlias
+from typing import Collection, Iterator, Literal, Self, Sequence, TypeAlias
 import numpy as np
 import rdkit
 import xarray as xr
@@ -66,6 +66,15 @@ FEATURE_LEVEL_DEFAULT_COLORS: dict[FeatureLevelType, str] = {
     'dihedrals': st_violet,
     'pyramids': st_orange,
 }
+
+SMARTSstring: TypeAlias = str
+
+StructureSelectionDescriptor: TypeAlias = (
+    SMARTSstring
+    | FeatureLevelType
+    | FeatureDescriptor
+    | Collection[SMARTSstring | FeatureLevelType | FeatureDescriptor]
+)
 
 
 @dataclass
@@ -461,6 +470,69 @@ class StructureSelection:
             pyramids_selected=pyramids_selected,
             pyramids_types=pyramids_types,
         )
+
+    def derive_other_from_descriptor(
+        self, descriptor_or_selection: Self | StructureSelectionDescriptor | None
+    ) -> Self | None:
+        """Helper function to create another structure selection based on a `StructureSelectionDescriptor`
+
+        If the descriptor if already a selection, just return it.
+        If the descriptor needs to be applied based on the current selection, construct the other selection
+        and return the resulting selection.
+
+        Parameters
+        ----------
+        descriptor_or_selection : StructureSelection | StructureSelectionDescriptor
+            Either a complete selection or a set of descriptors to derive the new selection from the old one.
+
+        Returns
+        -------
+        Self | None
+            The derived `other` selection or `None` if not enough information was provided.
+        """
+        if descriptor_or_selection is None:
+            return None
+        elif isinstance(descriptor_or_selection, StructureSelection):
+            return descriptor_or_selection
+        else:
+            SMARTS = []
+            feature_levels = []
+            feature_descriptors = []
+
+            description: StructureSelectionDescriptor = descriptor_or_selection
+
+            if isinstance(description, str):
+                if description in FEATURE_LEVELS:
+                    feature_levels.append(description)
+                else:
+                    SMARTS.append(description)
+            elif isinstance(description, tuple) or isinstance(description, int):
+                feature_descriptors.append(description)
+            else:
+                # We have a collection:
+                for entry in description:
+                    if isinstance(entry, str):
+                        if entry in FEATURE_LEVELS:
+                            feature_levels.append(entry)
+                        else:
+                            SMARTS.append(entry)
+                    elif isinstance(entry, tuple) or isinstance(entry, int):
+                        feature_descriptors.append(entry)
+
+            if feature_levels:
+                other_selection = self.select_all(feature_level=feature_levels)
+            else:
+                other_selection = None
+
+            if SMARTS or feature_descriptors:
+                smarts_and_feature_selection = self.select_all().select_bats(
+                    smarts=SMARTS,
+                    idxs=feature_descriptors,
+                )
+                if other_selection is None:
+                    return smarts_and_feature_selection
+                else:
+                    return other_selection + smarts_and_feature_selection
 
     def only(
         self,
@@ -1826,3 +1898,206 @@ class StructureSelection:
             dihedrals_selected=set(new_dihedrals),
             inplace=inplace,
         )
+
+    def __add__(self, other: Self | StructureSelectionDescriptor) -> Self:
+        """Add the selected entries of the other structure selection to a shared selection.
+
+        For consistency reasons, the other `StructureSelection` (which can be provided as a descriptor instead),
+        should be built upon the same base structure/molecule.
+
+        Warning
+        -------
+        Metadata is not copied over, only the selection.
+        The support for arithmetic or boolean operations is only meant as a helper to
+        make combinations of selections easier.
+
+        Parameters
+        ----------
+        other : Self | StructureSelectionDescriptor
+            The selected features to add to this selection, either as another structure selection or
+            as a description of features, SMARTS or FeatureLevels, that can be used in the various
+            `.select_*()` methods on this class.
+
+        Returns
+        -------
+        Self
+            A `StructureSelection` object representing the union of the selections
+        """
+        other_selection: StructureSelection | None
+        if not isinstance(other, StructureSelection):
+            other_selection = self.derive_other_from_descriptor(other)
+        else:
+            other_selection = other
+
+        # TODO: FIXME: Add some checks that the ground information of the two selections is the same
+
+        if other_selection is None:
+            return self.copy_or_update()
+
+        new_atoms_selected = self.atoms_selected.union(other_selection.atoms_selected)
+        new_bonds_selected = self.bonds_selected.union(other_selection.bonds_selected)
+        new_angles_selected = self.angles_selected.union(
+            other_selection.angles_selected
+        )
+        new_dihedrals_selected = self.dihedrals_selected.union(
+            other_selection.dihedrals_selected
+        )
+        new_pyramids_selected = self.pyramids_selected.union(
+            other_selection.pyramids_selected
+        )
+
+        return self.copy_or_update(
+            atoms_selected=new_atoms_selected,
+            bonds_selected=new_bonds_selected,
+            angles_selected=new_angles_selected,
+            dihedrals_selected=new_dihedrals_selected,
+            pyramids_selected=new_pyramids_selected,
+        )
+
+    # a|b is meant as an alias for a+b in the set-theory sense.
+    __or__ = __add__
+
+    def __sub__(self, other: Self | StructureSelectionDescriptor) -> Self:
+        """Remove the selected entries of the other structure selection to create a new selection.
+
+        For consistency reasons, the other `StructureSelection` (which can be provided as a descriptor instead),
+        should be built upon the same base structure/molecule.
+
+        Warning
+        -------
+        Metadata is not copied over, only the selection.
+        The support for arithmetic or boolean operations is only meant as a helper to
+        make combinations of selections easier.
+
+        Parameters
+        ----------
+        other : Self | StructureSelectionDescriptor
+            The selected features to remove from this selection, either as another structure selection or
+            as a description of features, SMARTS or FeatureLevels, that can be used in the various
+            `.select_*()` methods on this class.
+
+        Returns
+        -------
+        Self
+            A `StructureSelection` object representing the difference of the selections (elements in the first but not the second)
+        """
+        other_selection: StructureSelection | None
+        if not isinstance(other, StructureSelection):
+            other_selection = self.derive_other_from_descriptor(other)
+        else:
+            other_selection = other
+
+        # TODO: FIXME: Add some checks that the ground information of the two selections is the same
+
+        if other_selection is None:
+            return self.copy_or_update()
+
+        new_atoms_selected = self.atoms_selected.difference(
+            other_selection.atoms_selected
+        )
+        new_bonds_selected = self.bonds_selected.difference(
+            other_selection.bonds_selected
+        )
+        new_angles_selected = self.angles_selected.difference(
+            other_selection.angles_selected
+        )
+        new_dihedrals_selected = self.dihedrals_selected.difference(
+            other_selection.dihedrals_selected
+        )
+        new_pyramids_selected = self.pyramids_selected.difference(
+            other_selection.pyramids_selected
+        )
+
+        return self.copy_or_update(
+            atoms_selected=new_atoms_selected,
+            bonds_selected=new_bonds_selected,
+            angles_selected=new_angles_selected,
+            dihedrals_selected=new_dihedrals_selected,
+            pyramids_selected=new_pyramids_selected,
+        )
+
+    def __and__(self, other: Self | StructureSelectionDescriptor) -> Self:
+        """Build the intersection of the selected entries of the other structure selection and this selection to create a new selection.
+
+        For consistency reasons, the other `StructureSelection` (which can be provided as a descriptor instead),
+        should be built upon the same base structure/molecule.
+
+        Warning
+        -------
+        Metadata is not copied over, only the selection.
+        The support for arithmetic or boolean operations is only meant as a helper to
+        make combinations of selections easier.
+
+        Parameters
+        ----------
+        other : Self | StructureSelectionDescriptor
+            The selected features to intersect with this selection, either as another structure selection or
+            as a description of features, SMARTS or FeatureLevels, that can be used in the various
+            `.select_*()` methods on this class.
+
+        Returns
+        -------
+        Self
+            A `StructureSelection` object representing the intersection of the selections (elements in the first and the second).
+        """
+        other_selection: StructureSelection | None
+        if not isinstance(other, StructureSelection):
+            other_selection = self.derive_other_from_descriptor(other)
+        else:
+            other_selection = other
+
+        # TODO: FIXME: Add some checks that the ground information of the two selections is the same
+
+        if other_selection is None:
+            return self.copy_or_update()
+
+        new_atoms_selected = self.atoms_selected.intersection(
+            other_selection.atoms_selected
+        )
+        new_bonds_selected = self.bonds_selected.intersection(
+            other_selection.bonds_selected
+        )
+        new_angles_selected = self.angles_selected.intersection(
+            other_selection.angles_selected
+        )
+        new_dihedrals_selected = self.dihedrals_selected.intersection(
+            other_selection.dihedrals_selected
+        )
+        new_pyramids_selected = self.pyramids_selected.intersection(
+            other_selection.pyramids_selected
+        )
+
+        return self.copy_or_update(
+            atoms_selected=new_atoms_selected,
+            bonds_selected=new_bonds_selected,
+            angles_selected=new_angles_selected,
+            dihedrals_selected=new_dihedrals_selected,
+            pyramids_selected=new_pyramids_selected,
+        )
+
+    def __invert__(self) -> Self:
+        """Get an inverted selection of the features within this selection
+
+        Returns
+        -------
+        Self
+            A `StructureSelection` object representing the inverted selection in this object.
+        """
+        new_atoms_selected = self.atoms.difference(self.atoms_selected)
+        new_bonds_selected = self.bonds.difference(self.bonds_selected)
+        new_angles_selected = self.angles.difference(self.angles_selected)
+        new_dihedrals_selected = self.dihedrals.difference(self.dihedrals_selected)
+        new_pyramids_selected = self.pyramids.difference(self.pyramids_selected)
+
+        return self.copy_or_update(
+            atoms_selected=new_atoms_selected,
+            bonds_selected=new_bonds_selected,
+            angles_selected=new_angles_selected,
+            dihedrals_selected=new_dihedrals_selected,
+            pyramids_selected=new_pyramids_selected,
+        )
+
+    union = __add__
+    intersect = __and__
+    difference = __sub__
+    invert = __invert__

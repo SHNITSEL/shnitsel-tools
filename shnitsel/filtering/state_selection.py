@@ -31,6 +31,7 @@ _state_id_pattern = re.compile(r"(?P<state>\d+)")
 class StateSelection:
     """Class to keep track of a (sub-)selection of states and state transitions for analysis and plotting."""
 
+    states_base: Sequence[StateId]
     states: Sequence[StateId]
     ground_state_id: StateId
     state_types: dict[StateId, int] | None
@@ -41,6 +42,7 @@ class StateSelection:
     degeneracy_group_states: dict[int, list[StateId]] | None
     # state_magnetic_nums: dict[StateId, float] | None
 
+    state_combinations_base: list[StateCombination]
     state_combinations: list[StateCombination]
     state_combination_names: dict[StateCombination, str] | None
 
@@ -163,11 +165,13 @@ class StateSelection:
                 degeneracy_group_states = self.degeneracy_group_states
 
             return type(self)(
+                states_base=self.states_base,
                 states=states,
                 ground_state_id=ground_state_id,
                 state_types=state_types,
                 state_names=state_names,
                 state_charges=state_charges,
+                state_combinations_base=self.state_combinations_base,
                 state_combinations=state_combinations,
                 state_combination_names=state_combination_names,
                 state_colors=state_colors,
@@ -286,11 +290,13 @@ class StateSelection:
         # print('Init:', degeneracy_group_states)
         # Create an initial state selection
         return cls(
+            states_base=states,
             states=states,
             ground_state_id=ground_state_id,
             state_types=state_types,
             state_charges=state_charges,
             state_names=state_names,
+            state_combinations_base=state_combinations,
             state_combinations=state_combinations,
             state_combination_names=state_combination_names,
             state_degeneracy_group=state_degeneracy_group,
@@ -351,11 +357,13 @@ class StateSelection:
         ground_state_id = np.min(states_coll)
 
         return cls(
+            states_base=list(states_coll),
             states=list(states_coll),
             ground_state_id=ground_state_id,
             state_types=None,
             state_charges=None,
             state_names=None,
+            state_combinations_base=list(state_combs_coll),
             state_combinations=list(state_combs_coll),
             state_combination_names=None,
             state_degeneracy_group=None,
@@ -1299,3 +1307,154 @@ class StateSelection:
         return state
 
     # TODO: FIXME: Add print output __str__, __html__ and __repr__
+
+    def __add__(self, other: Self | StateSelectionDescriptor) -> Self:
+        """Add the states and state combinations of another state selection into the selection
+        represented by this selection.
+
+        For consistency reasons, the other StateSelection (which can be provided as a descriptor instead),
+        should be built upon the same base state and state combination ground set.
+
+        Parameters
+        ----------
+        other : Self | StateSelectionDescriptor
+            The states and state combinations to add to this selection, either as another state selection or
+            as a description of states and state combinations that can be passed to
+            `StateSelection.init_from_descriptor()`.
+
+        Returns
+        -------
+        Self
+            A `StateSelection` object representing the union of the selections
+        """
+        other_selection: StateSelection
+        if not isinstance(other, StateSelection):
+            other_selection = StateSelection.init_from_descriptor(other)
+        else:
+            other_selection = other
+
+        # TODO: FIXME: Add some checks that the ground information of the two selections is the same
+
+        new_state_selected = list(set(self.states).union(other_selection.states))
+        new_sc_selected = list(
+            set(self.state_combinations).union(other_selection.state_combinations)
+        )
+
+        return self.copy_or_update(
+            states=new_state_selected, state_combinations=new_sc_selected
+        )
+
+    # a|b is meant as an alias for a+b in the set-theory sense.
+    __or__ = __add__
+
+    def __sub__(self, other: Self | StateSelectionDescriptor) -> Self:
+        """Remove the states and state combinations of another state selection from the selection
+        represented by this selection.
+
+        For consistency reasons, the other StateSelection (which can be provided as a descriptor instead),
+        should be built upon the same base state and state combination ground set.
+
+        Parameters
+        ----------
+        other : Self | StateSelectionDescriptor
+            The states and state combinations to remove to this selection, either as another state selection or
+            as a description of states and state combinations that can be passed to
+            `StateSelection.init_from_descriptor()`.
+
+        Returns
+        -------
+        Self
+            A `StateSelection` object representing the difference of the selections
+        """
+        other_selection: StateSelection
+        if not isinstance(other, StateSelection):
+            other_selection = StateSelection.init_from_descriptor(other)
+        else:
+            other_selection = other
+
+        # TODO: FIXME: Add some checks that the ground information of the two selections is the same
+
+        new_state_selected = list(set(self.states).difference(other_selection.states))
+        new_sc_selected = list(
+            set(self.state_combinations).difference(other_selection.state_combinations)
+        )
+
+        return self.copy_or_update(
+            states=new_state_selected, state_combinations=new_sc_selected
+        )
+
+    def __and__(self, other: Self | StateSelectionDescriptor) -> Self:
+        """Get a selection of the states and state combinations shared between
+        this and another state selection.
+
+        For consistency reasons, the other StateSelection (which can be provided
+        as a descriptor instead), should be built upon the same base state and
+        state combination ground set.
+
+        Parameters
+        ----------
+        other : Self | StateSelectionDescriptor
+            The states and state combinations to intersect with this
+            this selection, either as another state selection or
+            as a description of states and state combinations that
+            can be passed to `StateSelection.init_from_descriptor()`.
+
+        Returns
+        -------
+        Self
+            A `StateSelection` object representing the intersection of the selections
+        """
+        other_selection: StateSelection
+        if not isinstance(other, StateSelection):
+            other_selection = StateSelection.init_from_descriptor(other)
+        else:
+            other_selection = other
+
+        # TODO: FIXME: Add some checks that the ground information of the two selections is the same
+
+        new_state_selected = list(set(self.states).intersection(other_selection.states))
+        new_sc_selected = list(
+            set(self.state_combinations).intersection(
+                other_selection.state_combinations
+            )
+        )
+
+        return self.copy_or_update(
+            states=new_state_selected, state_combinations=new_sc_selected
+        )
+
+    def __invert__(self) -> Self:
+        """Get an inverted selection of the states and state combinations in
+        this state selection.
+
+        Warning
+        -------
+
+        The result of this operation will only be as expected, if the selection was
+        built from a full dataset such that `states_base` and `state_combinations_base`
+        have been set correctly.
+        If the selection was built from a textual or tuple representation, the
+        inverted selection will only consider the states listed in the original
+        description.
+
+        Returns
+        -------
+        Self
+            A `StateSelection` object representing the inverted selection in this object
+        """
+
+        # TODO: FIXME: Add some checks that the ground information of the two selections is the same
+
+        new_state_selected = list(set(self.states_base).difference(self.states))
+        new_sc_selected = list(
+            set(self.state_combinations_base).intersection(self.state_combinations)
+        )
+
+        return self.copy_or_update(
+            states=new_state_selected, state_combinations=new_sc_selected
+        )
+
+    union = __add__
+    intersect = __and__
+    difference = __sub__
+    invert = __invert__
