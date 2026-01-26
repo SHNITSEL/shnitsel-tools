@@ -504,6 +504,140 @@ class StateSelection:
 
         return list(res_state), list(res_state_comb), comb_directed
 
+    def as_directed_selection(self) -> Self:
+        """Helper method to turn an undirected selection into a directed selection.
+
+        If the selection is already directed, it will be returned unmodified.
+
+        Returns
+        -------
+        Self
+            Either the already directed selection or a copy with all mirrored transitions also initially included.
+        """
+        if self.is_directed:
+            return self
+        else:
+            new_combs_base = list(self.state_combinations_base) + list(
+                (y, x) for (x, y) in self.state_combinations_base
+            )
+            new_combs = list(self.state_combinations) + list(
+                (y, x) for (x, y) in self.state_combinations
+            )
+            if self.state_combination_names is not None:
+                new_comb_names = dict(self.state_combination_names)
+                new_comb_names.update(
+                    {(y, x): v for (x, y), v in self.state_combination_names.items()}
+                )
+            else:
+                new_comb_names = None
+
+            if self.state_combination_colors is not None:
+                new_comb_colors = dict(self.state_combination_colors)
+                new_comb_colors.update(
+                    {(y, x): v for (x, y), v in self.state_combination_colors.items()}
+                )
+            else:
+                new_comb_colors = None
+
+        res = self.copy_or_update(
+            is_directed=True,
+            state_combinations=new_combs,
+            state_combination_colors=new_comb_colors,
+            state_combination_names=new_comb_names,
+        )
+        res.state_combinations_base = new_combs_base
+        return res
+
+    def as_undirected_selection(self) -> Self:
+        """Helper method to turn a directed selection into an undirected selection.
+
+        If the selection is already undirected, it will be returned unmodified.
+
+        Returns
+        -------
+        Self
+            Either the already undirected selection or a copy with all transitions reduced to those with canonical order.
+        """
+        if not self.is_directed:
+            return self
+        else:
+            new_combs_base = sorted(
+                list(
+                    set(
+                        StateSelection._state_comb_canonicalized(sc, is_directed=False)
+                        for sc in self.state_combinations_base
+                    )
+                )
+            )
+            new_combs = sorted(
+                list(
+                    set(
+                        StateSelection._state_comb_canonicalized(sc, is_directed=False)
+                        for sc in self.state_combinations
+                    )
+                )
+            )
+            # We need to add swapped names and colors if they have been set.
+            if self.state_combination_names is not None:
+                new_comb_names = dict(self.state_combination_names)
+                for sc in new_comb_names:
+                    canonic_sc = StateSelection._state_comb_canonicalized(
+                        sc, is_directed=False
+                    )
+                    if canonic_sc not in new_comb_names:
+                        new_comb_names[canonic_sc] = new_comb_names[sc]
+            else:
+                new_comb_names = None
+
+            if self.state_combination_colors is not None:
+                new_comb_colors = dict(self.state_combination_colors)
+                new_comb_colors.update(
+                    {(y, x): v for (x, y), v in self.state_combination_colors.items()}
+                )
+                new_comb_colors = dict(self.state_combination_colors)
+                for sc in new_comb_colors:
+                    canonic_sc = StateSelection._state_comb_canonicalized(
+                        sc, is_directed=False
+                    )
+                    if canonic_sc not in new_comb_colors:
+                        new_comb_colors[canonic_sc] = new_comb_colors[sc]
+            else:
+                new_comb_colors = None
+
+        res = self.copy_or_update(
+            is_directed=False,
+            state_combinations=new_combs,
+            state_combination_colors=new_comb_colors,
+            state_combination_names=new_comb_names,
+        )
+        res.state_combinations_base = new_combs_base
+        return res
+
+    @staticmethod
+    def _state_comb_canonicalized(
+        comb: StateCombination, is_directed: bool
+    ) -> StateCombination:
+        """Helper to turn transitions into a canonic order if the selection is not directed.
+
+        If the selection is directed, the combination is returned as-is.
+
+        Parameters
+        ----------
+        comb : StateCombination
+            The combination tuple to turn into a canonical order
+        is_directed : bool
+            Flag whether the order should be canonical in a set with this `is_directed` flag
+
+        Returns
+        -------
+        StateCombination
+            The canonicalized combination tuple.
+        """
+        if is_directed:
+            return comb
+        else:
+            return (min(comb[0], comb[1]), max(comb[0], comb[1]))
+
     def select_states(
         self,
         ids: Iterable[StateId] | StateId | None = None,
