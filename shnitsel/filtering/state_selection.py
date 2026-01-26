@@ -70,34 +70,37 @@ class StateSelection:
         Meant as a helper for the `Frozen` logic of the selection, i.e. method calls return a new instance
         instead of updating the existing instance.
 
-        ShnitselDataset
-        ground_state_id : StateId | None, optional
+        Parameters
+        ----------
+        ground_state_id : StateId or None, optional
             Potentially new ground_state id. Defaults to None.
-        states : Sequence[StateId] | None, optional
+        states : Sequence[StateId] or None, optional
             Potentially new state ids. Defaults to None.
-        state_types : dict[StateId, int] | None, optional
+        state_types : dict[StateId, int] or None, optional
             Potentially new state types/multiplicities. Defaults to None.
-        state_names : dict[StateId, str] | None, optional
+        state_names : dict[StateId, str] or None, optional
             Potentially new state names. Defaults to None.
-        state_degeneracy_group : dict[StateId, int] | None, optional
+        state_degeneracy_group : dict[StateId, int] or None, optional
             Optional degeneracy group indices for states. Defaults to None.
-        degeneracy_group_states : dict[int, list[StateId]] | None, optional
+        degeneracy_group_states : dict[int, list[StateId]] or None, optional
             Optional mapping of degeneracy groups to the states they hold. Defaults to None.
-        state_charges : dict[StateId, int] | None, optional
+        state_charges : dict[StateId, int] or None, optional
             Potentially new state charges. Defaults to None.
-        state_combinations : list[StateCombination] | None, optional)
+        state_combinations : list[StateCombination] or None, optional)
             Potentially new state combinations. Defaults to None.
-        state_combination_names : dict[StateCombination, str] | None, optional
+        state_combination_names : dict[StateCombination, str] or None, optional
             Potentially new names for state combinations. Defaults to None.
         inplace : bool, optional
             A flag whether the existing instance should be updated or a new one should be created. Defaults to False, i.e. a new instance is created.
-        state_colors : dict[StateId, str] | None, optional
+        state_colors : dict[StateId, str] or None, optional
             An optional colormap for states. Defaults to None.
-        state_combination_colors : dict[StateCombination, str] | None, optional
+        state_combination_colors : dict[StateCombination, str] or None, optional
             An optional colormap for state combinations. Defaults to None.
 
-        Returns:
-            StateSelection: The selection update with the new members set. Can either be a copy if `inplace=False` or the old instance with updated members otherwise.
+        Returns
+        -------
+        StateSelection
+            The selection update with the new members set. Can either be a copy if `inplace=False` or the old instance with updated members otherwise.
         """
         if inplace:
             # Update and create
@@ -203,20 +206,24 @@ class StateSelection:
         ----------
         cls : type[StateSelection]
             The type of this StateSelection so that we can create instances of it.
-        dataset : xr.Dataset | ShnitselDataset
+        dataset : xr.Dataset or ShnitselDataset
             The dataset to extract the state information out of. Must have a `state` dimension and preferrably coordinates `state`, `state_names`, `state_types`, `state_charges`, and `statecomb` set.
             If `state` is not set as a coordinate, a potential dimension size of `state` is taken and states are enumerates `1` through `1+dataset.sizes['state']`.
             If `statecomb` is not set as a coordinate, all unordered pairs of states will be used as a default value for `state_combinations`.
+
+
+        Returns
+        -------
+        StateSelection
+            A state selection object initially covering all states (and state combinations) present in the dataset.
+
 
         Raises
         ------
         ValueError
             If no `state` information could be extracted from the dataset
 
-        Returns
-        -------
-        StateSelection
-            A state selection object initially covering all states (and state combinations) present in the dataset.
+
         """
         assert 'state' in dataset.sizes, (
             "No state information on the provided dataset. Cannot initialize state selection."
@@ -414,7 +421,7 @@ class StateSelection:
         Returns
         -------
         tuple[list[StateId], list[StateCombination]]
-            First the list of StateIds mentioned in the selection descriptor, then the list of state combinations listed in 
+            First the list of StateIds mentioned in the selection descriptor, then the list of state combinations listed in
             the state combination mentioned in the state selection descriptor
         """
         # TODO: FIXME: move to state_selection
@@ -468,27 +475,26 @@ class StateSelection:
         min_states_in_selection: Literal[0, 1, 2] = 0,
         inplace: bool = False,
     ) -> Self:
-        """
-        Method to get a new state selection only retaining the states satisfying the required inclusion criteria and
+        """Method to get a new state selection only retaining the states satisfying the required inclusion criteria and
         not satisfying the exclusion criteria.
 
         Will return a new StateSelection object with the resulting set of states.
 
         Parameters
         ----------
-        ids : Iterable[StateId] | StateId | None, optional
+        ids : Iterable[StateId] or StateId or None, optional
             Explicit ids of states to retain. Either a single id or an iterable collection of state ids can be provided. Defaults to None.
-        exclude_ids : Iterable[StateId] | StateId | None, optional)
+        exclude_ids : Iterable[StateId] or StateId or None, optional)
             Explicit ids of states to exclude. Either a single id or an iterable collection of state ids can be provided. Defaults to None.
-        charge : Iterable[int] | int | None, optional
+        charge : Iterable[int] or int or None, optional
             Charges of states to retain. Defaults to None.
-        exclude_charge : Iterable[int] | int | None, optional
+        exclude_charge : Iterable[int] or int or None, optional
             Charges of states to exclude. Defaults to None.
-        multiplicity : Iterable[int] | int | None, optional
+        multiplicity : Iterable[int] or int or None, optional
             Multiplicity of states to retain. Defaults to None.
-        exclude_multiplicity : Iterable[int] | int | None, optional
+        exclude_multiplicity : Iterable[int] or int or None, optional
             Multiplicity of states to exclude. Defaults to None.
-        min_states_in_selection : Literal[0, 1, 2], optional
+        min_states_in_selection : {0, 1, 2}, optional
             Optional parameter to determine whether state combinations should be kept if states they include are no longer part of the selection.
             A state combination is retained if at least `min_states_in_selection` of their states are still within the state selection. Defaults to 0, meaning all combinations are kept.
         inplace : bool, optional
@@ -564,7 +570,7 @@ class StateSelection:
 
             Parameters
             ----------
-            multipl : Iterable[int | MultiplicityLabel]
+            multipl : Iterable[int or MultiplicityLabel]
                 List of multiplicities, either ints or string labels
 
             Returns
@@ -643,7 +649,7 @@ class StateSelection:
 
         updated_selection = self.copy_or_update(
             states=new_states, inplace=inplace
-        ).filter_state_combinations(
+        ).select_state_combinations(
             min_states_in_selection=min_states_in_selection, inplace=inplace
         )
 
@@ -661,10 +667,13 @@ class StateSelection:
 
         Parameters
         ----------
-        ids : Iterable[StateCombination] | None, optional
+        ids : Iterable[StateCombination] or None, optional
             Explicit state transitions ids to retain. Defaults to None.
         min_states_in_selection : Literal[0, 1, 2], optional
             Minimum number of states involved in the state combination that still need to be within the state selection to keep this combination. Defaults to 0, meaning no check will be performed.
+        inplace : bool, optional
+            Flag to update the selection in-place. Defaults to False, meaning a modified copy is returned.
+
 
         Returns
         -------
@@ -708,10 +717,16 @@ class StateSelection:
 
         Parameters
         ----------
-        names : Sequence[str] | dict[StateId, str]
+        names : Sequence[str] or dict[StateId, str]
             Either a list of state names aligned with `self.states` ids or a dictionary mapping state ids to names.
         inplace : bool, optional
             Flag to determine whether this function should update the existing selection sequence or return a modified copy. Defaults to True, meaning the existing instance is updated.
+
+
+        Returns
+        -------
+        Self
+            Either the existing selection with updated names or a new instance with modified names.
 
         Raises
         ------
@@ -720,10 +735,6 @@ class StateSelection:
         ValueError
             If a dict is  provided that does not have mapping for all state ids in `self.states`
 
-        Returns
-        -------
-        Self
-            Either the existing selection with updated names or a new instance with modified names.
         """
         new_state_names = None
         if isinstance(names, dict):
@@ -756,10 +767,16 @@ class StateSelection:
 
         Parameters
         ----------
-        types : Sequence[int] | dict[StateId, int]
+        types : Sequence[int] or dict[StateId, int]
             Either a list of state types/multiplicities aligned with `self.states` ids or a dictionary mapping state ids to types.
         inplace : bool, optional
             Flag to determine whether this function should update the existing selection sequence or return a modified copy. Defaults to True, meaning the existing instance is updated.
+
+
+        Returns
+        -------
+        Self
+            Either the existing selection with updated types or a new instance with modified types.
 
         Raises
         ------
@@ -767,11 +784,6 @@ class StateSelection:
             If a Sequence is provided that does not have enough values
         ValueError
             If a dict is  provided that does not have mapping for all state ids in `self.states`
-
-        Returns
-        -------
-        Self
-            Either the existing selection with updated types or a new instance with modified types.
         """
         new_state_types = None
         if isinstance(types, dict):
@@ -804,10 +816,16 @@ class StateSelection:
 
         Parameters
         ----------
-        charges : int| Sequence[int] | dict[StateId, int]
+        charges : int or Sequence[int] or dict[StateId, int]
             Either a single charge for all states or a list of state charges aligned with `self.states` ids or a dictionary mapping state ids to charges.
         inplace : bool, optional
             Flag to determine whether this function should update the existing selection sequence or return a modified copy. Defaults to True, meaning the existing instance is updated.
+
+
+        Returns
+        -------
+        Self
+            Either the existing selection with updated charges or a new instance with modified charges.
 
         Raises
         ------
@@ -816,10 +834,7 @@ class StateSelection:
         ValueError
             If a dict is provided that does not have mapping for all state ids in `self.states`
 
-        Returns
-        -------
-        Self
-            Either the existing selection with updated charges or a new instance with modified charges.
+
         """
         new_state_charges = None
         if isinstance(charges, int):
@@ -852,15 +867,24 @@ class StateSelection:
 
         Will peform some sanity checks first.
 
-        Args:
-            combinations (Sequence[StateCombination]): A list of state combination tuples to set to the selection
-            inplace (bool, optional): Flag to determine whether this function should update the existing selection or return a modified copy. Defaults to True, meaning the existing instance is updated.
+        Parameters
+        ----------
+        combinations : Sequence[StateCombination]
+            A list of state combination tuples to set to the selection
+        inplace : bool, optional
+            Flag to determine whether this function should update the existing selection or return a modified copy. Defaults to True, meaning the existing instance is updated.
 
-        Raises:
-            ValueError: If an entry in the combinations sequence has a non-positive state entry.
 
-        Returns:
-            Self: Either the existing selection with updated combinations or a new instance with modified combinations.
+        Returns
+        -------
+        Self
+            Either the existing selection with updated combinations or a new instance with modified combinations.
+
+        Raises
+        ------
+        ValueError
+            If an entry in the combinations sequence has a non-positive state entry.
+
         """
         new_state_combinations = None
 
@@ -881,16 +905,26 @@ class StateSelection:
 
         Will peform some sanity checks first.
 
-        Args:
-            names (Sequence[str] | dict[StateCombination, str]): Either a list of state combination names aligned with `self.state_combinations` or a dictionary mapping state combination ids to names.
-            inplace (bool, optional): Flag to determine whether this function should update the existing selection or return a modified copy. Defaults to True, meaning the existing instance is updated.
+        Parameters
+        ----------
+        names : Sequence[str] | dict[StateCombination
+            Either a list of state combination names aligned with `self.state_combinations` or a dictionary mapping state combination ids to names.
+        inplace : bool, optional
+            Flag to determine whether this function should update the existing selection or return a modified copy. Defaults to True, meaning the existing instance is updated.
 
-        Raises:
-            ValueError: If a Sequence is provided that does not have enough values
-            ValueError: If a dict is  provided that does not have mapping for all state combination ids in `self.state_combinations`
 
-        Returns:
-            Self: Either the existing selection with updated names or a new instance with modified names.
+        Returns
+        -------
+        Self
+            Either the existing selection with updated names or a new instance with modified names.
+
+        Raises
+        ------
+        ValueError
+            If a Sequence is provided that does not have enough values
+        ValueError
+            If a dict is  provided that does not have mapping for all state combination ids in `self.state_combinations`
+
         """
         new_state_combination_names = None
         if isinstance(names, dict):
@@ -921,33 +955,48 @@ class StateSelection:
     def singlets_only(self, inplace: bool = False) -> Self:
         """Helper function to immediately filter only singlet states. Does not affect state combinations.
 
-        Args:
-            inplace (bool, optional): Flag whether the operation should update the selection in-place. Defaults to False.
+        Parameters
+        ----------
+        inplace : bool, optional
+            Flag whether the operation should update the selection in-place. Defaults to False.
 
-        Returns:
-            StateSelection: the updated selection only containing singlet states.
+        Returns
+        -------
+        StateSelection
+            the updated selection only containing singlet states.
+
         """
         return self.filter_states(multiplicity=1, inplace=inplace)
 
     def triplets_only(self, inplace: bool = False) -> Self:
         """Helper function to immediately filter only triplet states. Does not affect state combinations.
 
-        Args:
-            inplace (bool, optional): Flag whether the operation should update the selection in-place. Defaults to False.
+        Parameters
+        ----------
+        inplace : bool, optional
+            Flag whether the operation should update the selection in-place. Defaults to False.
 
-        Returns:
-            StateSelection: the updated selection only containing triplet states.
+        Returns
+        -------
+        StateSelection
+            the updated selection only containing triplet states.
+
         """
         return self.filter_states(multiplicity=1, inplace=inplace)
 
     def same_multiplicity_transitions(self, inplace: bool = False) -> Self:
         """Helper function to only retain combinations between states of the same multiplicities (e.g. for NACs)
 
-        Args:
-            inplace (bool, optional): Flag whether the operation should update the selection in-place. Defaults to False.
+        Parameters
+        ----------
+        inplace : bool, optional
+            Flag whether the operation should update the selection in-place. Defaults to False.
 
-        Returns:
-            StateSelection: the updated selection only containing transitions between states of same multiplicity (i.e. singlet-singlet, triplet-tiplet).
+        Returns
+        -------
+        StateSelection
+            the updated selection only containing transitions between states of same multiplicity (i.e. singlet-singlet, triplet-tiplet).
+
         """
 
         if not self.state_types:
@@ -968,11 +1017,16 @@ class StateSelection:
     def different_multiplicity_transitions(self, inplace: bool = False) -> Self:
         """Helper function to only retain combinations between states of the different multiplicities (e.g. for SOCs)
 
-        Args:
-            inplace (bool, optional): Flag whether the operation should update the selection in-place. Defaults to False.
+        Parameters
+        ----------
+        inplace : bool, optional
+            Flag whether the operation should update the selection in-place. Defaults to False.
 
-        Returns:
-            StateSelection: the updated selection only containing transitions between states of different multiplicity (i.e. singlet-triplet).
+        Returns
+        -------
+        StateSelection
+            the updated selection only containing transitions between states of different multiplicity (i.e. singlet-triplet).
+
         """
 
         if not self.state_types:
@@ -995,12 +1049,18 @@ class StateSelection:
     ) -> Self:
         """Helper function to only retain combinations between states containing the lowest-level state id.
 
-        Args:
-            ground_state_id (StateId, optional): Id of the state to be considered the ground state. Defaults to the lowest id of the selected states.
-            inplace (bool, optional): Flag whether the operation should update the selection in-place. Defaults to False.
+        Parameters
+        ----------
+        ground_state_id : StateId, optional
+            Id of the state to be considered the ground state. Defaults to the lowest id of the selected states.
+        inplace : bool, optional
+            Flag whether the operation should update the selection in-place. Defaults to False.
 
-        Returns:
-            StateSelection: the updated selection only containing transitions between ground state and other states.
+        Returns
+        -------
+        StateSelection
+            the updated selection only containing transitions between ground state and other states.
+
         """
 
         if ground_state_id is None:
@@ -1020,12 +1080,18 @@ class StateSelection:
     ) -> Self:
         """Helper function to only retain combinations between states not involving the ground state.
 
-        Args:
-            ground_state_id (StateId, optional): Id of the state to be considered the ground state. Defaults to the lowest id of the selected states.
-            inplace (bool, optional): Flag whether the operation should update the selection in-place. Defaults to False.
+        Parameters
+        ----------
+        ground_state_id : StateId, optional
+            Id of the state to be considered the ground state. Defaults to the lowest id of the selected states.
+        inplace : bool, optional
+            Flag whether the operation should update the selection in-place. Defaults to False.
 
-        Returns:
-            StateSelection: the updated selection only containing transitions between non-ground states.
+        Returns
+        -------
+        StateSelection
+            the updated selection only containing transitions between non-ground states.
+
         """
 
         if ground_state_id is None:
@@ -1043,11 +1109,16 @@ class StateSelection:
     def non_degenerate(self, inplace: bool = False) -> Self:
         """Helper function to remove all degenerate states and combinations identical except for degeneracy.
 
-        Args:
-            inplace (bool, optional): Flag whether the operation should update the selection in-place. Defaults to False.
+        Parameters
+        ----------
+        inplace : bool, optional
+            Flag whether the operation should update the selection in-place. Defaults to False.
 
-        Returns:
-            StateSelection: the updated selection only containing non-degenerate states and non-degenerate-equivalent combinations.
+        Returns
+        -------
+        StateSelection
+            the updated selection only containing non-degenerate states and non-degenerate-equivalent combinations.
+
         """
         if self.state_degeneracy_group is None:
             # If we do not have degeneracy data, return self, no change needed.
@@ -1103,8 +1174,12 @@ class StateSelection:
     def state_info(self) -> Iterable[StateInfo]:
         """Get an iterator over the states in this selection.
 
-        Returns:
-            Iterable[StateInfo]: An iterator over the available state info
+
+        Yields
+        -------
+        Iterable[StateInfo]
+            An iterator over the available state info
+
         """
 
         for id in self.states:
@@ -1125,11 +1200,17 @@ class StateSelection:
     def get_state_name_or_default(self, id: StateId) -> str:
         """Helper method to either get registered state name or a default string to identify the state
 
-        Args:
-            id (StateId): Id of the state to get the name for.
+        Parameters
+        ----------
+        id : StateId
+            Id of the state to get the name for.
 
-        Returns:
-            str: Label of the state
+
+        Returns
+        -------
+        str
+            Label of the state
+
         """
         if self.state_names:
             if id in self.state_names:
@@ -1140,11 +1221,17 @@ class StateSelection:
     def get_state_combination_name_or_default(self, comb: StateCombination) -> str:
         """Helper method to either get registered state combination name or a default string to identify the state combination.
 
-        Args:
-            comb (StateCombination): Id of the state combination to get the name for.
+        Parameters
+        ----------
+        comb : StateCombination
+            Id of the state combination to get the name for.
 
-        Returns:
-            str: Label of the state combination
+
+        Returns
+        -------
+        str
+            Label of the state combination
+
         """
         if self.state_combination_names:
             if comb in self.state_combination_names:
@@ -1159,11 +1246,17 @@ class StateSelection:
     def get_state_tex_label(self, id: StateId) -> str:
         """Function to get a nice tex-printable label with super- and subscripts for the denoted state.
 
-        Args:
-            id (StateId): Id of the state to get the label for
+        Parameters
+        ----------
+        id : StateId
+            Id of the state to get the label for
 
-        Returns:
-            str: Tex-label that needs to be enclosed in a math environment to not cause issues.
+
+        Returns
+        -------
+        str
+            Tex-label that needs to be enclosed in a math environment to not cause issues.
+
         """
 
         statename = self.get_state_name_or_default(id)
@@ -1172,11 +1265,16 @@ class StateSelection:
     def get_state_combination_tex_label(self, comb: StateCombination) -> str:
         """Function to get a nice tex-printable label with super- and subscripts for a state combination in this selection
 
-        Args:
-            comb (StateCombination): Combination identifier to get the label for
+        Parameters
+        ----------
+        comb : StateCombination
+            Combination identifier to get the label for
 
-        Returns:
-            str: Tex-label that needs to be enclosed in a math environment to not cause issues.
+        Returns
+        -------
+        str
+            Tex-label that needs to be enclosed in a math environment to not cause issues.
+
         """
         first, second = comb
 
@@ -1189,10 +1287,16 @@ class StateSelection:
     ) -> Iterable[StateCombInfo]:
         """Get an iterator over the state combinations in this selection.
 
-        Args:
-            degeneracy_free (bool, optional): If set to true, combinations with already covered degeneracy-groups will be skipped
-        Returns:
-            Iterable[StateCombInfo]: An iterator over the available state combination info
+        Parameters
+        ----------
+        degeneracy_free: bool, optional
+            If set to true, combinations with already covered degeneracy-groups will be skipped
+
+        Yields
+        -------
+        Iterable[StateCombInfo]
+            An iterator over the available state combination info
+
         """
         degen_covered = []
 
@@ -1210,33 +1314,51 @@ class StateSelection:
     def has_state(self, id: StateId) -> bool:
         """Function to check whether a state is in the selection
 
-        Args:
-            id (StateId): The state id to check whether it has been selected
+        Parameters
+        ----------
+        id : StateId
+            The state id to check whether it has been selected
 
-        Returns:
-            bool: True if in the selection, False otherwise.
+
+        Returns
+        -------
+        bool
+            True if in the selection, False otherwise.
+
         """
         return id in self.states
 
     def has_state_combination(self, comb: StateCombination) -> bool:
         """Function to check whether a state combination is in the selection
 
-        Args:
-            comb (StateCombination): The combination to check whether it has been selected
+        Parameters
+        ----------
+        comb : StateCombination
+            The combination to check whether it has been selected
 
-        Returns:
-            bool: True if in the selection, False otherwise.
+
+        Returns
+        -------
+        bool
+            True if in the selection, False otherwise.
+
         """
         return comb in self.state_combinations
 
     def auto_assign_colors(self, inplace: bool = True) -> Self:
         """Function to automatically generate colors for states and state combinations
 
-        Args:
-            inplace (bool, optional): Flag whether the operation should update the selection in-place. Defaults to True because setting colors is not a big issue.
+        Parameters
+        ----------
+        inplace : bool, optional
+            Flag whether the operation should update the selection in-place. Defaults to True because setting colors is not a big issue.
 
-        Returns:
-            Self: Returns the updated instance.
+
+        Returns
+        -------
+        Self
+            Returns the updated instance.
+
         """
         from shnitsel.vis.colormaps import (
             get_default_state_colormap,
@@ -1304,11 +1426,17 @@ class StateSelection:
     def get_state_color(self, id: StateId) -> str:
         """Function to get a the state color or a default color value
 
-        Args:
-            id (StateId): Id of the state to get the color for
+        Parameters
+        ----------
+        id : StateId
+            Id of the state to get the color for
 
-        Returns:
-            str: Hex-str color code
+
+        Returns
+        -------
+        str
+            Hex-str color code
+
         """
         from shnitsel.vis.colormaps import st_grey
 
@@ -1320,11 +1448,16 @@ class StateSelection:
     def get_state_combination_color(self, comb: StateCombination) -> str:
         """Function to get a the state combination color or a default color value
 
-        Args:
-            comb (StateCombination): Id of the state combination to get the color for
+        Parameters
+        ----------
+        comb : StateCombination
+            Id of the state combination to get the color for
 
-        Returns:
-            str: Hex-str color code
+        Returns
+        -------
+        str
+            Hex-str color code
+
         """
         from shnitsel.vis.colormaps import st_grey
 
@@ -1343,11 +1476,16 @@ class StateSelection:
 
         Helpful for not plotting too degenerate entries.
 
-        Args:
-            comb (StateCombination): Id of the state combination to get the color for
+        Parameters
+        ----------
+        comb : StateCombination
+            Id of the state combination to get the color for
 
-        Returns:
-            tuple[int, int]: Degeneracy groups of either state
+        Returns
+        -------
+        tuple[int, int]
+            Degeneracy groups of either state
+
         """
 
         return self.get_state_degeneracy(comb[0]), self.get_state_degeneracy(comb[1])
@@ -1357,11 +1495,17 @@ class StateSelection:
 
         Helpful for not plotting too degenerate entries.
 
-        Args:
-            comb (StateCombination): Id of the state combination to get the color for
+        Parameters
+        ----------
+        comb : StateCombination
+            Id of the state combination to get the color for
 
-        Returns:
-            str: Hex-str color code
+
+        Returns
+        -------
+        str
+            Hex-str color code
+
         """
 
         if (
