@@ -10,6 +10,7 @@ from shnitsel.filtering.structure_selection import (
     FeatureLevelOptions,
     FeatureTypeLabel,
     StructureSelection,
+    StructureSelectionDescriptor,
 )
 import rdkit.Chem as rc
 import xarray as xr
@@ -17,7 +18,9 @@ from shnitsel.bridges import construct_default_mol
 
 
 def _get_default_selection(
-    structure_selection: StructureSelection | None = None,
+    structure_selection: StructureSelection
+    | StructureSelectionDescriptor
+    | None = None,
     mol: rc.Mol | None = None,
     atXYZ_source: xr.Dataset | xr.DataArray | Trajectory | Frames | None = None,
     charge_info: int | None = None,
@@ -27,8 +30,10 @@ def _get_default_selection(
 
     Parameters
     ----------
-    structure_selection : StructureSelection | None, optional
-        A potential already provided structure/feature selection. Defaults to None. 
+    structure_selection : StructureSelection | StructureSelectionDescriptor | None, optional
+        A potential already provided structure/feature selection.
+        Alternatively a description of the selection to be applied to a dataset as, e.g.,
+        with a SMARTS selection, a selection of indices to consider, etc. Defaults to None.
         If provided, will be returned back.
     mol : rc.Mol | None, optional
         An optional instance of an RDKit molecule. Used to construct a StructureSelection instance if `structure_selection` is None. Defaults to None.
@@ -49,7 +54,28 @@ def _get_default_selection(
     """
 
     if structure_selection is not None:
-        return structure_selection
+        if isinstance(structure_selection, StructureSelection):
+            return structure_selection
+        else:
+            # try and construct structure selection:
+            try:
+                if mol is not None:
+                    sel = StructureSelection.init_from_mol(mol).select_all()
+                else:
+                    sel = StructureSelection.init_from_dataset(
+                        atXYZ_source
+                    ).select_all()
+
+                tmp_res = sel.derive_other_from_descriptor(structure_selection)
+            except:
+                raise
+
+            if tmp_res is None:
+                raise ValueError(
+                    "Could not construct StructureSelection from provided rdkit.Mol or dataset combined and StructureSelection descriptor"
+                )
+
+            return tmp_res
 
     if mol is not None and isinstance(mol, rc.Mol):
         return StructureSelection.init_from_mol(mol, default_selection=default_levels)
