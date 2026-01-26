@@ -27,6 +27,18 @@ MultiplicityLabel: TypeAlias = Literal[
     's', 'S', 'singlet', 'd', 'D', 'doublet', 't', 'T', 'triplet'
 ]
 
+MultiplicityLabelValues: set[MultiplicityLabel] = {
+    's',
+    'S',
+    'singlet',
+    'd',
+    'D',
+    'doublet',
+    't',
+    'T',
+    'triplet',
+}
+
 
 class StateInfo(NamedTuple):
     id: StateId
