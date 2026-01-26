@@ -24,6 +24,8 @@
   - [ ] Add more wrapper types for support function returns
 - StructureSelection
   - [ ] Options in function signatures (provide directly a SMARTs string, deal with trees, etc.)
+    - [x] On-the-go construction added to `geo._get_default_selection()`
+    - [ ] Patch existing functions to express support for descriptors
   - [x] Add merge/subtract/intersect operations
   - [ ] Fix non-redundant coordinates
 - StateSelection
