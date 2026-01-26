@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from itertools import combinations
+from itertools import combinations, permutations
 import logging
 import re
 from typing import Iterable, Self, Sequence, Literal, TypeAlias
@@ -32,6 +32,7 @@ _state_id_pattern = re.compile(r"(?P<state>\d+)")
 class StateSelection:
     """Class to keep track of a (sub-)selection of states and state transitions for analysis and plotting."""
 
+    is_directed: bool
     states_base: Sequence[StateId]
     states: Sequence[StateId]
     ground_state_id: StateId
@@ -52,6 +53,8 @@ class StateSelection:
 
     def copy_or_update(
         self,
+        *,
+        is_directed: bool | None = None,
         ground_state_id: StateId | None = None,
         states: Sequence[StateId] | None = None,
         state_types: dict[StateId, int] | None = None,
@@ -72,6 +75,8 @@ class StateSelection:
 
         Parameters
         ----------
+        is_directed : bool, optional
+            Potentially new flag whether state combinations are considered to be directed (i.e. (1,3) is different from (3,1)) or not. Defaults to None.
         ground_state_id : StateId or None, optional
             Potentially new ground_state id. Defaults to None.
         states : Sequence[StateId] or None, optional
@@ -104,6 +109,8 @@ class StateSelection:
         """
         if inplace:
             # Update and create
+            if is_directed is not None:
+                self.is_directed = is_directed
             if ground_state_id is not None:
                 self.ground_state_id = ground_state_id
             if states is not None:
@@ -144,6 +151,8 @@ class StateSelection:
 
             return self
         else:
+            if is_directed is None:
+                is_directed = self.is_directed
             if ground_state_id is None:
                 ground_state_id = self.ground_state_id
             if states is None:
@@ -181,6 +190,7 @@ class StateSelection:
                 degeneracy_group_states = self.degeneracy_group_states
 
             return type(self)(
+                is_directed=is_directed,
                 states_base=self.states_base,
                 states=states,
                 ground_state_id=ground_state_id,
@@ -198,7 +208,9 @@ class StateSelection:
 
     @classmethod
     def init_from_dataset(
-        cls: type[Self], dataset: xr.Dataset | ShnitselDataset
+        cls: type[Self],
+        dataset: xr.Dataset | ShnitselDataset,
+        is_directed: bool = False,
     ) -> Self:
         """Alternative constructor that creates an initial StateSelection object from a dataset using the entire state information in it.
 
@@ -210,6 +222,8 @@ class StateSelection:
             The dataset to extract the state information out of. Must have a `state` dimension and preferrably coordinates `state`, `state_names`, `state_types`, `state_charges`, and `statecomb` set.
             If `state` is not set as a coordinate, a potential dimension size of `state` is taken and states are enumerates `1` through `1+dataset.sizes['state']`.
             If `statecomb` is not set as a coordinate, all unordered pairs of states will be used as a default value for `state_combinations`.
+        is_directed : bool, default=False
+            Flag whether state combinatons should be assumed different, i.e. (1,3) should be considered different from (3,1).
 
 
         Returns
@@ -280,10 +294,23 @@ class StateSelection:
             )
             state_charges = None
 
-        if 'statecomb' in dataset.coords:
-            state_combinations = list(dataset.coords['statecomb'].values)
+        if not is_directed:
+            if 'statecomb' in dataset.coords:
+                state_combinations = list(dataset.coords['statecomb'].values)
+            else:
+                state_combinations = list(combinations(states, 2))
         else:
-            state_combinations = list(combinations(states, 2))
+            if 'full_statecomb' in dataset.coords:
+                state_combinations = list(dataset.coords['full_statecomb'].values)
+            elif 'statecomb' in dataset.coords:
+                # Gather both directions of pairs initially.
+                state_combinations = list(
+                    set(dataset.coords['statecomb'].values).union(
+                        (y, x) for x, y in dataset.coords['statecomb'].values
+                    )
+                )
+            else:
+                state_combinations = list(permutations(states, 2))
 
         if state_names is not None:
             state_combination_names = {
@@ -317,6 +344,7 @@ class StateSelection:
         # print('Init:', degeneracy_group_states)
         # Create an initial state selection
         return cls(
+            is_directed=is_directed,
             states_base=states,
             states=states,
             ground_state_id=ground_state_id,
@@ -334,6 +362,7 @@ class StateSelection:
     def init_from_descriptor(
         cls: type[Self],
         spec: StateSelectionDescriptor,
+        is_directed: bool | None = None,
     ) -> Self:
         """Build a (rather rudimentary) state selection and
         state combination selection from descriptors with no support for determination of
@@ -355,6 +384,9 @@ class StateSelection:
             selects the same combinations as in the previous example, with ``<>``
             selecting transitions in either direction and ``->`` being
             one-directional.
+        is_directed : bool, optional
+            Flag whether state combinatons should be assumed different, i.e. (1,3) should be considered different from (3,1).
+            If not provided, will be set depending on whether there is a directed transition in the descriptors, i.e. `i -> j`.
 
         Returns
         -------
@@ -364,16 +396,24 @@ class StateSelection:
         states_coll: set[StateId] = set()
         state_combs_coll: set[StateCombination] = set()
 
+        inputs_directed: bool = False
+
         if isinstance(spec, str):
-            states, combs = StateSelection._standard_state_comb_spec(spec)
+            states, combs, has_directed_comb = StateSelection._standard_state_comb_spec(
+                spec
+            )
             states_coll.update(states)
             state_combs_coll.update(combs)
+            inputs_directed |= has_directed_comb
         else:
             for ispec in spec:
                 if isinstance(ispec, str):
-                    states, combs = StateSelection._standard_state_comb_spec(ispec)
+                    states, combs, has_directed_comb = (
+                        StateSelection._standard_state_comb_spec(ispec)
+                    )
                     states_coll.update(states)
                     state_combs_coll.update(combs)
+                    inputs_directed |= has_directed_comb
                 elif isinstance(ispec, tuple):
                     states_coll.update(ispec)
                     if len(ispec) == 2:
@@ -383,7 +423,11 @@ class StateSelection:
 
         ground_state_id = np.min(list(states_coll))
 
+        if is_directed is None:
+            is_directed = inputs_directed
+
         return cls(
+            is_directed=is_directed,
             states_base=list(states_coll),
             states=list(states_coll),
             ground_state_id=ground_state_id,
@@ -400,7 +444,7 @@ class StateSelection:
     @staticmethod
     def _standard_state_comb_spec(
         spec: str,
-    ) -> tuple[list[StateId], list[StateCombination]]:
+    ) -> tuple[list[StateId], list[StateCombination], bool]:
         """Support extracting states and state combinations from strings.
 
         Parameters
@@ -420,9 +464,10 @@ class StateSelection:
 
         Returns
         -------
-        tuple[list[StateId], list[StateCombination]]
+        tuple[list[StateId], list[StateCombination], bool]
             First the list of StateIds mentioned in the selection descriptor, then the list of state combinations listed in
-            the state combination mentioned in the state selection descriptor
+            the state combination mentioned in the state selection descriptor.
+            Finally a flag whether there was at least one directed state combination specifier.
         """
         # TODO: FIXME: move to state_selection
         if not isinstance(spec, str):
@@ -432,6 +477,7 @@ class StateSelection:
 
         res_state: set[StateId] = set()
         res_state_comb: set[StateCombination] = set()
+        comb_directed: bool = False
         for spec in sub_specs:
             found = _state_combs_pattern.match(spec)
             if found:
@@ -443,6 +489,7 @@ class StateSelection:
                 res_state.add(state_to)
                 if rel == "->":
                     res_state_comb.add((state_from, state_to))
+                    comb_directed = True
                 else:
                     res_state_comb.update(
                         [(state_from, state_to), (state_to, state_from)]
@@ -455,7 +502,7 @@ class StateSelection:
                     state = int(state_id)
                     res_state.add(state)
 
-        return list(res_state), list(res_state_comb)
+        return list(res_state), list(res_state_comb), comb_directed
 
     def select_states(
         self,
@@ -966,7 +1013,7 @@ class StateSelection:
             the updated selection only containing singlet states.
 
         """
-        return self.filter_states(multiplicity=1, inplace=inplace)
+        return self.select_states(multiplicity=1, inplace=inplace)
 
     def triplets_only(self, inplace: bool = False) -> Self:
         """Helper function to immediately filter only triplet states. Does not affect state combinations.
@@ -982,7 +1029,7 @@ class StateSelection:
             the updated selection only containing triplet states.
 
         """
-        return self.filter_states(multiplicity=1, inplace=inplace)
+        return self.select_states(multiplicity=3, inplace=inplace)
 
     def same_multiplicity_transitions(self, inplace: bool = False) -> Self:
         """Helper function to only retain combinations between states of the same multiplicities (e.g. for NACs)
