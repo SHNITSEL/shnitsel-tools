@@ -43,3 +43,6 @@ class StateCombInfo(NamedTuple):
 StateTypeSpecifier = (
     Literal['s', 'S', 'd', 'D', 't', 'T', 'singlet', 'doublet', 'triplet'] | int
 )
+
+ErrorOptions = Literal["raise", "ignore"]
+ErrorOptionsWithWarn = Literal["raise", "warn", "ignore"]
