@@ -19,6 +19,7 @@ from shnitsel.data.tree.node import TreeNode
 from shnitsel.filtering.structure_selection import (
     FeatureLevelType,
     StructureSelection,
+    StructureSelectionDescriptor
 )
 from shnitsel.geo.geocalc_.helpers import (
     _empty_descriptor_results,
@@ -52,7 +53,7 @@ __all__ = [
 @overload
 def get_bats(
     atXYZ: Trajectory | Frames | AtXYZ,
-    structure_selection: StructureSelection | None = None,
+    structure_selection: StructureSelection | StructureSelectionDescriptor | None = None,
     default_features: Sequence[FeatureLevelType] = ['bonds', 'angles', 'dihedrals'],
     signed: bool = False,
     deg: bool | Literal['trig'] = True,
