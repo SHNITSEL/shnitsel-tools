@@ -27,6 +27,10 @@ _state_combs_pattern = re.compile(
     r"(?P<state_from>.+)\s*(?P<rel>(->)|(<>))\s*(?P<state_to>.+)"
 )
 _state_id_pattern = re.compile(r"(?P<state>\d+)")
+_state_name_pattern = re.compile(r"(?P<state_name>.+)")
+_state_mult_pattern = re.compile(
+    r"(?P<state_mult>" + "|".join(MultiplicityLabelValues) + ")"
+)
 
 
 @dataclass
@@ -470,7 +474,6 @@ class StateSelection:
             the state combination mentioned in the state selection descriptor.
             Finally a flag whether there was at least one directed state combination specifier.
         """
-        # TODO: FIXME: move to state_selection
         if not isinstance(spec, str):
             return spec
 
@@ -504,6 +507,148 @@ class StateSelection:
                     res_state.add(state)
 
         return list(res_state), list(res_state_comb), comb_directed
+
+    @staticmethod
+    def _abstract_state_comb_spec(
+        spec: str,
+    ) -> tuple[
+        set[StateId],
+        set[StateCombination],
+        set[MultiplicityLabel | str],
+        set[
+            tuple[
+                MultiplicityLabel | str | StateId,
+                MultiplicityLabel | str | StateId,
+            ]
+        ],
+        bool,
+    ]:
+        """Support for abstract state combination description, allowing for inputs like
+        `T->S` to specify transitions from a triplet to a singlet state in addition to the extraction
+        of specific state ids in `._standard_state_comb_spec()`
+
+        Parameters
+        ----------
+        spec : str
+            The spec string with a certain pattern.
+            A state selection (optionally including patterns) holding states or state transitions that should be used
+            in analysis, e.g.:
+            A selection of ``[(1, 2), (2, 1), (3, 1)]`` means
+            to select only transitions between states 1 and 2 as well as from
+            3 to 1 (but not from 1 to 3).
+            Alternatively, combinations may be specified as a single string
+            in the following style: ``'1<>2, 3->1'`` -- this specification
+            selects the same hops as in the previous example, with ``<>``
+            selecting hops in either direction and ``->`` being one-
+            directional.
+            States can also be described using their names (if configured, e.g. `'S0'`)
+            or a label describing their multiplicities (if configured, e.g. `'T'` for all triplet states)
+
+        Returns
+        -------
+        tuple[
+            set[StateId],
+            set[StateCombination],
+            set[MultiplicityLabel | str],
+            set[
+                tuple[
+                    MultiplicityLabel | str | StateId,
+                    MultiplicityLabel | str | StateId,
+                ]
+            ],
+            bool]
+            First the set of explicit `StateIds` mentioned in the selection descriptor,
+            then the set of explicit state combinations listed in
+            the state combination mentioned in the state selection descriptor.
+            Third the set of patterns for states, i.e. the set of multiplicity labels or state names,
+            Fourth the set of patterns for state types, i.e. tuples involving at least one pattern for states.
+            Finally a flag whether there was at least one directed state combination specifier.
+        """
+        if not isinstance(spec, str):
+            return spec
+
+        sub_specs = re.split(r"\s*,\s*", spec)
+
+        res_state: set[StateId] = set()
+        res_state_comb: set[StateCombination] = set()
+        res_state_patterns: set[MultiplicityLabel | str] = set()
+        res_state_comb_patterns: set[
+            tuple[
+                MultiplicityLabel | str | StateId,
+                MultiplicityLabel | str | StateId,
+            ]
+        ] = set()
+
+        comb_directed: bool = False
+        for spec in sub_specs:
+            spec = spec.strip()
+            found = _state_combs_pattern.match(spec)
+            if found:
+                # TODO: FIXME: Deal with S, T, D, S0, and other state names that could be here
+                state_from = found.group("state_from")
+                state_to = found.group("state_to")
+                rel = found.group("rel")
+                comb_is_pattern = False
+
+                from_id = _state_id_pattern.match(state_from)
+                if from_id:
+                    res_from = int(state_from)
+                    res_state.add(res_from)
+                else:
+                    comb_is_pattern = True
+                    from_mult = _state_mult_pattern.match(state_from)
+                    from_name = _state_name_pattern.match(state_from)
+                    if from_mult or from_name:
+                        res_from = state_from
+                    else:
+                        continue
+
+                to_id = _state_id_pattern.match(state_to)
+                if to_id:
+                    res_to = int(state_to)
+                    res_state.add(res_to)
+                else:
+                    comb_is_pattern = True
+                    to_mult = _state_mult_pattern.match(state_to)
+                    to_name = _state_name_pattern.match(state_to)
+                    if to_mult or to_name:
+                        res_to = state_to
+                    else:
+                        continue
+
+                if rel == "->":
+                    if comb_is_pattern:
+                        res_state_comb_patterns.add((res_from, res_to))
+                    else:
+                        res_state_comb.add((res_from, res_to))  # type: ignore
+                    comb_directed = True
+                else:
+                    # Bidirectional matches
+                    if comb_is_pattern:
+                        res_state_comb_patterns.add((res_from, res_to))
+                        res_state_comb_patterns.add((res_to, res_from))
+                    else:
+                        res_state_comb.add((res_to, res_from))  # type: ignore
+                        res_state_comb.add((res_from, res_to))  # type: ignore
+            else:
+                found = _state_id_pattern.match(spec)
+                if found:
+                    state_id = found.group("state")
+                    state = int(state_id)
+                    res_state.add(state)
+                else:
+                    found_mult = _state_mult_pattern.match(spec)
+                    found_name = _state_name_pattern.match(spec)
+                    if found_mult or found_name:
+                        res_state_patterns.add(spec)
+
+        return (
+            res_state,
+            res_state_comb,
+            res_state_patterns,
+            res_state_comb_patterns,
+            comb_directed,
+        )
 
     def as_directed_selection(self) -> Self:
         """Helper method to turn an undirected selection into a directed selection.
@@ -640,7 +785,7 @@ class StateSelection:
             return (min(comb[0], comb[1]), max(comb[0], comb[1]))
 
     def _state_id_matches_pattern(
-        self, state: StateId, pattern: MultiplicityLabel | str
+        self, state: StateId, pattern: MultiplicityLabel | str | StateId
     ) -> bool:
         """Helper function to check whether a state Id matches a certain string pattern provided by a user.
 
@@ -648,7 +793,7 @@ class StateSelection:
         ----------
         state : StateId
             The state id to check for a match
-        pattern : MultiplicityLabel | str
+        pattern : MultiplicityLabel | str | StateId
             The pattern to compare the state to.
             Can be a multiplicity label or a state name.
             If the values for multiplicity labels or state names are not set, this may result in an exception
@@ -664,7 +809,9 @@ class StateSelection:
         RuntimeError
             If matching for multiplicity or name is requested and type information or name data is missin.
         """
-        if pattern in MultiplicityLabelValues:
+        if isinstance(pattern, StateId):
+            return state == pattern
+        elif pattern in MultiplicityLabelValues:
             if self.state_types is None or state not in self.state_types:
                 raise RuntimeError(
                     "State multiplicities are not configured on this state selection. Cannot match for multiplicity labels like {pattern}"
@@ -706,7 +853,9 @@ class StateSelection:
     def _state_combs_matches_pattern(
         self,
         state_comb: StateCombination,
-        pattern: tuple[MultiplicityLabel | str, MultiplicityLabel | str],
+        pattern: tuple[
+            MultiplicityLabel | str | StateId, MultiplicityLabel | str | StateId
+        ],
     ) -> bool:
         """Helper function to check whether a specific state combinations matches a certain string pattern provided by a user.
 
@@ -714,9 +863,9 @@ class StateSelection:
         ----------
         state_comb : StateCombination
             The state combination to check for a match
-        pattern : tuple[MultiplicityLabel | str, MultiplicityLabel | str]
+        pattern : tuple[MultiplicityLabel | str | StateId, MultiplicityLabel | str | StateId]
             The pattern to compare the state to.
-            Each entry can be a multiplicity label or a state name.
+            Each entry can be a multiplicity label or a state name and of of both entries can be an explicit state id..
             If the values for multiplicity labels or state names are not set, this may result in an error.
 
         Returns
@@ -731,7 +880,9 @@ class StateSelection:
     def _state_combs_match_pattern(
         self,
         base_selection: Iterable[StateCombination],
-        pattern: tuple[MultiplicityLabel | str, MultiplicityLabel | str],
+        pattern: tuple[
+            MultiplicityLabel | str | StateId, MultiplicityLabel | str | StateId
+        ],
     ) -> set[StateCombination]:
         """Helper function to check which state combinations out of a collection matches a certain string pattern provided by a user.
 
@@ -755,7 +906,10 @@ class StateSelection:
 
     def select_states(
         self,
-        ids: Iterable[StateId] | StateId | None = None,
+        selectors: Iterable[StateId | StateSelectionDescriptor]
+        | StateId
+        | StateSelectionDescriptor
+        | None = None,
         *,
         exclude_ids: Iterable[StateId] | StateId | None = None,
         charge: Iterable[int] | int | None = None,
@@ -778,7 +932,7 @@ class StateSelection:
 
         Parameters
         ----------
-        ids : Iterable[StateId] or StateId or None, optional
+        selectors : Iterable[StateId or StateSelectionDescriptor] or StateId or StateSelectionDescriptor or None, optional
             Explicit ids of states to retain. Either a single id or an iterable collection of state ids can be provided. Defaults to None.
         exclude_ids : Iterable[StateId] or StateId or None, optional)
             Explicit ids of states to exclude. Either a single id or an iterable collection of state ids can be provided. Defaults to None.
@@ -801,16 +955,48 @@ class StateSelection:
         StateSelection
             The resulting selection after applying all of the requested conditions.
         """
-        new_states = list(self.states)
-        if ids:
-            if isinstance(ids, StateId):
-                ids = [ids]
-            next_states = []
-            for old_state in new_states:
-                if old_state in ids:
-                    next_states.append(old_state)
+        new_states = set(self.states)
 
-            new_states = next_states
+        if selectors:
+            selector_state_ids: set[StateId] = set()
+            # selector_state_combs: set[StateCombination] = set()
+
+            if isinstance(selectors, StateId):
+                selector_state_ids.add(selectors)
+            # elif (
+            #     isinstance(selectors, tuple)
+            #     and len(selectors) == 2
+            #     and isinstance(selectors[0], StateId)
+            #     and isinstance(selectors[1], StateId)
+            # ):
+            #     selector_state_combs.add(selectors)
+            else:
+                if isinstance(selectors, str):
+                    selectors = [selectors]
+
+                for sel in selectors:
+                    if isinstance(sel, StateId):
+                        selector_state_ids.add(sel)
+                    elif isinstance(sel, str):
+                        (
+                            expl_state,
+                            expl_comb,
+                            pattern_state,
+                            pattern_combs,
+                            is_directed,
+                        ) = self._abstract_state_comb_spec(sel)
+
+                        selector_state_ids.update(expl_state)
+
+                        for pattern in pattern_state:
+                            selector_state_ids.update(
+                                self._state_ids_match_pattern(new_states, pattern)
+                            )
+                    else:
+                        # Skip combination descriptors
+                        pass
+
+            new_states = selector_state_ids
 
         if exclude_ids:
             if isinstance(exclude_ids, StateId):
@@ -907,7 +1093,7 @@ class StateSelection:
                 )
 
         updated_selection = self.copy_or_update(
-            states=new_states, inplace=inplace
+            states=list(new_states), inplace=inplace
         ).select_state_combinations(
             min_states_in_selection=min_states_in_selection, inplace=inplace
         )
@@ -963,7 +1149,7 @@ class StateSelection:
 
     def select_state_combinations(
         self,
-        descriptor: StateSelectionDescriptor | None = None,
+        selectors: StateSelectionDescriptor | None = None,
         *,
         ids: Iterable[StateCombination] | None = None,
         min_states_in_selection: Literal[0, 1, 2] = 0,
@@ -973,7 +1159,7 @@ class StateSelection:
 
         Parameters
         ----------
-        descriptor : StateSelectionDescriptor, optional
+        selectors : StateSelectionDescriptor or Iterable[StateSelectionDescriptor], optional
             A textual or tuple-based description of the
         ids : Iterable[StateCombination] or None, optional
             Explicit state transitions ids to retain. Defaults to None.
@@ -988,18 +1174,73 @@ class StateSelection:
         StateSelection
             A new state selection with potentially fewer state combinations considered.
         """
+        new_state_combinations = set(self.state_combinations)
 
-        new_state_combinations = self.state_combinations
+        if selectors:
+            # selector_state_ids: set[StateId] = set()
+            selector_state_combs: set[StateCombination] = set()
 
-        # Standardize selection tuple order
-        if ids is not None:
-            ids = list(self._state_comb_canonicalized(x, self.is_directed) for x in ids)
+            if isinstance(selectors, StateId):
+                pass
+                # selector_state_combs.add(selectors)
+
+            elif (
+                isinstance(selectors, tuple)
+                and len(selectors) == 2
+                and isinstance(selectors[0], StateId)
+                and isinstance(selectors[1], StateId)
+            ):
+                selector_state_combs.add(selectors)  # type: ignore
+            else:
+                if isinstance(selectors, str):
+                    selectors = [selectors]
+
+                for sel in selectors:
+                    if isinstance(selectors, StateId):
+                        continue
+                        # selector_state_combs.add(selectors)
+
+                    elif (
+                        isinstance(selectors, tuple)
+                        and len(selectors) == 2
+                        and isinstance(selectors[0], StateId)
+                        and isinstance(selectors[1], StateId)
+                    ):
+                        selector_state_combs.add(selectors)  # type: ignore
+                    elif isinstance(sel, str):
+                        (
+                            expl_state,
+                            expl_comb,
+                            pattern_state,
+                            pattern_combs,
+                            is_directed,
+                        ) = self._abstract_state_comb_spec(sel)
+
+                        selector_state_combs.update(expl_comb)
+
+                        for pattern in pattern_combs:
+                            selector_state_combs.update(
+                                self._state_combs_match_pattern(
+                                    new_state_combinations, pattern
+                                )
+                            )
+                    else:
+                        # Skip combination descriptors
+                        pass
+
+            new_state_combinations = set(
+                self._state_comb_canonicalized(x, self.is_directed)
+                for x in selector_state_combs
+            )
 
         if ids:
-            # Filter explicit states
-            id_state_combinations = [
-                comb for comb in new_state_combinations if comb in ids
-            ]
+            # Standardize selection tuple order
+            ids = list(self._state_comb_canonicalized(x, self.is_directed) for x in ids)
+            # # Filter explicit states
+            # id_state_combinations = [
+            #     comb for comb in new_state_combinations if comb in ids
+            # ]
+            new_state_combinations.update(ids)
 
         if min_states_in_selection > 0:
             # Check that there are sufficiently many states of the combination still in teh selection
@@ -1013,11 +1254,11 @@ class StateSelection:
 
             new_state_combinations = retained_combs
 
-        if descriptor is None and ids is None and min_states_in_selection == 0:
+        if selectors is None and ids is None and min_states_in_selection == 0:
             new_state_combinations = list(self.state_combinations_base)
 
         return self.copy_or_update(
-            state_combinations=new_state_combinations, inplace=inplace
+            state_combinations=list(new_state_combinations), inplace=inplace
         )
 
     def set_state_names(
