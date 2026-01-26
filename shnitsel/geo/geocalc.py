@@ -192,9 +192,14 @@ def get_bats(
             )
 
         if len(feature_data) > 0:
-            return xr.concat(feature_data, dim='descriptor')
+            tmp_res = xr.concat(feature_data, dim='descriptor', combine_attrs='drop_conflicts')
         else:
             logging.warning(
                 "No feature data could be calculated. Did you provide an empty selection?"
             )
-            return _empty_descriptor_results(position_data)
+            tmp_res = _empty_descriptor_results(position_data)
+
+        tmp_res.name = "BATs(+P)"
+        tmp_res.attrs["long_name"] = "Bonds, angles, tortions, and pyramidalizations"
+
+        return tmp_res
