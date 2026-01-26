@@ -9,6 +9,9 @@
   - [ ] Tree function wrappers with tree parameters for non-tree parameters in unwrapped function
   - [ ] Renaming/restructuring support of tree structure
   - [ ] Selection functions on the tree (`compound=?`, `group=?`, `<grouping_param>=?`)
+    - [x] Added stubs for `.sel()` and `.isel()`
+    - [ ] Add implementation capturing appropriate dimensions/indexes.
+    - [ ] Propagate remaining indexers to data entries.
   - [ ] Pattern matching in the `getitem()` method, i.e. `db['/I01/**/data']` `db["/I01/*/{1-20}"]`
 - (De)serialization:
   - [ ] Implementation of Supports(To/From)XrConversion for various (wrapper) types
@@ -34,6 +37,7 @@
   - [ ] Refactor PLS
   - [ ] Refactor LDA
 - [ ] Clustering support
+  - [ ] DBSCAN sounds like a good option to support
 - Datasheet
   - [ ] Improve documentation
   - DatasheetPage:
