@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from itertools import combinations, permutations
 import logging
 import re
-from typing import Iterable, Self, Sequence, Literal, TypeAlias
+from typing import Iterable, Self, Sequence, Literal, TypeAlias, overload
 
 import numpy as np
 import xarray as xr
@@ -16,6 +16,7 @@ from ..core.typedefs import (
     StateInfo,
     StateCombInfo,
     MultiplicityLabel,
+    MultiplicityLabelValues,
 )
 
 StateSelectionDescriptor: TypeAlias = (
@@ -638,6 +639,120 @@ class StateSelection:
         else:
             return (min(comb[0], comb[1]), max(comb[0], comb[1]))
 
+    def _state_id_matches_pattern(
+        self, state: StateId, pattern: MultiplicityLabel | str
+    ) -> bool:
+        """Helper function to check whether a state Id matches a certain string pattern provided by a user.
+
+        Parameters
+        ----------
+        state : StateId
+            The state id to check for a match
+        pattern : MultiplicityLabel | str
+            The pattern to compare the state to.
+            Can be a multiplicity label or a state name.
+            If the values for multiplicity labels or state names are not set, this may result in an exception
+            being raised
+
+        Returns
+        -------
+        bool
+            Whether the state matches the pattern
+
+        Raises
+        ------
+        RuntimeError
+            If matching for multiplicity or name is requested and type information or name data is missin.
+        """
+        if pattern in MultiplicityLabelValues:
+            if self.state_types is None or state not in self.state_types:
+                raise RuntimeError(
+                    "State multiplicities are not configured on this state selection. Cannot match for multiplicity labels like {pattern}"
+                )
+
+            state_mult = self.state_types[state]
+            return state_mult == self._mult_label_transl(pattern)
+        else:
+            if self.state_names is None or state not in self.state_names:
+                logging.warning(
+                    "Matching against a state name without state names being set. Using default state names."
+                )
+
+            return self.get_state_name_or_default(state) == pattern
+
+    def _state_ids_match_pattern(
+        self, base_selection: Iterable[StateId], pattern: MultiplicityLabel | str
+    ) -> set[StateId]:
+        """Helper function to check which states out of a collection matches a certain string pattern provided by a user.
+
+        Parameters
+        ----------
+        base_selection : Iterable[StateId]s
+            The state id to check for a match
+        pattern : MultiplicityLabel | str
+            The pattern to compare the state to.
+            Can be a multiplicity label or a state name.
+            If the values for multiplicity labels or state names are not set, this may result in an error.
+
+        Returns
+        -------
+        set[StateId]
+            The set of state ids from the selection that adhere to the pattern.
+        """
+        return set(
+            x for x in base_selection if self._state_id_matches_pattern(x, pattern)
+        )
+
+    def _state_combs_matches_pattern(
+        self,
+        state_comb: StateCombination,
+        pattern: tuple[MultiplicityLabel | str, MultiplicityLabel | str],
+    ) -> bool:
+        """Helper function to check whether a specific state combinations matches a certain string pattern provided by a user.
+
+        Parameters
+        ----------
+        state_comb : StateCombination
+            The state combination to check for a match
+        pattern : tuple[MultiplicityLabel | str, MultiplicityLabel | str]
+            The pattern to compare the state to.
+            Each entry can be a multiplicity label or a state name.
+            If the values for multiplicity labels or state names are not set, this may result in an error.
+
+        Returns
+        -------
+        boole
+            Boolean flag whether the state combinations matches the pattern
+        """
+        return self._state_id_matches_pattern(
+            state_comb[0], pattern[0]
+        ) and self._state_id_matches_pattern(state_comb[1], pattern[1])
+
+    def _state_combs_match_pattern(
+        self,
+        base_selection: Iterable[StateCombination],
+        pattern: tuple[MultiplicityLabel | str, MultiplicityLabel | str],
+    ) -> set[StateCombination]:
+        """Helper function to check which state combinations out of a collection matches a certain string pattern provided by a user.
+
+        Parameters
+        ----------
+        base_selection : Iterable[StateCombination]
+            The state combinations to check for a match
+        pattern : tuple[MultiplicityLabel | str, MultiplicityLabel | str]
+            The pattern to compare the state to.
+            Each entry can be a multiplicity label or a state name.
+            If the values for multiplicity labels or state names are not set, this may result in an error.
+
+        Returns
+        -------
+        set[StateCombination]
+            The set of state combination identifiers from the selection that adhere to the pattern.
+        """
+        return set(
+            x for x in base_selection if self._state_combs_matches_pattern(x, pattern)
+        )
+
     def select_states(
         self,
         ids: Iterable[StateId] | StateId | None = None,
@@ -746,48 +861,11 @@ class StateSelection:
                     "Requested filtering by charges but state charges are unknown. Please set the charges first."
                 )
 
-        def mult_label_transl(multipl: Iterable[int | MultiplicityLabel]) -> set[int]:
-            """Function to translate potential string-based multiplicities to integers
-
-            Parameters
-            ----------
-            multipl : Iterable[int or MultiplicityLabel]
-                List of multiplicities, either ints or string labels
-
-            Returns
-            -------
-            set[int]
-                A set representation of the numeric multiplicities
-            """
-            mult_translate = []
-            for mult in multipl:
-                if isinstance(mult, int):
-                    mult_translate.append(mult)
-                elif isinstance(mult, str):
-                    lower_label = mult.lower()
-                    if lower_label.startswith("s"):
-                        mult_translate.append(1)
-                    elif lower_label.startswith("d"):
-                        mult_translate.append(2)
-                    elif lower_label.startswith("t"):
-                        mult_translate.append(3)
-                    else:
-                        raise ValueError(
-                            f"Label `{mult}` is not a valid multiplicity label."
-                        )
-                else:
-                    raise ValueError(
-                        f"Invalid state type {mult} of object type {type(mult)}."
-                    )
-
-            res = set(mult_translate)
-            return res
-
         if multiplicity:
             if isinstance(multiplicity, int) or isinstance(multiplicity, str):
                 multiplicity = [multiplicity]
 
-            trans_mult = mult_label_transl(multiplicity)
+            trans_mult = self._mult_label_transl(multiplicity)
             if self.state_types:
                 next_states = []
 
@@ -810,7 +888,7 @@ class StateSelection:
             ):
                 exclude_multiplicity = [exclude_multiplicity]
 
-            trans_mult_excl = mult_label_transl(exclude_multiplicity)
+            trans_mult_excl = self._mult_label_transl(exclude_multiplicity)
 
             if self.state_types:
                 next_states = []
@@ -836,9 +914,56 @@ class StateSelection:
 
         return updated_selection
 
+    @overload
+    @staticmethod
+    def _mult_label_transl(
+        multipl: Iterable[int | MultiplicityLabel],
+    ) -> set[int]: ...
+
+    @overload
+    @staticmethod
+    def _mult_label_transl(
+        multipl: int | MultiplicityLabel,
+    ) -> int: ...
+
+    @staticmethod
+    def _mult_label_transl(
+        multipl: int | MultiplicityLabel | Iterable[int | MultiplicityLabel],
+    ) -> int | set[int]:
+        """Function to translate potential string-based multiplicities to integers
+
+        Parameters
+        ----------
+        multipl : int or MultiplicityLabel or Iterable[int or MultiplicityLabel]
+            List of multiplicities, either ints or string labels
+
+        Returns
+        -------
+        int or set[int]
+            A set representation of the numeric multiplicities or the single translated value
+        """
+        if isinstance(multipl, int):
+            return multipl
+        elif multipl in MultiplicityLabelValues:
+            assert isinstance(multipl, str)
+
+            lower_label = multipl.lower()
+            if lower_label.startswith("s"):
+                return 1
+            elif lower_label.startswith("d"):
+                return 2
+            elif lower_label.startswith("t"):
+                return 3
+            else:
+                raise ValueError(
+                    f"Label `{multipl}` is not a valid multiplicity label."
+                )
+        else:
+            return set(StateSelection._mult_label_transl(x) for x in multipl)  # type: ignore # If the input is appropriate, this should yield appropriate results.
+
     def select_state_combinations(
         self,
-        descriptor=StateSelectionDescriptor,
+        descriptor: StateSelectionDescriptor | None = None,
         *,
         ids: Iterable[StateCombination] | None = None,
         min_states_in_selection: Literal[0, 1, 2] = 0,
@@ -848,6 +973,8 @@ class StateSelection:
 
         Parameters
         ----------
+        descriptor : StateSelectionDescriptor, optional
+            A textual or tuple-based description of the
         ids : Iterable[StateCombination] or None, optional
             Explicit state transitions ids to retain. Defaults to None.
         min_states_in_selection : Literal[0, 1, 2], optional
@@ -864,14 +991,15 @@ class StateSelection:
 
         new_state_combinations = self.state_combinations
 
+        # Standardize selection tuple order
+        if ids is not None:
+            ids = list(self._state_comb_canonicalized(x, self.is_directed) for x in ids)
+
         if ids:
             # Filter explicit states
-            next_state_combinations = []
-            for old_comb in new_state_combinations:
-                if old_comb in ids:
-                    next_state_combinations.append(old_comb)
-
-            new_state_combinations = next_state_combinations
+            id_state_combinations = [
+                comb for comb in new_state_combinations if comb in ids
+            ]
 
         if min_states_in_selection > 0:
             # Check that there are sufficiently many states of the combination still in teh selection
@@ -884,6 +1012,9 @@ class StateSelection:
                     retained_combs.append(comb)
 
             new_state_combinations = retained_combs
+
+        if descriptor is None and ids is None and min_states_in_selection == 0:
+            new_state_combinations = list(self.state_combinations_base)
 
         return self.copy_or_update(
             state_combinations=new_state_combinations, inplace=inplace
