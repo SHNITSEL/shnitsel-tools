@@ -1731,7 +1731,7 @@ class StructureSelection:
         # Avoid mutating input
         mol = Mol(mol)
         # molAtomMapNumber would interfere with the canonicalization, so use custom property
-        set_atom_props(mol, original_index=True)
+        set_atom_props(mol, original_index=True, inplace=True)
 
         if include_h:
             _ = Chem.MolToSmiles(mol)
