@@ -10,6 +10,7 @@ from rdkit.Chem.rdchem import Mol
 from rdkit import Chem
 
 from shnitsel.bridges import construct_default_mol, to_mol
+from shnitsel.data.dataset_containers.shared import ShnitselDataset
 from shnitsel.rd import set_atom_props
 from shnitsel.vis.colormaps import (
     hex2rgb,
@@ -132,28 +133,48 @@ class StructureSelection:
         Meant as a helper for the `Frozen` logic of the selection, i.e. method calls return a new instance
         instead of updating the existing instance.
 
+        Parameters
+        ----------
+        mol : Mol | None, optional
+            The new RDKit Mol object to assign to this selection. Should usually not be updated, but can be for completeness. Defaults to None.
+        atoms : set[AtomDescriptor] | None, optional
+            New indices of atoms. Defaults to None.
+        atoms_selected : set[AtomDescriptor] | None, optional
+            New indices of selected atoms. Defaults to None.
+        atoms_types : dict[AtomDescriptor, optional
+            New metadata dict for atom indices. Defaults to None.
+        bonds : set[BondDescriptor] | None, optional
+            Bond indices set. Defaults to None.
+        bonds_selected : set[BondDescriptor] | None, optional
+            Set of bond indices that have been selected. Defaults to None.
+        bonds_types : dict[BondDescriptor, optional
+            Dict with metadata for the bonds. Defaults to None.
+        angles : set[AngleDescriptor] | None, optional
+            Set of all indices of angles. Defaults to None.
+        angles_selected : set[AngleDescriptor] | None, optional
+            Set of selected indices of angles. Defaults to None.
+        angles_types : dict[AngleDescriptor, optional
+            Dict with metadata about the angles. Defaults to None.
+        dihedrals : set[DihedralDescriptor] | None, optional
+            Set of all indices of dihedrals in the structure. Defaults to None.
+        dihedrals_selected : set[DihedralDescriptor] | None, optional
+            Set of selected indices of dihedrals. Defaults to None.
+        dihedrals_types : dict[DihedralDescriptor, optional
+            Dict with metadata about dihedrals. Defaults to None.
+        pyramids : set[PyramidsDescriptor] | None, optional
+            Set of all indices of pyramids in the structure. Defaults to None.
+        pyramids_selected : set[PyramidsDescriptor] | None, optional
+            Set of selected indices of pyramids. Defaults to None.
+        pyramids_types : dict[PyramidsDescriptor, optional
+            Dict with metadata about pyramids. Defaults to None.
+        inplace : bool, optional
+            Flag to allow for in-place updates instead of returning a new cop. Defaults to False.
 
-        Args:
-            mol (Mol | None, optional): The new RDKit Mol object to assign to this selection. Should usually not be updated, but can be for completeness. Defaults to None.
-            atoms (set[AtomDescriptor] | None, optional): New indices of atoms. Defaults to None.
-            atoms_selected (set[AtomDescriptor] | None, optional): New indices of selected atoms. Defaults to None.
-            atoms_types (dict[AtomDescriptor, str] | None, optional): New metadata dict for atom indices. Defaults to None.
-            bonds (set[BondDescriptor] | None, optional): Bond indices set. Defaults to None.
-            bonds_selected (set[BondDescriptor] | None, optional): Set of bond indices that have been selected. Defaults to None.
-            bonds_types (dict[BondDescriptor, float] | None, optional): Dict with metadata for the bonds. Defaults to None.
-            angles (set[AngleDescriptor] | None, optional): Set of all indices of angles. Defaults to None.
-            angles_selected (set[AngleDescriptor] | None, optional): Set of selected indices of angles. Defaults to None.
-            angles_types (dict[AngleDescriptor, bool] | None, optional): Dict with metadata about the angles. Defaults to None.
-            dihedrals (set[DihedralDescriptor] | None, optional): Set of all indices of dihedrals in the structure. Defaults to None.
-            dihedrals_selected (set[DihedralDescriptor] | None, optional): Set of selected indices of dihedrals. Defaults to None.
-            dihedrals_types (dict[DihedralDescriptor, bool] | None, optional): Dict with metadata about dihedrals. Defaults to None.
-            pyramids (set[PyramidsDescriptor] | None, optional): Set of all indices of pyramids in the structure. Defaults to None.
-            pyramids_selected (set[PyramidsDescriptor] | None, optional): Set of selected indices of pyramids. Defaults to None.
-            pyramids_types (dict[PyramidsDescriptor, bool] | None, optional): Dict with metadata about pyramids. Defaults to None.
-            inplace (bool, optional): Flag to allow for in-place updates instead of returning a new cop. Defaults to False.
+        Returns
+        -------
+        StructureSelection
+            The selection update with the new members set. Can either be a copy if `inplace=False` or the old instance with updated members otherwise.
 
-        Returns:
-            StructureSelection: The selection update with the new members set. Can either be a copy if `inplace=False` or the old instance with updated members otherwise.
         """
         if inplace:
             # Update and create
@@ -257,7 +278,7 @@ class StructureSelection:
     @classmethod
     def init_from_dataset(
         cls: type[Self],
-        frame: xr.Dataset,
+        frame: xr.Dataset | ShnitselDataset,
         default_selection: Sequence[FeatureLevelOptions] = [
             'atoms',
             'bonds',
@@ -266,20 +287,30 @@ class StructureSelection:
     ) -> Self:
         """Alternative constructor that creates an initial StructureSelection object from a dataset using the entire structural information in it.
 
-        Args:
-            cls (type[StructureSelection]): The type of this StructureSelection so that we can create instances of it.
-            frame (xr.Dataset): The dataset (single frame) to extract the structure information out of.
-                Must have at least `atXYZ` variable and a `atom` dimension.
-                Ideally, an `atom` coordinate for feature selection is also provided.
-                Should only represent a single frame of data (i.e. no 'frame' dimension or of zero-size).
-            default_selection (Sequence[FeatureLevelOptions], optional): List of features to activate as selected by default. Defaults to [ 'atoms', 'bonds', ].
-            to2D (bool, optional): Flag to control whether a mol representation is converted to a 2d projection before use for visualization.
+        Parameters
+        ----------
+        cls : type[Self]
+            The type of this StructureSelection so that we can create instances of it.
+        frame : xr.Dataset | ShnitselDataset
+            The dataset (optionally a single frame) to extract the structure information out of.
+            Must have at least `atXYZ` variable and a `atom` dimension.
+            Ideally, an `atom` coordinate for feature selection is also provided.
+            If multiple frames/timesteps are present within the data, a best-effort guess of a suitable frame from the data will be made.
+        default_selection : Sequence[FeatureLevelOptions], optional
+            List of features to activate as selected by default. Defaults to [ 'atoms', 'bonds', ].
+        to2D : bool, optional
+            Flag to control whether a mol representation is converted to a 2d projection before use for visualization.
 
-        Raises:
-            ValueError: If no structural information could be extracted from the dataset
+        Returns
+        -------
+        StructureSelection
+            A structure selection object initially covering all atoms and structural features.
 
-        Returns:
-            StructureSelection: A structure selection object initially covering all atoms and structural features.
+        Raises
+        ------
+        ValueError
+            If no structural information could be extracted from the dataset
+
         """
         filtered_dataset = frame  # .squeeze()
 
@@ -308,16 +339,26 @@ class StructureSelection:
     ) -> Self:
         """Alternative constructor that creates an initial StructureSelection object from an RDKit Mol object
 
-        Args:
-            cls (type[StructureSelection]): The type of this StructureSelection so that we can create instances of it.
-            mol (rdkit.rdchem.Mol): The RDKit Mol object to extract all initial structural information out of
-            default_selection (Sequence[FeatureLevelOptions], optional): List of features to activate as selected by default. Defaults to [ 'atoms', 'bonds', ].
+        Parameters
+        ----------
+        cls : type[StructureSelection]
+            The type of this StructureSelection so that we can create instances of it.
+        mol : rdkit.rdchem.Mol
+            The RDKit Mol object to extract all initial structural information out of
+        default_selection : Sequence[FeatureLevelOptions], optional
+            List of features to activate as selected by default. Defaults to [ 'atoms', 'bonds', ].
 
-        Raises:
-            ValueError: If no structural information could be extracted from the dataset.
 
-        Returns:
-            StructureSelection: A structure selection object initially covering all atoms and structural features.
+        Returns
+        -------
+        StructureSelection
+            A structure selection object initially covering all atoms and structural features.
+
+        Raises
+        ------
+        ValueError
+            If no structural information could be extracted from the dataset.
+
         """
         # TODO: FIXME: Implement actual feature selection with geomatch
 
@@ -485,6 +526,7 @@ class StructureSelection:
         descriptor_or_selection : StructureSelection | StructureSelectionDescriptor
             Either a complete selection or a set of descriptors to derive the new selection from the old one.
 
+
         Returns
         -------
         Self | None
@@ -544,12 +586,18 @@ class StructureSelection:
         E.g. selection.only('bonds') yields a selection where only bonds are selected as according to the previous selection.
         All selections for features not in `feature_level` will be set to an empty selection.
 
-        Args:
-            feature_level (FeatureLevelOptions | Sequence[FeatureLevelOptions] | None): The desired feature levels to retain in the resulting selection. If set to `None`, all selections will be cleared.
-            inplace (bool, optional): Whether to update the selection in-place. Defaults to False.
+        Parameters
+        ----------
+        feature_level : FeatureLevelOptions | Sequence[FeatureLevelOptions] | None
+            The desired feature levels to retain in the resulting selection. If set to `None`, all selections will be cleared.
+        inplace : bool, optional
+            Whether to update the selection in-place. Defaults to False.
 
-        Returns:
-            Self: The selection where only the chosen feature levels are still active.
+        Returns
+        -------
+        Self
+            The selection where only the chosen feature levels are still active.
+
         """
         if feature_level is None:
             feature_level = []
@@ -576,12 +624,18 @@ class StructureSelection:
 
         By default marks all features as selected.
 
-        Args:
-            feature_level (FeatureLevelOptions | Sequence[FeatureLevelOptions], optional): The set of feature levels to mark as within the selection. Defaults to all FEATURE_LEVELS.
-            inplace (bool, optional): Whether to update the selection in-place. Defaults to False.
+        Parameters
+        ----------
+        feature_level : FeatureLevelOptions | Sequence[FeatureLevelOptions], optional
+            The set of feature levels to mark as within the selection. Defaults to all FEATURE_LEVELS.
+        inplace : bool, optional
+            Whether to update the selection in-place. Defaults to False.
 
-        Returns:
-            Self: The updated selection
+        Returns
+        -------
+        Self
+            The updated selection
+
         """
         if isinstance(feature_level, str) or not isinstance(feature_level, Sequence):
             feature_level = [feature_level]
@@ -609,15 +663,23 @@ class StructureSelection:
     ) -> Self:
         """Select all atoms covered either by the smarts string(s) provided in `smarts_or_selection` or by either a single or multiple atom ids.
 
-        Args:
-            smarts_or_selection (str | Sequence[str] | AtomDescriptor | Sequence[AtomDescriptor] | None, optional): Either one or multiple smart strings or a single or sequence of atom ids. Defaults to None meaning all atoms will be selected.
-            inplace (bool, optional): Whether to update the selection in-place. Defaults to False.
+        Parameters
+        ----------
+        smarts_or_selection : str | Sequence[str] | AtomDescriptor | Sequence[AtomDescriptor] | None, optional
+            Either one or multiple smart strings or a single or sequence of atom ids. Defaults to None meaning all atoms will be selected.
+        inplace : bool, optional
+            Whether to update the selection in-place. Defaults to False.
 
-        Raises:
-            ValueError: If `self.mol` is not set and SMARTS matching is attempted.
+        Returns
+        -------
+        Self
+            The updated selection
 
-        Returns:
-            Self: The updated selection
+        Raises
+        ------
+        ValueError
+            If `self.mol` is not set and SMARTS matching is attempted.
+
         """
         selection_list: Sequence
         if isinstance(smarts_or_selection, str) or isinstance(
@@ -659,13 +721,20 @@ class StructureSelection:
     ) -> Self:
         """Function to update the selection of atoms by specifying atom indices directly.
 
-        Args:
-            selection (AtomDescriptor | Sequence[AtomDescriptor] | None, optional): Either a single atom selector or a sequence of atom selectors. Defaults to None, which means that all available atoms will be considered.
-            extend_selection (bool, optional): If set to True, the selection will be extended by the atoms denoted by `selection`. Otherwise, the new selection will be the intersection between the old selection and `selection`. Defaults to False.
-            inplace (bool, optional): Whether to update this selection in-place. Defaults to False.
+        Parameters
+        ----------
+        selection : AtomDescriptor | Sequence[AtomDescriptor] | None, optional
+            Either a single atom selector or a sequence of atom selectors. Defaults to None, which means that all available atoms will be considered.
+        extend_selection : bool, optional
+            If set to True, the selection will be extended by the atoms denoted by `selection`. Otherwise, the new selection will be the intersection between the old selection and `selection`. Defaults to False.
+        inplace : bool, optional
+            Whether to update this selection in-place. Defaults to False.
 
-        Returns:
-            StructureSelection: The updated selection.
+        Returns
+        -------
+        StructureSelection
+            The updated selection.
+
         """
         if isinstance(selection, AtomDescriptor):
             selection_set = {selection}
@@ -694,16 +763,24 @@ class StructureSelection:
         """Restrict the current selection of bonds by either specifying a SMARTS string (or sequence thereof) to specify substructures of
         the molecule to consider bonds in, or by providing one or more bond desciptor tuples.
 
-        Args:
-            selection (str | Sequence[str] | BondDescriptor | Sequence[BondDescriptor] | None, optional): The criterion or
-            criteria by which to retain bonds in the selection. Defaults to None meaning that all bonds will be added back into the selection.
-            inplace (bool, optional): Whether to update the selection in-place or return an updated copy. Defaults to False.
+        Parameters
+        ----------
+        selection : str | Sequence[str] | BondDescriptor | Sequence[BondDescriptor] | None, optional
+            The criterion or criteria by which to retain bonds in the selection.
+            Defaults to None meaning that all bonds will be added back into the selection.
+        inplace : bool, optional
+            Whether to update the selection in-place or return an updated copy. Defaults to False.
 
-        Raises:
-            ValueError: If no `self.mol` object is set and a SMARTS match is attempted
+        Returns
+        -------
+        Self
+            The updated selection object.
 
-        Returns:
-            Self: The updated selection object.
+        Raises
+        ------
+        ValueError
+            If no `self.mol` object is set and a SMARTS match is attempted
+
         """
         new_selection = set()
         if isinstance(selection, str) or isinstance(selection, tuple):
@@ -742,12 +819,18 @@ class StructureSelection:
 
         Restricts the selection further to this set.
 
-        Args:
-            selection (BondDescriptor | Sequence[BondDescriptor]): Either an individual bond selector or a sequence of bonds to select.
-            inplace (bool, optional): Whether the selection should be updated in-place. Defaults to False.
+        Parameters
+        ----------
+        selection : BondDescriptor | Sequence[BondDescriptor]
+            Either an individual bond selector or a sequence of bonds to select.
+        inplace : bool, optional
+            Whether the selection should be updated in-place. Defaults to False.
 
-        Returns:
-            StructureSelection: The updated selections
+        Returns
+        -------
+        StructureSelection
+            The updated selections
+
         """
         new_selection = set()
 
@@ -766,13 +849,17 @@ class StructureSelection:
     ) -> Self:
         """Helper function to select all pairwise distances between atoms in the current selection, even if they are outside of our bonds.
 
-        Args:
-            selected_only : boo, optional
-                Flag whether only pairwise distances in the selected atoms should be considered, by default True.
-            inplace (bool, optional): Whether the selection should be updated in-place. Defaults to False.
+        Parameters
+        ----------
+        selected_only : bool, optional
+            Flag whether only pairwise distances in the selected atoms should be considered, by default True.
+        inplace : bool, optional
+            Whether the selection should be updated in-place. Defaults to False.
 
-        Returns:
-            StructureSelection: The updated selections
+        Returns
+        -------
+        StructureSelection
+            The updated selection
         """
 
         from itertools import permutations
@@ -798,12 +885,18 @@ class StructureSelection:
 
         Allows provision of a single list of atoms or multiple such lists and will iterate over them as needed.
 
-        Args:
-            atoms (Sequence[AtomDescriptor] | Sequence[Sequence[AtomDescriptor]] | None, optional): Either a single set of atoms to keep bonds between or multiple sets within which the bonds should be kept. Defaults to None.
-            inplace (bool, optional): Whether the selection should be updated in-place. Defaults to False.
+        Parameters
+        ----------
+        atoms : Sequence[AtomDescriptor] | Sequence[Sequence[AtomDescriptor]] | None, optional
+            Either a single set of atoms to keep bonds between or multiple sets within which the bonds should be kept. Defaults to None.
+        inplace : bool, optional
+            Whether the selection should be updated in-place. Defaults to False.
 
-        Returns:
-            StructureSelection: The updated selections
+        Returns
+        -------
+        StructureSelection
+            The updated selection
+
         """
         new_selection = self._new_bond_selection_from_atoms(atoms)
 
@@ -818,11 +911,18 @@ class StructureSelection:
     ) -> set[BondDescriptor]:
         """Internal helper to get bond selection instead of directly updating the selection
 
-        Args:
-            atoms (Sequence[AtomDescriptor] | Sequence[Sequence[AtomDescriptor]] | None, optional):  Either a single set of atoms to keep bonds between or multiple sets within which the bonds should be kept. Defaults to None.
-            consider_all (bool, optional): Whether to use the entire set of features in the whole molecule as basis or just the selected set. Defaults to using only the currently selected set.
-        Returns:
-            set[BondDescriptor]: The set of bond descriptors in current selection fully covered by these atoms
+        Parameters
+        ----------
+        atoms : Sequence[AtomDescriptor] | Sequence[Sequence[AtomDescriptor]] | None, optional
+            Either a single set of atoms to keep bonds between or multiple sets within which the bonds should be kept. Defaults to None.
+        consider_all: bool, optional
+            Whether to use the entire set of features in the whole molecule as basis or just the selected set. Defaults to using only the currently selected set.
+
+        Returns
+        -------
+        set[BondDescriptor]
+            The set of bond descriptors in current selection fully covered by these atoms
+
         """
 
         basis_set = self.bonds if consider_all else self.bonds_selected
@@ -862,13 +962,20 @@ class StructureSelection:
     ) -> Self:
         """Function to restrict the angles selection by providing either providing SMARTS strings or explicit angles descriptors to retain.
 
-        Args:
-            selection (str | Sequence[str] | AngleDescriptor | Sequence[AngleDescriptor] | None, optional): The criterion or
-            criteria by which to retain angles in the selection. Defaults to None meaning that all angles will be added back into the selection.
-            inplace (bool, optional): Whether the selection should be updated in-place. Defaults to False.
+        Parameters
+        ----------
+        selection : str | Sequence[str] | AngleDescriptor | Sequence[AngleDescriptor] | None, optional
+            The criterion or criteria by which to retain angles in the selection.
+            Defaults to None meaning that all angles will be added back into the selection.
+        inplace : bool, optional
+            Whether the selection should be updated in-place. Defaults to False.
 
-        Returns:
-            Self: The updated selection
+
+        Returns
+        -------
+        Self
+            The updated selection
+
         """
         new_selection = set()
         if isinstance(selection, str) or isinstance(selection, tuple):
@@ -903,12 +1010,18 @@ class StructureSelection:
 
         Allows provision of a single list of atoms or multiple such lists and will iterate over them as needed.
 
-        Args:
-            atoms (Sequence[AtomDescriptor] | Sequence[Sequence[AtomDescriptor]] | None, optional): Either a single set of atoms to keep angles between or multiple sets within which the bonds should be kept. Defaults to None.
-            inplace (bool, optional): Whether the selection should be updated in-place. Defaults to False.
+        Parameters
+        ----------
+        atoms : Sequence[AtomDescriptor] | Sequence[Sequence[AtomDescriptor]] | None, optional
+            Either a single set of atoms to keep angles between or multiple sets within which the bonds should be kept. Defaults to None.
+        inplace : bool, optional
+            Whether the selection should be updated in-place. Defaults to False.
 
-        Returns:
-            StructureSelection: The updated selection.
+        Returns
+        -------
+        StructureSelection
+            The updated selection.
+
         """
         new_selection = self._new_angle_selection_from_atoms(atoms)
 
@@ -923,11 +1036,19 @@ class StructureSelection:
     ) -> set[AngleDescriptor]:
         """Internal helper to get angle selection instead of directly updating the selection
 
-        Args:
-            atoms (Sequence[AtomDescriptor] | Sequence[Sequence[AtomDescriptor]] | None, optional): Either a single set of atoms to keep angles between or multiple sets within which the bonds should be kept. Defaults to None.
-            consider_all (bool, optional): Whether to use the entire set of features in the whole molecule as basis or just the selected set. Defaults to using only the currently selected set.
-        Returns:
-            set[AngleDescriptor]: The set of agnle descriptors in current selection fully covered by these `atoms`.
+        Parameters
+        ----------
+        atoms : Sequence[AtomDescriptor] | Sequence[Sequence[AtomDescriptor]] | None, optional
+            Either a single set of atoms to keep angles between or multiple sets within which the bonds should be kept. Defaults to None.
+        consider_all: bool :
+              Whether to use the entire set of features in the whole molecule as basis or just the selected set.
+              Defaults to using only the currently selected set.
+
+        Returns
+        -------
+        set[AngleDescriptor]
+            The set of agnle descriptors in current selection fully covered by these `atoms`.
+
         """
 
         basis_set = self.angles if consider_all else self.angles_selected
@@ -971,16 +1092,23 @@ class StructureSelection:
     ) -> Self:
         """Function to restrict the dihedral selection by providing either providing SMARTS strings or explicit dihedral descriptors to retain.
 
-        Args:
-            selection (str | Sequence[str] | DihedralDescriptor | Sequence[DihedralDescriptor]
-                assert len(entry) == 4, f"Got invalid Dihedrals descriptor {entry}"
-                new_selection.add(entry)
-            else:
-                raise ValueError(f"Invalid entry {entry} in call to select_dihedrals().")| Sequence[AtomDescriptor] | Sequence[Sequence[AtomDescriptor]] | None, optional): The criterion or criteria by which to retain dihedrals in the selection. Defaults to None meaning that all dihedrals will be added back into the selection.
-            inplace (bool, optional): Whether the selection should be updated in-place. Defaults to False.
+        Parameters
+        ----------
 
-        Returns:
-            Self: The updated selection
+        selection: str| Sequence[str]| DihedralDescriptor| Sequence[DihedralDescriptor]| None, optional
+            A SMARTS string, a sequence thereof or one or more index sets for dihedrals to be identified
+        inplace: bool, optional
+             Whether the selection should be updated in-place. Defaults to False.
+
+        Returns
+        -------
+        Self
+            The updated selection
+
+        Raises
+        ------
+        ValueError
+            If an invalid entry or selection was provided.
         """
         new_selection = set()
         if isinstance(selection, str) or isinstance(selection, tuple):
@@ -1017,14 +1145,20 @@ class StructureSelection:
 
         Allows provision of a single list of atoms or multiple such lists and will iterate over them as needed.
 
-        Args:
-            atoms (Sequence[AtomDescriptor] | Sequence[Sequence[AtomDescriptor]] | None, optional): Either a single
-                set of atoms to keep angles between or multiple sets within which the bonds should be kept.
-                Defaults to None.
-            inplace (bool, optional): Whether the selection should be updated in-place. Defaults to False.
+        Parameters
+        ----------
+        atoms : Sequence[AtomDescriptor] | Sequence[Sequence[AtomDescriptor]] | None, optional
+            Either a single
+            set of atoms to keep angles between or multiple sets within which the bonds should be kept.
+            Defaults to None.
+        inplace : bool, optional
+            Whether the selection should be updated in-place. Defaults to False.
 
-        Returns:
-            StructureSelection: The updated selection.
+        Returns
+        -------
+        StructureSelection
+            The updated selection.
+
         """
         new_selection = self._new_dihedral_selection_from_atoms(atoms)
 
@@ -1039,11 +1173,18 @@ class StructureSelection:
     ) -> set[DihedralDescriptor]:
         """Internal helper to get dihedral selection instead of directly updating the selection
 
-        Args:
-            atoms (Sequence[AtomDescriptor] | Sequence[Sequence[AtomDescriptor]] | None, optional): Either a single set of atoms to keep dihedrals between or multiple sets within which the dihedrals should be kept. Defaults to None.
-            consider_all (bool, optional): Whether to use the entire set of features in the whole molecule as basis or just the selected set. Defaults to using only the currently selected set.
-        Returns:
-            set[DihedralDescriptor]: The set of dihedral descriptors in current selection fully covered by these atoms
+        Parameters
+        ----------
+        atoms : Sequence[AtomDescriptor] | Sequence[Sequence[AtomDescriptor]] | None, optional
+            Either a single set of atoms to keep dihedrals between or multiple sets within which the dihedrals should be kept. Defaults to None.
+        consider_all: bool, optional
+             Whether to use the entire set of features in the whole molecule as basis or just the selected set. Defaults to using only the currently selected set.
+
+        Returns
+        -------
+        set[DihedralDescriptor]
+            The set of dihedral descriptors in current selection fully covered by these atoms
+
         """
         basis_set = self.dihedrals if consider_all else self.dihedrals_selected
         new_selection: set[DihedralDescriptor]
@@ -1082,16 +1223,24 @@ class StructureSelection:
     ) -> Self:
         """Function to restrict the pyramid selection by providing either SMARTS strings or explicit pyramids descriptors or sets of atoms between which to retain pyramids.
 
-        Args:
-            selection (str | Sequence[str] | PyramidsDescriptor | Sequence[PyramidsDescriptor]  | None, optional): The criterion or
-                criteria by which to retain pyramids in the selection. Defaults to None meaning that all pyramids will be added back into the selection.
-            inplace (bool, optional): Whether the selection should be updated in-place. Defaults to False.
+        Parameters
+        ----------
+        selection : str | Sequence[str] | PyramidsDescriptor | Sequence[PyramidsDescriptor]  | None, optional
+            The criterion or criteria by which to retain pyramids in the selection.
+            Defaults to None meaning that all pyramids will be added back into the selection.
+        inplace : bool, optional
+            Whether the selection should be updated in-place. Defaults to False.
 
-        Raises:
-            ValueError: If an invalid selector is provided.
+        Returns
+        -------
+        Self
+            The updated selection
 
-        Returns:
-            Self: The updated selection
+        Raises
+        ------
+        ValueError
+            If an invalid selector is provided.
+
         """
         new_selection: set[PyramidsDescriptor] = set()
         if isinstance(selection, str) or isinstance(selection, tuple):
@@ -1127,14 +1276,20 @@ class StructureSelection:
 
         Allows provision of a single list of atoms or multiple such lists and will iterate over them as needed.
 
-        Args:
-            atoms (Sequence[AtomDescriptor] | Sequence[Sequence[AtomDescriptor]] | None, optional): Either a single
-                set of atoms to keep angles between or multiple sets within which the bonds should be kept.
-                Defaults to None.
-            inplace (bool, optional): Whether the selection should be updated in-place. Defaults to False.
+        Parameters
+        ----------
+        atoms : Sequence[AtomDescriptor] | Sequence[Sequence[AtomDescriptor]] | None, optional
+            Either a single
+            set of atoms to keep angles between or multiple sets within which the bonds should be kept.
+            Defaults to None.
+        inplace : bool, optional
+            Whether the selection should be updated in-place. Defaults to False.
 
-        Returns:
-            StructureSelection: The updated selection.
+        Returns
+        -------
+        StructureSelection
+            The updated selection.
+
         """
         new_selection = self._new_pyramid_selection_from_atoms(atoms)
 
@@ -1149,11 +1304,20 @@ class StructureSelection:
     ) -> set[PyramidsDescriptor]:
         """Internal helper to get pyramids selection instead of directly updating the selection
 
-        Args:
-            atoms (Sequence[AtomDescriptor] | Sequence[Sequence[AtomDescriptor]] | None, optional): Either a single set of atoms to keep pyramids between or multiple sets within which the pyramids should be kept. Defaults to None.
-            consider_all (bool, optional): Whether to use the entire set of features in the whole molecule as basis or just the selected set. Defaults to using only the currently selected set.
-        Returns:
-            set[Pyramid]: The set of dihedral descriptors in current selection fully covered by these atoms
+        Parameters
+        ----------
+        atoms : Sequence[AtomDescriptor] | Sequence[Sequence[AtomDescriptor]] | None, optional
+            Either a single set of atoms to keep pyramids between or multiple sets within which the pyramids should be kept. Defaults to None.
+        atoms: Sequence[AtomDescriptor]| Sequence[Sequence[AtomDescriptor]]| None :
+        consider_all: bool, optional
+            Whether to use the entire set of features in the whole molecule as basis or just the selected set.
+            Defaults to using only the currently selected set.
+
+        Returns
+        -------
+        set[Pyramid]
+            The set of dihedral descriptors in current selection fully covered by these atoms
+
         """
         basis_set = self.pyramids if consider_all else self.pyramids_selected
         new_selection: set[PyramidsDescriptor]
@@ -1195,21 +1359,29 @@ class StructureSelection:
         Updates can be requested by providing smarts strings or by providing specific ids of features, where the feature type will be
         determined based on the length of the tuple.
 
+        Parameters
+        ----------
+        smarts : str | Sequence[str] | None, optional
+            One or more smarts to identify subsets of the molecule and the features therein. Defaults to None.
+        subgraph_selection : Sequence[AtomDescriptor], optional
+            Only allow for results within the subgraph over these atoms to be retained.
+            If not provided, no filtering will be performed. Can be used to select by the result of a SMARTS pattern match.
+        idxs : FeatureDescriptor | Sequence[FeatureDescriptor] | None, optional
+            Either a single tuple or a sequence of tuples to use for the update.
+            Will be assigned based on the length of the tuple. Defaults to None.
+        mode : Literal['repl', 'intersect', 'ext', 'sub'] | None, optional
+            The mode for the update. The new selection can either be the intersection of the current
+            selection and the features covered by the new update set, it can be extended to contain the new update set ('ext') or the new update set can
+            be removed from the current selection (`sub`). Can also be 'repl' to indicate that we want to replace all indices with the provided idxs results.
+            Defaults to 'intersect' if a SMARTS is provided, to 'repl' if only idxs is provided.
+        inplace : bool, optional
+            Whether the selection should be updated in-place. Defaults to False.
 
-        Args:
-            smarts (str | Sequence[str] | None, optional): One or more smarts to identify subsets of the molecule and the features therein. Defaults to None.
-            subgraph_selection (Sequence[AtomDescriptor], optional): Only allow for results within the subgraph over these atoms to be retained.
-                If not provided, no filtering will be performed. Can be used to select by the result of a SMARTS pattern match.
-            idxs (FeatureDescriptor | Sequence[FeatureDescriptor] | None, optional): Either a single tuple or a sequence of tuples to use for the update.
-                Will be assigned based on the length of the tuple. Defaults to None.
-            mode (Literal['repl', 'intersect', 'ext', 'sub'], optional): The mode for the update. The new selection can either be the intersection of the current
-                selection and the features covered by the new update set, it can be extended to contain the new update set ('ext') or the new update set can
-                be removed from the current selection (`sub`). Can also be 'repl' to indicate that we want to replace all indices with the provided idxs results.
-                Defaults to 'intersect' if a SMARTS is provided, to 'repl' if only idxs is provided.
-            inplace (bool, optional): Whether the selection should be updated in-place. Defaults to False.
+        Returns
+        -------
+        Self
+            The updated selection
 
-        Returns:
-            Self: the updated selection
         """
         new_atoms_selection = set()
         new_bonds_selection = set()
@@ -1373,11 +1545,16 @@ class StructureSelection:
     def _flatten(obj) -> Iterator:
         """Helper functiont to flatten nested lists
 
-        Args:
-            obj (list|Any): A potentially nested set of lists.
+        Parameters
+        ----------
+        obj : list|Any
+            A potentially nested set of lists.
 
-        Yields:
-            Iterator[Any]: The iterator to iterate over all entries in the flattened list.
+        Yields
+        -------
+        Iterator[Any]
+            The iterator to iterate over all entries in the flattened list.
+
         """
         if isinstance(obj, Sequence):
             for item in obj:
@@ -1394,14 +1571,22 @@ class StructureSelection:
     ) -> SVG:
         """Helper function to allow visualization of the structure represented in this selection.
 
-        Args:
-            flag_level (FeatureLevelOptions, optional): Currently unused. Defaults to 'bonds'.
-            highlight_color (tuple[float, float, float] | str, optional): Color to use for highlights of the active parts. Defaults to a flag-level dependent color.
-            width (int, optional): Width of the figure. Defaults to 300.
-            height (int, optional): Height of the figure. Defaults to 300.
+        Parameters
+        ----------
+        flag_level : FeatureLevelOptions, optional
+            Currently unused. Defaults to 'bonds'.
+        highlight_color : tuple[float, float, float] | str, optional
+            Color to use for highlights of the active parts. Defaults to a flag-level dependent color.
+        width : int, optional
+            Width of the figure. Defaults to 300.
+        height : int, optional
+            Height of the figure. Defaults to 300.
 
-        Returns:
-            SVG: _description_
+        Returns
+        -------
+        SVG
+            The SVG representation of this selection's figure.
+
         """
         # TODO: FIXME: Use different colors for different feature levels.
         from rdkit.Chem.Draw import rdMolDraw2D
@@ -1531,14 +1716,22 @@ class StructureSelection:
     ) -> list[int]:
         """Helper function to translate a list of Bond descriptors into RDKit bond indices.
 
-        Args:
-            bond_descriptors (list[BondDescriptor]): The list of BondDescriptor tuples that we want to translate into RDKit mol internal bond indices.
+        Parameters
+        ----------
+        bond_descriptors: list[BondDescriptor]
+            The list of BondDescriptor tuples that we want to translate into RDKit mol internal bond indices.
 
-        Returns:
-            list[int]: The mapped list of RDKit self.mol internal bond indices.
 
-        Raise:
-            AssertionError: if self.mol is None, no mapping can be performed.
+        Returns
+        -------
+        list[int]
+            The mapped list of RDKit self.mol internal bond indices.
+
+        Raises
+        ------
+        AssertionError
+            if self.mol is None, no mapping can be performed.
+
         """
         res: list[int] = []
         assert self.mol is not None, (
@@ -1569,18 +1762,31 @@ class StructureSelection:
         In that case, you can get all the matches by building the BLA SMARTS with `__build_conjugated_smarts()` and
         yield the entire chromophore match with `select_bats()` for that SMARTS.
 
-        Args:
-            BLA_smarts (str | None, optional): The SMARTS string to match the maximum chromophor to. Defaults to None.
-            num_double_bonds (int | None, optional): The number of double bonds in the maximum size chromophor to construct a SMARTS string if not provided. Defaults to None.
-            allowed_chain_elements (str, optional): Allowed elements along the chromophor chain. Defaults to "#6,#7,#8,#15,#16".
-            max_considered_BLA_double_bonds (int, optional): Maximum number of double bonds in a BLA chromophor if automatic maximum size detection is performed. Defaults to 50.
-            inplace (bool, optional): Whether to update the selection in-place. Defaults to False.
+        Parameters
+        ----------
+        BLA_smarts : str | None, optional
+            The SMARTS string to match the maximum chromophor to. Defaults to None.
+        num_double_bonds : int | None, optional
+            The number of double bonds in the maximum size chromophor to construct a SMARTS string
+            if not provided. Defaults to None.
+        allowed_chain_elements : str, optional
+            Allowed elements along the chromophor chain. Defaults to "#6,#7,#8,#15,#16".
+        max_considered_BLA_double_bonds : int, optional
+            Maximum number of double bonds in a BLA chromophor if automatic maximum size detection
+            is performed. Defaults to 50.
+        inplace : bool, optional
+            Whether to update the selection in-place. Defaults to False.
 
-        Raises:
-            ValueError: If the maximum BLA is not unique.
+        Returns
+        -------
+        StructureSelection
+            The updated selection constrained to the unique BLA chromophor of maximum length
 
-        Returns:
-            StructureSelection: The updated selection constrained to the unique BLA chromophor of maximum length
+        Raises
+        ------
+        ValueError
+            If the maximum BLA is not unique.
+
         """
         # TODO: FIXME: Kekulize mol before match.
         if BLA_smarts is None and num_double_bonds is not None:
@@ -1719,6 +1925,22 @@ class StructureSelection:
 
     @staticmethod
     def _to_feature_level_str(ft: FeatureLevelOptions) -> FeatureLevelType:
+        """
+        Convert arbitrary representations of feature levels (level ids or level names)
+        to standardized level name.
+
+        Parameters
+        ----------
+        ft: FeatureLevelOptions
+            A representation of a feature level
+
+
+        Returns
+        -------
+        FeatureLevelType
+            A string representing the feature level
+
+        """
         if isinstance(ft, str):
             assert ft in FEATURE_LEVELS, (
                 f"Unknown feature level: {ft} supported are only {FEATURE_LEVELS}"
@@ -1737,22 +1959,86 @@ class StructureSelection:
 
     @staticmethod
     def canonicalize_bond(bond: BondDescriptor) -> BondDescriptor:
+        """
+        Impose a standardized index order in bonds.
+
+        Parameters
+        ----------
+        bond: BondDescriptor
+            The bond descriptor to canonicalize
+
+
+        Returns
+        -------
+        BondDescriptor
+            The bond descriptor with standardized index order
+
+        """
         return (np.min(bond), np.max(bond))
 
     @staticmethod
     def canonicalize_angle(angle: AngleDescriptor) -> AngleDescriptor:
+        """
+        Impose a standardized index order in angles.
+
+        Parameters
+        ----------
+        angle: AngleDescriptor
+            The angle descriptor to canonicalize
+
+
+        Returns
+        -------
+        AngleDescriptor
+            The bond descriptor with standardized index order
+
+        """
         if angle[2] < angle[0]:
             return (angle[2], angle[1], angle[0])
         return angle
 
     @staticmethod
     def canonicalize_dihedral(dihedral: DihedralDescriptor) -> DihedralDescriptor:
+        """
+        Impose a standardized index order in dihedrals.
+
+
+
+        Parameters
+        ----------
+        dihedral: DihedralDescriptor :
+            The dihedral descriptor to canonicalize
+
+
+        Returns
+        -------
+        DihedralDescriptor
+            The dihedral descriptor with standardized index order
+
+        """
         if dihedral[-1] < dihedral[0]:
             return (dihedral[-1], dihedral[-2], dihedral[1], dihedral[0])
         return dihedral
 
     @staticmethod
     def canonicalize_pyramid(pyramid: PyramidsDescriptor) -> PyramidsDescriptor:
+        """
+        Impose a standardized index order in pyramids.
+
+
+
+        Parameters
+        ----------
+        pyramid: PyramidsDescriptor :
+            The pyramid descriptor to canonicalize
+
+
+        Returns
+        -------
+        PyramidsDescriptor
+            The pyramid descriptor with standardized index order
+
+        """
         plane = pyramid[1]
         center = pyramid[0]
 
@@ -1763,11 +2049,15 @@ class StructureSelection:
     def get_bond_type(self, bond: BondDescriptor) -> float:
         """Helper function to get the bond type between two atoms
 
-        Args:
-            bond (BondDescriptor): The bond descriptor
+        Parameters
+        ----------
+        bond : BondDescriptor
+            The bond descriptor
 
-        Returns:
-            float: The bond type as a float
+        Returns
+        -------
+        float
+            The bond type as a float
 
         """
         assert self.mol is not None, "Molecule not set, cannot discern bond type."
@@ -1783,15 +2073,16 @@ class StructureSelection:
 
         Parameters
         ----------
-        mol
+        mol : Mol
             An ``rdkit.Chem.Mol`` object
-        include_h
+        include_h : bool, optional
             A flag to include the H atoms in the smiles order. If set to False, will return
             the set of original indices of all atoms but hydrogens. If set to True,
             will return the index set of all atoms in the molecule.
 
         Returns
         -------
+        list[int]
             A list of integers representing indices of the original ``mol`` object (as opposed
             to the integers assigned to the copy stripped of hydrogens)
 
@@ -1821,22 +2112,20 @@ class StructureSelection:
             ]
 
     def non_redundant(self, include_h: bool = True, inplace: bool = False) -> Self:
-        """
-        Compute a non-redundant set of bonds, angles, and dihedrals
+        """Compute a non-redundant set of bonds, angles, and dihedrals
         sufficient to uniquely determine the atoms of the input,
         given a fixed centre and whole-molecular orientation.
 
         Parameters
         ----------
-        mol : rdkit.Chem.rdchem.Mol
-            Molecule under study.
-        include_h : bool
+        include_h : bool, optional
             Whether to include internal coordinates for hydrogen atoms
-        inplace: bool
+        inplace : bool, optional
             Whether to update the selection in-place. Defaults to False, yielding a new object.
 
         Returns
         -------
+        Self
             The updated StructureSelection object with only non-redundant coordinates in bonds,
             angles and dihedrals.
         """
@@ -1844,7 +2133,10 @@ class StructureSelection:
             "Mol object of selection not set. Cannot filter for SMILES order."
         )
 
-        def f(s):
+        def join_run(s):
+            """
+            Get a str representation of a run up to an atom
+            """
             return ' '.join(str(x) for x in s)
 
         logger = logging.getLogger('flag_nonredundant')
@@ -1871,14 +2163,16 @@ class StructureSelection:
             assert len(run) >= min_run_len
 
             if len(run) > 4:
-                logger.info(f"Atom {i}: Using run ({f(run[:-4])}) {f(run[-4:])}")
+                logger.info(
+                    f"Atom {i}: Using run ({join_run(run[:-4])}) {join_run(run[-4:])}"
+                )
             else:
-                logger.info(f"Atom {i}: Using run {f(run)}")
+                logger.info(f"Atom {i}: Using run {join_run(run)}")
 
             for n, k in enumerate(run[:-1]):
                 if len(runs.get(k, [])) < 4 <= len(run) - n:
                     new_run = run[n:][::-1]
-                    logger.info(f"Overwriting run for {k} with {f(new_run)}")
+                    logger.info(f"Overwriting run for {k} with {join_run(new_run)}")
                     runs[k] = new_run
 
             if min_run_len < 4 and len(run) > min_run_len:
