@@ -19,6 +19,7 @@ from typing import (
 import typing
 from typing_extensions import Literal, TypeForm
 
+from shnitsel.core.typedefs import ErrorOptionsWithWarn
 from shnitsel.data.dataset_containers.multi_layered import MultiSeriesLayered
 from shnitsel.data.dataset_containers.multi_stacked import MultiSeriesStacked
 from ..trajectory_grouping_params import TrajectoryGroupingMetadata
@@ -1185,6 +1186,243 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
 
         # TODO: FIXME: Convert to appropriate return type
         return MultiSeriesLayered(layer_subtree(self, only_direct_children))
+
+    def sel(
+        self,
+        indexers: Mapping[Any, Any] | None = None,
+        method: str | None = None,
+        tolerance: int | float | Iterable[int | float] | None = None,
+        drop: bool = False,
+        **indexers_kwargs: Any,
+    ) -> Self:
+        """Returns a new dataset with each array indexed by tick labels
+        along the specified dimension(s).
+
+        In contrast to `Dataset.isel`, indexers for this method should use
+        labels instead of integers.
+
+        Under the hood, this method is powered by using pandas's powerful Index
+        objects. This makes label based indexing essentially just as fast as
+        using integer indexing.
+
+        It also means this method uses pandas's (well documented) logic for
+        indexing. This means you can use string shortcuts for datetime indexes
+        (e.g., '2000-01' to select all values in January 2000). It also means
+        that slices are treated as inclusive of both the start and stop values,
+        unlike normal Python indexing.
+
+        Parameters
+        ----------
+        indexers : dict, optional
+            A dict with keys matching dimensions and values given
+            by scalars, slices or arrays of tick labels. For dimensions with
+            multi-index, the indexer may also be a dict-like object with keys
+            matching index level names.
+            If DataArrays are passed as indexers, xarray-style indexing will be
+            carried out. See :ref:`indexing` for the details.
+            One of indexers or indexers_kwargs must be provided.
+        method : {None, "nearest", "pad", "ffill", "backfill", "bfill"}, optional
+            Method to use for inexact matches:
+
+            * None (default): only exact matches
+            * pad / ffill: propagate last valid index value forward
+            * backfill / bfill: propagate next valid index value backward
+            * nearest: use nearest valid index value
+        tolerance : optional
+            Maximum distance between original and new labels for inexact
+            matches. The values of the index at the matching locations must
+            satisfy the equation ``abs(index[indexer] - target) <= tolerance``.
+        drop : bool, optional
+            If ``drop=True``, drop coordinates variables in `indexers` instead
+            of making them scalar.
+        **indexers_kwargs : {dim: indexer, ...}, optional
+            The keyword arguments form of ``indexers``.
+            One of indexers or indexers_kwargs must be provided.
+
+        Returns
+        -------
+        obj : Dataset
+            A new Dataset with the same contents as this dataset, except each
+            variable and dimension is indexed by the appropriate indexers.
+            If indexer DataArrays have coordinates that do not conflict with
+            this object, then these coordinates will be attached.
+            In general, each array's data will be a view of the array's data
+            in this dataset, unless vectorized indexing was triggered by using
+            an array indexer, in which case the data will be a copy.
+
+        See Also
+        --------
+        :func:`Dataset.isel <Dataset.isel>`
+        :func:`DataArray.sel <DataArray.sel>`
+
+        :doc:`xarray-tutorial:intermediate/indexing/indexing`
+            Tutorial material on indexing with Xarray objects
+
+        :doc:`xarray-tutorial:fundamentals/02.1_indexing_Basic`
+            Tutorial material on basics of indexing
+
+        """
+        raise NotImplementedError(
+            ".sel() not yet implemented for %s in hierarchical tree structures"
+            % type(self)
+        )
+        indexers = either_dict_or_kwargs(indexers, indexers_kwargs, "sel")
+        query_results = map_index_queries(
+            self, indexers=indexers, method=method, tolerance=tolerance
+        )
+
+        if drop:
+            no_scalar_variables = {}
+            for k, v in query_results.variables.items():
+                if v.dims:
+                    no_scalar_variables[k] = v
+                elif k in self._coord_names:
+                    query_results.drop_coords.append(k)
+            query_results.variables = no_scalar_variables
+
+        result = self.isel(indexers=query_results.dim_indexers, drop=drop)
+        return result._overwrite_indexes(*query_results.as_tuple()[1:])
+
+    def isel(
+        self,
+        indexers: Mapping[Any, Any] | None = None,
+        drop: bool = False,
+        missing_dims: ErrorOptionsWithWarn = "raise",
+        **indexers_kwargs: Any,
+    ) -> Self:
+        """Returns a new tree indexed along dimensions `compound`, `group` or `trajectory`
+        and with data in leaves of the tree indexed along the remaining specified
+        dimension(s) if the leaves support `.isel()` operations.
+
+        Internally, it filters data with their own `.isel()` functions and performs
+        some additional filtering specific to the tree structure
+
+        Parameters
+        ----------
+        indexers : dict, optional
+            A dict with keys matching dimensions and values given
+            by integers, slice objects or arrays.
+            indexer can be a integer, slice, array-like or DataArray.
+            If DataArrays are passed as indexers, xarray-style indexing will be
+            carried out. See :ref:`indexing` for the details.
+            One of indexers or indexers_kwargs must be provided.
+        drop : bool, default: False
+            If ``drop=True``, drop coordinates variables indexed by integers
+            instead of making them scalar.
+        missing_dims : {"raise", "warn", "ignore"}, default: "raise"
+            What to do if dimensions that should be selected from are not present in the
+            Dataset:
+            - "raise": raise an exception
+            - "warn": raise a warning, and ignore the missing dimensions
+            - "ignore": ignore the missing dimensions
+
+        **indexers_kwargs : {dim: indexer, ...}, optional
+            The keyword arguments form of ``indexers``.
+            One of indexers or indexers_kwargs must be provided.
+
+        Returns
+        -------
+        obj : TreeNode[ChildType, DataType]
+            A new tree with the same contents as this tree, except each
+            data entry is indexed by the appropriate indexers and subtrees are filtered
+            by the choices in tree-specific dimensions.
+            The logic for selection on the leaf data entries is specific to the type of data in the leaf.
+
+        Examples
+        --------
+        # TODO: FIXME: Provide better tree selection example.
+
+        >>> tree = xr.Dataset(
+        ...     {
+        ...         "math_scores": (
+        ...             ["student", "test"],
+        ...             [[90, 85, 92], [78, 80, 85], [95, 92, 98]],
+        ...         ),
+        ...         "english_scores": (
+        ...             ["student", "test"],
+        ...             [[88, 90, 92], [75, 82, 79], [93, 96, 91]],
+        ...         ),
+        ...     },
+        ...     coords={
+        ...         "student": ["Alice", "Bob", "Charlie"],
+        ...         "test": ["Test 1", "Test 2", "Test 3"],
+        ...     },
+        ... )
+
+        # A specific element from the dataset is selected
+
+        >>> dataset.isel(student=1, test=0)
+        <xarray.Dataset> Size: 68B
+        Dimensions:         ()
+        Coordinates:
+            student         <U7 28B 'Bob'
+            test            <U6 24B 'Test 1'
+        Data variables:
+            math_scores     int64 8B 78
+            english_scores  int64 8B 75
+
+        # Indexing with a slice using isel
+
+        >>> slice_of_data = dataset.isel(student=slice(0, 2), test=slice(0, 2))
+        >>> slice_of_data
+        <xarray.Dataset> Size: 168B
+        Dimensions:         (student: 2, test: 2)
+        Coordinates:
+          * student         (student) <U7 56B 'Alice' 'Bob'
+          * test            (test) <U6 48B 'Test 1' 'Test 2'
+        Data variables:
+            math_scores     (student, test) int64 32B 90 85 78 80
+            english_scores  (student, test) int64 32B 88 90 75 82
+
+        # Indexing using a sequence of keys.
+
+        See Also
+        --------
+        :func:`Dataset.isel <Dataset.isel>`
+        :func:`TreeNode.sel <TreeNode.sel>`
+
+        """
+        raise NotImplementedError(
+            ".isel() not yet implemented for %s in hierarchical tree structures"
+            % type(self)
+        )
+        indexers = either_dict_or_kwargs(indexers, indexers_kwargs, "isel")
+        if any(is_fancy_indexer(idx) for idx in indexers.values()):
+            return self._isel_fancy(indexers, drop=drop, missing_dims=missing_dims)
+
+        # Much faster algorithm for when all indexers are ints, slices, one-dimensional
+        # lists, or zero or one-dimensional np.ndarray's
+        indexers = drop_dims_from_indexers(indexers, self.dims, missing_dims)
+
+        variables = {}
+        dims: dict[Hashable, int] = {}
+        coord_names = self._coord_names.copy()
+
+        indexes, index_variables = isel_indexes(self.xindexes, indexers)
+
+        for name, var in self._variables.items():
+            # preserve variable order
+            if name in index_variables:
+                var = index_variables[name]
+            else:
+                var_indexers = {k: v for k, v in indexers.items() if k in var.dims}
+                if var_indexers:
+                    var = var.isel(var_indexers)
+                    if drop and var.ndim == 0 and name in coord_names:
+                        coord_names.remove(name)
+                        continue
+            variables[name] = var
+            dims.update(zip(var.dims, var.shape, strict=True))
+
+        return self._construct_direct(
+            variables=variables,
+            coord_names=coord_names,
+            dims=dims,
+            attrs=self._attrs,
+            indexes=indexes,
+            encoding=self._encoding,
+            close=self._close,
+        )
 
     def __str__(self) -> str:
         """A basic representation of this node.
