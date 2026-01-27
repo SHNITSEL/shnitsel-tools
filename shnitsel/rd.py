@@ -127,6 +127,8 @@ def highlight_pairs(mol: rc.Mol, feature_indices: Sequence["FeatureDescriptor"])
                 if isinstance(feature[1], int):
                     # Bond
                     a1, a2 = feature
+                    if a1 < 0 or a2 < 0:
+                        continue
                     if (bond := mol.GetBondBetweenAtoms(a1, a2)) is not None:
                         bondid = bond.GetIdx()
                         if bondid not in bonds:
@@ -140,6 +142,8 @@ def highlight_pairs(mol: rc.Mol, feature_indices: Sequence["FeatureDescriptor"])
                 elif isinstance(feature[1], tuple):
                     # pyramid
                     a1, (a2, a3, a4) = feature
+                    if a1 < 0 or a2 < 0 or a3 < 0 or a4 < 0:
+                        continue
                     # Mark bonds
                     for other in (a2, a3, a4):
                         if (bond := mol.GetBondBetweenAtoms(a1, other)) is not None:
@@ -155,6 +159,9 @@ def highlight_pairs(mol: rc.Mol, feature_indices: Sequence["FeatureDescriptor"])
             elif flen == 3 or flen == 4:
                 # angle or dihedral
                 # Mark bonds
+                if not all(x >= 0 for x in feature):
+                    continue
+                
                 for i in range(flen - 1):
                     a1, a2 = feature[i], feature[i + 1]
                     if (bond := mol.GetBondBetweenAtoms(a1, a2)) is not None:
