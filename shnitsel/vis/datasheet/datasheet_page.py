@@ -1396,21 +1396,21 @@ class DatasheetPage:
         pages = pages + [
             (
                 1,
-                self.state_selection.filter_states(
+                self.state_selection.select_states(
                     multiplicity=1, min_states_in_selection=2
                 ),
                 "Singlets",
             ),
             (
                 2,
-                self.state_selection.filter_states(
+                self.state_selection.select_states(
                     multiplicity=2, min_states_in_selection=1
                 ),
                 "Doublets",
             ),
             (
                 3,
-                self.state_selection.filter_states(
+                self.state_selection.select_states(
                     multiplicity=3, min_states_in_selection=1
                 ),
                 "Triplets",
@@ -1495,7 +1495,7 @@ class DatasheetPage:
             # time plots
             if self.can['timeplots']:
                 axs = self.plot_timeplots(
-                    state_selection=page_selection.filter_states(
+                    state_selection=page_selection.select_states(
                         multiplicity=page_mult, min_states_in_selection=2
                     ),
                     fig=sfs['timeplots'],
