@@ -1498,6 +1498,8 @@ class StructureSelection:
             )
 
         return res
+    
+    select = select_bats
 
     @staticmethod
     def __match_pattern(
