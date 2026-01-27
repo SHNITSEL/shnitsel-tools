@@ -28,9 +28,13 @@
     - [ ] Patch existing functions to express support for descriptors
   - [x] Add merge/subtract/intersect operations
   - [ ] Fix non-redundant coordinates
+  - [ ] Structure selection (raise error if empty/warning if empty)
+- [ ] Analogs tree, structure selection, warning if no match for compounds
+  - [ ] Copy if multiple matches
+  - [ ] For now: error if multiple matches
 - StateSelection
   - [x] Add Support for textual representation of state selection
-  - [x] Add merge/subtract/intersect operations
+  - [x] Add merge/subtract/intersect operationss
 - Visualization support
   - [ ] Add generic `plot()` function to various types
   - [ ] Add option for plots from tree hierarchies
@@ -45,6 +49,14 @@
   - DatasheetPage:
     - [ ] Improve PCA Page
     - [ ] Improve default settings for datasheet and pages.
+
+- [ ] CLI tutorial/SI
+- [ ] Full tutorial retinal with direct link for reviewers
+  - [ ] Retinal BLA/HOOP/Dihedrals (Put all dihedrals in), 3->2 Dimension reduction
+  - [ ] Retinal PCA biplot to show we can find the right parameters
+  - [ ] Length threshold statistics plot
+  - [ ] Datasheet (note, that generation takes somewhat longer)
+  
 
 ## Secondary TODO:
 - [ ] Add tests for conversion
