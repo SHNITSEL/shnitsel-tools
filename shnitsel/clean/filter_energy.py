@@ -108,7 +108,7 @@ def calculate_energy_filtranda(
     if not frames_or_trajectory.has_data('astate'):
         message: str = 'Skipping active energy filtering because of missing variable `astate` in the trajectory'
         logging.warning(message)
-        print(frames_or_trajectory)
+        # print(frames_or_trajectory)
         raise ValueError(message)
 
     if energy_thresholds is None:
