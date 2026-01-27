@@ -376,7 +376,7 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
                     filled_in_dtype = ct
                 else:
                     filled_in_dtype = filled_in_dtype | ct
-                    print(filled_in_dtype)
+                    # print(filled_in_dtype)
         else:
             # If nothing helps, don't add a dtype for this node
             filled_in_dtype = None
