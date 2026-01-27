@@ -78,6 +78,10 @@ def _assign_descriptor_coords(
     )  # .set_xindex('descriptor')
 
 
+# We export this now
+assign_descriptor_coords = _assign_descriptor_coords
+
+
 def _remove_atom_coords(da: xr.DataArray) -> xr.DataArray:
     """Helper function to remove all standard atom-related coordinates.
 
