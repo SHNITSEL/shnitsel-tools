@@ -1216,6 +1216,17 @@ class StateSelection:
                             is_directed,
                         ) = self._abstract_state_comb_spec(sel)
 
+                        if is_directed and not self.is_directed:
+                            # If the selection requires directed states, convert to directed state representations.
+                            return (
+                                self.as_directed_selection().select_state_combinations(
+                                    selectors=selectors,
+                                    ids=ids,
+                                    min_states_in_selection=min_states_in_selection,
+                                    inplace=inplace,
+                                )
+                            )
+
                         selector_state_combs.update(expl_comb)
 
                         for pattern in pattern_combs:
