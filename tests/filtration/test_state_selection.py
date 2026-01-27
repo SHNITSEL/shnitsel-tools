@@ -96,8 +96,8 @@ class TestStateSelection:
             state_selection.set_state_types({1: 3})
         state_selection.set_state_types({s: 3 for s in state_selection.states})
 
-    def test_filter_states(self, state_selection: StateSelection):
-        state_selection.filter_states(
+    def test_select_states(self, state_selection: StateSelection):
+        state_selection.select_states(
             [2, 1, 3],
             exclude_ids=[3],
             charge=0,
@@ -130,8 +130,8 @@ class TestStateSelection:
         state_selection.get_state_degeneracy(2)
         state_selection.get_state_degeneracy(3)
 
-    def test_filter_state_combinations(self, state_selection: StateSelection):
-        state_selection.filter_state_combinations(ids=[(1, 2), (2, 3)])
+    def test_select_state_combinations(self, state_selection: StateSelection):
+        state_selection.select_state_combinations(ids=[(1, 2), (2, 3)])
 
     def test_non_degenerate(self, state_selection: StateSelection):
         state_selection.non_degenerate()
