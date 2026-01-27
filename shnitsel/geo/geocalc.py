@@ -19,7 +19,7 @@ from shnitsel.data.tree.node import TreeNode
 from shnitsel.filtering.structure_selection import (
     FeatureLevelType,
     StructureSelection,
-    StructureSelectionDescriptor
+    StructureSelectionDescriptor,
 )
 from shnitsel.geo.geocalc_.helpers import (
     _empty_descriptor_results,
@@ -53,7 +53,9 @@ __all__ = [
 @overload
 def get_bats(
     atXYZ: Trajectory | Frames | AtXYZ,
-    structure_selection: StructureSelection | StructureSelectionDescriptor | None = None,
+    structure_selection: StructureSelection
+    | StructureSelectionDescriptor
+    | None = None,
     default_features: Sequence[FeatureLevelType] = ['bonds', 'angles', 'dihedrals'],
     signed: bool = False,
     deg: bool | Literal['trig'] = True,
@@ -63,7 +65,9 @@ def get_bats(
 @overload
 def get_bats(
     atXYZ: ShnitselDB[Trajectory | Frames | AtXYZ],
-    structure_selection: StructureSelection | None = None,
+    structure_selection: StructureSelection
+    | StructureSelectionDescriptor
+    | None = None,
     default_features: Sequence[FeatureLevelType] = ['bonds', 'angles', 'dihedrals'],
     signed: bool = False,
     deg: bool | Literal['trig'] = True,
@@ -74,7 +78,9 @@ def get_bats(
 @needs(dims={'atom', 'direction'})
 def get_bats(
     atXYZ: Trajectory | Frames | TreeNode[Any, Trajectory | Frames] | AtXYZ,
-    structure_selection: StructureSelection | None = None,
+    structure_selection: StructureSelection
+    | StructureSelectionDescriptor
+    | None = None,
     default_features: Sequence[FeatureLevelType] = ['bonds', 'angles', 'dihedrals'],
     signed: bool = False,
     deg: bool | Literal['trig'] = True,
@@ -85,7 +91,7 @@ def get_bats(
     ----------
     atXYZ : Trajectory | Frames | TreeNode[Any, Trajectory | Frames] | AtXYZ
         The positional data of atoms to use.
-    structure_selection: StructureSelection, optional
+    structure_selection: StructureSelection | StructureSelectionDescriptor, optional
         A feature selection to use. Can specify which features (positions, distances,
         angles, torsions or pyramidalizations) to include in the result.
         If not set, will be initialized to a default selection of all molecule-internal features
@@ -193,7 +199,9 @@ def get_bats(
             )
 
         if len(feature_data) > 0:
-            tmp_res = xr.concat(feature_data, dim='descriptor', combine_attrs='drop_conflicts')
+            tmp_res = xr.concat(
+                feature_data, dim='descriptor', combine_attrs='drop_conflicts'
+            )
         else:
             logging.warning(
                 "No feature data could be calculated. Did you provide an empty selection?"
@@ -201,6 +209,8 @@ def get_bats(
             tmp_res = _empty_descriptor_results(position_data)
 
         tmp_res.name = "BATs(+P)"
-        tmp_res.attrs["long_name"] = "Bonds, angles, tortions, and pyramidalizations"
+        tmp_res.attrs["long_name"] = (
+            "Positions, bonds, angles, tortions, and pyramidalizations"
+        )
 
         return tmp_res

@@ -57,7 +57,17 @@ FEATURE_LEVELS: list[FeatureLevelType] = [
 ]
 
 FeatureTypeLabel: TypeAlias = Literal[
-    'pyr', 'pos', 'dist', 'angle', 'dih', 'cos', 'sin'
+    'pyr',
+    'pos',
+    'dist',
+    'angle',
+    'dih',
+    'cos_angle',
+    'sin_angle',
+    'cos_dih',
+    'sin_dih',
+    'cos_pyr',
+    'sin_pyr',
 ]
 
 FEATURE_LEVEL_DEFAULT_COLORS: dict[FeatureLevelType, str] = {
@@ -1498,7 +1508,7 @@ class StructureSelection:
             )
 
         return res
-    
+
     select = select_bats
 
     @staticmethod

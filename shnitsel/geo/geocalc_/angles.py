@@ -4,10 +4,15 @@ from shnitsel.core._api_info import API
 import xarray as xr
 
 from shnitsel.core.typedefs import AtXYZ
+from shnitsel.data.dataset_containers import wrap_dataset
 from shnitsel.data.dataset_containers.frames import Frames
 from shnitsel.data.dataset_containers.trajectory import Trajectory
 from shnitsel.data.tree.node import TreeNode
-from shnitsel.filtering.structure_selection import FeatureTypeLabel, StructureSelection
+from shnitsel.filtering.structure_selection import (
+    FeatureTypeLabel,
+    StructureSelection,
+    StructureSelectionDescriptor,
+)
 from shnitsel.geo.geocalc_.algebra import angle_, angle_cos_sin_
 import numpy as np
 
@@ -65,7 +70,7 @@ def angle(
 
 @API()
 @needs(dims={'atom'})
-def angle_cos_sin( 
+def angle_cos_sin(
     atXYZ: AtXYZ, a_index: int, b_index: int, c_index: int, *, deg: bool = False
 ) -> tuple[xr.DataArray, xr.DataArray]:
     """Method to calculate the cosine and sine of the angle between atoms with indices `a_index`, `b_index`, and `c_index` in the positions DataArray throughout time.
@@ -99,7 +104,9 @@ def angle_cos_sin(
 @overload
 def get_angles(
     atXYZ_source: TreeNode[Any, Trajectory | Frames | xr.Dataset | xr.DataArray],
-    structure_selection: StructureSelection | None = None,
+    structure_selection: StructureSelection
+    | StructureSelectionDescriptor
+    | None = None,
     deg: bool | Literal['trig'] = True,
     signed=True,
 ) -> TreeNode[Any, xr.DataArray]: ...
@@ -108,7 +115,9 @@ def get_angles(
 @overload
 def get_angles(
     atXYZ_source: Trajectory | Frames | xr.Dataset | xr.DataArray,
-    structure_selection: StructureSelection | None = None,
+    structure_selection: StructureSelection
+    | StructureSelectionDescriptor
+    | None = None,
     deg: bool | Literal['trig'] = True,
     signed=True,
 ) -> xr.DataArray: ...
@@ -122,7 +131,9 @@ def get_angles(
     | Frames
     | xr.Dataset
     | xr.DataArray,
-    structure_selection: StructureSelection | None = None,
+    structure_selection: StructureSelection
+    | StructureSelectionDescriptor
+    | None = None,
     deg: bool | Literal['trig'] = True,
     signed: bool = True,
 ) -> TreeNode[Any, xr.DataArray] | xr.DataArray:
@@ -134,7 +145,7 @@ def get_angles(
          An :py:class:`xarray.DataArray` of molecular coordinates, with dimensions ``atom`` and
          ``direction`` or another source of positional data like a trajectory, a frameset,
          a dataset representing either of those or a tree structure holding such data.
-    structure_selection: StructureSelection, optional
+    structure_selection: StructureSelection | StructureSelectionDescriptor, optional
          Object encapsulating feature selection on the structure whose positional information is provided in `atXYZ`.
          If this argument is omitted altogether, a default selection for all bonds within the structure is created.
     deg: bool | Literal['trig'], optional
@@ -160,28 +171,36 @@ def get_angles(
             dtype=xr.DataArray,
         )
 
-    structure_selection = _get_default_selection(
-        structure_selection, atXYZ_source=atXYZ_source, default_levels=['angles']
-    )
-
-    atXYZ: xr.DataArray
+    position_data: xr.DataArray
+    charge_info: int | None
     if isinstance(atXYZ_source, xr.DataArray):
-        atXYZ = atXYZ_source
+        position_data = atXYZ_source
+        charge_info = None
     else:
-        atXYZ = atXYZ_source.atXYZ
+        wrapped_ds = wrap_dataset(atXYZ_source, (Trajectory | Frames))
+        position_data = wrapped_ds.atXYZ
+        charge_info = int(wrapped_ds.charge)
+
+    structure_selection = _get_default_selection(
+        structure_selection,
+        atXYZ_source=position_data,
+        default_levels=['angles'],
+        charge_info=charge_info,
+    )
 
     angle_indices = list(structure_selection.angles_selected)
 
     if len(angle_indices) == 0:
-        return _empty_descriptor_results(atXYZ)
+        return _empty_descriptor_results(position_data)
 
     if isinstance(deg, bool):
         angle_arrs = [
-            angle(atXYZ, a, b, c, deg=deg).expand_dims('descriptor')
+            angle(position_data, a, b, c, deg=deg).expand_dims('descriptor')
             for a, b, c in angle_indices
         ]
 
         angle_res = xr.concat(angle_arrs, dim='descriptor')
+        angle_res.name = "angles"
 
         descriptor_tex = [r"\theta_{%d,%d,%d}" % (a, b, c) for a, b, c in angle_indices]
         descriptor_name = [r'angle(%d,%d,%d)' % (a, b, c) for a, b, c in angle_indices]
@@ -199,7 +218,7 @@ def get_angles(
         cos_res: Sequence[xr.DataArray]
         sin_res: Sequence[xr.DataArray]
         cos_res, sin_res = zip(
-            *[[angle_cos_sin(atXYZ, a, b, c) for a, b, c in angle_indices]]
+            *[[angle_cos_sin(position_data, a, b, c) for a, b, c in angle_indices]]
         )
 
         cos_res = [
@@ -221,11 +240,12 @@ def get_angles(
             r'cos(%d,%d,%d)' % (a, b, c) for a, b, c in angle_indices
         ] + [r'sin(%d,%d,%d)' % (a, b, c) for a, b, c in angle_indices]
 
-        descriptor_type: Sequence[FeatureTypeLabel] = ['cos'] * len(descriptor_tex) + [
-            'sin'
-        ] * len(descriptor_tex)  # pyright: ignore[reportAssignmentType] # Is allowed string, but not generally advertised
+        descriptor_type: list[FeatureTypeLabel] = ['cos_angle'] * len(
+            descriptor_tex
+        ) + ['sin_angle'] * len(descriptor_tex)  # pyright: ignore[reportAssignmentType] # Is allowed string, but not generally advertised
 
         angle_res: xr.DataArray = xr.concat(all_res, dim='descriptor')  # type: ignore
+        angle_res.name = "angles"
         return _assign_descriptor_coords(
             angle_res,
             feature_descriptors=angle_indices,

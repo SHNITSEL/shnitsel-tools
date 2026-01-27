@@ -5,10 +5,15 @@ from shnitsel.core.typedefs import AtXYZ
 
 import xarray as xr
 
+from shnitsel.data.dataset_containers import wrap_dataset
 from shnitsel.data.dataset_containers.frames import Frames
 from shnitsel.data.dataset_containers.trajectory import Trajectory
 from shnitsel.data.tree.node import TreeNode
-from shnitsel.filtering.structure_selection import FeatureTypeLabel, StructureSelection
+from shnitsel.filtering.structure_selection import (
+    FeatureTypeLabel,
+    StructureSelection,
+    StructureSelectionDescriptor,
+)
 from .helpers import (
     _assign_descriptor_coords,
     _empty_descriptor_results,
@@ -49,12 +54,16 @@ def distance(atXYZ: AtXYZ, i: int, j: int) -> xr.DataArray:
 @overload
 def get_distances(
     atXYZ_source: TreeNode[Any, Trajectory | Frames | xr.Dataset | xr.DataArray],
-    structure_selection: StructureSelection | None = None,
+    structure_selection: StructureSelection
+    | StructureSelectionDescriptor
+    | None = None,
 ) -> TreeNode[Any, xr.DataArray]: ...
 @overload
 def get_distances(
     atXYZ_source: Trajectory | Frames | xr.Dataset | xr.DataArray,
-    structure_selection: StructureSelection | None = None,
+    structure_selection: StructureSelection
+    | StructureSelectionDescriptor
+    | None = None,
 ) -> xr.DataArray: ...
 
 
@@ -66,7 +75,9 @@ def get_distances(
     | Frames
     | xr.Dataset
     | xr.DataArray,
-    structure_selection: StructureSelection | None = None,
+    structure_selection: StructureSelection
+    | StructureSelectionDescriptor
+    | None = None,
 ) -> TreeNode[Any, xr.DataArray] | xr.DataArray:
     """Identify bonds (using RDKit) and find the length of each bond in each
     frame.
@@ -77,7 +88,7 @@ def get_distances(
         An :py:class:`xarray.DataArray` of molecular coordinates, with dimensions ``atom`` and
         ``direction`` or another source of positional data like a trajectory, a frameset,
         a dataset representing either of those or a tree structure holding such data.
-    structure_selection: StructureSelection, optional
+    structure_selection: StructureSelection | StructureSelectionDescriptor, optional
         Object encapsulating feature selection on the structure whose positional information is provided in `atXYZ`.
         If this argument is omitted altogether, a default selection for all bonds within the structure is created.
 
@@ -96,23 +107,30 @@ def get_distances(
             dtype=xr.DataArray,
         )
 
-    structure_selection = _get_default_selection(
-        structure_selection, atXYZ_source=atXYZ_source, default_levels=['bonds']
-    )
-
-    atXYZ: xr.DataArray
+    position_data: xr.DataArray
+    charge_info: int | None
     if isinstance(atXYZ_source, xr.DataArray):
-        atXYZ = atXYZ_source
+        position_data = atXYZ_source
+        charge_info = None
     else:
-        atXYZ = atXYZ_source.atXYZ
+        wrapped_ds = wrap_dataset(atXYZ_source, (Trajectory | Frames))
+        position_data = wrapped_ds.atXYZ
+        charge_info = int(wrapped_ds.charge)
+
+    structure_selection = _get_default_selection(
+        structure_selection,
+        atXYZ_source=position_data,
+        default_levels=['bonds'],
+        charge_info=charge_info,
+    )
 
     bond_indices = list(structure_selection.bonds_selected)
 
     if len(bond_indices) == 0:
-        return _empty_descriptor_results(atXYZ)
+        return _empty_descriptor_results(position_data)
 
     distance_arrs = [
-        distance(atXYZ, a, b).expand_dims('descriptor') for a, b in bond_indices
+        distance(position_data, a, b).expand_dims('descriptor') for a, b in bond_indices
     ]
 
     distance_res = xr.concat(distance_arrs, dim='descriptor')
@@ -120,6 +138,8 @@ def get_distances(
     descriptor_tex = [r'|\vec{r}_{%d,%d}|' % (a, b) for a, b in bond_indices]
     descriptor_name = [r'dist(%d,%d)' % (a, b) for a, b in bond_indices]
     descriptor_type: list[FeatureTypeLabel] = ['dist'] * len(descriptor_tex)
+
+    distance_res.name = "distances"
 
     return _assign_descriptor_coords(
         distance_res,

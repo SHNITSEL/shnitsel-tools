@@ -3,10 +3,15 @@ from shnitsel._contracts import needs
 from shnitsel.core._api_info import API
 import xarray as xr
 
+from shnitsel.data.dataset_containers import wrap_dataset
 from shnitsel.data.dataset_containers.frames import Frames
 from shnitsel.data.dataset_containers.trajectory import Trajectory
 from shnitsel.data.tree.node import TreeNode
-from shnitsel.filtering.structure_selection import FeatureTypeLabel, StructureSelection
+from shnitsel.filtering.structure_selection import (
+    FeatureTypeLabel,
+    StructureSelection,
+    StructureSelectionDescriptor,
+)
 from shnitsel.geo.geocalc_.helpers import (
     _assign_descriptor_coords,
     _empty_descriptor_results,
@@ -17,12 +22,16 @@ from shnitsel.geo.geocalc_.helpers import (
 @overload
 def get_positions(
     atXYZ_source: TreeNode[Any, Trajectory | Frames | xr.Dataset | xr.DataArray],
-    structure_selection: StructureSelection | None = None,
+    structure_selection: StructureSelection
+    | StructureSelectionDescriptor
+    | None = None,
 ) -> TreeNode[Any, xr.DataArray]: ...
 @overload
 def get_positions(
     atXYZ_source: Trajectory | Frames | xr.Dataset | xr.DataArray,
-    structure_selection: StructureSelection | None = None,
+    structure_selection: StructureSelection
+    | StructureSelectionDescriptor
+    | None = None,
 ) -> xr.DataArray: ...
 
 
@@ -34,7 +43,9 @@ def get_positions(
     | Frames
     | xr.Dataset
     | xr.DataArray,
-    structure_selection: StructureSelection | None = None,
+    structure_selection: StructureSelection
+    | StructureSelectionDescriptor
+    | None = None,
 ) -> TreeNode[Any, xr.DataArray] | xr.DataArray:
     """Return a descriptor-indexed set of positions for bats calculation.
 
@@ -44,7 +55,7 @@ def get_positions(
         An :py:class:`xarray.DataArray` of molecular coordinates, with dimensions ``atom`` and
         ``direction`` or another source of positional data like a trajectory, a frameset,
         a dataset representing either of those or a tree structure holding such data.
-    structure_selection, optional
+    structure_selection: StructureSelection | StructureSelectionDescriptor, optional
         Object encapsulating feature selection on the structure whose positional information is provided in `atXYZ`.
         If this argument is omitted altogether, a default selection for all bonds within the structure is created.
     Returns
@@ -63,26 +74,29 @@ def get_positions(
             dtype=xr.DataArray,
         )
 
-    structure_selection = _get_default_selection(
-        structure_selection, atXYZ_source=atXYZ_source, default_levels=['atoms']
-    )
-
-    atXYZ: xr.DataArray
+    position_data: xr.DataArray
+    charge_info: int | None
     if isinstance(atXYZ_source, xr.DataArray):
-        atXYZ = atXYZ_source
+        position_data = atXYZ_source
+        charge_info = None
     else:
-        atXYZ = atXYZ_source.atXYZ
+        wrapped_ds = wrap_dataset(atXYZ_source, (Trajectory | Frames))
+        position_data = wrapped_ds.atXYZ
+        charge_info = int(wrapped_ds.charge)
 
     structure_selection = _get_default_selection(
-        structure_selection, atXYZ_source=atXYZ, default_levels=['atoms']
+        structure_selection,
+        atXYZ_source=position_data,
+        default_levels=['atoms'],
+        charge_info=charge_info,
     )
 
     position_indices = list(structure_selection.atoms_selected)
 
     if len(position_indices) == 0:
-        return _empty_descriptor_results(atXYZ)
+        return _empty_descriptor_results(position_data)
 
-    positions_arrs = [atXYZ.sel(atom=a, drop=True) for a in position_indices]
+    positions_arrs = [position_data.sel(atom=a, drop=True) for a in position_indices]
     coordinates_x: list[xr.DataArray]
     coordinates_y: list[xr.DataArray]
     coordinates_z: list[xr.DataArray]
@@ -116,6 +130,7 @@ def get_positions(
         + [r'pos_z(%d)' % (a) for a in position_indices]
     )
     descriptor_type: list[FeatureTypeLabel] = ['pos'] * len(descriptor_tex)
+    coordinates_res.name = "positions"
 
     return _assign_descriptor_coords(
         coordinates_res,

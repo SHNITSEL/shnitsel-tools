@@ -5,11 +5,16 @@ import xarray as xr
 import numpy as np
 
 from shnitsel.core.typedefs import AtXYZ, DataArrayOrVar
+from shnitsel.data.dataset_containers import wrap_dataset
 from shnitsel.data.dataset_containers.frames import Frames
 from shnitsel.data.dataset_containers.trajectory import Trajectory
 from shnitsel.data.tree.node import TreeNode
-from shnitsel.filtering.structure_selection import FeatureTypeLabel, StructureSelection
-from shnitsel.geo.geocalc_.algebra import angle_, dcross, ddot, normal
+from shnitsel.filtering.structure_selection import (
+    FeatureTypeLabel,
+    StructureSelection,
+    StructureSelectionDescriptor,
+)
+from shnitsel.geo.geocalc_.algebra import angle_, angle_cos_sin_, dcross, ddot, normal
 from shnitsel.geo.geocalc_.helpers import (
     _assign_descriptor_coords,
     _empty_descriptor_results,
@@ -55,9 +60,12 @@ def _dihedral_deg(
     bcd_normal = normal(b, c, d)
     if full:
         sign = np.sign(ddot(dcross(abc_normal, bcd_normal), (c - b)))
-        return angle_(abc_normal, bcd_normal) * sign
+        res = angle_(abc_normal, bcd_normal) * sign
     else:
-        return angle_(abc_normal, bcd_normal)
+        res = angle_(abc_normal, bcd_normal)
+
+    res.attrs['units'] = 'rad'
+    return res
 
 
 def _dihedral_trig_(
@@ -67,7 +75,7 @@ def _dihedral_trig_(
     c_index: int,
     d_index: int,
     full: bool = False,
-) -> xr.DataArray:
+) -> tuple[xr.DataArray, xr.DataArray]:
     """Function to calculate the sine and cosine of the dihedral between the points in arrays a,b,c and d.
 
     Parameters
@@ -83,8 +91,8 @@ def _dihedral_trig_(
 
     Returns
     -------
-    xr.DataArray | xr.Variable
-        The array of dihedral angels between the four input indices.
+    tuple[xr.DataArray, xr.DataArray]
+        First the array of cosines and then the array of sines of the dihedral angle
     """
     a = atXYZ.sel(atom=a_index, drop=True)
     b = atXYZ.sel(atom=b_index, drop=True)
@@ -92,8 +100,38 @@ def _dihedral_trig_(
     d = atXYZ.sel(atom=d_index, drop=True)
     abc_normal = normal(a, b, c)
     bcd_normal = normal(b, c, d)
-    sign = np.sign(ddot(dcross(abc_normal, bcd_normal), (c - b)))
-    return angle_(abc_normal, bcd_normal) * sign
+    res = angle_cos_sin_(abc_normal, bcd_normal)
+    res[0].attrs['units'] = 'trig'
+    res[1].attrs['units'] = 'trig'
+    return res
+
+
+@overload
+@needs(dims={'atom'})
+def dihedral(
+    atXYZ: AtXYZ,
+    a_index: int,
+    b_index: int,
+    c_index: int,
+    d_index: int,
+    *,
+    deg: Literal['trig'],
+    full: bool = False,
+) -> tuple[xr.DataArray, xr.DataArray]: ...
+
+
+@overload
+@needs(dims={'atom'})
+def dihedral(
+    atXYZ: AtXYZ,
+    a_index: int,
+    b_index: int,
+    c_index: int,
+    d_index: int,
+    *,
+    deg: bool = True,
+    full: bool = False,
+) -> xr.DataArray: ...
 
 
 @API()
@@ -107,7 +145,7 @@ def dihedral(
     *,
     deg: bool | Literal['trig'] = True,
     full: bool = False,
-) -> xr.DataArray:
+) -> xr.DataArray | tuple[xr.DataArray, xr.DataArray]:
     """Calculate all dihedral angles between the atoms specified.
     The atoms specified need to be bonded in this sequence (a-b), (b-c), (c-d).
 
@@ -127,6 +165,25 @@ def dihedral(
     xr.DataArray
         A ``DataArray`` containing dihedral angles (or the sin and cos thereof)
     """
+    if deg == 'trig':
+        result_cos, result_sin = _dihedral_trig_(
+            atXYZ, a_index, b_index, c_index, d_index, full=full
+        )
+        result_cos.name = 'cos(dihedral)'
+        result_cos.attrs['long_name'] = r"\cos(\varphi_{%d,%d,%d,%d})" % (
+            a_index,
+            b_index,
+            c_index,
+            d_index,
+        )
+        result_sin.name = 'cos(dihedral)'
+        result_sin.attrs['long_name'] = r"\cos(\varphi_{%d,%d,%d,%d})" % (
+            a_index,
+            b_index,
+            c_index,
+            d_index,
+        )
+        return result_cos, result_sin
     if isinstance(deg, bool):
         result: xr.DataArray = _dihedral_deg(
             atXYZ, a_index, b_index, c_index, d_index, full=full
@@ -144,14 +201,14 @@ def dihedral(
             d_index,
         )
         return result
-    elif deg == 'trig':
-        raise NotImplementedError("Trigonometric dihedrals not yet supported")
 
 
 @overload
 def get_dihedrals(
     atXYZ_source: TreeNode[Any, Trajectory | Frames | xr.Dataset | xr.DataArray],
-    structure_selection: StructureSelection | None = None,
+    structure_selection: StructureSelection
+    | StructureSelectionDescriptor
+    | None = None,
     deg: bool | Literal['trig'] = True,
     signed=True,
 ) -> TreeNode[Any, xr.DataArray]: ...
@@ -160,7 +217,9 @@ def get_dihedrals(
 @overload
 def get_dihedrals(
     atXYZ_source: Trajectory | Frames | xr.Dataset | xr.DataArray,
-    structure_selection: StructureSelection | None = None,
+    structure_selection: StructureSelection
+    | StructureSelectionDescriptor
+    | None = None,
     deg: bool | Literal['trig'] = True,
     signed=True,
 ) -> xr.DataArray: ...
@@ -174,7 +233,9 @@ def get_dihedrals(
     | Frames
     | xr.Dataset
     | xr.DataArray,
-    structure_selection: StructureSelection | None = None,
+    structure_selection: StructureSelection
+    | StructureSelectionDescriptor
+    | None = None,
     deg: bool | Literal['trig'] = True,
     signed: bool = True,
 ) -> TreeNode[Any, xr.DataArray] | xr.DataArray:
@@ -187,7 +248,7 @@ def get_dihedrals(
         An :py:class:`xarray.DataArray` of molecular coordinates, with dimensions ``atom`` and
         ``direction`` or another source of positional data like a trajectory, a frameset,
         a dataset representing either of those or a tree structure holding such data.
-    structure_selection: StructureSelection, optional
+    structure_selection: StructureSelection | StructureSelectionDescriptor, optional
         Object encapsulating feature selection on the structure whose positional information is provided in `atXYZ`.
         If this argument is omitted altogether, a default selection for all bonds within the structure is created.
     deg: bool | Literal['trig'], optional
@@ -211,28 +272,79 @@ def get_dihedrals(
             dtype=xr.DataArray,
         )
 
-    structure_selection = _get_default_selection(
-        structure_selection, atXYZ_source=atXYZ_source, default_levels=['dihedrals']
-    )
-
-    atXYZ: xr.DataArray
+    position_data: xr.DataArray
+    charge_info: int | None
     if isinstance(atXYZ_source, xr.DataArray):
-        atXYZ = atXYZ_source
+        position_data = atXYZ_source
+        charge_info = None
     else:
-        atXYZ = atXYZ_source.atXYZ
+        wrapped_ds = wrap_dataset(atXYZ_source, (Trajectory | Frames))
+        position_data = wrapped_ds.atXYZ
+        charge_info = int(wrapped_ds.charge)
+
+    structure_selection = _get_default_selection(
+        structure_selection,
+        atXYZ_source=position_data,
+        default_levels=['dihedrals'],
+        charge_info=charge_info,
+    )
 
     dihedral_indices = list(structure_selection.dihedrals_selected)
 
     if len(dihedral_indices) == 0:
-        return _empty_descriptor_results(atXYZ)
+        return _empty_descriptor_results(position_data)
 
-    if isinstance(deg, bool):
-        dihedral_arrs = [
-            dihedral(atXYZ, a, b, c, d, deg=deg, full=signed).expand_dims('descriptor')
-            for a, b, c, d in dihedral_indices
+    dihedral_arrs = [
+        dihedral(position_data, a, b, c, d, deg=deg, full=signed)
+        for a, b, c, d in dihedral_indices
+    ]
+
+    if deg == 'trig':
+        dih_angles_cos, dih_angles_sin = zip(*dihedral_arrs)
+        descriptor_tex_cos = [
+            r'\cos(\varphi_{%d,%d,%d,%d})' % (a, b, c, d)
+            for (a, b, c, d) in dihedral_indices
         ]
+        descriptor_tex_sin = [
+            r'\sin(\varphi_{%d,%d,%d,%d})' % (a, b, c, d)
+            for (a, b, c, d) in dihedral_indices
+        ]
+        descriptor_name_cos = [
+            r'cos(%d,%d,%d,%d)' % (a, b, c, d) for (a, b, c, d) in dihedral_indices
+        ]
+        descriptor_name_sin = [
+            r'sin(%d,%d,%d,%d)' % (a, b, c, d) for (a, b, c, d) in dihedral_indices
+        ]
+        descriptor_type_cos: list[FeatureTypeLabel] = ['cos_dih'] * len(
+            descriptor_tex_cos
+        )
+        descriptor_type_sin: list[FeatureTypeLabel] = ['sin_dih'] * len(
+            descriptor_tex_sin
+        )
 
-        dihedral_res = xr.concat(dihedral_arrs, dim='descriptor')
+        dihedral_angles_extended: list[xr.DataArray] = [
+            arr.expand_dims('descriptor') for arr in dih_angles_cos
+        ] + [arr.expand_dims('descriptor') for arr in dih_angles_sin]
+
+        dih_concatenated = xr.concat(dihedral_angles_extended, 'descriptor')
+
+        dihedral_res = _assign_descriptor_coords(
+            dih_concatenated,
+            feature_name=descriptor_name_cos + descriptor_name_sin,
+            feature_tex_label=descriptor_tex_cos + descriptor_tex_sin,
+            feature_type=descriptor_type_cos + descriptor_type_sin,
+            feature_descriptors=dihedral_indices,
+        )
+
+        dihedral_res: xr.DataArray = dihedral_res
+        dihedral_res.name = "dihedrals"
+        dihedral_res.attrs['units'] = 'trig'
+        return dihedral_res
+    else:
+        dihedral_arrs_extended: list[xr.DataArray] = [
+            arr.expand_dims('descriptor') for arr in dihedral_arrs
+        ]
+        dihedral_res = xr.concat(dihedral_arrs_extended, dim='descriptor')
 
         descriptor_tex = [
             r"\varphi_{%d,%d,%d,%d}" % (a, b, c, d) for a, b, c, d in dihedral_indices
@@ -241,6 +353,7 @@ def get_dihedrals(
             r'dih(%d,%d,%d,%d)' % (a, b, c, d) for a, b, c, d in dihedral_indices
         ]
         descriptor_type: list[FeatureTypeLabel] = ['dih'] * len(descriptor_tex)
+        dihedral_res.name = "dihedrals"
 
         return _assign_descriptor_coords(
             dihedral_res,
@@ -249,10 +362,10 @@ def get_dihedrals(
             feature_tex_label=descriptor_tex,
             feature_name=descriptor_name,
         )
-    else:
-        raise ValueError(
-            "We only support boolean values for `deg` parameter in dihedral/torsion calculation."
-        )
+    # else:
+    #     raise ValueError(
+    #         "We only support boolean values for `deg` parameter in dihedral/torsion calculation."
+    #     )
 
     # matches = _check_matches(matches_or_mol, atXYZ)['dihedrals']
     # if len(matches) == 0:
