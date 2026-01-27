@@ -29,6 +29,7 @@
   - [x] Add merge/subtract/intersect operations
   - [ ] Fix non-redundant coordinates
   - [ ] Structure selection (raise error if empty/warning if empty)
+  - [ ] draw: Draw grid of highlighted feature levels
 - [ ] Analogs tree, structure selection, warning if no match for compounds
   - [ ] Copy if multiple matches
   - [ ] For now: error if multiple matches
@@ -48,16 +49,19 @@
   - [ ] DBSCAN sounds like a good option to support
 - Datasheet
   - [ ] Improve documentation
+    - [x] Refactor documentation
+    - [ ] Make docstrings more detailed
   - DatasheetPage:
     - [ ] Improve PCA Page
-    - [ ] Improve default settings for datasheet and pages.
+    - [x] Improve default settings for datasheet and pages.
 
 - [ ] CLI tutorial/SI
 - [ ] Full tutorial retinal with direct link for reviewers
-  - [ ] Retinal BLA/HOOP/Dihedrals (Put all dihedrals in), 3->2 Dimension reduction
-  - [ ] Retinal PCA biplot to show we can find the right parameters
-  - [ ] Length threshold statistics plot
-  - [ ] Datasheet (note, that generation takes somewhat longer)
+  - [x] Retinal BLA/HOOP/Dihedrals (Put all dihedrals in), 3->2 Dimension reduction
+  - [x] Retinal PCA biplot to show we can find the right parameters
+  - [x] Length threshold statistics plot
+  - [x] Datasheet (note, that generation takes somewhat longer)
+  - [ ] add one more cool plot from retinal tutorial
   
 
 ## Secondary TODO:
