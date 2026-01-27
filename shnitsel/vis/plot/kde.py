@@ -370,7 +370,6 @@ def biplot_kde(
         mol = Mol(feature_selection.mol)
 
     mol = set_atom_props(mol, atomLabel=True, atomNote=[''] * mol.GetNumAtoms())
-    return 
     if scatter_color_property == 'time':
         noodleplot_c = None
         noodleplot_cmap = time_cmap
@@ -474,7 +473,8 @@ def biplot_kde(
             ax=pcaax,
         )
 
-    return kde_data
+    # TODO: FIXME: Should this really return the KDE data?
+    # return kde_data
 
 
 def plot_cdf_for_kde(
