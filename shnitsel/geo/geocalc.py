@@ -23,8 +23,9 @@ from shnitsel.filtering.structure_selection import (
 )
 from shnitsel.geo.geocalc_.helpers import (
     _empty_descriptor_results,
-    _get_default_selection,
 )
+from shnitsel.filtering.helpers import _get_default_structure_selection
+
 from .._contracts import needs
 
 from ..core.typedefs import AtXYZ
@@ -154,7 +155,7 @@ def get_bats(
             charge_info = int(wrapped_ds.charge)
 
         # TODO: FIXME: Example is not up to date
-        structure_selection = _get_default_selection(
+        structure_selection = _get_default_structure_selection(
             structure_selection,
             atXYZ_source=position_data,
             default_levels=default_features,

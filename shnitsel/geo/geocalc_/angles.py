@@ -18,9 +18,9 @@ import numpy as np
 
 from shnitsel.geo.geocalc_.helpers import (
     _assign_descriptor_coords,
-    _get_default_selection,
     _empty_descriptor_results,
 )
+from shnitsel.filtering.helpers import _get_default_structure_selection
 
 
 @API()
@@ -187,7 +187,7 @@ def get_angles(
         position_data = wrapped_ds.atXYZ
         charge_info = int(wrapped_ds.charge)
 
-    structure_selection = _get_default_selection(
+    structure_selection = _get_default_structure_selection(
         structure_selection,
         atXYZ_source=position_data,
         default_levels=['angles'],

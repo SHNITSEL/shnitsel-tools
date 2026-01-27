@@ -19,8 +19,8 @@ from shnitsel.geo.geocalc_.algebra import angle_cos_sin_, normal, angle_, normal
 from shnitsel.geo.geocalc_.helpers import (
     _assign_descriptor_coords,
     _empty_descriptor_results,
-    _get_default_selection,
 )
+from shnitsel.filtering.helpers import _get_default_structure_selection
 
 
 @overload
@@ -173,7 +173,7 @@ def get_pyramidalization(
         An :py:class:`xarray.DataArray` of molecular coordinates, with dimensions ``atom`` and ``direction`` or another source of positional data like a trajectory, a frameset, a dataset representing either of those or a tree structure holding such data.
     structure_selection : StructureSelection | StructureSelectionDescriptor, optional
         An optional argument to specify the substructures for which pyramidalization angles should be calculated.
-        If not provided, will be generated using `_get_default_selection()` using the atXYZ data for the pyramids level.
+        If not provided, will be generated using `_get_default_structure_selection()` using the atXYZ data for the pyramids level.
     deg : bool | Literal['trig'] = True, optional
         Whether to return angles in degrees (as opposed to radians), by default False.
         Alternatively with the option `trig`, this will yield the sin and cos of each pyramidalization angle instead.
@@ -206,7 +206,7 @@ def get_pyramidalization(
         position_data = wrapped_ds.atXYZ
         charge_info = int(wrapped_ds.charge)
 
-    structure_selection = _get_default_selection(
+    structure_selection = _get_default_structure_selection(
         structure_selection,
         atXYZ_source=position_data,
         default_levels=['pyramids'],

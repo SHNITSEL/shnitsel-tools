@@ -17,8 +17,8 @@ from shnitsel.filtering.structure_selection import (
 from .helpers import (
     _assign_descriptor_coords,
     _empty_descriptor_results,
-    _get_default_selection,
 )
+from shnitsel.filtering.helpers import _get_default_structure_selection
 
 from .algebra import dnorm
 
@@ -117,7 +117,7 @@ def get_distances(
         position_data = wrapped_ds.atXYZ
         charge_info = int(wrapped_ds.charge)
 
-    structure_selection = _get_default_selection(
+    structure_selection = _get_default_structure_selection(
         structure_selection,
         atXYZ_source=position_data,
         default_levels=['bonds'],

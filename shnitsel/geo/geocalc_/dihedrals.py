@@ -18,8 +18,8 @@ from shnitsel.geo.geocalc_.algebra import angle_, angle_cos_sin_, dcross, ddot, 
 from shnitsel.geo.geocalc_.helpers import (
     _assign_descriptor_coords,
     _empty_descriptor_results,
-    _get_default_selection,
 )
+from shnitsel.filtering.helpers import _get_default_structure_selection
 
 
 def _dihedral_deg(
@@ -282,7 +282,7 @@ def get_dihedrals(
         position_data = wrapped_ds.atXYZ
         charge_info = int(wrapped_ds.charge)
 
-    structure_selection = _get_default_selection(
+    structure_selection = _get_default_structure_selection(
         structure_selection,
         atXYZ_source=position_data,
         default_levels=['dihedrals'],
