@@ -42,8 +42,8 @@ def distance(atXYZ: AtXYZ, i: int, j: int) -> xr.DataArray:
     xr.DataArray
         The resulting array holding the pairwise distance between i and j.
     """
-    a = atXYZ.isel(atom=i, drop=True)
-    b = atXYZ.isel(atom=j, drop=True)
+    a = atXYZ.sel(atom=i, drop=True)
+    b = atXYZ.sel(atom=j, drop=True)
     with xr.set_options(keep_attrs=True):
         result: xr.DataArray = dnorm(a - b)
     result.name = 'distance'

@@ -52,9 +52,9 @@ def angle(
     xr.DataArray
         The resulting angles between the denoted atoms.
     """
-    a = atXYZ.isel(atom=a_index, drop=True)
-    b = atXYZ.isel(atom=b_index, drop=True)
-    c = atXYZ.isel(atom=c_index, drop=True)
+    a = atXYZ.sel(atom=a_index, drop=True)
+    b = atXYZ.sel(atom=b_index, drop=True)
+    c = atXYZ.sel(atom=c_index, drop=True)
     ab = a - b
     cb = c - b
     result: xr.DataArray = angle_(ab, cb)
@@ -93,12 +93,18 @@ def angle_cos_sin(
     xr.DataArray
         The resulting angles between the denoted atoms.
     """
-    a = atXYZ.isel(atom=a_index)
-    b = atXYZ.isel(atom=b_index)
-    c = atXYZ.isel(atom=c_index)
+    a = atXYZ.sel(atom=a_index, drop=True)
+    b = atXYZ.sel(atom=b_index, drop=True)
+    c = atXYZ.sel(atom=c_index, drop=True)
     ab = a - b
     cb = c - b
-    return angle_cos_sin_(ab, cb)
+
+    res_cos, res_sin = angle_cos_sin_(ab, cb)
+    res_cos.name = 'cos'
+    res_cos.attrs['units'] = 'trig'
+    res_sin.name = 'sin'
+    res_sin.attrs['units'] = 'trig'
+    return res_cos, res_sin
 
 
 @overload
@@ -218,14 +224,16 @@ def get_angles(
         cos_res: Sequence[xr.DataArray]
         sin_res: Sequence[xr.DataArray]
         cos_res, sin_res = zip(
-            *[[angle_cos_sin(position_data, a, b, c) for a, b, c in angle_indices]]
+            *[angle_cos_sin(position_data, a, b, c) for a, b, c in angle_indices]
         )
 
         cos_res = [
-            x.squeeze('atom', drop=True).expand_dims('descriptor') for x in cos_res
+            x.expand_dims('descriptor')  # .squeeze('atom', drop=True,)
+            for x in cos_res
         ]
         sin_res = [
-            x.squeeze('atom', drop=True).expand_dims('descriptor') for x in sin_res
+            x.expand_dims('descriptor')  # .squeeze('atom', drop=True)
+            for x in sin_res
         ]
         all_res: Sequence[xr.DataArray] = cos_res + sin_res
 
@@ -240,15 +248,15 @@ def get_angles(
             r'cos(%d,%d,%d)' % (a, b, c) for a, b, c in angle_indices
         ] + [r'sin(%d,%d,%d)' % (a, b, c) for a, b, c in angle_indices]
 
-        descriptor_type: list[FeatureTypeLabel] = ['cos_angle'] * len(
-            descriptor_tex
-        ) + ['sin_angle'] * len(descriptor_tex)  # pyright: ignore[reportAssignmentType] # Is allowed string, but not generally advertised
+        descriptor_type: list[FeatureTypeLabel] = ['cos_angle'] * len(cos_res) + [
+            'sin_angle'
+        ] * len(sin_res)  # pyright: ignore[reportAssignmentType] # Is allowed string, but not generally advertised
 
         angle_res: xr.DataArray = xr.concat(all_res, dim='descriptor')  # type: ignore
         angle_res.name = "angles"
         return _assign_descriptor_coords(
             angle_res,
-            feature_descriptors=angle_indices,
+            feature_descriptors=angle_indices + angle_indices,
             feature_type=descriptor_type,
             feature_tex_label=descriptor_tex,
             feature_name=descriptor_name,

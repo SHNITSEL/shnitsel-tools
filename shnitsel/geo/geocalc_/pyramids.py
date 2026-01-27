@@ -257,7 +257,7 @@ def get_pyramidalization(
             feature_name=descriptor_name_cos + descriptor_name_sin,
             feature_tex_label=descriptor_tex_cos + descriptor_tex_sin,
             feature_type=descriptor_type_cos + descriptor_type_sin,
-            feature_descriptors=pyramid_descriptors,
+            feature_descriptors=pyramid_descriptors + pyramid_descriptors,
         )
 
         pyr_res: xr.DataArray = pyr_res

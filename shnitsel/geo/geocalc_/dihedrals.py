@@ -333,7 +333,7 @@ def get_dihedrals(
             feature_name=descriptor_name_cos + descriptor_name_sin,
             feature_tex_label=descriptor_tex_cos + descriptor_tex_sin,
             feature_type=descriptor_type_cos + descriptor_type_sin,
-            feature_descriptors=dihedral_indices,
+            feature_descriptors=dihedral_indices + dihedral_indices,
         )
 
         dihedral_res: xr.DataArray = dihedral_res
