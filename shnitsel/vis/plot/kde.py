@@ -15,7 +15,14 @@ from shnitsel.analyze.pca import PCAResult, pca_and_hops
 from shnitsel.data.dataset_containers import Frames, Trajectory, wrap_dataset
 from shnitsel.data.dataset_containers.multi_layered import MultiSeriesLayered
 from shnitsel.data.dataset_containers.multi_stacked import MultiSeriesStacked
-from shnitsel.filtering.structure_selection import StructureSelection
+from shnitsel.filtering.structure_selection import (
+    AngleDescriptor,
+    BondDescriptor,
+    DihedralDescriptor,
+    PyramidsDescriptor,
+    StructureSelection,
+)
+from shnitsel.geo.geocalc_ import pyramids
 from shnitsel.geo.geocalc_.angles import angle
 from shnitsel.geo.geocalc_.dihedrals import dihedral
 from shnitsel.geo.geocalc_.distances import distance
@@ -238,14 +245,16 @@ def _plot_kdes(
 
 def biplot_kde(
     frames: xr.Dataset | Frames | Trajectory,
-    at1: int = 0,
-    at2: int = 1,
-    at3: int | None = None,
-    at4: int | None = None,
+    *ids: int,
     pca_data: PCAResult | None = None,
     feature_selection: StructureSelection | None = None,
     geo_kde_ranges: Sequence[tuple[float, float]] | None = None,
     scatter_color_property: Literal['time', 'geo'] = 'time',
+    geo_feature: BondDescriptor
+    | AngleDescriptor
+    | DihedralDescriptor
+    | PyramidsDescriptor
+    | None = None,
     geo_cmap: str | None = 'PRGn',  # any valid cmap type
     time_cmap: str | None = 'cividis',  # any valid cmap type
     contour_levels: int | list[float] | None = None,
@@ -268,41 +277,42 @@ def biplot_kde(
     ----------
     frames
         A dataset containing trajectory frames with atomic coordinates.
-    at1, at2, at3, at4: int
-        Indices of the first, second, third and fourth atoms for geometric property calculation.
+    *ids: int
+        Indices for atoms to be used in `geo_feature` if `geo_feature` is not set. 
+        Note that pyramidalization angles cannot reliably be provided in this format.
     pca_data : PCAResult, optional
         A PCA result to use for the analysis. If not provided, will perform PCA analysis based on `feature_selection` or a
         generic pairwise distance PCA.
     feature_selection: StructureSelection, optional
         An optional selection of features/structure to use for the PCA analysis.
-    geo_kde_ranges
+    geo_kde_ranges : Sequence[tuple[float, float]], optional
         A Sequence of tuples representing ranges. A KDE is plotted for each range, indicating the distribution of
         points for which the value of the geometry feature falls in that range.
         Default values are chosen depending on the type of feature that should be analyzed. 
-    contour_levels
+    contour_levels :  int | list[float], optional
         Contour levels for the KDE plot. Either the number of contour levels as an int or the list of floating 
         point values at which the contour lines should be drawn. Defaults to [0.08, 1]. 
         This parameter is passed to matplotlib.axes.Axes.contour.
-    scatter_color_property
+    scatter_color_property : {'time', 'geo'}, default='time'
         Must be one of 'time' or 'geo'. If 'time', the scatter-points will be colored based on the time coordinate;
         if 'geo', the scatter-points will be colored based on the relevant geometry feature (see above).
-    geo_cmap
+    geo_cmap : str, default = 'PRGn'
         The Colormap to use for the noodleplot, if ``scatter_color='geo'``; this also determines contour
         colors unless ``contour_colors`` is set.
-    time_cmap
+    time_cmap : str, default = 'cividis'
         The Colormap to use for the noodleplot, if ``scatter_color='time'``.
-    contour_fill
+    contour_fill : bool, default = True
         Whether to plot filled contours (``contour_fill=True``, uses ``ax.contourf``)
         or just contour lines (``contour_fill=False``, uses ``ax.contour``).
-    contour_colors
+    contour_colors : list[str], optional
         An iterable (not a Colormap) of colours (in a format matplotlib will accept) to use for the contours.
         By default, the ``geo_cmap`` will be used; this defaults to 'PRGn'.
-    num_bins
+    num_bins : {1, 2, 3, 4}, default = 4
         number of bins to be visualized, must be an integer between 1 and 4
-    fig
+    fig : mpl.figure.Figure, optional
         matplotlib.figure.Figure object into which the plot will be drawn;
         if not provided, one will be created using ``plt.figure(layout='constrained')``
-    center_mean
+    center_mean : bool, default = False
         Flag whether PCA data should be mean-centered before analysis. Defaults to False.
 
     Returns
@@ -317,9 +327,6 @@ def biplot_kde(
     * Performs PCA on trajectory pairwise distances and visualizes clustering of structural changes.
     * Produces a figure with PCA projection, cluster analysis, and KDE plots.
     """
-    assert at1 is not None and at2 is not None, (
-        "Indices of first two atoms to `biplot_kde()` must not be None."
-    )
 
     if scatter_color_property not in {'time', 'geo'}:
         raise ValueError("`scatter_color` must be 'time' or 'geo'")
@@ -330,26 +337,6 @@ def biplot_kde(
     wrapped_ds = wrap_dataset(
         frames, Frames | Trajectory | MultiSeriesStacked | MultiSeriesLayered
     )
-
-    match at1, at2, at3, at4:
-        case at1, at2, None, None:
-            # compute distance between atoms at1 and at2
-            geo_prop = distance(wrapped_ds.positions, at1, at2)
-            if not geo_kde_ranges:
-                geo_kde_ranges = [(0, 3), (5, 100)]
-        case at1, at2, at3, None:
-            # compute angle between vectors at1 - at2 and at2 - at3
-            assert at3 is not None  # to satisfy the typechecker
-            geo_prop = angle(wrapped_ds.positions, at1, at2, at3, deg=True)
-            if not geo_kde_ranges:
-                geo_kde_ranges = [(0, 80), (110, 180)]
-        case at1, at2, at3, at4:
-            # compute dihedral defined as angle between normals to planes (at1, at2, at3) and (at2, at3, at4)
-            assert at3 is not None
-            assert at4 is not None
-            geo_prop = dihedral(wrapped_ds.positions, at1, at2, at3, at4, deg=True)
-            if not geo_kde_ranges:
-                geo_kde_ranges = [(0, 80), (110, 180)]
 
     # prepare layout
     if fig is None:
@@ -374,7 +361,6 @@ def biplot_kde(
     else:
         hops_mask = hops_mask_from_active_state(wrapped_ds)
 
-    kde_data = _fit_and_eval_kdes(pca_data, geo_prop, geo_kde_ranges, num_steps=100)
     d = pb.pick_clusters(pca_data, num_bins=num_bins, center_mean=center_mean)
     loadings, clusters, picks = d['loadings'], d['clusters'], d['picks']
 
@@ -384,16 +370,62 @@ def biplot_kde(
         mol = Mol(feature_selection.mol)
 
     mol = set_atom_props(mol, atomLabel=True, atomNote=[''] * mol.GetNumAtoms())
+    print("a\n\n\n")
 
     if scatter_color_property == 'time':
         noodleplot_c = None
-        noodleplot_cmap = None
+        noodleplot_cmap = time_cmap
+        kde_data = None
     elif scatter_color_property == 'geo':
+        if geo_feature is None:
+            # Try and use additional positional parameters.
+            geo_feature = tuple(ids)
+
+        assert geo_feature is not None and len(geo_feature) >= 2, (
+            "If the scatter property is set to `geo`, the `geo_feature` parameter of `biplot_kde()` must not be None."
+        )
+
+        match geo_feature:
+            case (atc, (at1, at2, at3)):
+                # compute pyramidalization as described by the center atom `atc` and the neighbor atoms `at1, at2, at3`
+                geo_prop = pyramids.pyramidalization_angle(
+                    wrapped_ds.positions,
+                    atc,
+                    at1,
+                    at2,
+                    at3,
+                )
+                if not geo_kde_ranges:
+                    geo_kde_ranges = [(0, 80), (110, 180)]
+            case (at1, at2):
+                # compute distance between atoms at1 and at2
+                geo_prop = distance(wrapped_ds.positions, at1, at2)
+                if not geo_kde_ranges:
+                    geo_kde_ranges = [(0, 3), (5, 100)]
+            case (at1, at2, at3):
+                # compute angle between vectors at1 - at2 and at2 - at3
+                assert at3 is not None  # to satisfy the typechecker
+                geo_prop = angle(wrapped_ds.positions, at1, at2, at3, deg=True)
+                if not geo_kde_ranges:
+                    geo_kde_ranges = [(0, 80), (110, 180)]
+            case (at1, at2, at3, at4):
+                # compute dihedral defined as angle between normals to planes (at1, at2, at3) and (at2, at3, at4)
+                assert at3 is not None
+                assert at4 is not None
+                geo_prop = dihedral(wrapped_ds.positions, at1, at2, at3, at4, deg=True)
+                if not geo_kde_ranges:
+                    geo_kde_ranges = [(0, 80), (110, 180)]
+            case _:
+                raise ValueError(
+                    "The value provided to `biplot_kde()` as a `geo_feature` tuple does not constitute a Feature descriptor"
+                )
+        kde_data = _fit_and_eval_kdes(pca_data, geo_prop, geo_kde_ranges, num_steps=100)
         noodleplot_c = geo_prop
-        noodleplot_cmap = 'PRGn'
+        noodleplot_cmap = geo_cmap
     else:
         assert False
 
+    print("b\n\n\n")
     # noodleplot_c, noodleplot_cmap = {
     #     'time': (None, time_cmap),
     #     'geo': (geo_prop, geo_cmap),
@@ -412,11 +444,12 @@ def biplot_kde(
         noodle_kws=dict(alpha=1, marker='.'),
         hops_kws=dict(c='r', s=0.2),
     )
+    print("c\n\n\n")
 
     # in case more clusters were found than we have room for:
     picks = picks[:4]
 
-    print(pca_data.explain_loadings())
+    # print(pca_data.explain_loadings())
 
     pb.plot_clusters_grid(
         loadings,
@@ -427,22 +460,25 @@ def biplot_kde(
         labels=list('abcd'),
     )
 
+    print("d\n\n\n")
     if contour_colors is None:
         contour_colors = plt.get_cmap(noodleplot_cmap)(
             np.linspace(0, 1, len(contour_levels))
         )
 
-    xx, yy, Zs = kde_data
-    _plot_kdes(
-        xx,
-        yy,
-        Zs,
-        colors=contour_colors,
-        contour_levels=contour_levels,
-        contour_fill=contour_fill,
-        ax=pcaax,
-    )
+    if kde_data:
+        xx, yy, Zs = kde_data
+        _plot_kdes(
+            xx,
+            yy,
+            Zs,
+            colors=contour_colors,
+            contour_levels=contour_levels,
+            contour_fill=contour_fill,
+            ax=pcaax,
+        )
 
+    print("e\n\n\n")
     return kde_data
 
 
