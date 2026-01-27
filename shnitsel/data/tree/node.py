@@ -1182,7 +1182,7 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
         MultiSeriesLayered
             The resulting multi-trajectory dataset layered along a `trajectory` dimension
         """
-        from shnitsel.data.shnitsel_db.db_function_decorator import layer_subtree
+        from shnitsel.data.shnitsel_db_helpers import layer_subtree
 
         # TODO: FIXME: Convert to appropriate return type
         return MultiSeriesLayered(layer_subtree(self, only_direct_children))
