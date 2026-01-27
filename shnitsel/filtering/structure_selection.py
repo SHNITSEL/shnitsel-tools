@@ -57,6 +57,7 @@ FEATURE_LEVELS: list[FeatureLevelType] = [
 ]
 
 FeatureTypeLabel: TypeAlias = Literal[
+    'bla',
     'pyr',
     'pos',
     'dist',

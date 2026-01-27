@@ -9,11 +9,13 @@ from shnitsel.data.dataset_containers.trajectory import Trajectory
 from shnitsel.data.tree.node import TreeNode
 from shnitsel.filtering.structure_selection import (
     BondDescriptor,
+    FeatureTypeLabel,
     StructureSelection,
     StructureSelectionDescriptor,
 )
 from shnitsel.geo.geocalc_.distances import get_distances
 from shnitsel.geo.geocalc_.helpers import (
+    _assign_descriptor_coords,
     _empty_descriptor_results,
 )
 from shnitsel.filtering.helpers import _get_default_structure_selection
@@ -124,6 +126,7 @@ def get_max_chromophor_BLA(
         charge_info=charge_info,
     )
 
+    # Get the maximum BLA chromophor
     BLA_selection = structure_selection.select_BLA_chromophor(
         BLA_smarts=SMARTS,
         num_double_bonds=num_double_bonds,
@@ -153,19 +156,26 @@ def get_max_chromophor_BLA(
         'descriptor'
     )
 
-    return BLA_res
-    # data = data.expand_dims('descriptor')
+    # Add back in the dimension we lost due to the `mean()`call
+    BLA_res = BLA_res.expand_dims('descriptor')
 
-    # # joined_atom_idxs = tuple(reduce(lambda x, y: set(x).union(y), atom_idxs))
-    # joined_atom_idxs = tuple(set(sum(bond_idxs, ())))
-    # format_str = 'BLA$_{' + ','.join(['%d'] * len(joined_atom_idxs)) + '}$'
-    # return _assign_descriptor_coords(
-    #     data,
-    #     # *std_args,
-    #     [joined_atom_idxs],
-    #     [sum(bond_idxs, ())],
-    #     [sum(bond_types, ())],
-    #     [rc.Mol()],
-    #     format_str,
-    #     per_atom_coords=False,
-    # )
+    # Set metadatata
+    BLA_res.name = "BLA"
+    BLA_res.attrs.update(
+        {
+            "units": position_data.attrs["units"],
+            "unitdim": "length",
+            "long_name": "Bond length alternation (BLA)",
+        }
+    )
+
+    descriptor_tex = [r"BLA"]
+    descriptor_name = [r'BLA']
+    descriptor_type: list[FeatureTypeLabel] = ['bla'] * len(descriptor_tex)
+    return _assign_descriptor_coords(
+        BLA_res,
+        feature_descriptors=[(1, -1)],
+        feature_type=descriptor_type,
+        feature_tex_label=descriptor_tex,
+        feature_name=descriptor_name,
+    )
