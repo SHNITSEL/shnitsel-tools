@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 import datetime
+import logging
 from os import PathLike
 from typing import Mapping, Sequence
 from matplotlib.axes import Axes
@@ -248,7 +249,7 @@ class Datasheet:
             page_figures[key] = page_fig if isinstance(page_fig, list) else [page_fig]
 
         if path is not None:
-            print(
+            logging.info(
                 "Saving datasheet as pdf. Please be patient, this may take some time."
             )
             with PdfPages(path) as pdf:
@@ -286,7 +287,7 @@ class Datasheet:
                     datetime.datetime.today()
                 )  # datetime.datetime(2009, 11, 13)
                 d['ModDate'] = datetime.datetime.today()
-                print(f"Writing pdf with {pdf.get_pagecount()} pages")
+                logging.info(f"Writing pdf with {pdf.get_pagecount()} pages")
 
         if single_key is None:
             return page_figures

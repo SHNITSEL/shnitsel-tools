@@ -777,11 +777,11 @@ class DatasheetPage:
         has_nacs = 'nacs_norm' in interstate.data_vars
         has_socs = 'socs_norm' in interstate.data_vars
         num_states = len(state_selection.states)
-        print(
+        logging.info(
             f"Rendering coupling page for {num_states} states with at least {len(state_selection.state_combinations)} relevant state transitions."
         )
         if not simple_mode:
-            print("This may take a while during saving or rendering.")
+            logging.info("This may take a while during saving or rendering.")
         elif isinstance(figure, Figure):
             # Make figure smaller for the simple mode figure.
             figure.set_size_inches(
