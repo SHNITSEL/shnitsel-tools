@@ -25,7 +25,7 @@ def layered(tree) -> MultiSeriesLayered:
 
 
 def test_layered_type(layered):
-    print(layered)
+    # print(layered)
     assert isinstance(layered, MultiSeriesLayered)
     assert 'atrajectory' not in layered.dims
     assert 'atrajectory' not in layered.coords
