@@ -29,7 +29,7 @@
   - [x] Add merge/subtract/intersect operations
   - [ ] Fix non-redundant coordinates
 - StateSelection
-  - [ ] Add Support for textual representation of state selection
+  - [x] Add Support for textual representation of state selection
   - [x] Add merge/subtract/intersect operations
 - Visualization support
   - [ ] Add generic `plot()` function to various types
