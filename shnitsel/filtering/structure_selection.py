@@ -1724,8 +1724,8 @@ class StructureSelection:
         return list(bond_set)
 
     def bond_descriptor_to_mol_index(
-        self, bond_descriptors: list[BondDescriptor]
-    ) -> list[int]:
+        self, bond_descriptors: BondDescriptor | list[BondDescriptor]
+    ) -> int | list[int]:
         """Helper function to translate a list of Bond descriptors into RDKit bond indices.
 
         Parameters
@@ -1738,6 +1738,8 @@ class StructureSelection:
         -------
         list[int]
             The mapped list of RDKit self.mol internal bond indices.
+        int
+            If a single bond descriptor was provided
 
         Raises
         ------
@@ -1745,15 +1747,20 @@ class StructureSelection:
             if self.mol is None, no mapping can be performed.
 
         """
-        res: list[int] = []
-        assert self.mol is not None, (
-            'No molecule set for this selection. Cannot resolve bond ids.'
-        )
-        for entry in bond_descriptors:
-            bond = self.mol.GetBondBetweenAtoms(int(entry[0]), int(entry[1]))
-            res.append(bond.GetIdx())
+        match bond_descriptors:
+            case (at1, at2):
+                bond = self.mol.GetBondBetweenAtoms(int(at1), int(at2))
+                return bond.GetIdx()
+            case _:
+                res: list[int] = []
+                assert self.mol is not None, (
+                    'No molecule set for this selection. Cannot resolve bond ids.'
+                )
+                for entry in bond_descriptors:
+                    bond = self.mol.GetBondBetweenAtoms(int(entry[0]), int(entry[1]))
+                    res.append(bond.GetIdx())
 
-        return res
+                return res
 
     def select_BLA_chromophor(
         self,
