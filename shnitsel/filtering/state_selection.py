@@ -510,7 +510,7 @@ class StateSelection:
 
     @staticmethod
     def _abstract_state_comb_spec(
-        spec: str,
+        spec: str, states_from_sc_statements: bool = False
     ) -> tuple[
         set[StateId],
         set[StateCombination],
@@ -543,6 +543,11 @@ class StateSelection:
             directional.
             States can also be described using their names (if configured, e.g. `'S0'`)
             or a label describing their multiplicities (if configured, e.g. `'T'` for all triplet states)
+        states_from_sc_statements : bool, default=False
+            Flag whether states mentioned in state combination statements should be included in the
+            resulting sets for explicit states and state patterns.
+            E.g. if the selection is `1->2`, normally, the state selection would be empty,
+            but with `states_from_sc_statements=True`, the state selection would be `[1,2]`.
 
         Returns
         -------
@@ -593,7 +598,8 @@ class StateSelection:
                 from_id = _state_id_pattern.match(state_from)
                 if from_id:
                     res_from = int(state_from)
-                    res_state.add(res_from)
+                    if states_from_sc_statements:
+                        res_state.add(res_from)
                 else:
                     comb_is_pattern = True
                     from_mult = _state_mult_pattern.match(state_from)
@@ -603,10 +609,13 @@ class StateSelection:
                     else:
                         continue
 
+                    if states_from_sc_statements:
+                        res_state_patterns.add(res_from)
                 to_id = _state_id_pattern.match(state_to)
                 if to_id:
                     res_to = int(state_to)
-                    res_state.add(res_to)
+                    if states_from_sc_statements:
+                        res_state.add(res_to)
                 else:
                     comb_is_pattern = True
                     to_mult = _state_mult_pattern.match(state_to)
@@ -616,6 +625,8 @@ class StateSelection:
                     else:
                         continue
 
+                    if states_from_sc_statements:
+                        res_state_patterns.add(res_to)
                 if rel == "->":
                     if comb_is_pattern:
                         res_state_comb_patterns.add((res_from, res_to))
@@ -923,6 +934,7 @@ class StateSelection:
         | MultiplicityLabel
         | None = None,
         min_states_in_selection: Literal[0, 1, 2] = 0,
+        states_from_sc: bool = False,
         inplace: bool = False,
     ) -> Self:
         """Method to get a new state selection only retaining the states satisfying the required inclusion criteria and
@@ -947,6 +959,9 @@ class StateSelection:
         min_states_in_selection : {0, 1, 2}, optional
             Optional parameter to determine whether state combinations should be kept if states they include are no longer part of the selection.
             A state combination is retained if at least `min_states_in_selection` of their states are still within the state selection. Defaults to 0, meaning all combinations are kept.
+        states_from_sc : bool, default=False
+            Flag, whether states should be included in the selection based on states mentioned in state combination
+            selectors. By default False.
         inplace : bool, optional
             Flag to update the selection in-place. Defaults to False, meaning a modified copy is returned.
 
@@ -984,7 +999,9 @@ class StateSelection:
                             pattern_state,
                             pattern_combs,
                             is_directed,
-                        ) = self._abstract_state_comb_spec(sel)
+                        ) = self._abstract_state_comb_spec(
+                            sel, states_from_sc_statements=states_from_sc
+                        )
 
                         selector_state_ids.update(expl_state)
 
@@ -1285,6 +1302,7 @@ class StateSelection:
         | StateSelectionDescriptor
         | None = None,
         min_states_in_selection: Literal[0, 1, 2] = 0,
+        states_from_sc: bool = False,
         # inplace: bool = False,
     ) -> Self:
         """Method to select both states and state combinations in one go.
@@ -1317,6 +1335,9 @@ class StateSelection:
             Optional parameter to denote, how many states of a state combination must be within the selection for the state combination to be included in a result, by default 0
             E.g. if only states `1` and `3` are selected, and the selection would include `1->2`, this parameter
             needs to be `1` or `0` for `(1,2)` to be included in the result.
+        states_from_sc : bool, default=False
+            Flag, whether states should be included in the selection based on states mentioned in state combination
+            selectors. By default False.
 
         Returns
         -------
@@ -1327,12 +1348,12 @@ class StateSelection:
         if exclude:
             # We create a copy first and then we can modify in place.
             tmp_res_exclude = self.select_states(
-                exclude, inplace=False
+                exclude, inplace=False, states_from_sc=states_from_sc
             ).select_state_combinations(selectors=exclude, inplace=True)
 
         # We create a copy first and then we can modify in place.
         tmp_res_select = self.select_states(
-            selectors, inplace=False
+            selectors, inplace=False, states_from_sc=states_from_sc
         ).select_state_combinations(
             selectors=selectors,
             min_states_in_selection=min_states_in_selection,
@@ -1602,7 +1623,7 @@ class StateSelection:
             the updated selection only containing singlet states.
 
         """
-        return self.select_states(multiplicity=1, inplace=inplace)
+        return self.select_states("S", inplace=inplace)
 
     def triplets_only(self, inplace: bool = False) -> Self:
         """Helper function to immediately filter only triplet states. Does not affect state combinations.
@@ -1618,7 +1639,7 @@ class StateSelection:
             the updated selection only containing triplet states.
 
         """
-        return self.select_states(multiplicity=3, inplace=inplace)
+        return self.select_states("T", inplace=inplace)
 
     def same_multiplicity_transitions(self, inplace: bool = False) -> Self:
         """Helper function to only retain combinations between states of the same multiplicities (e.g. for NACs)
