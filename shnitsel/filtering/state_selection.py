@@ -1147,7 +1147,7 @@ class StateSelection:
         """
         if isinstance(multipl, int):
             return multipl
-        elif multipl in MultiplicityLabelValues:
+        elif isinstance(multipl, str) and multipl in MultiplicityLabelValues:
             assert isinstance(multipl, str)
 
             lower_label = multipl.lower()
