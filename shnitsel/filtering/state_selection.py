@@ -1272,6 +1272,78 @@ class StateSelection:
             state_combinations=list(new_state_combinations), inplace=inplace
         )
 
+    def select(
+        self,
+        selectors: Iterable[StateId | StateCombination | StateSelectionDescriptor]
+        | StateId
+        | StateCombination
+        | StateSelectionDescriptor
+        | None = None,
+        *,
+        exclude: Iterable[StateId | StateSelectionDescriptor]
+        | StateId
+        | StateSelectionDescriptor
+        | None = None,
+        min_states_in_selection: Literal[0, 1, 2] = 0,
+        # inplace: bool = False,
+    ) -> Self:
+        """Method to select both states and state combinations in one go.
+
+        Internally calls `.select_states()` and `.select_state_combinations()`.
+        Additionally, the `exclude` keyword parameter can be used to remove matched entries from the
+        overall selection.
+        If no parameters are provided, all states and state combinations will be provided.
+        May implicitly convert to a directed selection if descriptors include directed transitions.
+
+        Parameters
+        ----------
+        selectors : Iterable[StateId  |  StateCombination  |  StateSelectionDescriptor] | StateId | StateCombination | StateSelectionDescriptor | None, optional
+            The description of states and state combinations supposed to be included within the resulting selection.
+            The description can be a state id (`int`), a transition id, (`tuple[int,int]`) or a `str` with comma-separated statements
+            denoting either states or state combinations.
+            The following statements are supported in selector strings:
+                - A `str` representation of a state id.
+                - A multiplicity label e.g. `'S'` or `'t'` (capitalization irrelevant, requires state types to be set)
+                - A state name, if state names are configured on this selection, e.g, `'S0'`
+                - A state combination representation as a `str`, of one of the following forms:
+                    - `'<state_a> -> <state_b>'` (for directed transitions a to b)
+                    - `'<state_a> <> <state_b>'` (for undirected/bidirectional transitions between a and b)
+                  All `<state>` expressions may take any statement of the state representations above.
+            By default, no states will be selected.
+        exclude : Iterable[StateId  |  StateSelectionDescriptor] | StateId | StateSelectionDescriptor | None, optional
+            Same format at `selectors`. If set, the states and state combinations selected by this argument are excluded from the resulting selection.
+            By default None, meaning no states will be removed.
+        min_states_in_selection : Literal[0, 1, 2], optional
+            Optional parameter to denote, how many states of a state combination must be within the selection for the state combination to be included in a result, by default 0
+            E.g. if only states `1` and `3` are selected, and the selection would include `1->2`, this parameter
+            needs to be `1` or `0` for `(1,2)` to be included in the result.
+
+        Returns
+        -------
+        Self
+            The resulting selection with states and state combinations selected.
+        """
+        tmp_res_exclude = None
+        if exclude:
+            # We create a copy first and then we can modify in place.
+            tmp_res_exclude = self.select_states(
+                exclude, inplace=False
+            ).select_state_combinations(selectors=exclude, inplace=True)
+
+        # We create a copy first and then we can modify in place.
+        tmp_res_select = self.select_states(
+            selectors, inplace=False
+        ).select_state_combinations(
+            selectors=selectors,
+            min_states_in_selection=min_states_in_selection,
+            inplace=True,
+        )
+
+        if tmp_res_exclude:
+            return tmp_res_select - tmp_res_exclude
+        else:
+            return tmp_res_select
+
     def set_state_names(
         self, names: Sequence[str] | dict[StateId, str], inplace: bool = True
     ) -> Self:
