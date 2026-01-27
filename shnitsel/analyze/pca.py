@@ -560,14 +560,14 @@ def pca(
                 else:
                     return x.as_stacked
 
-            data_framed : TreeNode[Any, Frames] = data.map_data(traj_to_frame)
+            data_framed: TreeNode[Any, Frames] = data.map_data(traj_to_frame)
             data_grouped = data_framed.group_data_by_metadata()
 
             if feature_selection is not None:
 
                 def extract_features(x: Frames) -> xr.DataArray:
                     return get_bats(
-                        x.positions, structure_selection=feature_selection, deg='trig'
+                        x.positions, structure_selection=feature_selection, # deg='trig'
                     )
             else:
 
@@ -660,7 +660,10 @@ def pca(
                     )  # .rename({'atomcomb': 'descriptor'})
                 else:
                     feature_array = get_bats(
-                        data, structure_selection=feature_selection
+                        data,
+                        structure_selection=feature_selection,
+                        # TODO: FIXME: Check if `trig` is the best option for us
+                        # deg='trig',
                     )
 
                 return pca_direct(
