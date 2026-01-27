@@ -25,9 +25,22 @@ from shnitsel.core.typedefs import (
     SpectraDictType,
     StateCombination,
 )
-from shnitsel.data.dataset_containers import Trajectory, Frames, InterState, PerState
-from shnitsel.filtering.state_selection import StateSelection
-from shnitsel.filtering.structure_selection import StructureSelection
+from shnitsel.data.dataset_containers import (
+    Trajectory,
+    Frames,
+    InterState,
+    PerState,
+    wrap_dataset,
+)
+from shnitsel.filtering.helpers import (
+    _get_default_state_selection,
+    _get_default_structure_selection,
+)
+from shnitsel.filtering.state_selection import StateSelection, StateSelectionDescriptor
+from shnitsel.filtering.structure_selection import (
+    StructureSelection,
+    StructureSelectionDescriptor,
+)
 from shnitsel.vis.datasheet.figures.energy_bands import plot_energy_bands
 from shnitsel.vis.datasheet.figures.soc_trans_hist import (
     plot_separated_spectra_and_soc_dip_hists,
@@ -83,8 +96,10 @@ class DatasheetPage:
     def __init__(
         self,
         data: xr.Dataset | Trajectory | Frames | Self,
-        state_selection: StateSelection | None = None,
-        feature_selection: StructureSelection | None = None,
+        state_selection: StateSelection | StateSelectionDescriptor | None = None,
+        feature_selection: StructureSelection
+        | StructureSelectionDescriptor
+        | None = None,
         *,
         spectra_times: list[int | float] | np.ndarray | None = None,
         col_state: list | None = None,
@@ -92,24 +107,37 @@ class DatasheetPage:
     ):
         """Create a new DataSheet page, initializating the data of the class and preparing the plotting later on
 
-        Args:
-            data (Trajectory | Self): Either a Shnitsel Trajectory data object from which to generate the statistical information visualized in this DataSheet page
-                or another DataSheetPage that should be copied.
-            state_selection (StateSelection, optional): Optional parameter to specify a subset of states and state combinations that may be considered for the dataset.
-                Will be generated if not provided.
-            # TODO: FIXME: Add feature selection option
-            feature_selection (optional): Optional parameter to limit the PCA plot and analysis to a specific subset of the structure. Will be generated if not provided.
-            spectra_times (list[int  |  float] | np.ndarray | None, optional): Sequence of times to calculate spectra at. Defaults to None.
-            col_state (list | None, optional): A list of colors to use for the states. Defaults to default shnitsel colors.
-            col_inter (list | None, optional): A list of colors to use for state combinations. Defaults to default shnitsel colors.
+        Parameters
+        ----------
+        data : ShnitselDataset | Self
+            Either a Shnitsel dataset data object from which to generate the statistical information visualized in this DataSheet page
+            or another DataSheetPage that should be copied.
+        state_selection : StateSelection | StateSelectionDescriptor, optional
+            Optional parameter to specify a subset of states and state combinations that may be considered for the dataset.
+            Will be generated if not provided.
+        feature_selection : StructureSelection | StructureSelectionDescriptor, optional
+            Optional parameter to limit the PCA plot and analysis to a specific subset of the structure.
+            Will be generated if not provided.
+        spectra_times : list[int  |  float] | np.ndarray, optional
+            Sequence of times to calculate spectra at. Defaults to None.
+        col_state : list, optional
+            A list of colors to use for the states. Defaults to default shnitsel colors.
+        col_inter : list, optional
+            A list of colors to use for state combinations. Defaults to default shnitsel colors.
 
-        Raises:
-            TypeError: If wrong type of `data` parameter is provided.
-            ValueError: If the wrong number of colors for the states is provided.
-            ValueError: If the wrong number of colors for state transitions is provided.
+        Raises
+        ------
+        TypeError
+            If wrong type of `data` parameter is provided.
+        ValueError
+            If the wrong number of colors for the states is provided.
+        ValueError
+            If the wrong number of colors for state transitions is provided.
 
-        Returns:
-            DatasheetPage: The constructed (or copied) DataSheetPage
+        Returns
+        -------
+        DatasheetPage
+            The constructed (or copied) DataSheetPage
         """
         if isinstance(data, DatasheetPage):
             self._copy_data(old=data)
@@ -153,6 +181,9 @@ class DatasheetPage:
 
         # Initialize state selection or use provided selection
         if state_selection is not None:
+            state_selection = _get_default_state_selection(
+                state_selection, state_source=self.frames
+            )
             self.state_selection_provided = True
             self.state_selection = state_selection
         else:
@@ -161,8 +192,24 @@ class DatasheetPage:
 
         # Initialize feature selection or use provided selection
         if feature_selection is not None:
-            self.feature_selection = feature_selection
+            position_data: xr.DataArray
+            charge_info: int | None
+            if isinstance(self.frames, xr.DataArray):
+                position_data = self.frames
+                charge_info = None
+            else:
+                wrapped_ds = wrap_dataset(self.frames, (Trajectory | Frames))
+                position_data = wrapped_ds.atXYZ
+                charge_info = int(wrapped_ds.charge)
+
+            structure_selection = _get_default_structure_selection(
+                feature_selection,
+                atXYZ_source=position_data,
+                default_levels=['atoms', 'bonds', 'angles', 'dihedrals', 'pyramids'],
+                charge_info=charge_info,
+            )
             self.feature_selection_provided = True
+            self.feature_selection = structure_selection
         else:
             self.feature_selection = None
 
@@ -249,8 +296,10 @@ class DatasheetPage:
     def _copy_data(self, old: Self):
         """Copy data from the other DataSheetPage into this entity's fields.
 
-        Args:
-            old (Self): The DataSheet to create a copy of.
+        Parmaeters
+        ----------
+        old : Self
+            The DataSheetPage to create a copy of.
         """
         self.spectra_times = old.spectra_times
         self.state_selection = old.state_selection
@@ -281,8 +330,10 @@ class DatasheetPage:
     def per_state(self) -> PerState:
         """Get per-state data for the underlying dataset and cache it for repeated use.
 
-        Returns:
-            PerState: Per-state data of the self.frames object. (Energies, permanent dipoles)
+        Returns
+        -------
+        PerState
+            Per-state data of the self.frames object. (Energies, permanent dipoles)
         """
         start = timer()
         per_state = self.frames.per_state
@@ -295,8 +346,10 @@ class DatasheetPage:
     def inter_state(self) -> InterState:
         """Inter-state (state-transition) data of the underlying self.frames object
 
-        Returns:
-            InterState: Inter-state properties of the underlying data. (delta_energies, transition dipoles, SOCs, NACs, fosc)
+        Returns
+        -------
+        InterState
+            Inter-state properties of the underlying data. (delta_energies, transition dipoles, SOCs, NACs, fosc)
         """
         start = timer()
         # TODO: FIXME: Use state selection for limit on which to calculate
@@ -346,8 +399,10 @@ class DatasheetPage:
     def delta_E(self) -> xr.Dataset:
         """Energy deltas between different states in a dataset.
 
-        Returns:
-            xr.Dataset: Dataset holding 'energy_interstate' variable.
+        Returns
+        -------
+        xr.Dataset
+            Dataset holding 'energy_interstate' variable.
         """
         start = timer()
         # TODO: FIXME: Use state selection for limit on which to calculate
@@ -362,8 +417,10 @@ class DatasheetPage:
     def fosc_time(self) -> xr.Dataset | None:
         """Strength of oscillator/transition rate between states at different points in time.
 
-        Returns:
-            xr.Dataset | None: Either the f_osc data (with confidence intervals) or None if not sufficient data in self.frames to calculate it.
+        Returns
+        -------
+        xr.Dataset | None
+            Either the f_osc data (with confidence intervals) or None if not sufficient data in self.frames to calculate it.
         """
         start = timer()
         if self.inter_state.has_variable('fosc'):
@@ -380,8 +437,10 @@ class DatasheetPage:
     def spectra(self) -> SpectraDictType:
         """Spectral statistics of the self.frames object.
 
-        Returns:
-            SpectraDictType: The spectral information per state transition
+        Returns
+        -------
+        SpectraDictType
+            The spectral information per state transition
         """
         start = timer()
         # TODO: FIXME: Use state selection for limit on which to calculate
@@ -402,8 +461,10 @@ class DatasheetPage:
     ]:
         """Get different spectral groups for ground-state transitions and for excited-state transitions
 
-        Returns:
-            tuple[ SpectraDictType, SpectraDictType, ]: One spectral dict per ground-state or excited-state transitions.
+        Returns
+        -------
+        tuple[SpectraDictType, SpectraDictType]
+            One spectral dict per ground-state or excited-state transitions.
         """
         start = timer()
         # TODO: FIXME: Use state selection for split
@@ -420,8 +481,10 @@ class DatasheetPage:
     def spectra_ground(self) -> SpectraDictType:
         """Extracted spectral information of only the ground-state transitions
 
-        Returns:
-            SpectraDictType: Extracted spectral information of only the ground-state transitions
+        Returns
+        -------
+        SpectraDictType
+            Extracted spectral information of only the ground-state transitions
         """
         return self.spectra_groups[0]
 
@@ -429,8 +492,10 @@ class DatasheetPage:
     def spectra_excited(self) -> SpectraDictType:
         """Extracted spectral information of only the excited-state transitions
 
-        Returns:
-            SpectraDictType: Extracted spectral information of only the excited-state transitions
+        Returns
+        -------
+        SpectraDictType
+            Extracted spectral information of only the excited-state transitions
         """
         return self.spectra_groups[1]
 
@@ -438,8 +503,10 @@ class DatasheetPage:
     def pca_full_data(self) -> PCAResult:
         """Get full PCA result with PCA detailed info.
 
-        Returns:
-            xr.DataArray: The pairwise distance PCA results
+        Returns
+        -------
+        xr.DataArray
+            The pairwise distance PCA results
         """
         from shnitsel.analyze.pca import pca
 
@@ -453,8 +520,10 @@ class DatasheetPage:
     def pca_data(self) -> xr.DataArray:
         """Noodle plot source data derived from principal component analysis (PCA) on the full data in self.frames using only pairwise distances.
 
-        Returns:
-            xr.DataArray: The pairwise distance PCA results
+        Returns
+        -------
+        xr.DataArray
+            The pairwise distance PCA results
         """
         return self.pca_full_data.projected_inputs
 
@@ -462,8 +531,10 @@ class DatasheetPage:
     def pca_info(self) -> sk_PCA:
         """Detailed PCA decomposition information
 
-        Returns:
-            sk_PCA: The sklearn.decomposition.PCA object containing all PCA information.
+        Returns
+        -------
+        sk_PCA
+            The sklearn.decomposition.PCA object containing all PCA information.
         """
         return self.pca_full_data.fitted_pca_object
 
@@ -471,8 +542,10 @@ class DatasheetPage:
     def pca_explanation(self) -> dict[str, str]:
         """Provide an explanation for the components of the PCA components.
 
-        Returns:
-            dict[str, str]: Result of the explanation process.
+        Returns
+        -------
+        dict[str, str]
+            Result of the explanation process.
         """
         res: dict[str, str] = {}
 
@@ -501,8 +574,10 @@ class DatasheetPage:
     def structure_atXYZ(self) -> AtXYZ:
         """Structure/Position data in the first frame/timestep of the trajectory
 
-        Returns:
-            AtXYZ: Positional data.
+        Returns
+        -------
+        AtXYZ
+            Positional data.
         """
         leading_dim_name = self.frames.leading_dim
         return self.frames.atXYZ.isel({leading_dim_name: 0})
@@ -511,8 +586,10 @@ class DatasheetPage:
     def mol(self) -> rdchem.Mol:
         """Property to get an rdkit Mol object from the structural data
 
-        Returns:
-            rdkit.Chem.Mol: Molecule object representing the structure in the first frame
+        Returns
+        -------
+        rdkit.Chem.Mol
+            Molecule object representing the structure in the first frame
         """
         # # TODO: FIXME: Shouldn't this be a private attribute prefixed with `__` ?
         # if 'smiles_map' in self.frames['atXYZ'].attrs:
@@ -530,8 +607,10 @@ class DatasheetPage:
     def mol_skeletal(self) -> rdchem.Mol:
         """Skeletal representation of the the rdkit.Chem.Mol representation of the structure
 
-        Returns:
-            rdkit.Chem.Mol: Molecule object representing the skeletal structure (no H atoms) in the first frame
+        Returns
+        -------
+        rdkit.Chem.Mol
+            Molecule object representing the skeletal structure (no H atoms) in the first frame
         """
         mol = rdchem.Mol(self.mol)
         return rdchem.RemoveHs(mol)
@@ -540,8 +619,10 @@ class DatasheetPage:
     def smiles(self) -> str:
         """Smiles representation of the skeletal molecule structure.
 
-        Returns:
-            str: Smiles representation of the skeletal molecule structure
+        Returns
+        -------
+        str
+            Smiles representation of the skeletal molecule structure
         """
         return rdchem.MolToSmiles(self.mol_skeletal)
 
@@ -549,8 +630,10 @@ class DatasheetPage:
     def inchi(self) -> str:
         """InChI representation of the skeletal molecule structure.
 
-        Returns:
-            str: InChI representation of the skeletal molecule structure.
+        Returns
+        -------
+        str
+            InChI representation of the skeletal molecule structure.
         """
         return rdchem.MolToInchi(self.mol_skeletal)
 
@@ -581,12 +664,17 @@ class DatasheetPage:
     ) -> dict[str, Axes]:
         """Plot histograms of forces, energies and permanent dipoles for each selected state.
 
-        Args:
-            fig (Figure | SubFigure | None, optional): Figure to plot the graphs to. Defaults to None.
-            shape (tuple[int,int], optional): The shape (rows, cols) that the sub-plots should take. Defaults to one row and 3 columns.
+        Parameters
+        ----------
+        fig : Figure | SubFigure | None, optional
+            Figure to plot the graphs to. Defaults to None.
+        shape : tuple[int,int], optional
+            The shape (rows, cols) that the sub-plots should take. Defaults to one row and 3 columns.
 
-        Returns:
-            Axes: _description_
+        Returns
+        -------
+        dict[str, Axes]
+            The axes to which the histograms have been plotted with their assigned names.
         """
         start = timer()
         res = plot_per_state_histograms(
@@ -682,10 +770,12 @@ class DatasheetPage:
         self,
         fig: Figure | SubFigure | None = None,
         state_selection: StateSelection | None = None,
-    ) -> Axes | None:
+    ) -> Axes:
         if not self.can['noodle']:
-            return None
-        
+            raise RuntimeError(
+                f"Cannot plot `noodle plot` on page with name {self.name}"
+            )
+
         start = timer()
         res = plot_noodleplot(self.pca_data, self.hops, fig=fig)
         end = timer()
@@ -911,8 +1001,10 @@ class DatasheetPage:
     ) -> tuple[Figure, dict[str, SubFigure]]:
         """Helper function to output the entire `meta` overview page to a Shnitsel Tools datasheet.
 
-        Returns:
-            tuple[Figure, dict[str, SubFigure]]: The pair of the entire figure and a dict of the subfigures involved in the meta-overview page.
+        Returns
+        -------
+        tuple[Figure, dict[str, SubFigure]]
+            The pair of the entire figure and a dict of the subfigures involved in the meta-overview page.
         """
         letter_base = "abcdefghijk"
         letter_it = iter(letter_base)
@@ -1084,12 +1176,17 @@ class DatasheetPage:
     ) -> tuple[Figure, dict[str, SubFigure]]:
         """Helper function to prepare a figure to hold all subfigures in this DatasheetPage
 
-        Args:
-            include_per_state_hist (bool, optional): Flag whether per state histograms will be included. Defaults to False.
-            borders (bool, optional): Flag whether figure borders should be drawn. Defaults to False.
+        Parameters
+        ----------
+        include_per_state_hist : bool, optional
+            Flag whether per state histograms will be included. Defaults to False.
+        borders : bool, optional
+            Flag whether figure borders should be drawn. Defaults to False.
 
-        Returns:
-            tuple[Figure, dict[str, SubFigure]]: The overall figure and a dict to access individual subfigures by their name.
+        Returns
+        -------
+        tuple[Figure, dict[str, SubFigure]]
+            The overall figure and a dict to access individual subfigures by their name.
         """
         nrows = 6 if include_per_state_hist else 5
         top_spacing = 1 if include_per_state_hist else 0
@@ -1124,11 +1221,15 @@ class DatasheetPage:
     ) -> tuple[Figure, dict[str, SubFigure]]:
         """Helper function to prepare a figure to hold all subfigures in this DatasheetPage covering all PCA information.
 
-        Args:
-            borders (bool, optional): Flag whether figure borders should be drawn. Defaults to False.
+        Parameters
+        ----------
+        borders : bool, default=False
+            Flag whether figure borders should be drawn. Defaults to False.
 
-        Returns:
-            tuple[Figure, dict[str, SubFigure]]: The overall figure and a dict to access individual subfigures by their name.
+        Returns
+        -------
+        tuple[Figure, dict[str, SubFigure]]
+            The overall figure and a dict to access individual subfigures by their name.
         """
         nrows = 8
 
@@ -1160,11 +1261,15 @@ class DatasheetPage:
     ) -> tuple[Figure, dict[str, SubFigure]]:
         """Helper function to prepare a figure to hold all subfigures in this DatasheetPage covering all Meta information.
 
-        Args:
-            borders (bool, optional): Flag whether figure borders should be drawn. Defaults to False.
+        Parameters
+        ----------
+        borders : bool, default=False
+            Flag whether figure borders should be drawn. Defaults to False.
 
-        Returns:
-            tuple[Figure, dict[str, SubFigure]]: The overall figure and a dict to access individual subfigures by their name.
+        Returns
+        -------
+        tuple[Figure, dict[str, SubFigure]]
+            The overall figure and a dict to access individual subfigures by their name.
         """
         nrows = 3
 
@@ -1199,12 +1304,18 @@ class DatasheetPage:
         state_selection: StateSelection, borders: bool = False
     ) -> tuple[Figure, dict[StateCombination, Axes]]:
         """Helper function to prepare a figure to hold all state interaction figures.
-        Args:
-            n_states (int, optional): Number of states (will be square in the end.)
-            borders (bool, optional): Flag whether figure borders should be drawn. Defaults to False.
 
-        Returns:
-            tuple[Figure, dict[str, SubFigure]]: The overall figure and a dict to access individual subfigures by their name.
+        Parameters
+        ----------
+        n_states : int, optional
+            Number of states (will be square in the end.)
+        borders : bool, optional
+            Flag whether figure borders should be drawn. Defaults to False.
+
+        Returns
+        ----------
+        tuple[Figure, dict[str, SubFigure]]
+            The overall figure and a dict to access individual subfigures by their name.
         """
         n_states: int = len(state_selection.states)
         nrows = n_states
@@ -1252,16 +1363,27 @@ class DatasheetPage:
 
         Will generate all subplots and calculate necessary data if it has not yet been generated.
 
-        Args:
-            include_per_state_hist (bool, optional): Flag whether per-state histograms should be included. Defaults to False.
-            include_coupling_page (bool, optional): Flag to create a full page with state-coupling plots. Defaults to True.
-            include_pca_page (bool, optional): Flag to create a PCA analysis page with details on PCA results. Defaults to False.
-            include_meta_page (bool, optional): Flag to add a page with meta-information about the trajectory data. Defaults to False
-            borders (bool, optional): Flag whether the figure should have borders or not. Defaults to False.
-            consistent_lettering (bool, optional): Flag whether consistent lettering should be used, i.e. whether the same plot should always have the same label letter. Defaults to True.
+        Parameters
+        ----------
+        include_per_state_hist : bool, optional
+            Flag whether per-state histograms should be included. Defaults to False.
+        include_coupling_page : bool, optional
+            Flag to create a full page with state-coupling plots. Defaults to True.
+        include_pca_page : bool, optional
+            Flag to create a PCA analysis page with details on PCA results. Defaults to False.
+        include_meta_page : bool, optional
+            Flag to add a page with meta-information about the trajectory data. Defaults to False
+        borders : bool, optional
+            Flag whether the figure should have borders or not. Defaults to False.
+        consistent_lettering : bool, optional
+            Flag whether consistent lettering should be used, i.e. whether the same plot should always have the same label letter. Defaults to True.
 
-        Returns:
-            Figure: The figure holding the entirety of plots in this Datasheet page.
+        Returns
+        -------
+        Figure
+            The figure holding the entirety of plots in this Datasheet page.
+        list[Figure]
+            The list of figures holding the plots in this Datasheet page if there are multiple (depending on the configuration flags)
         """
         letter_base = 'abcdefghijkl'
 
@@ -1439,9 +1561,12 @@ class DatasheetPage:
     ):
         """Helper method to test whether subfigures are successfully plotted
 
-        Args:
-            include_per_state_hist (bool, optional): Flag to include per-state histograms. Defaults to False.
-            borders (bool, optional): Whether the figures should have borders. Defaults to False.
+        Parameters
+        ----------
+        include_per_state_hist : bool, default=False
+            Flag to include per-state histograms. Defaults to False.
+        borders : bool, default=False
+            Whether the figures should have borders. Defaults to False.
         """
         fig, sfs = self.get_subfigures_main_page(
             include_per_state_hist=include_per_state_hist, borders=borders
