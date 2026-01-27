@@ -234,8 +234,8 @@ def main():
         else:
             shnitsel.io.write_shnitsel_file(tree, output_path)
 
-        print("Wrote resulting trajectory collection:")
-        pprint(tree)
+        print("Wrote resulting trajectory collection")
+        # pprint(tree)
         sys.exit(0)
 
 
