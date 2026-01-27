@@ -25,7 +25,7 @@
 - StructureSelection
   - [ ] Options in function signatures (provide directly a SMARTs string, deal with trees, etc.)
     - [x] On-the-go construction added to `geo._get_default_selection()`
-    - [ ] Patch existing functions to express support for descriptors
+    - [x] Patch existing functions to express support for descriptors
   - [x] Add merge/subtract/intersect operations
   - [ ] Fix non-redundant coordinates
   - [ ] Structure selection (raise error if empty/warning if empty)
@@ -34,7 +34,9 @@
   - [ ] For now: error if multiple matches
 - StateSelection
   - [x] Add Support for textual representation of state selection
-  - [x] Add merge/subtract/intersect operationss
+  - [x] Add merge/subtract/intersect operations
+- biplot_kde needs to be fixed to use the descriptors of the PCA in the side plots.
+  - [ ] Fix PCA loadings main contribution plot not being the same as the explained PCA.
 - Visualization support
   - [ ] Add generic `plot()` function to various types
   - [ ] Add option for plots from tree hierarchies
