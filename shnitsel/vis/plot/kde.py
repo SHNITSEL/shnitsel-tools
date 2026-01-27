@@ -370,8 +370,7 @@ def biplot_kde(
         mol = Mol(feature_selection.mol)
 
     mol = set_atom_props(mol, atomLabel=True, atomNote=[''] * mol.GetNumAtoms())
-    print("a\n\n\n")
-
+    return 
     if scatter_color_property == 'time':
         noodleplot_c = None
         noodleplot_cmap = time_cmap
@@ -425,7 +424,6 @@ def biplot_kde(
     else:
         assert False
 
-    print("b\n\n\n")
     # noodleplot_c, noodleplot_cmap = {
     #     'time': (None, time_cmap),
     #     'geo': (geo_prop, geo_cmap),
@@ -444,7 +442,6 @@ def biplot_kde(
         noodle_kws=dict(alpha=1, marker='.'),
         hops_kws=dict(c='r', s=0.2),
     )
-    print("c\n\n\n")
 
     # in case more clusters were found than we have room for:
     picks = picks[:4]
@@ -460,7 +457,6 @@ def biplot_kde(
         labels=list('abcd'),
     )
 
-    print("d\n\n\n")
     if contour_colors is None:
         contour_colors = plt.get_cmap(noodleplot_cmap)(
             np.linspace(0, 1, len(contour_levels))
@@ -478,7 +474,6 @@ def biplot_kde(
             ax=pcaax,
         )
 
-    print("e\n\n\n")
     return kde_data
 
 
