@@ -1767,6 +1767,15 @@ class StructureSelection:
         -------
             The updated StructureSelection object with only non-redundant coordinates in bonds,
             angles and dihedrals.
+
+        Note
+        ----
+        For many cases including methane, the internal coordinates
+        returned by this function will not be complete (but should still be
+        non-redundant). E.g. in the case of methane, 7 (distinct) coordinates
+        will be returned where 5*3-6=9 would be expected.
+        This should mostly affect the internal coordinates of hydrogens as
+        opposed to those of heavy atoms.
         """
         assert self.mol is not None, (
             "Mol object of selection not set. Cannot filter for SMILES order."
