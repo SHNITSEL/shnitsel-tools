@@ -433,7 +433,7 @@ def concat_trajs(
     ]
 
     # TODO: Check if the order of datasets stays the same. Otherwise distinct attributes may not be appropriately sorted.
-    frames = xr.concat(datasets_amended, dim="frame", combine_attrs="drop_conflicts")
+    frames = xr.concat(datasets_amended, dim="frame", coords="different", combine_attrs="override")
 
     # Set merged metadata
     frames.attrs.update(consistent_metadata)
