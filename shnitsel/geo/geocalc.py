@@ -13,6 +13,7 @@ import xarray as xr
 
 from shnitsel.core._api_info import API
 from shnitsel.data.dataset_containers import Frames, Trajectory, wrap_dataset
+from shnitsel.data.dataset_containers.shared import ShnitselDataset
 from shnitsel.data.tree import ShnitselDB
 
 from shnitsel.data.tree.node import TreeNode
@@ -53,7 +54,7 @@ __all__ = [
 
 @overload
 def get_bats(
-    atXYZ: Trajectory | Frames | AtXYZ,
+    atXYZ: ShnitselDataset | xr.Dataset | AtXYZ,
     structure_selection: StructureSelection
     | StructureSelectionDescriptor
     | None = None,
@@ -65,7 +66,7 @@ def get_bats(
 
 @overload
 def get_bats(
-    atXYZ: ShnitselDB[Trajectory | Frames | AtXYZ],
+    atXYZ: ShnitselDB[ShnitselDataset | xr.Dataset | AtXYZ],
     structure_selection: StructureSelection
     | StructureSelectionDescriptor
     | None = None,
@@ -78,7 +79,10 @@ def get_bats(
 @API()
 @needs(dims={'atom', 'direction'})
 def get_bats(
-    atXYZ: Trajectory | Frames | TreeNode[Any, Trajectory | Frames] | AtXYZ,
+    atXYZ: ShnitselDataset
+    | xr.Dataset
+    | TreeNode[Any, ShnitselDataset | xr.Dataset]
+    | AtXYZ,
     structure_selection: StructureSelection
     | StructureSelectionDescriptor
     | None = None,
