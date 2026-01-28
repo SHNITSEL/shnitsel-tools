@@ -20,7 +20,11 @@ if TYPE_CHECKING:
 def set_atom_props(
     mol: rc.Mol,
     inplace: bool = False,
-    **kws: Sequence[str | int] | Literal[True] | Mapping[int, int | str] | None,
+    **kws: Sequence[str | int]
+    | Literal[True]
+    | Literal[False]
+    | Mapping[int, int | str]
+    | None,
 ) -> rc.Mol | None:
     """Set properties on atoms of an ``rdkit.Chem.Mol`` object
 
