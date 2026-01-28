@@ -69,11 +69,16 @@ class StructureMapping:
             return ds_or_da.map_data(map_ds)
         else:
             orig_ids, new_ids = zip(*list(self._full_mapping.items()))
+            mol = rc.Mol(self._submol)
             return (
                 ds_or_da.isel(atom=list(orig_ids))
                 .assign_coords(atom=("atom", list(new_ids)))
                 .sortby("atom")
-                .assign_attrs(__mol=rc.Mol(self._submol))
+                .assign_attrs(__mol=mol)
+                .assign_coords(
+                    __mol=xr.DataArray(mol),
+                    charge=xr.DataArray(rc.GetFormalCharge(mol)),
+                )
             )
 
 
@@ -263,14 +268,13 @@ def identify_analogs_mappings(
         res_mol, res_mapping = _substruct_match_to_mapping(mol, substruct_matches)
         set_atom_props(res_mol, inplace=True, atomNote=True)
         results[key] = res_mapping
-        print(key, res_mapping)
 
     logging.info(f"MCS SMARTS is: {substructure_smarts}")
     return substructure_smarts, results
 
 
 # TODO: FIXME: This should accept a smarts of elements that should be considered equivalent for substructs.
-def list_analogs(
+def _list_analogs(
     ensembles: Mapping[Hashable | int, xr.DataArray],
     smarts: SMARTSstring = "",
     vis: bool = False,
