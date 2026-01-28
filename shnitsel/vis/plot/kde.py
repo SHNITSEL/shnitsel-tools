@@ -1,3 +1,4 @@
+import logging
 from typing import Iterable, Literal, Sequence
 
 from matplotlib.axes import Axes
@@ -75,8 +76,11 @@ def _fit_kdes(
         mask = (p1 < geo_property) & (geo_property < p2)
         subset = pca_data.sel(frame=mask).T  # Swap leading frame dimension to the end?
         if subset.size == 0:
-            raise ValueError(f"No points in range {p1} < x < {p2}")
-        kernels.append(stats.gaussian_kde(subset))
+            logging.warning(f"No points in range {p1} < x < {p2} for KDE fit")
+            # raise ValueError(f"No points in range {p1} < x < {p2}")
+            kernels.append(None)
+        else:
+            kernels.append(stats.gaussian_kde(subset))
     return kernels
 
 
@@ -106,9 +110,12 @@ def _eval_kdes(
     xys = np.c_[xx.ravel(), yy.ravel()].T
     Zs = []
     for k in kernels:
-        Z = k.evaluate(xys)
-        Z = Z.reshape(xx.shape) / Z.max()
-        Zs.append(Z)
+        if k is None:
+            Zs.append(None)
+        else:
+            Z = k.evaluate(xys)
+            Z = Z.reshape(xx.shape) / Z.max()
+            Zs.append(Z)
     return Zs
 
 
@@ -238,6 +245,9 @@ def _plot_kdes(
             colors = plt.get_cmap('inferno')(range(len(Zs)))
 
     for Z, c in zip(Zs, colors):
+        if Z is None:
+            continue
+
         if contour_fill:
             ax.contourf(xx, yy, Z, levels=contour_levels, colors=c, alpha=0.1)
         ax.contour(xx, yy, Z, levels=contour_levels, colors=c, linewidths=0.5)
