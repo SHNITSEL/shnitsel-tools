@@ -100,6 +100,7 @@ def _prepare_dataset(dataset: xr.Dataset) -> xr.Dataset:
         if str(coord).startswith("__"):
             # Try and get rid of runtime-only data.
             cleaned_ds = cleaned_ds.drop_vars(coord)
+            # TODO: FIXME: Convert `__mol` object into SMILES to restore later?
 
     # NetCDF does not support MultiIndex
     # Keep a record of the level names in the attrs
