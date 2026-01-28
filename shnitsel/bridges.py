@@ -306,6 +306,8 @@ def construct_default_mol(
         else:
             raise ValueError("Not enough information to construct molecule from object")
     elif isinstance(obj, ShnitselDataset):
+        if '__mol' in obj.attrs:
+            return rc.Mol(obj.attrs['__mol'])
         atXYZ = _most_stable_frame(obj.positions, obj)
         if charge is None:
             charge = obj.charge
