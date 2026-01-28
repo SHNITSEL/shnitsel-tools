@@ -18,7 +18,9 @@ if TYPE_CHECKING:
 
 
 def set_atom_props(
-    mol: rc.Mol, inplace: bool = False, **kws: list[str] | Literal[True]
+    mol: rc.Mol,
+    inplace: bool = False,
+    **kws: list[str] | Literal[True] | dict[int, int | str] | None,
 ) -> rc.Mol | None:
     """Set properties on atoms of an ``rdkit.Chem.Mol`` object
 
@@ -31,11 +33,12 @@ def set_atom_props(
     **kws
         A mapping where parameter names represent the name of a property
         and the arguments are either
-
+            - a dict mapping the atom indices to values that should be assigned. Missing atom indices are ignored
             - a list of str values the atoms should be set to;
             - ``True``, in which case the atom indices as
               assigned by RDKit will be used as values;
             - ``False``, in which the property will be cleared on every atom.
+            - ``None`` values are simply ignored
 
     Returns
     -------
@@ -52,20 +55,30 @@ def set_atom_props(
     natoms = mol.GetNumAtoms()
     for prop, vals in kws.items():
         if vals is None:
+            # None is not assigned, just ignored
             continue
-        elif vals is True:
-            vals = range(natoms)
-        elif vals is False:
-            for atom in mol.GetAtoms():
-                atom.ClearProp(prop)
-            continue
-        elif natoms != len(vals):
-            raise ValueError(
-                f"{len(vals)} values were passed for {prop}, but 'mol' has {natoms} atoms"
-            )
+        elif isinstance(vals, dict):
+            # Try and assign the values to each atom identified by the key
+            for atom_id, val in vals.items():
+                atom = mol.GetAtomWithIdx(atom_id)
+                if atom is not None:
+                    atom.SetProp(prop, str(val))
+        else:
+            if vals is True:
+                # atom indices are values if `vals=True`
+                vals = range(natoms)
+            elif vals is False:
+                # `False` means, the value should be cleared.
+                for atom in mol.GetAtoms():
+                    atom.ClearProp(prop)
+                continue
+            elif natoms != len(vals):
+                raise ValueError(
+                    f"{len(vals)} values were passed for {prop}, but 'mol' has {natoms} atoms"
+                )
 
-        for atom, val in zip(mol.GetAtoms(), vals):
-            atom.SetProp(prop, str(val))
+            for atom, val in zip(mol.GetAtoms(), vals):
+                atom.SetProp(prop, str(val))
     return mol
 
 
@@ -161,7 +174,7 @@ def highlight_pairs(mol: rc.Mol, feature_indices: Sequence["FeatureDescriptor"])
                 # Mark bonds
                 if not all(x >= 0 for x in feature):
                     continue
-                
+
                 for i in range(flen - 1):
                     a1, a2 = feature[i], feature[i + 1]
                     if (bond := mol.GetBondBetweenAtoms(a1, a2)) is not None:
