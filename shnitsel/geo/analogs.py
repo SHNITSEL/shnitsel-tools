@@ -35,7 +35,7 @@ class StructureMapping:
     ):
         self._submol = res_mol
         self._orig_mol = original_mol
-        self._full_mapping = {k: v for k, v in mapping.items() if v > 0}
+        self._full_mapping = {k: v for k, v in mapping.items() if v >= 0}
 
     @overload
     def __call__(
@@ -72,7 +72,7 @@ class StructureMapping:
             return (
                 ds_or_da.isel(atom=list(orig_ids))
                 .assign_coords(atom=("atom", list(new_ids)))
-                .sortby('atom')
+                .sortby("atom")
                 .assign_attrs(__mol=rc.Mol(self._submol))
             )
 
@@ -134,13 +134,13 @@ def _substruct_match_to_submol(mol: rc.Mol, substruct_match: tuple[int, ...]) ->
     mol_with_pattern_ids = set_atom_props(mol, pattern_idx=pattern_match_list)
 
     # Extract submol
-    bond_path = _find_atom_pairs(mol, substruct_match)
-    res_mol = rc.PathToSubmol(mol, bond_path)
+    bond_path = _find_atom_pairs(mol_with_pattern_ids, substruct_match)
+    res_mol = rc.PathToSubmol(mol_with_pattern_ids, bond_path)
 
     # Renumber atoms using stored order
     res_map = [-1] * res_mol.GetNumAtoms()
     for a in res_mol.GetAtoms():
-        res_map[a.GetIntProp('pattern_idx')] = a.GetIdx()
+        res_map[a.GetIntProp("pattern_idx")] = a.GetIdx()
     res_mol = rc.RenumberAtoms(res_mol, res_map)
     return res_mol
 
@@ -170,9 +170,12 @@ def _substruct_match_to_mapping(
         Has an `.apply()` function to apply the mapping to datasets or data arrays
     """
     # Store consistent atom order before extracting
+    res_map: dict[int, int] = dict()
     pattern_match_list = [-1] * mol.GetNumAtoms()
     for idx_in_pattern, idx_in_mol in enumerate(substruct_match):
         pattern_match_list[idx_in_mol] = idx_in_pattern
+        res_map[idx_in_mol] = idx_in_pattern
+
     mol_with_pattern_ids = set_atom_props(mol, pattern_idx=pattern_match_list)
 
     # Extract submol
@@ -180,11 +183,9 @@ def _substruct_match_to_mapping(
     res_mol = rc.PathToSubmol(mol_with_pattern_ids, bond_path)
 
     # Renumber atoms using stored order
-    res_map: dict[int, int] = dict()
     res_list = [-1] * res_mol.GetNumAtoms()
     for a in res_mol.GetAtoms():
-        res_list[a.GetIntProp('pattern_idx')] = a.GetIdx()
-        res_map[a.GetIntProp('pattern_idx')] = a.GetIdx()
+        res_list[a.GetIntProp("pattern_idx")] = a.GetIdx()
     res_mol = rc.RenumberAtoms(res_mol, res_list)
 
     # Clear the pattern idx markers
@@ -225,7 +226,7 @@ def get_MCS_smarts(mols: Iterable[rc.Mol]) -> SMARTSstring:
 
 def identify_analogs_mappings(
     mols: Mapping[Hashable | int, rc.Mol],
-    smarts: SMARTSstring = '',
+    smarts: SMARTSstring = "",
 ) -> tuple[SMARTSstring, Mapping[Hashable | int, StructureMapping]]:
     """Helper function to generate a maximum common substructure match and
     from that extract substructure mappings for each of the provided molecules.
@@ -262,14 +263,16 @@ def identify_analogs_mappings(
         res_mol, res_mapping = _substruct_match_to_mapping(mol, substruct_matches)
         set_atom_props(res_mol, inplace=True, atomNote=True)
         results[key] = res_mapping
+        print(key, res_mapping)
 
+    logging.info(f"MCS SMARTS is: {substructure_smarts}")
     return substructure_smarts, results
 
 
 # TODO: FIXME: This should accept a smarts of elements that should be considered equivalent for substructs.
 def list_analogs(
     ensembles: Mapping[Hashable | int, xr.DataArray],
-    smarts: SMARTSstring = '',
+    smarts: SMARTSstring = "",
     vis: bool = False,
 ) -> Mapping[Hashable | int, xr.DataArray]:
     """Extract a common moiety from a selection of ensembles.
@@ -293,7 +296,7 @@ def list_analogs(
 
     Returns
     -------
-       An ``Iterable`` of ``xr.DataArray``s
+        An ``Iterable`` of ``xr.DataArray``s
     """
     from rdkit.Chem import rdFMCS
 
@@ -333,7 +336,7 @@ def list_analogs(
         set_atom_props(res_mol, inplace=True, atomNote=True)
 
         if vis:
-            atom_labels = [''] * mol.GetNumAtoms()
+            atom_labels = [""] * mol.GetNumAtoms()
             for patt_idx, mol_idx in enumerate(idxs):
                 atom_labels[mol_idx] = f"{mol_idx}:{patt_idx}"
             vis_orig = rc.Mol(mol)  # avoid mutating original
@@ -351,7 +354,7 @@ def list_analogs(
         results[key] = (
             compound_geo.isel(atom=idxs)
             .assign_coords(atom=range_)
-            .sortby('atom')
+            .sortby("atom")
             .assign_attrs(__mol=res_mol)
         )
 
@@ -442,7 +445,7 @@ def list_analogs(
 @overload
 def extract_analogs(
     ensembles: TreeNode[Any, DatasetOrArray],
-    smarts: SMARTSstring = '',
+    smarts: SMARTSstring = "",
     vis: bool = False,
     *,
     concat_kws: dict[str, Any] | None = None,
@@ -452,7 +455,7 @@ def extract_analogs(
 @overload
 def extract_analogs(
     ensembles: Mapping[Hashable | int, DatasetOrArray],
-    smarts: SMARTSstring = '',
+    smarts: SMARTSstring = "",
     vis: bool = False,
     *,
     concat_kws: dict[str, Any] | None = None,
@@ -462,7 +465,7 @@ def extract_analogs(
 @overload
 def extract_analogs(
     ensembles: Sequence[DatasetOrArray],
-    smarts: SMARTSstring = '',
+    smarts: SMARTSstring = "",
     vis: bool = False,
     *,
     concat_kws: dict[str, Any] | None = None,
@@ -471,11 +474,13 @@ def extract_analogs(
 
 # TODO: FIXME: We should add a method that simply punches out a substructure from a match.
 def extract_analogs(
-    ensembles: TreeNode[Any, DatasetOrArray]
-    | Mapping[Hashable | int, DatasetOrArray]
-    | Sequence[DatasetOrArray],
+    ensembles: (
+        TreeNode[Any, DatasetOrArray]
+        | Mapping[Hashable | int, DatasetOrArray]
+        | Sequence[DatasetOrArray]
+    ),
     # TODO: FIXME: Do we need a second smarts to restrict the search?
-    smarts: SMARTSstring = '',
+    smarts: SMARTSstring = "",
     vis: bool = False,
     *,
     concat_kws: dict[str, Any] | None = None,
@@ -551,7 +556,7 @@ def extract_analogs(
                     if mol:
                         return group.construct_copy(
                             children={
-                                '_agg': DataLeaf(
+                                "_agg": DataLeaf(
                                     name="_agg" + str(child.name),
                                     data=(group.path, mol),
                                 )
@@ -572,8 +577,8 @@ def extract_analogs(
         res_SMARTS, res_mappings = identify_analogs_mappings(
             path_mol_map, smarts=smarts
         )
-        
-        print(res_SMARTS)
+
+        # print(res_SMARTS)
         if not smarts:
             logging.info("Substructure matching resulted in SMARTS: %s", res_SMARTS)
 
