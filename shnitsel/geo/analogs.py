@@ -9,6 +9,7 @@ import numpy as np
 import rdkit.Chem as rc
 import xarray as xr
 
+from shnitsel.data.dataset_containers import wrap_dataset
 from shnitsel.data.dataset_containers.shared import ShnitselDataset
 from shnitsel.data.multi_indices import expand_midx
 from shnitsel.bridges import construct_default_mol, set_atom_props
@@ -67,10 +68,10 @@ class StructureMapping:
 
             return ds_or_da.map_data(map_ds)
         else:
-            orig_ids, new_ids = zip(self._full_mapping.items())
+            orig_ids, new_ids = zip(*list(self._full_mapping.items()))
             return (
-                ds_or_da.isel(atom=orig_ids)
-                .assign_coords(atom=new_ids)
+                ds_or_da.isel(atom=list(orig_ids))
+                .assign_coords(atom=("atom", list(new_ids)))
                 .sortby('atom')
                 .assign_attrs(__mol=rc.Mol(self._submol))
             )
@@ -209,13 +210,13 @@ def get_MCS_smarts(mols: Iterable[rc.Mol]) -> SMARTSstring:
 
     mcs_settings = rdFMCS.MCSParameters()
     # TODO: FIXME: Do we want this `any heavy atom` match?
-    mcs_settings.AtomCompareParameters = rdFMCS.AtomCompare.CompareAnyHeavyAtom
-    # TODO: FIXME: Do we want bonds to always compare EXACT bond order?
-    mcs_settings.BondCompareParameters = rdFMCS.BondCompare.CompareOrder
+    # mcs_settings.AtomCompareParameters = rdFMCS.AtomCompare.CompareAnyHeavyAtom
+    # # TODO: FIXME: Do we want bonds to always compare EXACT bond order?
+    # mcs_settings.BondCompareParameters = rdFMCS.BondCompare.CompareOrder
 
     # TODO: We should probably consider the default config for FindMCS, which includes chains matching rings among others.
     substructure_smarts = rdFMCS.FindMCS(
-        mols,
+        list(mols),
         parameters=mcs_settings,
     ).smartsString
 
@@ -245,14 +246,6 @@ def identify_analogs_mappings(
         Then the Mapping between original keys and the resulting `StructureMapping` object
         that can be applied to the original data.
     """
-    from rdkit.Chem import rdFMCS
-
-    mcs_settings = rdFMCS.MCSParameters()
-    # TODO: FIXME: Do we want this `any heavy atom` match?
-    mcs_settings.AtomCompareParameters = rdFMCS.AtomCompare.CompareAnyHeavyAtom
-    # TODO: FIXME: Do we want bonds to always compare EXACT bond order?
-    mcs_settings.BondCompareParameters = rdFMCS.BondCompare.CompareOrder
-
     if not smarts:
         # TODO: We should probably consider the default config for FindMCS, which includes chains matching rings among others.
         substructure_smarts = get_MCS_smarts(mols.values())
@@ -446,8 +439,38 @@ def list_analogs(
 #     return res
 
 
+@overload
+def extract_analogs(
+    ensembles: TreeNode[Any, DatasetOrArray],
+    smarts: SMARTSstring = '',
+    vis: bool = False,
+    *,
+    concat_kws: dict[str, Any] | None = None,
+) -> TreeNode[Any, DatasetOrArray] | None: ...
+
+
+@overload
+def extract_analogs(
+    ensembles: Mapping[Hashable | int, DatasetOrArray],
+    smarts: SMARTSstring = '',
+    vis: bool = False,
+    *,
+    concat_kws: dict[str, Any] | None = None,
+) -> Mapping[Hashable | int, DatasetOrArray] | None: ...
+
+
+@overload
+def extract_analogs(
+    ensembles: Sequence[DatasetOrArray],
+    smarts: SMARTSstring = '',
+    vis: bool = False,
+    *,
+    concat_kws: dict[str, Any] | None = None,
+) -> Sequence[DatasetOrArray] | None: ...
+
+
 # TODO: FIXME: We should add a method that simply punches out a substructure from a match.
-def combine_analogs(
+def extract_analogs(
     ensembles: TreeNode[Any, DatasetOrArray]
     | Mapping[Hashable | int, DatasetOrArray]
     | Sequence[DatasetOrArray],
@@ -514,7 +537,7 @@ def combine_analogs(
         # Get mol and path from the subtree
         def path_and_mol_from_group(
             group: TreeNode[Any, DatasetOrArray],
-        ) -> DataLeaf[tuple[str, rc.Mol]] | None:
+        ) -> TreeNode[Any, tuple[str, rc.Mol]] | None:
             if not isinstance(group, DataGroup):
                 # Something went wrong, let's keep
                 logging.warning(
@@ -526,7 +549,14 @@ def combine_analogs(
                 if child.has_data:
                     mol = construct_default_mol(child.data)
                     if mol:
-                        return DataLeaf(name=group.name, data=(child.path, mol))
+                        return group.construct_copy(
+                            children={
+                                '_agg': DataLeaf(
+                                    name="_agg" + str(child.name),
+                                    data=(group.path, mol),
+                                )
+                            }
+                        )
             return None
 
         # Collect all mols for groups from the tree with their path for later lookup
@@ -542,20 +572,25 @@ def combine_analogs(
         res_SMARTS, res_mappings = identify_analogs_mappings(
             path_mol_map, smarts=smarts
         )
+        
+        print(res_SMARTS)
         if not smarts:
             logging.info("Substructure matching resulted in SMARTS: %s", res_SMARTS)
 
         def patch_groups(
             group: TreeNode[Any, DatasetOrArray],
         ) -> TreeNode[Any, DatasetOrArray] | None:
+            # print(f"Considering: {group.path} in {res_mappings}")
             if group.path in res_mappings:
+                # print(f"Mapping group: {group.path}")
                 struct_map = res_mappings[group.path]
+                # print(struct_map._submol)
 
                 def map_traj(x: DatasetOrArray) -> DatasetOrArray:
-                    return struct_map.apply(x)
+                    return wrap_dataset(struct_map.apply(x))
 
                 return group.map_data(map_traj)
-            return group
+            return group.map_data(wrap_dataset)
 
         # Map the tree with the appropriate structure mapping:
         return grouped_tree.map_filtered_nodes(
@@ -591,6 +626,12 @@ def combine_analogs(
 
     # Map results
     if isinstance(ensembles, Sequence):
-        return [res_mappings[i].apply(ensemble) for i, ensemble in enumerate(ensembles)]
+        return [
+            wrap_dataset(res_mappings[i].apply(ensemble))
+            for i, ensemble in enumerate(ensembles)
+        ]
     else:
-        return {k: res_mappings[k].apply(ensemble) for k, ensemble in ensembles.items()}
+        return {
+            k: wrap_dataset(res_mappings[k].apply(ensemble))
+            for k, ensemble in ensembles.items()
+        }
