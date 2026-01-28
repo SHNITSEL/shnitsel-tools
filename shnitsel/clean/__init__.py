@@ -233,7 +233,7 @@ def _sanity_check_per_trajectory(
     prefix = "energy"
     # Rename to filter-method prefixed names
     ds_tmp = type(ds_energy)(
-        ds_energy.dataset.swap_dims({"criterion": prefix + "_criterion"}).rename_vars(
+        ds_energy.dataset.rename_dims({"criterion": prefix + "_criterion"}).rename_vars(
             {key: prefix + "_" + key for key in rename_keys if key in ds_energy.dataset}
         )
     )
@@ -254,7 +254,9 @@ def _sanity_check_per_trajectory(
 
     # Rename to filter-method prefixed names
     ds_tmp = type(ds_lengths)(
-        ds_lengths.dataset.swap_dims({"criterion": prefix + "_criterion"}).rename_vars(
+        ds_lengths.dataset.rename_dims(
+            {"criterion": prefix + "_criterion"}
+        ).rename_vars(
             {
                 key: prefix + "_" + key
                 for key in rename_keys
