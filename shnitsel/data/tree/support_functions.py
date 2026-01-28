@@ -224,10 +224,26 @@ def tree_merge(
 ) -> DataGroup[DataType] | None: ...
 
 
+@overload
 def tree_merge(
-    *trees: ShnitselDBRoot[DataType] | CompoundGroup[DataType] | DataGroup[DataType],
+    *trees: TreeNode[Any, DataType],
     res_data_type: type[DataType] | UnionType | None = None,
-) -> ShnitselDBRoot[DataType] | CompoundGroup[DataType] | DataGroup[DataType] | None:
+) -> TreeNode[Any, DataType] | None: ...
+
+
+def tree_merge(
+    *trees: ShnitselDBRoot[DataType]
+    | CompoundGroup[DataType]
+    | DataGroup[DataType]
+    | TreeNode[Any, DataType],
+    res_data_type: type[DataType] | UnionType | None = None,
+) -> (
+    ShnitselDBRoot[DataType]
+    | CompoundGroup[DataType]
+    | DataGroup[DataType]
+    | TreeNode[Any, DataType]
+    | None
+):
     """Helper function to merge two trees at the same level.
     Data leaves on the same level will all be retained.
     Data Group children of the roots will be merged recursively.
@@ -235,7 +251,7 @@ def tree_merge(
 
     Parameters
     ----------
-    *trees: ShnitselDBRoot[DataType] | CompoundGroup[DataType] | DataGroup[DataType]
+    *trees: ShnitselDBRoot[DataType] | CompoundGroup[DataType] | DataGroup[DataType] | TreeNode[Any, DataType]
         Compatible roots at the same level that represent a group of children.
         If inconsistent types are provided, the merge may fail.
     res_data_type : type[DataType] | TypeForm[DataType] | None, optional
@@ -243,7 +259,7 @@ def tree_merge(
 
     Returns
     -------
-    ShnitselDBRoot[DataType] | CompoundGroup[DataType] | DataGroup[DataType] | None
+    ShnitselDBRoot[DataType] | CompoundGroup[DataType] | DataGroup[DataType] | TreeNode[Any, DataType] | None
         The merged tree of the same level as the input tree roots.
         Specifically, the same level as `trees[0]`.
         If there are no `trees`, then `None` is returned.
