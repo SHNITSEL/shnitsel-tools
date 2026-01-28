@@ -97,6 +97,9 @@ def _prepare_dataset(dataset: xr.Dataset) -> xr.Dataset:
             cleaned_ds = cleaned_ds.assign_coords(
                 {coord: cleaned_ds.coords[coord].astype('i1')}
             )
+        if str(coord).startswith("__"):
+            # Try and get rid of runtime-only data.
+            cleaned_ds = cleaned_ds.drop_vars(coord)
 
     # NetCDF does not support MultiIndex
     # Keep a record of the level names in the attrs
@@ -255,5 +258,5 @@ def write_shnitsel_file(
         if ds is None:
             raise ValueError("Data not be converted to netcdf conforming format.")
         ds.attrs["_shnitsel_io_meta"] = metadata
-        
+
         return write_shnitsel_file(ds, savepath=savepath)
