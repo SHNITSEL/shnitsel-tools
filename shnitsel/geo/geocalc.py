@@ -148,20 +148,24 @@ def get_bats(
             dtype=xr.DataArray,
         )
     else:
+        # TODO: Fix other geocalc structure selection extractions once this works for partial submodules
         position_data: xr.DataArray
+        position_source: xr.DataArray | ShnitselDataset
         charge_info: int | None
         if isinstance(atXYZ, xr.DataArray):
             position_data = atXYZ
+            position_source = atXYZ
             charge_info = None
         else:
             wrapped_ds = wrap_dataset(atXYZ, (Trajectory | Frames))
+            position_source = wrapped_ds
             position_data = wrapped_ds.atXYZ
             charge_info = int(wrapped_ds.charge)
 
         # TODO: FIXME: Example is not up to date
         structure_selection = _get_default_structure_selection(
             structure_selection,
-            atXYZ_source=position_data,
+            atXYZ_source=position_source,
             default_levels=default_features,
             charge_info=charge_info,
         )
