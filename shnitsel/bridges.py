@@ -9,6 +9,7 @@ from rdkit.Chem import rdDepictor
 
 from shnitsel._contracts import needs
 from shnitsel.data.dataset_containers import Frames, Trajectory
+from shnitsel.data.dataset_containers.data_series import DataSeries
 from shnitsel.data.dataset_containers.shared import ShnitselDataset
 from shnitsel.rd import set_atom_props, mol_to_numbered_smiles
 from .core.typedefs import AtXYZ
@@ -192,13 +193,13 @@ def numbered_smiles_to_mol(smiles: str) -> rc.Mol:
     return set_atom_props(mol, molAtomMapNumber=False)
 
 
-def _most_stable_frame(atXYZ, obj: xr.Dataset | Trajectory | Frames) -> xr.DataArray:
+def _most_stable_frame(atXYZ, obj: xr.Dataset | ShnitselDataset) -> xr.DataArray:
     """Find the frame, out of all the initial conditions,
     with the lowest ground-state energy;
     failing that, return the first frame in ``atXYZ``
     """
     leading_dim: str
-    if isinstance(obj, (Frames, Trajectory)):
+    if isinstance(obj, DataSeries):
         leading_dim = obj.leading_dimension
     else:
         if 'frame' in atXYZ.sizes:
@@ -235,7 +236,7 @@ def _most_stable_frame(atXYZ, obj: xr.Dataset | Trajectory | Frames) -> xr.DataA
 
 
 def construct_default_mol(
-    obj: xr.Dataset | xr.DataArray | Trajectory | Frames | rc.Mol,
+    obj: xr.Dataset | xr.DataArray | ShnitselDataset | rc.Mol,
     to2D: bool = True,
     charge: int | float | None = None,
     molAtomMapNumber: list[str] | Literal[True] | None = None,
@@ -304,7 +305,7 @@ def construct_default_mol(
             atXYZ = _most_stable_frame(obj['atXYZ'], obj)
         else:
             raise ValueError("Not enough information to construct molecule from object")
-    elif isinstance(obj, (Trajectory, Frames)):
+    elif isinstance(obj, ShnitselDataset):
         atXYZ = _most_stable_frame(obj.positions, obj)
         if charge is None:
             charge = obj.charge
