@@ -232,6 +232,7 @@ def _merge_traj_metadata(
         return shared_meta, distinct_meta
 
     traj_meta_distinct_defaults = {
+        "__mol": np.full((num_datasets,), None, dtype="O"),
         "trajid": np.full((num_datasets,), -1, dtype="i4"),
         "delta_t": np.full((num_datasets,), np.nan, dtype="f8"),
         "max_ts": np.full((num_datasets,), -1, dtype="i4"),
@@ -275,7 +276,7 @@ def _merge_traj_metadata(
 
         all_meta[key] = kept_array
 
-    keep_distinct = ["trajid", "delta_t", "max_ts", "t_max", "completed"]
+    keep_distinct = ["__mol", "trajid", "delta_t", "max_ts", "t_max", "completed"]
 
     for key in all_keys:
         if key in keep_distinct:
@@ -433,7 +434,9 @@ def concat_trajs(
     ]
 
     # TODO: Check if the order of datasets stays the same. Otherwise distinct attributes may not be appropriately sorted.
-    frames = xr.concat(datasets_amended, dim="frame", coords="different", combine_attrs="override")
+    frames = xr.concat(
+        datasets_amended, dim="frame", coords="different", combine_attrs="override"
+    )
 
     # Set merged metadata
     frames.attrs.update(consistent_metadata)
