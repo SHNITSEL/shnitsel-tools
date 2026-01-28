@@ -873,14 +873,14 @@ class StructureSelection:
             The updated selection
         """
 
-        from itertools import permutations
+        from itertools import combinations
 
         if selected_only:
             curr_atoms = self.atoms_selected
         else:
             curr_atoms = self.atoms
 
-        new_pw_pairs = list(permutations(curr_atoms, 2))
+        new_pw_pairs = list(combinations(curr_atoms, 2))
         new_selection = self.bonds_selected.union(new_pw_pairs)
 
         return self.copy_or_update(bonds_selected=new_selection, inplace=inplace)
