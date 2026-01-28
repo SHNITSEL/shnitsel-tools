@@ -1,6 +1,7 @@
 from contextlib import suppress
 from dataclasses import dataclass
 from typing import Any, Hashable, Iterable, Literal, Mapping, Self
+import rdkit
 import xarray as xr
 
 from shnitsel.units.conversion import (
@@ -213,6 +214,26 @@ class ShnitselDataset(object):
 
     def has(self, name: str) -> bool:
         return self.has_data(name) or self.has_dimension(name)
+
+    @property
+    def mol(self) -> rdkit.Chem.Mol:
+        """Helper method to get a representative molecule object for the geometry within this dataset.
+
+        Returns
+        -------
+        rdkit.Chem.Mol
+            Either a copy of a cached mol object (for partial substructures) or a newly constructed default object
+        """
+        from shnitsel.bridges import construct_default_mol
+
+        for key in ["__mol", "_mol", "mol"]:
+            if key in self.attrs:
+                return rdkit.Chem.Mol(self.attrs[key])
+
+        mol_constr = construct_default_mol(self)
+        # Cache the molecule
+        self.attrs["__mol"] = mol_constr
+        return mol_constr
 
     def sel(
         self,
