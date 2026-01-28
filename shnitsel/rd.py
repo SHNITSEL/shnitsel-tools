@@ -1,7 +1,7 @@
 """This module contains functions that accept an RDKit.Chem.Mol object;
 but *not* necessarily functions that *return* a Mol object."""
 
-from typing import Literal, Sequence, TYPE_CHECKING
+from typing import Literal, Mapping, Sequence, TYPE_CHECKING
 
 import rdkit.Chem as rc
 import rdkit.Chem.rdDetermineBonds  # noqa: F401
@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 def set_atom_props(
     mol: rc.Mol,
     inplace: bool = False,
-    **kws: list[str] | Literal[True] | dict[int, int | str] | None,
+    **kws: Sequence[str | int] | Literal[True] | Mapping[int, int | str] | None,
 ) -> rc.Mol | None:
     """Set properties on atoms of an ``rdkit.Chem.Mol`` object
 
@@ -30,15 +30,15 @@ def set_atom_props(
         The ``Mol`` object
     inplace : bool, optional
         Whether to alter ``mol``; , by default False (returns a copy)
-    **kws
+    **kws : Sequence[str | int] | Literal[True] | Mapping[int, int | str] | None
         A mapping where parameter names represent the name of a property
         and the arguments are either
             - a dict mapping the atom indices to values that should be assigned. Missing atom indices are ignored
-            - a list of str values the atoms should be set to;
+            - a sequence of str or int values the atoms should be set to;
             - ``True``, in which case the atom indices as
               assigned by RDKit will be used as values;
             - ``False``, in which the property will be cleared on every atom.
-            - ``None`` values are simply ignored
+            - ``None`` values, which are simply ignored
 
     Returns
     -------
