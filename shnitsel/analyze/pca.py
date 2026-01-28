@@ -11,6 +11,7 @@ from shnitsel.data.dataset_containers import wrap_dataset
 from shnitsel.data.dataset_containers.frames import Frames
 from shnitsel.data.dataset_containers.multi_series import MultiSeriesDataset
 from shnitsel.data.dataset_containers.multi_stacked import MultiSeriesStacked
+from shnitsel.data.dataset_containers.shared import ShnitselDataset
 from shnitsel.data.dataset_containers.trajectory import Trajectory
 from shnitsel.data.multi_indices import mdiff
 from sklearn.decomposition import PCA as sk_PCA
@@ -23,7 +24,10 @@ from shnitsel.data.tree.data_group import DataGroup
 from shnitsel.data.tree.data_leaf import DataLeaf
 from shnitsel.data.tree.node import TreeNode
 from shnitsel.data.tree.tree import ShnitselDB
-from shnitsel.filtering.structure_selection import StructureSelection
+from shnitsel.filtering.structure_selection import (
+    StructureSelection,
+    StructureSelectionDescriptor,
+)
 from shnitsel.geo.geocalc import get_bats
 from shnitsel.analyze.generic import norm
 
@@ -92,10 +96,10 @@ class PCAResult(
             )
             inputs_collected = list(pca_inputs.collect_data())
             outputs_collected = list(pca_projected_inputs.collect_data())
-            assert isinstance(inputs_collected, xr.DataArray), (
+            assert all(isinstance(x, xr.DataArray) for x in inputs_collected), (
                 "Tree-shaped inputs of PCA are not of data type xr.DataArray"
             )
-            assert isinstance(outputs_collected, xr.DataArray), (
+            assert all(isinstance(x, xr.DataArray) for x in outputs_collected), (
                 "Tree-shaped results of PCA are not of data type xr.DataArray"
             )
             coord_initial = [
@@ -380,9 +384,11 @@ def pca_and_hops(
 
 @overload
 def pca(
-    data: TreeNode[Any, Trajectory | Frames | MultiSeriesDataset],
+    data: TreeNode[Any, ShnitselDataset],
     dim: None = None,
-    feature_selection: StructureSelection | None = None,
+    structure_selection: StructureSelection
+    | StructureSelectionDescriptor
+    | None = None,
     n_components: int = 2,
     center_mean: bool = False,
 ) -> TreeNode[Any, PCAResult[DataGroup[xr.DataArray], DataGroup[xr.DataArray]]]:
@@ -392,9 +398,11 @@ def pca(
 
 @overload
 def pca(
-    data: Trajectory | Frames | MultiSeriesDataset | xr.Dataset | xr.DataArray,
+    data: ShnitselDataset | xr.Dataset | xr.DataArray,
     dim: None = None,
-    feature_selection: StructureSelection | None = None,
+    structure_selection: StructureSelection
+    | StructureSelectionDescriptor
+    | None = None,
     n_components: int = 2,
     center_mean: bool = False,
 ) -> PCAResult:
@@ -404,18 +412,19 @@ def pca(
 
 @overload
 def pca(
-    data: Trajectory
-    | Frames
-    | MultiSeriesDataset
-    | ShnitselDB[Trajectory | Frames | MultiSeriesDataset]
+    data: ShnitselDataset
     | xr.Dataset
-    | xr.DataArray,
+    | xr.DataArray
+    | TreeNode[Any, ShnitselDataset | xr.Dataset | xr.DataArray],
     dim: None = None,
-    feature_selection: StructureSelection | None = None,
+    structure_selection: StructureSelection
+    | StructureSelectionDescriptor
+    | None = None,
     n_components: int = 2,
     center_mean: bool = False,
 ) -> (
-    PCAResult | ShnitselDB[PCAResult[DataGroup[xr.DataArray], DataGroup[xr.DataArray]]]
+    PCAResult
+    | TreeNode[Any, PCAResult[DataGroup[xr.DataArray], DataGroup[xr.DataArray]]]
 ):
     """Perform a PCA decomposition on features derived from `data` using the structural features flagged in `feature_selection`.
     Will not directly run PCA on the input data.
@@ -431,9 +440,9 @@ def pca(
         for the PCA can be calculated.
     dim : None
         Unused in this specialization. If `dim` is not None with `data` of type other than `xr.DataArray`, an exception will be Raised.
-    feature_selection : StructureSelection, optional
-        The flagged geometric features that should be calculated from `data`, by default None.
-        If set to None, full pairwise distances between all positions in the `data` will be
+    structure_selection :  StructureSelection | StructureSelectionDescriptor, optional
+        Optional selection of geometric features to include in the PCA. If not provided,
+        will fall back to pairwise distances.
     n_components : int, optional
         The number of principal components to be computed, by default 2
     center_mean : bool, optional
@@ -454,7 +463,7 @@ def pca(
 def pca(
     data: xr.DataArray,
     dim: Hashable,
-    feature_selection: None = None,
+    structure_selection: None = None,
     n_components: int = 2,
     center_mean: bool = False,
 ) -> PCAResult[xr.DataArray, xr.DataArray]:
@@ -467,7 +476,7 @@ def pca(
         The data for which the PCA should be calculated
     dim : Hashable
         The dimension along which the PCA should be performed
-    feature_selection : None, optional
+    structure_selection : None, optional
         Unused if `dim` is set, by default None
     n_components : int, optional
         The number of principal components to be computed, by default 2
@@ -484,14 +493,14 @@ def pca(
 
 # TODO: FIXME: This should probably be pca_on_features and a separate pca_on_data() function to allo ShnitselDB trees with xr.DataArrays of only features calculated by the user
 def pca(
-    data: Trajectory
-    | Frames
-    | MultiSeriesDataset
-    | TreeNode[Any, Trajectory | Frames | MultiSeriesDataset]
+    data: ShnitselDataset
     | xr.Dataset
-    | xr.DataArray,
+    | xr.DataArray
+    | TreeNode[Any, ShnitselDataset | xr.Dataset | xr.DataArray],
+    structure_selection: StructureSelection
+    | StructureSelectionDescriptor
+    | None = None,
     dim: Hashable | None = None,
-    feature_selection: StructureSelection | None = None,
     n_components: int = 2,
     center_mean: bool = False,
 ) -> (
@@ -512,6 +521,9 @@ def pca(
         A DataArray with at least a dimension with a name matching `dim`
         dtype should be integer or floating with no
         ``nan`` or ``inf`` entries
+    structure_selection :  StructureSelection | StructureSelectionDescriptor, optional
+        Optional selection of geometric features to include in the PCA. If not provided,
+        will fall back to pairwise distances.
     dim
         The name of the array-dimension to reduce (i.e. the axis along which different
         features lie)
@@ -553,12 +565,16 @@ def pca(
         if isinstance(data, TreeNode):
 
             def traj_to_frame(
-                x: Trajectory | Frames | MultiSeriesDataset,
+                x: ShnitselDataset | xr.Dataset | xr.DataArray,
             ) -> Frames | None:
-                if isinstance(x, Trajectory) and not isinstance(x, Frames):
+                x = wrap_dataset(x)
+
+                if isinstance(x, (Trajectory, Frames)):
                     return x.as_frames
-                else:
+                elif isinstance(x, MultiSeriesDataset):
                     return x.as_stacked
+                else:
+                    return None
 
             data_framed: TreeNode[Any, Frames] = data.map_data(traj_to_frame)
             data_grouped = data_framed.group_data_by_metadata()
@@ -567,15 +583,14 @@ def pca(
 
                 def extract_features(x: Frames) -> xr.DataArray:
                     return get_bats(
-                        x.positions, structure_selection=feature_selection, # deg='trig'
+                        x,
+                        structure_selection=feature_selection,  # deg='trig'
                     )
             else:
 
                 def extract_features(x: Frames) -> xr.DataArray:
                     return (
-                        get_standardized_pairwise_dists(
-                            x.positions, center_mean=center_mean
-                        )
+                        get_standardized_pairwise_dists(x, center_mean=center_mean)
                         # .swap_dims(atomcomb='descriptor')
                         # .rename(atomcomb='descriptor')
                     )
@@ -641,39 +656,39 @@ def pca(
             return pca_res
         else:
             feature_array: xr.DataArray
-            if isinstance(data, Trajectory) or isinstance(data, Frames):
-                # extract positional data
-                data = data.positions
-            elif isinstance(data, xr.Dataset):
-                # Extract positional data from `atXYZ` variable.
-                data = data.atXYZ
+            # if isinstance(data, ShnitselDataset):
+            #     # extract positional data
+            #     data = data.positions
+            # elif isinstance(data, xr.Dataset):
+            #     # Extract positional data from `atXYZ` variable.
+            #     data = data.atXYZ
 
             # At this point, we should have an instance of xr.DataArray in `data` or someone provided us with a weird
             # unsupported input type
-            if isinstance(data, xr.DataArray):
-                # We got a `atXYZ` or positions array
-                if feature_selection is None:
-                    # Get array with standardized pairwise distance features.
-                    # Need to rename to ensure the relevant dimension is called `descriptor` and not `atomcomb`
-                    feature_array = get_standardized_pairwise_dists(
-                        data, center_mean=center_mean
-                    )  # .rename({'atomcomb': 'descriptor'})
-                else:
-                    feature_array = get_bats(
-                        data,
-                        structure_selection=feature_selection,
-                        # TODO: FIXME: Check if `trig` is the best option for us
-                        # deg='trig',
-                    )
-
-                return pca_direct(
-                    feature_array, dim='descriptor', n_components=n_components
-                )
+            # if isinstance(data, xr.DataArray):
+            # We got a `atXYZ` or positions array
+            if structure_selection is None:
+                # Get array with standardized pairwise distance features.
+                # Need to rename to ensure the relevant dimension is called `descriptor` and not `atomcomb`
+                feature_array = get_standardized_pairwise_dists(
+                    data, center_mean=center_mean
+                )  # .rename({'atomcomb': 'descriptor'})
             else:
-                raise ValueError(
-                    "Provided instance of `data` could not be used to extract positional data "
-                    "(or the `atXYZ` variable specifically) required for feature calculation for the PCA."
+                feature_array = get_bats(
+                    data,
+                    structure_selection=structure_selection,
+                    # TODO: FIXME: Check if `trig` is the best option for us
+                    # deg='trig',
                 )
+
+            return pca_direct(
+                feature_array, dim='descriptor', n_components=n_components
+            )
+            # else:
+            #     raise ValueError(
+            #         "Provided instance of `data` could not be used to extract positional data "
+            #         "(or the `atXYZ` variable specifically) required for feature calculation for the PCA."
+            #     )
 
 
 def pca_direct(data: xr.DataArray, dim: Hashable, n_components: int = 2) -> PCAResult:
