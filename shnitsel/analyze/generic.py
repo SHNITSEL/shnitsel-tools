@@ -6,6 +6,7 @@ import numpy as np
 import xarray as xr
 
 from shnitsel.data.dataset_containers import Frames, Trajectory
+from shnitsel.data.dataset_containers.shared import ShnitselDataset
 from shnitsel.data.multi_indices import midx_combs
 from shnitsel.core.typedefs import AtXYZ
 from shnitsel.filtering.structure_selection import StructureSelection
@@ -262,7 +263,7 @@ def relativize(da: xr.DataArray, **sel) -> xr.DataArray:
 
 
 def pwdists(
-    atXYZ_source: AtXYZ | xr.Dataset | Trajectory | Frames, center_mean: bool = False
+    atXYZ_source: AtXYZ | xr.Dataset | ShnitselDataset, center_mean: bool = False
 ) -> xr.DataArray:
     """
     Compute pairwise distances and standardize it by removing the mean
@@ -271,7 +272,7 @@ def pwdists(
 
     Parameters
     ----------
-    atXYZ : xr.DataArray | AtXYZ | xr.Datset | Trajectory | Frames
+    atXYZ : xr.DataArray | AtXYZ | xr.Datset | ShnitselDataset
         A DataArray containing the atomic positions;
         Alternatively a dataset, a trajectory or a frameset with the positional data to derive the
         pairwise distances from.
