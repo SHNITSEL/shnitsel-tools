@@ -101,7 +101,6 @@ def plot_noodleplot(
     cmap = cmap or mpl.colormaps['cividis_r']
     if isinstance(cmap, str):
         cmap = mpl.colormaps[cmap]
-    cnorm = cnorm or mpl.colors.Normalize(c.min(), c.max())  # type: ignore
 
     # TODO: remove groupby? Needed only for line-plot or for legend
     # for trajid, traj in noodle.groupby('trajid'):
@@ -114,15 +113,19 @@ def plot_noodleplot(
         noodle_scatter = noodle
 
     if isinstance(c, TreeNode):
-        c = c.as_stacked
+        color_scatter = c.as_stacked
+    else:
+        color_scatter = c
+
+    cnorm = cnorm or mpl.colors.Normalize(color_scatter.min(), color_scatter.max())  # type: ignore
 
     assert isinstance(noodle_scatter, xr.DataArray)
-    assert isinstance(c, xr.DataArray)
+    assert isinstance(color_scatter, xr.DataArray)
 
     sc = ax.scatter(
-        noodle_scatter.isel(PC=0),
-        noodle_scatter.isel(PC=1),
-        c=c,
+        noodle_scatter.isel(PC=0).values,
+        noodle_scatter.isel(PC=1).values,
+        c=color_scatter,
         cmap=cmap,
         norm=cnorm,
         rasterized=rasterized,
@@ -156,8 +159,8 @@ def plot_noodleplot(
             hops_noodle = noodle[hops_mask]
 
         ax.scatter(
-            hops_noodle.isel(PC=0),
-            hops_noodle.isel(PC=1),
+            hops_noodle.isel(PC=0).values,
+            hops_noodle.isel(PC=1).values,
             rasterized=rasterized,
             **hops_kws,
         )
