@@ -50,9 +50,13 @@ def plot_single(data, ax=None):
     if 'state' in data.dims:
         groupby='state'
         coord_name = 'state_names'
-    if 'statecomb' in data.dims:
+    elif 'statecomb' in data.dims:
         groupby='statecomb'
         coord_name = 'statecomb_names'
+    else:
+        data = data.expand_dims('_dummy').assign_coords(_dummy=[''])
+        groupby = '_dummy'
+        coord_name = '_dummy'
 
     _, ax = figax(ax=ax)
     for _, sdata in data.groupby(groupby):
