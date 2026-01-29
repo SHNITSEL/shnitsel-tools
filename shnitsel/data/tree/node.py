@@ -1141,10 +1141,12 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
         )
 
     @property
-    def as_stacked(self) -> MultiSeriesStacked:
+    def as_stacked(self) -> MultiSeriesStacked | DataType:
         return self.to_stacked()
 
-    def to_stacked(self, only_direct_children: bool = False) -> MultiSeriesStacked:
+    def to_stacked(
+        self, only_direct_children: bool = False
+    ) -> MultiSeriesStacked | DataType:
         """Stack the trajectories in a subtree into a multi-trajetctory dataset.
 
         The resulting dataset has a new `frame` dimension along which we can iterate through all individual frames of all trajectories.
@@ -1158,10 +1160,16 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
         -------
         MultiSeriesStacked
             The resulting multi-trajectory dataset stacked along a `frame` dimension
+        DataType
+            If it is an xarray.DataArray tree that we are concatenating.
         """
         from shnitsel.data.shnitsel_db_helpers import concat_subtree
+        import xarray as xr
 
-        return MultiSeriesStacked(concat_subtree(self, only_direct_children))
+        res = concat_subtree(self, only_direct_children)
+        if isinstance(res, xr.Dataset):
+            return MultiSeriesStacked(res)
+        return res
 
     @property
     def as_layered(self) -> MultiSeriesLayered:
