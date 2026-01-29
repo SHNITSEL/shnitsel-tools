@@ -1,21 +1,25 @@
 import logging
-from typing import Iterable, Literal, Sequence
+from typing import Any, Iterable, Literal, Sequence
 
 from matplotlib.axes import Axes
 from matplotlib.colors import Colormap
 from matplotlib.figure import Figure, SubFigure
 import numpy as np
 from numpy.typing import ArrayLike
+import rdkit
 from scipy import stats
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import xarray as xr
 
 from shnitsel.analyze.hops import hops_mask_from_active_state
-from shnitsel.analyze.pca import PCAResult, pca_and_hops
+from shnitsel.analyze.pca import PCAResult, pca, pca_and_hops
 from shnitsel.data.dataset_containers import Frames, Trajectory, wrap_dataset
 from shnitsel.data.dataset_containers.multi_layered import MultiSeriesLayered
 from shnitsel.data.dataset_containers.multi_stacked import MultiSeriesStacked
+from shnitsel.data.dataset_containers.shared import ShnitselDataset
+from shnitsel.data.tree.node import TreeNode
+from shnitsel.filtering.state_selection import StateSelection, StateSelectionDescriptor
 from shnitsel.filtering.structure_selection import (
     AngleDescriptor,
     BondDescriptor,
@@ -158,7 +162,7 @@ def _get_xx_yy(
 
 def _fit_and_eval_kdes(
     pca_data: PCAResult,
-    geo_property: xr.DataArray,
+    geo_property: xr.DataArray | TreeNode[Any, xr.DataArray],
     geo_kde_ranges: Sequence[tuple[float, float]],
     num_steps: int = 500,
     extension: float = 0.1,
@@ -195,6 +199,14 @@ def _fit_and_eval_kdes(
     pca_data_da = pca_data.projected_inputs.transpose(
         'frame', 'PC'
     )  # required order for the following 3 lines
+
+    # Convert data to flat formats for operations
+    if isinstance(pca_data_da, TreeNode):
+        pca_data_da = pca_data_da.as_stacked
+    assert isinstance(pca_data_da, xr.DataArray)
+    if isinstance(geo_property, TreeNode):
+        geo_property = geo_property.as_stacked
+    assert isinstance(geo_property, xr.DataArray)
 
     xx, yy = _get_xx_yy(pca_data_da, num_steps=num_steps, extension=extension)
     kernels = _fit_kdes(pca_data_da, geo_property, geo_kde_ranges)
@@ -255,10 +267,14 @@ def _plot_kdes(
 
 
 def biplot_kde(
-    frames: xr.Dataset | Frames | Trajectory,
+    frames: xr.Dataset | ShnitselDataset | TreeNode[Any, ShnitselDataset | xr.Dataset],
     *ids: int,
-    pca_data: PCAResult | None = None,
-    structure_selection: StructureSelection | StructureSelectionDescriptor | None = None,
+    pca_data: TreeNode[Any, PCAResult] | PCAResult | None = None,
+    state_selection: StateSelection | StateSelectionDescriptor | None = None,
+    structure_selection: StructureSelection
+    | StructureSelectionDescriptor
+    | None = None,
+    mol: rdkit.Chem.Mol | None = None,
     geo_kde_ranges: Sequence[tuple[float, float]] | None = None,
     scatter_color_property: Literal['time', 'geo'] = 'time',
     geo_feature: BondDescriptor
@@ -272,9 +288,9 @@ def biplot_kde(
     contour_colors: list[str] | None = None,
     contour_fill: bool = True,
     num_bins: Literal[1, 2, 3, 4] = 4,
-    fig: mpl.figure.Figure | None = None,
+    fig: Figure | None = None,
     center_mean: bool = False,
-):
+) -> Figure | Sequence[Figure]:
     """\
     Generates a biplot that visualizes PCA projections and kernel density estimates (KDE) 
     of a property (distance, angle, dihedral angle) describing the geometry of specified
@@ -288,12 +304,14 @@ def biplot_kde(
     ----------
     frames
         A dataset containing trajectory frames with atomic coordinates.
+        This needs to correspond to the data that was the input to `pca_data` if that parameter is provided.
     *ids: int
         Indices for atoms to be used in `geo_feature` if `geo_feature` is not set. 
         Note that pyramidalization angles cannot reliably be provided in this format.
     pca_data : PCAResult, optional
         A PCA result to use for the analysis. If not provided, will perform PCA analysis based on `structure_selection` or a
-        generic pairwise distance PCA.
+        generic pairwise distance PCA on `frames`.
+        Accordingly, if provided, the parameter `frames` needs to correspond to the input provided to obtain the value in `
     structure_selection: StructureSelection | StructureSelectionDescriptor, optional
         An optional selection of features/structure to use for the PCA analysis.
     geo_kde_ranges : Sequence[tuple[float, float]], optional
@@ -328,8 +346,10 @@ def biplot_kde(
 
     Returns
     -------
-    kde_dat
-        The computed KDE data for the atom-atom distance distribution.
+    Figure
+        The single figure of the PCA result, if the PCA result was not provided as a tree or on-the go PCA did not yield a tree result.
+    Sequence[Figure]
+        The sequence of all figures, one for each individual PCA result if the provided or obtained PCA result was a tree structure.
 
     Notes
     -----
@@ -339,15 +359,82 @@ def biplot_kde(
     * Produces a figure with PCA projection, cluster analysis, and KDE plots.
     """
 
+    if pca_data is None:
+        # prepare data
+        pca_data = pca(
+            frames, structure_selection=structure_selection, center_mean=center_mean
+        )
+
+    if pca_data is not None and isinstance(pca_data, TreeNode):
+
+        def single_pca_map(x: TreeNode[Any, PCAResult]) -> TreeNode[Any, Figure] | None:
+            assert x.is_leaf
+            if not x.has_data:
+                return None
+
+            pca_path = x.path
+            pca_res = x.data
+
+            frame_input_data = pca_res.inputs
+
+            # TODO: FIXME: Make sourcing of input frames more robust. Maybe keep actual inputs on result?
+
+            try:
+                input_path = x._parent.path if x._parent is not None else "."
+                if input_path.startswith("/"):
+                    input_path = "." + input_path
+                frame_input_data = frames[input_path]
+            except:
+                pass
+
+            fig: Figure = biplot_kde(
+                frame_input_data,
+                *ids,
+                pca_data=pca_res,
+                state_selection=state_selection,
+                structure_selection=structure_selection,
+                mol=mol,
+                geo_kde_ranges=geo_kde_ranges,
+                scatter_color_property=scatter_color_property,
+                geo_feature=geo_feature,
+                geo_cmap=geo_cmap,  # any valid cmap type
+                time_cmap=time_cmap,  # any valid cmap type
+                contour_levels=contour_levels,
+                contour_colors=contour_colors,
+                contour_fill=contour_fill,
+                num_bins=num_bins,
+                center_mean=center_mean,
+            )  # type: ignore # For single PCA, we get single result.
+            assert isinstance(fig, Figure)
+            fig.suptitle("PCA:" + pca_path)
+            return x.construct_copy(data=fig)
+
+        mapped_biplots = pca_data.map_filtered_nodes(
+            lambda x: x.is_leaf, single_pca_map
+        )
+        assert mapped_biplots is not None, (
+            "Failed to apply biplot to individual results in tree structure. Was the tree empty?"
+        )
+        return list(mapped_biplots.collect_data())
+
+    try:
+        hops_mask = hops_mask_from_active_state(
+            frames, hop_type_selection=state_selection
+        )
+    except:
+        logging.warning("Could not obtain `hops` mask from `frames` input.")
+        hops_mask = None
+
     if scatter_color_property not in {'time', 'geo'}:
         raise ValueError("`scatter_color` must be 'time' or 'geo'")
 
     if contour_levels is None:
         contour_levels = [0.08, 1]
 
-    wrapped_ds = wrap_dataset(
-        frames, Frames | Trajectory | MultiSeriesStacked | MultiSeriesLayered
-    )
+    if isinstance(frames, TreeNode):
+        tree_mode = True
+    else:
+        tree_mode = False
 
     # prepare layout
     if fig is None:
@@ -364,23 +451,37 @@ def biplot_kde(
     structsf = fig.add_subfigure(gs[1])
     structaxs = structsf.subplot_mosaic('ab\ncd')
 
-    if pca_data is None:
-        # prepare data
-        pca_data, hops_mask = pca_and_hops(
-            wrapped_ds, structure_selection=structure_selection, center_mean=center_mean
-        )
-    else:
-        hops_mask = hops_mask_from_active_state(wrapped_ds)
-
     d = pb.pick_clusters(pca_data, num_bins=num_bins, center_mean=center_mean)
     loadings, clusters, picks = d['loadings'], d['clusters'], d['picks']
 
-    if structure_selection is None or structure_selection.mol is None:
-        mol = construct_default_mol(wrapped_ds)
-    else:
-        mol = Mol(structure_selection.mol)
+    res_mol: Mol
+    if mol is None:
+        if (
+            structure_selection is None
+            or not isinstance(structure_selection, StructureSelection)
+            or structure_selection.mol is None
+        ):
+            # if tree_mode:
+            #     res_mol = list(
+            #         frames.map_data(lambda x: (x.__mol.item() if "__mol" in x else None) if isinstance(x, xr.DataArray) else wrap_dataset(x).mol).collect_data()
+            #     )[0]
+            if tree_mode:
+                res_mol = list(frames.map_data(construct_default_mol).collect_data())[0]
+            else:
+                print(f"{frames=}")
+                wrapped_da = wrap_dataset(frames)
+                print(f"{wrapped_ds=}")
+                res_mol = wrapped_da.mol
 
-    mol = set_atom_props(mol, atomLabel=True, atomNote=[''] * mol.GetNumAtoms())
+        else:
+            res_mol = Mol(structure_selection.mol)
+    else:
+        res_mol = mol
+
+    res_mol = set_atom_props(
+        res_mol, atomLabel=True, atomNote=[''] * res_mol.GetNumAtoms()
+    )
+
     if scatter_color_property == 'time':
         noodleplot_c = None
         noodleplot_cmap = time_cmap
@@ -394,6 +495,8 @@ def biplot_kde(
             "If the scatter property is set to `geo`, the `geo_feature` parameter of `biplot_kde()` must not be None."
         )
 
+        wrapped_ds = wrap_dataset(frames)
+
         match geo_feature:
             case (atc, (at1, at2, at3)):
                 # compute pyramidalization as described by the center atom `atc` and the neighbor atoms `at1, at2, at3`
@@ -405,7 +508,7 @@ def biplot_kde(
                     at3,
                 )
                 if not geo_kde_ranges:
-                    geo_kde_ranges = [(0, 80), (110, 180)]
+                    geo_kde_ranges = [(-90, -30), (-20, 20), (30, 90)]
             case (at1, at2):
                 # compute distance between atoms at1 and at2
                 geo_prop = distance(wrapped_ds.positions, at1, at2)
@@ -441,9 +544,11 @@ def biplot_kde(
 
     # noodle_cnorm = mpl.colors.Normalize(noodleplot_c.min(), noodle_c.max())
     # noodle_cscale = mpl.cm.ScalarMappable(norm=noodle_cnorm, cmap=noodle_cmap)
+    pca_noodles: TreeNode[Any, xr.DataArray] | xr.DataArray
+    pca_noodles = pca_data.projected_inputs
 
     pb.plot_noodleplot(
-        pca_data.projected_inputs,
+        pca_noodles,
         hops_mask,
         c=noodleplot_c,
         cmap=noodleplot_cmap,
@@ -463,7 +568,7 @@ def biplot_kde(
         [clusters[i] for i in picks],
         ax=pcaax,
         axs=structaxs,
-        mol=mol,
+        mol=res_mol,
         labels=list('abcd'),
     )
 
@@ -486,6 +591,7 @@ def biplot_kde(
 
     # TODO: FIXME: Should this really return the KDE data?
     # return kde_data
+    return fig
 
 
 def plot_cdf_for_kde(
