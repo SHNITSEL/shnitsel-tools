@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from typing import Literal, Sequence, TypeVar
+from copy import copy
 
 import numpy as np
 import xarray as xr
@@ -42,8 +43,16 @@ class GeometryFiltrationThresholds:
     # Each SMARTs should ideally only cover one bond.
     match_thresholds: dict[str, float] | None = None
 
-    def __init__(self):
-        self.match_thresholds = dict()
+    def __init__(self, settings: dict[str, float] | None = None):
+        if settings is None:
+            self.match_thresholds = dict()
+        elif isinstance(settings, dict):
+            self.match_thresholds = settings
+        elif isinstance(settings, GeometryFiltrationThresholds):
+            # initializing from instance of self
+            self.__dict__ = settings.__dict__.copy()
+        else:
+            raise ValueError()
 
     def get_full_match_dict(self) -> dict[str, float]:
         """Get the full dictionary of SMARTs strings and associated bond length thresholds.
@@ -133,9 +142,8 @@ def calculate_bond_length_filtranda(
     if isinstance(frames, xr.Dataset):
         frames = Frames(frames)
 
-    if geometry_thresholds is None:
-        # Assign default threshold rules.
-        geometry_thresholds = GeometryFiltrationThresholds()
+    # Assign default threshold rules.
+    geometry_thresholds = GeometryFiltrationThresholds(geometry_thresholds)
 
     thresholds_array = geometry_thresholds.to_dataarray()
 
