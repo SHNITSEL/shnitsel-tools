@@ -42,6 +42,13 @@ def distance(atXYZ: AtXYZ, i: int, j: int) -> xr.DataArray:
     xr.DataArray
         The resulting array holding the pairwise distance between i and j.
     """
+    if isinstance(atXYZ, TreeNode):
+        return atXYZ.map_data(
+            distance,
+            i=i,
+            j=j,
+        )
+
     a = atXYZ.sel(atom=i, drop=True)
     b = atXYZ.sel(atom=j, drop=True)
     with xr.set_options(keep_attrs=True):

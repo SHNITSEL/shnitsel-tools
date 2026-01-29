@@ -89,6 +89,15 @@ def pyramidalization_angle(
     According to https://doi.org/10.1063/5.0008368 this should yield a unique angle independent of the permutation of a,b,c if the distances are normalized first.
     This should give the p-orbital-aligned perpendicular normal.
     """
+    if isinstance(atXYZ, TreeNode):
+        return atXYZ.map_data(
+            pyramidalization_angle,
+            x_index=x_index,
+            a_index=a_index,
+            b_index=b_index,
+            c_index=c_index,
+            deg=deg,
+        )
     # NOTE: According to https://doi.org/10.1063/5.0008368 this should yield a unique angle independent of the permutation of a,b,c if the distances are normalized first.
     # This should give the p-orbital-aligned perpendicular normal.
 

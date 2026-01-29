@@ -52,6 +52,14 @@ def angle(
     xr.DataArray
         The resulting angles between the denoted atoms.
     """
+    if isinstance(atXYZ, TreeNode):
+        return atXYZ.map_data(
+            angle,
+            a_index=a_index,
+            b_index=b_index,
+            c_index=c_index,
+            deg=deg,
+        )
     a = atXYZ.sel(atom=a_index, drop=True)
     b = atXYZ.sel(atom=b_index, drop=True)
     c = atXYZ.sel(atom=c_index, drop=True)
@@ -93,6 +101,14 @@ def angle_cos_sin(
     xr.DataArray
         The resulting angles between the denoted atoms.
     """
+    if isinstance(atXYZ, TreeNode):
+        return atXYZ.map_data(
+            angle_cos_sin,
+            a_index=a_index,
+            b_index=b_index,
+            c_index=c_index,
+            deg=deg,
+        )
     a = atXYZ.sel(atom=a_index, drop=True)
     b = atXYZ.sel(atom=b_index, drop=True)
     c = atXYZ.sel(atom=c_index, drop=True)

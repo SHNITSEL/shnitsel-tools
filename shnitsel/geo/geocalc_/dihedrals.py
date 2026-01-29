@@ -165,6 +165,16 @@ def dihedral(
     xr.DataArray
         A ``DataArray`` containing dihedral angles (or the sin and cos thereof)
     """
+    if isinstance(atXYZ, TreeNode):
+        return atXYZ.map_data(
+            dihedral,
+            a_index=a_index,
+            b_index=b_index,
+            c_index=c_index,
+            d_index=d_index,
+            deg=deg,
+            full=full,
+        )
     if deg == 'trig':
         result_cos, result_sin = _dihedral_trig_(
             atXYZ, a_index, b_index, c_index, d_index, full=full
