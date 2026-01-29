@@ -61,8 +61,8 @@ def _get_default_structure_selection(
                     ).select_all()
 
                 tmp_res = sel.derive_other_from_descriptor(structure_selection)
-            except:
-                raise
+            except Exception as e:
+                raise e
 
             if tmp_res is None:
                 raise ValueError(
