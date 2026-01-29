@@ -9,10 +9,15 @@ from .spectra3d import (
     pcm_plots as pcm_plots,
 )
 
+from .time import (
+    timeplot as timeplot,
+)
+
 __all__ = [
     # 'Datasheet',
     'biplot_kde',
     'plot_cdf_for_kde',
     'ski_plots',
     'pcm_plots',
+    'timeplot',
 ]
