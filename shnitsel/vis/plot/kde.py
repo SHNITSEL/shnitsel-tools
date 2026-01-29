@@ -472,10 +472,11 @@ def biplot_kde(
             if tree_mode:
                 res_mol = list(frames.map_data(construct_default_mol).collect_data())[0]
             else:
-                print(f"{frames=}")
-                wrapped_da = wrap_dataset(frames)
-                print(f"{wrapped_ds=}")
-                res_mol = wrapped_da.mol
+                # print(f"{frames=}")
+                # wrapped_da = wrap_dataset(frames)
+                # print(f"{wrapped_ds=}")
+                # res_mol = wrapped_da.mol
+                res_mol = construct_default_mol(frames)
 
         else:
             res_mol = Mol(structure_selection.mol)
