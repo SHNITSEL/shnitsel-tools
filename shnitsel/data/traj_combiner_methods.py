@@ -1,6 +1,6 @@
 import logging
 from types import UnionType
-from typing import TYPE_CHECKING, Any, Iterable, Sequence, TypeVar
+from typing import TYPE_CHECKING, Any, Iterable, Sequence, TypeVar, overload
 from typing_extensions import TypeForm
 
 import numpy as np
@@ -33,7 +33,7 @@ class MissingValue:
 
 @internal()
 def _check_matching_dimensions(
-    datasets: Iterable[xr.Dataset | Trajectory | Frames],
+    datasets: Iterable[xr.Dataset | Trajectory | Frames | xr.DataArray],
     excluded_dimensions: set[str] = set(),
     limited_dimensions: set[str] | None = None,
 ) -> bool:
@@ -153,7 +153,7 @@ def _compare_dicts_of_values(
 
 @internal()
 def _check_matching_var_meta(
-    datasets: Sequence[xr.Dataset | Trajectory | Frames],
+    datasets: Sequence[xr.Dataset | Trajectory | Frames | xr.DataArray],
 ) -> bool:
     """Function to check if all of the variables have matching metadata.
 
@@ -176,14 +176,15 @@ def _check_matching_var_meta(
     shared_vars = None
 
     for ds in datasets:
+        ds_vars = ds.coords if isinstance(ds, xr.DataArray) else ds.variables
         ds_meta = {}
-        this_vars = set(ds.variables.keys())
+        this_vars = set(ds_vars.keys())
         if shared_vars is None:
             shared_vars = this_vars
         else:
             shared_vars = this_vars.intersection(shared_vars)
 
-        for var_name in ds.variables:
+        for var_name in ds_vars:
             var_attr = ds[var_name].attrs.copy()
             ds_meta[var_name] = var_attr
         collected_meta.append(ds_meta)
@@ -207,7 +208,7 @@ def _check_matching_var_meta(
 
 @internal()
 def _merge_traj_metadata(
-    datasets: Sequence[xr.Dataset | Trajectory | Frames],
+    datasets: Sequence[xr.Dataset | Trajectory | Frames | xr.DataArray],
 ) -> tuple[dict[str, Any], dict[str, np.ndarray]]:
     """Function to gather metadate from a set of trajectories.
 
@@ -273,6 +274,33 @@ def _merge_traj_metadata(
                         kept_array[i] = ds.delta_t
                     elif key == 't_max':
                         kept_array[i] = ds.t_max
+                elif isinstance(ds, xr.DataArray):
+                    # Special treatment for data arrays necessary
+                    if key == 'trajid':
+                        kept_array[i] = (
+                            ds.coords['trajectory'].item()
+                            if 'trajectory' in ds.coords
+                            else (
+                                ds.coords['atrajectory'].min()
+                                if 'atrajectory' in ds.coords
+                                else ds.attrs.get(
+                                    "trajid",
+                                    ds.attrs.get(
+                                        "trajectory", ds.attrs.get("trajectory_id", -1)
+                                    ),
+                                )
+                            )
+                        )
+                    elif key == 'delta_t':
+                        kept_array[i] = (
+                            ds.coords['delta_t'].item()
+                            if 'delta_t' in ds.coords
+                            else -1
+                        )
+                    elif key == 't_max':
+                        kept_array[i] = (
+                            ds.coords['t_max'].item() if 't_max' in ds.coords else -1
+                        )
 
         all_meta[key] = kept_array
 
@@ -314,11 +342,27 @@ def _merge_traj_metadata(
 DataType = TypeVar("DataType")
 
 
+@overload
+@API()
+def concat_trajs(
+    datasets: Sequence[xr.DataArray],
+    dtype: type[DataType] | UnionType | None = None,
+) -> xr.DataArray: ...
+
+
+@overload
 @API()
 def concat_trajs(
     datasets: Sequence[Trajectory | Frames | xr.Dataset],
     dtype: type[DataType] | UnionType | None = None,
-) -> xr.Dataset:
+) -> xr.Dataset: ...
+
+
+@API()
+def concat_trajs(
+    datasets: Sequence[Trajectory | Frames | xr.Dataset] | Sequence[xr.DataArray],
+    dtype: type[DataType] | UnionType | None = None,
+) -> xr.Dataset | xr.DataArray:
     """Function to concatenate multiple trajectories along their `time` dimension.
 
     Will create one continuous time dimension like an extended trajectory.
@@ -328,10 +372,12 @@ def concat_trajs(
     Additionally, a dimension `trajectory` with accompanying trajectory ids as metadata and
     to index the remaining collected trajectory metadata will be introduced.
 
+    For a sequence of data arrays, we will just try and concatenate the arrays.
+
     Parameters
     ----------
-    datasets : Iterable[Trajectory]
-        Datasets representing the individual trajectories
+    datasets : Iterable[Trajectory | Frames | xr.Dataset] | Sequence[xr.DataArray]
+        Datasets representing the individual trajectories or a sequence of arrays to concatenate.
     dtype :  type[DataType] | UnionType | None
         Type hint for the data to be included in the resulting container type.
 
@@ -352,91 +398,192 @@ def concat_trajs(
         The combined and extended trajectory with a new leading `frame` dimension
     """
 
-    if not all(isinstance(x, (Trajectory, Frames, xr.Dataset)) for x in datasets):
-        logging.error("Attempted to concatenate non-trajectory data")
+    all_traj = all(isinstance(x, (Trajectory, Frames, xr.Dataset)) for x in datasets)
+    all_da = all(isinstance(x, (xr.DataArray)) for x in datasets)
+
+    if not all_traj and not all_da:
+        logging.error(
+            "Attempted to concatenate mixed trajectory and non-trajectory data"
+        )
         raise ValueError(
-            "Concatenation is only possible for Trajectory/xarray.Dataset input data. The provided data contained unsupported types."
+            "Concatenation is only possible for pure Trajectory/xarray.Dataset or pure xarray.DataArray input data. The provided data contained unsupported or mixed types."
         )
 
-    wrapped_ds = [wrap_dataset(x, (Trajectory | Frames)) for x in datasets]
+    if all_traj:
+        wrapped_ds = [wrap_dataset(x, (Trajectory | Frames)) for x in datasets]
 
-    datasets_pure = list(
-        x.as_frames if isinstance(x, Trajectory) else x for x in wrapped_ds
-    )
+        datasets_pure = list(
+            x.as_frames if isinstance(x, Trajectory) else x for x in wrapped_ds
+        )
 
-    if len(datasets_pure) == 0:
-        raise ValueError("No trajectories were provided.")
+        if len(datasets_pure) == 0:
+            raise ValueError("No trajectories were provided.")
 
-    is_multi_trajectory = len(datasets_pure) > 1
+        is_multi_trajectory = len(datasets_pure) > 1
 
-    # Check that we do not have pre-existing multi-trajectory datasets
-    for ds in datasets_pure:
-        if ds.is_multi_trajectory:
-            is_multi_trajectory = True
-            # TODO: FIXME: This should actually not be a problem. Look into this
-            logging.error(
-                "Multi-trajectory dataset provided to concat() function. Aborting."
+        # Check that we do not have pre-existing multi-trajectory datasets
+        for ds in datasets_pure:
+            if ds.is_multi_trajectory:
+                is_multi_trajectory = True
+                # TODO: FIXME: This should actually not be a problem. Look into this
+                logging.error(
+                    "Multi-trajectory dataset provided to concat() function. Aborting."
+                )
+                raise ValueError(
+                    "Multi-trajectory dataset provided to concat() function."
+                )
+
+            # TODO: FIXME: Deal with multi-trajectory merges
+            # if (
+            #     "trajid" in ds.coords
+            #     or "trajid_" in ds.coords
+            #     or "frame" in ds.coords
+            #     or 'atrajectory' in ds.coords
+            #     or 'trajectory' in ds.coords
+            #     or 'trajectory' in ds.dims
+            # ):
+            #     dsid = (
+            #         ds.coords["trajid"]
+            #         if "trajid" in ds.coords
+            #         else ds.attrs["trajid"]
+            #         if "trajid" in ds.attrs
+            #         else "unknown"
+            #     )
+            #     raise ValueError(
+            #         f"trajectory with existing `trajid`={dsid} (or `trajid_`), 'atrajectory', 'trajectory' or existing `frame` coordinates provided to `concat`. Indicates prior merge of multiple trajetories. Cannot proceed. Please only provide trajectories without these coordinates"
+            #     )
+
+        # Check that all dimensions match. May want to check the values match as well?
+        if not _check_matching_dimensions(datasets_pure, {"frame"}):
+            message = "Dimensions of the provided data vary."
+            logging.warning(
+                f"{message} Merge result may be inconsistent. Please ensure you only merge consistent trajectories."
             )
-            raise ValueError("Multi-trajectory dataset provided to concat() function.")
+            # TODO: Do we want to merge anyway?
+            raise ValueError(f"{message} Will not merge.")
 
-        # TODO: FIXME: Deal with multi-trajectory merges
-        # if (
-        #     "trajid" in ds.coords
-        #     or "trajid_" in ds.coords
-        #     or "frame" in ds.coords
-        #     or 'atrajectory' in ds.coords
-        #     or 'trajectory' in ds.coords
-        #     or 'trajectory' in ds.dims
-        # ):
-        #     dsid = (
-        #         ds.coords["trajid"]
-        #         if "trajid" in ds.coords
-        #         else ds.attrs["trajid"]
-        #         if "trajid" in ds.attrs
-        #         else "unknown"
-        #     )
-        #     raise ValueError(
-        #         f"trajectory with existing `trajid`={dsid} (or `trajid_`), 'atrajectory', 'trajectory' or existing `frame` coordinates provided to `concat`. Indicates prior merge of multiple trajetories. Cannot proceed. Please only provide trajectories without these coordinates"
-        #     )
+        # All units should be converted to same unit
+        if not _check_matching_var_meta(datasets_pure):
+            # TODO: FIXME: Add message info which variable did not match.
+            message = (
+                "Variable meta attributes vary between different tajectories. "
+                "This indicates inconsistencies like distinct units between trajectories. "
+                "Please ensure consistency between datasets before merging."
+            )
+            logging.warning(f"{message} Merge result may be inconsistent.")
+            # TODO: Do we want to merge anyway?
+            raise ValueError(f"{message} Will not merge.")
 
-    # Check that all dimensions match. May want to check the values match as well?
-    if not _check_matching_dimensions(datasets_pure, {"frame"}):
-        message = "Dimensions of the provided data vary."
-        logging.warning(
-            f"{message} Merge result may be inconsistent. Please ensure you only merge consistent trajectories."
+        # trajid set by merge_traj_metadata
+        consistent_metadata, distinct_metadata = _merge_traj_metadata(datasets_pure)
+
+        # To keep trajid as a part of the multi-index distinct from
+        datasets_amended = [
+            # Expansion applied in `as_frames` property call.
+            # ds.expand_dims(atrajectory=[distinct_metadata["trajid"][i]]).stack(
+            #     frame=["atrajectory", "time"]
+            # )
+            ds.dataset
+            for i, ds in enumerate(datasets_pure)
+        ]
+
+        # TODO: Check if the order of datasets stays the same. Otherwise distinct attributes may not be appropriately sorted.
+        frames = xr.concat(
+            datasets_amended, dim="frame", coords="different", combine_attrs="override"
         )
-        # TODO: Do we want to merge anyway?
-        raise ValueError(f"{message} Will not merge.")
 
-    # All units should be converted to same unit
-    if not _check_matching_var_meta(datasets_pure):
-        # TODO: FIXME: Add message info which variable did not match.
-        message = (
-            "Variable meta attributes vary between different tajectories. "
-            "This indicates inconsistencies like distinct units between trajectories. "
-            "Please ensure consistency between datasets before merging."
+        # DataArrays without a `trajectory` dimension cannot have these coords assigned
+        # Introduce new trajid dimension
+        frames = frames.assign_coords(
+            trajectory=(
+                "trajectory",
+                distinct_metadata["trajid"],
+                {"description": "id of the original trajectory before concatenation."},
+            )
         )
-        logging.warning(f"{message} Merge result may be inconsistent.")
-        # TODO: Do we want to merge anyway?
-        raise ValueError(f"{message} Will not merge.")
 
-    # trajid set by merge_traj_metadata
-    consistent_metadata, distinct_metadata = _merge_traj_metadata(datasets_pure)
+        # Add remaining trajectory-metadata
+        # First the ones that may end up as coordinates
+        frames = frames.assign_coords(
+            {
+                k: (
+                    "trajectory",
+                    v,
+                    {"description:": f"Attribute {k} merged in concatenation"},
+                )
+                for k, v in distinct_metadata.items()
+                if k != "trajid" and str(k) in _coordinate_meta_keys
+            }
+        )
+    elif all_da:
+        # Concatenate data arrays
 
-    # To keep trajid as a part of the multi-index distinct from
-    datasets_amended = [
-        # Expansion applied in `as_frames` property call.
-        # ds.expand_dims(atrajectory=[distinct_metadata["trajid"][i]]).stack(
-        #     frame=["atrajectory", "time"]
-        # )
-        ds.dataset
-        for i, ds in enumerate(datasets_pure)
-    ]
+        def da_to_frame(da, default_id):
+            if 'frame' in da.dims:
+                return da
 
-    # TODO: Check if the order of datasets stays the same. Otherwise distinct attributes may not be appropriately sorted.
-    frames = xr.concat(
-        datasets_amended, dim="frame", coords="different", combine_attrs="override"
-    )
+            if 'time' not in da.dims:
+                raise ValueError(
+                    f"The data array {da=} did not have sufficient information for concatenation. Missing `time` dimension."
+                )
+
+            if 'atrajectory' not in da.coords:
+                trajectory_id = da.attrs.get(
+                    "trajid",
+                    da.attrs.get("trajectory_id", da.attrs.get("trajectory", None)),
+                )
+                if trajectory_id is None:
+                    for source in [
+                        'trajid',
+                        'atrajectory',
+                        'trajectory',
+                        'trajectory_id',
+                    ]:
+                        if source in da.coords:
+                            trajectory_id = da.coords[source].item()
+                if trajectory_id is None:
+                    trajectory_id = default_id
+                    # raise ValueError(
+                    #     f"Data Array {da=} did not contain any trajectory id information. Cannot concatenate."
+                    # )
+
+                da = da.expand_dims(atrajectory=[trajectory_id])
+
+            return da.stack(frame=["atrajectory", "time"])
+
+        framed_da: list[xr.DataArray] = [
+            da_to_frame(da, i) for i, da in enumerate(datasets)
+        ]
+
+        # Check that all dimensions match. May want to check the values match as well?
+        if not _check_matching_dimensions(framed_da, {"frame"}):
+            message = "Dimensions of the provided data vary."
+            logging.warning(
+                f"{message} Merge result may be inconsistent. Please ensure you only merge consistent trajectories."
+            )
+            # TODO: Do we want to merge anyway?
+            raise ValueError(f"{message} Will not merge.")
+
+        # All units should be converted to same unit
+        if not _check_matching_var_meta(framed_da):
+            # TODO: FIXME: Add message info which variable did not match.
+            message = (
+                "Variable meta attributes vary between different tajectories. "
+                "This indicates inconsistencies like distinct units between trajectories. "
+                "Please ensure consistency between datasets before merging."
+            )
+            logging.warning(f"{message} Merge result may be inconsistent.")
+            # TODO: Do we want to merge anyway?
+            raise ValueError(f"{message} Will not merge.")
+
+        # trajid set by merge_traj_metadata
+        consistent_metadata, distinct_metadata = _merge_traj_metadata(framed_da)
+
+        # TODO: Check if the order of datasets stays the same. Otherwise distinct attributes may not be appropriately sorted.
+        frames = xr.concat(framed_da, dim="frame")
+        is_multi_trajectory = True
+    else:
+        raise RuntimeError("Something went wrong in data concatenation")
 
     # Set merged metadata
     frames.attrs.update(consistent_metadata)
@@ -450,28 +597,6 @@ def concat_trajs(
     #    nsteps=("trajid", traj_meta["nsteps"]),
     # )
 
-    # Introduce new trajid dimension
-    frames = frames.assign_coords(
-        trajectory=(
-            "trajectory",
-            distinct_metadata["trajid"],
-            {"description": "id of the original trajectory before concatenation."},
-        )
-    )
-
-    # Add remaining trajectory-metadata
-    # First the ones that may end up as coordinates
-    frames = frames.assign_coords(
-        {
-            k: (
-                "trajectory",
-                v,
-                {"description:": f"Attribute {k} merged in concatenation"},
-            )
-            for k, v in distinct_metadata.items()
-            if k != "trajid" and str(k) in _coordinate_meta_keys
-        }
-    )
 
     # Then all remaining metadata
     frames.attrs.update(
