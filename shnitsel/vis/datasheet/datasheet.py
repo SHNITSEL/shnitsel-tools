@@ -69,7 +69,7 @@ class Datasheet:
         | PathLike
         | Self,
         state_selection: StateSelection | StateSelectionDescriptor | None = None,
-        feature_selection: StructureSelection
+        structure_selection: StructureSelection
         | StructureSelectionDescriptor
         | None = None,
         *,
@@ -92,7 +92,7 @@ class Datasheet:
         state_selection : StateSelection | StateSelectionDescriptor, optional
             Optional parameter to specify a subset of states and state combinations that may be considered for the dataset.
             Will be generated if not provided.
-        feature_selection: StructureSelection | StructureSelectionDescriptor, optional
+        structure_selection: StructureSelection | StructureSelectionDescriptor, optional
             Optional parameter to limit the PCA plot and analysis to a specific subset of the structure.
             Will be generated if not provided.
         name : str, optional
@@ -169,7 +169,7 @@ class Datasheet:
                         traj,
                         spectra_times=spectra_times,
                         state_selection=state_selection,
-                        feature_selection=feature_selection,
+                        structure_selection=structure_selection,
                         col_inter=col_inter,
                         col_state=col_state,
                     )
@@ -179,7 +179,7 @@ class Datasheet:
                 self.datasheet_pages[_Datasheet_default_page_key] = DatasheetPage(
                     self.data_source,
                     spectra_times=spectra_times,
-                    feature_selection=feature_selection,
+                    structure_selection=structure_selection,
                     col_inter=col_inter,
                     col_state=col_state,
                 )

@@ -85,8 +85,8 @@ class DatasheetPage:
 
     state_selection: StateSelection
     state_selection_provided: bool = False
-    feature_selection: StructureSelection | None = None
-    feature_selection_provided: bool = False
+    structure_selection: StructureSelection | None = None
+    structure_selection_provided: bool = False
 
     spectra_times: list[int | float] | np.ndarray | None = None
     charge: int = 0
@@ -97,7 +97,7 @@ class DatasheetPage:
         self,
         data: xr.Dataset | Trajectory | Frames | Self,
         state_selection: StateSelection | StateSelectionDescriptor | None = None,
-        feature_selection: StructureSelection
+        structure_selection: StructureSelection
         | StructureSelectionDescriptor
         | None = None,
         *,
@@ -115,7 +115,7 @@ class DatasheetPage:
         state_selection : StateSelection | StateSelectionDescriptor, optional
             Optional parameter to specify a subset of states and state combinations that may be considered for the dataset.
             Will be generated if not provided.
-        feature_selection : StructureSelection | StructureSelectionDescriptor, optional
+        structure_selection: StructureSelection | StructureSelectionDescriptor, optional
             Optional parameter to limit the PCA plot and analysis to a specific subset of the structure.
             Will be generated if not provided.
         spectra_times : list[int  |  float] | np.ndarray, optional
@@ -191,7 +191,7 @@ class DatasheetPage:
             self.state_selection = StateSelection.init_from_dataset(self.frames)
 
         # Initialize feature selection or use provided selection
-        if feature_selection is not None:
+        if structure_selection is not None:
             position_data: xr.DataArray
             charge_info: int | None
             if isinstance(self.frames, xr.DataArray):
@@ -203,15 +203,15 @@ class DatasheetPage:
                 charge_info = int(wrapped_ds.charge)
 
             structure_selection = _get_default_structure_selection(
-                feature_selection,
+                structure_selection,
                 atXYZ_source=position_data,
                 default_levels=['atoms', 'bonds', 'angles', 'dihedrals', 'pyramids'],
                 charge_info=charge_info,
             )
-            self.feature_selection_provided = True
-            self.feature_selection = structure_selection
+            self.structure_selection_provided = True
+            self.structure_selection = structure_selection
         else:
-            self.feature_selection = None
+            self.structure_selection = None
 
         # print(self.frames)
 
@@ -302,8 +302,10 @@ class DatasheetPage:
             The DataSheetPage to create a copy of.
         """
         self.spectra_times = old.spectra_times
+        self.structure_selection = old.structure_selection
+        self.structure_selection_provided = old.structure_selection_provided
         self.state_selection = old.state_selection
-        self.feature_selection = old.feature_selection
+        self.state_selection_provided = old.state_selection_provided
         # self.col_state = old.col_state
         # self.col_inter = old.col_inter
         self.name = old.name
@@ -511,7 +513,7 @@ class DatasheetPage:
         from shnitsel.analyze.pca import pca
 
         start = timer()
-        res = pca(self.frames, feature_selection=self.feature_selection)
+        res = pca(self.frames, structure_selection=self.structure_selection)
         end = timer()
         info(f"cached pca_data in {end - start} s")
         return res

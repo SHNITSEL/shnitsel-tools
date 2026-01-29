@@ -23,7 +23,7 @@
     - [ ] Add specifically an `AtXYZ`/`Positions` Wrapper type.
   - [ ] Add more wrapper types for support function returns
 - StructureSelection
-  - [ ] Options in function signatures (provide directly a SMARTs string, deal with trees, etc.)
+  - [x] Options in function signatures (provide directly a SMARTs string, deal with trees, etc.)
     - [x] On-the-go construction added to `geo._get_default_selection()`
     - [x] Patch existing functions to express support for descriptors
   - [x] Add merge/subtract/intersect operations
@@ -31,6 +31,7 @@
   - [ ] Structure selection (raise error if empty/warning if empty)
   - [ ] draw: Draw grid of highlighted feature levels
 - [ ] Analogs tree, structure selection, warning if no match for compounds
+  - [x] Adapted to tree support
   - [ ] Copy if multiple matches
   - [ ] For now: error if multiple matches
 - StateSelection
@@ -61,7 +62,7 @@
   - [x] Retinal PCA biplot to show we can find the right parameters
   - [x] Length threshold statistics plot
   - [x] Datasheet (note, that generation takes somewhat longer)
-  - [ ] add one more cool plot from retinal tutorial
+  - [ ] add one more cool plot from retinal tutorial: The hop-time alignment would be perfect
   
 
 ## Secondary TODO:

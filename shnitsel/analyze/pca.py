@@ -289,7 +289,7 @@ class PCAResult(
 @overload
 def pca_and_hops(
     frames: TreeNode,
-    feature_selection: StructureSelection | None = None,
+    structure_selection: StructureSelection | StructureSelectionDescriptor | None = None,
     center_mean: bool = False,
     n_components: int = 2,
 ) -> TreeNode[Any, tuple[PCAResult, xr.DataArray]]: ...
@@ -298,7 +298,7 @@ def pca_and_hops(
 @overload
 def pca_and_hops(
     frames: Frames | Trajectory | MultiSeriesDataset | xr.Dataset,
-    feature_selection: StructureSelection | None = None,
+    structure_selection: StructureSelection | StructureSelectionDescriptor | None = None,
     center_mean: bool = False,
     n_components: int = 2,
 ) -> tuple[PCAResult, xr.DataArray]: ...
@@ -310,7 +310,7 @@ def pca_and_hops(
     frames:
     # TreeNode[Any, Frames | Trajectory | xr.Dataset] |
     Frames | Trajectory | MultiSeriesDataset | xr.Dataset,
-    feature_selection: StructureSelection | None = None,
+    structure_selection: StructureSelection | StructureSelectionDescriptor | None = None,
     center_mean: bool = False,
     n_components: int = 2,
 ) -> TreeNode[Any, tuple[PCAResult, xr.DataArray]] | tuple[PCAResult, xr.DataArray]:
@@ -321,7 +321,7 @@ def pca_and_hops(
     ----------
     frames : xr.Dataset | Frames | Trajectory | MultiSeriesDataset
         A Dataset containing 'atXYZ' and 'astate' variables
-    feature_selection : StructureSelection, optional
+    structure_selection: StructureSelection | StructureSelectionDescriptor, optional
         An optional selection of features to calculate and base the PCA fitting on.
         If not provided, will calculate a PCA for full pairwise distances.
     center_mean : bool
@@ -358,12 +358,12 @@ def pca_and_hops(
         "provided frames data could not be considered trajectory or frameset data."
     )
 
-    if feature_selection is None:
+    if structure_selection is None:
         # Will default to pairwise distances
         pca_res = pca(
             wrapped_ds,
             dim=None,
-            feature_selection=None,
+            structure_selection=None,
             n_components=n_components,
             center_mean=center_mean,
         )
@@ -372,7 +372,7 @@ def pca_and_hops(
         pca_res = pca(
             wrapped_ds,
             dim=None,
-            feature_selection=feature_selection,
+            structure_selection=structure_selection,
             n_components=n_components,
             center_mean=center_mean,
         )
@@ -426,7 +426,7 @@ def pca(
     PCAResult
     | TreeNode[Any, PCAResult[DataGroup[xr.DataArray], DataGroup[xr.DataArray]]]
 ):
-    """Perform a PCA decomposition on features derived from `data` using the structural features flagged in `feature_selection`.
+    """Perform a PCA decomposition on features derived from `data` using the structural features flagged in `structure_selection`.
     Will not directly run PCA on the input data.
 
     Yiealds
@@ -451,7 +451,7 @@ def pca(
     Returns
     -------
     PCAResult
-        The result of running the PCA analysis on the features selected in `feature_selection` or a full pairwise distance PCA
+        The result of running the PCA analysis on the features selected in `structure_selection` or a full pairwise distance PCA
         extracted from `data`.
     ShnitselDB[PCAResult[DataGroup[xr.DataArray], DataGroup[xr.DataArray]]]
         The hierarchical structure of PCA results, where each flat group is used for a PCA analysis.
@@ -579,12 +579,12 @@ def pca(
             data_framed: TreeNode[Any, Frames] = data.map_data(traj_to_frame)
             data_grouped = data_framed.group_data_by_metadata()
 
-            if feature_selection is not None:
+            if structure_selection is not None:
 
                 def extract_features(x: Frames) -> xr.DataArray:
                     return get_bats(
                         x,
-                        structure_selection=feature_selection,  # deg='trig'
+                        structure_selection=structure_selection,  # deg='trig'
                     )
             else:
 

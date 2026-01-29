@@ -29,7 +29,7 @@ def datasheet_with_structure(data):
     features = StructureSelection.init_from_dataset(
         next(data.collect_data()), ['bonds', 'dihedrals']
     )
-    return Datasheet(data, feature_selection=features)
+    return Datasheet(data, structure_selection=features)
 
 
 @fixture

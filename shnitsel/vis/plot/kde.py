@@ -22,6 +22,7 @@ from shnitsel.filtering.structure_selection import (
     DihedralDescriptor,
     PyramidsDescriptor,
     StructureSelection,
+    StructureSelectionDescriptor,
 )
 from shnitsel.geo.geocalc_ import pyramids
 from shnitsel.geo.geocalc_.angles import angle
@@ -257,7 +258,7 @@ def biplot_kde(
     frames: xr.Dataset | Frames | Trajectory,
     *ids: int,
     pca_data: PCAResult | None = None,
-    feature_selection: StructureSelection | None = None,
+    structure_selection: StructureSelection | StructureSelectionDescriptor | None = None,
     geo_kde_ranges: Sequence[tuple[float, float]] | None = None,
     scatter_color_property: Literal['time', 'geo'] = 'time',
     geo_feature: BondDescriptor
@@ -291,9 +292,9 @@ def biplot_kde(
         Indices for atoms to be used in `geo_feature` if `geo_feature` is not set. 
         Note that pyramidalization angles cannot reliably be provided in this format.
     pca_data : PCAResult, optional
-        A PCA result to use for the analysis. If not provided, will perform PCA analysis based on `feature_selection` or a
+        A PCA result to use for the analysis. If not provided, will perform PCA analysis based on `structure_selection` or a
         generic pairwise distance PCA.
-    feature_selection: StructureSelection, optional
+    structure_selection: StructureSelection | StructureSelectionDescriptor, optional
         An optional selection of features/structure to use for the PCA analysis.
     geo_kde_ranges : Sequence[tuple[float, float]], optional
         A Sequence of tuples representing ranges. A KDE is plotted for each range, indicating the distribution of
@@ -366,7 +367,7 @@ def biplot_kde(
     if pca_data is None:
         # prepare data
         pca_data, hops_mask = pca_and_hops(
-            wrapped_ds, feature_selection=feature_selection, center_mean=center_mean
+            wrapped_ds, structure_selection=structure_selection, center_mean=center_mean
         )
     else:
         hops_mask = hops_mask_from_active_state(wrapped_ds)
@@ -374,10 +375,10 @@ def biplot_kde(
     d = pb.pick_clusters(pca_data, num_bins=num_bins, center_mean=center_mean)
     loadings, clusters, picks = d['loadings'], d['clusters'], d['picks']
 
-    if feature_selection is None or feature_selection.mol is None:
+    if structure_selection is None or structure_selection.mol is None:
         mol = construct_default_mol(wrapped_ds)
     else:
-        mol = Mol(feature_selection.mol)
+        mol = Mol(structure_selection.mol)
 
     mol = set_atom_props(mol, atomLabel=True, atomNote=[''] * mol.GetNumAtoms())
     if scatter_color_property == 'time':
