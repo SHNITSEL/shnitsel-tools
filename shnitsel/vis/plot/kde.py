@@ -85,7 +85,11 @@ def _fit_kdes(
             # raise ValueError(f"No points in range {p1} < x < {p2}")
             kernels.append(None)
         else:
-            kernels.append(stats.gaussian_kde(subset))
+            try:
+                kernels.append(stats.gaussian_kde(subset))
+            except Exception as e:
+                logging.warning("{e}")
+                kernels.append(None)
     return kernels
 
 
@@ -195,7 +199,6 @@ def _fit_and_eval_kdes(
         Then the array holding y positions of a meshgrid.
         Last the Sequence of KDE evaluations on the meshgrid for each filter range.
     """
-    # TODO: FIXME: We should be able to deal with a missing `frame` dimension.
     pca_data_da = pca_data.projected_inputs.transpose(
         'frame', 'time', 'PC', missing_dims='ignore'
     )  # required order for the following 3 lines
@@ -204,6 +207,7 @@ def _fit_and_eval_kdes(
     if isinstance(pca_data_da, TreeNode):
         pca_data_da = pca_data_da.as_stacked
     assert isinstance(pca_data_da, xr.DataArray)
+
     if isinstance(geo_property, TreeNode):
         geo_property = geo_property.as_stacked
     assert isinstance(geo_property, xr.DataArray)
