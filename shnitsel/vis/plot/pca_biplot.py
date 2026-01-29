@@ -1,6 +1,6 @@
 import logging
 from math import ceil
-from typing import Any, Callable, Iterable, Sequence, TYPE_CHECKING
+from typing import Any, Callable, Iterable, Sequence, TYPE_CHECKING, overload
 
 from matplotlib.colors import Normalize, Colormap
 from matplotlib.figure import Figure, SubFigure
@@ -18,6 +18,7 @@ from sklearn.cluster import KMeans
 from shnitsel.analyze.generic import get_standardized_pairwise_dists
 from shnitsel.analyze.pca import PCAResult, pca
 from shnitsel.data.dataset_containers import wrap_dataset, Trajectory, Frames
+from shnitsel.data.tree.node import TreeNode
 
 from .common import figax, extrude, mpl_imshow_png
 from ...rd import highlight_pairs
@@ -27,8 +28,8 @@ from rdkit.Chem import Mol
 
 
 def plot_noodleplot(
-    noodle: xr.DataArray,
-    hops_mask: xr.DataArray | None = None,
+    noodle: xr.DataArray | TreeNode[Any, xr.DataArray],
+    hops_mask: xr.DataArray | TreeNode[Any, xr.DataArray] | None = None,
     fig: Figure | SubFigure | None = None,
     ax: Axes | None = None,
     c: NDArray | xr.DataArray | None = None,
@@ -44,9 +45,9 @@ def plot_noodleplot(
 
     Parameters
     ----------
-    noodle : xr.DataArray
+    noodle : xr.DataArray | TreeNode[Any, xr.DataArray]
         PCA decomposed data.
-    hops_mask : xr.DataArray, optional
+    hops_mask : xr.DataArray | TreeNode[Any, xr.DataArray], optional
         DataArray holding hopping-point information of the trajectories. Defaults to None.
     fig : Figure | SubFigure | None, optional
         Figure to plot the graph into. Defaults to None.
@@ -76,6 +77,16 @@ def plot_noodleplot(
     """
 
     fig, ax = figax(fig=fig, ax=ax)
+
+    if isinstance(noodle, TreeNode):
+        noodle = noodle.as_stacked
+
+    if hops_mask is not None and isinstance(hops_mask, TreeNode):
+        hops_mask = hops_mask.as_stacked
+
+    if c is not None and isinstance(c, TreeNode):
+        c = c.as_stacked
+
     if c is None:
         c = noodle['time']
         c_is_time = True
@@ -636,10 +647,28 @@ def plot_bin_edges(
     ax.set_rlabel_position(200)
 
 
+@overload
+def pick_clusters(
+    frames: Frames | xr.Dataset | PCAResult,
+    num_bins: int,
+    center_mean: bool = False,
+) -> dict: ...
+
+
+@overload
+def pick_clusters(
+    frames: TreeNode[Any, PCAResult],
+    num_bins: int,
+    center_mean: bool = False,
+) -> TreeNode[Any, dict]: ...
+
+
 # TODO: FIXME: This function does too much at once. It should either allow for general PCA configuration or allow for PCA results to be passed in. Only allowing pwdist pca is quite restrictive
 def pick_clusters(
-    frames: Frames | xr.Dataset | PCAResult, num_bins: int, center_mean: bool = False
-):
+    frames: Frames | xr.Dataset | PCAResult | TreeNode[Any, PCAResult],
+    num_bins: int,
+    center_mean: bool = False,
+) -> dict | TreeNode[Any, dict]:
     """Calculate pairwise-distance PCA, cluster the loadings
     and pick a representative subset of the clusters.
 
@@ -657,6 +686,7 @@ def pick_clusters(
 
     Returns
     -------
+    dict
         A dictionary with the following key-value pairs:
 
             - loadings: the loadings of the PCA
@@ -671,7 +701,12 @@ def pick_clusters(
             - bins: Indices of angles belonging to each bin
             - edges: Tuple giving a pair of boundary angles for each bin;
         the order of the bins corresponds to the order used in ``bins``
+    TreeNode[Any, dict]
+        If provided with a tree as input, this is returned per input leaf as a tree again
     """
+    if isinstance(frames, TreeNode):
+        return frames.map_data(pick_clusters)
+
     if isinstance(frames, PCAResult):
         loadings = frames.loadings
     else:
