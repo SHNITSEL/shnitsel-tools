@@ -552,16 +552,17 @@ def biplot_kde(
     pca_noodles: TreeNode[Any, xr.DataArray] | xr.DataArray
     pca_noodles = pca_data.projected_inputs
 
-    pb.plot_noodleplot(
-        pca_noodles,
-        hops_mask,
-        c=noodleplot_c,
-        cmap=noodleplot_cmap,
-        # cnorm=noodle_cnorm,
-        ax=pcaax,
-        noodle_kws=dict(alpha=1, marker='.'),
-        hops_kws=dict(c='r', s=0.2),
-    )
+    # TODO: FIXME: Noodle plot seems to have issues with rendering when passed data as a tree?
+    # pb.plot_noodleplot(
+    #     pca_noodles,
+    #     hops_mask,
+    #     c=noodleplot_c,
+    #     cmap=noodleplot_cmap,
+    #     # cnorm=noodle_cnorm,
+    #     ax=pcaax,
+    #     noodle_kws=dict(alpha=1, marker='.'),
+    #     hops_kws=dict(c='r', s=0.2),
+    # )
 
     # in case more clusters were found than we have room for:
     picks = picks[:4]
