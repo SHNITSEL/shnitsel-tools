@@ -288,8 +288,10 @@ class PCAResult(
 
 @overload
 def pca_and_hops(
-    frames: TreeNode,
-    structure_selection: StructureSelection | StructureSelectionDescriptor | None = None,
+    frames: TreeNode[Any, ShnitselDataset | xr.Dataset],
+    structure_selection: StructureSelection
+    | StructureSelectionDescriptor
+    | None = None,
     center_mean: bool = False,
     n_components: int = 2,
 ) -> TreeNode[Any, tuple[PCAResult, xr.DataArray]]: ...
@@ -297,8 +299,10 @@ def pca_and_hops(
 
 @overload
 def pca_and_hops(
-    frames: Frames | Trajectory | MultiSeriesDataset | xr.Dataset,
-    structure_selection: StructureSelection | StructureSelectionDescriptor | None = None,
+    frames: ShnitselDataset | xr.Dataset,
+    structure_selection: StructureSelection
+    | StructureSelectionDescriptor
+    | None = None,
     center_mean: bool = False,
     n_components: int = 2,
 ) -> tuple[PCAResult, xr.DataArray]: ...
@@ -307,20 +311,20 @@ def pca_and_hops(
 # TODO: Make signature consistent with `pca()` and standardize extraction of hops mask
 @needs(coords_or_vars={'atXYZ', 'astate'})
 def pca_and_hops(
-    frames:
-    # TreeNode[Any, Frames | Trajectory | xr.Dataset] |
-    Frames | Trajectory | MultiSeriesDataset | xr.Dataset,
-    structure_selection: StructureSelection | StructureSelectionDescriptor | None = None,
+    frames: TreeNode[Any, ShnitselDataset | xr.Dataset] | ShnitselDataset | xr.Dataset,
+    structure_selection: StructureSelection
+    | StructureSelectionDescriptor
+    | None = None,
     center_mean: bool = False,
     n_components: int = 2,
 ) -> TreeNode[Any, tuple[PCAResult, xr.DataArray]] | tuple[PCAResult, xr.DataArray]:
     """
-    Get PCA projectd data and a mask to provide information on which of the data points represent hopping points.
+    Get PCA projected data and a mask to provide information on which of the data points represent hopping points.
 
     Parameters
     ----------
-    frames : xr.Dataset | Frames | Trajectory | MultiSeriesDataset
-        A Dataset containing 'atXYZ' and 'astate' variables
+    frames : xr.Dataset | ShnitselDataset | TreeNode[Any, ShnitselDataset | xr.Dataset]
+        A Dataset (or tree of those) containing 'atXYZ' and 'astate' variables
     structure_selection: StructureSelection | StructureSelectionDescriptor, optional
         An optional selection of features to calculate and base the PCA fitting on.
         If not provided, will calculate a PCA for full pairwise distances.
@@ -353,6 +357,14 @@ def pca_and_hops(
     #         keep_empty_branches=True
     #     )
 
+    if isinstance(frames, TreeNode):
+        return frames.map_data(
+            pca_and_hops,
+            structure_selection=structure_selection,
+            center_mean=center_mean,
+            n_components=n_components,
+        )
+
     wrapped_ds = wrap_dataset(frames, Frames | Trajectory | MultiSeriesDataset)
     assert isinstance(wrapped_ds, (Frames, Trajectory, MultiSeriesDataset)), (
         "provided frames data could not be considered trajectory or frameset data."
@@ -384,11 +396,11 @@ def pca_and_hops(
 
 @overload
 def pca(
-    data: TreeNode[Any, ShnitselDataset],
-    dim: None = None,
+    data: TreeNode[Any, ShnitselDataset | xr.Dataset],
     structure_selection: StructureSelection
     | StructureSelectionDescriptor
     | None = None,
+    dim: None = None,
     n_components: int = 2,
     center_mean: bool = False,
 ) -> TreeNode[Any, PCAResult[DataGroup[xr.DataArray], DataGroup[xr.DataArray]]]:
@@ -399,10 +411,10 @@ def pca(
 @overload
 def pca(
     data: ShnitselDataset | xr.Dataset | xr.DataArray,
-    dim: None = None,
     structure_selection: StructureSelection
     | StructureSelectionDescriptor
     | None = None,
+    dim: None = None,
     n_components: int = 2,
     center_mean: bool = False,
 ) -> PCAResult:
@@ -412,14 +424,11 @@ def pca(
 
 @overload
 def pca(
-    data: ShnitselDataset
-    | xr.Dataset
-    | xr.DataArray
-    | TreeNode[Any, ShnitselDataset | xr.Dataset | xr.DataArray],
-    dim: None = None,
+    data: ShnitselDataset | xr.Dataset | TreeNode[Any, ShnitselDataset | xr.Dataset],
     structure_selection: StructureSelection
     | StructureSelectionDescriptor
     | None = None,
+    dim: None = None,
     n_components: int = 2,
     center_mean: bool = False,
 ) -> (
@@ -462,8 +471,8 @@ def pca(
 @overload
 def pca(
     data: xr.DataArray,
-    dim: Hashable,
     structure_selection: None = None,
+    dim: Hashable | None = None,
     n_components: int = 2,
     center_mean: bool = False,
 ) -> PCAResult[xr.DataArray, xr.DataArray]:
@@ -496,7 +505,7 @@ def pca(
     data: ShnitselDataset
     | xr.Dataset
     | xr.DataArray
-    | TreeNode[Any, ShnitselDataset | xr.Dataset | xr.DataArray],
+    | TreeNode[Any, ShnitselDataset | xr.Dataset],
     structure_selection: StructureSelection
     | StructureSelectionDescriptor
     | None = None,
@@ -561,12 +570,14 @@ def pca(
         return pca_direct(data, dim=dim, n_components=n_components)
     else:
         # We need to calculate features first.
-
         if isinstance(data, TreeNode):
+            # TODO: FIXME: We need to catch the xr.DataArray tree input earlier. Remove dataarray tree input for now
 
             def traj_to_frame(
                 x: ShnitselDataset | xr.Dataset | xr.DataArray,
-            ) -> Frames | None:
+            ) -> Frames | xr.DataArray | None:
+                if isinstance(x, xr.DataArray):
+                    return x
                 x = wrap_dataset(x)
 
                 if isinstance(x, (Trajectory, Frames)):
@@ -576,7 +587,9 @@ def pca(
                 else:
                     return None
 
-            data_framed: TreeNode[Any, Frames] = data.map_data(traj_to_frame)
+            data_framed: TreeNode[Any, Frames | xr.DataArray] = data.map_data(
+                traj_to_frame
+            )
             data_grouped = data_framed.group_data_by_metadata()
 
             if structure_selection is not None:
@@ -620,8 +633,13 @@ def pca(
                     leading_dim = 'time'
                 else:
                     leading_dim = 'frame'
+
                 # Concatenate features
-                glued_features = xr.concat(collected_features, dim=leading_dim)
+                glued_features = (
+                    inputs.as_stacked
+                )  # xr.concat(collected_features, dim=leading_dim)
+
+                assert isinstance(glued_features, xr.DataArray)
 
                 # Perform concatenated PCA
                 tmp_res = pca_direct(
