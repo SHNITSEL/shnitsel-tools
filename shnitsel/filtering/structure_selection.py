@@ -573,7 +573,9 @@ class StructureSelection:
                         feature_descriptors.append(entry)
 
             if feature_levels:
-                other_selection = self.select_all(feature_level=feature_levels)
+                other_selection = self.select_all(feature_level=feature_levels).only(
+                    feature_level=feature_levels
+                )
             else:
                 other_selection = None
 
@@ -586,6 +588,8 @@ class StructureSelection:
                     return smarts_and_feature_selection
                 else:
                     return other_selection + smarts_and_feature_selection
+            else:
+                return other_selection
 
     def only(
         self,
