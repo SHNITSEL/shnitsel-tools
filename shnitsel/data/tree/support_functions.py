@@ -63,6 +63,13 @@ def tree_zip(
 ) -> ShnitselDBRoot | None: ...
 
 
+@overload
+def tree_zip(
+    *trees: TreeNode,
+    res_data_type: type[ResDataType] | TypeForm[ResDataType] | None = None,
+) -> TreeNode | TreeNode[Any, ResDataType] | None: ...
+
+
 def tree_zip(
     *trees: TreeNode,
     res_data_type: type[ResDataType] | TypeForm[ResDataType] | None = None,
@@ -125,16 +132,17 @@ def tree_zip(
                 res_data_entries.append(tree_data)
                 data_types.append(type(tree_data))
 
-            if res_data_type is None:
-                new_data_type = tuple(data_types)
-            else:
-                new_data_type = res_data_type
+            # TODO: FIXME: Figure out how to do correct tuple typing.
+            # if res_data_type is None:
+            #     new_data_type = tuple[*data_types]
+            # else:
+            #     new_data_type = res_data_type
 
             new_data = tuple(res_data_entries)
             return DataLeaf(
                 name=tree_list[0].name,
                 data=new_data,
-                dtype=new_data_type,
+                # dtype=new_data_type,
                 attrs=tree_list[0]._attrs,
             )
         else:
