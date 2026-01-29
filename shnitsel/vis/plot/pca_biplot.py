@@ -19,6 +19,7 @@ from shnitsel.analyze.generic import get_standardized_pairwise_dists
 from shnitsel.analyze.pca import PCAResult, pca
 from shnitsel.data.dataset_containers import wrap_dataset, Trajectory, Frames
 from shnitsel.data.tree.node import TreeNode
+from shnitsel.data.tree.support_functions import tree_merge, tree_zip
 
 from .common import figax, extrude, mpl_imshow_png
 from ...rd import highlight_pairs
@@ -32,7 +33,7 @@ def plot_noodleplot(
     hops_mask: xr.DataArray | TreeNode[Any, xr.DataArray] | None = None,
     fig: Figure | SubFigure | None = None,
     ax: Axes | None = None,
-    c: NDArray | xr.DataArray | None = None,
+    c: NDArray | xr.DataArray | TreeNode[Any, xr.DataArray] | None = None,
     colorbar_label: str | None = None,
     cmap: str | Colormap | None = None,
     cnorm: Normalize | None = None,
@@ -53,7 +54,7 @@ def plot_noodleplot(
         Figure to plot the graph into. Defaults to None.
     ax : Axes, optional
         The axes to plot into. Will be generated from `fig` if not provided. Defaults to None.
-    c : xr.DataArray, optional
+    c : xr.DataArray | TreeNode[Any, xr.DataArray], optional
         The data to use for assigning the color to each individual data point. Defaults to None.
     colorbar_label : str | None, optional
         Label to plot next to the colorbar. If not provided will wither be taken from the `long_name` attribute or `name` attribute of the data or defaults to `t/fs`.
@@ -77,15 +78,6 @@ def plot_noodleplot(
     """
 
     fig, ax = figax(fig=fig, ax=ax)
-
-    if isinstance(noodle, TreeNode):
-        noodle = noodle.as_stacked
-
-    if hops_mask is not None and isinstance(hops_mask, TreeNode):
-        hops_mask = hops_mask.as_stacked
-
-    if c is not None and isinstance(c, TreeNode):
-        c = c.as_stacked
 
     if c is None:
         c = noodle['time']
@@ -116,9 +108,20 @@ def plot_noodleplot(
     #     ctraj = c.sel(trajid=trajid)
     noodle_kws = noodle_kws or {}
     noodle_kws = {'alpha': 0.5, 's': 0.2, **noodle_kws}
+    if isinstance(noodle, TreeNode):
+        noodle_scatter = noodle.as_stacked
+    else:
+        noodle_scatter = noodle
+
+    if isinstance(c, TreeNode):
+        c = c.as_stacked
+
+    assert isinstance(noodle_scatter, xr.DataArray)
+    assert isinstance(c, xr.DataArray)
+
     sc = ax.scatter(
-        noodle.isel(PC=0),
-        noodle.isel(PC=1),
+        noodle_scatter.isel(PC=0),
+        noodle_scatter.isel(PC=1),
         c=c,
         cmap=cmap,
         norm=cnorm,
@@ -130,7 +133,28 @@ def plot_noodleplot(
     ax.set_ylabel('PC2')
     if hops_mask is not None:
         hops_kws = dict(s=0.5, c='limegreen') | (hops_kws or {})
-        hops_noodle = noodle[hops_mask]
+        if isinstance(noodle, TreeNode):
+            assert isinstance(hops_mask, TreeNode), (
+                "If pca projections are tree data, the hops mask must be a tree of equal shape."
+            )
+
+            def apply_mask(x: tuple[xr.DataArray, xr.DataArray]) -> xr.DataArray | None:
+                if any(x[1].values):
+                    return (x[0])[(x[1])]
+                return None
+
+            merged_tree = tree_zip(noodle, hops_mask, res_data_type=tuple)
+
+            hops_noodle = merged_tree.map_data(
+                apply_mask, keep_empty_branches=False
+            ).as_stacked
+        else:
+            assert not isinstance(hops_mask, TreeNode), (
+                "If pca projections are no tree, the hops mask must be not be a tree either."
+            )
+
+            hops_noodle = noodle[hops_mask]
+
         ax.scatter(
             hops_noodle.isel(PC=0),
             hops_noodle.isel(PC=1),
