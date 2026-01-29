@@ -197,7 +197,7 @@ def _fit_and_eval_kdes(
     """
     # TODO: FIXME: We should be able to deal with a missing `frame` dimension.
     pca_data_da = pca_data.projected_inputs.transpose(
-        'frame', 'PC'
+        'frame', 'time', 'PC', missing_dims='ignore'
     )  # required order for the following 3 lines
 
     # Convert data to flat formats for operations
