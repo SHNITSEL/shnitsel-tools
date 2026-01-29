@@ -1,5 +1,8 @@
 from types import UnionType
-from typing import get_args, overload, TypeVar
+from typing import get_args, overload, TypeVar, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from shnitsel.data.tree.node import TreeNode
 
 from .multi_layered import MultiSeriesLayered
 from .multi_series import MultiSeriesDataset
@@ -64,7 +67,18 @@ def wrap_dataset(
     -------
     ConvertedType | ShnitselDataset | xr.Dataset
         The wrapped dataset or the original dataset if no conversion was possible
+
+    Notes
+    -----
+    This function can also be called with a tree structure as input and will automatically map itself over the leaves.
+    This is only meant for internal Shnitsel tools use and may be removed at some point.
+
     """
+    from shnitsel.data.tree import TreeNode
+
+    # This is a special case we handle internally but do not wish to advertise
+    if isinstance(ds, TreeNode):
+        return ds.map_data(wrap_dataset, expected_types=expected_types)
     if expected_types is not None:
         accepted_types = (
             get_args(expected_types)
@@ -133,7 +147,7 @@ def wrap_dataset(
             pass
     if expected_types is not None:
         raise AssertionError(
-            f"Could not convert input dataset to expected types {expected_types}"
+            f"Could not convert input dataset to expected types {expected_types}.\n Input type was {type(raw_ds)}"
         )
 
     return ds
