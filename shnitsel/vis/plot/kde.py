@@ -88,7 +88,7 @@ def _fit_kdes(
             try:
                 kernels.append(stats.gaussian_kde(subset))
             except Exception as e:
-                logging.warning("{e}")
+                logging.warning(f"{e}")
                 kernels.append(None)
     return kernels
 
@@ -199,9 +199,7 @@ def _fit_and_eval_kdes(
         Then the array holding y positions of a meshgrid.
         Last the Sequence of KDE evaluations on the meshgrid for each filter range.
     """
-    pca_data_da = pca_data.projected_inputs.transpose(
-        'frame', 'time', 'PC', missing_dims='ignore'
-    )  # required order for the following 3 lines
+    pca_data_da = pca_data.projected_inputs
 
     # Convert data to flat formats for operations
     if isinstance(pca_data_da, TreeNode):
@@ -211,6 +209,9 @@ def _fit_and_eval_kdes(
     if isinstance(geo_property, TreeNode):
         geo_property = geo_property.as_stacked
     assert isinstance(geo_property, xr.DataArray)
+    pca_data_da = pca_data_da.transpose(
+        'frame', 'time', 'PC', missing_dims='ignore'
+    )  # required order for the following 3 lines
 
     xx, yy = _get_xx_yy(pca_data_da, num_steps=num_steps, extension=extension)
     kernels = _fit_kdes(pca_data_da, geo_property, geo_kde_ranges)
@@ -501,30 +502,34 @@ def biplot_kde(
         )
 
         wrapped_ds = wrap_dataset(frames)
+        colorbar_label = None
 
         match geo_feature:
             case (atc, (at1, at2, at3)):
                 # compute pyramidalization as described by the center atom `atc` and the neighbor atoms `at1, at2, at3`
                 geo_prop = pyramids.pyramidalization_angle(
-                    wrapped_ds.positions,
-                    atc,
-                    at1,
-                    at2,
-                    at3,
+                    wrapped_ds.positions, atc, at1, at2, at3, deg=True
                 )
                 if not geo_kde_ranges:
-                    geo_kde_ranges = [(-90, -30), (-20, 20), (30, 90)]
+                    geo_kde_ranges = [(-90, -10), (-10, 10), (10, 90)]
+                colorbar_label = f"pyr({atc}, ({at1}, {at2}, {at3}))/°"
             case (at1, at2):
                 # compute distance between atoms at1 and at2
                 geo_prop = distance(wrapped_ds.positions, at1, at2)
                 if not geo_kde_ranges:
                     geo_kde_ranges = [(0, 3), (5, 100)]
+                colorbar_label = (
+                    f'dist({at1}, {at2}) / {geo_prop.attrs.get("units", "Bohr")}'
+                )
             case (at1, at2, at3):
                 # compute angle between vectors at1 - at2 and at2 - at3
                 assert at3 is not None  # to satisfy the typechecker
                 geo_prop = angle(wrapped_ds.positions, at1, at2, at3, deg=True)
                 if not geo_kde_ranges:
                     geo_kde_ranges = [(0, 80), (110, 180)]
+                colorbar_label = (
+                    f'angle({at1}, {at2}, {at3}) / {geo_prop.attrs.get("units", "°")}'
+                )
             case (at1, at2, at3, at4):
                 # compute dihedral defined as angle between normals to planes (at1, at2, at3) and (at2, at3, at4)
                 assert at3 is not None
@@ -532,6 +537,7 @@ def biplot_kde(
                 geo_prop = dihedral(wrapped_ds.positions, at1, at2, at3, at4, deg=True)
                 if not geo_kde_ranges:
                     geo_kde_ranges = [(0, 80), (110, 180)]
+                colorbar_label = f'dih({at1}, {at2}, {at3}, {at4}) / {geo_prop.attrs.get("units", "°")}'
             case _:
                 raise ValueError(
                     "The value provided to `biplot_kde()` as a `geo_feature` tuple does not constitute a Feature descriptor"
@@ -553,16 +559,17 @@ def biplot_kde(
     pca_noodles = pca_data.projected_inputs
 
     # TODO: FIXME: Noodle plot seems to have issues with rendering when passed data as a tree?
-    # pb.plot_noodleplot(
-    #     pca_noodles,
-    #     hops_mask,
-    #     c=noodleplot_c,
-    #     cmap=noodleplot_cmap,
-    #     # cnorm=noodle_cnorm,
-    #     ax=pcaax,
-    #     noodle_kws=dict(alpha=1, marker='.'),
-    #     hops_kws=dict(c='r', s=0.2),
-    # )
+    pb.plot_noodleplot(
+        pca_noodles,
+        hops_mask,
+        c=noodleplot_c,
+        cmap=noodleplot_cmap,
+        # cnorm=noodle_cnorm,
+        colorbar_label=colorbar_label,
+        ax=pcaax,
+        noodle_kws=dict(alpha=1, marker='.'),
+        hops_kws=dict(c='r', s=0.2),
+    )
 
     # in case more clusters were found than we have room for:
     picks = picks[:4]
