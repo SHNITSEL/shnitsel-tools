@@ -159,7 +159,7 @@ def plot_many(data, ax=None):
     else:
         dim = 'tmp'
         groupby = [(None, data)]
-        for _, traj in data.groupby('trajid'):
+        for _, traj in data.groupby('atrajectory'):
             ax.plot(traj['time'], traj, lw=0.5, c='k')
         return _set_axes(data, ax)
     
@@ -168,7 +168,7 @@ def plot_many(data, ax=None):
         sdata = sdata.squeeze(dim)
         label = sdata.coords[coord_name].item()
         c = next(colors)
-        for _, traj in sdata.groupby('trajid'):
+        for _, traj in sdata.groupby('atrajectory'):
             ax.plot(traj['time'], traj, lw=0.5, label=label, c=c)
     # TODO: legend
     return _set_axes(data, ax)
@@ -210,7 +210,7 @@ def plot_shaded(data, ax):
 
     x = []
     y = []
-    for _, traj in data.groupby('trajid'):
+    for _, traj in data.groupby('atrajectory'):
         x.append(traj.time.values)
         y.append(traj.values)
     df = pd.DataFrame({
@@ -302,7 +302,7 @@ def timeplot(
             res.append(timeplot(sdata, ax=ax, trajs=trajs, sep=False))
         return res
 
-    if 'trajid' not in data.coords:
+    if 'trajid' not in data.coords and 'atrajectory' not in data.coords:
         assert trajs is None
         return plot_single(data, ax)
     if trajs == 'ci':
