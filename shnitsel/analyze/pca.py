@@ -575,10 +575,11 @@ def pca(
 
             def traj_to_frame(
                 x: ShnitselDataset | xr.Dataset | xr.DataArray,
-            ) -> Frames | xr.DataArray | None:
+            ) -> ShnitselDataset | xr.DataArray | None:
                 if isinstance(x, xr.DataArray):
                     return x
                 x = wrap_dataset(x)
+                return x
 
                 if isinstance(x, (Trajectory, Frames)):
                     return x.as_frames
@@ -587,21 +588,22 @@ def pca(
                 else:
                     return None
 
-            data_framed: TreeNode[Any, Frames | xr.DataArray] = data.map_data(
+            data_framed: TreeNode[Any, ShnitselDataset | xr.DataArray] = data.map_data(
                 traj_to_frame
             )
             data_grouped = data_framed.group_data_by_metadata()
+            assert data_grouped is not None
 
             if structure_selection is not None:
 
-                def extract_features(x: Frames) -> xr.DataArray:
+                def extract_features(x: ShnitselDataset | xr.DataArray) -> xr.DataArray:
                     return get_bats(
                         x,
                         structure_selection=structure_selection,  # deg='trig'
                     )
             else:
 
-                def extract_features(x: Frames) -> xr.DataArray:
+                def extract_features(x: ShnitselDataset | xr.DataArray) -> xr.DataArray:
                     return (
                         get_standardized_pairwise_dists(x, center_mean=center_mean)
                         # .swap_dims(atomcomb='descriptor')
