@@ -22,16 +22,17 @@ if __name__ == '__main__':
         global num_traj_newton_x, num_frames_newton_x
         # ...
         input_paths = [
-            "./tutorials/test_data/newtonx/test_R02/",
+            "./tutorials/test_data/newtonx/test_R02_a_v2.2/",
+            "./tutorials/test_data/newtonx/test_R02_b/",
         ]
 
         for path in input_paths:
             if os.path.exists(path):
-                traj: list[Trajectory] = read(
-                    path, kind='newtonx', parallel=parallel_mode, concat_method='list'
+                traj = read(
+                    path, kind='newtonx', parallel=parallel_mode,
                 )  # type: ignore
 
-                for tr in traj:
+                for tr in traj.collect_data():
                     num_traj_newton_x += 1
                     num_frames_newton_x += tr.sizes["time"]
             else:
@@ -43,16 +44,15 @@ if __name__ == '__main__':
         # ...
         input_paths = [
             "./tutorials/test_data/sharc/iconds_butene/",
-            "./tutorials/test_data/sharc/iconds_test/",
         ]
 
         for path in input_paths:
             if os.path.exists(path):
-                traj: list[Trajectory] = read(
-                    path, kind='sharc', parallel=parallel_mode, concat_method='list'
+                traj = read(
+                    path, kind='sharc', parallel=parallel_mode,
                 )  # type: ignore
 
-                for tr in traj:
+                for tr in traj.collect_data():
                     num_traj_sharc_icond += 1
                     num_frames_sharc_icond += tr.sizes["time"]
             else:
@@ -63,17 +63,20 @@ if __name__ == '__main__':
         global num_traj_sharc_traj, num_frames_sharc_traj
         # ...
         input_paths = [
-            "./tutorials/test_data/sharc/traj_butene/",
-            "./tutorials/test_data/sharc/traj_I01/",
+            "./tutorials/test_data/sharc/traj_butene_v2.1/",
+            "./tutorials/test_data/sharc/traj_I01_v2.0/",
+            "./tutorials/test_data/sharc/traj_I01_v3.0_triplets/",
+            "./tutorials/test_data/sharc/traj_I01_v3.0_triplets_nacs_socs/",
+            "./tutorials/test_data/sharc/traj_I01_v4.0/",
         ]
 
         for path in input_paths:
             if os.path.exists(path):
-                traj: list[Trajectory] = read(
-                    path, kind='sharc', parallel=parallel_mode, concat_method='list'
+                traj = read(
+                    path, kind='sharc', parallel=parallel_mode,
                 )  # type: ignore
 
-                for tr in traj:
+                for tr in traj.collect_data():
                     num_traj_sharc_traj += 1
                     num_frames_sharc_traj += tr.sizes["time"]
             else:
@@ -83,15 +86,15 @@ if __name__ == '__main__':
     def benchmark_pyrai2md():
         global num_traj_pyraim2d, num_frames_pyraim2d
         # ...
-        input_paths = ["./tutorials/test_data/pyrai2md/"]
+        input_paths = ["./tutorials/test_data/pyrai2md/traj_I01/"]
 
         for path in input_paths:
             if os.path.exists(path):
-                traj: list[Trajectory] = read(
-                    path, kind='pyrai2md', parallel=parallel_mode, concat_method='list'
+                traj = read(
+                    path, kind='pyrai2md', parallel=parallel_mode,
                 )  # type: ignore
 
-                for tr in traj:
+                for tr in traj.collect_data():
                     num_traj_pyraim2d += 1
                     num_frames_pyraim2d += tr.sizes["time"]
             else:
