@@ -120,7 +120,10 @@ def _prepare_dataset(dataset: xr.Dataset) -> xr.Dataset:
             value = cleaned_ds.attrs[attr]
             if isinstance(value, np.ndarray):
                 value = ndarray_to_json_ser(value)
-            cleaned_ds.attrs[attr] = json.dumps(value, cls=NumpyDataEncoder)
+            try:
+                cleaned_ds.attrs[attr] = json.dumps(value, cls=NumpyDataEncoder)
+            except ValueError as e:
+                print(f"ds.attrs['{attr}']={cleaned_ds.attrs[attr]} -> {e}")
 
     for attr in remove_attrs:
         del cleaned_ds.attrs[attr]
@@ -138,9 +141,13 @@ def _prepare_dataset(dataset: xr.Dataset) -> xr.Dataset:
                 value = cleaned_ds[data_var].attrs[attr]
                 if isinstance(value, np.ndarray):
                     value = ndarray_to_json_ser(value)
-                cleaned_ds[data_var].attrs[attr] = json.dumps(
-                    value, cls=NumpyDataEncoder
-                )
+
+                try:
+                    cleaned_ds[data_var].attrs[attr] = json.dumps(
+                        value, cls=NumpyDataEncoder
+                    )
+                except ValueError as e:
+                    print(f"ds['{data_var}'].attrs['{attr}']={cleaned_ds[data_var].attrs[attr]} -> {e}")
         for attr in remove_attrs:
             logging.debug(f"Stripping attribute {data_var}.{attr}")
             del cleaned_ds[data_var].attrs[attr]
