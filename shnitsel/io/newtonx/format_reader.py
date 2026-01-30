@@ -16,7 +16,7 @@ from shnitsel.io.shared.helpers import (
     PathOptionsType,
     make_uniform_path,
 )
-from shnitsel.io.xr_io_compatibility import SupportsFromXrConversion
+from shnitsel.data.xr_io_compatibility import SupportsFromXrConversion
 from ..format_reader_base import FormatInformation, FormatReader
 from .parse import parse_newtonx
 

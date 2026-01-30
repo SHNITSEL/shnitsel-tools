@@ -12,7 +12,7 @@ from shnitsel.data.tree.xr_conversion import (
     tree_to_xarray_datatree,
 )
 from shnitsel.io.shared.helpers import PathOptionsType, make_uniform_path
-from shnitsel.io.xr_io_compatibility import SupportsToXrConversion
+from shnitsel.data.xr_io_compatibility import SupportsToXrConversion
 
 
 class NumpyDataEncoder(json.JSONEncoder):

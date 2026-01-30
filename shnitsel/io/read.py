@@ -53,7 +53,7 @@ import logging
 import os
 import pathlib
 
-from shnitsel.io.xr_io_compatibility import SupportsFromXrConversion
+from shnitsel.data.xr_io_compatibility import SupportsFromXrConversion
 
 DataType = TypeVar("DataType")
 

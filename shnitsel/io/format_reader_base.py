@@ -37,7 +37,7 @@ from shnitsel.io.shared.trajectory_setup import (
     fill_missing_dataset_variables,
 )
 from shnitsel.io.shared.variable_flagging import mark_variable_assigned
-from shnitsel.io.xr_io_compatibility import SupportsFromXrConversion
+from shnitsel.data.xr_io_compatibility import SupportsFromXrConversion
 
 
 @dataclass
