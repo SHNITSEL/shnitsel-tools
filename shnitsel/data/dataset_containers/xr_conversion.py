@@ -13,14 +13,7 @@ import xarray as xr
 
 def data_to_xarray_dataset(
     raw_data: (
-        xr.DataArray
-        | xr.Dataset
-        | Trajectory
-        | Frames
-        | InterState
-        | PerState
-        | None
-        | SupportsToXrConversion
+        xr.DataArray | xr.Dataset | ShnitselDataset | None | SupportsToXrConversion
     ),
     metadata: dict[str, Any],
 ) -> tuple[xr.Dataset | None, dict[str, Any]]:
