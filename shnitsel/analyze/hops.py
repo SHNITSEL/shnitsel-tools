@@ -23,7 +23,7 @@ TrajectoryOrFrames = TypeVar("TrajectoryOrFrames", bound=DataSeries)
 # TODO: Finish documentation
 @overload
 def hops_mask_from_active_state(
-    active_state_source: xr.Dataset | DataSeries | xr.DataArray,
+    active_state_source: xr.Dataset | xr.DataArray | DataSeries,
     hop_type_selection: StateSelection | StateSelectionDescriptor | None = None,
     dim: DimName | None = None,
 ) -> xr.DataArray:
@@ -36,7 +36,7 @@ def hops_mask_from_active_state(
 
 @overload
 def hops_mask_from_active_state(
-    active_state_source: TreeNode[Any, xr.Dataset | DataSeries | xr.DataArray],
+    active_state_source: TreeNode[Any, xr.Dataset | xr.DataArray | DataSeries],
     hop_type_selection: StateSelection | StateSelectionDescriptor | None = None,
     dim: DimName | None = None,
 ) -> TreeNode[Any, xr.DataArray]:
@@ -50,9 +50,9 @@ def hops_mask_from_active_state(
 
 def hops_mask_from_active_state(
     active_state_source: xr.Dataset
+    | xr.DataArray
     | DataSeries
-    | TreeNode[Any, xr.Dataset | DataSeries | xr.DataArray]
-    | xr.DataArray,
+    | TreeNode[Any, xr.Dataset | xr.DataArray | DataSeries],
     hop_type_selection: StateSelection | StateSelectionDescriptor | None = None,
     dim: DimName | None = None,
 ) -> xr.DataArray | TreeNode[Any, xr.DataArray]:
@@ -182,7 +182,7 @@ def hops(
     hop_tidx = tidxs[is_hop_mask]
     res = res.assign_coords(
         tidx=('frame', hop_tidx),
-        hop_from=(frames['astate'].shift({'frame': 1}, -1).isel(frame=is_hop)),
+        hop_from=(frames['astate'].shift({'frame': 1}, -1).isel(frame=is_hop_mask)),
         hop_to=res['astate'],
     )
     if hasattr(res, 'drop_dims'):
@@ -192,8 +192,20 @@ def hops(
 
 @overload
 def filter_data_at_hops(
+    active_state_and_data_source: xr.DataArray,
+    hop_type_selection: StateSelection | StateSelectionDescriptor | None = None,
+) -> xr.DataArray:
+    """Overload of `filter_data_at_hops` for non-hierarchical input types to indicate non-hierarchical returns.
+
+    Converts raw datasets into a Shnitsel-Style wrapper
+    """
+    ...
+
+
+@overload
+def filter_data_at_hops(
     active_state_and_data_source: xr.Dataset | DataSeries,
-    hop_type_selection: StateSelection | None = None,
+    hop_type_selection: StateSelection | StateSelectionDescriptor | None = None,
 ) -> DataSeries:
     """Overload of `filter_data_at_hops` for non-hierarchical input types to indicate non-hierarchical returns.
 
@@ -205,8 +217,19 @@ def filter_data_at_hops(
 @overload
 def filter_data_at_hops(
     active_state_and_data_source: TreeNode[Any, xr.Dataset | DataSeries],
-    hop_type_selection: StateSelection | None = None,
+    hop_type_selection: StateSelection | StateSelectionDescriptor | None = None,
 ) -> TreeNode[Any, DataSeries]:
+    """Overload of `filter_data_at_hops` for hierarchical input types to indicate hierarchical returns.
+
+    Converts raw datasets into a Shnitsel-Style wrapper
+    """
+
+
+@overload
+def filter_data_at_hops(
+    active_state_and_data_source: TreeNode[Any, xr.DataArray],
+    hop_type_selection: StateSelection | StateSelectionDescriptor | None = None,
+) -> TreeNode[Any, xr.DataArray]:
     """Overload of `filter_data_at_hops` for hierarchical input types to indicate hierarchical returns.
 
     Converts raw datasets into a Shnitsel-Style wrapper
@@ -215,10 +238,13 @@ def filter_data_at_hops(
 
 def filter_data_at_hops(
     active_state_and_data_source: xr.Dataset
+    | xr.DataArray
     | DataSeries
-    | TreeNode[Any, xr.Dataset | DataSeries],
-    hop_type_selection: StateSelection | None = None,
-) -> DataSeries | TreeNode[Any, DataSeries]:
+    | TreeNode[Any, xr.Dataset | xr.DataArray | DataSeries],
+    hop_type_selection: StateSelection | StateSelectionDescriptor | None = None,
+) -> (
+    DataSeries | xr.DataArray | TreeNode[Any, DataSeries] | TreeNode[Any, xr.DataArray]
+):
     """Filter data to only retain data at points where hops of selected transitions occur.
 
     Needs to be fed either with (hierarchical) trajectory data that has `active_state` (`astate`) information
@@ -229,7 +255,7 @@ def filter_data_at_hops(
 
     Parameters
     ----------
-    active_state_and_data_source : xr.Dataset | DataSeries | TreeNode[Any, xr.Dataset | DataSeries]
+    active_state_and_data_source : xr.Dataset |  xr.DataArray | DataSeries | TreeNode[Any, xr.Dataset | DataSeries]| TreeNode[Any, xr.DataArray]
         A source for extracting the active state along a leading dimension and the leading dimension name as well as to filter
         the data from.
     hop_type_selection: StateSelection, optional
@@ -237,7 +263,7 @@ def filter_data_at_hops(
 
     Returns
     -------
-    Trajectory | Frames | TreeNode[Any, Trajectory | Frames]
+    DataSeries | xr.DataArray | TreeNode[Any, DataSeries] | TreeNode[Any, xr.DataArray]
         Filtered version of the input data source, where a selection was performed to only retain data at points where
         a hop was happening.
         Each entry along the leading dimension (`time` or `frame`) represents a hop.
@@ -251,35 +277,41 @@ def filter_data_at_hops(
             lambda x: filter_data_at_hops(x, hop_type_selection=hop_type_selection)
         )
     else:
-        # Frames or Trajectory
-        input_dataset = wrap_dataset(active_state_and_data_source, DataSeries)
-        is_hop_mask = hops_mask_from_active_state(
-            active_state_source=active_state_and_data_source
-        )
-        # This introduces the coordinates for is_hop_mask, namely the mask of hopping point flags, the hop_from and hop_to coordinates.
-        tmp_dataset = input_dataset.assign_coords(is_hop_mask=is_hop_mask)
-        res_dataset = tmp_dataset.sel(is_hop_mask=True)
+        if isinstance(active_state_and_data_source, xr.DataArray):
+            is_hop_mask = hops_mask_from_active_state(
+                active_state_source=active_state_and_data_source
+            )
+            return active_state_and_data_source[is_hop_mask]
+        else:
+            # Frames or Trajectory
+            input_dataset = wrap_dataset(active_state_and_data_source, DataSeries)
+            is_hop_mask = hops_mask_from_active_state(
+                active_state_source=active_state_and_data_source
+            )
+            # This introduces the coordinates for is_hop_mask, namely the mask of hopping point flags, the hop_from and hop_to coordinates.
+            tmp_dataset = input_dataset.assign_coords(is_hop_mask=is_hop_mask)
+            res_dataset = tmp_dataset.sel(is_hop_mask=True)
 
-        # time_step_idxs = np.concat(
-        #     [np.arange(traj.sizes['frame']) for _, traj in frames.groupby('trajid')]
-        # )
-        # hop_tidx = tidxs[is_hop]
-        # res = res.assign_coords(
-        #     # tidx=('frame', hop_tidx),
-        #     hop_from=(frames.astate.shift({'frame': 1}, -1).isel(frame=is_hop)),
-        #     hop_to=res.astate,
-        # # )
-        # if hop_types is not None:
-        #     acc = np.full(res.sizes['frame'], False)
-        #     for hop_from, hop_to in hop_types:
-        #         acc |= (res.hop_from == hop_from) & (res.hop_to == hop_to)
-        #     res = res.isel(frame=acc)
-        # return res.drop_dims(['trajid_'], errors='ignore')
+            # time_step_idxs = np.concat(
+            #     [np.arange(traj.sizes['frame']) for _, traj in frames.groupby('trajid')]
+            # )
+            # hop_tidx = tidxs[is_hop]
+            # res = res.assign_coords(
+            #     # tidx=('frame', hop_tidx),
+            #     hop_from=(frames.astate.shift({'frame': 1}, -1).isel(frame=is_hop)),
+            #     hop_to=res.astate,
+            # # )
+            # if hop_types is not None:
+            #     acc = np.full(res.sizes['frame'], False)
+            #     for hop_from, hop_to in hop_types:
+            #         acc |= (res.hop_from == hop_from) & (res.hop_to == hop_to)
+            #     res = res.isel(frame=acc)
+            # return res.drop_dims(['trajid_'], errors='ignore')
 
-        # We drop the mask that should be all True values now.
-        return wrap_dataset(
-            res_dataset.drop("is_hop_mask", errors="ignore"), DataSeries
-        )
+            # We drop the mask that should be all True values now.
+            return wrap_dataset(
+                res_dataset.drop("is_hop_mask", errors="ignore"), DataSeries
+            )
 
 
 # TODO: FIXME: Make StateSelection the preferred type for picking hopping types.
