@@ -1,5 +1,7 @@
 from dataclasses import dataclass
 
+from shnitsel.io.xr_io_compatibility import MetaData, ResType
+
 from .shared import ShnitselDerivedDataset
 from .data_series import DataSeries
 import xarray as xr
@@ -19,9 +21,9 @@ class InterState(ShnitselDerivedDataset):
 
         base_ds = None
         if frames is not None:
-            assert (
-                "state" in frames.dataset.dims
-            ), "Dataset is missing `state` dimension and cannot be considered an InterState set of variables."
+            assert "state" in frames.dataset.dims, (
+                "Dataset is missing `state` dimension and cannot be considered an InterState set of variables."
+            )
             # TODO: FIXME: Calculate per-state variables and cache in original dataset
             base_ds = frames.dataset
 
@@ -115,3 +117,16 @@ class InterState(ShnitselDerivedDataset):
                 "No variable `fosc` to encode the strength of the oscillator in trajectory data"
             )
         return self.dataset.data_vars["fosc"]
+
+    def as_xr_dataset(self) -> tuple[str | None, xr.Dataset, MetaData]:
+        return self.get_type_marker(), self.dataset, dict()
+
+    @classmethod
+    def get_type_marker(cls) -> str:
+        return "shnitsel::InterState"
+
+    @classmethod
+    def from_xr_dataset(
+        cls: type[ResType], dataset: xr.Dataset, metadata: MetaData
+    ) -> ResType:
+        return cls(direct_interstate_data=dataset)

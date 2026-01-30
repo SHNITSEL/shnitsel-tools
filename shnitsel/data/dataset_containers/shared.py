@@ -4,6 +4,12 @@ from typing import Any, Hashable, Iterable, Literal, Mapping, Self
 import rdkit
 import xarray as xr
 
+from shnitsel.io.xr_io_compatibility import (
+    MetaData,
+    ResType,
+    SupportsFromXrConversion,
+    SupportsToXrConversion,
+)
 from shnitsel.units.conversion import (
     convert_all_units_to_shnitsel_defaults,
     convert_to_target_units,
@@ -11,7 +17,7 @@ from shnitsel.units.conversion import (
 
 
 @dataclass
-class ShnitselDataset(object):
+class ShnitselDataset(object, SupportsFromXrConversion, SupportsToXrConversion):
     _raw_dataset: xr.Dataset
 
     def __init__(self, ds: xr.Dataset):
@@ -590,6 +596,19 @@ class ShnitselDataset(object):
             )
         return self
 
+    def as_xr_dataset(self) -> tuple[str | None, xr.Dataset, MetaData]:
+        return self.get_type_marker(), self.dataset, dict()
+
+    @classmethod
+    def get_type_marker(cls) -> str:
+        return "shnitsel::ShnitselDataset"
+
+    @classmethod
+    def from_xr_dataset(
+        cls: type[ResType], dataset: xr.Dataset, metadata: MetaData
+    ) -> ResType:
+        return cls(dataset)
+
     # @overload
     # def __getitem__(self, key: Hashable) -> DataArray: ...
 
@@ -636,7 +655,9 @@ class ShnitselDataset(object):
 
 
 @dataclass
-class ShnitselDerivedDataset(ShnitselDataset):
+class ShnitselDerivedDataset(
+    ShnitselDataset, SupportsFromXrConversion, SupportsToXrConversion
+):
     _base_dataset: xr.Dataset | None
 
     def __init__(self, base_ds: xr.Dataset | None, derived_ds: xr.Dataset):
@@ -656,3 +677,16 @@ class ShnitselDerivedDataset(ShnitselDataset):
             yield from self._base_dataset._item_sources
 
     # TODO: Forward all unmet requests to dataset.
+
+    def as_xr_dataset(self) -> tuple[str | None, xr.Dataset, MetaData]:
+        raise NotImplementedError
+
+    @classmethod
+    def get_type_marker(cls) -> str:
+        raise NotImplementedError
+
+    @classmethod
+    def from_xr_dataset(
+        cls: type[ResType], dataset: xr.Dataset, metadata: MetaData
+    ) -> ResType:
+        raise NotImplementedError

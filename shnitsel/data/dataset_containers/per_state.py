@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from typing import Literal
 
+from shnitsel.io.xr_io_compatibility import MetaData, ResType
+
 from .shared import ShnitselDerivedDataset
 from .data_series import DataSeries
 
@@ -22,9 +24,9 @@ class PerState(ShnitselDerivedDataset):
 
         base_ds = None
         if frames is not None:
-            assert (
-                "state" in frames.dataset.dims
-            ), "Dataset is missing `state` dimension and cannot be considered an PerState set of variables."
+            assert "state" in frames.dataset.dims, (
+                "Dataset is missing `state` dimension and cannot be considered an PerState set of variables."
+            )
             # TODO: FIXME: Calculate per-state variables and cache in original dataset
             base_ds = frames.dataset
 
@@ -92,3 +94,16 @@ class PerState(ShnitselDerivedDataset):
         if self._original_frames is not None:
             return self._original_frames.forces_format
         return self.dataset.attrs.get('has_forces', None)
+
+    def as_xr_dataset(self) -> tuple[str | None, xr.Dataset, MetaData]:
+        return self.get_type_marker(), self.dataset, dict()
+
+    @classmethod
+    def get_type_marker(cls) -> str:
+        return "shnitsel::PerState"
+
+    @classmethod
+    def from_xr_dataset(
+        cls: type[ResType], dataset: xr.Dataset, metadata: MetaData
+    ) -> ResType:
+        return cls(direct_perstate_data=dataset)

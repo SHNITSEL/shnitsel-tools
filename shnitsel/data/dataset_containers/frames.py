@@ -3,6 +3,8 @@ from dataclasses import dataclass
 from functools import cached_property
 from typing import Self, Sequence, TYPE_CHECKING
 import xarray as xr
+
+from shnitsel.io.xr_io_compatibility import MetaData, ResType
 from .data_series import DataSeries
 
 if TYPE_CHECKING:
@@ -12,6 +14,20 @@ if TYPE_CHECKING:
 @dataclass
 class Frames(DataSeries):
     _is_multi_trajectory: bool = False
+
+    def __new__(cls, ds: xr.Dataset):
+        from .multi_stacked import MultiSeriesStacked
+
+        if cls == Frames:
+            if (
+                "trajectory" in ds.dims
+                and ds.sizes["trajectory"] > 1
+                or "atrajectory" in ds.coords
+                and len(set(ds.coords["atrajectory"].values)) > 1
+            ):
+                return MultiSeriesStacked(ds)
+        else:
+            return object.__new__(cls)
 
     def __init__(self, ds: xr.Dataset):
         assert "time" not in ds.dims, (
@@ -131,3 +147,7 @@ class Frames(DataSeries):
     def active_trajectory(self) -> xr.DataArray | None:
         """Ids of the active trajectory in this frameset if present"""
         return self.atrajectory
+
+    @classmethod
+    def get_type_marker(cls) -> str:
+        return "shnitsel::Frames"

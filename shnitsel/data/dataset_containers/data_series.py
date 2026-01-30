@@ -386,3 +386,7 @@ class DataSeries(ShnitselDataset):
         Overwritten by child classes that combine multiple trajectories into one object
         """
         return self._is_multi_trajectory
+
+    @classmethod
+    def get_type_marker(cls) -> str:
+        return "shnitsel::DataSeries"

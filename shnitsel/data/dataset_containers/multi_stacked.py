@@ -101,3 +101,7 @@ class MultiSeriesStacked(Frames, MultiSeriesDataset):
     @cached_property
     def as_stacked(self) -> Self:
         return self
+
+    @classmethod
+    def get_type_marker(cls) -> str:
+        return "shnitsel::MultiSeriesStacked"

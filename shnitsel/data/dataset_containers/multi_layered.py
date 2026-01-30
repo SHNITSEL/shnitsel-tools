@@ -111,3 +111,7 @@ class MultiSeriesLayered(MultiSeriesDataset):
     @cached_property
     def as_layered(self) -> Self:
         return self
+
+    @classmethod
+    def get_type_marker(cls) -> str:
+        return "shnitsel::MultiSeriesLayered"

@@ -89,3 +89,7 @@ class Trajectory(DataSeries):
         """The leading dimension along which consistent configurations are indexed.
         Usually `time` or `frame`."""
         return "time"
+
+    @classmethod
+    def get_type_marker(cls) -> str:
+        return "shnitsel::Trajectory"
