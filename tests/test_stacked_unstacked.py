@@ -19,13 +19,13 @@ PER_TRAJ_COORDS = [
 
 @pytest.fixture
 def stacked():
-    path = '/nc/data/frames_2026-01-12/A01_ethene.nc'
+    path = './tutorials/test_data/shnitsel/fixtures/butene_dynamic/data_new.nc'
 
     wrapped = st.io.read(path, input_state_names=['S0', 'S1', 'S2'])
-    frames = wrapped.dataset
-    frames.attrs['charge'] = 0
-    frames.attrs['mol'] = frames.st.default_mol()
-    frames.atXYZ.attrs['mol'] = frames.attrs['mol']
+    frames = wrapped.set_charge(0)
+    # frames.attrs['charge'] = 0
+    # frames.attrs['mol'] = frames.st.default_mol()
+    # frames.atXYZ.attrs['mol'] = frames.attrs['mol']
     return frames
 
 
@@ -38,7 +38,7 @@ def unstacked(stacked):
     "func,data_var,kws",
     [
         (st.analyze.generic.norm, None, {}),
-        (st.analyze.generic.center, None, dict(dim='atom')),
+        (st.analyze.generic.center, 'atXYZ', dict(dim='atom')),
         (st.analyze.generic.subtract_combinations, 'atXYZ', dict(dim='atom')),
         # skipping replace_total -- hard to test and metadata-agnostic anyway
         (st.analyze.generic.relativize, 'energy', {}),
