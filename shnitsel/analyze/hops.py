@@ -4,6 +4,7 @@ import re
 import xarray as xr
 import numpy as np
 
+from shnitsel.core.typedefs import DimName
 from shnitsel.data.dataset_containers import wrap_dataset
 from shnitsel.data.dataset_containers.data_series import DataSeries
 from shnitsel.data.dataset_containers.frames import Frames
@@ -12,28 +13,8 @@ from shnitsel.data.dataset_containers.trajectory import Trajectory
 from shnitsel.data.multi_indices import mdiff, sel_trajs
 from shnitsel.data.tree.node import TreeNode
 from shnitsel.data.tree.tree import ShnitselDB
-from shnitsel.filtering.state_selection import StateSelection
-
-
-def _standard_hop_spec(spec):
-    # TODO: FIXME: move to state_selection
-    search = re.compile("(?P<state_from>.+)(?P<rel>(->)|(<>))(?P<state_to>.+)")
-    if not isinstance(spec, str):
-        return spec
-
-    subs = re.split(r"\s*,\s*", spec)
-
-    res = []
-    for sub in subs:
-        found = search.match(sub)
-        state_from = int(found.group("state_from"))
-        state_to = int(found.group("state_to"))
-        rel = found.group("rel")
-        if rel == "->":
-            res.append((state_from, state_to))
-        else:
-            res.extend([(state_from, state_to), (state_to, state_from)])
-    return res
+from shnitsel.filtering.state_selection import StateSelection, StateSelectionDescriptor
+from shnitsel.filtering.helpers import _get_default_state_selection
 
 
 TrajectoryOrFrames = TypeVar("TrajectoryOrFrames", bound=DataSeries)
@@ -43,7 +24,8 @@ TrajectoryOrFrames = TypeVar("TrajectoryOrFrames", bound=DataSeries)
 @overload
 def hops_mask_from_active_state(
     active_state_source: xr.Dataset | DataSeries | xr.DataArray,
-    hop_type_selection: StateSelection | None = None,
+    hop_type_selection: StateSelection | StateSelectionDescriptor | None = None,
+    dim: DimName | None = None,
 ) -> xr.DataArray:
     """Overload to specify simple return type for simple (flat) input types.
 
@@ -55,7 +37,8 @@ def hops_mask_from_active_state(
 @overload
 def hops_mask_from_active_state(
     active_state_source: TreeNode[Any, xr.Dataset | DataSeries | xr.DataArray],
-    hop_type_selection: StateSelection | None = None,
+    hop_type_selection: StateSelection | StateSelectionDescriptor | None = None,
+    dim: DimName | None = None,
 ) -> TreeNode[Any, xr.DataArray]:
     """Overload to specify hierarchical return type for hierarchical input types.
 
@@ -70,7 +53,8 @@ def hops_mask_from_active_state(
     | DataSeries
     | TreeNode[Any, xr.Dataset | DataSeries | xr.DataArray]
     | xr.DataArray,
-    hop_type_selection: StateSelection | None = None,
+    hop_type_selection: StateSelection | StateSelectionDescriptor | None = None,
+    dim: DimName | None = None,
 ) -> xr.DataArray | TreeNode[Any, xr.DataArray]:
     """Generate boolean masks marking hopping points by identifying changes in the active state of provided
     data source.
@@ -82,8 +66,10 @@ def hops_mask_from_active_state(
     ----------
     active_state_source : xr.Dataset | Trajectory | Frames | xr.DataArray | TreeNode[Any, xr.Dataset | Trajectory  |  Frames  |  xr.DataArray]
         A potential source for extracting the active state along a leading dimension and the leading dimension name.
-    hop_type_selection: StateSelection, optional
+    hop_type_selection: StateSelection | StateSelectionDescriptor, optional
         A state selection holding state transitions that should be used in hop filtering.
+    dim : DimName, optional,
+        The dimension along which the hops should be detected. For most cases, this should be `frame` or `time`.
 
     Returns
     -------
@@ -113,13 +99,20 @@ def hops_mask_from_active_state(
             active_state_data = active_state_source.active_state
             leading_dim = active_state_source.leading_dim
         elif isinstance(active_state_source, xr.DataArray):
-            active_state_data = active_state_source
-            leading_dim = str(active_state_source.dims[0])
+            if 'astate' in active_state_source.coords:
+                active_state_data = active_state_source.coords['astate']
+            else:
+                active_state_data = active_state_source
+            leading_dim = str(active_state_data.dims[0])
         else:
             raise ValueError(
                 "Unknown type of provided source for `active_state` data: %s"
                 % type(active_state_source)
             )
+
+        # Overwrite the leading dim detection
+        if dim is not None:
+            leading_dim = dim
 
         is_hop_mask = mdiff(active_state_data, dim=leading_dim) != 0
         # Add prior and current state back as coordinates
@@ -129,11 +122,20 @@ def hops_mask_from_active_state(
         )
 
         if hop_type_selection is not None and leading_dim is not None:
+            state_selection = _get_default_state_selection(
+                hop_type_selection, active_state_source
+            )
             type_filter = np.full(is_hop_mask.sizes[leading_dim], False)
-            for hop_from, hop_to in hop_type_selection.state_combinations:
+            # TODO: FIXME: We need to make sure that the state combinations returned are actually bidirectional is not directed.
+            for hop_from, hop_to in state_selection.state_combinations:
                 type_filter |= (is_hop_mask.hop_from == hop_from) & (
                     is_hop_mask.hop_to == hop_to
                 )
+            if not state_selection.is_directed:
+                for hop_to, hop_from in state_selection.state_combinations:
+                    type_filter |= (is_hop_mask.hop_from == hop_from) & (
+                        is_hop_mask.hop_to == hop_to
+                    )
             is_hop_mask &= type_filter
         return is_hop_mask
 
