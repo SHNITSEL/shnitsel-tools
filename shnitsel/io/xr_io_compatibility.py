@@ -23,8 +23,9 @@ class SupportsToXrConversion(Protocol):
         tuple[str, xr.Dataset, MetaData]
             A tuple of the `io_type_tag` under which the deserializer is registered
             with the Shnitsel Tools framework (or `None` if no
-            deserialization is desired) then the xr.Dataset that is the result of the conversion
-            and last a dict of metadata that might help with deserialization later on.
+            deserialization is desired/supported)/
+            Then the `xr.Dataset that is the result of the conversion.
+            And lastly a dict of metadata that might help with deserialization later on.
 
         Raises
         ------
@@ -41,6 +42,13 @@ class SupportsFromXrConversion(Protocol):
     """Definition of the protocol to support instantiation from
     xarray dataset structs.
     """
+
+    @classmethod
+    @abstractmethod
+    def get_type_marker(cls) -> str:
+        raise NotImplementedError(
+            "The class %s did not implement the `get_type_marker()` method." % cls
+        )
 
     @classmethod
     @abstractmethod
@@ -80,7 +88,7 @@ Readable = TypeVar("Readable", bound=SupportsFromXrConversion)
 INPUT_TYPE_REGISTRY: dict[str, type[SupportsFromXrConversion]] = {}
 
 
-def register_custom_xr_input_type(cls: type[Readable], io_type_tag: str) -> bool:
+def register_custom_xr_input_type(cls: type[Readable], io_type_tag: str | None) -> bool:
     """Function to register a custom type that can be parsed from an xarray Dataset
     using the `SupportsFromXrConversion` protocol definition to support input from
     xarray style netcdf files.
@@ -90,15 +98,19 @@ def register_custom_xr_input_type(cls: type[Readable], io_type_tag: str) -> bool
     cls : type[Readable]
         A class supporting the `SupportsFromXrConversion` protocol to be invoked to deserialize an object from
         a `xr.Dataset` instance when reading a netcdf file.
-    io_type_tag : str
+    io_type_tag : str, optional
         The string type tag to be used to mark this class as the executing instance for
         deserialization.
+        If not set, will use `get_type_marker()` on the registered class.
 
     Returns
     -------
     bool
         True if registration succeeded. False if there was a clash with the `io_type_tag` of an existing type.
     """
+    if io_type_tag is None:
+        io_type_tag = cls.get_type_marker()
+
     if io_type_tag in INPUT_TYPE_REGISTRY:
         logging.error("IO type tag already in use: %s", io_type_tag)
         return False
