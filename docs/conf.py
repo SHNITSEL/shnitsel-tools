@@ -12,7 +12,7 @@ import shnitsel.xarray
 project = 'shnitsel-tools'
 copyright = '2026, Kevin Höllring, Theodor Everley Röhrkasten, Carolin Müller'
 author = 'Kevin Höllring, Theodor Everley Röhrkasten, Carolin Müller'
-release = '2026.01'
+release = '2026.01.1'
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
