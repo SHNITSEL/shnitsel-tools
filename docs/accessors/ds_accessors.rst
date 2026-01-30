@@ -21,7 +21,7 @@ you can write
 
 The :py:class:`shnitsel.xarray.DSShnitselAccessor` is opinionated about whether a method
 is suitable for the :py:class:`xarray.Dataset` in question.  The list of suitable
-When working in a notebook, the HTML representation of the accessor (type ``ds.sh``) will show
+When working in a notebook, the HTML representation of the accessor (type ``ds.st``) will show
 suitable methods and explain why the others are unsuitable. This information is also
 available through the ``ds.st.suitable`` list and the ``ds.st.unsuitable`` dictionary.
 

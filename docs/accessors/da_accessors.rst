@@ -22,7 +22,7 @@ you can write
 
 The :py:class:`shnitsel.xarray.DAShnitselAccessor` is opinionated about whether a method
 is suitable for the :py:class:`xarray.DataArray` in question.  The list of suitable
-When working in a notebook, the HTML representation of the accessor (type ``da.sh``) will show
+When working in a notebook, the HTML representation of the accessor (type ``da.st``) will show
 suitable methods and explain why the others are unsuitable. This information is also
 available through the ``da.st.suitable`` list and the ``da.st.unsuitable`` dictionary.
 

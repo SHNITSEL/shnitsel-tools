@@ -22,7 +22,6 @@ then import.
 
      import shnitsel as st
      import shnitsel.xarray # Activate accessors
-     from shnitsel.data.tree import tree_to_frames
 
 Reading data from...
 --------------------
@@ -37,14 +36,11 @@ Reading data from...
       db = st.read('path/to/PyRAI2MD/', kind='pyrai2md')
       db = st.read('path/to/ase.db')
 
-      # And then:
-      ds = tree_to_frames(db)
-
 ...SHNITSEL-style NetCDF4:
 
 .. code-block::
 
-      ds = st.read('path/to/dataset.nc')
+      db = st.read('path/to/dataset.nc')
 
 .. #COMMENT OUT -- check the following
    ...ASE databases:
@@ -56,7 +52,14 @@ Reading data from...
          ds = st.read('path/to/ase.db', kind='schnet')
          ds = st.read('path/to/geometries_only.db', kind=None)
 
+Converting to other data-layouts...
+-----------------------------------
 
+.. code-block::
+
+      ds = db.as_stacked  # All trajectories along the same axis
+      # or:
+      ds = db.as_layered  # Seperate axes for trajectory and time
 
 Saving data to...
 -----------------
