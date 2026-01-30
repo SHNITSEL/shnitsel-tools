@@ -1,6 +1,7 @@
 import argparse
 import sys
 
+from shnitsel.data.tree.data_leaf import DataLeaf
 from shnitsel.io.shared.trajectory_setup import create_initial_dataset
 from shnitsel.data.tree import complete_shnitsel_tree
 
@@ -10,7 +11,7 @@ from gc import get_referents
 # Custom objects know their class.
 # Function objects seem to know way too much, including modules.
 # Exclude modules as well.
-BLACKLIST = type, ModuleType, FunctionType
+BLACKLIST = (type, ModuleType, FunctionType)
 
 
 def getsize(obj):
@@ -56,7 +57,7 @@ def main():
                 )
                 stats[(nsteps, natoms, statecount)] = getsize(traj)
                 print(f"{stats[(nsteps, natoms, statecount)]=}")
-                db_traj = complete_shnitsel_tree(traj)
+                db_traj = complete_shnitsel_tree(DataLeaf(name="1", data=traj))
                 stats_db[(nsteps, natoms, statecount)] = getsize(db_traj)
                 print(f"{stats_db[(nsteps, natoms, statecount)]=}")
                 del traj
@@ -70,11 +71,11 @@ def main():
     with open("./stats_xarray.dat", "w") as stats_out:
         stats_out.write("# num_steps\t# num_atoms\t# num_states\t# size [bytes]\n")
         for (steps, atoms, states), size in stats.items():
-            stats_out.write(f"{steps}\t{atoms}\t{states}\t{size}\n")
+            stats_out.write(f"{steps}\t&\t{atoms}\t&\t{states}\t&\t{size} \\\\\n")
     with open("./stats_db.dat", "w") as stats_out:
         stats_out.write("# num_steps\t# num_atoms\t# num_states\t# size [bytes]\n")
         for (steps, atoms, states), size in stats_db.items():
-            stats_out.write(f"{steps}\t{atoms}\t{states}\t{size}\n")
+            stats_out.write(f"{steps}\t&\t{atoms}\t&\t{states}\t&\t{size} \\\\\n")
 
     def scale_size(param, base2, states_scale, states_scale2):
         # print(param)
