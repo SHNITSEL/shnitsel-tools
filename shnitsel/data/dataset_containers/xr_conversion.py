@@ -65,12 +65,19 @@ def data_to_xarray_dataset(
     #     metadata["_shnitsel_data_type"] = "shnitsel::PerState"
     #     tree_data = raw_data.dataset
     elif isinstance(raw_data, SupportsToXrConversion):
-        io_type_key, serialized_data, metadata = raw_data.as_xr_dataset()
+        io_type_key, serialized_data, conversion_metadata = raw_data.as_xr_dataset()
         metadata["_shnitsel_data_type"] = (
             io_type_key if io_type_key is not None else "xarray::Dataset"
         )
-        metadata["_shnitsel_data_type_meta"] = metadata
+
+        # Just a precaution
+        if "_shnitsel_data_type_meta" in metadata:
+            del metadata["_shnitsel_data_type_meta"]
+
+        metadata["_shnitsel_data_type_meta"] = conversion_metadata
+
         tree_data = serialized_data
+
     else:
         logging.error(
             "Currently unsupported type %s found in data to be converted to xarray dataset.",
@@ -113,6 +120,8 @@ def xr_dataset_to_shnitsel_format(
 
     if "_shnitsel_data_type" in metadata:
         shnitsel_type_hint = metadata["_shnitsel_data_type"]
+        del metadata['_shnitsel_data_type']
+
         if shnitsel_type_hint == "xarray::Dataset":
             return raw_data
         elif shnitsel_type_hint == "xarray::DataAray":
@@ -129,6 +138,10 @@ def xr_dataset_to_shnitsel_format(
         else:
             io_type_tag = shnitsel_type_hint
             io_metadata = metadata.get("_shnitsel_data_type_meta", {})
+
+            if '_shnitsel_data_type_meta' in metadata:
+                del metadata['_shnitsel_data_type_meta']
+
             input_handler = get_registered_input_handler(io_type_tag)
             if input_handler is None:
                 logging.error(
