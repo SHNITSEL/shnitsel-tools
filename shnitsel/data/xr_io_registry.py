@@ -67,7 +67,7 @@ def get_registered_input_handler(
 
 def setup_defaults():
     """Helper function to register all default shnitsel data types with the xr io compatibility registry."""
-    from ..data.dataset_containers import (
+    from .dataset_containers import (
         ShnitselDataset,
         DataSeries,
         Trajectory,
