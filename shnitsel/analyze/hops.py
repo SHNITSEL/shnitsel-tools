@@ -282,7 +282,9 @@ def filter_data_at_hops(
                 active_state_source=active_state_and_data_source,
                 hop_type_selection=hop_type_selection,
             )
-            return active_state_and_data_source[is_hop_mask]
+
+            hop_dim = list(is_hop_mask.sizes.keys())[0]
+            return active_state_and_data_source[{hop_dim: is_hop_mask}]
         else:
             # Frames or Trajectory
             input_dataset = wrap_dataset(active_state_and_data_source, DataSeries)
