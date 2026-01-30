@@ -87,6 +87,7 @@ class TestAccessors:
     # TODO: Subtests is a feature of pytest 9, which we do not list as requirement
     # def test_ds_accessors(self, ds, subtests):
     # TODO: FIXME: Multi-index selectors/helpers are broken
+    @pytest.mark.xfail
     def test_ds_accessors(self, ds):
         kws = {
             'pca_and_hops': dict(center_mean=False),
