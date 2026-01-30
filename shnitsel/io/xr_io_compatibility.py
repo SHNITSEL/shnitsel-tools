@@ -158,15 +158,17 @@ def setup_defaults():
         MultiSeriesStacked,
     )
 
-    register_custom_xr_input_type(ShnitselDataset)
-    register_custom_xr_input_type(DataSeries)
-    register_custom_xr_input_type(Trajectory)
-    register_custom_xr_input_type(Frames)
-    register_custom_xr_input_type(PerState)
-    register_custom_xr_input_type(InterState)
-    register_custom_xr_input_type(MultiSeriesDataset)
-    register_custom_xr_input_type(MultiSeriesLayered)
-    register_custom_xr_input_type(MultiSeriesStacked)
+    # Only register if they are not there yet
+    if not INPUT_TYPE_REGISTRY:
+        register_custom_xr_input_type(ShnitselDataset)
+        register_custom_xr_input_type(DataSeries)
+        register_custom_xr_input_type(Trajectory)
+        register_custom_xr_input_type(Frames)
+        register_custom_xr_input_type(PerState)
+        register_custom_xr_input_type(InterState)
+        register_custom_xr_input_type(MultiSeriesDataset)
+        register_custom_xr_input_type(MultiSeriesLayered)
+        register_custom_xr_input_type(MultiSeriesStacked)
 
 
 setup_defaults()
