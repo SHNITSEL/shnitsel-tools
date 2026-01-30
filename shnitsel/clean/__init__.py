@@ -17,7 +17,7 @@
 # )
 
 import logging
-from typing import Sequence, TypeVar
+from typing import Any, Sequence, TypeVar
 from typing_extensions import Literal
 
 from xarray import Dataset
@@ -27,6 +27,7 @@ from shnitsel.core._api_info import API, internal
 from shnitsel.data.dataset_containers import wrap_dataset
 from shnitsel.data.dataset_containers.frames import Frames
 from shnitsel.data.dataset_containers.trajectory import Trajectory
+from shnitsel.data.tree.node import TreeNode
 from shnitsel.data.tree.tree import ShnitselDB
 
 
@@ -39,7 +40,7 @@ TrajectoryOrFrames = TypeVar("TrajectoryOrFrames", bound=Trajectory | Frames)
 
 @API()
 def sanity_check(
-    trajectory_or_frames: ShnitselDB[TrajectoryOrFrames] | TrajectoryOrFrames,
+    trajectory_or_frames: TreeNode[Any, TrajectoryOrFrames] | TrajectoryOrFrames,
     filter_method: Literal["truncate", "omit", "annotate"] | float = "truncate",
     *,
     energy_thresholds: EnergyFiltrationThresholds | None = None,
@@ -48,12 +49,12 @@ def sanity_check(
     plot_populations: Literal["independent", "intersections", False] = False,
     mol: Mol | None = None,
     drop_empty_trajectories: bool = False,
-) -> ShnitselDB[TrajectoryOrFrames] | TrajectoryOrFrames | None:
+) -> TreeNode[Any, TrajectoryOrFrames] | TrajectoryOrFrames | None:
     """Filter trajectories according to energy to exclude unphysical (insane) behaviour
 
     Parameters
     ----------
-    trajectory_or_frames : Trajectory | Frames | ShnitselDB[Trajectory|Frames]
+    trajectory_or_frames : Trajectory | Frames | TreeNode[Any, Trajectory|Frames]
         A Trajectory or Frames object (or a ShnitselDB structure holding such objects) with an ``atXYZ`` variable as well as ``astate``, ``energy``, and ideally ``e_kin`` variables
     filter_method : Literal["truncate", "omit", "annotate"] | float, optional
         Specifies the manner in which to remove data;
@@ -121,7 +122,7 @@ def sanity_check(
         plot_thresholds=plot_thresholds,
         mol=mol,
     )
-    if isinstance(trajectory_or_frames, ShnitselDB):
+    if isinstance(trajectory_or_frames, TreeNode):
         return trajectory_or_frames.map_data(
             lambda x: _sanity_check_per_trajectory(x, **kws),
             keep_empty_branches=not drop_empty_trajectories,
