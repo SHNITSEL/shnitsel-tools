@@ -14,7 +14,7 @@
     - [ ] Propagate remaining indexers to data entries.
   - [ ] Pattern matching in the `getitem()` method, i.e. `db['/I01/**/data']` `db["/I01/*/{1-20}"]`
 - (De)serialization:
-  - [ ] Implementation of Supports(To/From)XrConversion for various (wrapper) types
+  - [x] Implementation of Supports(To/From)XrConversion for various (wrapper) types
   - [ ] Tutorial on how to add own types
 - Wrapper types:
   - [ ] Add supported Shnitsel-tools functions as direct methods on wrapper types
@@ -27,6 +27,7 @@
     - [x] On-the-go construction added to `geo._get_default_selection()`
     - [x] Patch existing functions to express support for descriptors
   - [x] Add merge/subtract/intersect operations
+  - [ ] Add 'BLA' and 'pwdist' feature descriptors.
   - [ ] Fix non-redundant coordinates
   - [ ] Structure selection (raise error if empty/warning if empty)
   - [ ] draw: Draw grid of highlighted feature levels
