@@ -24,9 +24,8 @@ class Frames(DataSeries):
                 or "atrajectory" in ds.coords
                 and len(set(ds.coords["atrajectory"].values)) > 1
             ):
-                return MultiSeriesStacked(ds)
-        else:
-            return object.__new__(cls)
+                return object.__new__(MultiSeriesStacked)
+        return object.__new__(cls)
 
     def __init__(self, ds: xr.Dataset):
         assert "time" not in ds.dims, (
