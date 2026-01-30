@@ -80,16 +80,22 @@ def check_thresholds(
                 "Dataset provided to `check_thresholds()` has no filtranda data set."
             )
 
+        if hasattr(filtranda, 'as_layered'):
+            filtranda = filtranda.as_layered
+
         calculated_quantile_positions = cum_max_quantiles(filtranda, quantiles=quantiles)
 
         if 'thresholds' in filtranda.coords:
             # TODO: This is too complicated. Why calculate quantiles first and and then calculate true_upto?
             # Extract the true_upto per filtranda and then get the quantiles from the set of `true_upto`.
             good_throughout = (
-                (filtranda < filtranda['thresholds']).groupby('trajid').all('frame')
+                (filtranda < filtranda['thresholds'])
+                .groupby('atrajectory')
+                .all('frame')
             )
             filtranda['proportion'] = (
-                good_throughout.sum('trajid') / good_throughout.sizes['trajid']
+                good_throughout.sum('atrajectory')
+                / good_throughout.sizes['atrajectory']
             )
             calculated_quantile_positions['intercept'] = true_upto(
                 calculated_quantile_positions < filtranda['thresholds'], 'time'
@@ -202,10 +208,17 @@ def validity_populations(ds_or_da, intersections: bool = True) -> Axes:
         .assign({'total_population': mask.coords['is_frame']})
         .to_dataarray('criterion')
     )
-    counts = mask.sum('trajid')
+
+    mask, _ = ensure_unstacked(mask)
+
+    # FIXME: Once ensure_unstacked is fixed or replaced with as_layered, we should
+    # use 'trajectory' in the following rather than 'atrajectory'
+    counts = mask.sum('atrajectory')
     means = counts.mean('time')
     if intersections:
-        counts = mask.sortby(means, ascending=False).cumprod('criterion').sum('trajid')
+        counts = (
+            mask.sortby(means, ascending=False).cumprod('criterion').sum('atrajectory')
+        )
     else:
         counts = counts.sortby(means, ascending=False)
     fig, axs = plt.subplots(2, 1)
