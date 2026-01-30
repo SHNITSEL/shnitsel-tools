@@ -580,7 +580,8 @@ def concat_trajs(
         consistent_metadata, distinct_metadata = _merge_traj_metadata(framed_da)
 
         # TODO: Check if the order of datasets stays the same. Otherwise distinct attributes may not be appropriately sorted.
-        frames = xr.concat(framed_da, dim="frame")
+        # TODO: FIXME: This has some FutureWarnings associated with it by xarray. Keep an eye on this.
+        frames = xr.concat(framed_da, dim="frame", coords='different', compat="equals")
         is_multi_trajectory = True
     else:
         raise RuntimeError("Something went wrong in data concatenation")
@@ -596,7 +597,6 @@ def concat_trajs(
     #    completed=("trajid", traj_meta["completed"]),
     #    nsteps=("trajid", traj_meta["nsteps"]),
     # )
-
 
     # Then all remaining metadata
     frames.attrs.update(
