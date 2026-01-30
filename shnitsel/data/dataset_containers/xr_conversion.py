@@ -52,24 +52,25 @@ def data_to_xarray_dataset(
     elif isinstance(raw_data, xr.Dataset):
         metadata["_shnitsel_data_type"] = "xarray::Dataset"
         tree_data = raw_data
-    elif isinstance(raw_data, Frames):
-        metadata["_shnitsel_data_type"] = "shnitsel::Frames"
-        tree_data = raw_data.dataset
-    elif isinstance(raw_data, Trajectory):
-        metadata["_shnitsel_data_type"] = "shnitsel::Trajectory"
-        tree_data = raw_data.dataset
-    elif isinstance(raw_data, InterState):
-        metadata["_shnitsel_data_type"] = "shnitsel::InterState"
-        tree_data = raw_data.dataset
-    elif isinstance(raw_data, PerState):
-        metadata["_shnitsel_data_type"] = "shnitsel::PerState"
-        tree_data = raw_data.dataset
+    # elif isinstance(raw_data, Frames):
+    #     metadata["_shnitsel_data_type"] = "shnitsel::Frames"
+    #     tree_data = raw_data.dataset
+    # elif isinstance(raw_data, Trajectory):
+    #     metadata["_shnitsel_data_type"] = "shnitsel::Trajectory"
+    #     tree_data = raw_data.dataset
+    # elif isinstance(raw_data, InterState):
+    #     metadata["_shnitsel_data_type"] = "shnitsel::InterState"
+    #     tree_data = raw_data.dataset
+    # elif isinstance(raw_data, PerState):
+    #     metadata["_shnitsel_data_type"] = "shnitsel::PerState"
+    #     tree_data = raw_data.dataset
     elif isinstance(raw_data, SupportsToXrConversion):
         io_type_key, serialized_data, metadata = raw_data.as_xr_dataset()
         metadata["_shnitsel_data_type"] = (
             io_type_key if io_type_key is not None else "xarray::Dataset"
         )
         metadata["_shnitsel_data_type_meta"] = metadata
+        tree_data = serialized_data
     else:
         logging.error(
             "Currently unsupported type %s found in data to be converted to xarray dataset.",
@@ -117,14 +118,14 @@ def xr_dataset_to_shnitsel_format(
         elif shnitsel_type_hint == "xarray::DataAray":
             array_var_name = metadata.get("_shnitsel_data_var", "data")
             return raw_data[array_var_name]
-        elif shnitsel_type_hint == "shnitsel::Frames":
-            return Frames(raw_data)
-        elif shnitsel_type_hint == "shnitsel::Trajectory":
-            return Trajectory(raw_data)
-        elif shnitsel_type_hint == "shnitsel::Interstate":
-            return InterState(direct_interstate_data=raw_data)
-        elif shnitsel_type_hint == "shnitsel::PerState":
-            return PerState(direct_perstate_data=raw_data)
+        # elif shnitsel_type_hint == "shnitsel::Frames":
+        #     return Frames(raw_data)
+        # elif shnitsel_type_hint == "shnitsel::Trajectory":
+        #     return Trajectory(raw_data)
+        # elif shnitsel_type_hint == "shnitsel::InterState":
+        #     return InterState(direct_interstate_data=raw_data)
+        # elif shnitsel_type_hint == "shnitsel::PerState":
+        #     return PerState(direct_perstate_data=raw_data)
         else:
             io_type_tag = shnitsel_type_hint
             io_metadata = metadata.get("_shnitsel_data_type_meta", {})
