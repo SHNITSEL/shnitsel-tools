@@ -50,6 +50,7 @@ class StateSelection:
     # state_magnetic_nums: dict[StateId, float] | None
 
     state_combinations_base: list[StateCombination]
+    # TODO: FIXME: This needs a property wrapper to return both directions if non-directional
     state_combinations: list[StateCombination]
     state_combination_names: dict[StateCombination, str] | None
 
