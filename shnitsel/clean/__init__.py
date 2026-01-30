@@ -29,6 +29,7 @@ from shnitsel.data.dataset_containers.frames import Frames
 from shnitsel.data.dataset_containers.trajectory import Trajectory
 from shnitsel.data.tree.node import TreeNode
 from shnitsel.data.tree.tree import ShnitselDB
+from shnitsel.filtering.structure_selection import SMARTSstring
 
 
 from .filter_energy import EnergyFiltrationThresholds, filter_by_energy
@@ -43,8 +44,10 @@ def sanity_check(
     trajectory_or_frames: TreeNode[Any, TrajectoryOrFrames] | TrajectoryOrFrames,
     filter_method: Literal["truncate", "omit", "annotate"] | float = "truncate",
     *,
-    energy_thresholds: EnergyFiltrationThresholds | None = None,
-    geometry_thresholds: GeometryFiltrationThresholds | None = None,
+    energy_thresholds: dict[str, float] | EnergyFiltrationThresholds | None = None,
+    geometry_thresholds: dict[SMARTSstring, float]
+    | GeometryFiltrationThresholds
+    | None = None,
     plot_thresholds: bool | Sequence[float] = False,
     plot_populations: Literal["independent", "intersections", False] = False,
     mol: Mol | None = None,
@@ -136,8 +139,10 @@ def _sanity_check_per_trajectory(
     trajectory_or_frames: TrajectoryOrFrames,
     filter_method: Literal["truncate", "omit", "annotate"] | float = "truncate",
     *,
-    energy_thresholds: EnergyFiltrationThresholds | None = None,
-    geometry_thresholds: GeometryFiltrationThresholds | None = None,
+    energy_thresholds: dict[str, float] | EnergyFiltrationThresholds | None = None,
+    geometry_thresholds: dict[SMARTSstring, float]
+    | GeometryFiltrationThresholds
+    | None = None,
     plot_thresholds: bool | Sequence[float] = False,
     plot_populations: Literal["independent", "intersections", False] = False,
     mol: Mol | None = None,
@@ -255,7 +260,9 @@ def _sanity_check_per_trajectory(
 
     # Rename to filter-method prefixed names
     ds_tmp = type(ds_lengths)(
-        ds_lengths.dataset.rename_dims({"criterion": prefix + "_criterion"}).rename_vars(
+        ds_lengths.dataset.rename_dims(
+            {"criterion": prefix + "_criterion"}
+        ).rename_vars(
             {
                 key: prefix + "_" + key
                 for key in rename_keys

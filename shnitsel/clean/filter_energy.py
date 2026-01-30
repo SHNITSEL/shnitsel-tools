@@ -6,6 +6,7 @@ import numpy as np
 from shnitsel.data.dataset_containers import Frames, Trajectory, wrap_dataset
 import xarray as xr
 
+from shnitsel.data.dataset_containers.data_series import DataSeries
 from shnitsel.data.multi_indices import mdiff
 from shnitsel.clean.common import dispatch_filter
 from shnitsel.clean.dispatch_plots import dispatch_plots
@@ -33,6 +34,30 @@ class EnergyFiltrationThresholds:
     etot_drift: float = 0.2
     ekin_step: float = 0.7
     energy_unit: str = energy.eV
+
+    def __init__(self, kv_map: dict[str, float] | None = None):
+        if kv_map is not None:
+            kv_map = dict(kv_map)
+            if "epot_active_step" in kv_map:
+                self.epot_active_step = kv_map["epot_active_step"]
+                del kv_map["epot_active_step"]
+            if "epot_hop_step" in kv_map:
+                self.epot_hop_step = kv_map["epot_hop_step"]
+                del kv_map["epot_hop_step"]
+            if "etot_step" in kv_map:
+                self.etot_step = kv_map["etot_step"]
+                del kv_map["etot_step"]
+            if "etot_drift" in kv_map:
+                self.etot_drift = kv_map["etot_drift"]
+                del kv_map["etot_drift"]
+            if "ekin_step" in kv_map:
+                self.ekin_step = kv_map["ekin_step"]
+                del kv_map["ekin_step"]
+
+            if kv_map:
+                logging.warning(
+                    f"Unsupported energy filtration criteria: {kv_map.keys}"
+                )
 
     def to_dataarray(
         self, selected_criteria: Sequence[str] | None = None
@@ -75,9 +100,9 @@ class EnergyFiltrationThresholds:
 
 
 def calculate_energy_filtranda(
-    frames_or_trajectory: Frames | Trajectory,
+    frames_or_trajectory: xr.Dataset | DataSeries,
     *,
-    energy_thresholds: EnergyFiltrationThresholds | None = None,
+    energy_thresholds: dict[str, float] | EnergyFiltrationThresholds | None = None,
 ) -> xr.DataArray:
     """Derive energetic filtration targets from an xr.Dataset
 
@@ -99,11 +124,17 @@ def calculate_energy_filtranda(
         etot_drift, etot_step and ekin_step if the input contains an e_kin variable
     """
     if isinstance(frames_or_trajectory, xr.Dataset):
-        frames_or_trajectory = Frames(frames_or_trajectory)
-    elif not isinstance(frames_or_trajectory, (Frames, Trajectory)):
+        frames_or_trajectory = wrap_dataset(frames_or_trajectory, DataSeries)
+
+    elif not isinstance(frames_or_trajectory, DataSeries):
         message: str = 'Filtered dataset object is of type %s instead of the required types Frames or Trajectory'
         logging.warning(message, type(frames_or_trajectory))
         raise ValueError(message % type(frames_or_trajectory))
+
+    if energy_thresholds is None or not isinstance(
+        energy_thresholds, EnergyFiltrationThresholds
+    ):
+        energy_thresholds = EnergyFiltrationThresholds(energy_thresholds)
 
     if not frames_or_trajectory.has_data('astate'):
         message: str = 'Skipping active energy filtering because of missing variable `astate` in the trajectory'
@@ -175,7 +206,7 @@ def filter_by_energy(
     frames_or_trajectory: TrajectoryOrFrames,
     filter_method: Literal["truncate", "omit", "annotate"] | float = "truncate",
     *,
-    energy_thresholds: EnergyFiltrationThresholds | None = None,
+    energy_thresholds: dict[str, float] | EnergyFiltrationThresholds | None = None,
     plot_thresholds: bool | Sequence[float] = False,
     plot_populations: Literal["independent", "intersections", False] = False,
 ) -> TrajectoryOrFrames | None:
@@ -232,9 +263,6 @@ def filter_by_energy(
     analysis_data: Trajectory | Frames = wrap_dataset(
         frames_or_trajectory, Trajectory | Frames
     )
-
-    if energy_thresholds is None:
-        energy_thresholds = EnergyFiltrationThresholds()
 
     filtranda = calculate_energy_filtranda(
         analysis_data, energy_thresholds=energy_thresholds

@@ -146,7 +146,7 @@ class TrajSelector(FrameSelector):
 
     def bkapp(self, doc):
         source = ColumnDataSource(data=self.df[[self.xname, self.yname]])
-        assert 'trajid_time' in source.data
+        assert 'atrajectory_time' in source.data
         plot = figure(
             tools='lasso_select,tap',  # type: ignore
             title=self.title,
@@ -173,16 +173,16 @@ class TrajSelector(FrameSelector):
             args=dict(source=source, div=div),
             code="""
             //debugger;
-            let trajids = source.selected.indices.map((i) => source.data.trajid_time[i][0]);        
+            let trajids = source.selected.indices.map((i) => source.data.atrajectory_time[i][0]);        
             const set_unique_trajids = new Set(trajids);
             const unique_trajids = [...set_unique_trajids];
 
-            div.text = "<span><b>trajids:</b> " + unique_trajids.join(", ") + "</span>";
+            div.text = "<span><b>Trajectory IDs:</b> " + unique_trajids.join(", ") + "</span>";
 
             source.data['_color'] = new Uint8Array(source.data['0'].length).fill(3);
 
             for (let i = 0; i < source.data['0'].length; i++) {
-                if (set_unique_trajids.has(source.data.trajid_time[i][0])) {
+                if (set_unique_trajids.has(source.data.atrajectory_time[i][0])) {
                     source.data['_color'][i] = 1;
                 };
             };
@@ -190,7 +190,7 @@ class TrajSelector(FrameSelector):
                 source.data['_color'][i] = 2;
             };
             source.change.emit();
-        """
+        """,
         )
 
         source.selected.js_on_change('indices', js_callback)

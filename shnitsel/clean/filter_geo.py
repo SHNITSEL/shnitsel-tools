@@ -1,14 +1,16 @@
 from dataclasses import dataclass
 from typing import Literal, Sequence, TypeVar
+from copy import copy
 
 import numpy as np
 import xarray as xr
 from rdkit.Chem import Mol
 
 from shnitsel.data.dataset_containers import wrap_dataset
+from shnitsel.data.dataset_containers.data_series import DataSeries
 from shnitsel.data.dataset_containers.frames import Frames
 from shnitsel.data.dataset_containers.trajectory import Trajectory
-from shnitsel.filtering.structure_selection import StructureSelection
+from shnitsel.filtering.structure_selection import SMARTSstring, StructureSelection
 from shnitsel.geo.geocalc import get_distances
 from shnitsel.bridges import construct_default_mol
 from shnitsel.clean.common import dispatch_filter
@@ -42,8 +44,17 @@ class GeometryFiltrationThresholds:
     # Each SMARTs should ideally only cover one bond.
     match_thresholds: dict[str, float] | None = None
 
-    def __init__(self):
-        self.match_thresholds = dict()
+    def __init__(self, settings: dict[str, float] | None = None):
+        if settings is None:
+            self.match_thresholds = dict()
+        elif isinstance(settings, dict):
+            self.match_thresholds = settings
+        elif isinstance(settings, GeometryFiltrationThresholds):
+            # initializing from instance of self
+            self.match_thresholds = settings.get_full_match_dict()
+            self.length_unit = settings.length_unit
+        else:
+            raise ValueError()
 
     def get_full_match_dict(self) -> dict[str, float]:
         """Get the full dictionary of SMARTs strings and associated bond length thresholds.
@@ -101,8 +112,10 @@ class GeometryFiltrationThresholds:
 
 
 def calculate_bond_length_filtranda(
-    frames: Frames | Trajectory,
-    geometry_thresholds: GeometryFiltrationThresholds | None = None,
+    frames: xr.Dataset | DataSeries,
+    geometry_thresholds: dict[SMARTSstring, float]
+    | GeometryFiltrationThresholds
+    | None = None,
     mol: Mol | None = None,
 ) -> xr.DataArray:
     """Derive bond length filtration targets from an xr.Dataset
@@ -131,11 +144,11 @@ def calculate_bond_length_filtranda(
         one criterion per ``search_dict`` entry.
     """
     if isinstance(frames, xr.Dataset):
-        frames = Frames(frames)
+        frames = wrap_dataset(frames, DataSeries)
 
-    if geometry_thresholds is None:
-        # Assign default threshold rules.
-        geometry_thresholds = GeometryFiltrationThresholds()
+    # Assign default threshold rules.
+    if not isinstance(geometry_thresholds, GeometryFiltrationThresholds):
+        geometry_thresholds = GeometryFiltrationThresholds(geometry_thresholds)
 
     thresholds_array = geometry_thresholds.to_dataarray()
 
@@ -173,7 +186,9 @@ def filter_by_length(
     frames_or_trajectory: TrajectoryOrFrames,
     filter_method: Literal["truncate", "omit", "annotate"] | float = "truncate",
     *,
-    geometry_thresholds: GeometryFiltrationThresholds | None = None,
+    geometry_thresholds: dict[SMARTSstring, float]
+    | GeometryFiltrationThresholds
+    | None = None,
     mol: Mol | None = None,
     plot_thresholds: bool | Sequence[float] = False,
     plot_populations: Literal["independent", "intersections", False] = False,

@@ -301,10 +301,19 @@ def construct_default_mol(
     charge_int: int | None = None
     atXYZ: xr.DataArray
 
+    def sap(mol):
+        nonlocal molAtomMapNumber, atomNote, atomLabel
+        return set_atom_props(
+            mol,
+            molAtomMapNumber=molAtomMapNumber,
+            atomNote=atomNote,
+            atomLabel=atomLabel,
+        )
+
     if isinstance(obj, xr.Dataset):
         # TODO: FIXME: Make these internal attributes with double underscores so they don't get written out.
         if '__mol' in obj.attrs:
-            return rc.Mol(obj.attrs['__mol'])
+            return sap(rc.Mol(obj.attrs['__mol']))
         elif 'atXYZ' in obj:  # We have a frames Dataset
             atXYZ = _most_stable_frame(obj['atXYZ'], obj)
         else:
@@ -319,7 +328,7 @@ def construct_default_mol(
                 logging.debug(f'{charge=}')
     else:
         if '__mol' in obj.attrs:
-            return rc.Mol(obj.attrs['__mol'])
+            return sap(rc.Mol(obj.attrs['__mol']))
         atXYZ = obj  # We have an atXYZ DataArray
 
     if charge is not None:
@@ -339,13 +348,13 @@ def construct_default_mol(
 
     # TODO: FIXME: Make these internal attributes with double underscores so they don't get written out.
     if '__mol' in atXYZ.attrs:
-        return rc.Mol(obj.attrs['__mol'])
+        return sap(rc.Mol(obj.attrs['__mol']))
     elif 'smiles_map' in obj.attrs:
         if not silent_mode:
             logging.debug("default_mol: Using `obj.attrs['smiles_map']`")
         mol = numbered_smiles_to_mol(obj.attrs['smiles_map'])
     elif 'smiles_map' in atXYZ.attrs:
-        return numbered_smiles_to_mol(atXYZ.attrs['smiles_map'])
+        return sap(numbered_smiles_to_mol(atXYZ.attrs['smiles_map']))
 
     if 'frame' in atXYZ.dims:
         if not silent_mode:
@@ -363,12 +372,7 @@ def construct_default_mol(
     try:
         if charge_int != 0 and not silent_mode:
             logging.info(f"Creating molecule with {charge_int=}")
-        return set_atom_props(
-            to_mol(atXYZ, charge=charge_int, to2D=to2D),
-            molAtomMapNumber=molAtomMapNumber,
-            atomNote=atomNote,
-            atomLabel=atomLabel,
-        )
+        return sap(to_mol(atXYZ, charge=charge_int, to2D=to2D))
     except (KeyError, ValueError) as e:
         if not silent_mode:
             logging.error(e)

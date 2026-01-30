@@ -186,7 +186,7 @@ def hops(
         hop_to=res['astate'],
     )
     if hasattr(res, 'drop_dims'):
-        res = res.drop_dims(['atrajectory'], errors='ignore')
+        res = res.drop_dims(['trajectory'], errors='ignore')
     return res
 
 
@@ -453,13 +453,16 @@ def assign_hop_time(
 
         - the ``hop_time`` coordinate added along the ``frame`` dimension, containing
           all times relative to one chosen hop in each trajectory,
-        - the ``time_at_hop`` coordinate added along the ``trajid_`` dimension,
+        - the ``time_at_hop`` coordinate added along the ``trajectory`` dimension,
           containing the time at which each chosen hop occurred
 
     Both of these coordinates contain ``nan`` for trajectories lacking any hops of the
     types specified
     """
-    raise NotImplementedError()
+    if isinstance(frames, (xr.DataTree, TreeNode, ShnitselDB)):
+        raise NotImplementedError(
+            f"This function is not yet implemented for type {type(frames)}"
+        )
     # TODO: FIXME: Refactor this to new wrapper types
     if frames.sizes["frame"] == 0:
         return frames.assign_coords(hop_time=("frame", []))
@@ -476,15 +479,24 @@ def assign_hop_time(
         fn = max
     d_times = {
         trajid: fn(traj.coords["time"]).item()
-        for trajid, traj in hop_vals.groupby("trajid")
+        for trajid, traj in hop_vals.groupby("atrajectory")
     }
 
-    hop_time = frames.time.groupby("trajid").map(
-        lambda traj: traj.time.data - d_times.get(traj.trajid.item(0), np.nan)
+    hop_time = frames.time.groupby("atrajectory").map(
+        lambda traj: traj.time.data - d_times.get(traj['atrajectory'].item(0), np.nan)
     )
 
-    time_at_hop = [
-        d_times.get(trajid.item(), np.nan) for trajid in frames.coords["trajid_"]
-    ]
+    # TODO (thevro): When the data of an input DataArray doesn't have a 'trajectory' dimension,
+    # we can't add the `time_at_hop` info as a coordinate. Alternative approaches?
+    # It's not exactly hard to do `da.sel(hop_time=0).time` anyway, which gives the same info.
+    if 'trajectory' in frames.dims:
+        if 'trajectory' not in frames.coords:
+            frames = frames.assign_coords(
+                trajectory=np.unique(frames.coords['atrajectory'].data)
+            )
+        time_at_hop = [
+            d_times.get(trajid.item(), np.nan) for trajid in frames.coords["trajectory"]
+        ]
+        frames = frames.assign_coords(time_at_hop=("trajectory", time_at_hop))
 
-    return frames.assign_coords(hop_time=hop_time, time_at_hop=("trajid_", time_at_hop))
+    return frames.assign_coords(hop_time=hop_time)
