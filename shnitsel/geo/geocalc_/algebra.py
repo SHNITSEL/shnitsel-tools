@@ -1,7 +1,7 @@
 import xarray as xr
 
 from shnitsel.core.typedefs import DataArrayOrVar
-from ...analyze.generic import norm
+from shnitsel.analyze.generic import norm
 import numpy as np
 
 
