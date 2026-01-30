@@ -279,14 +279,16 @@ def filter_data_at_hops(
     else:
         if isinstance(active_state_and_data_source, xr.DataArray):
             is_hop_mask = hops_mask_from_active_state(
-                active_state_source=active_state_and_data_source
+                active_state_source=active_state_and_data_source,
+                hop_type_selection=hop_type_selection,
             )
             return active_state_and_data_source[is_hop_mask]
         else:
             # Frames or Trajectory
             input_dataset = wrap_dataset(active_state_and_data_source, DataSeries)
             is_hop_mask = hops_mask_from_active_state(
-                active_state_source=active_state_and_data_source
+                active_state_source=active_state_and_data_source,
+                hop_type_selection=hop_type_selection,
             )
             # This introduces the coordinates for is_hop_mask, namely the mask of hopping point flags, the hop_from and hop_to coordinates.
             tmp_dataset = input_dataset.assign_coords(is_hop_mask=is_hop_mask)
