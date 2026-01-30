@@ -10,9 +10,9 @@ import shnitsel.xarray
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 project = 'shnitsel-tools'
-copyright = '2025, Theodor Everley Röhrkasten, Carolin Müller'
-author = 'Theodor Everley Röhrkasten, Carolin Müller'
-release = '0.0.1'
+copyright = '2026, Kevin Höllring, Theodor Everley Röhrkasten, Carolin Müller'
+author = 'Kevin Höllring, Theodor Everley Röhrkasten, Carolin Müller'
+release = '2026.01'
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
