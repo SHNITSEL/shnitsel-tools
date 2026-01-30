@@ -88,7 +88,9 @@ Readable = TypeVar("Readable", bound=SupportsFromXrConversion)
 INPUT_TYPE_REGISTRY: dict[str, type[SupportsFromXrConversion]] = {}
 
 
-def register_custom_xr_input_type(cls: type[Readable], io_type_tag: str | None) -> bool:
+def register_custom_xr_input_type(
+    cls: type[Readable], io_type_tag: str | None = None
+) -> bool:
     """Function to register a custom type that can be parsed from an xarray Dataset
     using the `SupportsFromXrConversion` protocol definition to support input from
     xarray style netcdf files.
@@ -140,3 +142,31 @@ def get_registered_input_handler(
         return INPUT_TYPE_REGISTRY[io_type_tag]
     else:
         return None
+
+
+def setup_defaults():
+    """Helper function to register all default shnitsel data types with the xr io compatibility registry."""
+    from ..data.dataset_containers import (
+        ShnitselDataset,
+        DataSeries,
+        Trajectory,
+        Frames,
+        PerState,
+        InterState,
+        MultiSeriesDataset,
+        MultiSeriesLayered,
+        MultiSeriesStacked,
+    )
+
+    register_custom_xr_input_type(ShnitselDataset)
+    register_custom_xr_input_type(DataSeries)
+    register_custom_xr_input_type(Trajectory)
+    register_custom_xr_input_type(Frames)
+    register_custom_xr_input_type(PerState)
+    register_custom_xr_input_type(InterState)
+    register_custom_xr_input_type(MultiSeriesDataset)
+    register_custom_xr_input_type(MultiSeriesLayered)
+    register_custom_xr_input_type(MultiSeriesStacked)
+
+
+setup_defaults()
