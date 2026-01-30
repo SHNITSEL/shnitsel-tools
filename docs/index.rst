@@ -59,7 +59,7 @@ Converting to other data-layouts...
 
       ds = db.as_stacked  # All trajectories along the same axis
       # or:
-      ds = db.as_layered  # Seperate axes for trajectory and time
+      ds = db.as_layered  # Separate axes for trajectory and time
 
 Saving data to...
 -----------------
@@ -93,7 +93,7 @@ Select...
 
 .. code-block::
 
-   ds.sel(trajid=1)
+   ds.sel(trajectory=1)
 
 ...a point in time:
 
