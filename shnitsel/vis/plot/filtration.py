@@ -210,27 +210,47 @@ def validity_populations(ds_or_da, intersections: bool = True) -> Axes:
     -------
         The matplotlib ``Axes`` object of the plots
     """
+    # First make sure we have a DataArray rather than a Dataset
     if hasattr(ds_or_da, 'data_vars'):
         filtranda = ds_or_da['filtranda'].copy()
     else:
         filtranda = ds_or_da.copy()
-    mask = _filter_mask_from_criterion_mask(filtranda)
-    mask = mask.drop_vars(['thresholds', 'good_throughout'], errors='ignore')
+
+    # Then make sure the DataArray is in the unstacked aka. layered format
+
+    # mask, _ = ensure_unstacked(mask)
+    # TODO: Use this local reimplementation of `ensure_unstacked()` to rewrite ensure_unstacked;
+    # see also in `check_thresholds()`
+    if 'frame' in filtranda.dims:
+        filtranda = filtranda.assign_coords(
+            {'is_frame': ('frame', np.ones(filtranda.sizes['frame']))}
+        )
+        # Assuming filtranda is a stacked Dataset/DataArray, unstack it
+        if hasattr(filtranda, 'drop_dims'):
+            # DataArrays don't have this method
+            filtranda = filtranda.drop_dims(['trajectory'], errors='ignore')
+        filtranda = filtranda.unstack('frame').rename({'atrajectory': 'trajectory'})
+        filtranda['is_frame'] = filtranda['is_frame'].fillna(0).astype(bool)
+
+    # Drop thresholds to stop interference with total_population below
+    mask = (filtranda < filtranda['thresholds']).drop_vars('thresholds')
+
     mask = (
         mask.to_dataset('criterion')
         .assign({'total_population': mask.coords['is_frame']})
         .to_dataarray('criterion')
     )
 
-    mask, _ = ensure_unstacked(mask)
+    # For populations, we need a cumulative mask
+    mask = mask.cumprod('time')
 
     # FIXME: Once ensure_unstacked is fixed or replaced with as_layered, we should
     # use 'trajectory' in the following rather than 'atrajectory'
-    counts = mask.sum('atrajectory')
+    counts = mask.sum('trajectory')
     means = counts.mean('time')
     if intersections:
         counts = (
-            mask.sortby(means, ascending=False).cumprod('criterion').sum('atrajectory')
+            mask.sortby(means, ascending=False).cumprod('criterion').sum('trajectory')
         )
     else:
         counts = counts.sortby(means, ascending=False)
