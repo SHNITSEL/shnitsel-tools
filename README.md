@@ -69,10 +69,169 @@ More information on how to invoke `pytest` is available [here](https://docs.pyte
 
 If you are a contributor, please consider using the `tox` command to run tests across the different supported Python versions.
 
-## Tree
-
-```bash
-# TODO: regenerate directory tree
+## Overview of repository contents
+```console
+$ tree -I '_*' shnitsel/
+shnitsel
+├── analyze
+│   ├── generic.py
+│   ├── hops.py
+│   ├── lda.py
+│   ├── pca.py
+│   ├── pls.py
+│   ├── populations.py
+│   ├── spectra.py
+│   └── stats.py
+├── bridges.py
+├── clean
+│   ├── common.py
+│   ├── dispatch_plots.py
+│   ├── filter_energy.py
+│   ├── filter_geo.py
+│   └── filtration_class.py
+├── cli
+│   ├── convert_to_shnitsel.py
+│   ├── generate_datasheet.py
+│   └── merge_shnitsel_files.py
+├── core
+│   ├── feature_detection.py
+│   └── typedefs.py
+├── data
+│   ├── atom_helpers.py
+│   ├── charge_helpers.py
+│   ├── dataset_containers
+│   │   ├── data_series.py
+│   │   ├── dataset_vis.py
+│   │   ├── frames.py
+│   │   ├── inter_state.py
+│   │   ├── multi_layered.py
+│   │   ├── multi_series.py
+│   │   ├── multi_stacked.py
+│   │   ├── per_state.py
+│   │   ├── shared.py
+│   │   ├── trajectory_collection.py
+│   │   ├── trajectory.py
+│   │   └── xr_conversion.py
+│   ├── helpers.py
+│   ├── multi_indices.py
+│   ├── proxy_class.py
+│   ├── shnitsel_db
+│   │   └── db_function_decorator.py
+│   ├── shnitsel_db_helpers.py
+│   ├── state_helpers.py
+│   ├── traj_combiner_methods.py
+│   ├── trajectory_grouping_params.py
+│   ├── trajectory_variable_description.py
+│   └── tree
+│       ├── child_support_functions.py
+│       ├── compound.py
+│       ├── data_group.py
+│       ├── data_leaf.py
+│       ├── datatree_level.py
+│       ├── node.py
+│       ├── selection.py
+│       ├── support_functions.py
+│       ├── tree_completion.py
+│       ├── tree.py
+│       ├── tree_vis.py
+│       └── xr_conversion.py
+├── filtering
+│   ├── filter.md
+│   ├── helpers.py
+│   ├── state_selection.py
+│   └── structure_selection.py
+├── geo
+│   ├── alignment.py
+│   ├── analogs.py
+│   ├── geocalc_
+│   │   ├── algebra.py
+│   │   ├── angles.py
+│   │   ├── bla_chromophor.py
+│   │   ├── dihedrals.py
+│   │   ├── distances.py
+│   │   ├── helpers.py
+│   │   ├── positions.py
+│   │   └── pyramids.py
+│   └── geocalc.py
+├── io
+│   ├── ase
+│   │   ├── format_reader.py
+│   │   ├── parse.py
+│   │   └── write.py
+│   ├── format_reader_base.py
+│   ├── format_registry.py
+│   ├── molcas
+│   │   └── molcas_opt.py
+│   ├── newtonx
+│   │   ├── format_reader.py
+│   │   └── parse.py
+│   ├── pyrai2md
+│   │   ├── format_reader.py
+│   │   └── parse.py
+│   ├── read.py
+│   ├── sharc
+│   │   ├── format_reader.py
+│   │   ├── parse_initial_conditions.py
+│   │   ├── parse_trajectory.py
+│   │   └── qm_helpers.py
+│   ├── shared
+│   │   ├── helpers.py
+│   │   ├── messages.py
+│   │   ├── trajectory_finalization.py
+│   │   ├── trajectory_setup.py
+│   │   └── variable_flagging.py
+│   ├── shnitsel
+│   │   ├── format_reader.py
+│   │   ├── parse.py
+│   │   └── write.py
+│   ├── xr_io_compatibility.py
+│   └── xyz
+│       └── parse.py
+├── rd.py
+├── test_support
+│   └── trajectory_verification.py
+├── units
+│   ├── conversion.py
+│   ├── defaults.py
+│   └── definitions.py
+├── vis
+│   ├── colormaps.py
+│   ├── datasheet
+│   │   ├── datasheet_page.py
+│   │   ├── datasheet.py
+│   │   └── figures
+│   │       ├── common.py
+│   │       ├── dip_trans_hist.py
+│   │       ├── energy_bands.py
+│   │       ├── hist.py
+│   │       ├── nacs_hist.py
+│   │       ├── per_state_hist.py
+│   │       ├── socs_hist.py
+│   │       ├── soc_trans_hist.py
+│   │       ├── structure.py
+│   │       └── time.py
+│   ├── plot
+│   │   ├── common.py
+│   │   ├── filtration.py
+│   │   ├── kde.py
+│   │   ├── p3mhelpers.py
+│   │   ├── pca_biplot.py
+│   │   ├── polychrom.py
+│   │   ├── select.py
+│   │   ├── spectra3d.py
+│   │   └── time.py
+│   ├── static
+│   │   ├── css
+│   │   │   └── style.css
+│   │   └── html
+│   │       └── icons-svg-inline.html
+│   ├── support
+│   │   ├── ipython_visualization.py
+│   │   ├── multi_plot.py
+│   │   └── visualizeable.py
+│   └── vmd
+│       └── script.tcl
+└── xarray.py
 ```
 
 ## Detailed installation instructions
@@ -116,13 +275,6 @@ Unlike `conda`, it creates traditional Python virtual environments, which are st
 a shell-script. It can be installed by following the instructions at https://docs.astral.sh/uv/.
 
 
-#### For use on HPC
-The following will ensure the command-line programs provided are always available,
-without requiring environments to be activated first.
-```bash
-uv tool install shnitsel-tools
-```
-
 #### For tutorials, tests or development (uv)
 If you would like to work through the tutorials or modify the code, run the tests, please use the following commands:
 
@@ -142,6 +294,15 @@ Instead, it should suffice to run the following commands:
 uv venv --python 3.12 shnitsel  # create a directory here named ./shnitsel
 source shnitsel/bin/activate  # activate the new environment
 uv pip install shnitsel-tools[vis]
+```
+
+#### If you only want to use the command-line
+The following will ensure the command-line programs provided are always available,
+without requiring environments to be activated first.  
+This may be the easiest approach for use on HPC.
+It is not expected to support interactive notebook-based workflows.
+```bash
+uv tool install shnitsel-tools
 ```
 
 <!--
