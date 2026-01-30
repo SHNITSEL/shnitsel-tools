@@ -8,7 +8,7 @@ from shnitsel.units import standard_shnitsel_units
 from shnitsel.units.definitions import unit_dimensions
 
 # TODO: FIXME: Some attributes are turned into variables on merged trajectories.
-_required_shnitsel_variables = ["energy", "time"]
+_required_shnitsel_variables = ["energy", "time", "delta_t", "t_max", "max_ts"]
 _optional_shnitsel_variables = [
     "atXYZ",
     "nacs",
@@ -39,18 +39,16 @@ _optional_shnitsel_variables = [
     'full_statecomb',
     'full_statecomb_from',
     'full_statecomb_to',
+    'charge'
 ]
 _required_shnitsel_attributes = [
     "input_format",
     "input_format_version",
     "input_type",
     "completed",
-    "max_ts",
-    "delta_t",
     "num_singlets",
     "num_doublets",
     "num_triplets",
-    "t_max",
 ]
 _optional_shnitsel_attributes = [
     "has_forces",
@@ -58,10 +56,15 @@ _optional_shnitsel_attributes = [
     "trajectory_input_path",
     "trajid",
     "__original_dataset",
+    "trajectory_id",
+    "_shnitsel_setup_for_cleanup",
     "is_multi_trajectory",
     "misc_input_settings",
     "theory_basis_set",
     "est_level",
+    "max_ts",
+    "delta_t",
+    "t_max",
 ]
 
 
