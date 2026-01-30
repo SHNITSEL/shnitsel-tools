@@ -33,7 +33,7 @@ available through the ``da.st.suitable`` list and the ``da.st.unsuitable`` dicti
 
     DataArray.st.angle
     DataArray.st.assign_levels
-    DataArray.st.calc_ci
+    DataArray.st.calc_confidence_interval
     DataArray.st.default_mol
     DataArray.st.dihedral
     DataArray.st.distance
@@ -53,9 +53,21 @@ available through the ``da.st.suitable`` list and the ``da.st.unsuitable`` dicti
     DataArray.st.sel_trajs
     DataArray.st.subtract_combinations
     DataArray.st.sudi
-    DataArray.st.time_grouped_ci
+    DataArray.st.time_grouped_confidence_interval
     DataArray.st.to_mol
     DataArray.st.to_xyz
     DataArray.st.traj_to_xyz
     DataArray.st.trajs_with_hops
     DataArray.st.ts_to_time
+
+..
+    missing:
+        DataArray.st.get_bond_lengths
+        DataArray.st.get_hop_types
+        DataArray.st.hop_indices
+        DataArray.st.last_time_where
+        DataArray.st.pairwise_dists_pca
+        DataArray.st.relativize
+        DataArray.st.sudi
+        DataArray.st.trajs_with_hops
+        DataArray.st.ts_to_time

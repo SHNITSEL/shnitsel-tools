@@ -2,6 +2,7 @@ from contextlib import suppress
 from dataclasses import dataclass
 from typing import Any, Hashable, Iterable, Literal, Mapping, Self
 import rdkit
+import rdkit.Chem  # Avoid import error seen in RDKit 2025.09.3, Python 3.12.7
 import xarray as xr
 
 from ..xr_io_compatibility import (

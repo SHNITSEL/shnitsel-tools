@@ -14,13 +14,13 @@ from shnitsel.filtering.structure_selection import (
     StructureSelection,
     StructureSelectionDescriptor,
 )
-from .helpers import (
+from shnitsel.geo.geocalc_.helpers import (
     _assign_descriptor_coords,
     _empty_descriptor_results,
 )
 from shnitsel.filtering.helpers import _get_default_structure_selection
 
-from .algebra import dnorm
+from shnitsel.geo.geocalc_.algebra import dnorm
 
 
 @API()

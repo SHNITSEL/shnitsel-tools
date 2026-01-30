@@ -116,3 +116,4 @@ Reference
    accessors/ds_accessors
    accessors/da_accessors
    api/index
+   tutorials

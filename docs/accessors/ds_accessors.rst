@@ -33,9 +33,9 @@ available through the ``ds.st.suitable`` list and the ``ds.st.unsuitable`` dicti
     Dataset.st.assign_fosc
     Dataset.st.assign_levels
     Dataset.st.ds_broaden_gauss
-    Dataset.st.calc_pops
+    Dataset.st.calc_classical_populations
     Dataset.st.default_mol
-    Dataset.st.energy_filtranda
+    Dataset.st.calculate_energy_filtranda
     Dataset.st.expand_midx
     Dataset.st.find_hops
     Dataset.st.flatten_levels
@@ -53,4 +53,16 @@ available through the ``ds.st.suitable`` list and the ``ds.st.unsuitable`` dicti
     Dataset.st.truncate
     Dataset.st.ts_to_time
     Dataset.st.validate
-    Dataset.st.write_ase
+    Dataset.st.write_ase_db
+
+..
+    missing
+    Dataset.st.assign_fosc
+    Dataset.st.ds_broaden_gauss
+    Dataset.st.find_hops
+    Dataset.st.get_cutoffs
+    Dataset.st.iconds_to_frames
+    Dataset.st.save_frames
+    Dataset.st.setup_frames
+    Dataset.st.spectra_all_times
+    Dataset.st.ts_to_time
