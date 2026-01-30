@@ -1,6 +1,7 @@
 from typing import Any, Sequence, overload
 from matplotlib.axes import Axes
 import matplotlib.pyplot as plt
+import numpy as np
 import xarray as xr
 
 from shnitsel.clean.common import (
@@ -80,37 +81,46 @@ def check_thresholds(
                 "Dataset provided to `check_thresholds()` has no filtranda data set."
             )
 
-        if hasattr(filtranda, 'as_layered'):
-            filtranda = filtranda.as_layered
+        if 'frame' in filtranda.dims:
+            filtranda = filtranda.assign_coords(
+                {'is_frame': ('frame', np.ones(filtranda.sizes['frame']))}
+            )
+            # Assuming filtranda is a stacked Dataset/DataArray, unstack it
+            if hasattr(filtranda, 'drop_dims'):
+                # DataArrays don't have this method
+                filtranda = filtranda.drop_dims(['trajectory'], errors='ignore')
+            filtranda = filtranda.unstack('frame').rename({'atrajectory': 'trajectory'})
+            filtranda['is_frame'] = filtranda['is_frame'].fillna(0).astype(bool)
 
-        calculated_quantile_positions = cum_max_quantiles(filtranda, quantiles=quantiles)
+        calculated_quantile_positions = cum_max_quantiles(
+            filtranda, quantiles=quantiles
+        )
 
         if 'thresholds' in filtranda.coords:
             # TODO: This is too complicated. Why calculate quantiles first and and then calculate true_upto?
             # Extract the true_upto per filtranda and then get the quantiles from the set of `true_upto`.
             good_throughout = (
-                (filtranda < filtranda['thresholds'])
-                .groupby('atrajectory')
-                .all('frame')
-            )
+                (filtranda < filtranda['thresholds']) | (~filtranda['is_frame'])
+            ).all('time')
             filtranda['proportion'] = (
-                good_throughout.sum('atrajectory')
-                / good_throughout.sizes['atrajectory']
+                good_throughout.sum('trajectory') / good_throughout.sizes['trajectory']
             )
             calculated_quantile_positions['intercept'] = true_upto(
                 calculated_quantile_positions < filtranda['thresholds'], 'time'
             )
 
         fig, axs = plt.subplots(
-            quantiles.sizes['criterion'],
+            calculated_quantile_positions.sizes['criterion'],
             2,
             sharex='col',
             sharey='row',
             layout='constrained',
             width_ratios=[1, 2],
         )
-        fig.set_size_inches(6, 2 * quantiles.sizes['criterion'])
-        for (title, data), ax in zip(quantiles.groupby('criterion'), axs[:, 1]):
+        fig.set_size_inches(6, 2 * calculated_quantile_positions.sizes['criterion'])
+        for (title, data), ax in zip(
+            calculated_quantile_positions.groupby('criterion'), axs[:, 1]
+        ):
             if 'thresholds' in data.coords:
                 threshold = data.coords['thresholds'].item()
                 ax.axhline(threshold, c=shnitsel_yellow)
@@ -145,8 +155,11 @@ def check_thresholds(
         for (title, data), ax in zip(filtranda.groupby('criterion'), axs[:, 0]):
             data = data.squeeze('criterion')
             ax.set_ylabel(title)
+            # NOTE (thevro): groupby('trajectory').max() behaves strangely
+            # for unstacked format, so use groupby.map() instead
+            max_value_per_traj = data.groupby('trajectory').map(lambda x: x.max())
             ax.hist(
-                data.groupby('trajid').max(),
+                max_value_per_traj,
                 density=True,
                 cumulative=True,
                 orientation='horizontal',

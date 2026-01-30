@@ -360,7 +360,7 @@ def cum_max_quantiles(
     cum_dim : DimName, optional
         The dimension along which to accumulate the maxima, by default `time`
     group_dim : DimName, optional
-        The key/dimension along which to calculate the quantiles of the maxima, by default `trajectory`.
+        The key/dimension along which to calculate the quantiles of the maxima, by default `atrajectory`.
 
     Returns
     -------
@@ -374,8 +374,8 @@ def cum_max_quantiles(
     The data returned by this function is intended for consumption by
     :py:func:`shnitsel.vis.plot.filtration.check_thresholds`
     """
-    # NOTE (thevro): This function doesn't accept stacked, only unstacked (layered)
-    filtranda_array, _ = ensure_unstacked(filtranda_array)
+    # # NOTE (thevro): This function doesn't accept stacked, only unstacked (layered)
+    # filtranda_array, _ = ensure_unstacked(filtranda_array)
 
     if quantiles is None:
         quantiles = [0.25, 0.5, 0.75, 0.9, 0.95, 0.99, 1]
