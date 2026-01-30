@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from shnitsel.io.xr_io_compatibility import MetaData, ResType
+from ..xr_io_compatibility import MetaData, ResType
 
 from .shared import ShnitselDerivedDataset
 from .data_series import DataSeries

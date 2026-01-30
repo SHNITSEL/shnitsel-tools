@@ -1,10 +1,9 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from functools import cached_property
-from typing import Self, Sequence, TYPE_CHECKING
+from typing import Self, TYPE_CHECKING
 import xarray as xr
 
-from shnitsel.io.xr_io_compatibility import MetaData, ResType
 from .data_series import DataSeries
 
 if TYPE_CHECKING:

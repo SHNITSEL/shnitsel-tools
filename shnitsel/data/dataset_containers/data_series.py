@@ -1,7 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from functools import cached_property
-from typing import Any, Literal, Self, TYPE_CHECKING
+from typing import Any, Literal, TYPE_CHECKING
 
 from ..trajectory_grouping_params import TrajectoryGroupingMetadata
 
