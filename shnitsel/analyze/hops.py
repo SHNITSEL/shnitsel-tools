@@ -141,14 +141,16 @@ def hops_mask_from_active_state(
 
 
 # TODO: FIXME: Make compatible with trees and wrapper datasets
-def hops(frames, hop_types: list[tuple[int, int]] | None = None):
+def hops(
+    frames, hop_type_selection: StateSelection | StateSelectionDescriptor | None = None
+):
     """Select hops
 
     Parameters
     ----------
     frames
         An Xarray object (Dataset or DataArray) with a ``frames`` dimension
-    hop_types
+    hop_type_selection
         A list of pairs of states, e.g.:
         ``[(1, 2), (2, 1), (3, 1)]``
         to select only hops between states 1 and 2 as well as from
@@ -169,26 +171,22 @@ def hops(frames, hop_types: list[tuple[int, int]] | None = None):
         - ``hop_from``: the active state before the hop
         - ``hop_to``: the active state after the hop
     """
-    hop_types = _standard_hop_spec(hop_types)
-    is_hop = mdiff(frames['astate']) != 0
-
-    res = frames.isel(frame=is_hop)
-    tidxs = np.concat(
-        [np.arange(traj.sizes['frame']) for _, traj in frames.groupby('trajid')]
+    is_hop_mask = hops_mask_from_active_state(
+        frames, hop_type_selection=hop_type_selection
     )
-    hop_tidx = tidxs[is_hop]
+
+    res = frames.isel(frame=is_hop_mask)
+    tidxs = np.concat(
+        [np.arange(traj.sizes['frame']) for _, traj in frames.groupby('atrajectory')]
+    )
+    hop_tidx = tidxs[is_hop_mask]
     res = res.assign_coords(
         tidx=('frame', hop_tidx),
         hop_from=(frames['astate'].shift({'frame': 1}, -1).isel(frame=is_hop)),
         hop_to=res['astate'],
     )
-    if hop_types is not None:
-        acc = np.full(res.sizes['frame'], False)
-        for hop_from, hop_to in hop_types:
-            acc |= (res.hop_from == hop_from) & (res.hop_to == hop_to)
-        res = res.isel(frame=acc)
     if hasattr(res, 'drop_dims'):
-        res = res.drop_dims(['trajid_'], errors='ignore')
+        res = res.drop_dims(['atrajectory'], errors='ignore')
     return res
 
 
