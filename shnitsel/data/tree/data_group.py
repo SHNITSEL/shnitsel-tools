@@ -161,7 +161,9 @@ class DataGroup(
         else:
             assert all(
                 isinstance(child, (DataGroup, DataLeaf)) for child in children.values()
-            ), "Children provided to `construct_copy` for datagroup are not of type `DataGroup` or `DataLeaf"
+            ), (
+                "Children provided to `construct_copy` for datagroup are not of type `DataGroup` or `DataLeaf"
+            )
             # We have new children and can extract the ResType from them
             new_dtype: type[ResType] | TypeForm[ResType] | None = dtype
 
@@ -294,7 +296,9 @@ class DataGroup(
                 # Generate new group for this category
                 new_group_info = GroupInfo(str(key), group_attributes=key_dict)
                 new_group = DataGroup(
-                    group_info=new_group_info, children=group_child_dict, dtype=self._dtype
+                    group_info=new_group_info,
+                    children=group_child_dict,
+                    dtype=self._dtype,
                 )
                 for i in range(10000):
                     group_name_try = f"group_{i}"
