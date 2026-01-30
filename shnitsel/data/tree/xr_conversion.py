@@ -4,7 +4,7 @@ from typing_extensions import TypeForm
 import xarray as xr
 from shnitsel.data.helpers import dataclass_from_dict
 from shnitsel.data.tree.node import TreeNode
-from shnitsel.io.xr_io_compatibility import SupportsToXrConversion
+from ..xr_io_compatibility import SupportsToXrConversion
 
 from ..dataset_containers.xr_conversion import (
     data_to_xarray_dataset,

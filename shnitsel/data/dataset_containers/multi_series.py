@@ -7,7 +7,6 @@ from typing import Sequence, TYPE_CHECKING
 from shnitsel.data.dataset_containers.frames import Frames
 from shnitsel.data.dataset_containers.trajectory import Trajectory
 from shnitsel.data.trajectory_grouping_params import TrajectoryGroupingMetadata
-from shnitsel.io.xr_io_compatibility import MetaData
 
 if TYPE_CHECKING:
     from .multi_layered import MultiSeriesLayered
@@ -70,13 +69,21 @@ class MultiSeriesDataset(DataSeries):
         )
 
     def get_grouping_metadata(self) -> TrajectoryGroupingMetadata:
+        def to_single_val(entries):
+            if isinstance(entries, xr.DataArray):
+                if entries.size > 1:
+                    return entries.values.flatten()[0]
+                return entries.item()
+
+            return entries
+
         res = TrajectoryGroupingMetadata(
-            delta_t_in_fs=self.delta_t.values[0],
-            input_format_name=self.input_format.values[0],
-            input_format_version=self.input_format_version.values[0],
-            est_level=self.est_level.values[0],
-            theory_basis_set=self.theory_basis_set.values[0],
-            charge_in_e=self.charge.values[0],
+            delta_t_in_fs=to_single_val(self.delta_t),
+            input_format_name=to_single_val(self.input_format),
+            input_format_version=to_single_val(self.input_format_version),
+            est_level=to_single_val(self.est_level),
+            theory_basis_set=to_single_val(self.theory_basis_set),
+            charge_in_e=to_single_val(self.charge),
             # TODO: FIXME: We should differentiate by all state attributes.
             num_states=len(self.state_ids),
         )

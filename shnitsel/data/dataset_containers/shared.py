@@ -4,7 +4,7 @@ from typing import Any, Hashable, Iterable, Literal, Mapping, Self
 import rdkit
 import xarray as xr
 
-from shnitsel.io.xr_io_compatibility import (
+from ..xr_io_compatibility import (
     MetaData,
     ResType,
     SupportsFromXrConversion,
@@ -17,7 +17,7 @@ from shnitsel.units.conversion import (
 
 
 @dataclass
-class ShnitselDataset(object, SupportsFromXrConversion, SupportsToXrConversion):
+class ShnitselDataset(SupportsFromXrConversion, SupportsToXrConversion):
     _raw_dataset: xr.Dataset
 
     def __init__(self, ds: xr.Dataset):

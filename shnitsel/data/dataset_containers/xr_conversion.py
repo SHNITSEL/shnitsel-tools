@@ -2,11 +2,11 @@ import logging
 from typing import Any
 
 from shnitsel.data.dataset_containers.shared import ShnitselDataset
-from shnitsel.io.xr_io_compatibility import (
+from ..xr_io_compatibility import (
     SupportsToXrConversion,
     SupportsFromXrConversion,
-    get_registered_input_handler,
 )
+from ..xr_io_registry import get_registered_input_handler
 from . import Trajectory, Frames, InterState, PerState, wrap_dataset
 import xarray as xr
 
