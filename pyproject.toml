@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "shnitsel-tools"
-version = "0.0.2.dev2"
+version = "2026.01.1"  # YYYY.0M.MICRO format; see https://calver.org
 authors = [
   { name = "Theodor Everley Röhrkasten", email = "theodor.roehrkasten@fau.de" },
   { name = "Kevin Höllring", email = "kevin.hoellring@fau.de" },
