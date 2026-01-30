@@ -3,8 +3,6 @@ import pathlib
 from typing import Any, Dict, Hashable
 import numpy as np
 
-from shnitsel.data.dataset_containers.trajectory import Trajectory
-from shnitsel.data.dataset_containers.frames import Frames
 import xarray as xr
 import json
 
@@ -13,7 +11,6 @@ from shnitsel.data.tree.xr_conversion import (
     data_to_xarray_dataset,
     tree_to_xarray_datatree,
 )
-from shnitsel.data.tree.tree import ShnitselDB
 from shnitsel.io.shared.helpers import PathOptionsType, make_uniform_path
 from shnitsel.io.xr_io_compatibility import SupportsToXrConversion
 
@@ -198,10 +195,8 @@ def _dataset_to_encoding(dataset: xr.Dataset, complevel: int) -> dict[Hashable, 
 def write_shnitsel_file(
     dataset: xr.Dataset
     | xr.DataArray
-    | Trajectory
-    | Frames
     | SupportsToXrConversion
-    | TreeNode[Any, Trajectory | Frames | SupportsToXrConversion],
+    | TreeNode[Any, xr.Dataset | xr.DataArray | SupportsToXrConversion],
     savepath: PathOptionsType,
     complevel: int = 9,
 ):
@@ -212,7 +207,7 @@ def write_shnitsel_file(
 
     Parameters
     ----------
-    dataset : xr.Dataset | Trajectory | SupportsToXrConversion | TreeNode[Any, Trajectory | Frames | SupportsToXrConversion]
+    dataset : xr.Dataset | xr.DataArray | ShnitselDataset | SupportsToXrConversion | TreeNode[Any, xr.Dataset | xr.DataArray | SupportsToXrConversion]
         The dataset or trajectory to write (omit if using accessor).
     savepath : PathOptionsType
         The path at which to save the trajectory file.
