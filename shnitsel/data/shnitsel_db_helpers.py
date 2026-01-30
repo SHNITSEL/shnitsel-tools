@@ -39,7 +39,9 @@ def concat_subtree(
         trajectories = list(subtree.collect_data())
     else:
         trajectories = [
-            x.data for x in subtree.children.values() if x.is_leaf and x.has_data
+            x.data
+            for x in subtree.children.values()
+            if x.is_leaf and x.has_data and x.data is not None
         ]
 
     return concat_trajs(trajectories)
