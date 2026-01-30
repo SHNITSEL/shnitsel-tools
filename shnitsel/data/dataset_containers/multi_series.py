@@ -87,7 +87,6 @@ class MultiSeriesDataset(DataSeries):
             # TODO: FIXME: We should differentiate by all state attributes.
             num_states=len(self.state_ids),
         )
-        print(res)
         return res
 
     @classmethod
