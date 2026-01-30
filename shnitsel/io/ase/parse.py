@@ -811,6 +811,8 @@ def read_ase(
     ValueError
         If `db_path` does not contain data corresponding to the format `db_format`
     """
+    if db_format is not None and db_format not in ['spainn', 'schnet']:
+        raise ValueError("'db_format' should be one of 'schnet' or 'spainn'")
 
     if not os.path.isfile(db_path):
         raise FileNotFoundError(f"Could not find databse at {db_path}")
