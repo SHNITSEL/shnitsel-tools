@@ -72,7 +72,6 @@ class DataArrayAccessor(DAManualAccessor):
         'convert_length',
         'convert_time',
         'convert_nacs',
-        'convert_time',
         'mdiff',
         'flatten_levels',
         'expand_midx',
@@ -182,10 +181,6 @@ class DataArrayAccessor(DAManualAccessor):
     def convert_nacs(self, to: str, convert_from: str | None=None):
         """Wrapper for :py:func:`shnitsel.units.conversion.convert_nacs`."""
         return convert_nacs(self._obj, to, convert_from=convert_from)
-
-    def convert_time(self, to: str, convert_from: str | None=None):
-        """Wrapper for :py:func:`shnitsel.units.conversion.convert_time`."""
-        return convert_time(self._obj, to, convert_from=convert_from)
 
     @needs(dims={'frame'})
     def mdiff(self, dim: str | None=None) -> xr.DataArray:
@@ -362,7 +357,6 @@ class DatasetAccessor(DSManualAccessor):
         'unstack_trajs',
         'stack_trajs',
         'write_shnitsel_file',
-        'get_spectra',
         'calculate_energy_filtranda',
         'filter_by_energy',
         'sanity_check',
@@ -450,11 +444,6 @@ class DatasetAccessor(DSManualAccessor):
     def write_shnitsel_file(self, savepath: str | os.PathLike, complevel: int=9):
         """Wrapper for :py:func:`shnitsel.io.shnitsel.write.write_shnitsel_file`."""
         return write_shnitsel_file(self._obj, savepath, complevel=complevel)
-
-    @needs(coords={'statecomb', 'time'}, data_vars={'energy', 'fosc'})
-    def get_spectra(self, state_selection: shnitsel.filtering.state_selection.StateSelection | None=None, times: Union=None, rel_cutoff: float=0.01) -> Union:
-        """Wrapper for :py:func:`shnitsel.analyze.spectra.get_spectra`."""
-        return get_spectra(self._obj, state_selection=state_selection, times=times, rel_cutoff=rel_cutoff)
 
     def calculate_energy_filtranda(self, energy_thresholds: shnitsel.clean.filter_energy.EnergyFiltrationThresholds | None=None) -> DataArray:
         """Wrapper for :py:func:`shnitsel.clean.filter_energy.calculate_energy_filtranda`."""
