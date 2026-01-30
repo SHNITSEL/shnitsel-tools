@@ -223,16 +223,20 @@ def _most_stable_frame(atXYZ, obj: xr.Dataset | ShnitselDataset) -> xr.DataArray
     ):
         return atXYZ.isel({leading_dim: 0})
 
-    if 'trajectory' in obj.sizes or 'atrajectory' in obj.sizes:
-        inicond_energy = obj.energy.isel(state=0).groupby('atrajectory').first()
-        trajid = int(inicond_energy.idxmin().item())
-        return atXYZ.sel({'atrajectory': trajid}).isel(time=0)
-    elif 'trajid' in obj.coords:
-        inicond_energy = obj.energy.isel(state=0).groupby('trajid').first()
-        trajid = int(inicond_energy.idxmin().item())
-        return atXYZ.sel({'trajid': trajid, 'time': 0})
-    else:
-        return atXYZ.isel({leading_dim: 0})
+    try:
+        if 'trajectory' in obj.sizes or 'atrajectory' in obj.sizes:
+            inicond_energy = obj.energy.isel(state=0).groupby('atrajectory').first()
+            trajid = int(inicond_energy.idxmin().item())
+            # TODO: FIXME: Why do we lack an index for `atrajectory`?
+            return atXYZ.sel({'atrajectory': trajid}).isel(time=0)
+        elif 'trajid' in obj.coords:
+            inicond_energy = obj.energy.isel(state=0).groupby('trajid').first()
+            trajid = int(inicond_energy.idxmin().item())
+            return atXYZ.sel({'trajid': trajid, 'time': 0})
+    except Exception as e:
+        logging.debug(f"Failed detection of optimum frame for molecule: {e}")
+
+    return atXYZ.isel({leading_dim: 0})
 
 
 def construct_default_mol(
