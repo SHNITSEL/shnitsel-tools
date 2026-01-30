@@ -300,7 +300,7 @@ def shapes_from_metadata(
         if db_format is None:
             db_format = meta_format
             logging.info(
-                "Automatically detected format: %(db_format)", {'db_format': db_format}
+                "Automatically detected format: %s" % db_format
             )
 
         if meta_format != db_format:
