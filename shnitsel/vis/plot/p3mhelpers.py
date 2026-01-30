@@ -96,7 +96,7 @@ def traj3D(traj: str | xr.DataArray):
 @needs(
     groupable={'time'},
     dims={'atom', 'direction'},
-    coords={'trajid'},
+    coords={'atrajectory'},
     coords_or_vars={'atNames'},
 )
 def trajs3Dgrid(
@@ -119,13 +119,13 @@ def trajs3Dgrid(
         The View object created
     """
     if trajids is None:
-        trajids = np.unique(atXYZ.coords['trajid'].values)
+        trajids = np.unique(atXYZ.coords['atrajectory'].values)
 
     n = ceil(sqrt(len(trajids)))
     view = py3Dmol.view(viewergrid=(n, n), width=1000, height=800, linked=True)
 
     for i, trajid in enumerate(trajids):
-        data = atXYZ.sel(trajid=trajid).pipe(traj_to_xyz)
+        data = atXYZ.sel(atrajectory=trajid).pipe(traj_to_xyz)
         viewer = (i // n, i % n)
         view.addModelsAsFrames(data, viewer=viewer)
         view.addLabel(

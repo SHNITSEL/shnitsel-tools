@@ -11,7 +11,7 @@ _tcl_script_path = os.path.join(
 )
 
 
-def traj_vmd(atXYZ, groupby='trajid'):
+def traj_vmd(atXYZ, groupby='atrajectory'):
     """Open geometries in the VMD viewer, if installed
 
     Parameters
@@ -30,7 +30,7 @@ def traj_vmd(atXYZ, groupby='trajid'):
         # TODO: Why not use `.groupby` and then `.squeeze`?
         trajids = np.unique(atXYZ.coords[groupby].values)
         for trajid in trajids:
-            traj = atXYZ.sel(trajid=trajid)
+            traj = atXYZ.loc[{groupby: trajid}]
             path = os.path.join(d, f"{trajid}.xyz")
             with open(path, 'w') as f:
                 print(traj_to_xyz(traj), file=f)
