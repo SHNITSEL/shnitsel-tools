@@ -9,6 +9,7 @@ from typing import (
     Any,
     Callable,
     Hashable,
+    Iterator,
     Mapping,
     Self,
     Sequence,
@@ -1032,28 +1033,48 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
         else:
             return self._level_name == target_level
 
-    def collect_data(self) -> Iterable[DataType]:
+    @overload
+    def collect_data(
+        self,
+        with_path: Literal[True],
+    ) -> Iterator[tuple[str, DataType]]: ...
+
+    @overload
+    def collect_data(self, with_path: Literal[False] = False) -> Iterator[DataType]: ...
+
+    def collect_data(
+        self, with_path: bool = False
+    ) -> Iterator[DataType] | Iterator[tuple[str, DataType]]:
         """Function to retrieve all data entries in the tree underneath this node.
 
         Helpful for aggregating across all entries in a subtree without the need for
         full hierarchical information.
 
-        Returns
-        -------
-        Iterable[DataType]
-            An iterator over all the data entries in this subtree.
+        Parameters
+        ----------
+        with_path : bool, default=False
+            Flag to obtain an iterable over the pairs of paths and data instead.
 
         Yields
         ------
         Iterator[Iterable[DataType]]
             An iterator over all the data entries in this subtree.
+        Iterator[tuple[str, DataType]]
+            An iterator over all the data entries in this subtree paired with their paths in the tree.
         """
-        if self.has_data:
-            yield self.data
 
-        for child in self.children.values():
-            if child is not None:
-                yield from child.collect_data()
+        if with_path:
+            if self.has_data:
+                yield (self.path, self.data)
+            for child in self.children.values():
+                if child is not None:
+                    yield from child.collect_data(with_path=True)
+        else:
+            if self.has_data:
+                yield self.data
+            for child in self.children.values():
+                if child is not None:
+                    yield from child.collect_data()
 
     def apply_data_attributes(
         self, properties: dict
