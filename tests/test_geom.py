@@ -69,5 +69,4 @@ def test_get_pyramidalization(db):
 
 def test_get_max_chromophor_BLA(db):
     res = get_max_chromophor_BLA(db)
-    # FIXME: The BLA calculation does not give us a descriptor dimension. Maybe we should change that
-    assert all('descriptor' not in x.dims for x in res.collect_data())
+    assert all('descriptor' in x.dims for x in res.collect_data())
