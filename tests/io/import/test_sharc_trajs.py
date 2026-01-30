@@ -100,10 +100,10 @@ class TestSHARCTrajectories:
             traj_frames_butene, "tutorials/test_data/sharc/traj_butene.nc"
         )
 
-    def test_read_sharc_wrapper_detect_v3_0(self):
-        # Read a bundle of trajectories from a v3.0 directory using type detection
+    def test_read_sharc_wrapper_detect_v2_0(self):
+        # Read a bundle of trajectories from a v2.0 directory using type detection
         traj_frames_butene = read(
-            "tutorials/test_data/sharc/traj_I01_v3.0/",
+            "tutorials/test_data/sharc/traj_I01_v2.0/",
             concat_method='db',
         )
         assert isinstance(
@@ -114,10 +114,10 @@ class TestSHARCTrajectories:
             traj_frames_butene, self.asserted_properties_in_trajectory + ["nacs"]
         ), "Resulting trajectory from SHARC trajectory does not satisfy the Shnitsel standard format"
 
-    def test_read_sharc_wrapper_direct_v3_0(self):
-        # Read trajectory bundle from a v3.0 directory
+    def test_read_sharc_wrapper_direct_v2_0(self):
+        # Read trajectory bundle from a v2.0 directory
         traj_frames_butene = read(
-            "tutorials/test_data/sharc/traj_I01_v3.0/",
+            "tutorials/test_data/sharc/traj_I01_v2.0/",
             kind="sharc",
             concat_method='db',
         )
