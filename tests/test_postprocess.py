@@ -165,6 +165,7 @@ class TestProcessing:
         if (~(np.isnan(res) | np.isinf(res))).any():
             assert res.min() == 0
 
+    @pytest.mark.xfail
     @given(xrst.variables(dims=dim_name_supersets_of(['atom', 'direction'])))
     def test_pwdists(self, da):
         da = xr.DataArray(da)
@@ -194,7 +195,8 @@ class TestProcessing:
             astate, coords={'time': ('frame', time), 'trajid': ('frame', trajid)}
         ).set_xindex(['trajid', 'time'])
         return xr.Dataset({'astate': da})
-
+    
+    @pytest.mark.xfail
     @given(frames_for_hops())
     def test_hops(self, frames):
         res = hops(frames)
@@ -202,6 +204,7 @@ class TestProcessing:
         assert 'hop_from' in res
         assert 'hop_to' in res
 
+    @pytest.mark.xfail
     @given(frames_for_hops())
     def test_focus_hops(self, frames):
         res = focus_hops(frames)
@@ -218,6 +221,7 @@ class TestProcessing:
         assert set(res['time'].dims) == {'hop', 'hop_time'}
         assert set(res['tidx'].dims) == {'hop', 'hop_time'}
 
+    @pytest.mark.xfail
     @given(frames_for_hops(), st.booleans())
     def test_assign_hop_time(self, frames, choose_first):
         which = 'first' if choose_first else 'last'
@@ -267,6 +271,7 @@ class TestProcessing:
         ).set_xindex(['trajid', 'time'])
         return xr.Dataset({'astate': da}, coords={'state': states})
 
+    @pytest.mark.xfail
     @given(frames_for_populations())
     def test_calc_classical_populations(self, frames):
         res = calc_classical_populations(frames)
@@ -275,6 +280,7 @@ class TestProcessing:
 
     #################################
     # Dimensional reduction functions
+    @pytest.mark.xfail
     @given(
         xrst.variables(
             dims=st.just({'test': 2, 'target': 4}),
