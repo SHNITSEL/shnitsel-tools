@@ -1,0 +1,9 @@
+                                         #Use file "initconds"? [True] 
+                                         #Initial condition range: [1 500] 
+3 0 0                                    #Number of states: 
+false                                    #Spin-Orbit calculation? [True] 
+2                                        #Interface number: 
+true                                     #Reference overlaps? [False] 
+                                         #Path to COLUMBUS: [$COLUMBUS/] (autocomplete enabled) 
+$TMPDIR                                  #Path to scratch directory: (autocomplete enabled) 
+/user/julia/Methylenimmonium/MRCI/Frequency/ #Path to templates: (autocomplete enabled) 

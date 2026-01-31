@@ -1,0 +1,8 @@
+The calculation crashed at
+date = Wed Feb 21 13:59:31 CET 2018
+with error code 1. 
+Please inspect the trajectory on
+host = polonium12
+in
+dir  = /public/polonium12/scratch/tmp/anna.6654/Singlet_2/TRAJ_00009
+

@@ -1,0 +1,56 @@
+
+--------------------------------------------------------------------------------
+-------------------------- JOB SUMMARY INFORMATION -----------------------------
+--------------------------------------------------------------------------------
+
+        --------------
+        PBS Infomation
+        --------------
+        Job id         = 987598.raven0
+        User           = sacip
+        Group          = CHEMY-All
+        Job name       = nxsh_sub
+        Session id     = 3303
+        Req. resources = mem=62gb,ncpus=16,place=scatter:excl,walltime=48:00:00
+        Used resources = cpupercent=1543,cput=361:40:19,mem=1501256kb,ncpus=16,vmem=7063140kb,walltime=24:13:54
+        Queue          = workq
+        Account        = null
+        Exit status    = 0
+
+
+
+        -----------------
+        Usage Information
+        -----------------
+        Number of CPUS       = 16
+        Average CPU usage    = 1543.00%
+        Mem usage (Gb)       = 1.43
+        CPU time  (hh:mm:ss) = 361:40:19
+        Wallclock (hh:mm:ss) = 24:13:54
+        Est. efficiency      = 93.28%
+
+
+        ------------------
+        Filesystem Information
+        ------------------
+        + /scratch metadata information +
+        Not used.
+...
+
+        + /scratch storage information + 
+        Not used.
+...
+
+        + NFS statistics for node(s) provided.                   +
+        + (node could be shared with other user(s))              +
+        Total read from NFS  : 320.000000Mb
+        Total written to NFS : 1152.000000Mb
+        Raw statistics :
+        {access: 109669, commit: 0, create: 3327, fsinfo: 0, fsstat: 0,
+        getattr: 650737, lookup: 5440, mkdir: 408, pathconf: 0,
+        read: 486, readdir: 0, readdirplus: 8, readlink: 53, remove: 2009,
+        rename: 0, rmdir: 0, setattr: 109025, total: 1122856,
+        total_read: 336043234, total_write: 1208514754, write: 241694}
+
+--------------------------------------------------------------------------------
+

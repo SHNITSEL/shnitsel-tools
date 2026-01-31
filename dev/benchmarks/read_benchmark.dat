@@ -1,0 +1,11 @@
+# Format    #Num trajectories   # Num frames    # Total time [s]   #mean time per 100frames [s/100frames]
+Format & \#trajectories / rep & \#frames / rep & time / rep & time / rep / 100 frames \\
+\hline\hline
+Newtonx &	5.0 & 5605.0&	0.5932422887999564 &	0.010584162155217777\\
+SHARC(icond) & 4.0 &	4.0 &	0.14354851999996754 &	3.5887129999991885 \\
+SHARC(traj) &	11.0&	2185.0&	1.0511551024000254&	0.048107785006866154 \\
+PyrAI2md &	3.0&	600.0&	0.13144735969999602&	0.021907893283332668 \\
+Newtonx (parallel)&	5.0&	5605.0&	0.5933102243000576&	0.0105853742069591 \\
+SHARC(icond) (parallel)&	4.0&	4.0&	0.19936670840006626&	4.984167710001657 \\
+SHARC(traj) (parallel)&	11.0&	2185.0&	1.4670859027000005&	0.06714351957437073 \\
+PyrAI2md (parallel)&	3.0&	600.0&	0.24984416939996662&	0.04164069489999444 \\

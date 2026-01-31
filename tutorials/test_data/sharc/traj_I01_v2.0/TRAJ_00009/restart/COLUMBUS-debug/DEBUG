@@ -1,0 +1,53 @@
+ nsym=  1
+cione,cidrtin,cigradient=1,ndrt=
+getvector : 2
+getvector2 : 1, 2,   1,  1 
+getvector : 0
+getvector2 : 1, 0,   1,  1 
+getvector : 7
+getvector2 : 1, 7,   1,  1 
+getvector : 3
+getvector2 : 1, 3,   1,  1 
+getvector : 
+getvector : 0
+getvector2 : 1, 0,   1,  1 
+getvector : 1
+getvector2 : 1, 1,   1,1 
+groups of 2 elements,  / frozen core orbitals ,  -1 
+groups of 2 elements,  / frozen virtual orbitals ,  -1 
+groups of 2 elements,  ,  3 
+groups of 2 elements,  ,  5 
+groups of 2 elements,  ,  7 
+groups of 2 elements,  /internal orbitals ,  -1 
+groups of 1 elements, /occminr,  3 
+groups of 1 elements, /occmaxr,  3 
+groups of 1 elements, /bminr,  3 
+groups of 1 elements, /bmaxr,  3 
+groups of 1 elements, /step masks r,  3 
+groups of 1 elements, /occmin,  8 
+groups of 1 elements, /occmax,  8 
+groups of 1 elements, /bmin,  8 
+groups of 1 elements, /bmax,  8 
+groups of 1 elements, /step masks,  8 
+groups of 1 elements, /step vector disp pairs,  7 
+nintern=9,nreforb=5
+groups of 1 elements, /reference occupations vector ,  8 
+groups of 2 elements,  / frozen core orbitals ,  3 
+groups of 2 elements,  / frozen virtual orbitals ,  -1 
+groups of 2 elements,  ,  5 
+groups of 2 elements,  ,  7 
+groups of 2 elements,  /internal orbitals ,  -1 
+groups of 1 elements, /occminr,  3 
+groups of 1 elements, /occmaxr,  3 
+groups of 1 elements, /bminr,  3 
+groups of 1 elements, /bmaxr,  3 
+groups of 1 elements, /step masks r,  3 
+groups of 1 elements, /occmin,  6 
+groups of 1 elements, /occmax,  6 
+groups of 1 elements, /bmin,  6 
+groups of 1 elements, /bmax,  6 
+groups of 1 elements, /step masks,  6 
+groups of 1 elements, /step vector disp pairs,  5 
+nintern=7,nreforb=3
+groups of 1 elements, /reference occupations vector ,  6 
+ ondisk= :: $ondisk 

@@ -1,0 +1,15 @@
+basis cc-pVDZ
+ras2 4
+nactel 6
+inactive 5
+roots 4  0  3 
+
+no-douglas-kroll
+method CASSCF
+
+
+#     Infos:
+#     bccc133h@woody4
+#     Date: 2025-11-11 14:31:11.209534
+#     Current directory: /home/woody/bccc/bccc133h/molsharc/Tutorial
+

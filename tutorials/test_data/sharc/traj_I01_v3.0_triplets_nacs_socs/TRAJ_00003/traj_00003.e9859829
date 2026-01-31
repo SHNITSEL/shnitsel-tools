@@ -1,0 +1,2 @@
+/var/tmp/slurmd_spool/job9859829/slurm_script: line 25: hBN: command not found
+slurmstepd: error: *** JOB 9859829 ON w1406 CANCELLED AT 2025-11-19T16:36:34 ***

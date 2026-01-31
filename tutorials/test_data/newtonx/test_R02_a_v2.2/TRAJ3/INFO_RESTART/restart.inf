@@ -1,0 +1,5 @@
+  NEWTON-X restart information: 
+  Time (fs) = 400.0000
+  Timestep = 400
+  Current state = 1
+  Do not forget of setting the new value of tmax in control.dyn. 

@@ -1,0 +1,6 @@
+molcas /home/woody/bccc/bccc114h/opt/OpenMolcas_MKL
+scratchdir $TMPDIR/Singlet_2/TRAJ_00002//
+savedir /home/woody/bccc/bccc133h/molsharc/Tutorial/traj/Singlet_2/TRAJ_00002//restart
+memory 500
+ncpu 1
+project MOLCAS

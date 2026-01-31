@@ -1,0 +1,29 @@
+### Starting TaskPrologue of job 9859829 on w1406 at Wed Nov 19 14:27:17 CET 2025
+#   SLURM_JOB_NODELIST=w1406
+#   SLURM_JOB_NUM_NODES=1
+#   SLURM_NTASKS=1
+#   SLURM_NPROCS=1
+#   SLURM_TASKS_PER_NODE=1
+#   SLURM_JOB_CPUS_PER_NODE=1
+#   SLURM_EXPORT_ENV=NONE
+Running on cores 0 with govenor powersave
+### Finished TaskPrologue
+=== JOB_STATISTICS ===
+=== current date     : Wed Nov 19 16:36:37 CET 2025
+= Job-ID             : 9859829 on woody
+= Job-Name           : traj_00003
+= Job-Command        : /home/woody/bccc/bccc113h/shnitsel-data/I01_wTrip/traj/Singlet_2/TRAJ_00003/run_traj.sh
+= Initial workdir    : /home/woody/bccc/bccc113h/shnitsel-data/I01_wTrip/traj/Singlet_2/TRAJ_00003
+= Queue/Partition    : work
+= Slurm account      : bccc with QOS=normal
+= Requested resources:  for 04:00:00
+= Elapsed runtime    : 02:09:21
+= Total RAM usage    : 1.0 GiB of requested  GiB (%)   
+= Node list          : w1406
+= Subm/Elig/Start/End: 2025-11-19T14:26:55 / 2025-11-19T14:26:55 / 2025-11-19T14:27:13 / 2025-11-19T16:36:34
+======================
+=== Quota infos ======
+    Path                 Used     SoftQ    HardQ    Gracetime  Filec    FileQ    FiHaQ    FileGrace    
+    /home/woody           640.5G  1000.0G  1500.0G        N/A     323K   5,000K   7,500K        N/A    
+    /home/hpc              79.1G   104.9G   209.7G        N/A     299K     500K   1,000K        N/A    
+    /home/vault            11.5G  1048.6G  2097.2G        N/A     456      200K     400K        N/A    

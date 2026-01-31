@@ -1,0 +1,7 @@
+#/bin/bash
+
+PRIMARY_DIR=/global/anna/Methylenimmonium/Trajectories/Singlet_2/TRAJ_00006/
+COPY_DIR=$TMPDIR/Singlet_2/TRAJ_00006/
+
+cp $COPY_DIR/output.* $COPY_DIR/restart.* $PRIMARY_DIR
+rm -r $COPY_DIR

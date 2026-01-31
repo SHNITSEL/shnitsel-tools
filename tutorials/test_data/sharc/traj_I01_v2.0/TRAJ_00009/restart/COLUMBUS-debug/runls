@@ -1,0 +1,1092 @@
+===========================================================
+===                   runc                              ===
+===           version 7.0 beta , Jan 2011               ===
+===          requires COLUMBUS version COL_7.0_beta     ===
+===                                                     ===
+===   written by: Thomas Mueller                        ===
+===   gradient ext. by: Michal Dallos                   ===
+===               Institute for Theoretical Chemistry   ===
+===               University of Vienna                  ===
+===               Waehringerstr. 17                     ===
+===               A-1090 Vienna, Austria                ===
+===   in revision by: Thomas Mueller, JSC, FZ Juelich   ===
+===               Felix Plasser, University of Vienna   ===
+===========================================================
+
+
+coremem. (seq.): 3000 MB,  coremem. (par.): 3000 MB
+Vdisk size: 0 DP
+Reading job control file control.run ... SMOLCAS=/usr/remote/molcas/molcas79p111
+Found serial Molcas Installation at /usr/remote/molcas/molcas79p111
+  done 
+Creating various directories ... 
+ done 
+SMOLCAS=/usr/remote/molcas/molcas79p111
+PMOLCAS=/usr/remote/molcas/molcas79p111
+Checking for illegal keywords and keyword combinations ... done 
+
+ Nonadiabatic coupling term calculation type: DCI+DCSF
+  States involved in calcualtion:
+   DRT1,state1;  DRT1,state2
+   DRT1,state1;  DRT1,state3
+   DRT1,state2;  DRT1,state3
+
+Additional gradients computed:
+   DRT1,state1
+
+Checking for complete set of input files ... 
+mcscf calculation without preceeding scf calculation 
+will use 
+ /public/polonium20/scratch/tmp/julia.3807/Singlet_2/TRAJ_00009/JOB/mocoef as starting MOs 
+done
+
+ ++++++++++++++++++ input file generation +++++++++++++ 
+ runc start: Sat Feb 17 05:27:01 CET 2018
+ 
+  runc start: Sat Feb 17 05:27:01 CET 2018
+ 
+ starting unik.gets.x > unikls at Sat Feb 17 05:27:01 CET 2018
+
+ -------------------- unik.gets.x ------------------------
+ --------------------------------------------------- 
+ starting hernew.x at Sat Feb 17 05:27:01 CET 2018
+
+ -------------------- hernew.x ------------------------
+ --------------------------------------------------- 
+ ++++++++++++++++++++ ao integral calculation ++++++++++++++++
+starting dalton.x -m 3000 > hermitls at Sat Feb 17 05:27:01 CET 2018
+
+ -------------------- dalton.x ------------------------
+  Nuclear repulsion energy:       22.8629618686
+
+ Irred. repr. : A       
+ # orbitals  :  82 
+ --------------------------------------------------- 
+  >>>>>>>>>>>>> info: preparing drt no 1 out of 1 <<<<<<
+starting mcdrt.x -m 3000 < mcdrtin > mcdrtls at Sat Feb 17 05:27:02 CET 2018
+
+ -------------------- mcdrt.x ------------------------
+  Spin multiplicity: singlet 
+  Spatial symmetry (#): 1
+  Number of Configurations:         10 
+  --------------------------------------------------- 
+ starting mcuft.x at Sat Feb 17 05:27:02 CET 2018
+
+ -------------------- mcuft.x ------------------------
+ --------------------------------------------------- 
+ ++++++++++++++++++++ MCSCF calculation +++++++++++++++
+info: taking mocoef file from /public/polonium20/scratch/tmp/julia.3807/Singlet_2/TRAJ_00009/JOB/mocoef
+starting mcscf.x -m 3000 at Sat Feb 17 05:27:02 CET 2018
+
+ -------------------- mcscf.x ------------------------
+ Individual total energies for all states: 
+    DRT #1 state # 1 wt 0.333 total energy=      -94.081620660, rel. (eV)=   0.000000
+    DRT #1 state # 2 wt 0.333 total energy=      -93.938454825, rel. (eV)=   3.895742
+    DRT #1 state # 3 wt 0.333 total energy=      -93.902351629, rel. (eV)=   4.878161
+  Warning: calculation not converged ... 
+ --------------------------------------------------- 
+ starting mcpc.x -m 3000 < mcpcin > mcpcls at Sat Feb 17 05:27:36 CET 2018
+
+ -------------------- mcpc.x ------------------------
+ --------------------------------------------------- 
+ starting mcpc.x -m 3000 < mcpcin > mcpcls at Sat Feb 17 05:27:36 CET 2018
+
+ -------------------- mcpc.x ------------------------
+ --------------------------------------------------- 
+ starting mcpc.x -m 3000 < mcpcin > mcpcls at Sat Feb 17 05:27:36 CET 2018
+
+ -------------------- mcpc.x ------------------------
+ --------------------------------------------------- 
+  using the MCSCF MOs ... 
+starting cidrt.x -m 3000 < cidrtin > cidrtls  at Sat Feb 17 05:27:36 CET 2018
+
+ -------------------- cidrt.x ------------------------
+ total number of orbitals            :    82
+ number of frozen core orbitals      :     2
+ number of frozen virtual orbitals   :     0
+ number of internal orbitals         :     7
+ number of external orbitals         :    73
+ spatial symmetry:   a  
+ 
+ total number of configurations     661700
+ number of reference configurations    10
+ --------------------------------------------------- 
+ starting tran.x -m 3000  at Sat Feb 17 05:27:36 CET 2018
+
+ -------------------- tran.x ------------------------
+ --------------------------------------------------- 
+ skipping cisrt.x call .... 
+starting ciudg.x -m 3000 at Sat Feb 17 05:27:38 CET 2018
+
+  waiting after driverwrap ....                     0
+ -------------------- ciudg.x ------------------------
+ type of calculation:          mr-sdci
+ number of configurations:     661700
+ total mr-sdci energy              -94.3614190412 
+ last mr-sdci energy change           0.0000000000 
+ residual                             0.0000450000 
+  type of calculation:          mr-sdci
+ number of configurations:     661700
+ total mr-sdci energy              -94.2184643473 
+ last mr-sdci energy change           0.0000000000 
+ residual                             0.0000558970 
+  type of calculation:          mr-sdci
+ number of configurations:     661700
+ total mr-sdci energy              -94.2072696437 
+ last mr-sdci energy change           0.0000000038 
+ residual                             0.0000601080 
+  c0**2 =   0.89694051  c**2 (all zwalks) =   0.89695348
+ mr-sdci+(1-c0**2)*(eci-eref)             =     -94.390255068009 
+ mr-sdci+(1-c0**2)/(c0**2)*(eci-eref)     =     -94.393568360548 
+ mr-sdci+(1-c0**2)/(2*c0**2-1)*(eci-eref) =     -94.397741898493 
+ c0**2 =   0.89665370  c**2 (all zwalks) =   0.89678412
+ mr-sdci+(1-c0**2)*(eci-eref)             =     -94.247415822008 
+ mr-sdci+(1-c0**2)/(c0**2)*(eci-eref)     =     -94.250752704133 
+ mr-sdci+(1-c0**2)/(2*c0**2-1)*(eci-eref) =     -94.254958995542 
+ c0**2 =   0.87781343  c**2 (all zwalks) =   0.87987556
+ mr-sdci+(1-c0**2)*(eci-eref)             =     -94.244581679486 
+ mr-sdci+(1-c0**2)/(c0**2)*(eci-eref)     =     -94.249775299659 
+ mr-sdci+(1-c0**2)/(2*c0**2-1)*(eci-eref) =     -94.256648559998 
+ --------------------------------------------------- 
+ starting cipc.x -m 3000 < cipcin > cipcls at Sat Feb 17 05:30:10 CET 2018
+
+ -------------------- cipc.x ------------------------
+ --------------------------------------------------- 
+  Calculating transition moment for (1,1) => (1,1)
+ starting transci.x -m 3000  at Sat Feb 17 05:30:10 CET 2018
+
+ -------------------- transci.x ------------------------
+
+                          State No. 1            State No. 2
+
+   Space symmetry:            A                      A  
+   No. of CSFs:            661700                 661700
+   State energies:       -94.36141904           -94.36141904  a.u.
+
+   Transition energy:     0.00000000  a.u.
+   Transition energy:     0.00        eV
+
+       Transition moment components:
+
+                 x            y            z
+
+electron         -0.001363    -0.624254    21.101057  e*bohr
+frozen core      -0.014114     0.193773     3.907672  e*bohr
+total (elec)     -0.015477    -0.430481    25.008729  e*bohr
+
+
+   Tr.dipole length:    25.012438    e*bohr
+   Oscillator strength :  0.000000
+   Einstein A coef.:     0.0000E+00  1/sec
+   Einstein B coef.:     0.2539E+12  sec/g
+
+                 x            y            z
+
+<L> electron    -0.000000    -0.000000     0.000000  e*bohr
+
+
+   <L> value length:     0.000000    e*bohr
+ --------------------------------------------------- 
+  Calculating transition moment for (1,1) => (1,2)
+ starting transci.x -m 3000  at Sat Feb 17 05:30:11 CET 2018
+
+ -------------------- transci.x ------------------------
+
+                          State No. 1            State No. 2
+
+   Space symmetry:            A                      A  
+   No. of CSFs:            661700                 661700
+   State energies:       -94.36141904           -94.21846435  a.u.
+
+   Transition energy:     0.14295469  a.u.
+   Transition energy:     3.89        eV
+
+       Transition moment components:
+
+                 x            y            z
+
+electron          0.036024     0.059301    -0.005939  e*bohr
+frozen core       0.000000     0.000000     0.000000  e*bohr
+total (elec)      0.036024     0.059301    -0.005939  e*bohr
+
+
+   Tr.dipole length:     0.069639    e*bohr
+   Oscillator strength :  0.000462
+   Einstein A coef.:     0.3035E+06  1/sec
+   Einstein B coef.:     0.1968E+07  sec/g
+
+                 x            y            z
+
+<L> electron     0.348456    -0.169779     0.843485  e*bohr
+
+
+   <L> value length:     0.928285    e*bohr
+ --------------------------------------------------- 
+  Calculating transition moment for (1,1) => (1,3)
+ starting transci.x -m 3000  at Sat Feb 17 05:30:11 CET 2018
+
+ -------------------- transci.x ------------------------
+
+                          State No. 1            State No. 2
+
+   Space symmetry:            A                      A  
+   No. of CSFs:            661700                 661700
+   State energies:       -94.36141904           -94.20726964  a.u.
+
+   Transition energy:     0.15414940  a.u.
+   Transition energy:     4.19        eV
+
+       Transition moment components:
+
+                 x            y            z
+
+electron         -0.013458    -0.029209     0.096455  e*bohr
+frozen core       0.000000     0.000000     0.000000  e*bohr
+total (elec)     -0.013458    -0.029209     0.096455  e*bohr
+
+
+   Tr.dipole length:     0.101675    e*bohr
+   Oscillator strength :  0.001062
+   Einstein A coef.:     0.8110E+06  1/sec
+   Einstein B coef.:     0.4195E+07  sec/g
+
+                 x            y            z
+
+<L> electron     0.014341    -0.003207     0.037419  e*bohr
+
+
+   <L> value length:     0.040201    e*bohr
+ --------------------------------------------------- 
+  Calculating transition moment for (1,2) => (1,2)
+ starting transci.x -m 3000  at Sat Feb 17 05:30:11 CET 2018
+
+ -------------------- transci.x ------------------------
+
+                          State No. 1            State No. 2
+
+   Space symmetry:            A                      A  
+   No. of CSFs:            661700                 661700
+   State energies:       -94.21846435           -94.21846435  a.u.
+
+   Transition energy:     0.00000000  a.u.
+   Transition energy:     0.00        eV
+
+       Transition moment components:
+
+                 x            y            z
+
+electron          0.033221    -0.654608    20.859225  e*bohr
+frozen core      -0.014114     0.193773     3.907672  e*bohr
+total (elec)      0.019107    -0.460836    24.766897  e*bohr
+
+
+   Tr.dipole length:    24.771192    e*bohr
+   Oscillator strength :  0.000000
+   Einstein A coef.:     0.0000E+00  1/sec
+   Einstein B coef.:     0.2490E+12  sec/g
+
+                 x            y            z
+
+<L> electron     0.000000     0.000000    -0.000000  e*bohr
+
+
+   <L> value length:     0.000000    e*bohr
+ --------------------------------------------------- 
+  Calculating transition moment for (1,2) => (1,3)
+ starting transci.x -m 3000  at Sat Feb 17 05:30:12 CET 2018
+
+ -------------------- transci.x ------------------------
+
+                          State No. 1            State No. 2
+
+   Space symmetry:            A                      A  
+   No. of CSFs:            661700                 661700
+   State energies:       -94.21846435           -94.20726964  a.u.
+
+   Transition energy:     0.01119470  a.u.
+   Transition energy:     0.30        eV
+
+       Transition moment components:
+
+                 x            y            z
+
+electron          0.004289    -0.029074     0.233437  e*bohr
+frozen core       0.000000     0.000000     0.000000  e*bohr
+total (elec)      0.004289    -0.029074     0.233437  e*bohr
+
+
+   Tr.dipole length:     0.235280    e*bohr
+   Oscillator strength :  0.000413
+   Einstein A coef.:     0.1663E+04  1/sec
+   Einstein B coef.:     0.2246E+08  sec/g
+
+                 x            y            z
+
+<L> electron    -0.006045    -0.021247     0.007937  e*bohr
+
+
+   <L> value length:     0.023473    e*bohr
+ --------------------------------------------------- 
+  Calculating transition moment for (1,3) => (1,3)
+ starting transci.x -m 3000  at Sat Feb 17 05:30:12 CET 2018
+
+ -------------------- transci.x ------------------------
+
+                          State No. 1            State No. 2
+
+   Space symmetry:            A                      A  
+   No. of CSFs:            661700                 661700
+   State energies:       -94.20726964           -94.20726964  a.u.
+
+   Transition energy:     0.00000000  a.u.
+   Transition energy:     0.00        eV
+
+       Transition moment components:
+
+                 x            y            z
+
+electron          0.003063     0.134340    13.699889  e*bohr
+frozen core      -0.014114     0.193773     3.907672  e*bohr
+total (elec)     -0.011051     0.328113    17.607561  e*bohr
+
+
+   Tr.dipole length:    17.610621    e*bohr
+   Oscillator strength :  0.000000
+   Einstein A coef.:     0.0000E+00  1/sec
+   Einstein B coef.:     0.1259E+12  sec/g
+
+                 x            y            z
+
+<L> electron     0.000000     0.000000     0.000000  e*bohr
+
+
+   <L> value length:     0.000000    e*bohr
+ --------------------------------------------------- 
+  --- ci properties for state 1 of  DRT 1 ----
+starting exptvl.x -m 3000  at Sat Feb 17 05:30:12 CET 2018
+
+ -------------------- exptvl.x ------------------------
+  === dipole moment === 
+                     X               Y               Z   
+   nuclear       0.04103165     -0.32778072     23.14345106
+   electronic    0.01547670      0.43048137    -25.00872880
+   total         0.05650835      0.10270065     -1.86527774
+   total Dipole moment =   4.75042052    Debye
+
+ --------------------------------------------------- 
+  --- ci properties for state 2 of  DRT 1 ----
+starting exptvl.x -m 3000  at Sat Feb 17 05:30:12 CET 2018
+
+ -------------------- exptvl.x ------------------------
+  === dipole moment === 
+                     X               Y               Z   
+   nuclear       0.04103165     -0.32778072     23.14345106
+   electronic   -0.01910671      0.46083556    -24.76689725
+   total         0.02192494      0.13305484     -1.62344619
+   total Dipole moment =   4.14060338    Debye
+
+ --------------------------------------------------- 
+  --- ci properties for state 3 of  DRT 1 ----
+starting exptvl.x -m 3000  at Sat Feb 17 05:30:12 CET 2018
+
+ -------------------- exptvl.x ------------------------
+  === dipole moment === 
+                     X               Y               Z   
+   nuclear       0.04103165     -0.32778072     23.14345106
+   electronic    0.01105075     -0.32811280    -17.60756103
+   total         0.05208240     -0.65589352      5.53589003
+   total Dipole moment =  14.16987733    Debye
+
+ --------------------------------------------------- 
+ 
+
+ +++++++++++ STARTING GRADIENTS AND NAD. COUPLINGS CALCULATION +++++++++++ 
+
+ Using new transition density code ... 
+INFO: this is a frozen core gradient calculation
+starting cidrt.x -m 3000 < cidrtin.cigrd > cidrtls.cigrd at Sat Feb 17 05:30:12 CET 2018
+
+ -------------------- cidrt.x ------------------------
+ total number of orbitals            :    82
+ number of frozen core orbitals      :     2
+ number of frozen virtual orbitals   :     0
+ number of internal orbitals         :     7
+ number of external orbitals         :    73
+ spatial symmetry:   a  
+ 
+ total number of configurations     661700
+ number of reference configurations    10
+ --------------------------------------------------- 
+ starting tran.x -m 3000  at Sat Feb 17 05:30:12 CET 2018
+
+ -------------------- tran.x ------------------------
+ --------------------------------------------------- 
+ ---- Computing 1 gradient(s)  ----
+
+ --- Computing gradient for DRT:1, State; 1
+
+starting cigrd.x -m 3000 at Sat Feb 17 05:30:14 CET 2018
+
+ -------------------- cigrd.x ------------------------
+ Total energy (ciudg) :   -94.361419041214 
+  Effective energy     :   -94.361424965310 
+  Delta E              :     0.000005924096 
+  --------------------------------------------------- 
+ starting tran.x -m 3000 at Sat Feb 17 05:30:18 CET 2018
+
+ -------------------- tran.x ------------------------
+ --------------------------------------------------- 
+ starting dalton.x -m 3000 > abacusls at Sat Feb 17 05:30:20 CET 2018
+
+ -------------------- dalton.x ------------------------
+  Nuclear repulsion energy:       22.8629618686
+
+ Irred. repr. : A       
+ # orbitals  :  82 
+ --------------------------------------------------- 
+ 
+ === Gradient of DRT 1, state 1 === 
+  -0.135516D-01  -0.424616D-02  -0.438838D-01
+   0.505830D-01  -0.333288D-01  -0.469191D-01
+   0.178606D-01  -0.121358D-01   0.493845D-01
+   0.244187D-01  -0.117248D-01   0.619221D-01
+  -0.752693D-01   0.452832D-01  -0.108858D-01
+  -0.404128D-02   0.161524D-01  -0.961784D-02
+===================================
+
+---- Computing 3 couplings ---- 
+
+
+ -------- NAD. COUPLING for DRT:1 STATE:1 AND DRT:1 STATE:2 --------
+extracted: energy1= -94.361419041214   energy2=-94.218464347297   deltae=-0.142954693917005
+starting cigrd.x -m 3000 at Sat Feb 17 05:30:23 CET 2018
+
+ -------------------- cigrd.x ------------------------
+ Total energy (ciudg) :    -0.000000000000 
+  Effective energy     :     0.000045474259 
+  Delta E              :    -0.000045474259 
+  --------------------------------------------------- 
+ starting tran.x -m 3000 at Sat Feb 17 05:30:27 CET 2018
+
+ -------------------- tran.x ------------------------
+ --------------------------------------------------- 
+ starting dalton.x -m 3000 > abacusls at Sat Feb 17 05:30:29 CET 2018
+
+ -------------------- dalton.x ------------------------
+  Nuclear repulsion energy:       22.8629618686
+
+ Irred. repr. : A       
+ # orbitals  :  82 
+ --------------------------------------------------- 
+ 
+ Calculating the Dx(r,s) term of D[CSF] nonadiabatic coupling term.
+starting tran.x -m 3000 at Sat Feb 17 05:30:32 CET 2018
+
+ -------------------- tran.x ------------------------
+ --------------------------------------------------- 
+ starting dalton.x -m 3000 > abacusls at Sat Feb 17 05:30:32 CET 2018
+
+ -------------------- dalton.x ------------------------
+  Nuclear repulsion energy:       22.8629618686
+
+ Irred. repr. : A       
+ # orbitals  :  82 
+ --------------------------------------------------- 
+ 
+ === Non-adiabatic coupling for DRT 1 STATE 1 and DRT 1 STATE 2 === 
+  -1.281835E-03   7.960041E-04   1.439427E-03
+   9.282336E-02   1.493764E-01   1.563111E-02
+   1.310764E-03  -2.707000E-05  -4.120316E-04
+  -2.486244E-01  -3.889500E-01   9.976577E-03
+   1.616630E-01   2.486629E-01  -2.627823E-02
+   1.499778E-03   1.830283E-03  -1.410575E-03
+===================================
+
+ Norm of the nonadiabatic coupling vector: 
+ |h(drt1.state1,drt1.state2)|= 0.577097987031026 
+
+ Cross-check of the non-adiabatic coupling term:
+  DeltaE= -0.142954693917005
+
+  <L>*dE form CIGRD   :   -0.0000000000    -0.0000000000    -0.0000000000
+  <L>*dE form NADCOUPL:   -0.0498650995     0.0242831333    -0.1206073199
+ -------------------------------------------------------------------------
+  Difference          :    0.0498650995    -0.0242831333     0.1206073199
+
+ NOTE: This test is meaningless at a point of conical intersection!
+
+
+ -------- NAD. COUPLING for DRT:1 STATE:1 AND DRT:1 STATE:3 --------
+extracted: energy1= -94.361419041214   energy2=-94.207269643688   deltae=-0.154149397526012
+starting cigrd.x -m 3000 at Sat Feb 17 05:30:32 CET 2018
+
+ -------------------- cigrd.x ------------------------
+ Total energy (ciudg) :     0.000000000001 
+  Effective energy     :    -0.000008772510 
+  Delta E              :     0.000008772511 
+  --------------------------------------------------- 
+ starting tran.x -m 3000 at Sat Feb 17 05:30:36 CET 2018
+
+ -------------------- tran.x ------------------------
+ --------------------------------------------------- 
+ starting dalton.x -m 3000 > abacusls at Sat Feb 17 05:30:38 CET 2018
+
+ -------------------- dalton.x ------------------------
+  Nuclear repulsion energy:       22.8629618686
+
+ Irred. repr. : A       
+ # orbitals  :  82 
+ --------------------------------------------------- 
+ 
+ Calculating the Dx(r,s) term of D[CSF] nonadiabatic coupling term.
+starting tran.x -m 3000 at Sat Feb 17 05:30:41 CET 2018
+
+ -------------------- tran.x ------------------------
+ --------------------------------------------------- 
+ starting dalton.x -m 3000 > abacusls at Sat Feb 17 05:30:41 CET 2018
+
+ -------------------- dalton.x ------------------------
+  Nuclear repulsion energy:       22.8629618686
+
+ Irred. repr. : A       
+ # orbitals  :  82 
+ --------------------------------------------------- 
+ 
+ === Non-adiabatic coupling for DRT 1 STATE 1 and DRT 1 STATE 3 === 
+   3.448329E-03  -3.608098E-03  -7.664739E-03
+   3.308808E-03   2.835376E-03   1.666869E-02
+  -3.013382E-03   1.491722E-03   5.928283E-04
+  -7.350598E-03  -1.958925E-02   6.916744E-04
+   3.729860E-03   1.442904E-02   3.224650E-04
+  -2.011241E-03   3.374647E-04   1.950423E-03
+===================================
+
+ Norm of the nonadiabatic coupling vector: 
+ |h(drt1.state1,drt1.state3)|= 0.0325664292568932 
+
+ Cross-check of the non-adiabatic coupling term:
+  DeltaE= -0.154149397526012
+
+  <L>*dE form CIGRD   :   -0.0000000000    -0.0000000000    -0.0000000000
+  <L>*dE form NADCOUPL:   -0.0022919978     0.0005172442    -0.0057197138
+ -------------------------------------------------------------------------
+  Difference          :    0.0022919978    -0.0005172442     0.0057197138
+
+ NOTE: This test is meaningless at a point of conical intersection!
+
+
+ -------- NAD. COUPLING for DRT:1 STATE:2 AND DRT:1 STATE:3 --------
+extracted: energy1= -94.218464347297   energy2=-94.207269643688   deltae=-0.0111947036090072
+starting cigrd.x -m 3000 at Sat Feb 17 05:30:41 CET 2018
+
+
+ *** Error occured! ***
+
+ === runc.error === 
+end of hernew
+ IGNORING BNDCHK
+*** End of DALTON calculation ***
+end of mcdrt
+end of mcuft
+end of mcscf
+end of mcpc
+end of mcpc
+end of mcpc
+end of cidrt
+ prnopt=                     0
+end of tran
+diagi   file:     12 records  of    766 WP each=>       9192 WP total
+ofdgi   file:    327 records  of    766 WP each=>     250482 WP total
+fil3w   file:     56 records  of  30006 WP each=>    1680336 WP total
+fil3x   file:     49 records  of  30006 WP each=>    1470294 WP total
+fil4w   file:    128 records  of  30006 WP each=>    3840768 WP total
+fil4x   file:    128 records  of  30006 WP each=>    3840768 WP total
+global arrays:               11248900   (             85.82 MB)
+vdisk:                              0   (              0.00 MB)
+drt:                         59999994   (            228.88 MB)
+================================================================================
+ using                      1  npartitions of size                     1 .
+pliste=   0
+ using                      1  npartitions of size                     1 .
+pliste=   0
+ Main memory management:
+ global                1 DP per process
+ vdisk                 0 DP per process
+ stack                 0 DP per process
+ core          393215999 DP per process
+
+ intermediate da file sorting parameters:
+ nbuk=   2 lendar=   32767 nipbk=   21844 nipsg= 393038133
+  waiting after driverwrap ....                     0
+ Allocating              393215999  for ci step ...
+ bummer (warning):transition densities: resetting ref occupation number to 0                      0
+ bummer (warning):overlap matrix: # small eigenvalues=                      1
+ bummer (warning):overlap matrix: # small eigenvalues=                      1
+ bummer (warning):overlap matrix: # small eigenvalues=                      1
+ bummer (warning):overlap matrix: # small eigenvalues=                      1
+ bummer (warning):overlap matrix: # small eigenvalues=                      1
+ bummer (warning):overlap matrix: # small eigenvalues=                      1
+ bummer (warning):overlap matrix: # small eigenvalues=                      1
+ bummer (warning):inf%bufszi too small ... resetting to                    8030
+ THREXT                     0
+ THREXT                     0
+ d2temp rec #1
+ d2temp 215 rec #                     2
+ d2temp 215 rec #                     3
+ d2temp 215 rec #                     4
+ d2temp 215 rec #                     5
+ d2temp 215 rec #                     6
+ d2temp 215 rec #                     7
+ d2temp 215 rec #                     8
+ d2temp 215 rec #                     9
+ d2temp 215 rec #                    10
+ d2temp 215 rec #                    11
+ d2temp 215 rec #                    12
+ d2temp 215 rec #                    13
+ d2temp 215 rec #                    14
+ d2temp 215 rec #                    15
+ d2temp 215 rec #                    16
+ d2temp 215 rec #                    17
+ d2temp 215 rec #                    18
+ d2temp 215 rec #                    19
+ d2temp 215 rec #                    20
+ d2temp 215 rec #                    21
+ d2temp 215 rec #                    22
+ d2temp 215 rec #                    23
+ d2temp 215 rec #                    24
+ d2temp 215 rec #                    25
+ d2temp 215 rec #                    26
+ d2temp 215 rec #                    27
+ d2temp 215 rec #                    28
+ d2temp 215 rec #                    29
+ d2temp 215 rec #                    30
+ d2temp 215 rec #                    31
+ d2temp 215 rec #                    32
+ d2temp 215 rec #                    33
+ d2temp 215 rec #                    34
+ d2temp 215 rec #                    35
+ d2temp 215 rec #                    36
+ d2temp 215 rec #                    37
+ d2temp 215 rec #                    38
+ d2temp 215 rec #                    39
+ d2temp 215 rec #                    40
+ d2temp 215 rec #                    41
+ d2temp 215 rec #                    42
+ d2temp 215 rec #                    43
+ d2temp 215 rec #                    44
+ d2temp 215 rec #                    45
+ d2temp 215 rec #                    46
+ d2temp 215 rec #                    47
+ d2temp 215 rec #                    48
+ d2temp 215 rec #                    49
+ d2temp 215 rec #                    50
+ d2temp 215 rec #                    51
+ d2temp 215 rec #                    52
+ d2temp 215 rec #                    53
+ d2temp 215 rec #                    54
+ d2temp 200 rec #                    55
+ d2temp 215 rec #                    56
+ d2temp 215 rec #                    57
+ d2temp 215 rec #                    58
+ d2temp 215 rec #                    59
+ d2temp 215 rec #                    60
+ d2temp 215 rec #                    61
+ d2temp 215 rec #                    62
+ d2temp 215 rec #                    63
+ d2temp 215 rec #                    64
+ d2temp 20 rec #                    65
+ THREXT                     0
+ THREXT                     0
+ d2temp rec #1
+ d2temp 215 rec #                     2
+ d2temp 215 rec #                     3
+ d2temp 215 rec #                     4
+ d2temp 215 rec #                     5
+ d2temp 215 rec #                     6
+ d2temp 215 rec #                     7
+ d2temp 215 rec #                     8
+ d2temp 215 rec #                     9
+ d2temp 215 rec #                    10
+ d2temp 215 rec #                    11
+ d2temp 215 rec #                    12
+ d2temp 215 rec #                    13
+ d2temp 215 rec #                    14
+ d2temp 215 rec #                    15
+ d2temp 215 rec #                    16
+ d2temp 215 rec #                    17
+ d2temp 215 rec #                    18
+ d2temp 215 rec #                    19
+ d2temp 215 rec #                    20
+ d2temp 215 rec #                    21
+ d2temp 215 rec #                    22
+ d2temp 215 rec #                    23
+ d2temp 215 rec #                    24
+ d2temp 215 rec #                    25
+ d2temp 215 rec #                    26
+ d2temp 215 rec #                    27
+ d2temp 215 rec #                    28
+ d2temp 215 rec #                    29
+ d2temp 215 rec #                    30
+ d2temp 215 rec #                    31
+ d2temp 215 rec #                    32
+ d2temp 215 rec #                    33
+ d2temp 215 rec #                    34
+ d2temp 215 rec #                    35
+ d2temp 215 rec #                    36
+ d2temp 215 rec #                    37
+ d2temp 215 rec #                    38
+ d2temp 215 rec #                    39
+ d2temp 215 rec #                    40
+ d2temp 215 rec #                    41
+ d2temp 215 rec #                    42
+ d2temp 215 rec #                    43
+ d2temp 215 rec #                    44
+ d2temp 215 rec #                    45
+ d2temp 215 rec #                    46
+ d2temp 215 rec #                    47
+ d2temp 215 rec #                    48
+ d2temp 215 rec #                    49
+ d2temp 215 rec #                    50
+ d2temp 215 rec #                    51
+ d2temp 215 rec #                    52
+ d2temp 215 rec #                    53
+ d2temp 215 rec #                    54
+ d2temp 200 rec #                    55
+ d2temp 215 rec #                    56
+ d2temp 215 rec #                    57
+ d2temp 215 rec #                    58
+ d2temp 215 rec #                    59
+ d2temp 215 rec #                    60
+ d2temp 215 rec #                    61
+ d2temp 215 rec #                    62
+ d2temp 215 rec #                    63
+ d2temp 215 rec #                    64
+ d2temp 20 rec #                    65
+ THREXT                     0
+ THREXT                     0
+ d2temp rec #1
+ d2temp 215 rec #                     2
+ d2temp 215 rec #                     3
+ d2temp 215 rec #                     4
+ d2temp 215 rec #                     5
+ d2temp 215 rec #                     6
+ d2temp 215 rec #                     7
+ d2temp 215 rec #                     8
+ d2temp 215 rec #                     9
+ d2temp 215 rec #                    10
+ d2temp 215 rec #                    11
+ d2temp 215 rec #                    12
+ d2temp 215 rec #                    13
+ d2temp 215 rec #                    14
+ d2temp 215 rec #                    15
+ d2temp 215 rec #                    16
+ d2temp 215 rec #                    17
+ d2temp 215 rec #                    18
+ d2temp 215 rec #                    19
+ d2temp 215 rec #                    20
+ d2temp 215 rec #                    21
+ d2temp 215 rec #                    22
+ d2temp 215 rec #                    23
+ d2temp 215 rec #                    24
+ d2temp 215 rec #                    25
+ d2temp 215 rec #                    26
+ d2temp 215 rec #                    27
+ d2temp 215 rec #                    28
+ d2temp 215 rec #                    29
+ d2temp 215 rec #                    30
+ d2temp 215 rec #                    31
+ d2temp 215 rec #                    32
+ d2temp 215 rec #                    33
+ d2temp 215 rec #                    34
+ d2temp 215 rec #                    35
+ d2temp 215 rec #                    36
+ d2temp 215 rec #                    37
+ d2temp 215 rec #                    38
+ d2temp 215 rec #                    39
+ d2temp 215 rec #                    40
+ d2temp 215 rec #                    41
+ d2temp 215 rec #                    42
+ d2temp 215 rec #                    43
+ d2temp 215 rec #                    44
+ d2temp 215 rec #                    45
+ d2temp 215 rec #                    46
+ d2temp 215 rec #                    47
+ d2temp 215 rec #                    48
+ d2temp 215 rec #                    49
+ d2temp 215 rec #                    50
+ d2temp 215 rec #                    51
+ d2temp 215 rec #                    52
+ d2temp 215 rec #                    53
+ d2temp 215 rec #                    54
+ d2temp 200 rec #                    55
+ d2temp 215 rec #                    56
+ d2temp 215 rec #                    57
+ d2temp 215 rec #                    58
+ d2temp 215 rec #                    59
+ d2temp 215 rec #                    60
+ d2temp 215 rec #                    61
+ d2temp 215 rec #                    62
+ d2temp 215 rec #                    63
+ d2temp 215 rec #                    64
+ d2temp 20 rec #                    65
+ THREXT                     0
+ THREXT                     0
+ d2temp rec #1
+ d2temp 215 rec #                     2
+ d2temp 215 rec #                     3
+ d2temp 215 rec #                     4
+ d2temp 215 rec #                     5
+ d2temp 215 rec #                     6
+ d2temp 215 rec #                     7
+ d2temp 215 rec #                     8
+ d2temp 215 rec #                     9
+ d2temp 215 rec #                    10
+ d2temp 215 rec #                    11
+ d2temp 215 rec #                    12
+ d2temp 215 rec #                    13
+ d2temp 215 rec #                    14
+ d2temp 215 rec #                    15
+ d2temp 215 rec #                    16
+ d2temp 215 rec #                    17
+ d2temp 215 rec #                    18
+ d2temp 215 rec #                    19
+ d2temp 215 rec #                    20
+ d2temp 215 rec #                    21
+ d2temp 215 rec #                    22
+ d2temp 215 rec #                    23
+ d2temp 215 rec #                    24
+ d2temp 215 rec #                    25
+ d2temp 215 rec #                    26
+ d2temp 215 rec #                    27
+ d2temp 215 rec #                    28
+ d2temp 215 rec #                    29
+ d2temp 215 rec #                    30
+ d2temp 215 rec #                    31
+ d2temp 215 rec #                    32
+ d2temp 215 rec #                    33
+ d2temp 215 rec #                    34
+ d2temp 215 rec #                    35
+ d2temp 215 rec #                    36
+ d2temp 215 rec #                    37
+ d2temp 215 rec #                    38
+ d2temp 215 rec #                    39
+ d2temp 215 rec #                    40
+ d2temp 215 rec #                    41
+ d2temp 215 rec #                    42
+ d2temp 215 rec #                    43
+ d2temp 215 rec #                    44
+ d2temp 215 rec #                    45
+ d2temp 215 rec #                    46
+ d2temp 215 rec #                    47
+ d2temp 215 rec #                    48
+ d2temp 215 rec #                    49
+ d2temp 215 rec #                    50
+ d2temp 215 rec #                    51
+ d2temp 215 rec #                    52
+ d2temp 215 rec #                    53
+ d2temp 215 rec #                    54
+ d2temp 200 rec #                    55
+ d2temp 215 rec #                    56
+ d2temp 215 rec #                    57
+ d2temp 215 rec #                    58
+ d2temp 215 rec #                    59
+ d2temp 215 rec #                    60
+ d2temp 215 rec #                    61
+ d2temp 215 rec #                    62
+ d2temp 215 rec #                    63
+ d2temp 215 rec #                    64
+ d2temp 20 rec #                    65
+ THREXT                     0
+ THREXT                     0
+ d2temp rec #1
+ d2temp 215 rec #                     2
+ d2temp 215 rec #                     3
+ d2temp 215 rec #                     4
+ d2temp 215 rec #                     5
+ d2temp 215 rec #                     6
+ d2temp 215 rec #                     7
+ d2temp 215 rec #                     8
+ d2temp 215 rec #                     9
+ d2temp 215 rec #                    10
+ d2temp 215 rec #                    11
+ d2temp 215 rec #                    12
+ d2temp 215 rec #                    13
+ d2temp 215 rec #                    14
+ d2temp 215 rec #                    15
+ d2temp 215 rec #                    16
+ d2temp 215 rec #                    17
+ d2temp 215 rec #                    18
+ d2temp 215 rec #                    19
+ d2temp 215 rec #                    20
+ d2temp 215 rec #                    21
+ d2temp 215 rec #                    22
+ d2temp 215 rec #                    23
+ d2temp 215 rec #                    24
+ d2temp 215 rec #                    25
+ d2temp 215 rec #                    26
+ d2temp 215 rec #                    27
+ d2temp 215 rec #                    28
+ d2temp 215 rec #                    29
+ d2temp 215 rec #                    30
+ d2temp 215 rec #                    31
+ d2temp 215 rec #                    32
+ d2temp 215 rec #                    33
+ d2temp 215 rec #                    34
+ d2temp 215 rec #                    35
+ d2temp 215 rec #                    36
+ d2temp 215 rec #                    37
+ d2temp 215 rec #                    38
+ d2temp 215 rec #                    39
+ d2temp 215 rec #                    40
+ d2temp 215 rec #                    41
+ d2temp 215 rec #                    42
+ d2temp 215 rec #                    43
+ d2temp 215 rec #                    44
+ d2temp 215 rec #                    45
+ d2temp 215 rec #                    46
+ d2temp 215 rec #                    47
+ d2temp 215 rec #                    48
+ d2temp 215 rec #                    49
+ d2temp 215 rec #                    50
+ d2temp 215 rec #                    51
+ d2temp 215 rec #                    52
+ d2temp 215 rec #                    53
+ d2temp 215 rec #                    54
+ d2temp 200 rec #                    55
+ d2temp 215 rec #                    56
+ d2temp 215 rec #                    57
+ d2temp 215 rec #                    58
+ d2temp 215 rec #                    59
+ d2temp 215 rec #                    60
+ d2temp 215 rec #                    61
+ d2temp 215 rec #                    62
+ d2temp 215 rec #                    63
+ d2temp 215 rec #                    64
+ d2temp 20 rec #                    65
+ THREXT                     0
+ THREXT                     0
+ d2temp rec #1
+ d2temp 215 rec #                     2
+ d2temp 215 rec #                     3
+ d2temp 215 rec #                     4
+ d2temp 215 rec #                     5
+ d2temp 215 rec #                     6
+ d2temp 215 rec #                     7
+ d2temp 215 rec #                     8
+ d2temp 215 rec #                     9
+ d2temp 215 rec #                    10
+ d2temp 215 rec #                    11
+ d2temp 215 rec #                    12
+ d2temp 215 rec #                    13
+ d2temp 215 rec #                    14
+ d2temp 215 rec #                    15
+ d2temp 215 rec #                    16
+ d2temp 215 rec #                    17
+ d2temp 215 rec #                    18
+ d2temp 215 rec #                    19
+ d2temp 215 rec #                    20
+ d2temp 215 rec #                    21
+ d2temp 215 rec #                    22
+ d2temp 215 rec #                    23
+ d2temp 215 rec #                    24
+ d2temp 215 rec #                    25
+ d2temp 215 rec #                    26
+ d2temp 215 rec #                    27
+ d2temp 215 rec #                    28
+ d2temp 215 rec #                    29
+ d2temp 215 rec #                    30
+ d2temp 215 rec #                    31
+ d2temp 215 rec #                    32
+ d2temp 215 rec #                    33
+ d2temp 215 rec #                    34
+ d2temp 215 rec #                    35
+ d2temp 215 rec #                    36
+ d2temp 215 rec #                    37
+ d2temp 215 rec #                    38
+ d2temp 215 rec #                    39
+ d2temp 215 rec #                    40
+ d2temp 215 rec #                    41
+ d2temp 215 rec #                    42
+ d2temp 215 rec #                    43
+ d2temp 215 rec #                    44
+ d2temp 215 rec #                    45
+ d2temp 215 rec #                    46
+ d2temp 215 rec #                    47
+ d2temp 215 rec #                    48
+ d2temp 215 rec #                    49
+ d2temp 215 rec #                    50
+ d2temp 215 rec #                    51
+ d2temp 215 rec #                    52
+ d2temp 215 rec #                    53
+ d2temp 215 rec #                    54
+ d2temp 200 rec #                    55
+ d2temp 215 rec #                    56
+ d2temp 215 rec #                    57
+ d2temp 215 rec #                    58
+ d2temp 215 rec #                    59
+ d2temp 215 rec #                    60
+ d2temp 215 rec #                    61
+ d2temp 215 rec #                    62
+ d2temp 215 rec #                    63
+ d2temp 215 rec #                    64
+ d2temp 20 rec #                    65
+end of ciudg
+ numv1=                   377
+end of cipc
+ numv1=                   377
+ numv1=                   377
+end of transci
+ numv1=                   377
+ numv1=                   377
+end of transci
+ numv1=                   377
+ numv1=                   377
+end of transci
+ numv1=                   377
+ numv1=                   377
+end of transci
+ numv1=                   377
+ numv1=                   377
+end of transci
+ numv1=                   377
+ numv1=                   377
+end of transci
+end of exptvl
+end of exptvl
+end of exptvl
+end of cidrt
+ prnopt=                     0
+end of tran
+ allocate: status=                     0
+end of cigrd
+ prnopt=                     0
+end of tran
+  SKIPPING TWOEXP ....
+ IGNORING BNDCHK
+*** End of DALTON calculation ***
+ allocate: status=                     0
+end of cigrd
+ prnopt=                     0
+end of tran
+  SKIPPING TWOEXP ....
+ IGNORING BNDCHK
+*** End of DALTON calculation ***
+ prnopt=                     0
+end of tran
+ IGNORING BNDCHK
+*** End of DALTON calculation ***
+ allocate: status=                     0
+end of cigrd
+ prnopt=                     0
+end of tran
+  SKIPPING TWOEXP ....
+ IGNORING BNDCHK
+*** End of DALTON calculation ***
+ prnopt=                     0
+end of tran
+ IGNORING BNDCHK
+*** End of DALTON calculation ***
+ allocate: status=                     0
+ bummer (fatal):inconsistent transition densities!                      1
+bummer
+===================================

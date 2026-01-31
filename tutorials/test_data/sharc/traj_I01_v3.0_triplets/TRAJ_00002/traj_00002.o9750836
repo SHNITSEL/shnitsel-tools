@@ -1,0 +1,29 @@
+### Starting TaskPrologue of job 9750836 on w1404 at Wed Nov 12 12:51:27 CET 2025
+#   SLURM_JOB_NODELIST=w1404
+#   SLURM_JOB_NUM_NODES=1
+#   SLURM_NTASKS=4
+#   SLURM_NPROCS=4
+#   SLURM_TASKS_PER_NODE=4
+#   SLURM_JOB_CPUS_PER_NODE=4
+#   SLURM_EXPORT_ENV=NONE
+Running on cores 0-3 with govenor powersave
+### Finished TaskPrologue
+=== JOB_STATISTICS ===
+=== current date     : Wed Nov 12 13:52:39 CET 2025
+= Job-ID             : 9750836 on woody
+= Job-Name           : traj_00002
+= Job-Command        : /home/woody/bccc/bccc133h/molsharc/Tutorial/traj/Singlet_2/TRAJ_00002/run.sh
+= Initial workdir    : /home/woody/bccc/bccc133h/molsharc/Tutorial/traj/Singlet_2/TRAJ_00002
+= Queue/Partition    : work
+= Slurm account      : bccc with QOS=normal
+= Requested resources:  for 23:59:00
+= Elapsed runtime    : 01:01:20
+= Total RAM usage    : 0.4 GiB of requested  GiB (%)   
+= Node list          : w1404
+= Subm/Elig/Start/End: 2025-11-12T10:28:50 / 2025-11-12T10:28:50 / 2025-11-12T12:51:19 / 2025-11-12T13:52:39
+======================
+=== Quota infos ======
+    Path                 Used     SoftQ    HardQ    Gracetime  Filec    FileQ    FiHaQ    FileGrace    
+    /home/woody           572.2G  1000.0G  1500.0G        N/A   7,072    5,000K   7,500K        N/A    
+    /home/hpc               5.9M   104.9G   209.7G        N/A     169      500K   1,000K        N/A    
+    /home/vault             0.0K  1048.6G  2097.2G        N/A       1      200K     400K        N/A    

@@ -1,3 +1,5 @@
+tutorials/test_data/playground
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -56,7 +58,7 @@ cover/
 *.pot
 
 # Django stuff:
-*.log
+# *.log
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
@@ -160,7 +162,7 @@ cython_debug/
 #  be found at https://github.com/github/gitignore/blob/main/Global/JetBrains.gitignore
 #  and can be added to the global gitignore or merged into this file.  For a more nuclear
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
-#.idea/
+.idea/
 
 # Temporary files made by matplotlib tests
 tests/baseline_images
@@ -168,3 +170,19 @@ result_images
 
 # VS Code
 .vscode/
+
+# Devenv
+.devenv*
+devenv.*
+.envrc
+
+# Files produced by tests
+tutorials/test_data/newtonx/test_I01_v2.6.nc
+tutorials/test_data/newtonx/test_R02_a_v2.2.nc
+tutorials/test_data/newtonx/test_R02_b.nc
+tutorials/test_data/sharc/iconds_butene.hdf5
+tutorials/test_data/sharc/traj_I01_v3.nc
+tutorials/test_data/sharc/traj_I01_v3_triplets.nc
+tutorials/test_data/sharc/traj_I01_v3_triplets_nacs_socs.nc
+tutorials/test_data/sharc/traj_I01_v4.nc
+tutorials/test_data/sharc/traj_butene.nc

@@ -1,0 +1,16 @@
+basis cc-pvdz
+ras2 4
+nactel 7
+inactive 5
+roots 4  0  3 
+
+no-douglas-kroll
+cholesky
+method CASSCF
+
+
+#     Infos:
+#     mai@manganese.itc.univie.ac.at
+#     Date: 2025-03-07 11:38:35.814006
+#     Current directory: /global/mai/SHARC_4.0_beta_tests/TUTORIAL/Tutorial
+

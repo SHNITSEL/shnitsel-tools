@@ -10,9 +10,9 @@ import shnitsel.xarray
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 project = 'shnitsel-tools'
-copyright = '2025, Theodor Everley Röhrkasten, Carolin Müller'
-author = 'Theodor Everley Röhrkasten, Carolin Müller'
-release = '0.0.1'
+copyright = '2026, Kevin Höllring, Theodor Everley Röhrkasten, Carolin Müller'
+author = 'Kevin Höllring, Theodor Everley Röhrkasten, Carolin Müller'
+release = '2026.01.1'
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
@@ -22,18 +22,23 @@ extensions = [
     'sphinx.ext.napoleon',              # Converts numpy-formatted docstrings to reST
     'sphinx_autosummary_accessors',     
     'sphinx.ext.intersphinx',           # Produces links to external Sphinx-based docs
-    'autoapi.extension'                 # Finds all things to document automatically
+    'autoapi.extension',                # Finds all things to document automatically
+    'nbsphinx'
 ]
+nbsphinx_execute = 'never'
 
 templates_path = ['_templates', sphinx_autosummary_accessors.templates_path]
-exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', 'test_autosummary_accessors.rst']
+exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', 'test_autosummary_accessors.rst', '**.ipynb_checkpoints']
 
 add_module_names = False
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
-html_theme = 'alabaster'
+html_theme = 'pydata_sphinx_theme'
+html_theme_options = {
+
+}
 html_static_path = ['_static']
 
 # -- Options for autodoc extension -------------------------------------------

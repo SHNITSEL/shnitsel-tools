@@ -18,44 +18,56 @@ you can write
 
 .. code-block::
 
-    da.sh.to_xyz()
+    da.st.to_xyz()
 
 The :py:class:`shnitsel.xarray.DAShnitselAccessor` is opinionated about whether a method
 is suitable for the :py:class:`xarray.DataArray` in question.  The list of suitable
-When working in a notebook, the HTML representation of the accessor (type ``da.sh``) will show
+When working in a notebook, the HTML representation of the accessor (type ``da.st``) will show
 suitable methods and explain why the others are unsuitable. This information is also
-available through the ``da.sh.suitable`` list and the ``da.sh.unsuitable`` dictionary.
+available through the ``da.st.suitable`` list and the ``da.st.unsuitable`` dictionary.
 
 .. currentmodule:: xarray
 .. autosummary::
     :toctree: ../_generated
     :template: autosummary/accessor_method.rst
 
-    DataArray.sh.angle
-    DataArray.sh.assign_levels
-    DataArray.sh.calc_ci
-    DataArray.sh.default_mol
-    DataArray.sh.dihedral
-    DataArray.sh.distance
-    DataArray.sh.expand_midx
-    DataArray.sh.flatten_levels
-    DataArray.sh.get_bond_lengths
-    DataArray.sh.get_hop_types
-    DataArray.sh.hop_indices
-    DataArray.sh.keep_norming
-    DataArray.sh.last_time_where
-    DataArray.sh.mgroupby
-    DataArray.sh.msel
-    DataArray.sh.norm
-    DataArray.sh.pairwise_dists_pca
-    DataArray.sh.pca
-    DataArray.sh.relativize
-    DataArray.sh.sel_trajs
-    DataArray.sh.subtract_combinations
-    DataArray.sh.sudi
-    DataArray.sh.time_grouped_ci
-    DataArray.sh.to_mol
-    DataArray.sh.to_xyz
-    DataArray.sh.traj_to_xyz
-    DataArray.sh.trajs_with_hops
-    DataArray.sh.ts_to_time
+    DataArray.st.angle
+    DataArray.st.assign_levels
+    DataArray.st.calc_confidence_interval
+    DataArray.st.default_mol
+    DataArray.st.dihedral
+    DataArray.st.distance
+    DataArray.st.expand_midx
+    DataArray.st.flatten_levels
+    DataArray.st.get_bond_lengths
+    DataArray.st.get_hop_types
+    DataArray.st.hop_indices
+    DataArray.st.keep_norming
+    DataArray.st.last_time_where
+    DataArray.st.mgroupby
+    DataArray.st.msel
+    DataArray.st.norm
+    DataArray.st.pairwise_dists_pca
+    DataArray.st.pca
+    DataArray.st.relativize
+    DataArray.st.sel_trajs
+    DataArray.st.subtract_combinations
+    DataArray.st.sudi
+    DataArray.st.time_grouped_confidence_interval
+    DataArray.st.to_mol
+    DataArray.st.to_xyz
+    DataArray.st.traj_to_xyz
+    DataArray.st.trajs_with_hops
+    DataArray.st.ts_to_time
+
+..
+    missing:
+        DataArray.st.get_bond_lengths
+        DataArray.st.get_hop_types
+        DataArray.st.hop_indices
+        DataArray.st.last_time_where
+        DataArray.st.pairwise_dists_pca
+        DataArray.st.relativize
+        DataArray.st.sudi
+        DataArray.st.trajs_with_hops
+        DataArray.st.ts_to_time

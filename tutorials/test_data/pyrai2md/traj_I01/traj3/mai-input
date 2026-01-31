@@ -1,0 +1,30 @@
+&CONTROL
+title    mai
+qc_ncpu  32
+gl_seed  1
+jobtype  md
+qm       openqp
+abinit openqp
+
+&MOLECULE
+ci   3
+spin 0
+coupling 1 2, 1 3, 2 3
+
+&openqp
+openqp /home/hpc/bccc/bccc115h/PyRAI2MD-hiam/openqp
+threads 32
+use_hpc 0
+
+&MD
+step 200
+root 2
+sfhp fssh
+direct 200
+activestate 1
+nactype dcm
+buffer 0
+verbose 1
+checkpoint 1
+phasecheck 0
+thermo 0

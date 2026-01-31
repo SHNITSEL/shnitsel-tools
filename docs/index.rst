@@ -31,28 +31,35 @@ Reading data from...
 .. code-block::
 
       # One of the following:
-      ds = st.read_trajs('path/to/Singlet_1/', kind='sharc')
-      ds = st.read_trajs('path/to/Newton-X/', kind='nx')
-      ds = st.read_trajs('path/to/PyRAI2MD/', kind='pyrai2md')
-
-      # And then:
-      ds = ds.sh.setup_frames()
-   
-...ASE databases:
-
-.. code-block::
-
-      # One of the following:
-      ds = st.read_ase('path/to/ase.db', kind='spainn')
-      ds = st.read_ase('path/to/ase.db', kind='schnet')
-      ds = st.read_ase('path/to/geometries_only.db', kind=None)
+      db = st.read('path/to/Singlet_1/', kind='sharc')
+      db = st.read('path/to/Newton-X/', kind='nx')
+      db = st.read('path/to/PyRAI2MD/', kind='pyrai2md')
+      db = st.read('path/to/ase.db')
 
 ...SHNITSEL-style NetCDF4:
 
 .. code-block::
 
-      ds = st.open_frames('path/to/dataset.nc')
+      db = st.read('path/to/dataset.nc')
 
+.. #COMMENT OUT -- check the following
+   ...ASE databases:
+
+   .. code-block::
+
+         # One of the following:
+         ds = st.read('path/to/ase.db', kind='spainn')
+         ds = st.read('path/to/ase.db', kind='schnet')
+         ds = st.read('path/to/geometries_only.db', kind=None)
+
+Converting to other data-layouts...
+-----------------------------------
+
+.. code-block::
+
+      ds = db.as_stacked  # All trajectories along the same axis
+      # or:
+      ds = db.as_layered  # Separate axes for trajectory and time
 
 Saving data to...
 -----------------
@@ -61,14 +68,16 @@ Saving data to...
 
 .. code-block::
 
-   ds.sh.save_frames('path/to/dataset.nc')
+   ds.st.write_shnitsel_file('path/to/dataset.nc')
 
-...ASE:
 
-.. code-block::
+.. #COMMENT OUT -- what is the correct new syntax?
+   ...ASE:
 
-      ds.sh.write_ase('path/to/ase.db', kind='spainn')
-      # see above for other kinds
+   .. code-block::
+
+         ds.sh.write_ase('path/to/ase.db', kind='spainn')
+         # see above for other kinds
 
 Select...
 ---------
@@ -84,7 +93,7 @@ Select...
 
 .. code-block::
 
-   ds.sel(trajid=1)
+   ds.sel(trajectory=1)
 
 ...a point in time:
 
@@ -92,11 +101,12 @@ Select...
 
    ds.sel(time=1)
 
-Derive...
----------
+.. #COMMENT OUT -- TODO
+   Derive...
+   ---------
 
-...bond lengths:
-TODO
+   ...bond lengths:
+   TODO
 
 
 Reference
@@ -108,5 +118,5 @@ Reference
    top-level
    accessors/ds_accessors
    accessors/da_accessors
-   priority
    api/index
+   tutorials

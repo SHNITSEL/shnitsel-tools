@@ -1,0 +1,8 @@
+/user/julia/.bashrc: line 171: shopt: direxpand: invalid shell option name
+STOP 1
+
+ #===================================================#
+ QM call was not successful, aborting the run.
+ Error code:      99
+ #===================================================#
+

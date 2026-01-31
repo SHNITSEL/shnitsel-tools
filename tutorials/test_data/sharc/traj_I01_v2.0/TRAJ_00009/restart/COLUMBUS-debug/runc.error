@@ -1,0 +1,506 @@
+end of hernew
+ IGNORING BNDCHK
+*** End of DALTON calculation ***
+end of mcdrt
+end of mcuft
+end of mcscf
+end of mcpc
+end of mcpc
+end of mcpc
+end of cidrt
+ prnopt=                     0
+end of tran
+diagi   file:     12 records  of    766 WP each=>       9192 WP total
+ofdgi   file:    327 records  of    766 WP each=>     250482 WP total
+fil3w   file:     56 records  of  30006 WP each=>    1680336 WP total
+fil3x   file:     49 records  of  30006 WP each=>    1470294 WP total
+fil4w   file:    128 records  of  30006 WP each=>    3840768 WP total
+fil4x   file:    128 records  of  30006 WP each=>    3840768 WP total
+global arrays:               11248900   (             85.82 MB)
+vdisk:                              0   (              0.00 MB)
+drt:                         59999994   (            228.88 MB)
+================================================================================
+ using                      1  npartitions of size                     1 .
+pliste=   0
+ using                      1  npartitions of size                     1 .
+pliste=   0
+ Main memory management:
+ global                1 DP per process
+ vdisk                 0 DP per process
+ stack                 0 DP per process
+ core          393215999 DP per process
+
+ intermediate da file sorting parameters:
+ nbuk=   2 lendar=   32767 nipbk=   21844 nipsg= 393038133
+  waiting after driverwrap ....                     0
+ Allocating              393215999  for ci step ...
+ bummer (warning):transition densities: resetting ref occupation number to 0                      0
+ bummer (warning):overlap matrix: # small eigenvalues=                      1
+ bummer (warning):overlap matrix: # small eigenvalues=                      1
+ bummer (warning):overlap matrix: # small eigenvalues=                      1
+ bummer (warning):overlap matrix: # small eigenvalues=                      1
+ bummer (warning):overlap matrix: # small eigenvalues=                      1
+ bummer (warning):overlap matrix: # small eigenvalues=                      1
+ bummer (warning):overlap matrix: # small eigenvalues=                      1
+ bummer (warning):inf%bufszi too small ... resetting to                    8030
+ THREXT                     0
+ THREXT                     0
+ d2temp rec #1
+ d2temp 215 rec #                     2
+ d2temp 215 rec #                     3
+ d2temp 215 rec #                     4
+ d2temp 215 rec #                     5
+ d2temp 215 rec #                     6
+ d2temp 215 rec #                     7
+ d2temp 215 rec #                     8
+ d2temp 215 rec #                     9
+ d2temp 215 rec #                    10
+ d2temp 215 rec #                    11
+ d2temp 215 rec #                    12
+ d2temp 215 rec #                    13
+ d2temp 215 rec #                    14
+ d2temp 215 rec #                    15
+ d2temp 215 rec #                    16
+ d2temp 215 rec #                    17
+ d2temp 215 rec #                    18
+ d2temp 215 rec #                    19
+ d2temp 215 rec #                    20
+ d2temp 215 rec #                    21
+ d2temp 215 rec #                    22
+ d2temp 215 rec #                    23
+ d2temp 215 rec #                    24
+ d2temp 215 rec #                    25
+ d2temp 215 rec #                    26
+ d2temp 215 rec #                    27
+ d2temp 215 rec #                    28
+ d2temp 215 rec #                    29
+ d2temp 215 rec #                    30
+ d2temp 215 rec #                    31
+ d2temp 215 rec #                    32
+ d2temp 215 rec #                    33
+ d2temp 215 rec #                    34
+ d2temp 215 rec #                    35
+ d2temp 215 rec #                    36
+ d2temp 215 rec #                    37
+ d2temp 215 rec #                    38
+ d2temp 215 rec #                    39
+ d2temp 215 rec #                    40
+ d2temp 215 rec #                    41
+ d2temp 215 rec #                    42
+ d2temp 215 rec #                    43
+ d2temp 215 rec #                    44
+ d2temp 215 rec #                    45
+ d2temp 215 rec #                    46
+ d2temp 215 rec #                    47
+ d2temp 215 rec #                    48
+ d2temp 215 rec #                    49
+ d2temp 215 rec #                    50
+ d2temp 215 rec #                    51
+ d2temp 215 rec #                    52
+ d2temp 215 rec #                    53
+ d2temp 215 rec #                    54
+ d2temp 200 rec #                    55
+ d2temp 215 rec #                    56
+ d2temp 215 rec #                    57
+ d2temp 215 rec #                    58
+ d2temp 215 rec #                    59
+ d2temp 215 rec #                    60
+ d2temp 215 rec #                    61
+ d2temp 215 rec #                    62
+ d2temp 215 rec #                    63
+ d2temp 215 rec #                    64
+ d2temp 20 rec #                    65
+ THREXT                     0
+ THREXT                     0
+ d2temp rec #1
+ d2temp 215 rec #                     2
+ d2temp 215 rec #                     3
+ d2temp 215 rec #                     4
+ d2temp 215 rec #                     5
+ d2temp 215 rec #                     6
+ d2temp 215 rec #                     7
+ d2temp 215 rec #                     8
+ d2temp 215 rec #                     9
+ d2temp 215 rec #                    10
+ d2temp 215 rec #                    11
+ d2temp 215 rec #                    12
+ d2temp 215 rec #                    13
+ d2temp 215 rec #                    14
+ d2temp 215 rec #                    15
+ d2temp 215 rec #                    16
+ d2temp 215 rec #                    17
+ d2temp 215 rec #                    18
+ d2temp 215 rec #                    19
+ d2temp 215 rec #                    20
+ d2temp 215 rec #                    21
+ d2temp 215 rec #                    22
+ d2temp 215 rec #                    23
+ d2temp 215 rec #                    24
+ d2temp 215 rec #                    25
+ d2temp 215 rec #                    26
+ d2temp 215 rec #                    27
+ d2temp 215 rec #                    28
+ d2temp 215 rec #                    29
+ d2temp 215 rec #                    30
+ d2temp 215 rec #                    31
+ d2temp 215 rec #                    32
+ d2temp 215 rec #                    33
+ d2temp 215 rec #                    34
+ d2temp 215 rec #                    35
+ d2temp 215 rec #                    36
+ d2temp 215 rec #                    37
+ d2temp 215 rec #                    38
+ d2temp 215 rec #                    39
+ d2temp 215 rec #                    40
+ d2temp 215 rec #                    41
+ d2temp 215 rec #                    42
+ d2temp 215 rec #                    43
+ d2temp 215 rec #                    44
+ d2temp 215 rec #                    45
+ d2temp 215 rec #                    46
+ d2temp 215 rec #                    47
+ d2temp 215 rec #                    48
+ d2temp 215 rec #                    49
+ d2temp 215 rec #                    50
+ d2temp 215 rec #                    51
+ d2temp 215 rec #                    52
+ d2temp 215 rec #                    53
+ d2temp 215 rec #                    54
+ d2temp 200 rec #                    55
+ d2temp 215 rec #                    56
+ d2temp 215 rec #                    57
+ d2temp 215 rec #                    58
+ d2temp 215 rec #                    59
+ d2temp 215 rec #                    60
+ d2temp 215 rec #                    61
+ d2temp 215 rec #                    62
+ d2temp 215 rec #                    63
+ d2temp 215 rec #                    64
+ d2temp 20 rec #                    65
+ THREXT                     0
+ THREXT                     0
+ d2temp rec #1
+ d2temp 215 rec #                     2
+ d2temp 215 rec #                     3
+ d2temp 215 rec #                     4
+ d2temp 215 rec #                     5
+ d2temp 215 rec #                     6
+ d2temp 215 rec #                     7
+ d2temp 215 rec #                     8
+ d2temp 215 rec #                     9
+ d2temp 215 rec #                    10
+ d2temp 215 rec #                    11
+ d2temp 215 rec #                    12
+ d2temp 215 rec #                    13
+ d2temp 215 rec #                    14
+ d2temp 215 rec #                    15
+ d2temp 215 rec #                    16
+ d2temp 215 rec #                    17
+ d2temp 215 rec #                    18
+ d2temp 215 rec #                    19
+ d2temp 215 rec #                    20
+ d2temp 215 rec #                    21
+ d2temp 215 rec #                    22
+ d2temp 215 rec #                    23
+ d2temp 215 rec #                    24
+ d2temp 215 rec #                    25
+ d2temp 215 rec #                    26
+ d2temp 215 rec #                    27
+ d2temp 215 rec #                    28
+ d2temp 215 rec #                    29
+ d2temp 215 rec #                    30
+ d2temp 215 rec #                    31
+ d2temp 215 rec #                    32
+ d2temp 215 rec #                    33
+ d2temp 215 rec #                    34
+ d2temp 215 rec #                    35
+ d2temp 215 rec #                    36
+ d2temp 215 rec #                    37
+ d2temp 215 rec #                    38
+ d2temp 215 rec #                    39
+ d2temp 215 rec #                    40
+ d2temp 215 rec #                    41
+ d2temp 215 rec #                    42
+ d2temp 215 rec #                    43
+ d2temp 215 rec #                    44
+ d2temp 215 rec #                    45
+ d2temp 215 rec #                    46
+ d2temp 215 rec #                    47
+ d2temp 215 rec #                    48
+ d2temp 215 rec #                    49
+ d2temp 215 rec #                    50
+ d2temp 215 rec #                    51
+ d2temp 215 rec #                    52
+ d2temp 215 rec #                    53
+ d2temp 215 rec #                    54
+ d2temp 200 rec #                    55
+ d2temp 215 rec #                    56
+ d2temp 215 rec #                    57
+ d2temp 215 rec #                    58
+ d2temp 215 rec #                    59
+ d2temp 215 rec #                    60
+ d2temp 215 rec #                    61
+ d2temp 215 rec #                    62
+ d2temp 215 rec #                    63
+ d2temp 215 rec #                    64
+ d2temp 20 rec #                    65
+ THREXT                     0
+ THREXT                     0
+ d2temp rec #1
+ d2temp 215 rec #                     2
+ d2temp 215 rec #                     3
+ d2temp 215 rec #                     4
+ d2temp 215 rec #                     5
+ d2temp 215 rec #                     6
+ d2temp 215 rec #                     7
+ d2temp 215 rec #                     8
+ d2temp 215 rec #                     9
+ d2temp 215 rec #                    10
+ d2temp 215 rec #                    11
+ d2temp 215 rec #                    12
+ d2temp 215 rec #                    13
+ d2temp 215 rec #                    14
+ d2temp 215 rec #                    15
+ d2temp 215 rec #                    16
+ d2temp 215 rec #                    17
+ d2temp 215 rec #                    18
+ d2temp 215 rec #                    19
+ d2temp 215 rec #                    20
+ d2temp 215 rec #                    21
+ d2temp 215 rec #                    22
+ d2temp 215 rec #                    23
+ d2temp 215 rec #                    24
+ d2temp 215 rec #                    25
+ d2temp 215 rec #                    26
+ d2temp 215 rec #                    27
+ d2temp 215 rec #                    28
+ d2temp 215 rec #                    29
+ d2temp 215 rec #                    30
+ d2temp 215 rec #                    31
+ d2temp 215 rec #                    32
+ d2temp 215 rec #                    33
+ d2temp 215 rec #                    34
+ d2temp 215 rec #                    35
+ d2temp 215 rec #                    36
+ d2temp 215 rec #                    37
+ d2temp 215 rec #                    38
+ d2temp 215 rec #                    39
+ d2temp 215 rec #                    40
+ d2temp 215 rec #                    41
+ d2temp 215 rec #                    42
+ d2temp 215 rec #                    43
+ d2temp 215 rec #                    44
+ d2temp 215 rec #                    45
+ d2temp 215 rec #                    46
+ d2temp 215 rec #                    47
+ d2temp 215 rec #                    48
+ d2temp 215 rec #                    49
+ d2temp 215 rec #                    50
+ d2temp 215 rec #                    51
+ d2temp 215 rec #                    52
+ d2temp 215 rec #                    53
+ d2temp 215 rec #                    54
+ d2temp 200 rec #                    55
+ d2temp 215 rec #                    56
+ d2temp 215 rec #                    57
+ d2temp 215 rec #                    58
+ d2temp 215 rec #                    59
+ d2temp 215 rec #                    60
+ d2temp 215 rec #                    61
+ d2temp 215 rec #                    62
+ d2temp 215 rec #                    63
+ d2temp 215 rec #                    64
+ d2temp 20 rec #                    65
+ THREXT                     0
+ THREXT                     0
+ d2temp rec #1
+ d2temp 215 rec #                     2
+ d2temp 215 rec #                     3
+ d2temp 215 rec #                     4
+ d2temp 215 rec #                     5
+ d2temp 215 rec #                     6
+ d2temp 215 rec #                     7
+ d2temp 215 rec #                     8
+ d2temp 215 rec #                     9
+ d2temp 215 rec #                    10
+ d2temp 215 rec #                    11
+ d2temp 215 rec #                    12
+ d2temp 215 rec #                    13
+ d2temp 215 rec #                    14
+ d2temp 215 rec #                    15
+ d2temp 215 rec #                    16
+ d2temp 215 rec #                    17
+ d2temp 215 rec #                    18
+ d2temp 215 rec #                    19
+ d2temp 215 rec #                    20
+ d2temp 215 rec #                    21
+ d2temp 215 rec #                    22
+ d2temp 215 rec #                    23
+ d2temp 215 rec #                    24
+ d2temp 215 rec #                    25
+ d2temp 215 rec #                    26
+ d2temp 215 rec #                    27
+ d2temp 215 rec #                    28
+ d2temp 215 rec #                    29
+ d2temp 215 rec #                    30
+ d2temp 215 rec #                    31
+ d2temp 215 rec #                    32
+ d2temp 215 rec #                    33
+ d2temp 215 rec #                    34
+ d2temp 215 rec #                    35
+ d2temp 215 rec #                    36
+ d2temp 215 rec #                    37
+ d2temp 215 rec #                    38
+ d2temp 215 rec #                    39
+ d2temp 215 rec #                    40
+ d2temp 215 rec #                    41
+ d2temp 215 rec #                    42
+ d2temp 215 rec #                    43
+ d2temp 215 rec #                    44
+ d2temp 215 rec #                    45
+ d2temp 215 rec #                    46
+ d2temp 215 rec #                    47
+ d2temp 215 rec #                    48
+ d2temp 215 rec #                    49
+ d2temp 215 rec #                    50
+ d2temp 215 rec #                    51
+ d2temp 215 rec #                    52
+ d2temp 215 rec #                    53
+ d2temp 215 rec #                    54
+ d2temp 200 rec #                    55
+ d2temp 215 rec #                    56
+ d2temp 215 rec #                    57
+ d2temp 215 rec #                    58
+ d2temp 215 rec #                    59
+ d2temp 215 rec #                    60
+ d2temp 215 rec #                    61
+ d2temp 215 rec #                    62
+ d2temp 215 rec #                    63
+ d2temp 215 rec #                    64
+ d2temp 20 rec #                    65
+ THREXT                     0
+ THREXT                     0
+ d2temp rec #1
+ d2temp 215 rec #                     2
+ d2temp 215 rec #                     3
+ d2temp 215 rec #                     4
+ d2temp 215 rec #                     5
+ d2temp 215 rec #                     6
+ d2temp 215 rec #                     7
+ d2temp 215 rec #                     8
+ d2temp 215 rec #                     9
+ d2temp 215 rec #                    10
+ d2temp 215 rec #                    11
+ d2temp 215 rec #                    12
+ d2temp 215 rec #                    13
+ d2temp 215 rec #                    14
+ d2temp 215 rec #                    15
+ d2temp 215 rec #                    16
+ d2temp 215 rec #                    17
+ d2temp 215 rec #                    18
+ d2temp 215 rec #                    19
+ d2temp 215 rec #                    20
+ d2temp 215 rec #                    21
+ d2temp 215 rec #                    22
+ d2temp 215 rec #                    23
+ d2temp 215 rec #                    24
+ d2temp 215 rec #                    25
+ d2temp 215 rec #                    26
+ d2temp 215 rec #                    27
+ d2temp 215 rec #                    28
+ d2temp 215 rec #                    29
+ d2temp 215 rec #                    30
+ d2temp 215 rec #                    31
+ d2temp 215 rec #                    32
+ d2temp 215 rec #                    33
+ d2temp 215 rec #                    34
+ d2temp 215 rec #                    35
+ d2temp 215 rec #                    36
+ d2temp 215 rec #                    37
+ d2temp 215 rec #                    38
+ d2temp 215 rec #                    39
+ d2temp 215 rec #                    40
+ d2temp 215 rec #                    41
+ d2temp 215 rec #                    42
+ d2temp 215 rec #                    43
+ d2temp 215 rec #                    44
+ d2temp 215 rec #                    45
+ d2temp 215 rec #                    46
+ d2temp 215 rec #                    47
+ d2temp 215 rec #                    48
+ d2temp 215 rec #                    49
+ d2temp 215 rec #                    50
+ d2temp 215 rec #                    51
+ d2temp 215 rec #                    52
+ d2temp 215 rec #                    53
+ d2temp 215 rec #                    54
+ d2temp 200 rec #                    55
+ d2temp 215 rec #                    56
+ d2temp 215 rec #                    57
+ d2temp 215 rec #                    58
+ d2temp 215 rec #                    59
+ d2temp 215 rec #                    60
+ d2temp 215 rec #                    61
+ d2temp 215 rec #                    62
+ d2temp 215 rec #                    63
+ d2temp 215 rec #                    64
+ d2temp 20 rec #                    65
+end of ciudg
+ numv1=                   377
+end of cipc
+ numv1=                   377
+ numv1=                   377
+end of transci
+ numv1=                   377
+ numv1=                   377
+end of transci
+ numv1=                   377
+ numv1=                   377
+end of transci
+ numv1=                   377
+ numv1=                   377
+end of transci
+ numv1=                   377
+ numv1=                   377
+end of transci
+ numv1=                   377
+ numv1=                   377
+end of transci
+end of exptvl
+end of exptvl
+end of exptvl
+end of cidrt
+ prnopt=                     0
+end of tran
+ allocate: status=                     0
+end of cigrd
+ prnopt=                     0
+end of tran
+  SKIPPING TWOEXP ....
+ IGNORING BNDCHK
+*** End of DALTON calculation ***
+ allocate: status=                     0
+end of cigrd
+ prnopt=                     0
+end of tran
+  SKIPPING TWOEXP ....
+ IGNORING BNDCHK
+*** End of DALTON calculation ***
+ prnopt=                     0
+end of tran
+ IGNORING BNDCHK
+*** End of DALTON calculation ***
+ allocate: status=                     0
+end of cigrd
+ prnopt=                     0
+end of tran
+  SKIPPING TWOEXP ....
+ IGNORING BNDCHK
+*** End of DALTON calculation ***
+ prnopt=                     0
+end of tran
+ IGNORING BNDCHK
+*** End of DALTON calculation ***
+ allocate: status=                     0
+ bummer (fatal):inconsistent transition densities!                      1
+bummer

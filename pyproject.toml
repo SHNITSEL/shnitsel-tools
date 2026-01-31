@@ -4,62 +4,79 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "shnitsel-tools"
-version = "0.0.1.post1"
+version = "2026.01.1"  # YYYY.0M.MICRO format; see https://calver.org
 authors = [
-  { name="Theodor Everley Röhrkasten", email="theodor.roehrkasten@fau.de" },
-  { name="Carolin Müller", email="carolin.cpc.mueller@fau.de" },
+  { name = "Theodor Everley Röhrkasten", email = "theodor.roehrkasten@fau.de" },
+  { name = "Kevin Höllring", email = "kevin.hoellring@fau.de" },
+  { name = "Carolin Müller", email = "carolin.cpc.mueller@fau.de" },
 ]
 
 description = "Collect, manage, process, analyse & visualize surface hopping data"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 classifiers = [
-    "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: MIT License",
-    "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
 ]
 dependencies = [
   "scipy>=1.16",
-  "matplotlib",
-  "xarray",
-  "rdkit",
-  "ase",
-  "numpy>=1.26.2",
-  "pandas>=2.1.4",
-  "h5netcdf>=1.3.0",
-  "scikit-learn>=1.3.2",
-  "jupyter>=1.0.0",
-  "py3dmol>=2.0.4",
+  "matplotlib>=3.10",
+  "xarray>=2025.7.1",  # Development currently on 2025.10.1
+  "rdkit>=2025",       # 2025.9.1 currently in testing
+  "ase>=3",            # 3.26.0 currently in testing
+  "numpy>=2.3",        # 2.3.6 currently in testing
+  "pandas>=2.2",
+  "h5netcdf>=1.7.0",
+  "scikit-learn>=1.5",
+  "jupyter>=1.0.0",    # TODO: make optional?
+  "py3dmol>=2.0.4",    # TODO: make optional?
   "tqdm>=4.66.2",
+  "pyparsing>=3.2.5",
+  "svgpathtools>=1.7.2",
+  # To enable direct loading of remote resources:
+  "fsspec",
+  "requests",
+  "aiohttp"
 ]
 
 [project.optional-dependencies]
-extras = [
-  "plotly>=5.22.0",
-  "seaborn>=0.13.1",
-  "bokeh"
+vis = [
+  "bokeh>=3.5",
+  "datashader",
+  "numba>=0.60", # Required for datashader; some lower versions affected by build error, see https://github.com/astral-sh/uv/issues/6281
+  "seaborn>=0.13.2",
+  "holoviews>=1.22.1"
 ]
 
 dev = [
   "pytest>=5.2",
   "pytest-cov>=4.1.0",
-  "hypothesis", # ==6.127.3
+  "hypothesis>=6",         # ==6.127.3
   "tox>=4.10.0",
+  "tox-uv>=1.29.0",
   "pre-commit>=2.20.0",
-  "ruff==0.4.1",
+  "ruff>=0.5.3",
   "mypy>=1.9.0",
   "pandas-stubs",
   "scipy-stubs",
   "types-tqdm",
+  "build",
+  "grayskull",
 
   # Sphinx and its extensions for building documentation
-  "sphinx",
+  "sphinx==8.2.3",
   "sphinx-autobuild",
   "sphinx-autosummary-accessors",
   "nbsphinx",
   "sphinx-design",
   "sphinx-autoapi",
+  "pydata-sphinx-theme",
 ]
+
+[project.scripts]
+convert_to_shnitsel_file = "shnitsel.cli.convert_to_shnitsel:main"
+merge_shnitsel_files = "shnitsel.cli.merge_shnitsel_files:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
@@ -67,19 +84,42 @@ include = ["shnitsel*"]
 
 [tool.ruff]
 include = ["shnitsel/**/*.py"]
+extend-exclude = ["shnitsel/_generated_accessors.py"]
 
 [tool.ruff.format]
 quote-style = "preserve"
 
 [tool.ruff.lint]
+select = [
+  "D103",  # Undocumented public function
+  "PERF",  # Identify more performant approaches
+]
+
 ignore = [
   "E731", # Do not assign a `lambda` expression, use a `def`
   "E741", # Ambiguous variable name
   "E70",  # Multiple statements on one line
 ]
 
+[tool.ruff.lint.per-file-ignores]
+# Don't require docstrings in tests
+"tests/*" = [
+  "D102",  
+  "D103",
+]
+# Don't require docstrings in cli programs
+"dev/*" = [
+  "D102",  
+  "D103",
+]
+"cli/*" = [
+  "D102",  
+  "D103",
+]
+
 [tool.ruff.lint.flake8-annotations]
 ignore-fully-untyped = true
+
 
 [tool.mypy]
 packages = "shnitsel"
@@ -91,19 +131,16 @@ color_output = true
 error_summary = true
 
 [[tool.mypy.overrides]]
-module = [
-  "scipy",
-  "sklearn.*"
-]
+module = ["scipy", "sklearn.*"]
 ignore_missing_imports = true
 
 [tool.tox]
-min_version = "4.19"
-env_list = ["py313", "py312", "py311", "py310"]
+requires = ["tox>=4.19"]
+env_list = ["py313", "py312", "py311"]
 
-[tool.tox.testenv]
-deps = ["pytest"]
-commands = [
-  ["python", "--version"],
-  ["pytest"]
-]
+[tool.tox.env_run_base]
+deps = ["pytest", "pytest-cov", "pytest-sugar", "hypothesis"]
+commands = [["python", "--version"], ["pytest"]]
+
+[tool.pytest.ini_options]
+addopts = "--cov=shnitsel --log-level=DEBUG" # "--maxfail=1 "

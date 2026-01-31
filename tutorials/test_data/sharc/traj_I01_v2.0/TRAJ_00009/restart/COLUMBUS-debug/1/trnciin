@@ -1,0 +1,8 @@
+ &input 
+  lvlprt=3, 
+   nroot1=3, 
+  nroot2=3 
+   drt1=1, 
+ drt2=1 
+/&end 
+ 
