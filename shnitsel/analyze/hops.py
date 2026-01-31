@@ -305,9 +305,9 @@ def filter_data_at_hops(
             #     hop_from=(frames.astate.shift({'frame': 1}, -1).isel(frame=is_hop)),
             #     hop_to=res.astate,
             # # )
-            # if hop_types is not None:
+            # if hop_type_selection is not None:
             #     acc = np.full(res.sizes['frame'], False)
-            #     for hop_from, hop_to in hop_types:
+            #     for hop_from, hop_to in hop_type_selection:
             #         acc |= (res.hop_from == hop_from) & (res.hop_to == hop_to)
             #     res = res.isel(frame=acc)
             # return res.drop_dims(['trajid_'], errors='ignore')
@@ -320,7 +320,9 @@ def filter_data_at_hops(
 
 # TODO: FIXME: Make StateSelection the preferred type for picking hopping types.
 def focus_hops(
-    frames, hop_types: list[tuple[int, int]] | None = None, window: slice | None = None
+    frames,
+    hop_type_selection: list[tuple[int, int]] | None = None,
+    window: slice | None = None,
 ):
     """For each hop, create a copy of its trajectory centered on the hop; align these
 
@@ -328,7 +330,7 @@ def focus_hops(
     ----------
     frames
         An Xarray object (Dataset or DataArray) with a ``frames`` dimension
-    hop_types
+    hop_type_selection
         Types of hops to include
         See like-named parameter in :py:func:`shnitsel.analyze.hops.hops`
     window
@@ -363,7 +365,7 @@ def focus_hops(
     """
     raise NotImplementedError()
     # TODO: FIXME: Refactor this to new wrapper types
-    hop_vals = hops(frames, hop_types=hop_types)
+    hop_vals = hops(frames, hop_type_selection=hop_type_selection)
     # If no hops, return empty
     if hop_vals.sizes["frame"] == 0:
         res = frames.isel(frame=[])
@@ -432,7 +434,7 @@ def focus_hops(
 # TODO: FIXME: Make StateSelection the preferred type for picking hopping types.
 def assign_hop_time(
     frames,
-    hop_types: list[tuple[int, int]] | None = None,
+    hop_type_selection: list[tuple[int, int]] | None = None,
     which: Literal["first", "last"] = "last",
 ):
     """Assign a ``hop_time`` coordinate along the ``frames`` axis giving times
@@ -442,7 +444,7 @@ def assign_hop_time(
     ----------
     frames
         An Xarray object (Dataset or DataArray) with a ``frames`` dimension
-    hop_types
+    hop_type_selection
         Types of hops to include
         See like-named parameter in :py:func:`shnitsel.analyze.hops.hops`
     which
@@ -469,7 +471,7 @@ def assign_hop_time(
     if frames.sizes["frame"] == 0:
         return frames.assign_coords(hop_time=("frame", []))
 
-    hop_vals = hops(frames, hop_types=hop_types).reset_index("frame")
+    hop_vals = hops(frames, hop_type_selection=hop_type_selection).reset_index("frame")
     if hop_vals.sizes["frame"] == 0:
         return frames.assign_coords(
             hop_time=("frame", np.full(frames.sizes["frame"], np.nan))
