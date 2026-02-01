@@ -6,8 +6,7 @@ from shnitsel.core.typedefs import AtXYZ
 import xarray as xr
 
 from shnitsel.data.dataset_containers import wrap_dataset
-from shnitsel.data.dataset_containers.frames import Frames
-from shnitsel.data.dataset_containers.trajectory import Trajectory
+from shnitsel.data.dataset_containers.shared import ShnitselDataset
 from shnitsel.data.tree.node import TreeNode
 from shnitsel.filtering.structure_selection import (
     FeatureTypeLabel,
@@ -60,14 +59,14 @@ def distance(atXYZ: AtXYZ, i: int, j: int) -> xr.DataArray:
 
 @overload
 def get_distances(
-    atXYZ_source: TreeNode[Any, Trajectory | Frames | xr.Dataset | xr.DataArray],
+    atXYZ_source: TreeNode[Any, ShnitselDataset | xr.Dataset | xr.DataArray],
     structure_selection: StructureSelection
     | StructureSelectionDescriptor
     | None = None,
 ) -> TreeNode[Any, xr.DataArray]: ...
 @overload
 def get_distances(
-    atXYZ_source: Trajectory | Frames | xr.Dataset | xr.DataArray,
+    atXYZ_source: ShnitselDataset | xr.Dataset | xr.DataArray,
     structure_selection: StructureSelection
     | StructureSelectionDescriptor
     | None = None,
@@ -77,9 +76,8 @@ def get_distances(
 @API()
 @needs(dims={'atom', 'direction'})
 def get_distances(
-    atXYZ_source: TreeNode[Any, Trajectory | Frames | xr.Dataset | xr.DataArray]
-    | Trajectory
-    | Frames
+    atXYZ_source: TreeNode[Any, ShnitselDataset | xr.Dataset | xr.DataArray]
+    | ShnitselDataset
     | xr.Dataset
     | xr.DataArray,
     structure_selection: StructureSelection
@@ -91,7 +89,7 @@ def get_distances(
 
     Parameters
     ----------
-    atXYZ_source : TreeNode[Any, Trajectory | Frames | xr.Dataset | xr.DataArray] | Trajectory | Frames | xr.Dataset | xr.DataArray
+    atXYZ_source : TreeNode[Any, ShnitselDataset | xr.Dataset | xr.DataArray] | ShnitselDataset| xr.Dataset | xr.DataArray
         An :py:class:`xarray.DataArray` of molecular coordinates, with dimensions ``atom`` and
         ``direction`` or another source of positional data like a trajectory, a frameset,
         a dataset representing either of those or a tree structure holding such data.
@@ -115,18 +113,21 @@ def get_distances(
         )
 
     position_data: xr.DataArray
+    position_source: ShnitselDataset | xr.Dataset | xr.DataArray
     charge_info: int | None
     if isinstance(atXYZ_source, xr.DataArray):
         position_data = atXYZ_source
+        position_source = atXYZ_source
         charge_info = None
     else:
-        wrapped_ds = wrap_dataset(atXYZ_source, (Trajectory | Frames))
+        wrapped_ds = wrap_dataset(atXYZ_source, ShnitselDataset)
         position_data = wrapped_ds.atXYZ
+        position_source = wrapped_ds
         charge_info = int(wrapped_ds.charge)
 
     structure_selection = _get_default_structure_selection(
         structure_selection,
-        atXYZ_source=position_data,
+        atXYZ_source=position_source,
         default_levels=['bonds'],
         charge_info=charge_info,
     )

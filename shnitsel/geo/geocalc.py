@@ -157,10 +157,11 @@ def get_bats(
             position_source = atXYZ
             charge_info = None
         else:
-            wrapped_ds = wrap_dataset(atXYZ, (Trajectory | Frames))
+            wrapped_ds = wrap_dataset(atXYZ, ShnitselDataset)
             position_source = wrapped_ds
             position_data = wrapped_ds.atXYZ
             charge_info = int(wrapped_ds.charge)
+            atXYZ = wrapped_ds
 
         # TODO: FIXME: Example is not up to date
         structure_selection = _get_default_structure_selection(
@@ -173,16 +174,16 @@ def get_bats(
         feature_data: list[xr.DataArray] = []
         if len(structure_selection.atoms_selected) > 0:
             feature_data.append(
-                get_positions(position_data, structure_selection=structure_selection)
+                get_positions(position_source, structure_selection=structure_selection)
             )
         if len(structure_selection.bonds_selected) > 0:
             feature_data.append(
-                get_distances(position_data, structure_selection=structure_selection)
+                get_distances(position_source, structure_selection=structure_selection)
             )
         if len(structure_selection.angles_selected) > 0:
             feature_data.append(
                 get_angles(
-                    position_data,
+                    position_source,
                     structure_selection=structure_selection,
                     deg=deg,
                     signed=signed,
@@ -191,7 +192,7 @@ def get_bats(
         if len(structure_selection.dihedrals_selected) > 0:
             feature_data.append(
                 get_dihedrals(
-                    position_data,
+                    position_source,
                     structure_selection=structure_selection,
                     deg=deg,
                     signed=signed,
@@ -200,10 +201,17 @@ def get_bats(
         if len(structure_selection.pyramids_selected) > 0:
             feature_data.append(
                 get_pyramidalization(
-                    position_data,
+                    position_source,
                     structure_selection=structure_selection,
                     deg=deg,
                     signed=signed,
+                )
+            )
+        if structure_selection.is_BLA_selected:
+            feature_data.append(
+                get_max_chromophor_BLA(
+                    position_source,
+                    structure_selection=structure_selection,
                 )
             )
 
