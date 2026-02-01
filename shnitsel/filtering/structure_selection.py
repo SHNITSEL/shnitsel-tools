@@ -44,7 +44,7 @@ FeatureList: TypeAlias = list[FeatureDescriptor]
 ActiveFlag: TypeAlias = bool
 
 FeatureLevelType: TypeAlias = Literal[
-    'atoms', 'bonds', 'angles', 'dihedrals', 'pyramids'
+    'atoms', 'bonds', 'angles', 'dihedrals', 'pyramids', 'pwdist', 'BLA'
 ]
 FeatureLevelOptions: TypeAlias = FeatureLevelType | Literal[1, 2, 3, 4, 5]
 
@@ -54,6 +54,8 @@ FEATURE_LEVELS: list[FeatureLevelType] = [
     'angles',
     'dihedrals',
     'pyramids',
+    'pwdist',
+    'BLA',
 ]
 
 FeatureTypeLabel: TypeAlias = Literal[
@@ -115,6 +117,8 @@ class StructureSelection:
     pyramids_types: dict[PyramidsDescriptor, bool]
     pyramids_selected: set[PyramidsDescriptor]
 
+    is_BLA_selected: bool
+
     feature_level_colors: dict[FeatureLevelType, str] = field(
         default_factory=lambda: dict(FEATURE_LEVEL_DEFAULT_COLORS)
     )
@@ -137,6 +141,7 @@ class StructureSelection:
         pyramids: set[PyramidsDescriptor] | None = None,
         pyramids_selected: set[PyramidsDescriptor] | None = None,
         pyramids_types: dict[PyramidsDescriptor, bool] | None = None,
+        is_BLA_selected: bool | None = None,
         inplace: bool = False,
     ) -> Self:
         """Function to create a copy with replaced member values.
@@ -178,6 +183,8 @@ class StructureSelection:
             Set of selected indices of pyramids. Defaults to None.
         pyramids_types : dict[PyramidsDescriptor, optional
             Dict with metadata about pyramids. Defaults to None.
+        is_BLA_selected : bool, optional
+            New flag to signify whether a BLA for the maximum chromophor has been requested.
         inplace : bool, optional
             Flag to allow for in-place updates instead of returning a new cop. Defaults to False.
 
@@ -227,6 +234,9 @@ class StructureSelection:
             if pyramids_types is not None:
                 self.pyramids_types = pyramids_types
 
+            if is_BLA_selected is not None:
+                self.is_BLA_selected = is_BLA_selected
+
             return self
         else:
             if mol is None:
@@ -267,6 +277,9 @@ class StructureSelection:
             if pyramids_types is None:
                 pyramids_types = self.pyramids_types
 
+            if is_BLA_selected is None:
+                is_BLA_selected = self.is_BLA_selected
+
             return type(self)(
                 mol=mol,
                 atoms=atoms,
@@ -284,6 +297,7 @@ class StructureSelection:
                 pyramids=pyramids,
                 pyramids_selected=pyramids_selected,
                 pyramids_types=pyramids_types,
+                is_BLA_selected=is_BLA_selected,
             )
 
     @classmethod
@@ -373,17 +387,17 @@ class StructureSelection:
         """
         # TODO: FIXME: Implement actual feature selection with geomatch
 
-        atoms = set()
-        atoms_selected = set()
+        atoms: set[AtomDescriptor] = set()
+        atoms_selected: set[AtomDescriptor] = set()
         atoms_types = dict()
-        bonds = set()
-        bonds_selected = set()
+        bonds: set[BondDescriptor] = set()
+        bonds_selected: set[BondDescriptor] = set()
         bonds_types = dict()
-        angles = set()
-        angles_selected = set()
+        angles: set[AngleDescriptor] = set()
+        angles_selected: set[AngleDescriptor] = set()
         angles_types = dict()
-        dihedrals = set()
-        dihedrals_selected = set()
+        dihedrals: set[DihedralDescriptor] = set()
+        dihedrals_selected: set[DihedralDescriptor] = set()
         dihedrals_types = dict()
         pyramids: set[PyramidsDescriptor] = set()
         pyramids_selected: set[PyramidsDescriptor] = set()
@@ -395,9 +409,11 @@ class StructureSelection:
 
         are_atoms_selected = 'atoms' in default_selection
         are_bonds_selected = 'bonds' in default_selection
+        are_pwdist_selected = 'pwdist' in default_selection
         are_angles_selected = 'angles' in default_selection
         are_dihedrals_selected = 'dihedrals' in default_selection
         are_pyramids_selected = 'pyramids' in default_selection
+        is_BLA_selected = 'BLA' in default_selection
 
         # ATOMS/POSITIONS
         for atom in mol.GetAtoms():
@@ -419,8 +435,16 @@ class StructureSelection:
                 bond_type = bond.GetBondTypeAsDouble()
                 bonds_types[bondId] = bond_type
 
-        if are_bonds_selected:
-            bonds_selected.update(bonds)
+        # Get all pwdists if pwdists selected
+        if are_pwdist_selected:
+            bonds_selected.update(
+                StructureSelection.canonicalize_bond(pwcomb)
+                for pwcomb in combinations(atoms, 2)
+            )
+        else:
+            # Otherwise just the bonds
+            if are_bonds_selected:
+                bonds_selected.update(bonds)
 
         # ANGLES
         for bond_j in mol.GetBonds():
@@ -521,6 +545,7 @@ class StructureSelection:
             pyramids=pyramids,
             pyramids_selected=pyramids_selected,
             pyramids_types=pyramids_types,
+            is_BLA_selected=is_BLA_selected,
         )
 
     def derive_other_from_descriptor(
@@ -622,10 +647,13 @@ class StructureSelection:
 
         return self.copy_or_update(
             atoms_selected=None if 'atoms' in feature_levels else set(),
-            bonds_selected=None if 'bonds' in feature_levels else set(),
+            bonds_selected=None
+            if 'bonds' in feature_levels or 'pwdist' in feature_levels
+            else set(),
             angles_selected=None if 'angles' in feature_levels else set(),
             dihedrals_selected=None if 'dihedrals' in feature_levels else set(),
             pyramids_selected=None if 'pyramids' in feature_levels else set(),
+            is_BLA_selected=None if 'BLA' in feature_level else False,
             inplace=inplace,
         )
 
@@ -658,7 +686,12 @@ class StructureSelection:
         feature_levels = [self._to_feature_level_str(x) for x in feature_level]
         return self.copy_or_update(
             atoms_selected=self.atoms if 'atoms' in feature_levels else None,
-            bonds_selected=self.bonds if 'bonds' in feature_levels else None,
+            bonds_selected=set(
+                StructureSelection.canonicalize_bond(pwcomb)
+                for pwcomb in combinations(self.atoms, 2)
+            )
+            if 'pwdist' in feature_levels
+            else (self.bonds if 'bonds' in feature_levels else None),
             angles_selected=self.angles if 'angles' in feature_levels else None,
             dihedrals_selected=self.dihedrals
             if 'dihedrals' in feature_levels
