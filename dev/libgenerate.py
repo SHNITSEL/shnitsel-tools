@@ -1,6 +1,7 @@
 import inspect
+from types import NoneType, UnionType
 from typing import Callable, Dict, List
-
+import typing
 
 def generate_class_code(
     classes: Dict[str, List[Callable]], imports, plain_imports, name_overrides
@@ -28,27 +29,43 @@ def generate_class_code(
     # Maybe we should include a flag if the import failed for each individual module and throw an error only if an accessor method
     # using that import is called?
 
-    def get_ann_str(annotation):
-        """Convert annotation to string, handling complex types better."""
-        if annotation is None or annotation is inspect._empty:
+    def type_to_type_label(type_annotation: type | str) -> str:
+        if type_annotation is None or type_annotation is inspect._empty:
             return ""
-
+        
+        if type_annotation == NoneType:
+            return "None"
+        
         # Handle string annotations (forward references)
-        if isinstance(annotation, str):
-            return annotation
+        if isinstance(type_annotation, str):
+            return type_annotation
+
+        # For unions, unwrap the union
+        if isinstance(type_annotation, UnionType):
+            return "(" + union_to_typestring(type_annotation) + ")"
 
         # For simple types, use __name__ if available
-        if hasattr(annotation, '__name__'):
+        if hasattr(type_annotation, '__name__'):
             if (
-                hasattr(annotation, '__module__')
-                and annotation.__module__ != "builtins"
+                hasattr(type_annotation, '__module__')
+                and type_annotation.__module__ != "builtins"
             ):
-                module_name = annotation.__module__
+                module_name = type_annotation.__module__
                 if module_name not in ['typing', 'builtins']:
-                    imports[annotation.__name__] = module_name
-            return annotation.__name__
+                    imports[type_annotation.__name__] = module_name
+            return type_annotation.__name__
 
-        return repr(annotation)
+        return repr(type_annotation)
+
+    def union_to_typestring(union_annotation: UnionType) -> str:
+        subtypes = typing.get_args(union_annotation)
+
+        return " | ".join(type_to_type_label(x) for x in subtypes)
+
+    def get_ann_str(annotation):
+        """Convert annotation to string, handling complex types better."""
+
+        return type_to_type_label(annotation)
 
     lines = []
 
@@ -98,8 +115,11 @@ def generate_class_code(
                     else:
                         # Regular parameters
                         if param.default is not inspect.Parameter.empty:
-                            pdefault = f"={param.default!r}"
-                            adefault = f"={pname}"
+                            if isinstance(param.default, type):
+                                pdefault = " = " + type_to_type_label(param.default)
+                            else:
+                                pdefault = f" = {param.default!r}"
+                            adefault = "" # f" = {pname}"
                         else:
                             pdefault = ""
                             adefault = ""
