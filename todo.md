@@ -10,8 +10,10 @@
   - [ ] Renaming/restructuring support of tree structure
   - [ ] Selection functions on the tree (`compound=?`, `group=?`, `<grouping_param>=?`)
     - [x] Added stubs for `.sel()` and `.isel()`
-    - [ ] Add implementation capturing appropriate dimensions/indexes.
-    - [ ] Propagate remaining indexers to data entries.
+    - [x] Add implementation capturing appropriate dimensions/indexes.
+    - [x] Propagate remaining indexers to data entries.
+    - [ ] TODO: Make `trajectory` select the desired entries in `Stacked` sets (should select for both `atrajectory` and `trajectory`)
+    - [ ] TODO: Make `trajectory` drop the NaN frames in result for `Layered` sets.
   - [ ] Pattern matching in the `getitem()` method, i.e. `db['/I01/**/data']` `db["/I01/*/{1-20}"]`
 - (De)serialization:
   - [x] Implementation of Supports(To/From)XrConversion for various (wrapper) types
@@ -65,6 +67,10 @@
   - [x] Length threshold statistics plot
   - [x] Datasheet (note, that generation takes somewhat longer)
   - [ ] add one more cool plot from retinal tutorial: The hop-time alignment would be perfect
+
+- st accessors
+  - [ ] Fix union types not being unwrapped in generator
+  - [ ] FQTN types not being passed as TypeForms/string for types not explicitly imported.
   
 
 ## Secondary TODO:
