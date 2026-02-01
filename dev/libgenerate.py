@@ -1,6 +1,6 @@
 import inspect
 from types import NoneType, UnionType
-from typing import Callable, Dict, List
+from typing import Callable, Dict, List, TypeVar
 import typing
 
 
@@ -41,6 +41,15 @@ def generate_class_code(
         if isinstance(type_annotation, str):
             return type_annotation
 
+        # TODO: Type Vars replace by bounds/constraints or Any
+        # FIXME: TreeNode subtypes result in generic imports.
+        # if isinstance(type_annotation, TypeVar):
+        #     return (
+        #         type_to_type_label(type_annotation.__bound__)
+        #         if type_annotation.__bound__
+        #         else "Any"
+        #     )
+
         # For unions, unwrap the union
         if (
             isinstance(type_annotation, UnionType)
@@ -57,6 +66,7 @@ def generate_class_code(
             if (
                 hasattr(type_annotation, '__module__')
                 and type_annotation.__module__ != "builtins"
+                and not type_annotation.__name__.find("TreeNode") >= 0
             ):
                 module_name = type_annotation.__module__
                 if module_name not in ['typing', 'builtins']:
@@ -66,7 +76,6 @@ def generate_class_code(
                 hasattr(import_base_class, '__module__')
                 and import_base_class.__module__ != "builtins"
             ):
-                print(f"{import_base_class=}")
                 module_name = import_base_class.__module__
                 if module_name not in ['typing', 'builtins']:
                     imports[import_base_class.__name__] = module_name
@@ -150,7 +159,7 @@ def generate_class_code(
                                 pdefault = " = " + type_to_type_label(param.default)
                             else:
                                 pdefault = f" = {param.default!r}"
-                            adefault = ""  # f" = {pname}"
+                            adefault = f" = {pname}"
                         else:
                             pdefault = ""
                             adefault = ""
