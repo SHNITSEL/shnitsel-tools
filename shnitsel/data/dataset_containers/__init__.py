@@ -105,12 +105,22 @@ def wrap_dataset(
     else:
         raw_ds = ds
 
-    if MultiSeriesLayered in accepted_types or MultiSeriesDataset in accepted_types:
+    if (
+        ShnitselDataset in accepted_types
+        or DataSeries in accepted_types
+        or MultiSeriesDataset in accepted_types
+        or MultiSeriesLayered in accepted_types
+    ):
         try:
             return MultiSeriesLayered(raw_ds)
         except:
             pass
-    if MultiSeriesStacked in accepted_types or MultiSeriesDataset in accepted_types:
+    if (
+        ShnitselDataset in accepted_types
+        or DataSeries in accepted_types
+        or MultiSeriesDataset in accepted_types
+        or MultiSeriesStacked in accepted_types
+    ):
         try:
             return MultiSeriesStacked(raw_ds)
         except:
