@@ -50,6 +50,8 @@ def generate_class_code(
         #         else "Any"
         #     )
 
+        # TODO: FIXME: Add the generic parameters back into the representation for things like `Collection[DimName]`. Currently only `Collection` appears.
+
         # For unions, unwrap the union
         if (
             isinstance(type_annotation, UnionType)

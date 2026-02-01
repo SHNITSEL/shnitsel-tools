@@ -75,6 +75,7 @@
   - [x] Fix union types not being unwrapped in generator
   - [x] FQTN types not being passed as TypeForms/string for types not explicitly imported.
   - [ ] Replace type vars by their bounds or `Any`.
+  - [ ] TODO: FIXME: Generic Parameters get lost in generation.
   
 
 ## Secondary TODO:
