@@ -22,7 +22,9 @@ from typing_extensions import Literal, TypeForm
 
 from shnitsel.core.typedefs import ErrorOptionsWithWarn
 from shnitsel.data.dataset_containers.multi_layered import MultiSeriesLayered
+from shnitsel.data.dataset_containers.multi_series import MultiSeriesDataset
 from shnitsel.data.dataset_containers.multi_stacked import MultiSeriesStacked
+from shnitsel.data.tree.datatree_level import DataTreeLevelMap
 from ..trajectory_grouping_params import TrajectoryGroupingMetadata
 from pathlib import Path
 
@@ -1223,7 +1225,7 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
         tolerance: int | float | Iterable[int | float] | None = None,
         drop: bool = False,
         **indexers_kwargs: Any,
-    ) -> Self:
+    ) -> Self | None:
         """Returns a new dataset with each array indexed by tick labels
         along the specified dimension(s).
 
@@ -1291,26 +1293,168 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
             Tutorial material on basics of indexing
 
         """
-        raise NotImplementedError(
-            ".sel() not yet implemented for %s in hierarchical tree structures"
-            % type(self)
-        )
+        from xarray.namedarray.utils import either_dict_or_kwargs
+
+        # def either_dict_or_kwargs(
+        #     pos_kwargs: Mapping[Any, T] | None,
+        #     kw_kwargs: Mapping[str, T],
+        #     func_name: str,
+        # ) -> Mapping[Hashable, T]:
+        #     if pos_kwargs is None or pos_kwargs == {}:
+        #         # Need an explicit cast to appease mypy due to invariance; see
+        #         # https://github.com/python/mypy/issues/6228
+        #         return cast(Mapping[Hashable, T], kw_kwargs)
+
+        #     if not is_dict_like(pos_kwargs):
+        #         raise ValueError(f"the first argument to .{func_name} must be a dictionary")
+        #     if kw_kwargs:
+        #         raise ValueError(
+        #             f"cannot specify both keyword and positional arguments to .{func_name}"
+        #         )
+        #     return pos_kwargs
+
+        # raise NotImplementedError(
+        #     ".sel() not yet implemented for %s in hierarchical tree structures"
+        #     % type(self)
+        # )
         indexers = either_dict_or_kwargs(indexers, indexers_kwargs, "sel")
-        query_results = map_index_queries(
-            self, indexers=indexers, method=method, tolerance=tolerance
+        # query_results = map_index_queries(
+        #     self, indexers=indexers, method=method, tolerance=tolerance
+        # )
+        import xarray as xr
+
+        def dataset_is_empty(input_dataset):
+            """Test if an input xarray.Dataset is empty."""
+            n_dims = len(input_dataset.dims)
+
+            if n_dims == 0:
+                empty = True
+            else:
+                for cnt, dim in enumerate(input_dataset.dims):
+                    if len(input_dataset[dim]) > 0:
+                        return False
+
+            return True
+
+        if self._level_name == DataTreeLevelMap['compound']:
+            compound_indexer = indexers.get("compound", None)
+            if compound_indexer is not None:
+                indexers = dict(indexers)
+                del indexers["compound"]
+
+                if isinstance(compound_indexer, slice):
+                    start = compound_indexer.start
+                    stop = compound_indexer.stop
+                    if self.name >= stop or self.name < start:
+                        # We are not part of the relevant compounds.
+                        # Return None
+                        return None
+                elif isinstance(compound_indexer, str):
+                    if self.name != compound_indexer:
+                        # We are not the specific compound requested.
+                        # Return None
+                        return None
+                else:
+                    try:
+                        if self.name not in compound_indexer:
+                            # The indexer might be a set, check if we are part of it.
+                            return None
+                    except:
+                        pass
+        elif self._level_name == DataTreeLevelMap['group']:
+            group_indexer = indexers.get("group", None)
+            if group_indexer is not None:
+                indexers = dict(indexers)
+                del indexers["group"]
+
+                if isinstance(group_indexer, slice):
+                    start = group_indexer.start
+                    stop = group_indexer.stop
+                    if self.name >= stop or self.name < start:
+                        # We are not part of the relevant groups.
+                        # Return None
+                        return None
+                elif isinstance(group_indexer, str):
+                    if self.name != group_indexer:
+                        # We are not the specific group requested.
+                        # Return None
+                        return None
+                else:
+                    try:
+                        # The indexer might be a set, check if we are part of it.
+                        if self.name not in group_indexer:
+                            # We are not in the requested group set.
+                            # Return None
+                            return None
+                    except:
+                        pass
+        elif self._level_name == DataTreeLevelMap['data']:
+            trajectory_indexer = indexers.get("trajectory", None)
+
+            # Only catch this, if we are not a node of a multi-series dataset.
+            # Otherwise, pass it on
+            if trajectory_indexer is not None and not isinstance(
+                self._data, MultiSeriesDataset
+            ):
+                indexers = dict(indexers)
+                del indexers["trajectory"]
+
+                if isinstance(trajectory_indexer, slice):
+                    start = trajectory_indexer.start
+                    stop = trajectory_indexer.stop
+                    if self.name >= stop or self.name < start:
+                        # We are not part of the relevant trajectories.
+                        # Return None
+                        return None
+                elif isinstance(trajectory_indexer, str):
+                    if self.name != trajectory_indexer:
+                        # We are not the specific compound requested.
+                        # Return None
+                        return None
+                else:
+                    try:
+                        # The indexer might be a set, check if we are part of it.
+                        if self.name not in trajectory_indexer:
+                            # We are not in the requested trajectory set.
+                            # Return None
+                            return None
+                    except:
+                        pass
+
+            # We are a relevant data leaf node:
+            if self.has_data and hasattr(self._data, 'sel') and callable(self._data):
+                indexers = dict(indexers)
+
+                for key in ["compounds", "groups"]:
+                    if key in indexers:
+                        del indexers[key]
+                # Invoke with remaining indexers
+                res_data = self._data.sel(
+                    indexers=indexers, method=method, tolerance=tolerance, drop=drop
+                )
+                # assert isinstance(res_data, xr.Dataset)
+                if dataset_is_empty(res_data):
+                    return None
+                return self.construct_copy(data=res_data)
+
+            # Nothing to find in this leaf
+            return None
+
+        result = self.construct_copy(
+            children={
+                k: v
+                for k, child in self.children.items()
+                if child is not None
+                and (
+                    v := child.sel(
+                        indexers=indexers, method=method, tolerance=tolerance, drop=drop
+                    )
+                )
+                is not None
+            }
         )
-
-        if drop:
-            no_scalar_variables = {}
-            for k, v in query_results.variables.items():
-                if v.dims:
-                    no_scalar_variables[k] = v
-                elif k in self._coord_names:
-                    query_results.drop_coords.append(k)
-            query_results.variables = no_scalar_variables
-
-        result = self.isel(indexers=query_results.dim_indexers, drop=drop)
-        return result._overwrite_indexes(*query_results.as_tuple()[1:])
+        return result
+        # return result._overwrite_indexes(*query_results.as_tuple()[1:])
 
     def isel(
         self,
@@ -1411,47 +1555,138 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
         :func:`TreeNode.sel <TreeNode.sel>`
 
         """
-        raise NotImplementedError(
-            ".isel() not yet implemented for %s in hierarchical tree structures"
-            % type(self)
-        )
+        from xarray.namedarray.utils import either_dict_or_kwargs
+
+        # def either_dict_or_kwargs(
+        #     pos_kwargs: Mapping[Any, T] | None,
+        #     kw_kwargs: Mapping[str, T],
+        #     func_name: str,
+        # ) -> Mapping[Hashable, T]:
+        #     if pos_kwargs is None or pos_kwargs == {}:
+        #         # Need an explicit cast to appease mypy due to invariance; see
+        #         # https://github.com/python/mypy/issues/6228
+        #         return cast(Mapping[Hashable, T], kw_kwargs)
+
+        #     if not is_dict_like(pos_kwargs):
+        #         raise ValueError(f"the first argument to .{func_name} must be a dictionary")
+        #     if kw_kwargs:
+        #         raise ValueError(
+        #             f"cannot specify both keyword and positional arguments to .{func_name}"
+        #         )
+        #     return pos_kwargs
+
+        # raise NotImplementedError(
+        #     ".sel() not yet implemented for %s in hierarchical tree structures"
+        #     % type(self)
+        # )
         indexers = either_dict_or_kwargs(indexers, indexers_kwargs, "isel")
-        if any(is_fancy_indexer(idx) for idx in indexers.values()):
-            return self._isel_fancy(indexers, drop=drop, missing_dims=missing_dims)
+        # query_results = map_index_queries(
+        #     self, indexers=indexers, method=method, tolerance=tolerance
+        # )
+        import xarray as xr
 
-        # Much faster algorithm for when all indexers are ints, slices, one-dimensional
-        # lists, or zero or one-dimensional np.ndarray's
-        indexers = drop_dims_from_indexers(indexers, self.dims, missing_dims)
+        def dataset_is_empty(input_dataset):
+            """Test if an input xarray.Dataset is empty."""
+            n_dims = len(input_dataset.dims)
 
-        variables = {}
-        dims: dict[Hashable, int] = {}
-        coord_names = self._coord_names.copy()
-
-        indexes, index_variables = isel_indexes(self.xindexes, indexers)
-
-        for name, var in self._variables.items():
-            # preserve variable order
-            if name in index_variables:
-                var = index_variables[name]
+            if n_dims == 0:
+                empty = True
             else:
-                var_indexers = {k: v for k, v in indexers.items() if k in var.dims}
-                if var_indexers:
-                    var = var.isel(var_indexers)
-                    if drop and var.ndim == 0 and name in coord_names:
-                        coord_names.remove(name)
-                        continue
-            variables[name] = var
-            dims.update(zip(var.dims, var.shape, strict=True))
+                for cnt, dim in enumerate(input_dataset.dims):
+                    if len(input_dataset[dim]) > 0:
+                        return False
 
-        return self._construct_direct(
-            variables=variables,
-            coord_names=coord_names,
-            dims=dims,
-            attrs=self._attrs,
-            indexes=indexes,
-            encoding=self._encoding,
-            close=self._close,
+            return True
+
+        child_keys = list(self.children.keys())
+        if self._level_name == DataTreeLevelMap['root']:
+            compound_indexer = indexers.get("compound", None)
+            if compound_indexer is not None:
+                indexers = dict(indexers)
+                del indexers["compound"]
+                try:
+                    child_keys = child_keys[compound_indexer]
+                except:
+                    pass
+        elif self._level_name == DataTreeLevelMap['group']:
+            group_indexer = indexers.get("group", None)
+            if group_indexer is not None:
+                logging.warning(
+                    ".isel() does not support 'group' selection on trees by index due to issues of how they would apply in multi-group levels. "
+                )
+        elif self._level_name == DataTreeLevelMap['group']:
+            trajectory_indexer = indexers.get("trajectory", None)
+            # Only catch this, if we are not a node of a multi-series dataset.
+            # Otherwise, pass it on
+            if trajectory_indexer is not None:
+                group_child_keys = list(self.subgroups.keys())
+                group_leaf_keys = list(self.subleaves.keys())
+                indexers = dict(indexers)
+                # Only delete if we are not a multi-trajectory
+                del indexers["trajectory"]
+                try:
+                    # The indexer might be a set, check if we are part of it.
+                    group_leaf_keys = group_leaf_keys[trajectory_indexer]
+                except:
+                    pass
+                child_keys = group_child_keys + group_leaf_keys
+        elif self.is_leaf:
+            indexers = dict(indexers)
+            for key in ["compounds", "groups"]:
+                if key in indexers:
+                    del indexers[key]
+
+        result = self.construct_copy(
+            children={
+                k: v
+                for k in child_keys
+                if (child := self.children[k]) is not None
+                and (
+                    v := child.isel(
+                        indexers=indexers, missing_dims=missing_dims, drop=drop
+                    )
+                )
+                is not None
+            }
         )
+        return result
+        # indexers = either_dict_or_kwargs(indexers, indexers_kwargs, "isel")
+        # if any(is_fancy_indexer(idx) for idx in indexers.values()):
+        #     return self._isel_fancy(indexers, drop=drop, missing_dims=missing_dims)
+
+        # # Much faster algorithm for when all indexers are ints, slices, one-dimensional
+        # # lists, or zero or one-dimensional np.ndarray's
+        # indexers = drop_dims_from_indexers(indexers, self.dims, missing_dims)
+
+        # variables = {}
+        # dims: dict[Hashable, int] = {}
+        # coord_names = self._coord_names.copy()
+
+        # indexes, index_variables = isel_indexes(self.xindexes, indexers)
+
+        # for name, var in self._variables.items():
+        #     # preserve variable order
+        #     if name in index_variables:
+        #         var = index_variables[name]
+        #     else:
+        #         var_indexers = {k: v for k, v in indexers.items() if k in var.dims}
+        #         if var_indexers:
+        #             var = var.isel(var_indexers)
+        #             if drop and var.ndim == 0 and name in coord_names:
+        #                 coord_names.remove(name)
+        #                 continue
+        #     variables[name] = var
+        #     dims.update(zip(var.dims, var.shape, strict=True))
+
+        # return self._construct_direct(
+        #     variables=variables,
+        #     coord_names=coord_names,
+        #     dims=dims,
+        #     attrs=self._attrs,
+        #     indexes=indexes,
+        #     encoding=self._encoding,
+        #     close=self._close,
+        # )
 
     def __str__(self) -> str:
         """A basic representation of this node.
