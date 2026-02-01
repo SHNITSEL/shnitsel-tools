@@ -1446,39 +1446,53 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
                             return None
                     except:
                         pass
+            if indexers:
+                # We are a relevant data leaf node:
+                if (
+                    self.has_data
+                    and hasattr(self._data, 'sel')
+                    and callable(self._data)
+                ):
+                    indexers = dict(indexers)
 
-            # We are a relevant data leaf node:
-            if self.has_data and hasattr(self._data, 'sel') and callable(self._data):
-                indexers = dict(indexers)
-
-                for key in ["compounds", "groups"]:
-                    if key in indexers:
-                        del indexers[key]
-                # Invoke with remaining indexers
-                res_data = self._data.sel(
-                    indexers=indexers, method=method, tolerance=tolerance, drop=drop
-                )
-                # assert isinstance(res_data, xr.Dataset)
-                if dataset_is_empty(res_data):
-                    return None
-                return self.construct_copy(data=res_data)
+                    for key in ["compounds", "groups"]:
+                        if key in indexers:
+                            del indexers[key]
+                    # Invoke with remaining indexers
+                    res_data = self._data.sel(
+                        indexers=indexers, method=method, tolerance=tolerance, drop=drop
+                    )
+                    # assert isinstance(res_data, xr.Dataset)
+                    if dataset_is_empty(res_data):
+                        return None
+                    return self.construct_copy(data=res_data)
+            else:
+                # No forther Search criteria. Just build a copy
+                # NOTE: This allows `.sel()` to work with data types that do not support `sel` themselves
+                return self.construct_copy()
 
             # Nothing to find in this leaf
             return None
 
-        result = self.construct_copy(
-            children={
-                k: v
-                for k, child in self.children.items()
-                if child is not None
-                and (
-                    v := child.sel(
-                        indexers=indexers, method=method, tolerance=tolerance, drop=drop
+        if indexers:
+            result = self.construct_copy(
+                children={
+                    k: v
+                    for k, child in self.children.items()
+                    if child is not None
+                    and (
+                        v := child.sel(
+                            indexers=indexers,
+                            method=method,
+                            tolerance=tolerance,
+                            drop=drop,
+                        )
                     )
-                )
-                is not None
-            }
-        )
+                    is not None
+                }
+            )
+        else:
+            result = self.construct_copy()
         return result
         # return result._overwrite_indexes(*query_results.as_tuple()[1:])
 
@@ -1488,7 +1502,7 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
         drop: bool = False,
         missing_dims: ErrorOptionsWithWarn = "raise",
         **indexers_kwargs: Any,
-    ) -> Self:
+    ) -> Self | None:
         """Returns a new tree indexed along dimensions `compound`, `group` or `trajectory`
         and with data in leaves of the tree indexed along the remaining specified
         dimension(s) if the leaves support `.isel()` operations.
@@ -1662,6 +1676,31 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
                 if key in indexers:
                     del indexers[key]
 
+            if indexers:
+                # We are a relevant data leaf node and there is still selection to be done
+                if (
+                    self.has_data
+                    and hasattr(self._data, 'isel')
+                    and callable(self._data)
+                ):
+                    indexers = dict(indexers)
+
+                    for key in ["compounds", "groups"]:
+                        if key in indexers:
+                            del indexers[key]
+                    # Invoke with remaining indexers
+                    res_data = self._data.isel(
+                        indexers=indexers, missing_dims=missing_dims, drop=drop
+                    )
+                    # assert isinstance(res_data, xr.Dataset)
+                    if dataset_is_empty(res_data):
+                        return None
+                    return self.construct_copy(data=res_data)
+            else:
+                # No forther Search criteria. Just build a copy
+                # NOTE: This allows `.isel()` to work with data types that do not support `sel` themselves
+                return self.construct_copy()
+
         result = self.construct_copy(
             children={
                 k: v
@@ -1671,6 +1710,8 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
                     v := child.isel(
                         indexers=indexers, missing_dims=missing_dims, drop=drop
                     )
+                    if indexers
+                    else child.construct_copy()
                 )
                 is not None
             }
