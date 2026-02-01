@@ -8,10 +8,10 @@ import xarray as xr
 from shnitsel.core._api_info import API, internal
 from shnitsel.data.dataset_containers import wrap_dataset
 from shnitsel.data.dataset_containers.multi_series import MultiSeriesDataset
+from shnitsel.data.dataset_containers.shared import ShnitselDataset
 from shnitsel.data.dataset_containers.trajectory import Trajectory
 from shnitsel.data.dataset_containers.frames import Frames
 from shnitsel.data.tree.node import TreeNode
-from shnitsel.data.tree.tree import ShnitselDB
 from shnitsel.units.definitions import time, unit_dimensions
 
 from .._contracts import needs
@@ -147,8 +147,8 @@ class PopulationStatistics:
 
 @overload
 def calc_classical_populations(
-    data: ShnitselDB[Trajectory | Frames],
-) -> ShnitselDB[PopulationStatistics]:
+    data: TreeNode[Any, ShnitselDataset | xr.Dataset],
+) -> TreeNode[Any, PopulationStatistics]:
     """Specialized version of the population calculation where a tree hierarchy of Trajectory data
     is mapped to a tree hierarchy of population statistics.
 
@@ -157,12 +157,12 @@ def calc_classical_populations(
 
     Parameters
     ----------
-    data : ShnitselDB[Trajectory | Frames]
+    data : TreeNode[Any, ShnitselDataset | xr.Dataset]
         The tree-structured trajectory data
 
     Returns
     -------
-    ShnitselDB[PopulationStatistics]
+    TreeNode[Any, PopulationStatistics]
         The tree structure holding population statistics for grouped data out of the input.
         Results contain inidividual states' absolute population numbers for every time step.
     """
@@ -171,14 +171,14 @@ def calc_classical_populations(
 
 @overload
 def calc_classical_populations(
-    data: Trajectory | Frames | xr.Dataset,
+    data: ShnitselDataset | xr.Dataset,
 ) -> PopulationStatistics:
     """Specialized version of the population calculation where a single Trajectory or Frameset instance
     is mapped to population statistics for their different states.
 
     Parameters
     ----------
-    data : Trajectory | Frames | xr.Dataset
+    data : ShnitselDataset | xr.Dataset
         The input dataset to calculate population statistics along the `time` dimension for.
 
     Returns
@@ -191,11 +191,7 @@ def calc_classical_populations(
 @API()
 @needs(dims={'frame', 'state'}, coords={'time'}, data_vars={'astate'})
 def calc_classical_populations(
-    frames: TreeNode[Any, Trajectory | Frames | MultiSeriesDataset | xr.Dataset]
-    | Trajectory
-    | Frames
-    | MultiSeriesDataset
-    | xr.Dataset,
+    frames: TreeNode[Any, ShnitselDataset | xr.Dataset] | ShnitselDataset | xr.Dataset,
 ) -> PopulationStatistics | TreeNode[Any, PopulationStatistics]:
     """Function to calculate classical state populations from the active state information in `astate` of the dataset `frames.
 
@@ -203,14 +199,14 @@ def calc_classical_populations(
 
     Parameters
     ----------
-    frames : Frames
+    frames : xr.Dataset | ShnitselDataset | TreeNode[Any, ShnitselDataset | xr.Dataset]
         The dataset holding the active state information in a variable `astate`.
 
     Returns
     -------
     PopulationStatistics
         The object holding population statistics (absolute+relative) in each respective state.
-    ShnitselDB[PopulationStatistics]
+    TreeNode[Any, PopulationStatistics]
         The tree holding the hierarchical population statistics for each flat group in the tree with compatible metadata.
     """
     if isinstance(frames, TreeNode):
@@ -228,14 +224,14 @@ def calc_classical_populations(
         # pops = xr.DataArray(
         #     populations, dims=['time', 'state'], coords={'time': data.coords['time']}
         # )
-        db: TreeNode[Any, MultiSeriesDataset | Trajectory | Frames | xr.Dataset] = (
+        db: TreeNode[Any, ShnitselDataset | xr.Dataset] = (
             frames.group_data_by_metadata()
         )
 
         def _map_prepare(
-            frames: MultiSeriesDataset | Trajectory | Frames | xr.Dataset,
+            frames: ShnitselDataset | xr.Dataset,
         ) -> PopulationStatistics:
-            wrapped_ds = wrap_dataset(frames, MultiSeriesDataset | Trajectory | Frames)
+            wrapped_ds = wrap_dataset(frames, ShnitselDataset)
             pop_frames: Frames
             if isinstance(wrapped_ds, Trajectory) and not isinstance(
                 wrapped_ds, Frames
