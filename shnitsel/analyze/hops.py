@@ -320,20 +320,23 @@ def filter_data_at_hops(
 
 # TODO: FIXME: Make StateSelection the preferred type for picking hopping types.
 def focus_hops(
-    frames,
-    hop_type_selection: list[tuple[int, int]] | None = None,
+    frames: xr.Dataset
+    | xr.DataArray
+    | DataSeries
+    | TreeNode[Any, xr.Dataset | xr.DataArray | DataSeries],
+    hop_type_selection: StateSelection | StateSelectionDescriptor | None = None,
     window: slice | None = None,
 ):
     """For each hop, create a copy of its trajectory centered on the hop; align these
 
     Parameters
     ----------
-    frames
+    frames : xr.Dataset | xr.DataArray | DataSeries | TreeNode[Any, xr.Dataset | xr.DataArray | DataSeries]
         An Xarray object (Dataset or DataArray) with a ``frames`` dimension
-    hop_type_selection
+    hop_type_selection : StateSelection | StateSelectionDescriptor, optional
         Types of hops to include
         See like-named parameter in :py:func:`shnitsel.analyze.hops.hops`
-    window
+    window : slice, optional
         Clip the range of hop-relative times included to this slice;
         values are interpreted as relative times (not indices), e.g.:
         ``focus_hops(..., window=slice(-1.5, 2.5))``
@@ -433,8 +436,11 @@ def focus_hops(
 
 # TODO: FIXME: Make StateSelection the preferred type for picking hopping types.
 def assign_hop_time(
-    frames,
-    hop_type_selection: list[tuple[int, int]] | None = None,
+    frames: xr.Dataset
+    | xr.DataArray
+    | DataSeries
+    | TreeNode[Any, xr.Dataset | xr.DataArray | DataSeries],
+    hop_type_selection: StateSelection | StateSelectionDescriptor | None = None,
     which: Literal["first", "last"] = "last",
 ):
     """Assign a ``hop_time`` coordinate along the ``frames`` axis giving times
@@ -442,12 +448,12 @@ def assign_hop_time(
 
     Parameters
     ----------
-    frames
+    frames : xr.Dataset | xr.DataArray | DataSeries | TreeNode[Any, xr.Dataset | xr.DataArray | DataSeries]
         An Xarray object (Dataset or DataArray) with a ``frames`` dimension
-    hop_type_selection
+    hop_type_selection : StateSelection | StateSelectionDescriptor, optional
         Types of hops to include
         See like-named parameter in :py:func:`shnitsel.analyze.hops.hops`
-    which
+    which : {"first", "last"}, default="last"
         Which hop to take, in case multiple hops present within a single trajectory;
         either 'first' or 'last' (the default)
 

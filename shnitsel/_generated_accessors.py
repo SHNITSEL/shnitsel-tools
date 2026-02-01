@@ -300,12 +300,12 @@ class DataArrayAccessor(DAManualAccessor):
         """Wrapper for :py:func:`shnitsel.vis.plot.p3mhelpers.traj3D`."""
         return traj3D(self._obj)
 
-    @needs(dims={'atom', 'direction'}, coords={'trajid'}, groupable={'time'}, coords_or_vars={'atNames'})
+    @needs(dims={'atom', 'direction'}, coords={'atrajectory'}, groupable={'time'}, coords_or_vars={'atNames'})
     def trajs3Dgrid(self, trajids: list[int | str] | None=None, loop: str='forward'):
         """Wrapper for :py:func:`shnitsel.vis.plot.p3mhelpers.trajs3Dgrid`."""
         return trajs3Dgrid(self._obj, trajids=trajids, loop=loop)
 
-    def traj_vmd(self, groupby='trajid'):
+    def traj_vmd(self, groupby='atrajectory'):
         """Wrapper for :py:func:`shnitsel.vis.vmd.traj_vmd`."""
         return traj_vmd(self._obj, groupby=groupby)
 
@@ -329,11 +329,11 @@ class DataArrayAccessor(DAManualAccessor):
         """Wrapper for :py:func:`shnitsel.analyze.hops.filter_data_at_hops`."""
         return filter_data_at_hops(self._obj, hop_type_selection=hop_type_selection)
 
-    def focus_hops(self, hop_type_selection: list[tuple[int, int]] | None=None, window: slice | None=None):
+    def focus_hops(self, hop_type_selection: Union=None, window: slice | None=None):
         """Wrapper for :py:func:`shnitsel.analyze.hops.focus_hops`."""
         return focus_hops(self._obj, hop_type_selection=hop_type_selection, window=window)
 
-    def assign_hop_time(self, hop_type_selection: list[tuple[int, int]] | None=None, which: Literal='last'):
+    def assign_hop_time(self, hop_type_selection: Union=None, which: Literal='last'):
         """Wrapper for :py:func:`shnitsel.analyze.hops.assign_hop_time`."""
         return assign_hop_time(self._obj, hop_type_selection=hop_type_selection, which=which)
 
@@ -493,11 +493,11 @@ class DatasetAccessor(DSManualAccessor):
         """Wrapper for :py:func:`shnitsel.analyze.hops.filter_data_at_hops`."""
         return filter_data_at_hops(self._obj, hop_type_selection=hop_type_selection)
 
-    def focus_hops(self, hop_type_selection: list[tuple[int, int]] | None=None, window: slice | None=None):
+    def focus_hops(self, hop_type_selection: Union=None, window: slice | None=None):
         """Wrapper for :py:func:`shnitsel.analyze.hops.focus_hops`."""
         return focus_hops(self._obj, hop_type_selection=hop_type_selection, window=window)
 
-    def assign_hop_time(self, hop_type_selection: list[tuple[int, int]] | None=None, which: Literal='last'):
+    def assign_hop_time(self, hop_type_selection: Union=None, which: Literal='last'):
         """Wrapper for :py:func:`shnitsel.analyze.hops.assign_hop_time`."""
         return assign_hop_time(self._obj, hop_type_selection=hop_type_selection, which=which)
 
