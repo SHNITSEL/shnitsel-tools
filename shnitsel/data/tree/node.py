@@ -54,14 +54,31 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
     @classmethod
     def _get_extended_class_name(cls: type, datatypes: Sequence[type]) -> str:
         dtype_string = "|".join([ot.__name__ for ot in datatypes])
-        resname = f"{cls.__name__}[{dtype_string}]"
+        resname = f"{cls.__name__}[Any, {dtype_string}]"
         return resname
 
     @classmethod
     def _create_extended_node_class(
-        cls: type[Self], datatypes: list[tuple[type, list[str], list[str]]]
+        cls: type[Self], datatypes: list[tuple[type, list[str], list[str]]], base=None
     ) -> type[Self]:
-        """Create a new version of the class with added methods for the datatypes."""
+        """Create a new node class with data-entry methods mapped over the tree
+
+        _extended_summary_
+
+        Parameters
+        ----------
+        cls : type[Self]
+            The class of which to create a specialization
+        datatypes : list[tuple[type, list[str], list[str]]]
+            The data type to be supported within data leaves
+        base : type, optional
+            The Base class to use for inheritance. If not set, will use `cls`, by default None
+
+        Returns
+        -------
+        type[Self]
+            The newly constructed type
+        """
 
         def make_mapped_method(method_name: str, docstring: str | None = None):
             # def method(self, *args, **kw):
@@ -151,11 +168,16 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
             #     namespace[name] = make_method(name)
         configured_datatypes = [ot for ot, _, _ in datatypes]
         namespace["__configured_datatypes__"] = configured_datatypes
+        namespace["__origin__"] = TreeNode
         resname = cls._get_extended_class_name(configured_datatypes)
         logging.debug(f"Creating patched node class {resname}")
 
         # return type("%s(%s)" % (cls.__name__, theclass.__name__), (cls,), namespace)
-        return type(resname, (cls,), namespace)
+        return type(
+            resname,
+            (cls,),
+            namespace,
+        )
 
     def __class_getitem__(
         cls: type[Self], args: "TypeVar | tuple[TypeVar , ...]"
@@ -215,7 +237,11 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
                     "Creating new class for dtype fields and methods: %s",
                     types_with_props_and_methods,
                 )
-                resclass = cls._create_extended_node_class(types_with_props_and_methods)
+                # TODO: FIXME: The node specializations do not work with typing.get_origin and probably not with typing.get_args
+                # We may just want to patch the `base` class result with the extended functions?
+                resclass = base._create_extended_node_class(
+                    types_with_props_and_methods, base=base
+                )
                 class_cache[resname] = resclass
                 setattr(cls, "__class_cache__", class_cache)
             return class_cache[resname]

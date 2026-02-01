@@ -15,6 +15,7 @@
     - [ ] TODO: Make `trajectory` select the desired entries in `Stacked` sets (should select for both `atrajectory` and `trajectory`)
     - [ ] TODO: Make `trajectory` drop the NaN frames in result for `Layered` sets.
   - [ ] Pattern matching in the `getitem()` method, i.e. `db['/I01/**/data']` `db["/I01/*/{1-20}"]`
+  - [ ] TODO: FIXME: typing.get_origin() does not work on TreeNode specializations. Maybe just patch the `base` class in `_create_extended_node_class`?
 - (De)serialization:
   - [x] Implementation of Supports(To/From)XrConversion for various (wrapper) types
   - [ ] Tutorial on how to add own types
@@ -71,8 +72,9 @@
   - [ ] add one more cool plot from retinal tutorial: The hop-time alignment would be perfect
 
 - st accessors
-  - [ ] Fix union types not being unwrapped in generator
-  - [ ] FQTN types not being passed as TypeForms/string for types not explicitly imported.
+  - [x] Fix union types not being unwrapped in generator
+  - [x] FQTN types not being passed as TypeForms/string for types not explicitly imported.
+  - [ ] Replace type vars by their bounds or `Any`.
   
 
 ## Secondary TODO:
