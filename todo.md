@@ -27,7 +27,7 @@
     - [x] On-the-go construction added to `geo._get_default_selection()`
     - [x] Patch existing functions to express support for descriptors
   - [x] Add merge/subtract/intersect operations
-  - [ ] Add 'BLA' and 'pwdist' feature descriptors.
+  - [x] Add 'BLA' and 'pwdist' feature descriptors.
   - [ ] Fix non-redundant coordinates
   - [ ] Structure selection (raise error if empty/warning if empty)
   - [ ] draw: Draw grid of highlighted feature levels
