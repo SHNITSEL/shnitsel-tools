@@ -54,7 +54,6 @@ def main():
         # TODO: This should either only have `to_mol` or only have `default_mol`.
         bridges.to_mol,
         bridges.smiles_map,
-        # TODO: FIXME: We should fix the naming logic that changes this into `construct_default_mol`
         bridges.default_mol,
         ### postprocess converters
         units.convert_energy,
@@ -132,7 +131,7 @@ def main():
         multi_indices.stack_trajs,
         st.io.shnitsel.write_shnitsel_file,
         # plot
-        spectra.get_spectra,
+        # spectra.get_spectra,
         # filtration
         clean.filter_energy.calculate_energy_filtranda,
         clean.filter_energy.filter_by_energy,
@@ -170,8 +169,8 @@ def main():
             'Sequence': 'typing',
             'Literal': 'typing',
             'Callable': 'typing',
-            'PCAResult' : 'shnitsel.analyze.pca',
-            'PopulationStatistics' : 'shnitsel.analyze.populations',
+            'PCAResult': 'shnitsel.analyze.pca',
+            'PopulationStatistics': 'shnitsel.analyze.populations',
             'DataArrayGroupBy': 'xarray.core.groupby',
             'DatasetGroupBy': 'xarray.core.groupby',
             'needs': '._contracts',
@@ -197,9 +196,7 @@ def main():
             'os',
             'pathlib',
         },
-        name_overrides={
-            'construct_default_mol': 'default_mol'
-        }
+        name_overrides={'construct_default_mol': 'default_mol'},
     )
     with open("../shnitsel/_generated_accessors.py", "w") as f:
         print(code, file=f)
