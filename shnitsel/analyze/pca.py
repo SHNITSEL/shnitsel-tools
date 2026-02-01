@@ -442,7 +442,7 @@ def pca(
 
     Parameters
     ----------
-    data : Trajectory | Frames | ShnitselDB[Trajectory | Frames] | xr.Dataset | xr.DataArray
+    data : Trajectory | Frames |  TreeNode[Any, Trajectory | Frames] | xr.Dataset | xr.DataArray
         The data for which the features for the PCA should be calculated.
         Assumes that either the format provides `position` information, can be converted to a `Trajectory` or `Frames`
         instance or that it is an `atXYZ` data array holding positional information from which the features
@@ -462,7 +462,7 @@ def pca(
     PCAResult
         The result of running the PCA analysis on the features selected in `structure_selection` or a full pairwise distance PCA
         extracted from `data`.
-    ShnitselDB[PCAResult[DataGroup[xr.DataArray], DataGroup[xr.DataArray]]]
+     TreeNode[Any, PCAResult[DataGroup[xr.DataArray], DataGroup[xr.DataArray]]]
         The hierarchical structure of PCA results, where each flat group is used for a PCA analysis.
     """
     ...
