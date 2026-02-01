@@ -329,13 +329,13 @@ class DataArrayAccessor(DAManualAccessor):
         """Wrapper for :py:func:`shnitsel.analyze.hops.filter_data_at_hops`."""
         return filter_data_at_hops(self._obj, hop_type_selection=hop_type_selection)
 
-    def focus_hops(self, hop_types: list[tuple[int, int]] | None=None, window: slice | None=None):
+    def focus_hops(self, hop_type_selection: list[tuple[int, int]] | None=None, window: slice | None=None):
         """Wrapper for :py:func:`shnitsel.analyze.hops.focus_hops`."""
-        return focus_hops(self._obj, hop_types=hop_types, window=window)
+        return focus_hops(self._obj, hop_type_selection=hop_type_selection, window=window)
 
-    def assign_hop_time(self, hop_types: list[tuple[int, int]] | None=None, which: Literal='last'):
+    def assign_hop_time(self, hop_type_selection: list[tuple[int, int]] | None=None, which: Literal='last'):
         """Wrapper for :py:func:`shnitsel.analyze.hops.assign_hop_time`."""
-        return assign_hop_time(self._obj, hop_types=hop_types, which=which)
+        return assign_hop_time(self._obj, hop_type_selection=hop_type_selection, which=which)
 
 
 class DatasetAccessor(DSManualAccessor):
@@ -493,13 +493,13 @@ class DatasetAccessor(DSManualAccessor):
         """Wrapper for :py:func:`shnitsel.analyze.hops.filter_data_at_hops`."""
         return filter_data_at_hops(self._obj, hop_type_selection=hop_type_selection)
 
-    def focus_hops(self, hop_types: list[tuple[int, int]] | None=None, window: slice | None=None):
+    def focus_hops(self, hop_type_selection: list[tuple[int, int]] | None=None, window: slice | None=None):
         """Wrapper for :py:func:`shnitsel.analyze.hops.focus_hops`."""
-        return focus_hops(self._obj, hop_types=hop_types, window=window)
+        return focus_hops(self._obj, hop_type_selection=hop_type_selection, window=window)
 
-    def assign_hop_time(self, hop_types: list[tuple[int, int]] | None=None, which: Literal='last'):
+    def assign_hop_time(self, hop_type_selection: list[tuple[int, int]] | None=None, which: Literal='last'):
         """Wrapper for :py:func:`shnitsel.analyze.hops.assign_hop_time`."""
-        return assign_hop_time(self._obj, hop_types=hop_types, which=which)
+        return assign_hop_time(self._obj, hop_type_selection=hop_type_selection, which=which)
 
     def FrameSelector(self, data_var=None, dim=None, xname=None, yname=None, title='', allowed_ws_origin=None, webgl=True):
         """Wrapper for :py:func:`shnitsel.vis.plot.select.FrameSelector`."""
