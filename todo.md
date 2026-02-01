@@ -59,6 +59,8 @@
   - DatasheetPage:
     - [ ] Improve PCA Page
     - [x] Improve default settings for datasheet and pages.
+- Hops
+  - [ ] Fix some functions not yet moved to tree types or new style of type selection.
 
 - [ ] CLI tutorial/SI
 - [ ] Full tutorial retinal with direct link for reviewers
