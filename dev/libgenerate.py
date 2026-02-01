@@ -3,6 +3,7 @@ from types import NoneType, UnionType
 from typing import Callable, Dict, List
 import typing
 
+
 def generate_class_code(
     classes: Dict[str, List[Callable]], imports, plain_imports, name_overrides
 ) -> str:
@@ -32,20 +33,27 @@ def generate_class_code(
     def type_to_type_label(type_annotation: type | str) -> str:
         if type_annotation is None or type_annotation is inspect._empty:
             return ""
-        
+
         if type_annotation == NoneType:
             return "None"
-        
+
         # Handle string annotations (forward references)
         if isinstance(type_annotation, str):
             return type_annotation
 
         # For unions, unwrap the union
-        if isinstance(type_annotation, UnionType):
+        if (
+            isinstance(type_annotation, UnionType)
+            or typing.get_origin(type_annotation) == typing.Union
+        ):
             return "(" + union_to_typestring(type_annotation) + ")"
 
-        # For simple types, use __name__ if available
-        if hasattr(type_annotation, '__name__'):
+        import_base_class = typing.get_origin(type_annotation)
+
+        if import_base_class == typing.Literal:
+            return literal_to_typestring(type_annotation)
+
+        if import_base_class is None:
             if (
                 hasattr(type_annotation, '__module__')
                 and type_annotation.__module__ != "builtins"
@@ -53,14 +61,37 @@ def generate_class_code(
                 module_name = type_annotation.__module__
                 if module_name not in ['typing', 'builtins']:
                     imports[type_annotation.__name__] = module_name
+        elif import_base_class is not None:
+            if (
+                hasattr(import_base_class, '__module__')
+                and import_base_class.__module__ != "builtins"
+            ):
+                print(f"{import_base_class=}")
+                module_name = import_base_class.__module__
+                if module_name not in ['typing', 'builtins']:
+                    imports[import_base_class.__name__] = module_name
+        else:
+            import_base_class = type_to_type_label(import_base_class)
+
+        # For simple types, use __name__ if available
+        if hasattr(type_annotation, '__name__'):
             return type_annotation.__name__
 
         return repr(type_annotation)
 
-    def union_to_typestring(union_annotation: UnionType) -> str:
+    def union_to_typestring(union_annotation) -> str:
         subtypes = typing.get_args(union_annotation)
 
         return " | ".join(type_to_type_label(x) for x in subtypes)
+
+    def literal_to_typestring(literal_annotation) -> str:
+        args = typing.get_args(literal_annotation)
+
+        return (
+            "Literal["
+            + ", ".join(f"\"{x}\"" if isinstance(x, str) else str(x) for x in args)
+            + "]"
+        )
 
     def get_ann_str(annotation):
         """Convert annotation to string, handling complex types better."""
@@ -119,7 +150,7 @@ def generate_class_code(
                                 pdefault = " = " + type_to_type_label(param.default)
                             else:
                                 pdefault = f" = {param.default!r}"
-                            adefault = "" # f" = {pname}"
+                            adefault = ""  # f" = {pname}"
                         else:
                             pdefault = ""
                             adefault = ""
