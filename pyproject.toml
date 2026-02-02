@@ -38,7 +38,8 @@ dependencies = [
   # To enable direct loading of remote resources:
   "fsspec",
   "requests",
-  "aiohttp"
+  "urllib3>=2.6.3",  # urllib3 is required by requests; versions specified avoid CVE-2026-21441 (vulnerability to zip bombs)
+  "aiohttp>=3.13.3"  # versions specified avoid CVE-2025-69223 (vulnerability to zip bombs)
 ]
 
 [project.optional-dependencies]
