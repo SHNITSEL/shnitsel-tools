@@ -2055,7 +2055,10 @@ class StructureSelection:
             The bond descriptor with standardized index order
 
         """
-        return (np.min(bond), np.max(bond))
+        if bond[0] < bond[1]:
+            return bond
+        else:
+            return bond[1], bond[0]
 
     @staticmethod
     def canonicalize_angle(angle: AngleDescriptor) -> AngleDescriptor:
