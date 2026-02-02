@@ -1,7 +1,17 @@
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from itertools import combinations
 import logging
-from typing import Collection, Iterator, Literal, Self, Sequence, TypeAlias
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Collection,
+    Iterator,
+    Literal,
+    Self,
+    Sequence,
+    TypeAlias,
+)
 import numpy as np
 import rdkit
 import xarray as xr
@@ -20,8 +30,6 @@ from shnitsel.vis.colormaps import (
     st_pink,
     st_violet,
 )
-from IPython.display import SVG
-
 
 AtomDescriptor: TypeAlias = int
 BondDescriptor: TypeAlias = tuple[int, int]
@@ -1614,11 +1622,11 @@ class StructureSelection:
 
     def draw(
         self,
-        flag_level: FeatureLevelOptions = 'bonds',
+        flag_level: FeatureLevelOptions | Iterable[FeatureLevelOptions] = 'bonds',
         highlight_color: tuple[float, float, float] | str | None = None,
         width=300,
         height=300,
-    ) -> SVG:
+    ) -> "SVG | Iterable[SVG] | Any":
         """Helper function to allow visualization of the structure represented in this selection.
 
         Parameters
@@ -1636,52 +1644,68 @@ class StructureSelection:
         -------
         SVG
             The SVG representation of this selection's figure.
-
+        Iterable[SVG]
+            A sequence of SVG representations of the multiple selection levels if multiple requested.
+        Any
+            If outside of an ipython environment, this function returns either a single output drawing
+            or a sequence thereof of format `svg` (in its textual representation).
         """
         # TODO: FIXME: Use different colors for different feature levels.
         from rdkit.Chem.Draw import rdMolDraw2D
+        from shnitsel.rd import highlight_features
+        from shnitsel.core.feature_detection import is_ipython_notebook
 
-        if highlight_color is None:
-            # Get feature-level color if not set
-            feature_level = self._to_feature_level_str(flag_level)
-            highlight_color = self.feature_level_colors[feature_level]
+        if isinstance(flag_level, str) or isinstance(flag_level, int):
+            flag_level = [flag_level]
 
-        if isinstance(highlight_color, str):
-            highlight_color = tuple(hex2rgb(highlight_color))
+        plots = []
 
-        # draw molecule with highlights
-        drawer = rdMolDraw2D.MolDraw2DSVG(width, height)
-        drawer.drawOptions().fillHighlights = True
-        drawer.drawOptions().addAtomIndices = True
-        drawer.drawOptions().setHighlightColour(highlight_color)
-        drawer.drawOptions().clearBackground = False
+        for level in flag_level:
+            feature_level = self._to_feature_level_str(level)
+            if highlight_color is None:
+                # Get feature-level color if not set
+                highlight_color = self.feature_level_colors[feature_level]
 
-        active_bonds = self.__get_active_bonds(flag_level=flag_level)
-        active_atoms = self.__get_active_atoms(flag_level=flag_level)
+            if isinstance(highlight_color, str):
+                highlight_color = tuple(hex2rgb(highlight_color))
 
-        if len(active_bonds) == 0:
-            active_bonds = None
+            match level:
+                case 'atoms':
+                    feature_set = self.atoms_selected
+                case 'bonds':
+                    feature_set = self.bonds_selected
+                case 'angles':
+                    feature_set = self.angles_selected
+                case 'dihedrals':
+                    feature_set = self.dihedrals_selected
+                case 'pyramids':
+                    feature_set = self.pyramids_selected
+                case _:
+                    raise ValueError(f"Plotting of feature {level=} not supported.")
+
+            # TODO: FIXME: Consider not returning an IPython object. Return only IPython if in IPython environment?
+            img = highlight_features(
+                self.mol,
+                feature_indices=list(feature_set),
+                fmt='svg',
+                width=width,
+                height=height,
+            )
+            if not is_ipython_notebook():
+                logging.info(
+                    "Cannot use `ipython.display` features in `StructureSelection.draw()` outside of `ipython` environment"
+                )
+            else:
+                from IPython.display import SVG
+
+                img = SVG(img)
+
+            plots.append(img)
+
+        if len(plots) == 1:
+            return plots[0]
         else:
-            active_bonds = self.bond_descriptor_to_mol_index(active_bonds)
-
-        # print(f"{drawer=}")
-        # print(f"{self.mol=}")
-        # print(f"{active_atoms=}")
-        # print(f"{active_bonds=}")
-
-        rdMolDraw2D.PrepareAndDrawMolecule(
-            drawer,
-            self.mol,
-            highlightAtoms=active_atoms,
-            highlightBonds=active_bonds,
-        )
-        # drawer.DrawMolecule(mol)
-        drawer.FinishDrawing()
-        img_text = drawer.GetDrawingText()
-        # TODO: FIXME: Consider not returning an IPython object. Return only IPython if in IPython environment?
-        img = SVG(img_text)
-
-        return img
+            return plots
 
     def __get_active_atoms(
         self, flag_level: FeatureLevelOptions = 'atoms'
