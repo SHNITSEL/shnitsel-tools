@@ -28,6 +28,7 @@ dependencies = [
   "numpy>=2.3",        # 2.3.6 currently in testing
   "pandas>=2.2",
   "h5netcdf>=1.7.0",
+  "h5py",
   "scikit-learn>=1.5",
   "jupyter>=1.0.0",    # TODO: make optional?
   "py3dmol>=2.0.4",    # TODO: make optional?
@@ -35,9 +36,10 @@ dependencies = [
   "pyparsing>=3.2.5",
   "svgpathtools>=1.7.2",
   # To enable direct loading of remote resources:
-  # "fsspec",
-  # "requests",
-  # "aiohttp"
+  "fsspec",
+  "requests",
+  "urllib3>=2.6.3",  # urllib3 is required by requests; versions specified avoid CVE-2026-21441 (vulnerability to zip bombs)
+  "aiohttp>=3.13.3"  # versions specified avoid CVE-2025-69223 (vulnerability to zip bombs)
 ]
 
 [project.optional-dependencies]
