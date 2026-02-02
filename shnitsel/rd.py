@@ -110,7 +110,13 @@ def mol_to_numbered_smiles(mol: rc.Mol) -> str:
     return rc.MolToSmiles(mol)
 
 
-def highlight_features(mol: rc.Mol, feature_indices: Sequence["FeatureDescriptor"]):
+def highlight_features(
+    mol: rc.Mol,
+    feature_indices: Sequence["FeatureDescriptor"],
+    fmt: Literal['png', 'svg'] = 'png',
+    width=320,
+    height=240,
+):
     """Highlight specified pairs of atoms in an image of an ``rdkit.Chem.Mol`` object
 
     Parameters
@@ -124,7 +130,15 @@ def highlight_features(mol: rc.Mol, feature_indices: Sequence["FeatureDescriptor
     -------
         Raw PNG data
     """
-    d = rdkit.Chem.Draw.rdMolDraw2D.MolDraw2DCairo(320, 240)
+    if fmt == 'png':
+        d = rdkit.Chem.Draw.rdMolDraw2D.MolDraw2DCairo(width, height)
+    elif fmt == 'svg':
+        d = rdkit.Chem.Draw.rdMolDraw2D.MolDraw2DSVG(width, height)
+    else:
+        raise ValueError(
+            f"Unsupported format for molecular highlight graph: {fmt=}. Supported are 'png' and 'svg'"
+        )
+
     # colors = iter(mpl.colormaps['tab10'](range(10)))
     colors = iter(mpl.colormaps['rainbow'](np.linspace(0, 1, len(feature_indices))))
 
@@ -196,6 +210,7 @@ def highlight_features(mol: rc.Mol, feature_indices: Sequence["FeatureDescriptor
     # d.drawOptions().fillHighlights = False
     d.drawOptions().setBackgroundColour((0.8, 0.8, 0.8, 0.5))
     d.drawOptions().padding = 0
+    d.drawOptions().addAtomIndices = True
 
     d.DrawMoleculeWithHighlights(mol, '', acolors, bonds, {}, {}, -1)
     d.FinishDrawing()

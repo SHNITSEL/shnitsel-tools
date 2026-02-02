@@ -47,6 +47,9 @@ FeatureDescriptor: TypeAlias = (
     | PyramidsDescriptor
 )
 
+if TYPE_CHECKING:
+    from IPython.display import SVG
+
 FeatureList: TypeAlias = list[FeatureDescriptor]
 
 ActiveFlag: TypeAlias = bool
