@@ -8,12 +8,10 @@
 - Tree improvement
   - [ ] Tree function wrappers with tree parameters for non-tree parameters in unwrapped function
   - [ ] Renaming/restructuring support of tree structure
-  - [ ] Selection functions on the tree (`compound=?`, `group=?`, `<grouping_param>=?`)
+  - [x] Selection functions on the tree (`compound=?`, `group=?`, `<grouping_param>=?`)
     - [x] Added stubs for `.sel()` and `.isel()`
     - [x] Add implementation capturing appropriate dimensions/indexes.
     - [x] Propagate remaining indexers to data entries.
-    - [ ] TODO: Make `trajectory` select the desired entries in `Stacked` sets (should select for both `atrajectory` and `trajectory`)
-    - [ ] TODO: Make `trajectory` drop the NaN frames in result for `Layered` sets.
   - [ ] Pattern matching in the `getitem()` method, i.e. `db['/I01/**/data']` `db["/I01/*/{1-20}"]`
   - [ ] TODO: FIXME: typing.get_origin() does not work on TreeNode specializations. Maybe just patch the `base` class in `_create_extended_node_class`?
 - (De)serialization:
@@ -25,6 +23,8 @@
   - [ ] Add DataArray wrapper
     - [ ] Add specifically an `AtXYZ`/`Positions` Wrapper type.
   - [ ] Add more wrapper types for support function returns
+  - [ ] TODO: Make `trajectory` select the desired entries in `Stacked` sets (should select for both `atrajectory` and `trajectory`)
+  - [ ] TODO: Make `trajectory` drop the NaN frames in result for `Layered` sets.
 - StructureSelection
   - [x] Options in function signatures (provide directly a SMARTs string, deal with trees, etc.)
     - [x] On-the-go construction added to `geo._get_default_selection()`
@@ -34,6 +34,7 @@
   - [ ] Fix non-redundant coordinates
   - [ ] Structure selection (raise error if empty/warning if empty)
   - [ ] draw: Draw grid of highlighted feature levels
+  - [x] draw: Use highlight_features function
 - [ ] Analogs tree, structure selection, warning if no match for compounds
   - [x] Adapted to tree support
   - [ ] Copy if multiple matches
