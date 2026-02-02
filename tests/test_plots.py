@@ -124,18 +124,18 @@ class TestPlotFunctionality:
         plot_loadings(ax, loadings)
 
     @pytest.fixture
-    def highlight_pairs(self, ensembles):
-        from shnitsel.rd import highlight_pairs
+    def highlighted_features(self, ensembles):
+        from shnitsel.rd import highlight_features
 
         mol = default_mol(ensembles)
-        return highlight_pairs(mol, [(0, 1)])
+        return highlight_features(mol, [(0, 1)])
 
     @pytest.mark.xfail
-    def test_mpl_imshow_png(self, highlight_pairs):
+    def test_mpl_imshow_png(self, highlighted_features):
         from shnitsel.vis.plot.common import mpl_imshow_png
 
         _, ax = plt.subplots(1, 1)
-        mpl_imshow_png(ax, highlight_pairs)
+        mpl_imshow_png(ax, highlighted_features)
 
     @pytest.mark.xfail
     def test_plot_clusters(self, clusters_loadings_mols):

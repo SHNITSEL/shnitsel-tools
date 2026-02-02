@@ -22,7 +22,7 @@ from shnitsel.data.tree.node import TreeNode
 from shnitsel.data.tree.support_functions import tree_merge, tree_zip
 
 from .common import figax, extrude, mpl_imshow_png
-from ...rd import highlight_pairs
+from ...rd import highlight_features
 
 # if TYPE_CHECKING:
 from rdkit.Chem import Mol
@@ -495,7 +495,7 @@ def plot_clusters_insets(
         iax = ax.inset_axes([x2, y2, *inset_size], transform=ax.transData)
         iax.set_anchor('SW')  # keep bottom-left corner of image at arrow tip!
 
-        png = highlight_pairs(mol, acs.feature_indices.values)
+        png = highlight_features(mol, acs.feature_indices.values)
         mpl_imshow_png(iax, png)
 
 
@@ -574,7 +574,7 @@ def plot_clusters_grid(
         ax.text(x2, y2, s)
 
         if axs is not None and mol is not None:
-            png = highlight_pairs(mol, acs.feature_indices.values)
+            png = highlight_features(mol, acs.feature_indices.values)
             mpl_imshow_png(axs[s], png)
             axs[s].set_title(s)
 

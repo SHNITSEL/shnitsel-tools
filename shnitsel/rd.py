@@ -110,7 +110,7 @@ def mol_to_numbered_smiles(mol: rc.Mol) -> str:
     return rc.MolToSmiles(mol)
 
 
-def highlight_pairs(mol: rc.Mol, feature_indices: Sequence["FeatureDescriptor"]):
+def highlight_features(mol: rc.Mol, feature_indices: Sequence["FeatureDescriptor"]):
     """Highlight specified pairs of atoms in an image of an ``rdkit.Chem.Mol`` object
 
     Parameters
