@@ -31,7 +31,7 @@
     - [x] Patch existing functions to express support for descriptors
   - [x] Add merge/subtract/intersect operations
   - [x] Add 'BLA' and 'pwdist' feature descriptors.
-  - [ ] Fix non-redundant coordinates
+  - [x] Fix non-redundant coordinates
   - [ ] Structure selection (raise error if empty/warning if empty)
   - [ ] draw: Draw grid of highlighted feature levels
   - [x] draw: Use highlight_features function
