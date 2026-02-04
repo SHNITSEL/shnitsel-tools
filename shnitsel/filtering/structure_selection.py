@@ -2216,8 +2216,14 @@ class StructureSelection:
             The updated StructureSelection object with only non-redundant coordinates in bonds,
             angles and dihedrals.
 
-        Note
-        ----
+        Notes
+        -----
+        The non-redundant coordinates are built from the entire molecular structure
+        with no concern for the current selection.
+        If you wish to restrict the current selection, intersect it with the result.
+        Ideally, you wirst make the set non-redundant and then pick the coordinates you would want
+        out of the non-redundant set.
+
         For many cases including methane, the internal coordinates
         returned by this function will not be complete (but should still be
         non-redundant). E.g. in the case of methane, 7 (distinct) coordinates
@@ -2229,58 +2235,315 @@ class StructureSelection:
             "Mol object of selection not set. Cannot filter for SMILES order."
         )
 
-        def join_run(s):
-            """
-            Get a str representation of a run up to an atom
-            """
-            return ' '.join(str(x) for x in s)
+        # Neighbor lists
+        neighbors: dict[AtomDescriptor, set[AtomDescriptor]] = {
+            a: set() for a in self.atoms
+        }
 
-        logger = logging.getLogger('flag_nonredundant')
-        order = self.__get_smiles_order(self.mol, include_h)
+        for a, b in self.bonds:
+            neighbors[a].add(b)
+            neighbors[b].add(a)
+
+        component_indices = np.full((len(self.atoms),), -1)
+
+        components: list[set[AtomDescriptor]] = []
+
+        for a_i in self.atoms:
+            if component_indices[a_i] >= 0:
+                continue
+            new_comp_index = len(components)
+            # Found new component
+            queue = set({a_i})
+            curr_component = set()
+            while queue:
+                next_atom = queue.pop()
+                if component_indices[next_atom] < 0:
+                    # Set the component for this atom and add it to current component
+                    component_indices[next_atom] = new_comp_index
+                    curr_component.add(next_atom)
+                    # Add all non-visited neighbors of the current atom to queue
+                    queue.update(
+                        x for x in neighbors[next_atom] if component_indices[x] < 0
+                    )
+
+            components.append(curr_component)
+
+        # We now have information about all components (if the mol is disjoint)
 
         new_bonds: list[BondDescriptor] = []
         new_angles: list[AngleDescriptor] = []
         new_dihedrals: list[DihedralDescriptor] = []
-        runs = {}
-        min_run_len = 0
-        # TODO: FIXME: Test this algorithm throroughly. I could not find a reference for this.
-        for i in order:
-            if len(runs) == 0:
-                logger.info(f'Atom {i}: Nothing to do')
-                runs[i] = [i]
+
+        for component in components:
+            if len(component) < 2:
+                # No internal coordinates needed for a single atom.
+                # TODO: FIXME: Should we add the position of that single atom?
                 continue
 
-            neigh_runs = (
-                runs.get(neighbor.GetIdx(), [])
-                for neighbor in self.mol.GetAtomWithIdx(i).GetNeighbors()
-            )
-            runs[i] = run = max(neigh_runs, key=lambda x: len(x)) + [i]
+            # We now have at least two atoms with bonds connecting all atoms within the selection.
 
-            assert len(run) >= min_run_len
+            # Differentiate between leaves and inner nodes
+            comp_leaves = [x for x in component if len(neighbors[x]) == 1]
+            comp_inner = [x for x in component if len(neighbors[x]) > 1]
 
-            if len(run) > 4:
-                logger.info(
-                    f"Atom {i}: Using run ({join_run(run[:-4])}) {join_run(run[-4:])}"
+            if len(comp_inner) == 0:
+                # We have two bonded atoms
+                new_bonds.append(
+                    self.canonicalize_bond((comp_leaves[0], comp_leaves[1]))
                 )
+                continue
+            elif len(comp_inner) == 1:
+                # We have at least 2 leaves around a central atom
+
+                # Add all bond lengths
+                new_bonds.extend(
+                    self.canonicalize_bond((x, comp_inner[0])) for x in comp_leaves
+                )
+                # Add at least one angle:
+                new_angles.append(
+                    self.canonicalize_angle(
+                        (comp_leaves[0], comp_inner[0], comp_leaves[1])
+                    )
+                )
+                # Check if we have 3 or more at the same center
+                if len(comp_leaves) >= 3:
+                    for add_leav_idx in range(2, len(comp_leaves)):
+                        # Add the angle to the prior leaf
+                        new_angles.append(
+                            self.canonicalize_angle(
+                                (
+                                    comp_leaves[add_leav_idx - 1],
+                                    comp_inner[0],
+                                    comp_leaves[add_leav_idx],
+                                )
+                            )
+                        )
+                        # Add a pseudo dihedral, otherwise the chirality may be wrong with only angles as coordinates:
+                        new_dihedrals.append(
+                            self.canonicalize_dihedral(
+                                (
+                                    comp_leaves[add_leav_idx - 2],
+                                    comp_leaves[add_leav_idx - 1],
+                                    comp_inner[0],
+                                    comp_leaves[add_leav_idx],
+                                )
+                            )
+                        )
             else:
-                logger.info(f"Atom {i}: Using run {join_run(run)}")
+                # We have at least 2 inner nodes. All inner nodes have to be connected with each other
+                # The plan:
+                # - Find 2 connected inner nodes (a, b)
+                # - Find one neighbor of each of these nodes (a_, and b_) that is neither the other nor the same shared note (special case: 3-ring a_=b_)
+                # - Add the 3 bonds (a_,a), (a,b), (b,b_)
+                # - Add the 2 angles (a_,a,b), (a,b,b_)
+                # - Add the dihedral (a_,a,b,b_)
+                # This 4-geometry is now entirely characterized. Set `prior-paths` for the 4 atoms so that we can extend further to their neighbors
 
-            for n, k in enumerate(run[:-1]):
-                if len(runs.get(k, [])) < 4 <= len(run) - n:
-                    new_run = run[n:][::-1]
-                    logger.info(f"Overwriting run for {k} with {join_run(new_run)}")
-                    runs[k] = new_run
+                # Try and find such a bond (a,b)
 
-            if min_run_len < 4 and len(run) > min_run_len:
-                min_run_len = len(run)
-                logger.info(f'{min_run_len=}')
+                # Keep track of a found triangle
+                ring_a: AtomDescriptor
+                ring_b: AtomDescriptor
+                ring_c: AtomDescriptor
 
-            if len(run) >= 2:
-                new_bonds.append(tuple(run[-2:]))
-            if len(run) >= 3:
-                new_angles.append(tuple(run[-3:]))
-            if len(run) >= 4:
-                new_dihedrals.append(tuple(run[-4:]))
+                # Keep track of one other (reasonable) configurations
+                res_a: AtomDescriptor
+                res_b: AtomDescriptor
+                res_a_: AtomDescriptor
+                res_b_: AtomDescriptor
+                found_fitting_inner_bond: bool = False
+                for a in comp_inner:
+                    if found_fitting_inner_bond:
+                        break
+                    a_inner_neighbors = set(
+                        n for n in neighbors[a] if len(neighbors[n]) > 1
+                    )
+                    for n in a_inner_neighbors:
+                        a_remaining_neighbors = neighbors[a].difference({n})
+                        n_remaining_neighbors = neighbors[n].difference({a})
+                        # If we have at least two options for one node, we can choose different neighbors
+                        # If we only have one for each node, then we need to check if it is the same for both
+                        if (
+                            len(a_remaining_neighbors) == 1
+                            and a_remaining_neighbors == n_remaining_neighbors
+                        ):
+                            # Found a triangle/ 3-ring
+                            ring_a = a
+                            ring_b = n
+                            ring_c = a_remaining_neighbors.pop()
+                            continue
+                        else:
+                            # We have a reasonable configuration
+                            res_a = a
+                            res_b = n
+
+                            # Start with choice from smaller set in case one has only 1 option
+                            if len(a_remaining_neighbors) <= len(n_remaining_neighbors):
+                                # Get one neighbor of a
+                                res_a_ = a_remaining_neighbors.pop()
+                                # Get rid of potentially shared element
+                                n_remaining_neighbors.discard(res_a_)
+                                res_b_ = n_remaining_neighbors.pop()
+                                found_fitting_inner_bond = True
+                                break
+                            else:
+                                # Get one neighbor of n
+                                res_b_ = n_remaining_neighbors.pop()
+                                a_remaining_neighbors.discard(res_b_)
+                                res_a_ = a_remaining_neighbors.pop()
+                                # Get rid of potentially shared element
+                                found_fitting_inner_bond = True
+                                break
+
+                if not found_fitting_inner_bond:
+                    # 3 ring with 3 bonds:
+                    # NOTE: The ring indices must have been set if no fitting inner bond has been found
+                    new_bonds.extend(
+                        [
+                            self.canonicalize_bond((ring_a, ring_b)),
+                            self.canonicalize_bond((ring_b, ring_c)),
+                            self.canonicalize_bond((ring_c, ring_a)),
+                        ]
+                    )
+                    continue
+                else:
+                    new_bonds.extend(
+                        [
+                            self.canonicalize_bond((res_a, res_a_)),
+                            self.canonicalize_bond((res_a, res_b)),
+                            self.canonicalize_bond((res_b, res_b_)),
+                        ]
+                    )
+                    new_angles.extend(
+                        [
+                            self.canonicalize_angle((res_b, res_a, res_a_)),
+                            self.canonicalize_angle((res_a, res_b, res_b_)),
+                        ]
+                    )
+                    new_dihedrals.extend(
+                        [
+                            self.canonicalize_dihedral((res_b_, res_b, res_a, res_a_)),
+                        ]
+                    )
+
+                    # Set of already fixed points in component
+                    fixed_set = {res_b_, res_a, res_a_, res_b}
+                    # A map of fixed atom predecessors of this node (including the node itself) to use for construction of new node fixes
+                    # Should be exactly 3 long to construct bond length, angle and dihedral with new neighbor.
+                    traces: dict[AtomDescriptor, list[AtomDescriptor]] = {
+                        res_a: [res_b_, res_b, res_a],
+                        res_a_: [res_b, res_a, res_a_],
+                        res_b: [res_a_, res_a, res_b],
+                        res_b_: [res_a, res_b, res_b_],
+                    }
+
+                    queue = (
+                        neighbors[res_a_]
+                        .union(neighbors[res_a])
+                        .union(neighbors[res_b])
+                        .union(neighbors)
+                    )
+
+                    while queue:
+                        next_neighbor = queue.pop()
+
+                        # Node already fixed, do nothing
+                        if next_neighbor in fixed_set:
+                            continue
+
+                        # Find fixed neighbor:
+                        fixed_neighbors = neighbors[next_neighbor].intersection(
+                            fixed_set
+                        )
+                        # There must be at least one predecessor, because we got to this point somehow
+                        predecessor = fixed_neighbors.pop()
+
+                        new_trace = traces[predecessor] + [next_neighbor]
+
+                        # Add fixing constraints to set of coordinates
+                        new_bonds.append(
+                            self.canonicalize_bond((new_trace[-2], new_trace[-1]))
+                        )
+                        new_angles.append(
+                            self.canonicalize_angle(
+                                (new_trace[-3], new_trace[-2], new_trace[-1])
+                            )
+                        )
+                        new_dihedrals.append(
+                            self.canonicalize_dihedral(
+                                (
+                                    new_trace[-4],
+                                    new_trace[-3],
+                                    new_trace[-2],
+                                    new_trace[-1],
+                                )
+                            )
+                        )
+
+                        # Cut off trace
+                        traces[next_neighbor] = new_trace[-3:]
+                        # Set next_neighbor as fixed
+                        fixed_set.add(next_neighbor)
+                        # Update queue to visit its neighbors
+                        queue.update(neighbors[next_neighbor])
+
+                    # We have now fixed all nodes in the component
+
+        # def join_run(s):
+        #     """
+        #     Get a str representation of a run up to an atom
+        #     """
+        #     return ' '.join(str(x) for x in s)
+
+        # logger = logging.getLogger('flag_nonredundant')
+        # order = self.__get_smiles_order(self.mol, include_h)
+        # print(order)
+
+        # new_bonds: list[BondDescriptor] = []
+        # new_angles: list[AngleDescriptor] = []
+        # new_dihedrals: list[DihedralDescriptor] = []
+        # runs = {}
+        # min_run_len = 0
+        # # TODO: FIXME: Test this algorithm throroughly. I could not find a reference for this.
+        # for i in order:
+        #     if len(runs) == 0:
+        #         logger.info(f'Atom {i}: Nothing to do')
+        #         runs[i] = [i]
+        #         continue
+
+        #     neigh_runs = (
+        #         runs.get(neighbor.GetIdx(), [])
+        #         for neighbor in self.mol.GetAtomWithIdx(i).GetNeighbors()
+        #     )
+        #     runs[i] = run = max(neigh_runs, key=lambda x: len(x)) + [i]
+
+        #     assert len(run) >= min_run_len
+
+        #     if len(run) > 4:
+        #         logger.info(
+        #             f"Atom {i}: Using run ({join_run(run[:-4])}) {join_run(run[-4:])}"
+        #         )
+        #     else:
+        #         logger.info(f"Atom {i}: Using run {join_run(run)}")
+
+        #     for n, k in enumerate(run[:-1]):
+        #         if len(runs.get(k, [])) < 4 <= len(run) - n:
+        #             new_run = run[n:][::-1]
+        #             logger.info(f"Overwriting run for {k} with {join_run(new_run)}")
+        #             runs[k] = new_run
+
+        #     if min_run_len < 4 and len(run) > min_run_len:
+        #         min_run_len = len(run)
+        #         logger.info(f'{min_run_len=}')
+
+        #     if len(run) >= 2:
+        #         new_bonds.append(tuple(run[-2:]))
+        #     if len(run) >= 3:
+        #         new_angles.append(tuple(run[-3:]))
+        #     if len(run) >= 4:
+        #         new_dihedrals.append(tuple(run[-4:]))
+
+        # print(runs)
 
         return self.copy_or_update(
             bonds_selected=set(new_bonds),
