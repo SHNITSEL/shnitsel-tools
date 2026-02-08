@@ -2326,3 +2326,33 @@ class StateSelection:
     intersect = __and__
     difference = __sub__
     invert = __invert__
+
+    def __str__(self) -> str:
+        # Simple representation stating how many states and combinations have been selected.
+        res = (
+            type(self).__name__
+            + ("[directed]" if self.is_directed else "")
+            + f": ({len(self.states)}/{len(self.states_base)}) states and ({len(self.state_combinations)}/{len(self.state_combinations_base)}) statecombs"
+        )
+
+        return res
+
+    def __repr__(self) -> str:
+        # List the selected states:
+        res = type(self).__name__ + (" [directed]" if self.is_directed else "") + ":\n"
+
+        states_str = (
+            f"- ({len(self.states)}/{len(self.states_base)}) states: "
+            + ", ".join(self.get_state_name_or_default(id) for id in self.states)
+            + "\n"
+        )
+        sc_str = (
+            f"- ({len(self.state_combinations)}/{len(self.state_combinations_base)}) states: "
+            + ", ".join(
+                self.get_state_combination_name_or_default(id)
+                for id in self.state_combinations
+            )
+            + "\n"
+        )
+
+        return res + states_str + sc_str
