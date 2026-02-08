@@ -30,6 +30,10 @@ class ShnitselDataset(SupportsFromXrConversion, SupportsToXrConversion):
 
     @property
     def leading_dimension(self) -> str:
+        return self.leading_dim
+
+    @property
+    def leading_dim(self) -> str:
         if "frame" in self.dataset.dims:
             return "frame"
         elif "time" in self.dataset.dims:
