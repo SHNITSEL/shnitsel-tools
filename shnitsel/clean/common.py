@@ -213,13 +213,21 @@ def truncate(
 
     wrapped_dataset = wrap_dataset(frames_or_trajectory, Trajectory | Frames)
 
-    filter_mask_all_criteria = _filter_mask_from_dataset(wrapped_dataset.dataset).all(
-        "criterion"
-    )
+    noncum_mask = _filter_mask_from_dataset(wrapped_dataset.dataset).all("criterion")
+    # TODO (thevro): Check whether filter_mask_all_criteria is supposed to be cumulative already.
+    # Ensure the mask is cumulative. (This operation is idempotent.)
 
-    tmp_res = wrapped_dataset.dataset.isel(
-        {frames_or_trajectory.leading_dim: filter_mask_all_criteria}
-    )
+    # If stacked:
+    if 'atrajectory' in noncum_mask.coords:
+        cum_mask = noncum_mask.groupby('atrajectory').cumprod().astype(bool)
+    # If layered:
+    elif {'time', 'trajectory'}.issubset(noncum_mask.dims):
+        cum_mask = noncum_mask.cumprod('time').astype(bool)
+    # If single trajectory:
+    else:
+        cum_mask = noncum_mask.cumprod().astype(bool)
+
+    tmp_res = wrapped_dataset.dataset.isel({frames_or_trajectory.leading_dim: cum_mask})
     # TODO: FIXME: Test whether this works. May be wrong shape
     if not isinstance(frames_or_trajectory, xr.Dataset):
         return type(frames_or_trajectory)(tmp_res)
