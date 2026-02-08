@@ -227,7 +227,7 @@ def truncate(
     else:
         cum_mask = noncum_mask.cumprod().astype(bool)
 
-    tmp_res = wrapped_dataset.dataset.isel({frames_or_trajectory.leading_dim: cum_mask})
+    tmp_res = wrapped_dataset.dataset.isel({wrapped_dataset.leading_dim: cum_mask})
     # TODO: FIXME: Test whether this works. May be wrong shape
     if not isinstance(frames_or_trajectory, xr.Dataset):
         return type(frames_or_trajectory)(tmp_res)
