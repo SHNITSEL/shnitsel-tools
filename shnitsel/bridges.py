@@ -348,7 +348,7 @@ def construct_default_mol(
 
     # TODO: FIXME: Make these internal attributes with double underscores so they don't get written out.
     if '__mol' in atXYZ.attrs:
-        return sap(rc.Mol(obj.attrs['__mol']))
+        return sap(rc.Mol(atXYZ.attrs['__mol']))
     elif 'smiles_map' in obj.attrs:
         if not silent_mode:
             logging.debug("default_mol: Using `obj.attrs['smiles_map']`")
