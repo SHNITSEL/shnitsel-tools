@@ -7,10 +7,7 @@ import xarray as xr
 
 from shnitsel.core._api_info import API, internal
 from shnitsel.data.dataset_containers import wrap_dataset
-from shnitsel.data.dataset_containers.multi_series import MultiSeriesDataset
-from shnitsel.data.dataset_containers.shared import ShnitselDataset
-from shnitsel.data.dataset_containers.trajectory import Trajectory
-from shnitsel.data.dataset_containers.frames import Frames
+from shnitsel.data.dataset_containers import DataSeries, ShnitselDataset, Trajectory, MultiSeriesDataset, Frames
 from shnitsel.data.tree.node import TreeNode
 from shnitsel.units.definitions import time, unit_dimensions
 
@@ -26,7 +23,7 @@ class PopulationStatistics:
 
     _absolute_statistics: xr.DataArray
 
-    def __init__(self, base_traj_or_data: Frames | xr.DataArray):
+    def __init__(self, base_traj_or_data: DataSeries | xr.DataArray):
         if isinstance(base_traj_or_data, xr.DataArray):
             self._absolute_statistics = base_traj_or_data
         else:
@@ -227,6 +224,7 @@ def calc_classical_populations(
         db: TreeNode[Any, ShnitselDataset | xr.Dataset] = (
             frames.group_data_by_metadata()
         )
+        assert db is not None, "Could not group data in input tree"
 
         def _map_prepare(
             frames: ShnitselDataset | xr.Dataset,
