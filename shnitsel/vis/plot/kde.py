@@ -1,5 +1,5 @@
 import logging
-from typing import Any, Iterable, Literal, Sequence
+from typing import Any, Iterable, Literal, Sequence, overload
 
 from matplotlib.axes import Axes
 from matplotlib.colors import Colormap
@@ -14,6 +14,7 @@ import xarray as xr
 
 from shnitsel.analyze.hops import hops_mask_from_active_state
 from shnitsel.analyze.pca import PCAResult, pca, pca_and_hops
+from shnitsel.core.typedefs import DimName
 from shnitsel.data.dataset_containers import Frames, Trajectory, wrap_dataset
 from shnitsel.data.dataset_containers.multi_layered import MultiSeriesLayered
 from shnitsel.data.dataset_containers.multi_stacked import MultiSeriesStacked
@@ -42,13 +43,121 @@ from shnitsel.bridges import construct_default_mol, set_atom_props
 import xarray as xr
 
 
-def _fit_kdes(
-    pca_data: xr.DataArray,
+def fit_kde(
+    data: xr.DataArray, leading_dim: DimName | None = None
+) -> stats.gaussian_kde | None:
+    """\
+    Fit a set of KDEs to the `data`.
+    
+    The parameter `geo_kde_ranges` specifies the subsets of the values of `geo_property`
+    that should be filtered into the same subset. 
+    Returns one KDE for each such subset.
+
+
+    Parameters
+    ----------
+    data : xr.DataArray
+        The data for which KDEs should be fitted on the various ranges. 
+        Usually PCA data or data obtained from another kind of clustering or dimensionality reduction.
+    leading_dim: DimName, optional
+        Name of the leading dimension which enumerates the different samples. 
+        Needs to be shifted to the back of the dataset. 
+        If not provided, will be guessed from 'time' or 'frame'.
+
+    Returns
+    ----------
+    stats.gaussian_kde
+        The fitted KDE (kernel density estimator) for the entire dataset.
+    None 
+        If data was empty.
+    """
+
+    if leading_dim is None:
+        if 'frame' in data.dims:
+            leading_dim = 'frame'
+        elif 'time' in data.dims:
+            leading_dim = 'time'
+        else:
+            raise ValueError(
+                "Could not guess leading dimension name from `data` input."
+            )
+    if data.size == 0:
+        logging.warning(f"No points for KDE to fit")
+        return None
+    else:
+        base = data.transpose(..., leading_dim) # Swap leading dimension to the end
+
+        try:
+            return stats.gaussian_kde(base)
+        except Exception as e:
+            logging.warning(f"Failed to fit KDE: {e}")
+            return None
+
+
+def filter_by_property_range(
+    data: xr.DataArray,
+    property_values: xr.DataArray,
+    property_ranges: Sequence[tuple[float, float]],
+    leading_dim: DimName | None = None,
+) -> Sequence[xr.DataArray]:
+    """\
+    Filter data in a data array by the values of a property. 
+    For each range in `property_ranges`, extract the set of data points in that range and
+    returns a Sequence of `xarray.DataArray` instances holding the `data` points 
+    with the property in that range.
+
+
+    Parameters
+    ----------
+    data : xr.DataArray
+        The data which should be filtered for the various ranges. 
+        Usually PCA data or data obtained from another kind of clustering or dimensionality reduction.
+    property_values : xr.DataArray
+        The (geometric) property that the data should be clustered/filtered by.
+    property_ranges : Sequence[tuple[float, float]]
+        The sequence of (distinct) ranges of values of the (geometric) property
+        that the `pca_data` should be divided by.
+    leading_dim: DimName, optional
+        Name of the leading dimension which enumerates the different samples. 
+        Needs to be shifted to the back of the dataset. 
+        If not provided, will be guessed from 'time' or 'frame'.
+
+    Returns
+    ----------
+    Sequence[xr.DataArray]
+        The sequence of subsets of data with `property_values` in the respective `property_range` intervals.
+    """
+    if leading_dim is None:
+        if 'frame' in data.dims:
+            leading_dim = 'frame'
+        elif 'time' in data.dims:
+            leading_dim = 'time'
+        else:
+            raise ValueError(
+                "Could not guess leading dimension name from `data` input."
+            )
+
+    filtered_data = []
+    for p1, p2 in property_ranges:
+        mask = (p1 < property_values) & (property_values < p2)
+        subset = data.sel({leading_dim: mask})
+        if subset.size == 0:
+            logging.warning(
+                f"No data points in range {p1} < x < {p2} for property filter"
+            )
+        filtered_data.append(subset)
+    return filtered_data
+
+
+def fit_filtered_kdes(
+    data: xr.DataArray,
     geo_property: xr.DataArray,
     geo_kde_ranges: Sequence[tuple[float, float]],
-) -> Sequence[stats.gaussian_kde]:
+    leading_dim: DimName | None = None,
+) -> Sequence[stats.gaussian_kde | None]:
     """\
-    Fit a set of KDEs to the `pca_data`, after it has been split into subsets based on the values of
+    Fit a set of KDEs to the `data` (usuallyn PCA or other dimension reduced data), 
+    after it has been split into subsets based on the values of
     `geo_property`. 
     
     The parameter `geo_kde_ranges` specifies the subsets of the values of `geo_property`
@@ -58,95 +167,144 @@ def _fit_kdes(
 
     Parameters
     ----------
-    pca_data : xr.DataArray
-        The pca data for which KDEs should be fitted on the various ranges.
+    data : xr.DataArray
+        The data for which KDEs should be fitted on the various ranges. 
+        Usually PCA data or data obtained from another kind of clustering or dimensionality reduction.
     geo_property : xr.DataArray
         The geometric property that the data should be clustered/filtered by.
     geo_kde_ranges : Sequence[tuple[float, float]]
         The sequence of (distinct) ranges of values of the geometric property
         that the `pca_data` should be divided by.
+    leading_dim: DimName, optional
+        Name of the leading dimension which enumerates the different samples. 
+        Needs to be shifted to the back of the dataset. 
+        If not provided, will be guessed from 'time' or 'frame'.
+
 
     Returns
     ----------
-    Sequence[stats.gaussian_kde]
+    Sequence[stats.gaussian_kde | None]
         The sequence of fitted KDEs (kernels) for each range of `geo_kde_ranges`.
+        If there were no points in the respective range, None is returned as the entry of that range.
+
     Raises
     ------
     ValueError
         If any of the ``geo_filter`` ranges is such that no points from
         ``geo_prop`` fall within it
     """
-    kernels = []
-    for p1, p2 in geo_kde_ranges:
-        mask = (p1 < geo_property) & (geo_property < p2)
-        subset = pca_data.sel(frame=mask).T  # Swap leading frame dimension to the end?
-        if subset.size == 0:
-            logging.warning(f"No points in range {p1} < x < {p2} for KDE fit")
-            # raise ValueError(f"No points in range {p1} < x < {p2}")
-            kernels.append(None)
+    if leading_dim is None:
+        if 'frame' in data.dims:
+            leading_dim = 'frame'
+        elif 'time' in data.dims:
+            leading_dim = 'time'
         else:
-            try:
-                kernels.append(stats.gaussian_kde(subset))
-            except Exception as e:
-                logging.warning(f"{e}")
-                kernels.append(None)
+            raise ValueError(
+                "Could not guess leading dimension name from `data` input."
+            )
+
+    filtered_data = filter_by_property_range(data, geo_property, geo_kde_ranges)
+
+    kernels = [fit_kde(subset, leading_dim=leading_dim) for subset in filtered_data]
     return kernels
 
 
-def _eval_kdes(
-    kernels: Sequence[stats.gaussian_kde], xx: np.ndarray, yy: np.ndarray
-) -> Sequence[np.ndarray]:
+@overload
+def _eval_kdes_on_mesh_grid(
+    kernels: stats.gaussian_kde,
+    xx: np.ndarray,
+    yy: np.ndarray,
+    normalize: bool = True,
+) -> np.ndarray: ...
+
+
+@overload
+def _eval_kdes_on_mesh_grid(
+    kernels: Sequence[stats.gaussian_kde | None],
+    xx: np.ndarray,
+    yy: np.ndarray,
+    normalize: bool = True,
+) -> Sequence[np.ndarray]: ...
+
+
+def _eval_kdes_on_mesh_grid(
+    kernels: stats.gaussian_kde | Sequence[stats.gaussian_kde | None],
+    xx: np.ndarray,
+    yy: np.ndarray,
+    normalize: bool = True,
+) -> np.ndarray | Sequence[np.ndarray | None]:
     """Evaluate all fitted gaussian kernel density estimators on a mesh-grid
     and return the results.
 
 
     Parameters
     ----------
-        kernels : Sequence[stats.gaussian_kde]
-            The transformed pca data to get the supporting mesh grid for.
+        kernels : stats.gaussian_kde | Sequence[stats.gaussian_kde | None]
+            The transformed data fitted with gaussian kernel estimators to
+            evaluate on the mesh grid.
         xx : np.ndarray
             The x coordinates of the mesh grid.
         yy : np.ndarray
             The y coordinates of the mesh grid.
+        normalize : bool, default=True
+            Flag whether the evaluated kdes should be normalized by their maximum value.
 
     Returns
     ----------
+        np.ndarray
+            If a single estimator was provided, a single result will be returned
         Sequence[np.ndarray]
             The sequence of evaluated approximate probability densities
             at the positions described by `xx` and `yy` for each and every
             individual KDE provided in `kernels`.
     """
+    if isinstance(kernels, Sequence):
+        return [
+            _eval_kdes_on_mesh_grid(kernels=kernel, xx=xx, yy=yy, normalize=normalize)
+            if kernel is not None
+            else None
+            for kernel in kernels
+        ]
+
     xys = np.c_[xx.ravel(), yy.ravel()].T
-    Zs = []
-    for k in kernels:
-        if k is None:
-            Zs.append(None)
-        else:
-            Z = k.evaluate(xys)
-            Z = Z.reshape(xx.shape) / Z.max()
-            Zs.append(Z)
-    return Zs
+    if kernels is None:
+        return None
+    else:
+        Z = kernels.evaluate(xys)
+        Z = Z.reshape(xx.shape)
+        if normalize:
+            Z /= Z.max()
+        return Z
 
 
-def _get_xx_yy(
-    pca_data: xr.DataArray, num_steps: int = 500, extension: float = 0.1
+def _get_oversized_meshgrid(
+    data: xr.DataArray,
+    num_steps: int = 500,
+    extension: float = 0.1,
+    leading_dim: DimName | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Get appropriately over-sized mesh-grids for x and y coordinates
     with an excess overhang of `extension` relative to the min/max-to-mean distance
     and `num_steps` intermediate steps between the upper and lower bound.
 
-    Statistical properties will be derived from `pca_data`.
+    Statistical properties will be derived from `data`.
+
+    Note that `data` should be 2-dimensional except for `leading_dim`.
 
 
     Parameters
     ----------
-    pca_data: xr.DataArray
-        The transformed pca data to get the supporting mesh grid for.
-    num_steps, optional : int
+    data: xr.DataArray
+        The (pca) data to get the supporting mesh grid for.
+    num_steps, optional : int, default=500
         Number of intermediate steps to generate in the grid. Defaults to 500.
-    extension, optional : float
+    extension, optional : float, default=0.1
         Excess overhang beyond minima and maxima in x and y direction
         relative to their distance from the mean. Defaults to 0.1.
+    leading_dim: DimName, optional
+        Name of the leading dimension which enumerates the different samples.
+        Needs to be shifted to the back of the dataset.
+        If not provided, will be guessed from 'time' or 'frame'.
 
     Returns
     ----------
@@ -154,10 +312,20 @@ def _get_xx_yy(
         First the numpy array holding x positions of a meshgrid
         Then the array holding y positions of a meshgrid.
     """
-    means: np.ndarray = pca_data.mean(dim='frame').values
-    mins: np.ndarray = pca_data.min(dim='frame').values
+    if leading_dim is None:
+        if 'frame' in data.dims:
+            leading_dim = 'frame'
+        elif 'time' in data.dims:
+            leading_dim = 'time'
+        else:
+            raise ValueError(
+                "Could not guess leading dimension name from `data` input."
+            )
+
+    means: np.ndarray = data.mean(dim=leading_dim).values
+    mins: np.ndarray = data.min(dim=leading_dim).values
     mins -= (means - mins) * extension
-    maxs: np.ndarray = pca_data.max(dim='frame').values
+    maxs: np.ndarray = data.max(dim=leading_dim).values
     maxs += (maxs - means) * extension
     ls = np.linspace(mins, maxs, num=num_steps).T
     xx, yy = np.meshgrid(ls[0], ls[1])
@@ -213,15 +381,17 @@ def _fit_and_eval_kdes(
         'frame', 'time', 'PC', missing_dims='ignore'
     )  # required order for the following 3 lines
 
-    xx, yy = _get_xx_yy(pca_data_da, num_steps=num_steps, extension=extension)
-    kernels = _fit_kdes(pca_data_da, geo_property, geo_kde_ranges)
-    return xx, yy, _eval_kdes(kernels, xx, yy)
+    xx, yy = _get_oversized_meshgrid(
+        pca_data_da, num_steps=num_steps, extension=extension
+    )
+    kernels = fit_filtered_kdes(pca_data_da, geo_property, geo_kde_ranges)
+    return xx, yy, _eval_kdes_on_mesh_grid(kernels, xx, yy)
 
 
-def _plot_kdes(
+def plot_distribution_on_mesh(
     xx: np.ndarray,
     yy: np.ndarray,
-    Zs: Sequence[np.ndarray],
+    Zs: np.ndarray | Sequence[np.ndarray],
     colors: Iterable | None = None,
     contour_levels: int | list[float] | None = None,
     contour_fill: bool = True,
@@ -236,7 +406,7 @@ def _plot_kdes(
         An array of x values
     yy : np.ndarray
         An array of y values (must have the same shape as ``xx``)
-    Zs : Sequence[np.ndarray]
+    Zs : np.ndarray | Sequence[np.ndarray]
         A list of arrays of z values (each array must have the same
         shape as ``xx`` and ``yy``)
     colors : Iterable, optional
@@ -257,354 +427,65 @@ def _plot_kdes(
     """
     fig, ax = figax(fig=fig, ax=ax)
     if colors is None:
-        if len(Zs) == 2:
+        if isinstance(Zs, np.ndarray) or len(Zs) == 1:
+            colors = ['purple']
+        elif len(Zs) == 2:
             colors = ['purple', 'green']
         else:
             colors = plt.get_cmap('inferno')(range(len(Zs)))
 
-    for Z, c in zip(Zs, colors):
-        if Z is None:
-            continue
+    if isinstance(Zs, Sequence):
+        for Z, c in zip(Zs, colors):
+            if Z is None:
+                continue
+            if contour_fill:
+                ax.contourf(xx, yy, Z, levels=contour_levels, colors=c, alpha=0.1)
+            ax.contour(xx, yy, Z, levels=contour_levels, colors=c, linewidths=0.5)
+    else:
+        if Zs is not None:
+            if contour_fill:
+                ax.contourf(
+                    xx, yy, Zs, levels=contour_levels, colors=colors[0], alpha=0.1
+                )
+            ax.contour(
+                xx, yy, Zs, levels=contour_levels, colors=colors[0], linewidths=0.5
+            )
+    return fig, ax
 
-        if contour_fill:
-            ax.contourf(xx, yy, Z, levels=contour_levels, colors=c, alpha=0.1)
-        ax.contour(xx, yy, Z, levels=contour_levels, colors=c, linewidths=0.5)
 
-
-def biplot_kde(
-    frames: xr.Dataset | ShnitselDataset | TreeNode[Any, ShnitselDataset | xr.Dataset],
-    *ids: int,
-    pca_data: TreeNode[Any, PCAResult] | PCAResult | None = None,
-    state_selection: StateSelection | StateSelectionDescriptor | None = None,
-    structure_selection: StructureSelection
-    | StructureSelectionDescriptor
-    | None = None,
-    mol: rdkit.Chem.Mol | None = None,
-    geo_kde_ranges: Sequence[tuple[float, float]] | None = None,
-    scatter_color_property: Literal['time', 'geo'] = 'time',
-    geo_feature: BondDescriptor
-    | AngleDescriptor
-    | DihedralDescriptor
-    | PyramidsDescriptor
-    | None = None,
-    geo_cmap: str | None = 'PRGn',  # any valid cmap type
-    time_cmap: str | None = 'cividis',  # any valid cmap type
-    contour_levels: int | list[float] | None = None,
-    contour_colors: list[str] | None = None,
-    contour_fill: bool = True,
-    num_bins: Literal[1, 2, 3, 4] = 4,
-    fig: Figure | None = None,
-    center_mean: bool = False,
-) -> Figure | Sequence[Figure]:
-    """\
-    Generates a biplot that visualizes PCA projections and kernel density estimates (KDE) 
-    of a property (distance, angle, dihedral angle) describing the geometry of specified
-    atoms. The property is chosen based on the number of atoms specified:
-    
-    * 2 atoms => distance
-    * 3 atoms => angle
-    * 4 atoms => dihedral angle
+def plot_distribution_heatmap(
+    xx: np.ndarray,
+    yy: np.ndarray,
+    Zs: np.ndarray,
+    cmap: str | Colormap | None = None,
+    fig: Figure | SubFigure | None = None,
+    ax: Axes | None = None,
+):
+    """Plots kernel density estimate as a heatmap
 
     Parameters
     ----------
-    frames
-        A dataset containing trajectory frames with atomic coordinates.
-        This needs to correspond to the data that was the input to `pca_data` if that parameter is provided.
-    *ids: int
-        Indices for atoms to be used in `geo_feature` if `geo_feature` is not set. 
-        Note that pyramidalization angles cannot reliably be provided in this format.
-    pca_data : PCAResult, optional
-        A PCA result to use for the analysis. If not provided, will perform PCA analysis based on `structure_selection` or a
-        generic pairwise distance PCA on `frames`.
-        Accordingly, if provided, the parameter `frames` needs to correspond to the input provided to obtain the value in `
-    structure_selection: StructureSelection | StructureSelectionDescriptor, optional
-        An optional selection of features/structure to use for the PCA analysis.
-    geo_kde_ranges : Sequence[tuple[float, float]], optional
-        A Sequence of tuples representing ranges. A KDE is plotted for each range, indicating the distribution of
-        points for which the value of the geometry feature falls in that range.
-        Default values are chosen depending on the type of feature that should be analyzed. 
-    contour_levels :  int | list[float], optional
-        Contour levels for the KDE plot. Either the number of contour levels as an int or the list of floating 
-        point values at which the contour lines should be drawn. Defaults to [0.08, 1]. 
-        This parameter is passed to matplotlib.axes.Axes.contour.
-    scatter_color_property : {'time', 'geo'}, default='time'
-        Must be one of 'time' or 'geo'. If 'time', the scatter-points will be colored based on the time coordinate;
-        if 'geo', the scatter-points will be colored based on the relevant geometry feature (see above).
-    geo_cmap : str, default = 'PRGn'
-        The Colormap to use for the noodleplot, if ``scatter_color='geo'``; this also determines contour
-        colors unless ``contour_colors`` is set.
-    time_cmap : str, default = 'cividis'
-        The Colormap to use for the noodleplot, if ``scatter_color='time'``.
-    contour_fill : bool, default = True
-        Whether to plot filled contours (``contour_fill=True``, uses ``ax.contourf``)
-        or just contour lines (``contour_fill=False``, uses ``ax.contour``).
-    contour_colors : list[str], optional
-        An iterable (not a Colormap) of colours (in a format matplotlib will accept) to use for the contours.
-        By default, the ``geo_cmap`` will be used; this defaults to 'PRGn'.
-    num_bins : {1, 2, 3, 4}, default = 4
-        number of bins to be visualized, must be an integer between 1 and 4
-    fig : mpl.figure.Figure, optional
-        matplotlib.figure.Figure object into which the plot will be drawn;
-        if not provided, one will be created using ``plt.figure(layout='constrained')``
-    center_mean : bool, default = False
-        Flag whether PCA data should be mean-centered before analysis. Defaults to False.
-
-    Returns
-    -------
-    Figure
-        The single figure of the PCA result, if the PCA result was not provided as a tree or on-the go PCA did not yield a tree result.
-    Sequence[Figure]
-        The sequence of all figures, one for each individual PCA result if the provided or obtained PCA result was a tree structure.
-
-    Notes
-    -----
-    * Computes a geometric property of the specified atoms across all frames.
-    * Uses kernel density estimation (KDE) to analyze the distance distributions.
-    * Performs PCA on trajectory pairwise distances and visualizes clustering of structural changes.
-    * Produces a figure with PCA projection, cluster analysis, and KDE plots.
+    xx : np.ndarray
+        An array of x values
+    yy : np.ndarray
+        An array of y values (must have the same shape as ``xx``)
+    Zs : np.ndarray
+        The density information sampled on the meshgrid denoted by `xx`, `yy`.
+    cmap : str | Colormap , optional
+        The colormap to use to plot the heatmap
+    fig : Figure | SubFigure, optional
+        A matplotlib ``Figure`` object into which to draw
+        (if not provided, a new one will be created)
+    ax : Axes, optional
+        A matplotlib ``Axes`` object into which to draw
+        (if not provided, a new one will be created)
     """
+    fig, ax = figax(fig=fig, ax=ax)
+    if cmap is None:
+        cmap = plt.get_cmap('inferno')
 
-    if pca_data is None:
-        # prepare data
-        pca_data = pca(
-            frames, structure_selection=structure_selection, center_mean=center_mean
-        )
-
-    if pca_data is not None and isinstance(pca_data, TreeNode):
-
-        def single_pca_map(x: TreeNode[Any, PCAResult]) -> TreeNode[Any, Figure] | None:
-            assert x.is_leaf
-            if not x.has_data:
-                return None
-
-            pca_path = x.path
-            pca_res = x.data
-
-            frame_input_data = pca_res.inputs
-
-            # TODO: FIXME: Make sourcing of input frames more robust. Maybe keep actual inputs on result?
-
-            try:
-                input_path = x._parent.path if x._parent is not None else "."
-                if input_path.startswith("/"):
-                    input_path = "." + input_path
-                frame_input_data = frames[input_path]
-            except:
-                pass
-
-            fig: Figure = biplot_kde(
-                frame_input_data,
-                *ids,
-                pca_data=pca_res,
-                state_selection=state_selection,
-                structure_selection=structure_selection,
-                mol=mol,
-                geo_kde_ranges=geo_kde_ranges,
-                scatter_color_property=scatter_color_property,
-                geo_feature=geo_feature,
-                geo_cmap=geo_cmap,  # any valid cmap type
-                time_cmap=time_cmap,  # any valid cmap type
-                contour_levels=contour_levels,
-                contour_colors=contour_colors,
-                contour_fill=contour_fill,
-                num_bins=num_bins,
-                center_mean=center_mean,
-            )  # type: ignore # For single PCA, we get single result.
-            assert isinstance(fig, Figure)
-            fig.suptitle("PCA:" + pca_path)
-            return x.construct_copy(data=fig)
-
-        mapped_biplots = pca_data.map_filtered_nodes(
-            lambda x: x.is_leaf, single_pca_map
-        )
-        assert mapped_biplots is not None, (
-            "Failed to apply biplot to individual results in tree structure. Was the tree empty?"
-        )
-        return list(mapped_biplots.collect_data())
-
-    try:
-        hops_mask = hops_mask_from_active_state(
-            frames, hop_type_selection=state_selection
-        )
-    except:
-        logging.warning("Could not obtain `hops` mask from `frames` input.")
-        hops_mask = None
-
-    if scatter_color_property not in {'time', 'geo'}:
-        raise ValueError("`scatter_color` must be 'time' or 'geo'")
-
-    if contour_levels is None:
-        contour_levels = [0.08, 1]
-
-    if isinstance(frames, TreeNode):
-        tree_mode = True
-    else:
-        tree_mode = False
-
-    # prepare layout
-    if fig is None:
-        fig = plt.figure(layout='constrained')
-
-    oaxs = fig.subplots(1, 2, width_ratios=[3, 2])
-
-    fig.set_size_inches(8.27, 11.69 / 3)  # a third of a page, spanning both columns
-    gs = oaxs[0].get_subplotspec().get_gridspec()
-    for ax in oaxs:
-        ax.remove()
-    pcasf = fig.add_subfigure(gs[0])
-    pcaax = pcasf.subplots(1, 1)
-    structsf = fig.add_subfigure(gs[1])
-    structaxs = structsf.subplot_mosaic('ab\ncd')
-
-    d = pb.pick_clusters(pca_data, num_bins=num_bins, center_mean=center_mean)
-    loadings, clusters, picks = d['loadings'], d['clusters'], d['picks']
-
-    res_mol: Mol
-    if mol is None:
-        if (
-            structure_selection is None
-            or not isinstance(structure_selection, StructureSelection)
-            or structure_selection.mol is None
-        ):
-            # if tree_mode:
-            #     res_mol = list(
-            #         frames.map_data(lambda x: (x.__mol.item() if "__mol" in x else None) if isinstance(x, xr.DataArray) else wrap_dataset(x).mol).collect_data()
-            #     )[0]
-            if tree_mode:
-                res_mol = list(frames.map_data(construct_default_mol).collect_data())[0]
-            else:
-                # print(f"{frames=}")
-                # wrapped_da = wrap_dataset(frames)
-                # print(f"{wrapped_ds=}")
-                # res_mol = wrapped_da.mol
-                res_mol = construct_default_mol(frames)
-
-        else:
-            res_mol = Mol(structure_selection.mol)
-    else:
-        res_mol = mol
-
-    res_mol = set_atom_props(
-        res_mol, atomLabel=True, atomNote=[''] * res_mol.GetNumAtoms()
-    )
-
-    if scatter_color_property == 'time':
-        noodleplot_c = None
-        noodleplot_cmap = time_cmap
-        kde_data = None
-    elif scatter_color_property == 'geo':
-        if geo_feature is None:
-            # Try and use additional positional parameters.
-            geo_feature = tuple(ids)
-
-        assert geo_feature is not None and len(geo_feature) >= 2, (
-            "If the scatter property is set to `geo`, the `geo_feature` parameter of `biplot_kde()` must not be None."
-        )
-
-        wrapped_ds = wrap_dataset(frames)
-        colorbar_label = None
-
-        match geo_feature:
-            case (atc, (at1, at2, at3)):
-                # compute pyramidalization as described by the center atom `atc` and the neighbor atoms `at1, at2, at3`
-                geo_prop = pyramids.pyramidalization_angle(
-                    wrapped_ds.positions, atc, at1, at2, at3, deg=True
-                )
-                if not geo_kde_ranges:
-                    geo_kde_ranges = [(-90, -10), (-10, 10), (10, 90)]
-                colorbar_label = f"pyr({atc}, ({at1}, {at2}, {at3}))/°"
-            case (at1, at2):
-                # compute distance between atoms at1 and at2
-                geo_prop = distance(wrapped_ds.positions, at1, at2)
-                if not geo_kde_ranges:
-                    geo_kde_ranges = [(0, 3), (5, 100)]
-                colorbar_label = (
-                    f'dist({at1}, {at2}) / {geo_prop.attrs.get("units", "Bohr")}'
-                )
-            case (at1, at2, at3):
-                # compute angle between vectors at1 - at2 and at2 - at3
-                assert at3 is not None  # to satisfy the typechecker
-                geo_prop = angle(wrapped_ds.positions, at1, at2, at3, deg=True)
-                if not geo_kde_ranges:
-                    geo_kde_ranges = [(0, 80), (110, 180)]
-                colorbar_label = (
-                    f'angle({at1}, {at2}, {at3}) / {geo_prop.attrs.get("units", "°")}'
-                )
-            case (at1, at2, at3, at4):
-                # compute dihedral defined as angle between normals to planes (at1, at2, at3) and (at2, at3, at4)
-                assert at3 is not None
-                assert at4 is not None
-                geo_prop = dihedral(wrapped_ds.positions, at1, at2, at3, at4, deg=True)
-                if not geo_kde_ranges:
-                    geo_kde_ranges = [(0, 80), (110, 180)]
-                colorbar_label = f'dih({at1}, {at2}, {at3}, {at4}) / {geo_prop.attrs.get("units", "°")}'
-            case _:
-                raise ValueError(
-                    "The value provided to `biplot_kde()` as a `geo_feature` tuple does not constitute a Feature descriptor"
-                )
-        kde_data = _fit_and_eval_kdes(pca_data, geo_prop, geo_kde_ranges, num_steps=100)
-        noodleplot_c = geo_prop
-        noodleplot_cmap = geo_cmap
-    else:
-        assert False
-
-    # noodleplot_c, noodleplot_cmap = {
-    #     'time': (None, time_cmap),
-    #     'geo': (geo_prop, geo_cmap),
-    # }[scatter_color_property]
-
-    # noodle_cnorm = mpl.colors.Normalize(noodleplot_c.min(), noodle_c.max())
-    # noodle_cscale = mpl.cm.ScalarMappable(norm=noodle_cnorm, cmap=noodle_cmap)
-    pca_noodles: TreeNode[Any, xr.DataArray] | xr.DataArray
-    pca_noodles = pca_data.projected_inputs
-
-    # TODO: FIXME: Noodle plot seems to have issues with rendering when passed data as a tree?
-    pb.plot_noodleplot(
-        pca_noodles,
-        hops_mask,
-        c=noodleplot_c,
-        cmap=noodleplot_cmap,
-        # cnorm=noodle_cnorm,
-        colorbar_label=colorbar_label,
-        ax=pcaax,
-        noodle_kws=dict(alpha=1, marker='.'),
-        hops_kws=dict(c='r', s=0.2),
-    )
-
-    # in case more clusters were found than we have room for:
-    picks = picks[:4]
-
-    # print(pca_data.explain_loadings())
-
-    pb.plot_clusters_grid(
-        loadings,
-        [clusters[i] for i in picks],
-        ax=pcaax,
-        axs=structaxs,
-        mol=res_mol,
-        labels=list('abcd'),
-    )
-
-    if contour_colors is None:
-        contour_colors = plt.get_cmap(noodleplot_cmap)(
-            np.linspace(0, 1, len(contour_levels))
-        )
-
-    if kde_data:
-        xx, yy, Zs = kde_data
-        _plot_kdes(
-            xx,
-            yy,
-            Zs,
-            colors=contour_colors,
-            contour_levels=contour_levels,
-            contour_fill=contour_fill,
-            ax=pcaax,
-        )
-
-    # TODO: FIXME: Should this really return the KDE data?
-    # return kde_data
-    return fig
+    ax.pcolormesh(xx, yy, Zs, cmap=cmap, rasterized=True)
+    return fig, ax
 
 
 def plot_cdf_for_kde(
