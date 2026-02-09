@@ -1794,8 +1794,10 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
         # return "<div>" + res + "</div>"
         from .tree_vis import tree_repr
 
-        # TODO: Consider options: https://github.com/etetoolkit/ete, https://treelib.readthedocs.io/en/latest/, https://plotly.com/python/tree-plots/
         return tree_repr(self)
+
+    # TODO: FIXME: Add a backup visualization using networkx or any of the following tools. The current html representation does not work in github.
+    # TODO: Consider options: https://github.com/etetoolkit/ete, https://treelib.readthedocs.io/en/latest/, https://plotly.com/python/tree-plots/
 
 
 def _trajectory_key_func(node: TreeNode) -> None | str | TrajectoryGroupingMetadata:

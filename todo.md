@@ -16,6 +16,7 @@
     - [ ] TODO: Make `trajectory` drop the NaN frames in result for `Layered` sets.
   - [ ] Pattern matching in the `getitem()` method, i.e. `db['/I01/**/data']` `db["/I01/*/{1-20}"]`
   - [ ] TODO: FIXME: typing.get_origin() does not work on TreeNode specializations. Maybe just patch the `base` class in `_create_extended_node_class`?
+  - [ ] TODO: Add backup visualization probably with networkx to circumvent issue with html repr not working on github. (See TODO: note in TreeNode class after `_repr_html()`)
 - (De)serialization:
   - [x] Implementation of Supports(To/From)XrConversion for various (wrapper) types
   - [ ] Tutorial on how to add own types
@@ -62,14 +63,18 @@
     - [x] Improve default settings for datasheet and pages.
 - Hops
   - [ ] Fix some functions not yet moved to tree types or new style of type selection.
-
-- [ ] CLI tutorial/SI
-- [ ] Full tutorial retinal with direct link for reviewers
+    - [x] `assign_hop_time()` done
+    - [ ] `focus_hops()`
+    - [ ] PLS
+    - [ ] LDA
+  
+- [ ] CLI tutorial
+- [ ] Full tutorial retinal
   - [x] Retinal BLA/HOOP/Dihedrals (Put all dihedrals in), 3->2 Dimension reduction
   - [x] Retinal PCA biplot to show we can find the right parameters
   - [x] Length threshold statistics plot
   - [x] Datasheet (note, that generation takes somewhat longer)
-  - [ ] add one more cool plot from retinal tutorial: The hop-time alignment would be perfect
+  - [ ] add one more cool plot, the hop-time alignment would be perfect
 
 - st accessors
   - [x] Fix union types not being unwrapped in generator
