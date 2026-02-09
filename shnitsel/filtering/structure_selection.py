@@ -2427,6 +2427,7 @@ class StructureSelection:
 
                     # Set of already fixed points in component
                     fixed_set = {res_b_, res_a, res_a_, res_b}
+
                     # A map of fixed atom predecessors of this node (including the node itself) to use for construction of new node fixes
                     # Should be exactly 3 long to construct bond length, angle and dihedral with new neighbor.
                     traces: dict[AtomDescriptor, list[AtomDescriptor]] = {
@@ -2440,7 +2441,7 @@ class StructureSelection:
                         neighbors[res_a_]
                         .union(neighbors[res_a])
                         .union(neighbors[res_b])
-                        .union(neighbors)
+                        .union(neighbors[res_b_])
                     )
 
                     while queue:
