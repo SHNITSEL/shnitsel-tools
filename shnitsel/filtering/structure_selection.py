@@ -2058,10 +2058,9 @@ class StructureSelection:
             The bond descriptor with standardized index order
 
         """
-        if bond[0] < bond[1]:
-            return bond
-        else:
-            return bond[1], bond[0]
+        if bond[1] < bond[0]:
+            return (bond[1], bond[0])
+        return bond
 
     @staticmethod
     def canonicalize_angle(angle: AngleDescriptor) -> AngleDescriptor:
@@ -2754,3 +2753,38 @@ class StructureSelection:
     intersect = __and__
     difference = __sub__
     invert = __invert__
+
+    def __str__(self) -> str:
+        # Simple representation stating how many of each feature have been selected
+        res = (
+            type(self).__name__
+            + f": ({len(self.atoms_selected)}/{len(self.atoms)}) atoms"
+            " | " + f": ({len(self.bonds_selected)}/{len(self.bonds)}) bonds"
+            " | " + f": ({len(self.angles_selected)}/{len(self.angles)}) angles"
+            " | " + f": ({len(self.dihedrals_selected)}/{len(self.dihedrals)}) dih"
+            " | " + f": ({len(self.pyramids_selected)}/{len(self.pyramids)}) pyr"
+            " | " + "BLA: " + ("yes" if self.is_BLA_selected else "no")
+        )
+
+        return res
+
+    def __repr__(self) -> str:
+        # List the selected states:
+        res = type(self).__name__ + ":\n"
+
+        sections: list[tuple[str, set, set]] = [
+            ('atoms', self.atoms_selected, self.atoms),
+            ('bonds', self.bonds_selected, self.bonds),
+            ('angles', self.angles_selected, self.angles),
+            ('dihedrals', self.dihedrals_selected, self.dihedrals),
+            ('pyramids', self.pyramids_selected, self.pyramids),
+        ]
+        for title, f_selected, f_total in sections:
+            section_str = (
+                f"- ({len(f_selected)}/{len(f_total)}) {title}: "
+                + ", ".join(str(f_tuple) for f_tuple in f_selected)
+                + "\n"
+            )
+            res += section_str
+
+        return res

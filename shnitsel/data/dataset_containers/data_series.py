@@ -65,12 +65,6 @@ class DataSeries(ShnitselDataset):
         return InterState(self)
 
     @property
-    def leading_dim(self) -> str:
-        """The leading dimension along which consistent configurations are indexed.
-        Usually `time` or `frame`."""
-        return "frame"
-
-    @property
     def positions(self):
         """The atom position data stored in this dataset if accessible.
 

@@ -1,3 +1,4 @@
+import logging
 from typing import Any, Literal, TypeVar, overload
 import re
 
@@ -434,7 +435,22 @@ def focus_hops(
     return res
 
 
-# TODO: FIXME: Make StateSelection the preferred type for picking hopping types.
+@overload
+def assign_hop_time(
+    frames: xr.Dataset | xr.DataArray | DataSeries,
+    hop_type_selection: StateSelection | StateSelectionDescriptor | None = None,
+    which: Literal["first", "last"] = "last",
+) -> xr.Dataset | xr.DataArray | DataSeries: ...
+
+
+@overload
+def assign_hop_time(
+    frames: TreeNode[Any, xr.Dataset | xr.DataArray | DataSeries],
+    hop_type_selection: StateSelection | StateSelectionDescriptor | None = None,
+    which: Literal["first", "last"] = "last",
+) -> TreeNode[Any, xr.Dataset | xr.DataArray | DataSeries]: ...
+
+
 def assign_hop_time(
     frames: xr.Dataset
     | xr.DataArray
@@ -442,6 +458,11 @@ def assign_hop_time(
     | TreeNode[Any, xr.Dataset | xr.DataArray | DataSeries],
     hop_type_selection: StateSelection | StateSelectionDescriptor | None = None,
     which: Literal["first", "last"] = "last",
+) -> (
+    xr.Dataset
+    | xr.DataArray
+    | DataSeries
+    | TreeNode[Any, xr.Dataset | xr.DataArray | DataSeries]
 ):
     """Assign a ``hop_time`` coordinate along the ``frames`` axis giving times
     relative to hops
@@ -459,9 +480,9 @@ def assign_hop_time(
 
     Returns
     -------
-    The same ``frames`` object with --
+    The same type as the ``frames`` object (potentially as a wrapped dataset) with --
 
-        - the ``hop_time`` coordinate added along the ``frame`` dimension, containing
+        - the ``hop_time`` coordinate added along the ``frame`` or ``time`` (i.e. leading dim) dimension, containing
           all times relative to one chosen hop in each trajectory,
         - the ``time_at_hop`` coordinate added along the ``trajectory`` dimension,
           containing the time at which each chosen hop occurred
@@ -469,44 +490,160 @@ def assign_hop_time(
     Both of these coordinates contain ``nan`` for trajectories lacking any hops of the
     types specified
     """
-    if isinstance(frames, (xr.DataTree, TreeNode, ShnitselDB)):
-        raise NotImplementedError(
-            f"This function is not yet implemented for type {type(frames)}"
+    if isinstance(frames, TreeNode):
+        return frames.map_data(
+            assign_hop_time,
+            hop_type_selection=hop_type_selection,
+            which=which,
         )
-    # TODO: FIXME: Refactor this to new wrapper types
-    if frames.sizes["frame"] == 0:
-        return frames.assign_coords(hop_time=("frame", []))
 
-    hop_vals = hops(frames, hop_type_selection=hop_type_selection).reset_index("frame")
-    if hop_vals.sizes["frame"] == 0:
+    leading_dim: DimName
+
+    if 'time' not in frames.coords:
+        logging.error(
+            "Cannot assign hop time for dataset or array without `time` information."
+        )
+        raise ValueError("No `time` coordinate provided to `assign_hop_time`.")
+
+    # We cannot add arbitrary coordinates to a data array, so we have to deal with it separately:
+    if isinstance(frames, xr.DataArray):
+        if 'time' in frames.dims:
+            leading_dim = 'time'
+        elif 'frame' in frames.dims:
+            leading_dim = 'frame'
+        else:
+            raise ValueError(
+                "Could not determine leading dimension of `frames`. Was neither `time` nor `frame`."
+            )
+
+        if frames.sizes[leading_dim] == 0:
+            return frames.assign_coords(hop_time=(leading_dim, []))
+    else:
+        wrapped_ds = wrap_dataset(frames, DataSeries)
+        leading_dim = wrapped_ds.leading_dim
+
+        # TODO: FIXME: Refactor this to new wrapper types
+        if frames.sizes[leading_dim] == 0:
+            return frames.assign_coords(hop_time=(leading_dim, []))
+
+    hop_data = filter_data_at_hops(
+        frames, hop_type_selection=hop_type_selection
+    )  # .reset_index("frame")
+    if hop_data.sizes[leading_dim] == 0:
+        # TODO: FIXME: This return does not match the description in the `Returns` docstring block. We state there, that we assign nan if no value was found, but we simply skip the trajectory.
         return frames.assign_coords(
-            hop_time=("frame", np.full(frames.sizes["frame"], np.nan))
+            hop_time=(leading_dim, np.full(frames.sizes[leading_dim], np.nan))
         )
 
     if which == "first":
         fn = min
     elif which == "last":
         fn = max
-    d_times = {
-        trajid: fn(traj.coords["time"]).item()
-        for trajid, traj in hop_vals.groupby("atrajectory")
-    }
 
-    hop_time = frames.time.groupby("atrajectory").map(
-        lambda traj: traj.time.data - d_times.get(traj['atrajectory'].item(0), np.nan)
-    )
+    time_attrs = dict(frames.coords['time'].attrs)
+
+    time_at_hop_attrs = dict(time_attrs)
+    time_at_hop_attrs["long_name"] = "Time at which selected hop happened"
+    hop_time_attrs = dict(time_attrs)
+    hop_time_attrs["long_name"] = "Time relative to when the selected hop happened"
+
+    # Need to assign per-trajectory data only if we have multiple trajectories
+    if 'trajectory' not in frames.dims and 'atrajectory' not in frames.coords:
+        # We have a single trajectory:
+
+        # We must have at least one hit or `hop_data` would not have had a hit in the `leading_dim`
+        time_at_hop = fn(frames.coords["time"]).item()
+
+        hop_time = (frames.time - time_at_hop).assign_attrs(**hop_time_attrs)
+
+        # Add scalar `time_at_hop` coordinate:
+        time_at_hop_da = xr.DataArray(
+            time_at_hop, dims=(), name='time_at_hop', attrs=hop_time_attrs
+        )
+        return frames.assign_coords(time_at_hop=time_at_hop_da, hop_time=hop_time)
+    else:
+        # If we end up here, we should have a multi-trajectory set.
+        if leading_dim == 'frame' and 'atrajectory' in frames.coords:
+            # We have a stacked trajectory set
+            d_times = {
+                trajid: fn(traj.coords["time"]).item()
+                for trajid, traj in hop_data.groupby("atrajectory")
+            }
+
+            hop_time = (
+                frames.time.groupby("atrajectory")
+                .map(
+                    lambda traj: (
+                        traj.time.data
+                        - d_times.get(traj['atrajectory'].item(0), np.nan)
+                    )
+                )
+                .assign_attrs(**hop_time_attrs)
+            )
+        elif 'trajectory' in frames.dims:
+            # We have a layered trajectory set
+            d_times = {
+                trajid: fn(traj.coords["time"]).item()
+                for trajid, traj in hop_data.groupby("trajectory")
+            }
+
+            hop_time = (
+                frames.time.groupby("trajectory")
+                .map(
+                    lambda traj: (
+                        traj.time.data - d_times.get(traj['trajectory'].item(0), np.nan)
+                    )
+                )
+                .assign_attrs(**hop_time_attrs)
+            )
+        else:
+            raise ValueError(
+                "Unknown trajectory format: Trajectory could not be identified as either a stacked or layered multi-trajectory format."
+            )
+
+        if 'trajectory' in frames.dims:
+            do_not_add_coord = False
+            if 'trajectory' not in frames.coords:
+                if isinstance(frames, xr.DataArray):
+                    # Cannot add new dimension to array
+                    logging.debug(
+                        "Cannot assign new `time_at_hop` coordinate to xr.DataArray with missing `trajectory` dimension."
+                    )
+                    do_not_add_coord = True
+                elif 'atrajectory' in frames.coords:
+                    # Can recreate `trajectory` dimension if active trajectory information is present
+                    frames = frames.assign_coords(
+                        trajectory=np.unique(frames.coords['atrajectory'].data)
+                    )
+                else:
+                    # Cannot recreate `trajectory` dimension if no trajectory data whatsoever is present
+                    raise ValueError(
+                        "Data is lacking `trajectory` coordinate and there is not enough information to reconstruct the `trajectory` dimension."
+                    )
+
+            if not do_not_add_coord:
+                # We are not a data array and we have the `trajectory` dimension initialized.
+                time_at_hop = [
+                    d_times.get(trajid.item(), np.nan)
+                    for trajid in frames.coords["trajectory"]
+                ]
+                frames = frames.assign_coords(
+                    time_at_hop=("trajectory", time_at_hop, time_at_hop_attrs)
+                )
+
+        return frames.assign_coords(hop_time=hop_time)
 
     # TODO (thevro): When the data of an input DataArray doesn't have a 'trajectory' dimension,
     # we can't add the `time_at_hop` info as a coordinate. Alternative approaches?
     # It's not exactly hard to do `da.sel(hop_time=0).time` anyway, which gives the same info.
-    if 'trajectory' in frames.dims:
-        if 'trajectory' not in frames.coords:
-            frames = frames.assign_coords(
-                trajectory=np.unique(frames.coords['atrajectory'].data)
-            )
-        time_at_hop = [
-            d_times.get(trajid.item(), np.nan) for trajid in frames.coords["trajectory"]
-        ]
-        frames = frames.assign_coords(time_at_hop=("trajectory", time_at_hop))
+    # if 'trajectory' in frames.dims:
+    #     if 'trajectory' not in frames.coords:
+    #         frames = frames.assign_coords(
+    #             trajectory=np.unique(frames.coords['atrajectory'].data)
+    #         )
+    #     time_at_hop = [
+    #         d_times.get(trajid.item(), np.nan) for trajid in frames.coords["trajectory"]
+    #     ]
+    #     frames = frames.assign_coords(time_at_hop=("trajectory", time_at_hop))
 
-    return frames.assign_coords(hop_time=hop_time)
+    # return frames.assign_coords(hop_time=hop_time)
