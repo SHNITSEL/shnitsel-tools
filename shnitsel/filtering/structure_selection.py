@@ -668,6 +668,48 @@ class StructureSelection:
             inplace=inplace,
         )
 
+    def without(
+        self,
+        feature_level: FeatureLevelOptions | Sequence[FeatureLevelOptions] | None,
+        inplace: bool = False,
+    ) -> Self:
+        """Retain all but the selected features of the specified feature levels.
+
+        E.g. selection.without('atoms') yields a selection where atoms/positions are not selected
+        but all other features are selected as according to the previous selection.
+        All selections for features not in `feature_level` will be retained.
+
+        Parameters
+        ----------
+        feature_level : FeatureLevelOptions | Sequence[FeatureLevelOptions] | None
+            The desired feature levels to remove in the resulting selection. If set to `None`, all selections will be cleared.
+        inplace : bool, optional
+            Whether to update the selection in-place. Defaults to False.
+
+        Returns
+        -------
+        Self
+            The selection where all but the chosen feature levels are still active.
+
+        """
+        if feature_level is None:
+            feature_level = []
+        elif isinstance(feature_level, str) or not isinstance(feature_level, Sequence):
+            feature_level = [feature_level]
+        feature_levels = [self._to_feature_level_str(x) for x in feature_level]
+
+        return self.copy_or_update(
+            atoms_selected=None if 'atoms' not in feature_levels else set(),
+            bonds_selected=None
+            if 'bonds' not in feature_levels and 'pwdist' not in feature_levels
+            else set(),
+            angles_selected=None if 'angles' not in feature_levels else set(),
+            dihedrals_selected=None if 'dihedrals' not in feature_levels else set(),
+            pyramids_selected=None if 'pyramids' not in feature_levels else set(),
+            is_BLA_selected=None if 'BLA' not in feature_level else False,
+            inplace=inplace,
+        )
+
     def select_all(
         self,
         feature_level: FeatureLevelOptions
