@@ -285,6 +285,11 @@ class PCAResult(
         }
         return coords
 
+    def __str__(self)-> str:
+        return type(self).__name__+f" on {type(self.inputs).__name__} with {self._pca_components.sizes['PC']} components"
+    
+    def __reprs__(self)-> str:
+        return self.__str__() + "\n" + self.explain_loadings()
 
 @overload
 def pca_and_hops(
