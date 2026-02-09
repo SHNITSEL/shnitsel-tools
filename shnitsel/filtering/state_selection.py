@@ -2347,7 +2347,7 @@ class StateSelection:
             + "\n"
         )
         sc_str = (
-            f"- ({len(self.state_combinations)}/{len(self.state_combinations_base)}) states: "
+            f"- ({len(self.state_combinations)}/{len(self.state_combinations_base)}) state combinations: "
             + ", ".join(
                 self.get_state_combination_name_or_default(id)
                 for id in self.state_combinations
