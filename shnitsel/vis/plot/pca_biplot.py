@@ -8,6 +8,7 @@ import numpy as np
 from numpy.typing import NDArray
 import xarray as xr
 import matplotlib as mpl
+import matplotlib.pyplot as plt
 
 from matplotlib.axes import Axes
 from matplotlib.pyplot import subplot_mosaic
@@ -20,6 +21,7 @@ from shnitsel.analyze.pca import PCAResult, pca
 from shnitsel.data.dataset_containers import wrap_dataset, Trajectory, Frames
 from shnitsel.data.tree.node import TreeNode
 from shnitsel.data.tree.support_functions import tree_merge, tree_zip
+from shnitsel.filtering.structure_selection import FeatureDescriptor
 
 from .common import figax, extrude, mpl_imshow_png
 from ...rd import highlight_features
@@ -239,7 +241,7 @@ def plot_loadings(ax: Axes, loadings: xr.DataArray):
         A DataArray of PCA loadings including an 'descriptor' dimension;
         as produced by :py:func:`shnitsel.vis.plot.pca_biplot.get_loadings`.
     """
-    # TODO: FIXME: This needs to be reconciled ith pairwise distances using StructureSelection now.
+    # TODO: FIXME: This needs to be reconciled with pairwise distances using StructureSelection now.
     raise NotImplementedError("Descriptor decomposition not implemented")
     for _, pcs in loadings.groupby('descriptor'):
         assert len(pcs) == 2
@@ -513,6 +515,108 @@ def _get_axs(clusters, labels):
     return axs
 
 
+def plot_pca_components(
+    pca_res: PCAResult,
+    axs: dict[str, Axes] | None = None,
+    mol: Mol | None = None,
+    show_loadings: bool = True,
+    ax_loadings: Axes | None = None,
+):
+    """Function to plot the main contributors to the PCA components
+    and create a grid of the highlighted features with main contribution to
+    each of the components.
+
+    Parameters
+    ----------
+    pca_res : PCAResult
+        The PCA analysis result from which to draw the main components and their weights for various features.
+    axs : dict[str, Axes], optional
+        A dictionary mapping from plot labels to :py:class:`matplotlib.pyplot.axes.Axes`
+        objects (If not provided, one will be created.)
+        Note that labels are of the form `PC1 +`, `PC1 -`, etc. with the integer index
+        indicating the index of the component (offset by 1) and the mathematical sign indicating whether the contribution is
+        positive or negative.
+    mol : Mol, optional
+        An RDKit ``Mol`` object to be used for structure display
+    show_loadings : bool, default=False
+        Flag to add plots of the maximum contributing features in the decomposition.
+        Will use the `ax_loadings` parameter or initialize a set of axes to plot to.
+    ax_loadings : Axes, optional
+        The :py:class:`matplotlib.pyplot.axes.Axes` object onto which to plot
+        the direction of the main contributing features.
+        (If not provided, the main features will not be plotted.)
+    """
+    from .structure_grid import feature_highlight_grid
+
+    principal_components = pca_res.principal_components
+
+    component_contributions, main_contributions = (
+        pca_res.get_most_significant_loadings()
+    )
+
+    highlight_data: Sequence[Sequence[FeatureDescriptor | None]] = []
+    labels = []
+    cmaps = dict()
+    gridspec = []
+    for i in principal_components.coords['PC'].values:
+        plus_label = f"PC{i + 1} +"
+        minus_label = f"PC{i + 1} -"
+        cmaps[plus_label] = 'autumn'
+        cmaps[minus_label] = 'cool'
+
+        label_list = [plus_label, minus_label]
+        gridspec.append(label_list)
+        labels += label_list
+        if i in component_contributions:
+            comp_main = component_contributions[i]
+
+            comp_pos = comp_main[comp_main > 0]
+            comp_neg = comp_main[comp_main < 0]
+
+            highlight_data.append(comp_pos.feature_indices.values)
+            highlight_data.append(comp_neg.feature_indices.values)
+        else:
+            highlight_data += [[], []]
+
+    if axs is None and show_loadings and ax_loadings is None:
+        fig, sub_axs = subplot_mosaic([["loadings", "structure"]])
+        ax_loadings = sub_axs["loadings"]
+        struct_axes_sgs = sub_axs["structure"].get_subplotspec()
+        subfig_struct = fig.add_subfigure(struct_axes_sgs)
+        axs = subfig_struct.subplot_mosaic(gridspec)
+    elif show_loadings and ax_loadings is None:
+        fig, ax_loadings = plt.subplots(1, 1)
+    elif axs is None:
+        fig, axs = subplot_mosaic(gridspec)
+    else:
+        fig = None
+
+    h_f, h_axs = feature_highlight_grid(
+        mol, highlight_data, labels, cmaps=cmaps, axs=axs
+    )
+
+    if show_loadings and ax_loadings is not None:
+        for feature_label, feature_part in main_contributions.groupby('descriptor'):
+            feature_tex_label = feature_part.descriptor_tex.item()
+            coeffs = feature_part.squeeze().values
+            if len(coeffs) == 2:
+                x, y = coeffs
+                ax_loadings.arrow(
+                    0, 0, x, y, head_width=0.01, length_includes_head=True
+                )
+
+                x2, y2 = extrude(x, y, *ax_loadings.get_xlim(), *ax_loadings.get_ylim())
+
+                ax_loadings.plot([x, x2], [y, y2], '--', c='k', lw=0.5)
+                ax_loadings.text(x2, y2, f"${feature_tex_label}$")
+            else:
+                logging.warning(
+                    f"Cannot plot contribution of {feature_label}: not exactly 2 components"
+                )
+
+    return fig, ax_loadings, h_axs
+
+
 def plot_clusters_grid(
     loadings: xr.DataArray,
     clusters: list[list[int]],
@@ -577,6 +681,8 @@ def plot_clusters_grid(
             png = highlight_features(mol, acs.feature_indices.values)
             mpl_imshow_png(axs[s], png)
             axs[s].set_title(s)
+
+    return fig, axs
 
 
 # Compatability with old notebooks:
@@ -718,11 +824,11 @@ def pick_clusters(
 
             - loadings: the loadings of the PCA
             - clusters: a list of clusters, where each cluster is represented as a
-        list of indices corresponding to ``loadings``; as produced
-        by :py:func:`shnitsel.vis.plot.pca_biplot.get_clusters`.
+                list of indices corresponding to ``loadings``; as produced
+                by :py:func:`shnitsel.vis.plot.pca_biplot.get_clusters`.
             - picks: the cluster chosen from each bin of clusters
             - angles: the angular argument (rotation from the positive x-axis) of each
-            cluster center
+                cluster center
             - center: the circular mean of the angle of all picked clusters
             - radii: The distance of each cluster from the origin
             - bins: Indices of angles belonging to each bin
@@ -739,6 +845,7 @@ def pick_clusters(
     else:
         wrapped_ds = wrap_dataset(frames, Frames | Trajectory)
         loadings = get_loadings(wrapped_ds, center_mean)
+
     clusters = cluster_loadings(loadings)
     points = _get_clusters_coords(loadings, clusters)
 

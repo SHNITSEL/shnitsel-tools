@@ -59,19 +59,21 @@ def biplot_kde(
     mol: rdkit.Chem.Mol | None = None,
     geo_kde_ranges: Sequence[tuple[float, float]] | None = None,
     scatter_color_property: Literal['time', 'geo'] = 'time',
+    show_loadings: bool = True,
     geo_feature: BondDescriptor
     | AngleDescriptor
     | DihedralDescriptor
     | PyramidsDescriptor
     | None = None,
-    geo_cmap: str | None = 'PRGn',  # any valid cmap type
-    time_cmap: str | None = 'cividis',  # any valid cmap type
+    geo_cmap: str | Colormap | None = 'PRGn',  # any valid cmap type
+    time_cmap: str | Colormap | None = 'cividis',  # any valid cmap type
     contour_levels: int | list[float] | None = None,
     contour_colors: list[str] | None = None,
     contour_fill: bool = True,
     num_bins: Literal[1, 2, 3, 4] = 4,
     fig: Figure | None = None,
     center_mean: bool = False,
+    cluster_loadings: bool = False,
 ) -> Figure | Sequence[Figure]:
     """\
     Generates a biplot that visualizes PCA projections and kernel density estimates (KDE) 
@@ -107,6 +109,9 @@ def biplot_kde(
     scatter_color_property : {'time', 'geo'}, default='time'
         Must be one of 'time' or 'geo'. If 'time', the scatter-points will be colored based on the time coordinate;
         if 'geo', the scatter-points will be colored based on the relevant geometry feature (see above).
+    show_loadings : bool, default=True
+        Flag to control whether the most relevant loadings should be plotted over the scatterplot of PCA results.
+        By default True, meaning the top 5 contributing features across all components will be plotted into the graph.
     geo_cmap : str, default = 'PRGn'
         The Colormap to use for the noodleplot, if ``scatter_color='geo'``; this also determines contour
         colors unless ``contour_colors`` is set.
@@ -125,6 +130,10 @@ def biplot_kde(
         if not provided, one will be created using ``plt.figure(layout='constrained')``
     center_mean : bool, default = False
         Flag whether PCA data should be mean-centered before analysis. Defaults to False.
+    cluster_loadings: bool, default = False
+        Flag to enable clustering of the resulting loadings of the dimensionality reduction and 
+        highlight only the clustered results.
+        Defaults to `False`, meaning the most significant loadings will be plotted instead.
 
     Returns
     -------
@@ -178,6 +187,7 @@ def biplot_kde(
                 mol=mol,
                 geo_kde_ranges=geo_kde_ranges,
                 scatter_color_property=scatter_color_property,
+                show_loadings=show_loadings,
                 geo_feature=geo_feature,
                 geo_cmap=geo_cmap,  # any valid cmap type
                 time_cmap=time_cmap,  # any valid cmap type
@@ -232,9 +242,6 @@ def biplot_kde(
     pcaax = pcasf.subplots(1, 1)
     structsf = fig.add_subfigure(gs[1])
     structaxs = structsf.subplot_mosaic('ab\ncd')
-
-    d = pb.pick_clusters(pca_data, num_bins=num_bins, center_mean=center_mean)
-    loadings, clusters, picks = d['loadings'], d['clusters'], d['picks']
 
     res_mol: Mol
     if mol is None:
@@ -350,26 +357,48 @@ def biplot_kde(
         hops_kws=dict(c='r', s=0.2),
     )
 
-    # in case more clusters were found than we have room for:
-    picks = picks[:4]
+    if cluster_loadings:
+        d = pb.pick_clusters(pca_data, num_bins=num_bins, center_mean=center_mean)
+        loadings, clusters, picks = d['loadings'], d['clusters'], d['picks']
+        # in case more clusters were found than we have room for:
+        picks = picks[:4]
 
-    # print(pca_data.explain_loadings())
+        # print(pca_data.explain_loadings())
 
-    pb.plot_clusters_grid(
-        loadings,
-        [clusters[i] for i in picks],
-        ax=pcaax,
-        axs=structaxs,
-        mol=res_mol,
-        labels=list('abcd'),
-    )
+        pb.plot_clusters_grid(
+            loadings,
+            [clusters[i] for i in picks],
+            ax=pcaax,
+            axs=structaxs,
+            mol=res_mol,
+            labels=list('abcd'),
+        )
+    else:
+        # Highlight the most significant pc loadings and
+        # Add a structure highlight grid to the side highlighting
+        # the contributions to the components
 
-    if contour_colors is None:
-        contour_colors = plt.get_cmap(noodleplot_cmap)(
-            np.linspace(0, 1, len(contour_levels))
+        component_axes = {
+            'PC1 +': structaxs['a'],
+            'PC1 -': structaxs['b'],
+            'PC2 +': structaxs['c'],
+            'PC2 -': structaxs['d'],
+        }
+
+        pb.plot_pca_components(
+            pca_data,
+            show_loadings=show_loadings,
+            ax_loadings=pcaax,
+            axs=component_axes,
+            mol=res_mol,
         )
 
     if kde_data:
+        if contour_colors is None:
+            contour_colors = plt.get_cmap(noodleplot_cmap)(
+                np.linspace(0, 1, len(contour_levels))
+            )
+
         xx, yy, Zs = kde_data
         plot_distribution_on_mesh(
             xx,
