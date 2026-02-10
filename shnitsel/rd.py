@@ -9,6 +9,8 @@ import rdkit.Chem.rdDetermineBonds  # noqa: F401
 import matplotlib as mpl
 import numpy as np
 
+from shnitsel.vis.colormaps import hex2rgb
+
 if TYPE_CHECKING:
     from shnitsel.filtering.structure_selection import FeatureDescriptor
 
@@ -117,8 +119,8 @@ def highlight_features(
     fmt: Literal['png', 'svg'] = 'png',
     colors: Sequence[tuple] | None = None,
     cmap: str | Colormap | None = None,
-    width=320,
-    height=240,
+    width: int | None = None,
+    height: int | None = None,
 ):
     """Highlight specified pairs of atoms in an image of an ``rdkit.Chem.Mol`` object
 
@@ -145,6 +147,11 @@ def highlight_features(
     -------
         Raw PNG data or the SVG string depending on the choice of `fmt`.
     """
+    if width is None:
+        width = 320
+    if height is None:
+        height = 320
+
     if fmt == 'png':
         d = rdkit.Chem.Draw.rdMolDraw2D.MolDraw2DCairo(width, height)
     elif fmt == 'svg':
@@ -167,7 +174,7 @@ def highlight_features(
             plot_colors = cmap(np.linspace(0, 1, len(feature_indices)))
     else:
         assert len(colors) >= len(feature_indices), (
-            "Insufficient number colors for the number of features provided."
+            "Insufficient number of colors for the number of features provided."
         )
         plot_colors = colors
     atom_colors: dict[int, list[tuple[float, float, float]]] = {}
@@ -179,6 +186,12 @@ def highlight_features(
             continue
 
         atoms_to_color = []
+
+        if isinstance(c, str):
+            c = tuple(hex2rgb(c))
+
+        if not isinstance(c, tuple):
+            c = tuple(c)
 
         if isinstance(feature, int):
             # Position
