@@ -34,7 +34,7 @@
   - [x] Add 'BLA' and 'pwdist' feature descriptors.
   - [x] Fix non-redundant coordinates
   - [ ] Structure selection (raise error if empty/warning if empty)
-  - [ ] draw: Draw grid of highlighted feature levels
+  - [x] draw: Draw grid of highlighted feature levels
   - [x] draw: Use highlight_features function
 - [ ] Analogs tree, structure selection, warning if no match for compounds
   - [x] Adapted to tree support
@@ -44,8 +44,8 @@
   - [x] Add Support for textual representation of state selection
   - [x] Add merge/subtract/intersect operations
 - biplot_kde needs to be fixed to use the descriptors of the PCA in the side plots.
-  - [ ] Fix PCA loadings main contribution plot not being the same as the explained PCA.
-  - [ ] Fix cluster loadings plot occasionally empty.
+  - [x] Fix PCA loadings main contribution plot not being the same as the explained PCA.
+  - [x] Fix cluster loadings plot occasionally empty.
 - Visualization support
   - [ ] Add generic `plot()` function to various types
   - [ ] Add option for plots from tree hierarchies
