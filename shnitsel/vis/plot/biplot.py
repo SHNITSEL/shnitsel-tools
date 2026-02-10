@@ -59,7 +59,7 @@ def biplot_kde(
     mol: rdkit.Chem.Mol | None = None,
     geo_kde_ranges: Sequence[tuple[float, float]] | None = None,
     scatter_color_property: Literal['time', 'geo'] = 'time',
-    show_loadings: bool = True,
+    show_loadings: int = 4,
     geo_feature: BondDescriptor
     | AngleDescriptor
     | DihedralDescriptor
@@ -109,9 +109,10 @@ def biplot_kde(
     scatter_color_property : {'time', 'geo'}, default='time'
         Must be one of 'time' or 'geo'. If 'time', the scatter-points will be colored based on the time coordinate;
         if 'geo', the scatter-points will be colored based on the relevant geometry feature (see above).
-    show_loadings : bool, default=True
-        Flag to control whether the most relevant loadings should be plotted over the scatterplot of PCA results.
-        By default True, meaning the top 5 contributing features across all components will be plotted into the graph.
+    show_loadings : int, default=4
+        Option to control whether the most relevant loadings should be plotted over the scatterplot of PCA results.
+        By default 4, meaning the top 4 contributing features across all components will be plotted into the graph.
+        Set to 0 to remove the plots of loadings.
     geo_cmap : str, default = 'PRGn'
         The Colormap to use for the noodleplot, if ``scatter_color='geo'``; this also determines contour
         colors unless ``contour_colors`` is set.

@@ -519,7 +519,7 @@ def plot_pca_components(
     pca_res: PCAResult,
     axs: dict[str, Axes] | None = None,
     mol: Mol | None = None,
-    show_loadings: bool = True,
+    show_loadings: int = 4,
     ax_loadings: Axes | None = None,
 ):
     """Function to plot the main contributors to the PCA components
@@ -538,9 +538,9 @@ def plot_pca_components(
         positive or negative.
     mol : Mol, optional
         An RDKit ``Mol`` object to be used for structure display
-    show_loadings : bool, default=False
-        Flag to add plots of the maximum contributing features in the decomposition.
-        Will use the `ax_loadings` parameter or initialize a set of axes to plot to.
+    show_loadings : int, default=4
+        The number of most significant overall features to plot into the graph `ax_loadings`.
+        Defaults to the 4 most significant features.
     ax_loadings : Axes, optional
         The :py:class:`matplotlib.pyplot.axes.Axes` object onto which to plot
         the direction of the main contributing features.
@@ -550,8 +550,8 @@ def plot_pca_components(
 
     principal_components = pca_res.principal_components
 
-    component_contributions, main_contributions = (
-        pca_res.get_most_significant_loadings()
+    component_contributions, main_contributions = pca_res.get_most_significant_loadings(
+        top_n_total=max(show_loadings, 0)
     )
 
     highlight_data: Sequence[Sequence[FeatureDescriptor | None]] = []
@@ -578,13 +578,13 @@ def plot_pca_components(
         else:
             highlight_data += [[], []]
 
-    if axs is None and show_loadings and ax_loadings is None:
+    if axs is None and show_loadings > 0 and ax_loadings is None:
         fig, sub_axs = subplot_mosaic([["loadings", "structure"]])
         ax_loadings = sub_axs["loadings"]
         struct_axes_sgs = sub_axs["structure"].get_subplotspec()
         subfig_struct = fig.add_subfigure(struct_axes_sgs)
         axs = subfig_struct.subplot_mosaic(gridspec)
-    elif show_loadings and ax_loadings is None:
+    elif show_loadings > 0 and ax_loadings is None:
         fig, ax_loadings = plt.subplots(1, 1)
     elif axs is None:
         fig, axs = subplot_mosaic(gridspec)
@@ -595,7 +595,7 @@ def plot_pca_components(
         mol, highlight_data, labels, cmaps=cmaps, axs=axs
     )
 
-    if show_loadings and ax_loadings is not None:
+    if show_loadings > 0 and ax_loadings is not None:
         for feature_label, feature_part in main_contributions.groupby('descriptor'):
             feature_tex_label = feature_part.descriptor_tex.item()
             coeffs = feature_part.squeeze().values
