@@ -12,6 +12,8 @@ from typing import (
     Sequence,
     TypeAlias,
 )
+from matplotlib.colors import Colormap
+from matplotlib.figure import Figure
 import numpy as np
 import rdkit
 import xarray as xr
@@ -69,6 +71,16 @@ FEATURE_LEVELS: list[FeatureLevelType] = [
     'BLA',
 ]
 
+PLOTTABLE_FEATURE_LEVELS: list[FeatureLevelType] = [
+    'atoms',
+    'bonds',
+    'angles',
+    'dihedrals',
+    'pyramids',
+    # 'BLA',
+]
+
+
 FeatureTypeLabel: TypeAlias = Literal[
     'bla',
     'pyr',
@@ -90,6 +102,22 @@ FEATURE_LEVEL_DEFAULT_COLORS: dict[FeatureLevelType, str] = {
     'angles': st_pink,
     'dihedrals': st_violet,
     'pyramids': st_orange,
+}
+
+from shnitsel.vis.colormaps import (
+    st_greens_cmap,
+    st_blues_cmap,
+    st_greys_cmap,
+    st_purples_cmap,
+    st_oranges_cmap,
+)
+
+FEATURE_LEVEL_DEFAULT_CMAPS: dict[FeatureLevelType, str | Colormap] = {
+    'atoms': st_greys_cmap,  #'Greys',
+    'bonds': st_blues_cmap,  #'Blues',
+    'angles': st_greens_cmap,  #'Greens',
+    'dihedrals': st_purples_cmap,  #'Purples',
+    'pyramids': st_oranges_cmap,  #'Oranges',
 }
 
 SMARTSstring: TypeAlias = str
@@ -132,6 +160,10 @@ class StructureSelection:
 
     feature_level_colors: dict[FeatureLevelType, str] = field(
         default_factory=lambda: dict(FEATURE_LEVEL_DEFAULT_COLORS)
+    )
+
+    feature_level_cmaps: dict[FeatureLevelType, str | Colormap] = field(
+        default_factory=lambda: dict(FEATURE_LEVEL_DEFAULT_CMAPS)
     )
 
     def copy_or_update(
@@ -1667,17 +1699,18 @@ class StructureSelection:
 
     def draw(
         self,
-        flag_level: FeatureLevelOptions | Iterable[FeatureLevelOptions] = 'bonds',
+        flag_level: FeatureLevelOptions | Iterable[FeatureLevelOptions] | None = None,
         highlight_color: tuple[float, float, float] | str | None = None,
         width=300,
         height=300,
-    ) -> "SVG | Iterable[SVG] | Any":
+    ) -> "Figure | SVG | Iterable[SVG] | Any":
         """Helper function to allow visualization of the structure represented in this selection.
 
         Parameters
         ----------
         flag_level : FeatureLevelOptions, optional
-            Currently unused. Defaults to 'bonds'.
+            Chooses the features to plot.
+            If not set, will plot a grid of all feature levels.
         highlight_color : tuple[float, float, float] | str, optional
             Color to use for highlights of the active parts. Defaults to a flag-level dependent color.
         width : int, optional
@@ -1687,29 +1720,47 @@ class StructureSelection:
 
         Returns
         -------
+        Figure
+            A figure holding the visualizations of the feature levels.
+            Should be the default behaviour for non-interactive environments
         SVG
-            The SVG representation of this selection's figure.
+            The SVG representation of this selection's figure of the desired level.
         Iterable[SVG]
             A sequence of SVG representations of the multiple selection levels if multiple requested.
         Any
             If outside of an ipython environment, this function returns either a single output drawing
             or a sequence thereof of format `svg` (in its textual representation).
         """
-        # TODO: FIXME: Use different colors for different feature levels.
-        from rdkit.Chem.Draw import rdMolDraw2D
-        from shnitsel.rd import highlight_features
-        from shnitsel.core.feature_detection import is_ipython_notebook
+        assert self.mol is not None, (
+            "Cannot visualize a structure selection with an invalid `mol` structure"
+        )
 
-        if isinstance(flag_level, str) or isinstance(flag_level, int):
+        from shnitsel.vis.plot.structure_grid import feature_highlight_grid
+        # from shnitsel.core.feature_detection import is_ipython_notebook
+
+        if flag_level is None:
+            flag_level = PLOTTABLE_FEATURE_LEVELS
+        elif isinstance(flag_level, (str, int)):
             flag_level = [flag_level]
 
-        plots = []
+        # plots = []
+
+        feature_indices = []
+        feature_labels = []
+
+        feature_colors = dict()
+        feature_cmaps = dict()
 
         for level in flag_level:
             feature_level = self._to_feature_level_str(level)
+            highlight_color = None
+            highlight_cmap = None
             if highlight_color is None:
                 # Get feature-level color if not set
-                highlight_color = self.feature_level_colors[feature_level]
+                if feature_level in self.feature_level_cmaps:
+                    highlight_cmap = self.feature_level_cmaps[feature_level]
+                elif feature_level in self.feature_level_colors:
+                    highlight_color = self.feature_level_colors[feature_level]
 
             if isinstance(highlight_color, str):
                 highlight_color = tuple(hex2rgb(highlight_color))
@@ -1717,7 +1768,7 @@ class StructureSelection:
             match level:
                 case 'atoms':
                     feature_set = self.atoms_selected
-                case 'bonds':
+                case 'bonds' | 'pwdist':
                     feature_set = self.bonds_selected
                 case 'angles':
                     feature_set = self.angles_selected
@@ -1726,31 +1777,55 @@ class StructureSelection:
                 case 'pyramids':
                     feature_set = self.pyramids_selected
                 case _:
+                    logging.error(f"Plotting of feature {level=} not supported.")
+                    continue
                     raise ValueError(f"Plotting of feature {level=} not supported.")
 
+            feature_indices.append(feature_set)
+            feature_labels.append(level)
+
+            if highlight_color is not None:
+                feature_colors[level] = highlight_color
+            if highlight_cmap is not None:
+                feature_cmaps[level] = highlight_cmap
+
             # TODO: FIXME: Consider not returning an IPython object. Return only IPython if in IPython environment?
-            img = highlight_features(
-                self.mol,
-                feature_indices=list(feature_set),
-                fmt='svg',
-                width=width,
-                height=height,
-            )
-            if not is_ipython_notebook():
-                logging.info(
-                    "Cannot use `ipython.display` features in `StructureSelection.draw()` outside of `ipython` environment"
-                )
-            else:
-                from IPython.display import SVG
+            # img = highlight_features(
+            #     self.mol,
+            #     feature_indices=list(feature_set),
+            #     fmt='svg',
+            #     width=width,
+            #     height=height,
+            # )
+            # if not is_ipython_notebook():
+            #     logging.info(
+            #         "Cannot use `ipython.display` features in `StructureSelection.draw()` outside of `ipython` environment"
+            #     )
+            # else:
+            #     from IPython.display import SVG
 
-                img = SVG(img)
+            #     img = SVG(img)
 
-            plots.append(img)
+            # plots.append(img)
 
-        if len(plots) == 1:
-            return plots[0]
+        # if len(plots) == 1:
+        #     return plots[0]
+        # else:
+        #     return plots
+        fig, axs = feature_highlight_grid(
+            mol=self.mol,
+            features=feature_indices,
+            labels=feature_labels,
+            colors=feature_colors,
+            cmaps=feature_cmaps,
+            width=width,
+            height=height,
+        )
+
+        if fig is not None:
+            return fig
         else:
-            return plots
+            return axs
 
     def __get_active_atoms(
         self, flag_level: FeatureLevelOptions = 'atoms'
