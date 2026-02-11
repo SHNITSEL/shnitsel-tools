@@ -1,10 +1,9 @@
 import abc
-from typing import Self, Collection
+from typing import Any, Self, Collection
 
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from IPython.lib.pretty import PrettyPrinter
-from matplotlib.pylab import Any
 
 
 class Visualizable(abc.ABC):
