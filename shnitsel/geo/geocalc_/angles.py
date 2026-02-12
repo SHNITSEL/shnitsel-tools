@@ -16,6 +16,7 @@ from shnitsel.geo.geocalc_.algebra import angle_, angle_cos_sin_
 import numpy as np
 
 from shnitsel.geo.geocalc_.helpers import (
+    AngleOptions,
     _assign_descriptor_coords,
     _empty_descriptor_results,
 )
@@ -25,7 +26,12 @@ from shnitsel.filtering.helpers import _get_default_structure_selection
 @API()
 @needs(dims={'atom'})
 def angle(
-    atXYZ: AtXYZ, a_index: int, b_index: int, c_index: int, *, deg: bool = False
+    atXYZ: AtXYZ,
+    a_index: int,
+    b_index: int,
+    c_index: int,
+    *,
+    angles: AngleOptions = 'deg',
 ) -> xr.DataArray:  # noqa: F821
     """Method to calculate the angle between atoms with indices `a_index`, `b_index`, and `c_index` in the positions DataArray throughout time.
     The `b_index` specifies the center atom at which the angle is located.
@@ -43,21 +49,25 @@ def angle(
         Index of second center atom comprising the angle.
     c_index : int
         Index of third atom.
-    deg : bool, optional
-        Flag whether the results should be in degrees instead of radian. Defaults to False.
+    angles : Literal['deg', 'rad', 'trig'], default='deg'
+        Option parameter to control the unit/representation of the angle.
+        Use `'deg'` for results in 'degrees', `'rad'` for results in 'radian'
+        and `'trig'` for a representation as a sin and a cos
 
     Returns
     -------
     xr.DataArray
         The resulting angles between the denoted atoms.
     """
+    if angles == 'trig':
+        return angle_cos_sin()
     if isinstance(atXYZ, TreeNode):
         return atXYZ.map_data(
             angle,
             a_index=a_index,
             b_index=b_index,
             c_index=c_index,
-            deg=deg,
+            angles=angles,
         )
     a = atXYZ.sel(atom=a_index, drop=True)
     b = atXYZ.sel(atom=b_index, drop=True)
@@ -65,11 +75,12 @@ def angle(
     ab = a - b
     cb = c - b
     result: xr.DataArray = angle_(ab, cb)
-    if deg:
+    if angles == 'deg':
         result = result * 180 / np.pi
         result.attrs['units'] = 'degrees'
     else:
         result.attrs['units'] = 'rad'
+
     result.name = 'angle'
     result.attrs['long_name'] = r"\theta_{%d,%d,%d}" % (a_index, b_index, c_index)
     return result
@@ -78,9 +89,13 @@ def angle(
 @API()
 @needs(dims={'atom'})
 def angle_cos_sin(
-    atXYZ: AtXYZ, a_index: int, b_index: int, c_index: int, *, deg: bool = False
+    atXYZ: AtXYZ,
+    a_index: int,
+    b_index: int,
+    c_index: int,
 ) -> tuple[xr.DataArray, xr.DataArray]:
-    """Method to calculate the cosine and sine of the angle between atoms with indices `a_index`, `b_index`, and `c_index` in the positions DataArray throughout time.
+    """Method to calculate the cosine and sine of the angle between atoms with
+    indices `a_index`, `b_index`, and `c_index` in the positions DataArray throughout time.
     The `b_index` specifies the center atom at which the angle is located.
     The other two indices specify the legs of the angle.
 
@@ -106,7 +121,6 @@ def angle_cos_sin(
             a_index=a_index,
             b_index=b_index,
             c_index=c_index,
-            deg=deg,
         )
     a = atXYZ.sel(atom=a_index, drop=True)
     b = atXYZ.sel(atom=b_index, drop=True)
@@ -128,7 +142,7 @@ def get_angles(
     structure_selection: StructureSelection
     | StructureSelectionDescriptor
     | None = None,
-    deg: bool | Literal['trig'] = True,
+    angles: AngleOptions = 'deg',
     signed=True,
 ) -> TreeNode[Any, xr.DataArray]: ...
 
@@ -139,7 +153,7 @@ def get_angles(
     structure_selection: StructureSelection
     | StructureSelectionDescriptor
     | None = None,
-    deg: bool | Literal['trig'] = True,
+    angles: AngleOptions = 'deg',
     signed=True,
 ) -> xr.DataArray: ...
 
@@ -154,7 +168,7 @@ def get_angles(
     structure_selection: StructureSelection
     | StructureSelectionDescriptor
     | None = None,
-    deg: bool | Literal['trig'] = True,
+    angles: AngleOptions = 'deg',
     signed: bool = True,
 ) -> TreeNode[Any, xr.DataArray] | xr.DataArray:
     """Identify triples of bonded atoms (using RDKit) and calculate bond angles for each frame.
@@ -168,9 +182,10 @@ def get_angles(
     structure_selection: StructureSelection | StructureSelectionDescriptor, optional
          Object encapsulating feature selection on the structure whose positional information is provided in `atXYZ`.
          If this argument is omitted altogether, a default selection for all bonds within the structure is created.
-    deg: bool | Literal['trig'], optional
-         Whether to return angles in degrees (as opposed to radians), by default True.
-         Can also be set to the string literal `trig` if sin and cos of the calculated angle should be returned instead.
+    angles : Literal['deg', 'rad', 'trig'], default='deg'
+        Option parameter to control the unit/representation of the angles.
+        Use `'deg'` for results in 'degrees', `'rad'` for results in 'radian'
+        and `'trig'` for a representation as a sin and a cos
     signed: bool, optional
          Whether the result should be returned with a sign or just as an absolute value in the range. Only relevant for `trig` option in `deg`.
 

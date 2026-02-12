@@ -14,6 +14,8 @@ from shnitsel.filtering.structure_selection import (
 )
 import xarray as xr
 
+AngleOptions: TypeAlias = Literal['deg', 'rad', 'trig']
+
 
 def _empty_descriptor_results(atXYZ: AtXYZ) -> xr.DataArray:
     """Get an empty result with no 'atom' dimension but a zero-length 'descriptor' dimension in its stead.

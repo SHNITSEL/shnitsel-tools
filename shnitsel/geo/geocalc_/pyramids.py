@@ -16,6 +16,7 @@ from shnitsel.filtering.structure_selection import (
 from shnitsel.geo.geocalc_.algebra import angle_cos_sin_, normal, angle_, normalize
 
 from shnitsel.geo.geocalc_.helpers import (
+    AngleOptions,
     _assign_descriptor_coords,
     _empty_descriptor_results,
 )
@@ -30,7 +31,7 @@ def pyramidalization_angle(
     a_index: int,
     b_index: int,
     c_index: int,
-    deg: Literal['trig'],
+    angles: Literal['trig'],
 ) -> tuple[xr.DataArray, xr.DataArray]: ...
 
 
@@ -42,7 +43,7 @@ def pyramidalization_angle(
     a_index: int,
     b_index: int,
     c_index: int,
-    deg: bool = True,
+    angles: AngleOptions = 'deg',
 ) -> xr.DataArray: ...
 
 
@@ -53,7 +54,7 @@ def pyramidalization_angle(
     a_index: int,
     b_index: int,
     c_index: int,
-    deg: bool | Literal['trig'] = True,
+    angles: AngleOptions = 'deg',
 ) -> xr.DataArray | tuple[xr.DataArray, xr.DataArray]:
     """Method to calculate the pyramidalization angle of a quadruple of atoms.
 
@@ -75,6 +76,10 @@ def pyramidalization_angle(
         Index of the second atom bonded to the `x`-atom
     c_index : int
         Index of the third atom bonded to the `x`-atom
+    angles : Literal['deg', 'rad', 'trig'], default='deg'
+        Option parameter to control the unit/representation of the angle.
+        Use 'deg' for results in 'degrees', 'rad' for results in 'radian'
+        and 'trig' for a representation as a sin and a cos
 
     Returns
     -------
@@ -95,7 +100,7 @@ def pyramidalization_angle(
             a_index=a_index,
             b_index=b_index,
             c_index=c_index,
-            deg=deg,
+            angles=angles,
         )
     # NOTE: According to https://doi.org/10.1063/5.0008368 this should yield a unique angle independent of the permutation of a,b,c if the distances are normalized first.
     # This should give the p-orbital-aligned perpendicular normal.
@@ -110,14 +115,14 @@ def pyramidalization_angle(
     dc_norm = normalize(c - x)
     orbital_aligned_normal = normal(da_norm, db_norm, dc_norm)
 
-    if deg == 'trig':
+    if angles == 'trig':
         cos_raw, sin_raw = angle_cos_sin_(orbital_aligned_normal, x - b)
         # The 90-x swaps cos and sin
         return (sin_raw, cos_raw)  # type: ignore # Cannot be a variable if provided with a DataArray
 
     angle_rad = 0.5 * np.pi - angle_(orbital_aligned_normal, x - b)
 
-    if deg:
+    if angles == 'deg':
         angle_rad *= 180 / np.pi
         angle_rad.attrs['units'] = 'degrees'
     else:
@@ -132,7 +137,7 @@ def get_pyramidalization(
     structure_selection: StructureSelection
     | StructureSelectionDescriptor
     | None = None,
-    deg: bool | Literal['trig'] = True,
+    angles: AngleOptions = 'deg',
     signed=True,
 ) -> TreeNode[Any, xr.DataArray]: ...
 
@@ -143,7 +148,7 @@ def get_pyramidalization(
     structure_selection: StructureSelection
     | StructureSelectionDescriptor
     | None = None,
-    deg: bool | Literal['trig'] = True,
+    angles: AngleOptions = 'deg',
     signed=True,
 ) -> xr.DataArray: ...
 
@@ -157,7 +162,7 @@ def get_pyramidalization(
     structure_selection: StructureSelection
     | StructureSelectionDescriptor
     | None = None,
-    deg: bool | Literal['trig'] = True,
+    angles: AngleOptions = 'deg',
     signed: bool = True,
 ) -> TreeNode[Any, xr.DataArray] | xr.DataArray:
     """Identify atoms with three bonds (using RDKit) and calculate the corresponding pyramidalization angles
@@ -183,7 +188,10 @@ def get_pyramidalization(
         If not provided, will be generated using `_get_default_structure_selection()` using the atXYZ data for the pyramids level.
     deg : bool | Literal['trig'] = True, optional
         Whether to return angles in degrees (as opposed to radians), by default False.
-        Alternatively with the option `trig`, this will yield the sin and cos of each pyramidalization angle instead.
+    angles : Literal['deg', 'rad', 'trig'], default='deg'
+        Option parameter to control the unit/representation of the pyramidalization angle.
+        Use 'deg' for results in 'degrees', 'rad' for results in 'radian'.
+        Alternatively, with the option `trig`, this will yield the sin and cos of each pyramidalization angle instead.
     signed : bool, optional
         Whether the result should be returned with a sign or just as an absolute value. Defaults to True, yielding the signed pyramidalization.
 
@@ -197,7 +205,7 @@ def get_pyramidalization(
     if isinstance(atXYZ_source, TreeNode):
         return atXYZ_source.map_data(
             lambda x: get_pyramidalization(
-                x, structure_selection=structure_selection, deg=deg, signed=signed
+                x, structure_selection=structure_selection, angles=angles, signed=signed
             ),
             keep_empty_branches=True,
             dtype=xr.DataArray,
@@ -229,11 +237,11 @@ def get_pyramidalization(
         return _empty_descriptor_results(position_data)
 
     pyr_angles = [
-        pyramidalization_angle(position_data, x, a, b, c, deg=deg)
+        pyramidalization_angle(position_data, x, a, b, c, angles=angles)
         for x, (a, b, c) in pyramid_descriptors
     ]
 
-    if deg == 'trig':
+    if angles == 'trig':
         pyr_angles_cos, pyr_angles_sin = zip(*pyr_angles)
         descriptor_tex_cos = [
             r'\cos(\chi_{%d,%d}^{%d,%d})' % (b, x, a, c)
@@ -299,7 +307,7 @@ def get_pyramidalization(
         pyr_res.name = "pyramids"
 
         pyr_res: xr.DataArray = pyr_res
-        if deg:
+        if angles == 'deg':
             pyr_res.attrs['units'] = 'degrees'
         else:
             pyr_res.attrs['units'] = 'rad'

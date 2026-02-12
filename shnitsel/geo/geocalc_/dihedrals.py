@@ -15,6 +15,7 @@ from shnitsel.filtering.structure_selection import (
 )
 from shnitsel.geo.geocalc_.algebra import angle_, angle_cos_sin_, dcross, ddot, normal
 from shnitsel.geo.geocalc_.helpers import (
+    AngleOptions,
     _assign_descriptor_coords,
     _empty_descriptor_results,
 )
@@ -114,7 +115,7 @@ def dihedral(
     c_index: int,
     d_index: int,
     *,
-    deg: Literal['trig'],
+    angles: Literal['trig'],
     full: bool = False,
 ) -> tuple[xr.DataArray, xr.DataArray]: ...
 
@@ -128,7 +129,7 @@ def dihedral(
     c_index: int,
     d_index: int,
     *,
-    deg: bool = True,
+    angles: Literal['deg', 'rad'] = 'deg',
     full: bool = False,
 ) -> xr.DataArray: ...
 
@@ -142,7 +143,7 @@ def dihedral(
     c_index: int,
     d_index: int,
     *,
-    deg: bool | Literal['trig'] = True,
+    angles: AngleOptions = 'deg',
     full: bool = False,
 ) -> xr.DataArray | tuple[xr.DataArray, xr.DataArray]:
     """Calculate all dihedral angles between the atoms specified.
@@ -154,8 +155,10 @@ def dihedral(
         A ``DataArray`` of coordinates, with ``atom`` and ``direction`` dimensions
     a_index, b_index, c_index, d_index : int
         The four atom indices, where successive atoms should be bonded in this order.
-    deg :  bool | Literal['trig'],optional
-        Whether to return angles in degrees (True) or radians (False) or as cosine and sine ('trig'), by default False
+    angles : Literal['deg', 'rad', 'trig'], default='deg'
+        Option parameter to control the unit/representation of the angle.
+        Use `'deg'` for results in 'degrees', `'rad'` for results in 'radian'
+        and `'trig'` for a representation as a sin and a cos
     full : bool, optional
         Whether to return signed full dihedrals or unsigned (positive) dihedrals if False, by default False
 
@@ -171,10 +174,10 @@ def dihedral(
             b_index=b_index,
             c_index=c_index,
             d_index=d_index,
-            deg=deg,
+            angles=angles,
             full=full,
         )
-    if deg == 'trig':
+    if angles == 'trig':
         result_cos, result_sin = _dihedral_trig_(
             atXYZ, a_index, b_index, c_index, d_index, full=full
         )
@@ -193,11 +196,11 @@ def dihedral(
             d_index,
         )
         return result_cos, result_sin
-    if isinstance(deg, bool):
+    else:
         result: xr.DataArray = _dihedral_deg(
             atXYZ, a_index, b_index, c_index, d_index, full=full
         )
-        if deg:
+        if angles == 'deg':
             result = result * 180 / np.pi
             result.attrs['units'] = 'degrees'
         else:
@@ -218,7 +221,7 @@ def get_dihedrals(
     structure_selection: StructureSelection
     | StructureSelectionDescriptor
     | None = None,
-    deg: bool | Literal['trig'] = True,
+    angles: AngleOptions = 'deg',
     signed=True,
 ) -> TreeNode[Any, xr.DataArray]: ...
 
@@ -229,7 +232,7 @@ def get_dihedrals(
     structure_selection: StructureSelection
     | StructureSelectionDescriptor
     | None = None,
-    deg: bool | Literal['trig'] = True,
+    angles: AngleOptions = 'deg',
     signed=True,
 ) -> xr.DataArray: ...
 
@@ -244,7 +247,7 @@ def get_dihedrals(
     structure_selection: StructureSelection
     | StructureSelectionDescriptor
     | None = None,
-    deg: bool | Literal['trig'] = True,
+    angles: AngleOptions = 'deg',
     signed: bool = True,
 ) -> TreeNode[Any, xr.DataArray] | xr.DataArray:
     """Identify quadruples of bonded atoms (using RDKit) and calculate the corresponding proper bond torsion for each
@@ -259,8 +262,10 @@ def get_dihedrals(
     structure_selection: StructureSelection | StructureSelectionDescriptor, optional
         Object encapsulating feature selection on the structure whose positional information is provided in `atXYZ`.
         If this argument is omitted altogether, a default selection for all bonds within the structure is created.
-    deg: bool | Literal['trig'], optional
-        Whether to return angles in degrees (as opposed to radians), by default True. Alternatively, return cos and sin (option `trig`) for each dihedral
+    angles : Literal['deg', 'rad', 'trig'], default='deg'
+        Option parameter to control the unit/representation of the angle.
+        Use `'deg'` for results in 'degrees', `'rad'` for results in 'radian'
+        and `'trig'` for a representation as a sin and a cos of the dihedral angle.
     signed, optional
         Whether the result should be returned with a sign or just as an absolute value in the range. Triggers calculation of 'full' i.e. signed dihedrals.
 
@@ -274,7 +279,7 @@ def get_dihedrals(
     if isinstance(atXYZ_source, TreeNode):
         return atXYZ_source.map_data(
             lambda x: get_dihedrals(
-                x, structure_selection=structure_selection, deg=deg, signed=signed
+                x, structure_selection=structure_selection, angles=angles, signed=signed
             ),
             keep_empty_branches=True,
             dtype=xr.DataArray,
@@ -305,12 +310,12 @@ def get_dihedrals(
     if len(dihedral_indices) == 0:
         return _empty_descriptor_results(position_data)
 
-    dihedral_arrs = [
-        dihedral(position_data, a, b, c, d, deg=deg, full=signed)
-        for a, b, c, d in dihedral_indices
-    ]
 
-    if deg == 'trig':
+    if angles == 'trig':
+        dihedral_arrs = [
+            dihedral(position_data, a, b, c, d, angles='trig', full=signed)
+            for a, b, c, d in dihedral_indices
+        ]
         dih_angles_cos, dih_angles_sin = zip(*dihedral_arrs)
         descriptor_tex_cos = [
             r'\cos(\varphi_{%d,%d,%d,%d})' % (a, b, c, d)
@@ -352,6 +357,10 @@ def get_dihedrals(
         dihedral_res.attrs['units'] = 'trig'
         return dihedral_res
     else:
+        dihedral_arrs = [
+            dihedral(position_data, a, b, c, d, angles=angles, full=signed)
+            for a, b, c, d in dihedral_indices
+        ]
         dihedral_arrs_extended: list[xr.DataArray] = [
             arr.expand_dims('descriptor') for arr in dihedral_arrs
         ]
