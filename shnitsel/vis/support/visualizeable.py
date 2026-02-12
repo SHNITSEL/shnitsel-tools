@@ -1,10 +1,9 @@
 import abc
-from typing import Self, Collection
+from typing import Self, Collection, Any 
 
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from IPython.lib.pretty import PrettyPrinter
-from matplotlib.pylab import Any
 
 
 class Visualizable(abc.ABC):
@@ -26,10 +25,10 @@ class Visualizable(abc.ABC):
         cycle : bool
             Flag to indicate whether a cycle in references has been detected.
         """
-        if cycle:
-            p.text('MyObject(...)')
-        else:
-            p.text('MyObject[...]')
+        # if cycle:
+        #     p.text('MyObject(...)')
+        # else:
+        #     p.text('MyObject[...]')
 
     def _repr_svg_(self) -> str | tuple[str, dict[str, Any]]:
         """Function to obtain an svg string representing the object
@@ -39,7 +38,8 @@ class Visualizable(abc.ABC):
         str
             The string of the svg.
         """
-        return ""
+        # return ""
+        return None
 
     def _repr_png_(self) -> bytes | tuple[bytes, dict[str, Any]]:
         """Function to obtain a byte stream of a png string representing the object.
@@ -51,22 +51,28 @@ class Visualizable(abc.ABC):
         tuple[bytes, dict[str, Any]]
             First the bytes of the png and then a metadata dict for the displaying frontend
         """
-        return bytes(0)
+        # return bytes(0)
+        return None
 
     def _repr_jpeg_(self) -> bytes | tuple[bytes, dict[str, Any]]:
-        return bytes(0)
+        # return bytes(0)
+        return None
 
     def _repr_html_(self) -> str | tuple[str, dict[str, Any]]:
-        return ""
+        # return ""
+        return None
 
     def _repr_javascript_(self) -> str | tuple[str, dict[str, Any]]:
-        return ""
+        # return ""
+        return None
 
     def _repr_markdown_(self) -> str | tuple[str, dict[str, Any]]:
-        return ""
+        # return ""
+        return None
 
     def _repr_latex_(self) -> str | tuple[str, dict[str, Any]]:
-        return ""
+        # return ""
+        return None
 
     def _repr_mimebundle_(
         self,
