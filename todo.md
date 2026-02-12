@@ -15,9 +15,11 @@
   - [ ] Pattern matching in the `getitem()` method, i.e. `db['/I01/**/data']` `db["/I01/*/{1-20}"]`
   - [ ] TODO: FIXME: typing.get_origin() does not work on TreeNode specializations. Maybe just patch the `base` class in `_create_extended_node_class`?
   - [ ] TODO: Add backup visualization probably with networkx to circumvent issue with html repr not working on github. (See TODO: note in TreeNode class after `_repr_html()`)
+  - [ ] Implement parallel/delayed execution of maps on tree
 - (De)serialization:
   - [x] Implementation of Supports(To/From)XrConversion for various (wrapper) types
   - [ ] Tutorial on how to add own types
+  - [ ] Improve import performance of tree. Currently incredibly slow due to issues with how h5netcdf resolves variable names, which causes the input file to be parsed again (apprently?). Import spends 90% of time in `name` resolution for variables.
 - Wrapper types:
   - [ ] Add supported Shnitsel-tools functions as direct methods on wrapper types
   - [ ] Improve Visualization/helper text
@@ -38,6 +40,8 @@
   - [x] draw: Use highlight_features function
 - [ ] Analogs tree, structure selection, warning if no match for compounds
   - [x] Adapted to tree support
+  - [ ] Add intermediate result of extracted matches and visualization
+  - [ ] Make punch-out work on structure selection objects? We can allow provision of structure selections with atoms selected and then those will be punched out an relabeled?
   - [ ] Copy if multiple matches
   - [ ] For now: error if multiple matches
 - StateSelection
@@ -53,6 +57,7 @@
 - Dimension reduction:
   - [ ] Refactor PLS
   - [ ] Refactor LDA
+  - [x] Make projection onto PCA/other lower dimension return an appropriate wrapper format (e.g. PCAResult) 
 - [ ] Clustering support
   - [ ] DBSCAN sounds like a good option to support
 - Datasheet
