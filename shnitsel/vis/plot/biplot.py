@@ -277,6 +277,7 @@ def biplot_kde(
         noodleplot_c = None
         noodleplot_cmap = time_cmap
         kde_data = None
+        colorbar_label = None
     elif scatter_color_property == 'geo':
         if geo_feature is None:
             # Try and use additional positional parameters.
