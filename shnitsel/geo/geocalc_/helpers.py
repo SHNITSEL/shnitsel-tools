@@ -17,6 +17,54 @@ import xarray as xr
 AngleOptions: TypeAlias = Literal['deg', 'rad', 'trig']
 
 
+def _at_XYZ_subset_to_descriptor(da: xr.DataArray) -> xr.DataArray:
+    """Helper function to get rid of the `atom` dimension and its coordinates to avoid alignment issues.
+
+    Will drop the `atom` coordinate and rename the `atom` dimension to `descriptor` if
+
+    Parameters
+    ----------
+    da : xr.DataArray
+        The array to turn into a `descriptor` based array.
+
+    Returns
+    -------
+    xr.DataArray
+        The patched array
+    """
+    da = da.drop_vars(
+        'atom',
+        errors='ignore',
+    )
+
+    if 'atom' in da.dims:
+        da = da.rename(atom='descriptor')
+    else:
+        da = da.expand_dims('descriptor')
+
+    return da
+
+
+def _enforce_descriptor_dimension(da: xr.DataArray) -> xr.DataArray:
+    """Enforce the presence of a `descriptor` dimension.
+
+    Used to conditionally expand the dim in case of single-feature descriptors
+
+    Parameters
+    ----------
+    da : xr.DataArray
+        The array that should be forced to have a `descriptor` dimension
+
+    Returns
+    -------
+    xr.DataArray
+        The patched array
+    """
+    if 'descriptor' not in da.dims:
+        da = da.expand_dims('descriptor')
+    return da
+
+
 def _empty_descriptor_results(atXYZ: AtXYZ) -> xr.DataArray:
     """Get an empty result with no 'atom' dimension but a zero-length 'descriptor' dimension in its stead.
 

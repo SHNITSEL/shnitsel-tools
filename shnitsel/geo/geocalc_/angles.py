@@ -18,6 +18,7 @@ import numpy as np
 from shnitsel.geo.geocalc_.helpers import (
     AngleOptions,
     _assign_descriptor_coords,
+    _at_XYZ_subset_to_descriptor,
     _empty_descriptor_results,
 )
 from shnitsel.filtering.helpers import _get_default_structure_selection
@@ -69,9 +70,9 @@ def angle(
             c_index=c_index,
             angles=angles,
         )
-    a = atXYZ.sel(atom=a_index, drop=True).drop_vars('atom',errors='ignore')
-    b = atXYZ.sel(atom=b_index, drop=True).drop_vars('atom',errors='ignore')
-    c = atXYZ.sel(atom=c_index, drop=True).drop_vars('atom',errors='ignore')
+    a = _at_XYZ_subset_to_descriptor(atXYZ.sel(atom=a_index))
+    b = _at_XYZ_subset_to_descriptor(atXYZ.sel(atom=b_index))
+    c = _at_XYZ_subset_to_descriptor(atXYZ.sel(atom=c_index))
     ab = a - b
     cb = c - b
     result: xr.DataArray = angle_(ab, cb)
@@ -80,6 +81,7 @@ def angle(
         result.attrs['units'] = 'degrees'
     else:
         result.attrs['units'] = 'rad'
+    result.attrs['unitdim'] = 'angles'
 
     result.name = 'angle'
     if isinstance(a, int):
@@ -94,9 +96,9 @@ def angle(
 @needs(dims={'atom'})
 def angle_cos_sin(
     atXYZ: AtXYZ,
-    a_index: int | Iterable[int],
-    b_index: int | Iterable[int],
-    c_index: int | Iterable[int],
+    a_index: int | list[int],
+    b_index: int | list[int],
+    c_index: int | list[int],
 ) -> tuple[xr.DataArray, xr.DataArray]:
     """Method to calculate the cosine and sine of the angle between atoms with
     indices `a_index`, `b_index`, and `c_index` in the positions DataArray throughout time.
@@ -126,18 +128,19 @@ def angle_cos_sin(
             b_index=b_index,
             c_index=c_index,
         )
-    # TODO: FIXME: Refactor similar to `angle()` with lists of indices
-    a = atXYZ.sel(atom=a_index, drop=True)
-    b = atXYZ.sel(atom=b_index, drop=True)
-    c = atXYZ.sel(atom=c_index, drop=True)
+    a = _at_XYZ_subset_to_descriptor(atXYZ.sel(atom=a_index))
+    b = _at_XYZ_subset_to_descriptor(atXYZ.sel(atom=b_index))
+    c = _at_XYZ_subset_to_descriptor(atXYZ.sel(atom=c_index))
     ab = a - b
     cb = c - b
 
     res_cos, res_sin = angle_cos_sin_(ab, cb)
     res_cos.name = 'cos'
     res_cos.attrs['units'] = 'trig'
+    res_cos.attrs['unitdim'] = 'angles'
     res_sin.name = 'sin'
     res_sin.attrs['units'] = 'trig'
+    res_sin.attrs['unitdim'] = 'angles'
     return res_cos, res_sin
 
 
@@ -239,17 +242,13 @@ def get_angles(
     a_indices, b_indices, c_indices = zip(*[[a, b, c] for a, b, c in angle_indices])
 
     if angles != 'trig':
-        angle_arrs = angle(
-            position_data, list(a_indices), list(b_indices), list(c_indices), angles=angles
+        angle_res = angle(
+            position_data,
+            list(a_indices),
+            list(b_indices),
+            list(c_indices),
+            angles=angles,
         )
-        if 'atom' in angle_arrs.dims:
-            # If the `atom` dim is still there, reuse it and rename it
-            angle_res = angle_arrs.drop_vars('atom', errors='ignore').rename(
-                atom='descriptor'
-            )
-        else:
-            # If no `atom` dim present, add a new `descriptor` dimension
-            angle_res = angle_arrs.expand_dims('descriptor')
 
         # angle_res = xr.concat(angle_arrs, dim='descriptor')
         angle_res.name = "angles"
@@ -270,19 +269,9 @@ def get_angles(
         cos_res: xr.DataArray
         sin_res: xr.DataArray
 
-        cos_res, sin_res = angle_cos_sin(position_data, a_indices, b_indices, c_indices)
-        if 'atom' in cos_res.dims:
-            # If the `atom` dim is still there, reuse it and rename it
-            cos_res = cos_res.drop_vars('atom', errors='ignore').rename(
-                atom='descriptor'
-            )
-            sin_res = sin_res.drop_vars('atom', errors='ignore').rename(
-                atom='descriptor'
-            )
-        else:
-            # If no `atom` dim present, add a new `descriptor` dimension
-            cos_res = cos_res.expand_dims('descriptor')
-            sin_res = sin_res.expand_dims('descriptor')
+        cos_res, sin_res = angle_cos_sin(
+            position_data, list(a_indices), list(b_indices), list(c_indices)
+        )
 
         # cos_res = [
         #     x.expand_dims('descriptor')  # .squeeze('atom', drop=True,)

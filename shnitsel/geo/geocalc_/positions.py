@@ -13,6 +13,7 @@ from shnitsel.filtering.structure_selection import (
 )
 from shnitsel.geo.geocalc_.helpers import (
     _assign_descriptor_coords,
+    _at_XYZ_subset_to_descriptor,
     _empty_descriptor_results,
 )
 from shnitsel.filtering.helpers import _get_default_structure_selection
@@ -98,27 +99,21 @@ def get_positions(
     if len(position_indices) == 0:
         return _empty_descriptor_results(position_data)
 
-    positions_arrs = [position_data.sel(atom=a, drop=True) for a in position_indices]
-    coordinates_x: list[xr.DataArray]
-    coordinates_y: list[xr.DataArray]
-    coordinates_z: list[xr.DataArray]
+    positions_arrs = _at_XYZ_subset_to_descriptor(
+        position_data.sel(atom=position_indices)
+    )
+    coordinates_x: xr.DataArray
+    coordinates_y: xr.DataArray
+    coordinates_z: xr.DataArray
 
-    coordinates_x, coordinates_y, coordinates_z = [
-        list(a)
-        for a in zip(
-            *[
-                (
-                    arr.sel(direction='x', drop=True),
-                    arr.sel(direction='y', drop=True),
-                    arr.sel(direction='z', drop=True),
-                )
-                for arr in positions_arrs
-            ]
-        )
-    ]
+    coordinates_x, coordinates_y, coordinates_z = (
+        positions_arrs.sel(direction='x').squeeze('direction'),
+        positions_arrs.sel(direction='y').squeeze('direction'),
+        positions_arrs.sel(direction='z').squeeze('direction'),
+    )
 
     coordinates_res = xr.concat(
-        coordinates_x + coordinates_y + coordinates_z, dim='descriptor'
+        [coordinates_x, coordinates_y, coordinates_z], dim='descriptor'
     )
 
     descriptor_tex = (
