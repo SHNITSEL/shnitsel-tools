@@ -1,4 +1,4 @@
-from typing import Any, Literal, Sequence, overload
+from typing import Any, Iterable, Literal, Sequence, overload
 from shnitsel._contracts import needs
 from shnitsel.core._api_info import API
 import xarray as xr
@@ -27,9 +27,9 @@ from shnitsel.filtering.helpers import _get_default_structure_selection
 @needs(dims={'atom'})
 def angle(
     atXYZ: AtXYZ,
-    a_index: int,
-    b_index: int,
-    c_index: int,
+    a_index: int | list[int],
+    b_index: int | list[int],
+    c_index: int | list[int],
     *,
     angles: AngleOptions = 'deg',
 ) -> xr.DataArray:  # noqa: F821
@@ -69,9 +69,9 @@ def angle(
             c_index=c_index,
             angles=angles,
         )
-    a = atXYZ.sel(atom=a_index, drop=True)
-    b = atXYZ.sel(atom=b_index, drop=True)
-    c = atXYZ.sel(atom=c_index, drop=True)
+    a = atXYZ.sel(atom=a_index, drop=True).drop_vars('atom',errors='ignore')
+    b = atXYZ.sel(atom=b_index, drop=True).drop_vars('atom',errors='ignore')
+    c = atXYZ.sel(atom=c_index, drop=True).drop_vars('atom',errors='ignore')
     ab = a - b
     cb = c - b
     result: xr.DataArray = angle_(ab, cb)
@@ -82,7 +82,11 @@ def angle(
         result.attrs['units'] = 'rad'
 
     result.name = 'angle'
-    result.attrs['long_name'] = r"\theta_{%d,%d,%d}" % (a_index, b_index, c_index)
+    if isinstance(a, int):
+        result.attrs['long_name'] = r"\theta_{%d,%d,%d}" % (a_index, b_index, c_index)
+    else:
+        result.attrs['long_name'] = r"\theta_{i,j,k}"
+
     return result
 
 
@@ -90,9 +94,9 @@ def angle(
 @needs(dims={'atom'})
 def angle_cos_sin(
     atXYZ: AtXYZ,
-    a_index: int,
-    b_index: int,
-    c_index: int,
+    a_index: int | Iterable[int],
+    b_index: int | Iterable[int],
+    c_index: int | Iterable[int],
 ) -> tuple[xr.DataArray, xr.DataArray]:
     """Method to calculate the cosine and sine of the angle between atoms with
     indices `a_index`, `b_index`, and `c_index` in the positions DataArray throughout time.
@@ -103,11 +107,11 @@ def angle_cos_sin(
     ----------
     atXYZ : AtXYZ
         DataArray with positions
-    a_index : int
+    a_index : int | Iterable[int]
         Index of first atom.
-    b_index : int
+    b_index : int | Iterable[int]
         Index of second center atom comprising the angle.
-    c_index : int
+    c_index : int | Iterable[int]
         Index of third atom.
 
     Returns
@@ -122,6 +126,7 @@ def angle_cos_sin(
             b_index=b_index,
             c_index=c_index,
         )
+    # TODO: FIXME: Refactor similar to `angle()` with lists of indices
     a = atXYZ.sel(atom=a_index, drop=True)
     b = atXYZ.sel(atom=b_index, drop=True)
     c = atXYZ.sel(atom=c_index, drop=True)
@@ -231,13 +236,22 @@ def get_angles(
     if len(angle_indices) == 0:
         return _empty_descriptor_results(position_data)
 
-    if angles != 'trig':
-        angle_arrs = [
-            angle(position_data, a, b, c, angles=angles).expand_dims('descriptor')
-            for a, b, c in angle_indices
-        ]
+    a_indices, b_indices, c_indices = zip(*[[a, b, c] for a, b, c in angle_indices])
 
-        angle_res = xr.concat(angle_arrs, dim='descriptor')
+    if angles != 'trig':
+        angle_arrs = angle(
+            position_data, list(a_indices), list(b_indices), list(c_indices), angles=angles
+        )
+        if 'atom' in angle_arrs.dims:
+            # If the `atom` dim is still there, reuse it and rename it
+            angle_res = angle_arrs.drop_vars('atom', errors='ignore').rename(
+                atom='descriptor'
+            )
+        else:
+            # If no `atom` dim present, add a new `descriptor` dimension
+            angle_res = angle_arrs.expand_dims('descriptor')
+
+        # angle_res = xr.concat(angle_arrs, dim='descriptor')
         angle_res.name = "angles"
 
         descriptor_tex = [r"\theta_{%d,%d,%d}" % (a, b, c) for a, b, c in angle_indices]
@@ -253,21 +267,32 @@ def get_angles(
         )
     else:
         # Trigonometric results requested
-        cos_res: Sequence[xr.DataArray]
-        sin_res: Sequence[xr.DataArray]
-        cos_res, sin_res = zip(
-            *[angle_cos_sin(position_data, a, b, c) for a, b, c in angle_indices]
-        )
+        cos_res: xr.DataArray
+        sin_res: xr.DataArray
 
-        cos_res = [
-            x.expand_dims('descriptor')  # .squeeze('atom', drop=True,)
-            for x in cos_res
-        ]
-        sin_res = [
-            x.expand_dims('descriptor')  # .squeeze('atom', drop=True)
-            for x in sin_res
-        ]
-        all_res: Sequence[xr.DataArray] = cos_res + sin_res
+        cos_res, sin_res = angle_cos_sin(position_data, a_indices, b_indices, c_indices)
+        if 'atom' in cos_res.dims:
+            # If the `atom` dim is still there, reuse it and rename it
+            cos_res = cos_res.drop_vars('atom', errors='ignore').rename(
+                atom='descriptor'
+            )
+            sin_res = sin_res.drop_vars('atom', errors='ignore').rename(
+                atom='descriptor'
+            )
+        else:
+            # If no `atom` dim present, add a new `descriptor` dimension
+            cos_res = cos_res.expand_dims('descriptor')
+            sin_res = sin_res.expand_dims('descriptor')
+
+        # cos_res = [
+        #     x.expand_dims('descriptor')  # .squeeze('atom', drop=True,)
+        #     for x in cos_res
+        # ]
+        # sin_res = [
+        #     x.expand_dims('descriptor')  # .squeeze('atom', drop=True)
+        #     for x in sin_res
+        # ]
+        all_res: Sequence[xr.DataArray] = [cos_res, sin_res]
 
         if not signed:
             all_res = [np.abs(x) for x in all_res]
@@ -280,9 +305,9 @@ def get_angles(
             r'cos(%d,%d,%d)' % (a, b, c) for a, b, c in angle_indices
         ] + [r'sin(%d,%d,%d)' % (a, b, c) for a, b, c in angle_indices]
 
-        descriptor_type: list[FeatureTypeLabel] = ['cos_angle'] * len(cos_res) + [
-            'sin_angle'
-        ] * len(sin_res)  # pyright: ignore[reportAssignmentType] # Is allowed string, but not generally advertised
+        descriptor_type: list[FeatureTypeLabel] = ['cos_angle'] * cos_res.sizes[
+            'descriptor'
+        ] + ['sin_angle'] * sin_res.sizes['descriptor']  # pyright: ignore[reportAssignmentType] # Is allowed string, but not generally advertised
 
         angle_res: xr.DataArray = xr.concat(all_res, dim='descriptor')  # type: ignore
         angle_res.name = "angles"
