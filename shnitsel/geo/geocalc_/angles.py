@@ -200,7 +200,7 @@ def get_angles(
     if isinstance(atXYZ_source, TreeNode):
         return atXYZ_source.map_data(
             lambda x: get_angles(
-                x, structure_selection=structure_selection, deg=deg, signed=signed
+                x, structure_selection=structure_selection, angles=angles, signed=signed
             ),
             keep_empty_branches=True,
             dtype=xr.DataArray,
@@ -231,9 +231,9 @@ def get_angles(
     if len(angle_indices) == 0:
         return _empty_descriptor_results(position_data)
 
-    if isinstance(deg, bool):
+    if angles != 'trig':
         angle_arrs = [
-            angle(position_data, a, b, c, deg=deg).expand_dims('descriptor')
+            angle(position_data, a, b, c, angles=angles).expand_dims('descriptor')
             for a, b, c in angle_indices
         ]
 
