@@ -121,7 +121,7 @@ def biplot_kde(
         or just contour lines (``contour_fill=False``, uses ``ax.contour``).
     contour_colors : list[str], optional
         An iterable (not a Colormap) of colours (in a format matplotlib will accept) to use for the contours.
-        By default, the ``geo_cmap`` will be used; this defaults to 'PRGn'.
+        By default, the ``property_cmap`` will be used; this defaults to 'PRGn' or 'cividis'.
     num_bins : {1, 2, 3, 4}, default = 4
         number of bins to be visualized, must be an integer between 1 and 4
     fig : mpl.figure.Figure, optional
@@ -188,8 +188,7 @@ def biplot_kde(
                 scatter_color_property=scatter_color_property,
                 show_loadings=show_loadings,
                 geo_feature=geo_feature,
-                geo_cmap=geo_cmap,  # any valid cmap type
-                time_cmap=time_cmap,  # any valid cmap type
+                property_cmap=property_cmap,  # any valid cmap type
                 contour_levels=contour_levels,
                 contour_colors=contour_colors,
                 contour_fill=contour_fill,
