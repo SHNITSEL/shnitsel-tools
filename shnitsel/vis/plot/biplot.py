@@ -65,8 +65,7 @@ def biplot_kde(
     | DihedralDescriptor
     | PyramidsDescriptor
     | None = None,
-    geo_cmap: str | Colormap | None = 'PRGn',  # any valid cmap type
-    time_cmap: str | Colormap | None = 'cividis',  # any valid cmap type
+    property_cmap: str | Colormap | None = None,  # any valid cmap type
     contour_levels: int | list[float] | None = None,
     contour_colors: list[str] | None = None,
     contour_fill: bool = True,
@@ -113,11 +112,10 @@ def biplot_kde(
         Option to control whether the most relevant loadings should be plotted over the scatterplot of PCA results.
         By default 4, meaning the top 4 contributing features across all components will be plotted into the graph.
         Set to 0 to remove the plots of loadings.
-    geo_cmap : str, default = 'PRGn'
-        The Colormap to use for the noodleplot, if ``scatter_color='geo'``; this also determines contour
-        colors unless ``contour_colors`` is set.
-    time_cmap : str, default = 'cividis'
-        The Colormap to use for the noodleplot, if ``scatter_color='time'``.
+    property_cmap : str | Colormap, optional
+        The Colormap to use for the noodleplot, if ``scatter_color_property='geo'`` this defaults to 'PRGn'; 
+        if ``scatter_color_property='time'`` then 'cividis' is used.
+        This also determines contour colors unless ``contour_colors`` is set.
     contour_fill : bool, default = True
         Whether to plot filled contours (``contour_fill=True``, uses ``ax.contourf``)
         or just contour lines (``contour_fill=False``, uses ``ax.contour``).
@@ -275,7 +273,7 @@ def biplot_kde(
 
     if scatter_color_property == 'time':
         noodleplot_c = None
-        noodleplot_cmap = time_cmap
+        noodleplot_cmap = property_cmap if property_cmap is not None else 'cividis'
         kde_data = None
         colorbar_label = None
     elif scatter_color_property == 'geo':
@@ -330,7 +328,7 @@ def biplot_kde(
                 )
         kde_data = _fit_and_eval_kdes(pca_data, geo_prop, geo_kde_ranges, num_steps=100)
         noodleplot_c = geo_prop
-        noodleplot_cmap = geo_cmap
+        noodleplot_cmap = property_cmap if property_cmap is not None else 'PRGn'
     else:
         raise ValueError(
             f"Unsupported coloring option `{scatter_color_property}` only supported options are `geo` or `time`."
