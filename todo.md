@@ -38,18 +38,21 @@
   - [ ] Structure selection (raise error if empty/warning if empty)
   - [x] draw: Draw grid of highlighted feature levels
   - [x] draw: Use highlight_features function
+- [x] Profiling of key functions like `get_bats()`
+  - [x] Drastically improved performance of `get_bats()` and other `geocalc` functions by employing multi-`.sel()` feature of xarray we originally had used before the rewrite.
 - [ ] Analogs tree, structure selection, warning if no match for compounds
   - [x] Adapted to tree support
   - [ ] Add intermediate result of extracted matches and visualization
   - [ ] Make punch-out work on structure selection objects? We can allow provision of structure selections with atoms selected and then those will be punched out an relabeled?
   - [ ] Copy if multiple matches
-  - [ ] For now: error if multiple matches
+  - [ ] For now: ignore if multiple matches
 - StateSelection
   - [x] Add Support for textual representation of state selection
   - [x] Add merge/subtract/intersect operations
 - biplot_kde needs to be fixed to use the descriptors of the PCA in the side plots.
   - [x] Fix PCA loadings main contribution plot not being the same as the explained PCA.
   - [x] Fix cluster loadings plot occasionally empty.
+  - [ ] Add a `state` coloring option to explore splits between different states in state space
 - Visualization support
   - [ ] Add generic `plot()` function to various types
   - [ ] Add option for plots from tree hierarchies
@@ -100,7 +103,6 @@
 
 ## Tertiary TODO:
 
-- [ ] Profiling of key functions like `get_bats()`
 - [ ] FIXME: Shape mismatch between DCM in PyRAI2md and default trajectory setup
 - [ ] Support reading SHARC netcdf output files
 
