@@ -1,9 +1,8 @@
 import xarray as xr
-from ..generic import norm
+from .generic import norm
 import abc
-from typing import Generic, Hashable, Mapping
+from typing import Generic, Hashable, Mapping, TypeVar
 
-from matplotlib.pylab import TypeVar
 import numpy as np
 from sklearn.pipeline import Pipeline
 
@@ -63,7 +62,7 @@ class DimRedResult(
         return self._inputs
 
     @property
-    def mapped_dimension(self) -> Hashable:
+    def mapped_dimension(self) -> DimName:
         return self._mapped_dimension
 
     @property

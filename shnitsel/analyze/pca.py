@@ -16,7 +16,7 @@ from shnitsel.data.dataset_containers.shared import ShnitselDataset
 from shnitsel.data.dataset_containers.trajectory import Trajectory
 from shnitsel.data.multi_indices import mdiff
 from sklearn.decomposition import PCA as sk_PCA
-from ..hops import hops_mask_from_active_state
+from .hops import hops_mask_from_active_state
 
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.pipeline import Pipeline
@@ -504,8 +504,8 @@ def pca(
                 # subtree as output
                 full_res = PCAResult(
                     pca_inputs=inputs,
-                    pca_dimension=tmp_res.pca_mapped_dimension,
-                    pca_pipeline=tmp_res.pca_pipeline,
+                    pca_dimension=tmp_res.mapped_dimension,
+                    pca_pipeline=tmp_res.pipeline,
                     pca_object=tmp_res.fitted_pca_object,
                     pca_projected_inputs=mapped_inputs,
                 )

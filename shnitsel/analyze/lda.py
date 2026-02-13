@@ -1,5 +1,4 @@
-from typing import Generic
-from matplotlib.pylab import TypeVar
+from typing import Generic, TypeVar
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as sk_LDA
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import MinMaxScaler
