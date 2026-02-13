@@ -120,11 +120,11 @@ def pyramidalization_angle(
         cos_raw, sin_raw = angle_cos_sin_(orbital_aligned_normal, x - b)
 
         if isinstance(a, int):
-            cos_raw.attrs['long_name'] = r"\cos(\chi_{%d}^{%d,%d,%d})" % (x, a, b, c)
-            sin_raw.attrs['long_name'] = r"\sin(\chi_{%d}^{%d,%d,%d})" % (x, a, b, c)
+            cos_raw.attrs['long_name'] = r"\cos(\chi^{%d}_{%d,%d,%d})" % (x, a, b, c)
+            sin_raw.attrs['long_name'] = r"\sin(\chi^{%d}_{%d,%d,%d})" % (x, a, b, c)
         else:
-            cos_raw.attrs['long_name'] = r"\cos(\chi_{x}^{a,b,c})"
-            sin_raw.attrs['long_name'] = r"\sin(\chi_{%d}^{%d,%d,%d})" % (x, a, b, c)
+            cos_raw.attrs['long_name'] = r"\cos(\chi^{x}_{a,b,c})"
+            sin_raw.attrs['long_name'] = r"\sin(\chi^{x}_{a,b,c})"
         # The 90-x swaps cos and sin
         return (sin_raw, cos_raw)  # type: ignore # Cannot be a variable if provided with a DataArray
 
@@ -137,9 +137,9 @@ def pyramidalization_angle(
         angle_rad.attrs['units'] = 'rad'
 
     if isinstance(a, int):
-        angle_rad.attrs['long_name'] = r"\chi_{%d}^{%d,%d,%d}" % (x, a, b, c)
+        angle_rad.attrs['long_name'] = r"\chi^{%d}_{%d,%d,%d}" % (x, a, b, c)
     else:
-        angle_rad.attrs['long_name'] = r"\chi_{x}^{a,b,c}"
+        angle_rad.attrs['long_name'] = r"\chi^{x}_{a,b,c}"
 
     return angle_rad  # type: ignore # Cannot be a variable if provided with a DataArray
 
@@ -260,11 +260,11 @@ def get_pyramidalization(
     if angles == 'trig':
         pyr_angles_cos, pyr_angles_sin = pyr_angles
         descriptor_tex_cos = [
-            r'\cos(\chi_{%d}^{%d,%d,%d})' % (x, a, b, c)
+            r'\cos(\chi^{%d}_{%d,%d,%d})' % (x, a, b, c)
             for x, (a, b, c) in pyramid_descriptors
         ]
         descriptor_tex_sin = [
-            r'\sin(\chi_{%d}^{%d,%d,%d})' % (x, a, b, c)
+            r'\sin(\chi^{%d}_{%d,%d,%d})' % (x, a, b, c)
             for x, (a, b, c) in pyramid_descriptors
         ]
         descriptor_name_cos = [
@@ -300,7 +300,7 @@ def get_pyramidalization(
 
     else:
         descriptor_tex = [
-            r'\chi_{%d}^{%d,%d,%d}' % (x, a, b, c)
+            r'\chi^{%d}_{%d,%d,%d}' % (x, a, b, c)
             for x, (a, b, c) in pyramid_descriptors
         ]
         descriptor_name = [
