@@ -1,11 +1,9 @@
 import logging
-from typing import Any, Iterable, Literal, Sequence
+from typing import Any, Literal, Sequence
 
-from matplotlib.axes import Axes
-from matplotlib.colors import Colormap
-from matplotlib.figure import Figure, SubFigure
+from matplotlib.colors import Colormap, LinearSegmentedColormap
+from matplotlib.figure import Figure
 import numpy as np
-from numpy.typing import ArrayLike
 import rdkit
 from scipy import stats
 import matplotlib as mpl
@@ -13,13 +11,12 @@ import matplotlib.pyplot as plt
 import xarray as xr
 
 from shnitsel.analyze.hops import hops_mask_from_active_state
-from shnitsel.analyze.pca import PCAResult, pca, pca_and_hops
+from shnitsel.analyze.pca import PCAResult, pca
 from shnitsel.core.typedefs import DimName
-from shnitsel.data.dataset_containers import Frames, Trajectory, wrap_dataset
-from shnitsel.data.dataset_containers.multi_layered import MultiSeriesLayered
-from shnitsel.data.dataset_containers.multi_stacked import MultiSeriesStacked
+from shnitsel.data.dataset_containers import wrap_dataset
 from shnitsel.data.dataset_containers.shared import ShnitselDataset
 from shnitsel.data.tree.node import TreeNode
+from shnitsel.filtering.helpers import _get_default_state_selection
 from shnitsel.filtering.state_selection import StateSelection, StateSelectionDescriptor
 from shnitsel.filtering.structure_selection import (
     AngleDescriptor,
@@ -58,7 +55,9 @@ def biplot_kde(
     | None = None,
     mol: rdkit.Chem.Mol | None = None,
     geo_kde_ranges: Sequence[tuple[float, float]] | None = None,
-    scatter_color_property: Literal['time', 'geo'] = 'time', # TODO: FIXME: Add a 'state' color option.
+    scatter_color_property: Literal[
+        'time', 'geo', 'state'
+    ] = 'time',  # TODO: FIXME: Add a 'state' color option.
     show_loadings: int = 4,
     geo_feature: BondDescriptor
     | AngleDescriptor
@@ -94,7 +93,11 @@ def biplot_kde(
     pca_data : PCAResult, optional
         A PCA result to use for the analysis. If not provided, will perform PCA analysis based on `structure_selection` or a
         generic pairwise distance PCA on `frames`.
-        Accordingly, if provided, the parameter `frames` needs to correspond to the input provided to obtain the value in `
+        Accordingly, if provided, the parameter `frames` needs to correspond to the input provided to obtain the value in `pca_data`.
+    state_selection: StateSelection | StateSelectionDescriptor, optional
+        Optional parameter to specify, which transitions to consider for hopping point display as well as for the coloring of states if
+        the `scatter_color_property` parameter is set to `'state'`.
+        If not provided, a default selection with default colors will be generated.
     structure_selection: StructureSelection | StructureSelectionDescriptor, optional
         An optional selection of features/structure to use for the PCA analysis.
     geo_kde_ranges : Sequence[tuple[float, float]], optional
@@ -105,9 +108,11 @@ def biplot_kde(
         Contour levels for the KDE plot. Either the number of contour levels as an int or the list of floating 
         point values at which the contour lines should be drawn. Defaults to [0.08, 1]. 
         This parameter is passed to matplotlib.axes.Axes.contour.
-    scatter_color_property : {'time', 'geo'}, default='time'
-        Must be one of 'time' or 'geo'. If 'time', the scatter-points will be colored based on the time coordinate;
-        if 'geo', the scatter-points will be colored based on the relevant geometry feature (see above).
+    scatter_color_property : {'time', 'geo', 'state'}, default='time'
+        Must be one of 'time' or 'geo' or 'state'. If 'time', the scatter-points will be colored based on the time coordinate;
+        if 'geo', the scatter-points will be colored based on the relevant geometry feature (see above);
+        if 'state', the scatter-points will be colored based on the active state at that point in time using the colors associated
+        with the `state_selection` parameter.
     show_loadings : int, default=4
         Option to control whether the most relevant loadings should be plotted over the scatterplot of PCA results.
         By default 4, meaning the top 4 contributing features across all components will be plotted into the graph.
@@ -207,16 +212,8 @@ def biplot_kde(
         )
         return list(mapped_biplots.collect_data())
 
-    try:
-        hops_mask = hops_mask_from_active_state(
-            frames, hop_type_selection=state_selection
-        )
-    except:
-        logging.warning("Could not obtain `hops` mask from `frames` input.")
-        hops_mask = None
-
-    if scatter_color_property not in {'time', 'geo'}:
-        raise ValueError("`scatter_color` must be 'time' or 'geo'")
+    if scatter_color_property not in {'time', 'geo', 'state'}:
+        raise ValueError("`scatter_color_property` must be 'time', 'geo', or 'state'")
 
     if contour_levels is None:
         contour_levels = [0.08, 1]
@@ -225,6 +222,21 @@ def biplot_kde(
         tree_mode = True
     else:
         tree_mode = False
+
+    if tree_mode:
+        state_selection = _get_default_state_selection(
+            state_selection, list(frames.collect_data())[0]
+        )
+    else:
+        state_selection = _get_default_state_selection(state_selection, frames)
+
+    try:
+        hops_mask = hops_mask_from_active_state(
+            frames, hop_type_selection=state_selection
+        )
+    except:
+        logging.warning("Could not obtain `hops` mask from `frames` input.")
+        hops_mask = None
 
     # prepare layout
     if fig is None:
@@ -273,8 +285,79 @@ def biplot_kde(
     if scatter_color_property == 'time':
         noodleplot_c = None
         noodleplot_cmap = property_cmap if property_cmap is not None else 'cividis'
+        noodleplot_cnorm = None
+        noodleplot_colorbar_kws = None
         kde_data = None
         colorbar_label = None
+    elif scatter_color_property == 'state':
+        # assert 'astate' in frames.coords, (
+        #     "Input data has no `active state` information (`astate`). Coloring by state is not possible."
+        # )
+        state_prop = frames.astate
+
+        all_states = sorted(list(set(state_selection.states_base)))
+        relevant_states = sorted(list(set(state_selection.states)))
+
+        num_states = len(all_states)
+
+        assert num_states > 0, (
+            "Input data has no states associated with it. Cannot color by state."
+        )
+
+        if num_states > 1:
+            rel_states_arr = np.array(all_states)
+            state_cutoffs = (
+                [np.min(rel_states_arr) - 0.5]
+                + ((rel_states_arr[1:] + rel_states_arr[:-1]) / 2.0).tolist()
+                + [np.max(rel_states_arr) + 0.5]
+            )
+            state_norm = mpl.colors.BoundaryNorm(
+                boundaries=state_cutoffs,
+                ncolors=num_states,
+            )
+            tick_positions = (
+                1 + np.arange(num_states)
+            )  # [s for s in all_states] # 0.5 + np.arange(num_states) * (num_states - 1) / num_states
+        else:
+            state_norm = mpl.colors.BoundaryNorm(
+                boundaries=[relevant_states[0] - 0.5, relevant_states[0] + 0.5],
+                ncolors=1,
+            )
+            tick_positions = [0.0]
+
+        missing_color = (0.5, 0.5, 0.5)
+
+        state_colors = [
+            state_selection.get_state_color(s)
+            if s in relevant_states
+            else missing_color
+            for s in all_states
+        ]
+        state_labels = [
+            f"${state_selection.get_state_tex_label(s)}$" for s in all_states
+        ]
+
+        if contour_colors is None:
+            contour_colors = [
+                state_selection.get_state_color(s) for s in relevant_states
+            ]
+
+        cm = LinearSegmentedColormap.from_list(
+            'state_color_map', state_colors, N=num_states
+        )
+        noodleplot_colorbar_kws = {
+            'ticks': tick_positions,
+            'format': mpl.ticker.FixedFormatter(state_labels),
+        }
+
+        state_ranges = [(s - 0.25, s + 0.25) for s in relevant_states]
+
+        kde_data = _fit_and_eval_kdes(pca_data, state_prop, state_ranges, num_steps=100)
+        noodleplot_c = state_prop
+        noodleplot_cmap = cm
+        noodleplot_cnorm = state_norm
+        colorbar_label = "State"
+
     elif scatter_color_property == 'geo':
         if geo_feature is None:
             # Try and use additional positional parameters.
@@ -331,6 +414,8 @@ def biplot_kde(
         kde_data = _fit_and_eval_kdes(pca_data, geo_prop, geo_kde_ranges, num_steps=100)
         noodleplot_c = geo_prop
         noodleplot_cmap = property_cmap if property_cmap is not None else 'PRGn'
+        noodleplot_cnorm = None
+        noodleplot_colorbar_kws = None
     else:
         raise ValueError(
             f"Unsupported coloring option `{scatter_color_property}` only supported options are `geo` or `time`."
@@ -352,7 +437,8 @@ def biplot_kde(
         hops_mask,
         c=noodleplot_c,
         cmap=noodleplot_cmap,
-        # cnorm=noodle_cnorm,
+        cnorm=noodleplot_cnorm,
+        colorbar_kws=noodleplot_colorbar_kws,
         colorbar_label=colorbar_label,
         ax=pcaax,
         noodle_kws=dict(alpha=1, marker='.'),
