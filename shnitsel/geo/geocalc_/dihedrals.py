@@ -57,26 +57,10 @@ def _dihedral_deg(
     xr.DataArray | xr.Variable
         The array of dihedral angels between the four input indices.
     """
-    a = (
-        atXYZ.sel(atom=a_index)
-        .drop_vars('atom', errors='ignore')
-        .rename(atom='descriptor')
-    )
-    b = (
-        atXYZ.sel(atom=b_index)
-        .drop_vars('atom', errors='ignore')
-        .rename(atom='descriptor')
-    )
-    c = (
-        atXYZ.sel(atom=c_index)
-        .drop_vars('atom', errors='ignore')
-        .rename(atom='descriptor')
-    )
-    d = (
-        atXYZ.sel(atom=d_index)
-        .drop_vars('atom', errors='ignore')
-        .rename(atom='descriptor')
-    )
+    a = _at_XYZ_subset_to_descriptor(atXYZ.sel(atom=a_index))
+    b = _at_XYZ_subset_to_descriptor(atXYZ.sel(atom=b_index))
+    c = _at_XYZ_subset_to_descriptor(atXYZ.sel(atom=c_index))
+    d = _at_XYZ_subset_to_descriptor(atXYZ.sel(atom=d_index))
     abc_normal = normal(a, b, c)
     bcd_normal = normal(b, c, d)
     if full:
@@ -286,8 +270,8 @@ def get_dihedrals(
     angles: AngleOptions = 'deg',
     signed: bool = True,
 ) -> TreeNode[Any, xr.DataArray] | xr.DataArray:
-    """Identify quadruples of bonded atoms (using RDKit) and calculate the corresponding proper bond torsion for each
-    frame.
+    """Calculate bond torsions (dihedrals) for  quadruples of bonded atoms selected in `structure_selection`
+    for each frame.
 
     Parameters
     ----------
