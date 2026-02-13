@@ -37,6 +37,7 @@ def plot_noodleplot(
     ax: Axes | None = None,
     c: NDArray | xr.DataArray | TreeNode[Any, xr.DataArray] | None = None,
     colorbar_label: str | None = None,
+    colorbar_kws: dict | None = None,
     cmap: str | Colormap | None = None,
     cnorm: Normalize | None = None,
     cscale=None,
@@ -59,7 +60,10 @@ def plot_noodleplot(
     c : xr.DataArray | TreeNode[Any, xr.DataArray], optional
         The data to use for assigning the color to each individual data point. Defaults to None.
     colorbar_label : str | None, optional
-        Label to plot next to the colorbar. If not provided will wither be taken from the `long_name` attribute or `name` attribute of the data or defaults to `t/fs`.
+        Label to plot next to the colorbar. If not provided will wither be taken from the `long_name`
+        attribute or `name` attribute of the data or defaults to `t/fs`.
+    colorbar_kws : dict, optional
+        Optional dictionary of keyword arguments to the colorbar command.
     cmap : str | Colormap | None, optional
         Colormap for plotting the datapoints. Defaults to None.
     cnorm : Normalize | None, optional
@@ -167,7 +171,10 @@ def plot_noodleplot(
             **hops_kws,
         )
 
-    fig.colorbar(sc, ax=ax, label=colorbar_label, pad=0.02)
+    if colorbar_kws:
+        fig.colorbar(sc, ax=ax, label=colorbar_label, pad=0.02, **colorbar_kws)
+    else:
+        fig.colorbar(sc, ax=ax, label=colorbar_label, pad=0.02)
 
     # Alternative layout solution
     # d = make_axes_locatable(ax)
