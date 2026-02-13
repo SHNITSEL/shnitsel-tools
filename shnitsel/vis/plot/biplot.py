@@ -58,7 +58,7 @@ def biplot_kde(
     | None = None,
     mol: rdkit.Chem.Mol | None = None,
     geo_kde_ranges: Sequence[tuple[float, float]] | None = None,
-    scatter_color_property: Literal['time', 'geo'] = 'time',
+    scatter_color_property: Literal['time', 'geo'] = 'time', # TODO: FIXME: Add a 'state' color option.
     show_loadings: int = 4,
     geo_feature: BondDescriptor
     | AngleDescriptor
@@ -291,7 +291,7 @@ def biplot_kde(
             case (atc, (at1, at2, at3)):
                 # compute pyramidalization as described by the center atom `atc` and the neighbor atoms `at1, at2, at3`
                 geo_prop = pyramids.pyramidalization_angle(
-                    wrapped_ds.positions, atc, at1, at2, at3, deg=True
+                    wrapped_ds.positions, atc, at1, at2, at3, angles='deg'
                 )
                 if not geo_kde_ranges:
                     geo_kde_ranges = [(-90, -10), (-10, 10), (10, 90)]
@@ -307,7 +307,7 @@ def biplot_kde(
             case (at1, at2, at3):
                 # compute angle between vectors at1 - at2 and at2 - at3
                 assert at3 is not None  # to satisfy the typechecker
-                geo_prop = angle(wrapped_ds.positions, at1, at2, at3, deg=True)
+                geo_prop = angle(wrapped_ds.positions, at1, at2, at3, angles='deg')
                 if not geo_kde_ranges:
                     geo_kde_ranges = [(0, 80), (110, 180)]
                 colorbar_label = (
@@ -317,7 +317,9 @@ def biplot_kde(
                 # compute dihedral defined as angle between normals to planes (at1, at2, at3) and (at2, at3, at4)
                 assert at3 is not None
                 assert at4 is not None
-                geo_prop = dihedral(wrapped_ds.positions, at1, at2, at3, at4, deg=True)
+                geo_prop = dihedral(
+                    wrapped_ds.positions, at1, at2, at3, at4, angles='deg', full=True
+                )
                 if not geo_kde_ranges:
                     geo_kde_ranges = [(0, 80), (110, 180)]
                 colorbar_label = f'dih({at1}, {at2}, {at3}, {at4}) / {geo_prop.attrs.get("units", "°")}'
@@ -325,6 +327,7 @@ def biplot_kde(
                 raise ValueError(
                     "The value provided to `biplot_kde()` as a `geo_feature` tuple does not constitute a Feature descriptor"
                 )
+        geo_prop = geo_prop.squeeze('descriptor')
         kde_data = _fit_and_eval_kdes(pca_data, geo_prop, geo_kde_ranges, num_steps=100)
         noodleplot_c = geo_prop
         noodleplot_cmap = property_cmap if property_cmap is not None else 'PRGn'
