@@ -67,7 +67,7 @@ def ski_plot(
                     .st.spectra_all_times())
             >>> spectra3d.ski_plots(spectra_data)
     """
-    # TODO: Adapt to
+    # TODO: FIXME: Adapt to tree structure
 
     spectra_data: xr.DataArray
     time_data: xr.DataArray
@@ -180,7 +180,10 @@ def ski_plot(
 ski_plots = ski_plot
 
 
-def pcm_plots(spectra: xr.DataArray) -> mpl.figure.Figure:
+def pcm_plots(
+    spectra: xr.DataArray,
+    state_selection: StateSelection | StateSelectionDescriptor | None = None,
+) -> mpl.figure.Figure:
     """Represent fosc as colour in a plot of fosc against time and energy.
     The colour scale is logarithmic.
     One plot per statecomb; plots stacked horizontally.
@@ -191,6 +194,8 @@ def pcm_plots(spectra: xr.DataArray) -> mpl.figure.Figure:
     spectra
         DataArray containing fosc values organized along 'energy', 'time' and
         'statecomb' dimensions.
+    state_selection: StateSelection | StateSelectionDescriptor, optional
+        Optionally a state selection specifying, which state transitions to consider.
 
     Returns
     -------
@@ -207,20 +212,56 @@ def pcm_plots(spectra: xr.DataArray) -> mpl.figure.Figure:
                 .st.spectra_all_times())
         >>> spectra3d.pcm_plots(spectra_data)
     """
-    assert 'time' in spectra.coords, "Missing 'time' coordinate"
-    assert 'statecomb' in spectra.coords, "Missing 'statecomb' coordinate"
-    assert 'energy_interstate' in spectra.coords, (
-        "Missing 'energy_interstate' coordinate"
+    # TODO: FIXME: Adapt to tree structure
+    
+    state_selection = _get_default_state_selection(
+        state_selection, state_source=spectra
     )
 
-    nstatecombs = spectra.sizes['statecomb']
+    spectra_data: xr.DataArray
+    if isinstance(spectra, xr.DataArray):
+        assert 'time' in spectra.coords, "Missing 'time' coordinate"
+        assert 'statecomb' in spectra.coords, "Missing 'statecomb' coordinate"
+        assert 'energy_interstate' in spectra.coords, (
+            "Missing 'energy_interstate' coordinate"
+        )
+
+        # Only keep combinations in our state selection
+        filter_combs = set(spectra.statecomb.values).intersection(
+            state_selection.state_combinations
+        )
+        spectra_data = spectra.sel(statecomb=filter_combs)
+    else:
+        spectra_source = wrap_dataset(spectra, DataSeries | InterState)
+
+        if not isinstance(spectra_source, InterState):
+            spectra_source = spectra_source.inter_state
+
+        if isinstance(spectra_source, InterState):
+            assert 'fosc' in spectra_source, (
+                "Could not derive `fosc` from input dataset."
+            )
+            assert 'time' in spectra_source.coords, (
+                "No time information present in InterState dataset. Cannot plot time evolution"
+            )
+            assert 'energy_interstate' in spectra_source, (
+                "Missing delta E across states."
+            )
+        else:
+            raise ValueError("Could not convert input dataset to interstate data.")
+
+        spectra_data = get_spectra(
+            spectra_source, state_selection=state_selection, times='all'
+        )
+
+    nstatecombs = spectra_data.sizes['statecomb']
     fig, axs = plt.subplots(1, nstatecombs, layout='constrained', sharey=True)
 
-    cnorm = mpl.colors.LogNorm(5e-4, spectra.max())
+    cnorm = mpl.colors.LogNorm(5e-4, spectra_data.max())
 
     if nstatecombs == 1:
         axs = [axs]
-    for ax, (sc, scdata) in zip(axs, spectra.groupby('statecomb')):
+    for ax, (sc, scdata) in zip(axs, spectra_data.groupby('statecomb')):
         qm = scdata.squeeze('statecomb').plot.pcolormesh(
             x='energy_interstate', y='time', ax=ax, norm=cnorm
         )
