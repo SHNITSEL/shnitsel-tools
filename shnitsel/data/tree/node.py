@@ -417,7 +417,7 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
         self,
         children: Mapping[Hashable, ChildType] | None = None,
         dtype: None = None,
-        data: DataType | None = None,
+        data: DataType | None = ...,
         **kwargs,
     ) -> Self: ...
 
@@ -435,7 +435,7 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
         self,
         children: None = None,
         dtype: type[ResType] | UnionType | None = None,
-        data: ResType | None = None,
+        data: ResType | None = ...,
         **kwargs,
     ) -> "TreeNode[Any, ResType]": ...
 
@@ -446,7 +446,7 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
         | Mapping[Hashable, NewChildType]
         | None = None,
         dtype: type[ResType] | UnionType | None = None,
-        data: ResType | None = None,
+        data: ResType | None = ...,
         **kwargs,
     ) -> Self | "TreeNode[NewChildType, ResType]":
         """Every class inheriting from TreeNode should implement this method to create a copy of that subtree
@@ -458,7 +458,7 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
         Parameters
         ----------
         data : ResType | None, optional
-            The new data to be set in the copy of this node, by default None, which should populate it with the node's current data
+            The new data to be set in the copy of this node. If not provided, this will populate it with the node's current data
         children : Mapping[str, NewChildType], optional
             A new set of children to replace the old mapping of children can be provided with this parameter.
             The data type can also be changed with appropriate typing here:

@@ -105,7 +105,7 @@ class ShnitselDBRoot(Generic[DataType], TreeNode[CompoundGroup[DataType], DataTy
         self,
         children: Mapping[Hashable, CompoundGroup[DataType]] | None = None,
         dtype: None = None,
-        data: DataType | None = None,
+        data: DataType | None = ...,
         **kwargs,
     ) -> Self: ...
 
@@ -114,7 +114,7 @@ class ShnitselDBRoot(Generic[DataType], TreeNode[CompoundGroup[DataType], DataTy
         self,
         children: None = None,
         dtype: type[ResType] | UnionType | None = None,
-        data: ResType | None = None,
+        data: ResType | None = ...,
         **kwargs,
     ) -> "ShnitselDBRoot[ResType]": ...
 
@@ -140,7 +140,7 @@ class ShnitselDBRoot(Generic[DataType], TreeNode[CompoundGroup[DataType], DataTy
         | Mapping[Hashable, NewChildType]
         | None = None,
         dtype: type[ResType] | UnionType | None = None,
-        data: ResType | None = None,
+        data: ResType | None = ...,
         **kwargs,
     ) -> Self | "ShnitselDBRoot[ResType]":
         """Helper function to create a copy of this tree structure, but with potential changes to metadata, data or children
@@ -158,7 +158,7 @@ class ShnitselDBRoot(Generic[DataType], TreeNode[CompoundGroup[DataType], DataTy
         -----------
             Self: A copy of this node with recursively copied children if `children` is not set with an appropriate mapping.
         """
-        assert data is None, "No data must be set on a root node"
+        assert data is ... or data is None, "No data must be set on a root node"
 
         if 'attrs' not in kwargs:
             kwargs['attrs'] = dict(self._attrs)

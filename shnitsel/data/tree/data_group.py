@@ -82,7 +82,7 @@ class DataGroup(
         children: Mapping[Hashable, "DataGroup[DataType]|DataLeaf[DataType]"]
         | None = None,
         dtype: None = None,
-        data: DataType | None = None,
+        data: DataType | None = ...,
         **kwargs,
     ) -> Self: ...
 
@@ -91,7 +91,7 @@ class DataGroup(
         self,
         children: None = None,
         dtype: type[ResType] | UnionType | None = None,
-        data: ResType | None = None,
+        data: ResType | None = ...,
         **kwargs,
     ) -> "DataGroup[ResType]": ...
 
@@ -118,7 +118,7 @@ class DataGroup(
         | Mapping[Hashable, NewChildType]
         | None = None,
         dtype: type[ResType] | UnionType | None = None,
-        data: ResType | None = None,
+        data: ResType | None = ...,
         **kwargs,
     ) -> Self | "DataGroup[ResType]":
         """Helper function to create a copy of this tree structure, but with potential changes to metadata, data or children
@@ -136,7 +136,7 @@ class DataGroup(
         -----------
             Self: A copy of this node with recursively copied children if `children` is not set with an appropriate mapping.
         """
-        assert data is None, "No data must be set on a root node"
+        assert data is ... or data is None, "No data must be set on a group node"
         if 'name' not in kwargs:
             kwargs['name'] = self._name
         if 'group_info' not in kwargs:
