@@ -107,13 +107,26 @@ def get_positions(
     coordinates_z: xr.DataArray
 
     coordinates_x, coordinates_y, coordinates_z = (
-        positions_arrs.sel(direction='x').squeeze('direction'),
-        positions_arrs.sel(direction='y').squeeze('direction'),
-        positions_arrs.sel(direction='z').squeeze('direction'),
+        positions_arrs.sel(direction='x'),  # , .squeeze('direction'),
+        positions_arrs.sel(direction='y'),  # , .squeeze('direction'),
+        positions_arrs.sel(direction='z'),  # , .squeeze('direction'),
     )
 
+    def squeeze_dir(da):
+        if 'direction' in da.dims:
+            da = da.squeeze('direction')
+        if 'direction' in da.coords:
+            da = da.drop_vars('direction')
+
+        return da
+
     coordinates_res = xr.concat(
-        [coordinates_x, coordinates_y, coordinates_z], dim='descriptor'
+        [
+            squeeze_dir(coordinates_x),
+            squeeze_dir(coordinates_y),
+            squeeze_dir(coordinates_z),
+        ],
+        dim='descriptor',
     )
 
     descriptor_tex = (
