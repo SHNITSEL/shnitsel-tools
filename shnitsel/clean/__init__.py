@@ -26,6 +26,7 @@ from shnitsel.bridges import construct_default_mol
 from shnitsel.core._api_info import API, internal
 from shnitsel.data.dataset_containers import wrap_dataset
 from shnitsel.data.dataset_containers.frames import Frames
+from shnitsel.data.dataset_containers.shared import ShnitselDataset
 from shnitsel.data.dataset_containers.trajectory import Trajectory
 from shnitsel.data.tree.node import TreeNode
 from shnitsel.data.tree.tree import ShnitselDB
@@ -206,9 +207,9 @@ def _sanity_check_per_trajectory(
     If the input has a `criterion` dimension, it will be dropped.
     """
 
-    wrapped_ds = wrap_dataset(trajectory_or_frames, Trajectory | Frames)
+    wrapped_ds = wrap_dataset(trajectory_or_frames, ShnitselDataset)
 
-    assert isinstance(wrapped_ds, (Trajectory, Frames)), (
+    assert isinstance(wrapped_ds, (ShnitselDataset)), (
         "Data provided to `sanity_check()` is neither Trajectory nor Frame data."
     )
 

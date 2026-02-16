@@ -7,6 +7,7 @@ from shnitsel.data.dataset_containers import Frames, Trajectory, wrap_dataset
 import xarray as xr
 
 from shnitsel.data.dataset_containers.data_series import DataSeries
+from shnitsel.data.dataset_containers.shared import ShnitselDataset
 from shnitsel.data.multi_indices import mdiff
 from shnitsel.clean.common import dispatch_filter
 from shnitsel.clean.dispatch_plots import dispatch_plots
@@ -100,7 +101,7 @@ class EnergyFiltrationThresholds:
 
 
 def calculate_energy_filtranda(
-    frames_or_trajectory: xr.Dataset | DataSeries,
+    frames_or_trajectory: xr.Dataset | ShnitselDataset,
     *,
     energy_thresholds: dict[str, float] | EnergyFiltrationThresholds | None = None,
 ) -> xr.DataArray:
@@ -124,10 +125,10 @@ def calculate_energy_filtranda(
         etot_drift, etot_step and ekin_step if the input contains an e_kin variable
     """
     if isinstance(frames_or_trajectory, xr.Dataset):
-        frames_or_trajectory = wrap_dataset(frames_or_trajectory, DataSeries)
+        frames_or_trajectory = wrap_dataset(frames_or_trajectory, ShnitselDataset)
 
-    elif not isinstance(frames_or_trajectory, DataSeries):
-        message: str = 'Filtered dataset object is of type %s instead of the required types Frames or Trajectory'
+    elif not isinstance(frames_or_trajectory, ShnitselDataset):
+        message: str = 'Filtered dataset object is of type %s instead of the required type ShnitselDataset'
         logging.warning(message, type(frames_or_trajectory))
         raise ValueError(message % type(frames_or_trajectory))
 
@@ -260,8 +261,8 @@ def filter_by_energy(
     If the input has a ``filtranda`` data_var, it is overwritten.
     """
 
-    analysis_data: Trajectory | Frames = wrap_dataset(
-        frames_or_trajectory, Trajectory | Frames
+    analysis_data: ShnitselDataset = wrap_dataset(
+        frames_or_trajectory, ShnitselDataset
     )
 
     filtranda = calculate_energy_filtranda(
@@ -277,7 +278,10 @@ def filter_by_energy(
     )
     filter_res = dispatch_filter(filtered_frames, filter_method)
 
-    if isinstance(frames_or_trajectory, xr.Dataset):
-        return filter_res.dataset
-    else:
-        return filter_res
+    if filter_res is not None:
+        if isinstance(frames_or_trajectory, xr.Dataset):
+            return filter_res.dataset
+        else:
+            return filter_res
+        
+    return None
