@@ -107,6 +107,10 @@ def _dihedral_trig_(
     abc_normal = normal(a, b, c)
     bcd_normal = normal(b, c, d)
     res = angle_cos_sin_(abc_normal, bcd_normal)
+    if full:
+        # Adding the full sign of the angle possibly inverts the sign of sin, but not of cos
+        sign = np.sign(ddot(dcross(abc_normal, bcd_normal), (c - b)))
+        res = (res[0], res[1] * sign)
     res[0].attrs['units'] = 'trig'
     res[0].attrs['unitdim'] = 'angles'
     res[1].attrs['units'] = 'trig'
