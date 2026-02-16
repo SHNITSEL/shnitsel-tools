@@ -56,6 +56,12 @@
 - Visualization support
   - [ ] Add generic `plot()` function to various types
   - [ ] Add option for plots from tree hierarchies
+  - [ ] Refactor the spectra plots
+    - [x] Make spectra plots work with wrapper types/datasets
+    - [ ] TODO: Make spectra plots work with trees.
+  - [ ] Refactor colored PCA line plots
+  - [ ] Refactor time plots
+  - [ ] Refactor 
 - [ ] Add tutorial for further CLI tools
 - Dimension reduction:
   - [ ] Refactor PLS
