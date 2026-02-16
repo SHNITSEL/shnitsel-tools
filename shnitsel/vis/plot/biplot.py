@@ -2,7 +2,7 @@ import logging
 from typing import Any, Literal, Sequence
 
 from matplotlib.colors import Colormap, LinearSegmentedColormap
-from matplotlib.figure import Figure
+from matplotlib.figure import Figure, SubFigure
 import numpy as np
 import rdkit
 from scipy import stats
@@ -69,10 +69,10 @@ def biplot_kde(
     contour_colors: list[str] | None = None,
     contour_fill: bool = True,
     num_bins: Literal[1, 2, 3, 4] = 4,
-    fig: Figure | None = None,
+    fig: Figure | SubFigure | None = None,
     center_mean: bool = False,
     cluster_loadings: bool = False,
-) -> Figure | Sequence[Figure]:
+) -> Figure | SubFigure | Sequence[Figure]:
     """\
     Generates a biplot that visualizes PCA projections and kernel density estimates (KDE) 
     of a property (distance, angle, dihedral angle) describing the geometry of specified
@@ -241,10 +241,10 @@ def biplot_kde(
     # prepare layout
     if fig is None:
         fig = plt.figure(layout='constrained')
+        fig.set_size_inches(8.27, 11.69 / 3)  # a third of a page, spanning both columns
 
     oaxs = fig.subplots(1, 2, width_ratios=[3, 2])
 
-    fig.set_size_inches(8.27, 11.69 / 3)  # a third of a page, spanning both columns
     gs = oaxs[0].get_subplotspec().get_gridspec()
     for ax in oaxs:
         ax.remove()

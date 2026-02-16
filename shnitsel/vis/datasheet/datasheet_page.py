@@ -32,6 +32,7 @@ from shnitsel.data.dataset_containers import (
     PerState,
     wrap_dataset,
 )
+from shnitsel.data.dataset_containers.shared import ShnitselDataset
 from shnitsel.filtering.helpers import (
     _get_default_state_selection,
     _get_default_structure_selection,
@@ -84,8 +85,8 @@ class DatasheetPage:
     """
 
     state_selection: StateSelection
+    structure_selection: StructureSelection
     state_selection_provided: bool = False
-    structure_selection: StructureSelection | None = None
     structure_selection_provided: bool = False
 
     spectra_times: list[int | float] | np.ndarray | None = None
@@ -192,14 +193,14 @@ class DatasheetPage:
 
         # Initialize feature selection or use provided selection
         if structure_selection is not None:
-            position_data: xr.DataArray
+            position_data: xr.DataArray | ShnitselDataset
             charge_info: int | None
             if isinstance(self.frames, xr.DataArray):
                 position_data = self.frames
                 charge_info = None
             else:
-                wrapped_ds = wrap_dataset(self.frames, (Trajectory | Frames))
-                position_data = wrapped_ds.atXYZ
+                wrapped_ds = wrap_dataset(self.frames, ShnitselDataset)
+                position_data = wrapped_ds
                 charge_info = int(wrapped_ds.charge)
 
             structure_selection = _get_default_structure_selection(
@@ -211,7 +212,19 @@ class DatasheetPage:
             self.structure_selection_provided = True
             self.structure_selection = structure_selection
         else:
-            self.structure_selection = None
+            wrapped_ds = wrap_dataset(self.frames, ShnitselDataset)
+            position_data = wrapped_ds
+            charge_info = int(wrapped_ds.charge)
+
+            structure_selection = _get_default_structure_selection(
+                None,
+                atXYZ_source=position_data,
+                default_levels=['atoms', 'bonds', 'angles', 'dihedrals', 'pyramids'],
+                charge_info=charge_info,
+            ).non_redundant()
+
+            self.structure_selection = structure_selection
+            self.structure_selection_provided = False
 
         # print(self.frames)
 
@@ -491,7 +504,7 @@ class DatasheetPage:
         return self.spectra_groups[0]
 
     @cached_property
-    def spectra_excited(self) ->  xr.DataArray:
+    def spectra_excited(self) -> xr.DataArray:
         """Extracted spectral information of only the excited-state transitions
 
         Returns
@@ -513,7 +526,9 @@ class DatasheetPage:
         from shnitsel.analyze.pca import pca
 
         start = timer()
-        res = pca(self.frames, structure_selection=self.structure_selection)
+        res = pca(
+            self.frames, structure_selection=self.structure_selection.without('atoms')
+        )
         end = timer()
         info(f"cached pca_data in {end - start} s")
         return res
@@ -1246,8 +1261,8 @@ class DatasheetPage:
         for ax in oaxs.ravel():
             ax.remove()
         gridspecs = dict(
-            pca_plot=gs[:2, :2],
-            pca_extrema_plot=gs[:2, 2:],
+            pca_biplot=gs[:2, :4],
+            # pca_extrema_plot=gs[:2, 2:],
             feature_selection=gs[2:4, :],
             feature_explanation=gs[4:, :],
         )
@@ -1531,14 +1546,24 @@ class DatasheetPage:
 
         if include_pca_page:
             fig, subfigs = self.get_subfigures_pca_page()
+            from ..plot.biplot import biplot_kde
 
             fig.suptitle(f'Datasheet:{self.name} [Page: PCA]', fontsize=16)
-            ax = self.plot_noodle(
-                state_selection=self.state_selection, fig=subfigs['pca_plot']
+            biplot_fig = biplot_kde(
+                self.frames,
+                pca_data=self.pca_full_data,
+                structure_selection=self.structure_selection,
+                state_selection=self.state_selection,
+                scatter_color_property='state',
+                show_loadings=4,
+                fig=subfigs['pca_biplot'],
             )
-            ax = self.plot_pca_structure(
-                state_selection=self.state_selection, fig=subfigs['pca_extrema_plot']
-            )
+            # ax = self.plot_noodle(
+            #     state_selection=self.state_selection, fig=subfigs['pca_plot']
+            # )
+            # ax = self.plot_pca_structure(
+            #     state_selection=self.state_selection, fig=subfigs['pca_extrema_plot']
+            # )
             ax = subfigs['feature_selection'].subplots(1, 1)
             centertext("Missing", ax=ax)
             ax = subfigs['feature_explanation'].subplots(1, 1)
