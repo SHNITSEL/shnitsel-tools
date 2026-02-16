@@ -172,6 +172,15 @@ def ski_plot(
         ax.set_ylabel(r'$f_\mathrm{osc}$')
     if ax is not None:
         ax.set_xlabel(r'$E$ / eV')
+
+    if nstatecombs > 0:
+        cb = plt.colorbar(
+            mpl.cm.ScalarMappable(norm=cnorm, cmap=cmap),
+            ax=axs,
+            orientation='horizontal',
+        )
+        cb.set_label("$t$/" + spectra.time.attrs.get("units", "fs"))
+        
     return fig
 
 
@@ -183,6 +192,8 @@ ski_plots = ski_plot
 def pcm_plots(
     spectra: xr.DataArray,
     state_selection: StateSelection | StateSelectionDescriptor | None = None,
+    show_peak_tracker: bool = False,
+    threshold: float = np.inf,
 ) -> mpl.figure.Figure:
     """Represent fosc as colour in a plot of fosc against time and energy.
     The colour scale is logarithmic.
@@ -271,7 +282,26 @@ def pcm_plots(
         ax.set_ylabel(r"$t$ / " + scdata.time.attrs.get("units", "fs"))
         ax.set_title(f"${state_selection.get_state_combination_tex_label(sc)}$")
 
+        if show_peak_tracker:
+            # Only plot the peak tracker if requested
+            maxes = scdata.isel(energy_interstate=scdata.argmax('energy_interstate'))
+            xs = maxes['energy_interstate'].data
+            ys = maxes['time'].data
+
+            segments = np.c_[xs[:-1], ys[:-1], xs[1:], ys[1:]].reshape(-1, 2, 2)
+            mask = np.abs(segments[:, 0, 0] - segments[:, 1, 0]) < threshold
+            segments = segments[mask]
+            lc = mpl.collections.LineCollection(
+                segments,
+                color='k',
+                linewidths=1,
+                linestyles='--',
+                # cmap=cmap, norm=cnorm,
+            )
+            lc.set_array(maxes['time'].data)
+            ax.add_collection(lc)
+
     if qm is not None:
-        cb =plt.colorbar(qm, ax=axs)
+        cb = plt.colorbar(qm, ax=axs)
         cb.set_label(r"$f_{osc}$")
     return fig
