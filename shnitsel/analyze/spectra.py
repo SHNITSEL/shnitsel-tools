@@ -199,7 +199,7 @@ def apply_gauss_broadening(
     nsamples : int, optional
         number of evenly spaced x-values over which to sample the distribution,
         by default 1000
-    max_energy_range : float
+    min_energy_range : float, default=0.0
         The minimum x-value used for the energy-spectrum, by default 0.0
     max_energy_range : float, optional
         the maximum x-value, by default 3 standard deviations
@@ -333,13 +333,19 @@ def get_spectrum_at_time(
     t: float,
     sc: StateCombination,
     rel_cutoff: float = 0.01,
+    min_energy_range: float = 0,
+    max_energy_range: float | None = None,
 ) -> ShnitselDB[xr.Dataset] | None: ...
+
+
 @overload
 def get_spectrum_at_time(
     interstate_data: InterState | xr.Dataset | Sequence[InterState | xr.Dataset],
     t: float,
     sc: StateCombination,
     rel_cutoff: float = 0.01,
+    min_energy_range: float = 0,
+    max_energy_range: float | None = None,
 ) -> xr.DataArray | None: ...
 
 
@@ -352,6 +358,8 @@ def get_spectrum_at_time(
     t: float,
     sc: StateCombination,
     rel_cutoff: float = 0.01,
+    min_energy_range: float = 0,
+    max_energy_range: float | None = None,
 ) -> xr.DataArray | TreeNode[Any, xr.DataArray] | None:
     """Function to calculate a gaussian-smoothed spectrum of an interstate dataset at one specific point in time and for one specific state transition
 
@@ -368,6 +376,11 @@ def get_spectrum_at_time(
         State combination identifier. Provided as a tuple ``(from, to)`` of state indices.
     rel_cutoff : float, optional
         Relative cutoff threshold. Values below the max of the resulting spectrum times this scale will be ignored, by default 0.01
+    min_energy_range : float, default=0.0
+        The minimum x-value used for the energy-spectrum, by default 0.0
+    max_energy_range : float, optional
+        the maximum x-value, by default 3 standard deviations
+        beyond the pre-broadened maximum.
 
     Returns
     -------
@@ -387,6 +400,49 @@ def get_spectrum_at_time(
     ValueError
         Unsupported type provided.
     """
+
+    def finalize_with_cutoff_filter(
+        spectrum: xr.DataArray, cutoff: float, t: float, sc: StateCombination
+    ) -> xr.DataArray:
+        """Apply the cutoff filter and set coordinates for t and sc
+        on the spectrum.
+
+        Parameters
+        ----------
+        spectrum : xr.DataArray
+            The raw spectrum to consider
+        cutoff : float
+            Relative cutoff to set the spectrum to zero on
+        t : t
+            The time at which this spectrum is supposedly generated
+        sc : StateCombination
+            The state transition for which it was generated
+
+        Returns
+        -------
+        xr.DataArray
+            The filtered spectrum with time and sc coordinates set.
+
+        """
+        # Perform cutoff filtering:
+        max_ = spectrum.max().item()
+        filtered_spectrum = spectrum.where(
+            gauss_broadened_point_spectrum > cutoff * max_, other=0.0
+        )  # .energy_interstate
+        # if len(non_negligible) == 0:
+        #     return gauss_broadened_point_spectrum.sel(energy_interstate=non_negligible)
+        # return gauss_broadened_point_spectrum.sel(
+        #     energy_interstate=slice(non_negligible.min(), non_negligible.max())
+        # )
+        t_da = xr.DataArray([t], dims='time', attrs=interstate_data.time.attrs)
+        tmp_sc_array = np.array([None], dtype='O')
+        tmp_sc_array[0] = sc
+        sc_da = xr.DataArray(tmp_sc_array, dims='statecomb')
+
+        return filtered_spectrum.expand_dims(['time', 'statecomb']).assign_coords(
+            time=t_da, statecomb=sc_da
+        )
+
     if isinstance(interstate_data, TreeNode):
         interstate_data_grouped = interstate_data.group_data_by_metadata()
         # mapped_spectrum_data = interstate_data_grouped.map_data(
@@ -394,12 +450,26 @@ def get_spectrum_at_time(
         # )
 
         spectrum_tree = interstate_data_grouped.map_flat_group_data(
-            lambda x: get_spectrum_at_time(list(x), t, sc, rel_cutoff=rel_cutoff)
+            lambda x: get_spectrum_at_time(
+                list(x),
+                t,
+                sc,
+                rel_cutoff=rel_cutoff,
+                min_energy_range=min_energy_range,
+                max_energy_range=max_energy_range,
+            )
         )
         return spectrum_tree
 
-    elif isinstance(interstate_data, Sequence):
+    if isinstance(interstate_data, Sequence):
         spectra_results: list[xr.DataArray] = []
+
+        if max_energy_range is None:
+            max_energy = np.max(
+                [ds.energy_interstate.max().item() for ds in interstate_data]
+            )
+            max_energy_range = max_energy + 1.5  # Shift 1.5 eV up
+
         for traj_data in interstate_data:
             if isinstance(traj_data, InterState):
                 traj_data = traj_data.dataset
@@ -415,7 +485,13 @@ def get_spectrum_at_time(
             else:
                 curr_t = t
 
-            tmp_res = get_spectrum_at_time(traj_data, curr_t, sc, 0.00)
+            tmp_res = get_spectrum_at_time(
+                traj_data,
+                curr_t,
+                sc,
+                rel_cutoff=0.00,
+                max_energy_range=max_energy_range,
+            )
             if tmp_res is not None:
                 spectra_results.append(tmp_res)
 
@@ -431,17 +507,20 @@ def get_spectrum_at_time(
             gauss_broadened_point_spectrum.attrs.update(spectra_results[0].attrs)
 
             # Perform cutoff filtering:
-            max_ = gauss_broadened_point_spectrum.max().item()
-            non_negligible = gauss_broadened_point_spectrum.where(
-                gauss_broadened_point_spectrum > rel_cutoff * max_, drop=True
-            ).energy_interstate
-            if len(non_negligible) == 0:
-                return gauss_broadened_point_spectrum.sel(
-                    energy_interstate=non_negligible
-                )
-            return gauss_broadened_point_spectrum.sel(
-                energy_interstate=slice(non_negligible.min(), non_negligible.max())
+            return finalize_with_cutoff_filter(
+                gauss_broadened_point_spectrum, rel_cutoff, t, sc
             )
+            # max_ = gauss_broadened_point_spectrum.max().item()
+            # non_negligible = gauss_broadened_point_spectrum.where(
+            #     gauss_broadened_point_spectrum > rel_cutoff * max_, drop=True
+            # ).energy_interstate
+            # if len(non_negligible) == 0:
+            #     return gauss_broadened_point_spectrum.sel(
+            #         energy_interstate=non_negligible
+            #     )
+            # return gauss_broadened_point_spectrum.sel(
+            #     energy_interstate=slice(non_negligible.min(), non_negligible.max())
+            # )
     else:
         interstate_ds: xr.Dataset
         if isinstance(interstate_data, InterState):
@@ -453,8 +532,6 @@ def get_spectrum_at_time(
                 "Unsupported type provided to spectrum calculation: %s"
                 % type(interstate_data)
             )
-
-        # TODO: FIXME: Deal with hierarchical data being processed, i.e. take a set of Interstate data and do manual gauss broadening
         # following required because `method='nearest'` doesn't work for MultiIndex
         if t not in interstate_ds.coords['time']:
             times = np.unique(interstate_ds.coords['time'])
@@ -466,26 +543,40 @@ def get_spectrum_at_time(
 
         # Figure out how the trajectory is indexed across multiple trajectories or whether a single trajectory is provided
         trajid_dim = None
-        if "active_trajectory" in interstate_ds.energy_interstate.sizes:
-            trajid_dim = "active_trajectory"
+
+        if "atrajectory" in interstate_ds.energy_interstate.sizes:
+            # NOTE: This is a quirk of `time` being squeezed out of a multi-index `frame`. Then `atrajectory` is promoted to a dimension.
+            trajid_dim = "atrajectory"
         elif "trajectory" in interstate_ds.energy_interstate.sizes:
             trajid_dim = "trajectory"
 
         if trajid_dim is None:
-            logging.info("Single Trajectory provided, no aggregation performed")
+            logging.warning("Single Trajectory provided, no aggregation performed")
+
+        if max_energy_range is None:
+            max_energy_range = (
+                interstate_ds.energy_interstate.max().item() + 1.5
+            )  # Shift by 1.5 eV for the maximum boundary
 
         gauss_broadened_point_spectrum: xr.DataArray = apply_gauss_broadening(
-            interstate_ds.energy_interstate, interstate_ds.fosc, agg_dim=trajid_dim
+            interstate_ds.energy_interstate,
+            interstate_ds.fosc,
+            agg_dim=trajid_dim,
+            min_energy_range=min_energy_range,
+            max_energy_range=max_energy_range,
         )
-        max_ = gauss_broadened_point_spectrum.max().item()
-        non_negligible = gauss_broadened_point_spectrum.where(
-            gauss_broadened_point_spectrum > rel_cutoff * max_, drop=True
-        ).energy_interstate
-        if len(non_negligible) == 0:
-            return gauss_broadened_point_spectrum.sel(energy_interstate=non_negligible)
-        return gauss_broadened_point_spectrum.sel(
-            energy_interstate=slice(non_negligible.min(), non_negligible.max())
+        return finalize_with_cutoff_filter(
+            gauss_broadened_point_spectrum, rel_cutoff, t, sc
         )
+        # max_ = gauss_broadened_point_spectrum.max().item()
+        # non_negligible = gauss_broadened_point_spectrum.where(
+        #     gauss_broadened_point_spectrum > rel_cutoff * max_, drop=True
+        # ).energy_interstate
+        # if len(non_negligible) == 0:
+        #     return gauss_broadened_point_spectrum.sel(energy_interstate=non_negligible)
+        # return gauss_broadened_point_spectrum.sel(
+        #     energy_interstate=slice(non_negligible.min(), non_negligible.max())
+        # )
 
 
 @overload
@@ -494,7 +585,7 @@ def get_spectra(
     state_selection: StateSelection | None = None,
     times: Iterable[float] | Literal['all'] | None = None,
     rel_cutoff: float = 0.01,
-) -> SpectraDictType: ...
+) -> xr.DataArray: ...  # SpectraDictType: ...
 
 
 @overload
@@ -503,7 +594,7 @@ def get_spectra(
     state_selection: StateSelection | None = None,
     times: Iterable[float] | Literal['all'] | None = None,
     rel_cutoff: float = 0.01,
-) -> TreeNode[Any, SpectraDictType]: ...
+) -> TreeNode[Any, xr.DataArray]: ...
 
 
 @needs(data_vars={'energy', 'fosc'}, coords={"statecomb", "time"})
@@ -515,7 +606,9 @@ def get_spectra(
     state_selection: StateSelection | None = None,
     times: Iterable[float] | Literal['all'] | None = None,
     rel_cutoff: float = 0.01,
-) -> SpectraDictType | TreeNode[Any, SpectraDictType]:
+) -> (
+    xr.DataArray | TreeNode[Any, xr.DataArray]
+):  # SpectraDictType | TreeNode[Any, SpectraDictType]:
     """Function to calculate (gauss-broadened) spectra at multiple (or all) points in time
 
     Uses strength of oscillator (`fosc`) and energy deltas (`energy_interstate`) to calculate
@@ -558,6 +651,9 @@ def get_spectra(
         # TODO: FIXME: Make choice of times more sophisticated
         times = [0, 10, 20, 30]
 
+    def finalize_spectra(spectra_dict: SpectraDictType) -> xr.DataArray:
+        return xr.combine_by_coords(list(spectra_dict.values()), coords='different').fosc  # type: ignore # Result is a data array if we put in a data array, concat_dim=["time", "state_combination"])
+
     if isinstance(interstate_data, TreeNode):
         interstate_data_grouped = interstate_data.group_data_by_metadata()
 
@@ -574,35 +670,45 @@ def get_spectra(
         if times == 'all':
             times = set()
             for data in interstate_data:
-                times.update(data.coords['time'])
-            times = list(times)
-            times.sort()
+                times.update(data.coords['time'].values)
+            times = np.unique(list(times))
+            # times.sort()
 
-        if state_selection is None:
-            # Use all combinations if no selection provided
-            if isinstance(interstate_data[0], InterState):
-                state_selection = StateSelection.init_from_dataset(
-                    interstate_data[0].dataset
-                )
-            else:
-                state_selection = StateSelection.init_from_dataset(interstate_data[0])
+        max_energy = np.max(
+            [ds.energy_interstate.max().item() for ds in interstate_data]
+        )
+        max_energy_range = max_energy + 1.5
+
+        state_selection = _get_default_state_selection(
+            state_selection, interstate_data[0]
+        )
+        # if state_selection is None:
+        #     # Use all combinations if no selection provided
+        #     if isinstance(interstate_data[0], InterState):
+        #         state_selection = StateSelection.init_from_dataset(
+        #             interstate_data[0].dataset
+        #         )
+        #     else:
+        #         state_selection = StateSelection.init_from_dataset(interstate_data[0])
 
         sc_values: Iterable[tuple[int, int]] = state_selection.state_combinations
 
-        # TODO: FIXME: We should consider making this a data array with nice dimensions instead
         res: SpectraDictType = {
             (t, sc): res_spec
             for t, sc in product(times, sc_values)
             if (
                 res_spec := get_spectrum_at_time(
-                    interstate_data, t=t, sc=sc, rel_cutoff=rel_cutoff
+                    interstate_data,
+                    t=t,
+                    sc=sc,
+                    rel_cutoff=rel_cutoff,
+                    max_energy_range=max_energy_range,
                 )
             )
             is not None
         }
-        return res
+        return finalize_spectra(res)
     else:
-        # TODO: FIXME: Allow tree as input and apply to collection in grouped data manner
         interstate_dataset: xr.Dataset
 
         if isinstance(interstate_data, InterState):
@@ -616,40 +722,50 @@ def get_spectra(
             )
 
         if times == 'all':
-            times = interstate_dataset.coords['time'].values
+            times = np.unique(interstate_dataset.coords['time'].values)
 
-        if state_selection is None:
-            # Use all combinations if no selection provided
-            state_selection = StateSelection.init_from_dataset(interstate_dataset)
+        state_selection = _get_default_state_selection(
+            state_selection, interstate_dataset
+        )
+        max_energy = interstate_data.energy_interstate.max().item()
+        max_energy_range = max_energy + 1.5
+
+        # if state_selection is None:
+        #     # Use all combinations if no selection provided
+        #     state_selection = StateSelection.init_from_dataset(interstate_dataset)
 
         sc_values: Iterable[tuple[int, int]] = state_selection.state_combinations
 
-        # TODO: FIXME: We should consider making this a data array with nice dimensions instead
         res: SpectraDictType = {
             (t, sc): res_spec
             for t, sc in product(times, sc_values)
             if (
                 res_spec := get_spectrum_at_time(
-                    interstate_data, t=t, sc=sc, rel_cutoff=rel_cutoff
+                    interstate_data,
+                    t=t,
+                    sc=sc,
+                    rel_cutoff=rel_cutoff,
+                    max_energy_range=max_energy_range,
                 )
             )
             is not None
         }
-        return res
+        return finalize_spectra(res)
 
 
 def get_spectra_groups(
-    spectra: SpectraDictType,
+    spectra: xr.DataArray,
     state_selection: StateSelection | StateSelectionDescriptor | None = None,
-) -> tuple[SpectraDictType, SpectraDictType]:
+) -> tuple[xr.DataArray, xr.DataArray]:
     """Group spectra results into spectra involving the ground state or only excited states.
 
     _extended_summary_
 
     Parameters
     ----------
-    spectra : SpectraDictType
-        The Spectral calculation results, e.g. from `calc_spectra()`. Indexed by (timestep, state_combination) and yielding the associated spectrum.
+    spectra : xr.DataArray
+        The Spectral calculation results, e.g. from `calc_spectra()`.
+        Indexed by (timestep, state_combination) and yielding the associated spectrum.
     state_selection : StateSelection | StateSelectionDescriptor | None, optional
         The selection of states to consider as ground and active states, by default None.
         If not provided, all state transitions with state ids above 1 will be considered `excited` all others `ground` state transitions.
@@ -657,7 +773,7 @@ def get_spectra_groups(
 
     Returns
     -------
-    tuple[ SpectraDictType, SpectraDictType]
+    tuple[xr.DataArray, xr.DataArray]
         First the spectra involving the ground state
         Second the spectra involving only excited states.
     """
@@ -670,20 +786,22 @@ def get_spectra_groups(
             pass
 
     if state_selection is None:
-        for (t, (sc_from, sc_to)), v in spectra.items():
+        excited_transitions = []
+        ground_state_transitions = []
+        for sc_from, sc_to in spectra.statecomb.values:
             if sc_from > 1 and sc_to > 1:
-                excited[t, (sc_from, sc_to)] = v
+                excited_transitions.append((sc_from, sc_to))
             else:
-                ground[t, (sc_from, sc_to)] = v
+                ground_state_transitions.append((sc_from, sc_to))
     else:
         excited_transitions = (
             state_selection.excited_state_transitions().state_combinations
         )
-        for (t, sc), v in spectra.items():
-            if sc in excited_transitions:
-                excited[t, sc] = v
-            else:
-                ground[t, sc] = v
+        ground_state_transitions = (
+            state_selection.ground_state_transitions().state_combinations
+        )
+    ground = spectra.sel(statecomb=ground_state_transitions)
+    excited = spectra.sel(statecomb=excited_transitions)
 
     sgroups = (ground, excited)
     return sgroups

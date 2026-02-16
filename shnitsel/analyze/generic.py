@@ -138,7 +138,7 @@ def subtract_combinations(
             comb_indices.append((index_from, index_to))
     else:
         logging.info(f"Dimension {combination_dimension_name} is being generated.")
-        da = da.assign_coords()  # TODO FIXME What does this do?
+        da = da.assign_coords()  # TODO: FIXME: What does this do?
         comb_indices = list(itertools.combinations(range(n), 2))
         coordinates = {combination_dimension_name: midx(da, dim), dim: dim_index}
 
