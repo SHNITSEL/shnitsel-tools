@@ -52,7 +52,7 @@
 - biplot_kde needs to be fixed to use the descriptors of the PCA in the side plots.
   - [x] Fix PCA loadings main contribution plot not being the same as the explained PCA.
   - [x] Fix cluster loadings plot occasionally empty.
-  - [ ] Add a `state` coloring option to explore splits between different states in state space
+  - [x] Add a `state` coloring option to explore splits between different states in state space
 - Visualization support
   - [ ] Add generic `plot()` function to various types
   - [ ] Add option for plots from tree hierarchies
