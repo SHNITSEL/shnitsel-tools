@@ -85,7 +85,7 @@ def fit_kde(
         logging.warning(f"No points for KDE to fit")
         return None
     else:
-        base = data.transpose(..., leading_dim) # Swap leading dimension to the end
+        base = data.transpose(..., leading_dim)  # Swap leading dimension to the end
 
         try:
             return stats.gaussian_kde(base)
@@ -433,8 +433,10 @@ def plot_distribution_on_mesh(
             colors = ['purple', 'green']
         else:
             colors = plt.get_cmap('inferno')(range(len(Zs)))
+    else:
+        colors = list(colors)
 
-    if isinstance(Zs, Sequence):
+    if not isinstance(Zs, np.ndarray) and isinstance(Zs, Sequence):
         for Z, c in zip(Zs, colors):
             if Z is None:
                 continue
