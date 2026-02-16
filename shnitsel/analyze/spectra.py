@@ -652,7 +652,9 @@ def get_spectra(
         times = [0, 10, 20, 30]
 
     def finalize_spectra(spectra_dict: SpectraDictType) -> xr.DataArray:
-        return xr.combine_by_coords(list(spectra_dict.values()), coords='different').fosc  # type: ignore # Result is a data array if we put in a data array, concat_dim=["time", "state_combination"])
+        return xr.combine_by_coords(
+            list(spectra_dict.values()), coords='different', compat='no_conflicts'
+        ).fosc  # type: ignore # Result is a data array if we put in a data array, concat_dim=["time", "state_combination"])
 
     if isinstance(interstate_data, TreeNode):
         interstate_data_grouped = interstate_data.group_data_by_metadata()
