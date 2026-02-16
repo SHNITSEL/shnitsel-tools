@@ -168,7 +168,7 @@ def ski_plot(
             lc.set_array(maxes['time'].data)
             ax.add_collection(lc)
 
-        _inlabel(sc, ax)
+        _inlabel(f"${state_selection.get_state_combination_tex_label(sc)}$", ax)
         ax.set_ylabel(r'$f_\mathrm{osc}$')
     if ax is not None:
         ax.set_xlabel(r'$E$ / eV')
@@ -213,7 +213,7 @@ def pcm_plots(
         >>> spectra3d.pcm_plots(spectra_data)
     """
     # TODO: FIXME: Adapt to tree structure
-    
+
     state_selection = _get_default_state_selection(
         state_selection, state_source=spectra
     )
@@ -261,10 +261,17 @@ def pcm_plots(
 
     if nstatecombs == 1:
         axs = [axs]
+    qm = None
     for ax, (sc, scdata) in zip(axs, spectra_data.groupby('statecomb')):
         qm = scdata.squeeze('statecomb').plot.pcolormesh(
-            x='energy_interstate', y='time', ax=ax, norm=cnorm
+            x='energy_interstate', y='time', ax=ax, norm=cnorm, add_colorbar=False
         )
         qm.axes.invert_yaxis()
-        ax.set_title(str(sc))  # TODO (thevro): Use TeX state names
+        ax.set_xlabel(r"$\Delta E$")
+        ax.set_ylabel(r"$t$ / " + scdata.time.attrs.get("units", "fs"))
+        ax.set_title(f"${state_selection.get_state_combination_tex_label(sc)}$")
+
+    if qm is not None:
+        cb =plt.colorbar(qm, ax=axs)
+        cb.set_label(r"$f_{osc}$")
     return fig
