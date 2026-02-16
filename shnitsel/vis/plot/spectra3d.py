@@ -149,22 +149,24 @@ def ski_plot(
                 linewidth=0.2,
             )
 
-        maxes = scdata.isel(energy_interstate=scdata.argmax('energy_interstate'))
-        xs = maxes['energy_interstate'].data
-        ys = maxes.data
+        if show_peak_tracker:
+            # Only plot the peak tracker if requested
+            maxes = scdata.isel(energy_interstate=scdata.argmax('energy_interstate'))
+            xs = maxes['energy_interstate'].data
+            ys = maxes.data
 
-        segments = np.c_[xs[:-1], ys[:-1], xs[1:], ys[1:]].reshape(-1, 2, 2)
-        mask = np.abs(segments[:, 0, 0] - segments[:, 1, 0]) < threshold
-        segments = segments[mask]
-        lc = mpl.collections.LineCollection(
-            segments,
-            color='k',
-            linewidths=1,
-            linestyles='--',
-            # cmap=cmap, norm=cnorm,
-        )
-        lc.set_array(maxes['time'].data)
-        ax.add_collection(lc)
+            segments = np.c_[xs[:-1], ys[:-1], xs[1:], ys[1:]].reshape(-1, 2, 2)
+            mask = np.abs(segments[:, 0, 0] - segments[:, 1, 0]) < threshold
+            segments = segments[mask]
+            lc = mpl.collections.LineCollection(
+                segments,
+                color='k',
+                linewidths=1,
+                linestyles='--',
+                # cmap=cmap, norm=cnorm,
+            )
+            lc.set_array(maxes['time'].data)
+            ax.add_collection(lc)
 
         _inlabel(sc, ax)
         ax.set_ylabel(r'$f_\mathrm{osc}$')
