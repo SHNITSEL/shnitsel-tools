@@ -436,12 +436,12 @@ class DatasheetPage:
         return res
 
     @cached_property
-    def spectra(self) -> SpectraDictType:
+    def spectra(self) -> xr.DataArray:
         """Spectral statistics of the self.frames object.
 
         Returns
         -------
-        SpectraDictType
+        xr.DataArray
             The spectral information per state transition
         """
         start = timer()
@@ -449,7 +449,7 @@ class DatasheetPage:
         if self.frames.has_variable('dip_trans'):
             res = get_spectra(self.inter_state, times=self.spectra_times)
         else:
-            res = {}
+            res = xr.DataArray(())
         end = timer()
         info(f"cached spectra in {end - start} s")
         return res
@@ -458,8 +458,8 @@ class DatasheetPage:
     def spectra_groups(
         self,
     ) -> tuple[
-        SpectraDictType,
-        SpectraDictType,
+        xr.DataArray,
+        xr.DataArray,
     ]:
         """Get different spectral groups for ground-state transitions and for excited-state transitions
 
@@ -473,30 +473,30 @@ class DatasheetPage:
         if self.frames.has_variable('dip_trans'):
             res = get_spectra_groups(self.spectra)
         else:
-            res = ({}, {})
+            res = (xr.DataArray(), xr.DataArray())
 
         end = timer()
         info(f"cached spectra_groups in {end - start} s")
         return res
 
     @cached_property
-    def spectra_ground(self) -> SpectraDictType:
+    def spectra_ground(self) -> xr.DataArray:
         """Extracted spectral information of only the ground-state transitions
 
         Returns
         -------
-        SpectraDictType
+        xr.DataArray
             Extracted spectral information of only the ground-state transitions
         """
         return self.spectra_groups[0]
 
     @cached_property
-    def spectra_excited(self) -> SpectraDictType:
+    def spectra_excited(self) ->  xr.DataArray:
         """Extracted spectral information of only the excited-state transitions
 
         Returns
         -------
-        SpectraDictType
+        xr.DataArray
             Extracted spectral information of only the excited-state transitions
         """
         return self.spectra_groups[1]

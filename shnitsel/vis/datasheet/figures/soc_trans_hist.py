@@ -24,6 +24,7 @@ from .hist import calc_truncation_maximum, create_marginals
 from ...colormaps import magma_rw
 from ....units.conversion import convert_energy
 from scipy.stats import gaussian_kde
+import xarray as xr
 
 
 def plot_energy_histogram(
@@ -171,8 +172,8 @@ def single_trans_hist(
 
     Returns
     -------
-        The result of ax.hist2d will be returned. 
-    None 
+        The result of ax.hist2d will be returned.
+    None
         is returned if data is missing
     """
     if ax is None:
@@ -292,7 +293,7 @@ def single_soc_trans_hist(
 
     Returns
     -------
-    The result of ax.hist2d will be returned. 
+    The result of ax.hist2d will be returned.
     None is returned if data is missing
     """
     return single_trans_hist(
@@ -459,7 +460,7 @@ def plot_soc_or_dip_trans_histograms(
 )
 def plot_separated_spectra_and_soc_dip_hists(
     inter_state: InterState,
-    spectra_groups: tuple[SpectraDictType, SpectraDictType],
+    spectra_groups: tuple[xr.DataArray, xr.DataArray],
     state_selection: StateSelection,
     fig: Figure | SubFigure | None = None,
     axs: dict[str, Axes] | None = None,
@@ -504,8 +505,8 @@ def plot_separated_spectra_and_soc_dip_hists(
 
     time_unit = inter_state.dataset.time.attrs.get('units', 'fs')
 
-    times = list(set([tup[0] for tup in ground]))
-    times.sort()
+    times = np.unique(ground.time.values)
+    # times.sort()
 
     linestyles = ['solid', 'dashed', 'dashdot', 'dotted']
 
@@ -514,7 +515,7 @@ def plot_separated_spectra_and_soc_dip_hists(
     selection_ground_states = state_selection.ground_state_transitions()
 
     hist2d_outputs = []
-    if current_multiplicity is None or current_multiplicity == 1 and len(ground) > 0:
+    if current_multiplicity is None or current_multiplicity == 1 and ground.size > 0:
         # Only plot ground state spectra in singlet mode
         # ground-state spectra and histograms
         plot_spectra(
@@ -536,7 +537,7 @@ def plot_separated_spectra_and_soc_dip_hists(
         #             ),
         #             (
         #                 Line2D([0], [0], color='k', linestyle='--', linewidth=0.5),
-        #                 "$S_2/S_0$",
+        #                > "$S_2/S_0$",
         #             ),
         #         ]
         #     )
@@ -563,7 +564,7 @@ def plot_separated_spectra_and_soc_dip_hists(
         hist2d_outputs += res
 
     # excited-state spectra and histograms
-    if len(excited) >= 1:
+    if excited.size >= 1:
         plot_spectra(
             excited,
             ax=axs['se'],
@@ -715,7 +716,7 @@ def plot_separated_spectra_and_soc_dip_hists(
 )
 def plot_separated_spectra_and_soc_dip_hists_groundstate(
     inter_state: InterState,
-    spectra_groups: tuple[SpectraDictType, SpectraDictType],
+    spectra_groups: tuple[xr.DataArray, xr.DataArray],
     state_selection: StateSelection,
     fig: Figure | SubFigure | None = None,
     axs: dict[str, Axes] | None = None,
@@ -729,7 +730,7 @@ def plot_separated_spectra_and_soc_dip_hists_groundstate(
     ----------
     inter_state : InterState
         Inter-State dataset containing energy differences
-    spectra_groups : tuple[SpectraDictType, SpectraDictType]
+    spectra_groups : tuple[ xr.DataArray,  xr.DataArray]
         Tuple holding the spectra groups of ground-state transitions and excited-state transitions.
     state_selection : StateSelection
         State selection object to limit the states included in plotting and to provide state names.

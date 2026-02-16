@@ -225,14 +225,15 @@ class Datasheet:
 
     def plot(
         self,
+        path: str | PathLike | None = None,
+        *,
+        single_key: str | None = None,
         include_per_state_hist: bool = False,
         include_coupling_page: bool = True,
         include_pca_page: bool = False,
         include_meta_page: bool = False,
         borders: bool = False,
         consistent_lettering: bool = True,
-        single_key: str | None = None,
-        path: str | PathLike | None = None,
         **kwargs,
     ) -> dict[str, list[Figure]] | list[Figure]:
         """Function to plot datasheets for all trajectory groups/datasets in this Datasheet instance.
@@ -242,6 +243,10 @@ class Datasheet:
 
         Parameters
         ----------
+        path : str | PathLike | None, optional
+            Optional path to write a (multi-page) pdf of the resulting datasheets to. Defaults to None.
+        single_key : str, optional
+            Key to a single entry in this set to plot. Keys are specified as paths in the ShnitselDB structure.
         include_per_state_hist : bool, optional
             Flag to include per-state histograms in the plot. Defaults to False.
         include_coupling_page : bool, optional
@@ -254,10 +259,6 @@ class Datasheet:
             A flag whether to draw borders around plots. Defaults to False.
         consistent_lettering : bool, optional
             Flag to decide, whether same plots should always have the same letters. Defaults to True.
-        single_key : str, optional
-            Key to a single entry in this set to plot. Keys are specified as paths in the ShnitselDB structure.
-        path : str | PathLike | None, optional
-            Optional path to write a (multi-page) pdf of the resulting datasheets to. Defaults to None.
         **kwargs
             Can provide keyword arguments to be used in the pdf metadata dictionary.
             Among others: 'title', 'author', 'subject', 'keywords'.

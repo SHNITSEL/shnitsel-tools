@@ -18,6 +18,8 @@ from .hist import calc_truncation_maximum, create_marginals
 from ...colormaps import magma_rw, custom_ylgnr
 from ....units.conversion import convert_energy
 
+import xarray as xr
+
 
 def single_dip_trans_hist(
     interstate: InterState,
@@ -154,7 +156,7 @@ def plot_dip_trans_histograms(
 
 
 def plot_spectra(
-    spectra: SpectraDictType,
+    spectra: xr.DataArray,
     state_selection: StateSelection,
     ax: Axes | None = None,
     lim_num_sc: int = -1,
@@ -196,14 +198,14 @@ def plot_spectra(
     # linestyles = {t: ['-', '--', '-.', ':'][i]
     #               for i, t in enumerate(np.unique(list(zip(*spectra.keys()))[0]))}
 
-    times = list(set([tup[0] for tup in spectra]))
-    times.sort()
+    times = np.unique(spectra.time.values)
+    # times.sort()
 
     linestyles = ['solid', 'dashed', 'dashdot', 'dotted']
 
     times_styles = {t: linestyles[i % len(linestyles)] for i, t in enumerate(times)}
     sc_count = {}
-    for i, ((t, sc), data) in enumerate(spectra.items()):
+    for ((t, sc), data) in spectra.groupby(['time', 'statecomb']):
         if not state_selection.has_state_combination(sc):
             continue
 
@@ -274,7 +276,7 @@ def plot_spectra(
 )
 def plot_separated_spectra_and_hists(
     inter_state: InterState,
-    spectra_groups: tuple[SpectraDictType, SpectraDictType],
+    spectra_groups: tuple[xr.DataArray, xr.DataArray],
     state_selection: StateSelection,
     fig: Figure | SubFigure | None = None,
     axs: dict[str, Axes] | None = None,
@@ -286,7 +288,7 @@ def plot_separated_spectra_and_hists(
     ----------
     inter_state : InterState
         The interstate data to use for the spectra plots
-    spectra_groups : tuple[SpectraDictType, SpectraDictType]
+    spectra_groups : tuple[xr.DataArray, xr.DataArray]
         Spectra separated into `ground` state spectra and `excited` spectra.
     state_selection : StateSelection
         State selection object to limit the states included in plotting and to provide state names.
@@ -444,7 +446,7 @@ def plot_separated_spectra_and_hists(
 )
 def plot_separated_spectra_and_hists_groundstate(
     inter_state: InterState,
-    spectra_groups: tuple[SpectraDictType, SpectraDictType],
+    spectra_groups: tuple[xr.DataArray, xr.DataArray],
     state_selection: StateSelection,
     fig: Figure | SubFigure | None = None,
     axs: dict[str, Axes] | None = None,
@@ -458,7 +460,7 @@ def plot_separated_spectra_and_hists_groundstate(
     ----------
     inter_state : InterState
         Inter-State dataset containing energy differences
-    spectra_groups : tuple[SpectraDictType, SpectraDictType]
+    spectra_groups : tuple[xr.DataArray, xr.DataArray]
         Tuple holding the spectra groups of ground-state transitions and excited-state transitions.
     state_selection : StateSelection
         State selection object to limit the states included in plotting and to provide state names.
