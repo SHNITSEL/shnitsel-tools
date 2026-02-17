@@ -506,9 +506,9 @@ def plot_separated_spectra_and_soc_dip_hists(
 
     time_unit = inter_state.dataset.time.attrs.get('units', 'fs')
 
-    if 'time' in ground:
+    if 'time' in ground.coords:
         times = np.unique(ground.time.values)
-    elif 'time' in excited:
+    elif 'time' in excited.coords:
         times = np.unique(excited.time.values)
     else:
         times = np.array([])

@@ -493,9 +493,6 @@ class DatasheetPage:
         # TODO: FIXME: Use state selection for split
         if self.frames.has_variable('dip_trans'):
             res = get_spectra_groups(self.spectra, self.state_selection)
-
-            print("Calc spectra gs:", res[0])
-            print("Calc spectra exc:", res[1])
         else:
             res = (xr.DataArray(), xr.DataArray())
 
