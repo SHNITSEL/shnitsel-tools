@@ -288,8 +288,10 @@ def biplot_kde(
         noodleplot_cnorm = None
         noodleplot_colorbar_kws = None
         kde_data = None
-        colorbar_label = None
-    elif scatter_color_property == 'state':
+        colorbar_label = 'time'
+    elif scatter_color_property == 'state' and (
+        'astate' in frames.data_vars or 'astate' in frames.coords
+    ):
         # assert 'astate' in frames.coords, (
         #     "Input data has no `active state` information (`astate`). Coloring by state is not possible."
         # )
@@ -358,7 +360,7 @@ def biplot_kde(
         noodleplot_cnorm = state_norm
         colorbar_label = "State"
 
-    elif scatter_color_property == 'geo':
+    elif scatter_color_property == 'geo' and 'atXYZ' in frames.data_vars:
         if geo_feature is None:
             # Try and use additional positional parameters.
             geo_feature = tuple(ids)
@@ -417,9 +419,19 @@ def biplot_kde(
         noodleplot_cnorm = None
         noodleplot_colorbar_kws = None
     else:
-        raise ValueError(
-            f"Unsupported coloring option `{scatter_color_property}` only supported options are `geo` or `time`."
+        logging.error(
+            "Coloring option `{scatter_color_property}` was not supported on the available data. "
+            "Only (generally) supported options are `geo`, `time` or `state`, contingent on data availability"
         )
+        noodleplot_c = None
+        noodleplot_cmap = property_cmap if property_cmap is not None else 'cividis'
+        noodleplot_cnorm = None
+        noodleplot_colorbar_kws = None
+        kde_data = None
+        colorbar_label = None
+        # raise ValueError(
+        #     f"Unsupported coloring option `{scatter_color_property}` only supported options are `geo` or `time`."
+        # )
 
     # noodleplot_c, noodleplot_cmap = {
     #     'time': (None, time_cmap),
