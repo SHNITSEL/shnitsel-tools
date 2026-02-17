@@ -133,6 +133,8 @@ def _parse_shnitsel_file_v1_0(
     )
 
     # Rename time coordinate to same name everywhere
+
+    rename_map = {}
     tcoord = None
     if "time" in frames.coords:
         tcoord = "time"
@@ -144,14 +146,19 @@ def _parse_shnitsel_file_v1_0(
             "Renaming 'ts' dimension to 'time' to make trajectory conform to standard shnitsel format."
         )
         frames = frames.rename({"ts": "time"})
+        times_array = frames.time.astype(float)
+
         if "delta_t" in frames.attrs:
-            frames.time.values *= float(frames.attrs["delta_t"])
+            times_array.values *= float(frames.attrs["delta_t"])
             logging.warning("Guessing time unit to be `fs`")
-            frames.time.attrs.update({"units": "fs", "unitdim": "time"})
+            times_array.attrs.update({"units": "fs", "unitdim": "time"})
         else:
             logging.warning("Guessing time dimension to be unitless. (units=`1`)")
-            frames.time.attrs.update({"units": "1", "unitdim": "time"})
+            times_array.attrs.update({"units": "1", "unitdim": "time"})
+
+        frames = frames.assign_coords(time=times_array)
         tcoord = "time"
+        rename_map = {'ts':'time'}
 
     # Restore MultiIndexes
     indicator = "_MultiIndex_levels_from_attrs"
@@ -163,9 +170,10 @@ def _parse_shnitsel_file_v1_0(
             if k.startswith(level_prefix):
                 index_name = k[len(level_prefix) :]
                 # print(f"Index {index_name=} : levels={v}")
-                if len(set([frames.coords[level_name].size for level_name in v])) == 1:
+                remapped_v = [rename_map.get(level_name, level_name) for level_name in v]
+                if len(set([frames.coords[level_name].size for level_name in remapped_v])) == 1:
                     # all levels have the same length:
-                    frames = frames.set_xindex(v)
+                    frames = frames.set_xindex(remapped_v)
                     mark_variable_assigned(frames[index_name])
 
                 del frames.attrs[k]
