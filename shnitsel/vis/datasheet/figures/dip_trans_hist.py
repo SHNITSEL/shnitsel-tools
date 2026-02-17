@@ -197,7 +197,7 @@ def plot_spectra(
     ax.invert_xaxis()
     # linestyles = {t: ['-', '--', '-.', ':'][i]
     #               for i, t in enumerate(np.unique(list(zip(*spectra.keys()))[0]))}
-    if 'time' in spectra:
+    if 'time' in spectra.coords:
         times = np.unique(spectra.time.values)
     else:
         times = np.array([])
@@ -208,7 +208,7 @@ def plot_spectra(
 
     times_styles = {t: linestyles[i % len(linestyles)] for i, t in enumerate(times)}
     sc_count = {}
-    if 'time' in spectra and 'statecomb' in spectra:
+    if 'time' in spectra.coords and 'statecomb' in spectra.coords:
         for (t, sc), data in spectra.groupby(['time', 'statecomb']):
             if not state_selection.has_state_combination(sc):
                 continue
@@ -246,7 +246,9 @@ def plot_spectra(
                     peak = data[data.argmax('energy_interstate')]
                     ax.text(
                         float(
-                            convert_energy(peak['energy_interstate'], to=energy.eV).values
+                            convert_energy(
+                                peak['energy_interstate'], to=energy.eV
+                            ).values
                         ),
                         float(peak),
                         f"{t:.2f}:{sc}",

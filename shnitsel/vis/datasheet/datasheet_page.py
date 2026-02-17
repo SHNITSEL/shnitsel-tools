@@ -464,7 +464,11 @@ class DatasheetPage:
         start = timer()
         # TODO: FIXME: Use state selection for limit on which to calculate
         if self.frames.has_variable('dip_trans'):
-            res = get_spectra(self.inter_state, times=self.spectra_times)
+            res = get_spectra(
+                self.inter_state,
+                times=self.spectra_times,
+                state_selection=self.state_selection,
+            )
         else:
             res = xr.DataArray(())
         end = timer()
@@ -488,7 +492,10 @@ class DatasheetPage:
         start = timer()
         # TODO: FIXME: Use state selection for split
         if self.frames.has_variable('dip_trans'):
-            res = get_spectra_groups(self.spectra)
+            res = get_spectra_groups(self.spectra, self.state_selection)
+
+            print("Calc spectra gs:", res[0])
+            print("Calc spectra exc:", res[1])
         else:
             res = (xr.DataArray(), xr.DataArray())
 
@@ -1342,7 +1349,7 @@ class DatasheetPage:
                     rows_data,
                     colLabels=['Feature', 'Type', 'Indices', 'Loadings'],
                     rowLabels=[f"$\\#{i + 1}$" for i in range(len(rows_data))],
-                    loc='top',
+                    loc='center',
                 )
                 component_feature_table.auto_set_column_width(
                     col=list(range(len(rows_data[0])))

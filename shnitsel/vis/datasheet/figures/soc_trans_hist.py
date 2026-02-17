@@ -512,9 +512,15 @@ def plot_separated_spectra_and_soc_dip_hists(
         times = np.unique(excited.time.values)
     else:
         times = np.array([])
-    
-    ground_spectrum_valid = 'time' in ground and 'statecomb' in ground
-    excited_spectrum_valid = 'time' in excited and 'statecomb' in excited
+
+    ground_spectrum_valid = (
+        ground is not None and 'time' in ground.coords and 'statecomb' in ground.coords
+    )
+    excited_spectrum_valid = (
+        excited is not None
+        and 'time' in excited.coords
+        and 'statecomb' in excited.coords
+    )
     # times.sort()
 
     linestyles = ['solid', 'dashed', 'dashdot', 'dotted']
@@ -524,7 +530,11 @@ def plot_separated_spectra_and_soc_dip_hists(
     selection_ground_states = state_selection.ground_state_transitions()
 
     hist2d_outputs = []
-    if current_multiplicity is None or current_multiplicity == 1 and ground_spectrum_valid:
+    if (
+        current_multiplicity is None
+        or current_multiplicity == 1
+        and ground_spectrum_valid
+    ):
         # Only plot ground state spectra in singlet mode
         # ground-state spectra and histograms
         plot_spectra(
