@@ -197,59 +197,63 @@ def plot_spectra(
     ax.invert_xaxis()
     # linestyles = {t: ['-', '--', '-.', ':'][i]
     #               for i, t in enumerate(np.unique(list(zip(*spectra.keys()))[0]))}
+    if 'time' in spectra:
+        times = np.unique(spectra.time.values)
+    else:
+        times = np.array([])
 
-    times = np.unique(spectra.time.values)
     # times.sort()
 
     linestyles = ['solid', 'dashed', 'dashdot', 'dotted']
 
     times_styles = {t: linestyles[i % len(linestyles)] for i, t in enumerate(times)}
     sc_count = {}
-    for ((t, sc), data) in spectra.groupby(['time', 'statecomb']):
-        if not state_selection.has_state_combination(sc):
-            continue
-
-        if data.isnull().all():
-            continue
-
-        if sc not in sc_count:
-            if lim_num_sc > 0 and len(sc_count) >= lim_num_sc:
+    if 'time' in spectra and 'statecomb' in spectra:
+        for (t, sc), data in spectra.groupby(['time', 'statecomb']):
+            if not state_selection.has_state_combination(sc):
                 continue
-            sc_count[sc] = 0
 
-        # curr_count = sc_count[sc]
-        sc_count[sc] += 1
+            if data.isnull().all():
+                continue
 
-        sc_color = state_selection.get_state_combination_color(sc)
-        # sc_label = state_selection.get_state_combination_tex_label(sc)
-        # special casing for now
-        linestyle = times_styles[t]
+            if sc not in sc_count:
+                if lim_num_sc > 0 and len(sc_count) >= lim_num_sc:
+                    continue
+                sc_count[sc] = 0
 
-        # c = cmap(cnorm(t))
-        # ax.fill_between(data['energy'], data, alpha=0.5, color=c)
-        converted_energy = convert_energy(data['energy_interstate'], to=energy.eV)
-        converted_energy = np.abs(converted_energy)
-        ax.plot(
-            converted_energy,
-            data,
-            # linestyle=linestyles[t], c=dcol_inter[sc],
-            linestyle=linestyle,
-            c=sc_color,
-            linewidth=0.8,
-        )
-        if mark_peaks:
-            try:
-                peak = data[data.argmax('energy_interstate')]
-                ax.text(
-                    float(
-                        convert_energy(peak['energy_interstate'], to=energy.eV).values
-                    ),
-                    float(peak),
-                    f"{t:.2f}:{sc}",
-                    fontsize='xx-small',
-                )
-            except Exception as e:
-                logging.warning(f"{e}")
+            # curr_count = sc_count[sc]
+            sc_count[sc] += 1
+
+            sc_color = state_selection.get_state_combination_color(sc)
+            # sc_label = state_selection.get_state_combination_tex_label(sc)
+            # special casing for now
+            linestyle = times_styles[t]
+
+            # c = cmap(cnorm(t))
+            # ax.fill_between(data['energy'], data, alpha=0.5, color=c)
+            converted_energy = convert_energy(data['energy_interstate'], to=energy.eV)
+            converted_energy = np.abs(converted_energy)
+            ax.plot(
+                converted_energy,
+                data,
+                # linestyle=linestyles[t], c=dcol_inter[sc],
+                linestyle=linestyle,
+                c=sc_color,
+                linewidth=0.8,
+            )
+            if mark_peaks:
+                try:
+                    peak = data[data.argmax('energy_interstate')]
+                    ax.text(
+                        float(
+                            convert_energy(peak['energy_interstate'], to=energy.eV).values
+                        ),
+                        float(peak),
+                        f"{t:.2f}:{sc}",
+                        fontsize='xx-small',
+                    )
+                except Exception as e:
+                    logging.warning(f"{e}")
 
     handles = []
     labels = []
@@ -484,7 +488,12 @@ def plot_separated_spectra_and_hists_groundstate(
     """
     assert axs is not None, "Could not acquire axes to plot to."
     ground, excited = spectra_groups
-    times = [tup[0] for lst in spectra_groups for tup in lst]
+    times = [
+        np.unique(spectrum.times.values)
+        for spectrum in spectra_groups
+        if 'times' in spectrum
+    ]
+    times = np.unique(times)
     scnorm = plt.Normalize(inter_state.time.min(), inter_state.time.max() + 50)
     scscale = mpl.cm.ScalarMappable(norm=scnorm, cmap=scmap)
 

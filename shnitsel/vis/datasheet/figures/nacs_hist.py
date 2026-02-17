@@ -1,3 +1,4 @@
+import logging
 from matplotlib.figure import Figure, SubFigure
 import numpy as np
 from shnitsel._contracts import needs
@@ -11,13 +12,14 @@ from .common import figaxs_defaults, centertext
 from .hist import create_marginals, calc_truncation_maximum
 
 from matplotlib.axes import Axes
+import xarray as xr
 
 
 @figaxs_defaults(mosaic=[['ntd'], ['nde']], scale_factors=(1 / 3, 1 / 3))
 @needs(data_vars={'nacs'})
 def plot_nacs_histograms(
     inter_state: InterState,
-    hops_mask,
+    hops_mask: xr.DataArray | None,
     state_selection: StateSelection,
     fig: Figure | SubFigure | None = None,
     axs: dict[str, Axes] | None = None,
@@ -50,8 +52,11 @@ def plot_nacs_histograms(
         leading_dim = 'time'
     else:
         raise ValueError("`inter_state` parameter is no data series.")
-
-    hop_filter_data = inter_state.dataset.sel({leading_dim: hops_mask})
+    if hops_mask is not None:
+        hop_filter_data = inter_state.dataset.sel({leading_dim: hops_mask})
+    else:
+        logging.info("No hop information for filtering hop positions")
+        hop_filter_data = inter_state.dataset
 
     nacs_selection = state_selection.same_multiplicity_transitions()
 

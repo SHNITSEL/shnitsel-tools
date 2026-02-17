@@ -492,6 +492,7 @@ def plot_separated_spectra_and_soc_dip_hists(
         The axes dict after plotting to it.
     """
     assert axs is not None, "Could not acquire axes for plotting"
+
     ground, excited = spectra_groups
     scnorm = plt.Normalize(
         inter_state.dataset.time.min(), inter_state.dataset.time.max()
@@ -505,7 +506,15 @@ def plot_separated_spectra_and_soc_dip_hists(
 
     time_unit = inter_state.dataset.time.attrs.get('units', 'fs')
 
-    times = np.unique(ground.time.values)
+    if 'time' in ground:
+        times = np.unique(ground.time.values)
+    elif 'time' in excited:
+        times = np.unique(excited.time.values)
+    else:
+        times = np.array([])
+    
+    ground_spectrum_valid = 'time' in ground and 'statecomb' in ground
+    excited_spectrum_valid = 'time' in excited and 'statecomb' in excited
     # times.sort()
 
     linestyles = ['solid', 'dashed', 'dashdot', 'dotted']
@@ -515,7 +524,7 @@ def plot_separated_spectra_and_soc_dip_hists(
     selection_ground_states = state_selection.ground_state_transitions()
 
     hist2d_outputs = []
-    if current_multiplicity is None or current_multiplicity == 1 and ground.size > 0:
+    if current_multiplicity is None or current_multiplicity == 1 and ground_spectrum_valid:
         # Only plot ground state spectra in singlet mode
         # ground-state spectra and histograms
         plot_spectra(
@@ -564,7 +573,7 @@ def plot_separated_spectra_and_soc_dip_hists(
         hist2d_outputs += res
 
     # excited-state spectra and histograms
-    if excited.size >= 1:
+    if excited_spectrum_valid:
         plot_spectra(
             excited,
             ax=axs['se'],

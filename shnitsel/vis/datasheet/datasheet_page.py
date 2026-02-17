@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from functools import cached_property
 import logging
+from typing import Hashable
 from matplotlib.axes import Axes
 from sklearn.decomposition import PCA as sk_PCA
 from tqdm import tqdm
@@ -576,7 +577,7 @@ class DatasheetPage:
         return res
 
     @cached_property
-    def hops(self) -> xr.DataArray:
+    def hops(self) -> xr.DataArray | None:
         """The PCA plots at the hopping points
 
         Returns:
@@ -584,8 +585,11 @@ class DatasheetPage:
         """
         from shnitsel.analyze.hops import hops_mask_from_active_state
 
-        mask = hops_mask_from_active_state(self.frames)
-        return mask  # self.pca_data[mask]
+        try:
+            mask = hops_mask_from_active_state(self.frames)
+            return mask  # self.pca_data[mask]
+        except:
+            return None
 
     @cached_property
     def structure_atXYZ(self) -> AtXYZ:
@@ -1038,10 +1042,9 @@ class DatasheetPage:
         metainfo = []
         if 'trajectory' in self.frames.sizes:
             num_trajs = self.frames.sizes['trajectory']
-            trajectory_ids = list(set(self.frames.coords['trajectory'].values))
+            trajectory_ids = np.unique(self.frames.coords['trajectory'].values)
         elif 'atrajectory' in self.frames.coords:
-            trajectory_ids = list(set(self.frames.coords['atrajectory'].values))
-
+            trajectory_ids = np.unique(self.frames.coords['atrajectory'].values)
             num_trajs = len(trajectory_ids)
         else:
             num_trajs = 1
@@ -1103,7 +1106,7 @@ class DatasheetPage:
 
         metainfo.append(('Num Triplets', self.frames.num_triplets))
 
-        var_meta_info: list[tuple[str, tuple[str, str]]] = []
+        var_meta_info: list[tuple[Hashable, tuple[str, str]]] = []
         for varname, val in self.frames.data_vars.items():
             unit = '-'
             orig_unit = '-'
@@ -1137,22 +1140,21 @@ class DatasheetPage:
 
             ax.yaxis.set_major_locator(MaxNLocator(integer=True))
 
-            cutoff_times = []
+            cutoff_times = {}
             if 'atrajectory' in self.frames.dataset and 'time' in self.frames.coords:
                 for id, traj_data in self.frames.dataset.groupby('atrajectory'):
-                    t_max_present = traj_data['time'].max()
-                    cutoff_times.append(t_max_present)
-            cutoff_times.sort()
+                    t_max_present = traj_data['time'].max().item()
+                    cutoff_times[id] = t_max_present
             index = list(range(num_trajs))
-            ax.plot(cutoff_times, index)
+            cutoff_lengths = [cutoff_times.get(id, 0) for id in trajectory_ids]
+            ax.plot(cutoff_lengths, index)
 
             ax.fill_between(
-                [0] + cutoff_times + [t_max],
+                [0] + cutoff_lengths + [t_max],
                 [0] + index + [num_trajs - 1],
-                [num_trajs - 1] + [num_trajs - 1] * len(cutoff_times) + [num_trajs - 1],
+                [num_trajs - 1] + [num_trajs - 1] * num_trajs + [num_trajs - 1],
                 color=st_grey,
             )
-
         else:
             centertext("Not enough data", ax, clearticks='xy')
         outlabel(ax, next(letter_it))
@@ -1171,7 +1173,7 @@ class DatasheetPage:
         ax = subfigs['variables_a'].add_subplot(1, 1, 1)
         ax.axis('off')
         var_table = ax.table(
-            [[k, *(v)] for k, v in var_meta_info],
+            [[str(k), *(v)] for k, v in var_meta_info],
             colLabels=['Variable', 'Unit', 'Orig unit'],
             loc='center',
         )
