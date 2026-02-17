@@ -74,8 +74,9 @@
     - [x] Refactor documentation
     - [ ] Make docstrings more detailed
   - DatasheetPage:
-    - [ ] Improve PCA Page
+    - [x] Improve PCA Page (finished)
     - [x] Improve default settings for datasheet and pages.
+    - [ ] Add page for spectral analysis
 - Hops
   - [ ] Fix some functions not yet moved to tree types or new style of type selection.
     - [x] `assign_hop_time()` done
