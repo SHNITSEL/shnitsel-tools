@@ -1,4 +1,6 @@
 from dataclasses import dataclass, asdict
+import logging
+import random
 from types import UnionType
 from typing import Any, Callable, Generic, Hashable, Mapping, Self, TypeVar, overload
 from typing_extensions import TypeForm
@@ -229,7 +231,7 @@ class DataGroup(
         # At the end of this, we should have either only sub-groups or only sub-leaves
         num_categories = 0
         key_set: set[KeyType | str] = set()
-        member_children: Mapping[
+        subgroup_member_children: Mapping[
             KeyType | str,
             list[tuple[Hashable, DataGroup[DataType] | DataLeaf[DataType]]],
         ] = {}
@@ -243,6 +245,8 @@ class DataGroup(
             )
 
             if isinstance(child, DataGroup):
+                # We have a group that is grouped within itself.
+                # It consistutes a child after grouping and
                 if group_leaves_only:
                     res_children[k] = child
                     num_categories += 1
@@ -253,18 +257,18 @@ class DataGroup(
 
                     if key not in key_set:
                         key_set.add(key)
-                        member_children[key] = []
+                        subgroup_member_children[key] = []
                         num_categories += 1
-                    member_children[key].append((k, child))
+                    subgroup_member_children[key].append((k, child))
             elif isinstance(child, DataLeaf):
                 key = key_func(child)
                 if key is None:
                     continue
                 if key not in key_set:
                     key_set.add(key)
-                    member_children[key] = []
+                    subgroup_member_children[key] = []
                     num_categories += 1
-                member_children[key].append((k, child))
+                subgroup_member_children[key].append((k, child))
 
         new_children = res_children
         base_group_info = (
@@ -275,7 +279,9 @@ class DataGroup(
 
         # TODO: FIXME: Make key to group info more straightforward
 
-        for key, group in member_children.items():
+        max_search = len(self.children) * 10
+
+        for key, group in subgroup_member_children.items():
             try:
                 # First try to treat it as a dataclass
                 key_dict = asdict(key)  # type: ignore # We know that the type does not need to fit, but it will raise a TypeError that we handle right afterwards if we are wrong
@@ -300,9 +306,19 @@ class DataGroup(
                     children=group_child_dict,
                     dtype=self._dtype,
                 )
+                found_key = False
                 for i in range(10000):
-                    group_name_try = f"group_{i}"
+                    idx = random.randint(0, max_search)
+
+                    group_name_try = f"group_{idx}"
                     if group_name_try not in new_children:
                         new_children[group_name_try] = new_group
+                        found_key = True
+                        break
+                if not found_key:
+                    logging.error(
+                        "Could not find new key for group with grouping meta: %s",
+                        key_dict,
+                    )
 
         return self.construct_copy(children=new_children, group_info=base_group_info)
