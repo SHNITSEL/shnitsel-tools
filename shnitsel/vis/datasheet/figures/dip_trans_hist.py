@@ -18,6 +18,8 @@ from .hist import calc_truncation_maximum, create_marginals
 from ...colormaps import magma_rw, custom_ylgnr
 from ....units.conversion import convert_energy
 
+import xarray as xr
+
 
 def single_dip_trans_hist(
     interstate: InterState,
@@ -154,7 +156,7 @@ def plot_dip_trans_histograms(
 
 
 def plot_spectra(
-    spectra: SpectraDictType,
+    spectra: xr.DataArray,
     state_selection: StateSelection,
     ax: Axes | None = None,
     lim_num_sc: int = -1,
@@ -195,59 +197,65 @@ def plot_spectra(
     ax.invert_xaxis()
     # linestyles = {t: ['-', '--', '-.', ':'][i]
     #               for i, t in enumerate(np.unique(list(zip(*spectra.keys()))[0]))}
+    if 'time' in spectra.coords:
+        times = np.unique(spectra.time.values)
+    else:
+        times = np.array([])
 
-    times = list(set([tup[0] for tup in spectra]))
-    times.sort()
+    # times.sort()
 
     linestyles = ['solid', 'dashed', 'dashdot', 'dotted']
 
     times_styles = {t: linestyles[i % len(linestyles)] for i, t in enumerate(times)}
     sc_count = {}
-    for i, ((t, sc), data) in enumerate(spectra.items()):
-        if not state_selection.has_state_combination(sc):
-            continue
-
-        if data.isnull().all():
-            continue
-
-        if sc not in sc_count:
-            if lim_num_sc > 0 and len(sc_count) >= lim_num_sc:
+    if 'time' in spectra.coords and 'statecomb' in spectra.coords:
+        for (t, sc), data in spectra.groupby(['time', 'statecomb']):
+            if not state_selection.has_state_combination(sc):
                 continue
-            sc_count[sc] = 0
 
-        # curr_count = sc_count[sc]
-        sc_count[sc] += 1
+            if data.isnull().all():
+                continue
 
-        sc_color = state_selection.get_state_combination_color(sc)
-        # sc_label = state_selection.get_state_combination_tex_label(sc)
-        # special casing for now
-        linestyle = times_styles[t]
+            if sc not in sc_count:
+                if lim_num_sc > 0 and len(sc_count) >= lim_num_sc:
+                    continue
+                sc_count[sc] = 0
 
-        # c = cmap(cnorm(t))
-        # ax.fill_between(data['energy'], data, alpha=0.5, color=c)
-        converted_energy = convert_energy(data['energy_interstate'], to=energy.eV)
-        converted_energy = np.abs(converted_energy)
-        ax.plot(
-            converted_energy,
-            data,
-            # linestyle=linestyles[t], c=dcol_inter[sc],
-            linestyle=linestyle,
-            c=sc_color,
-            linewidth=0.8,
-        )
-        if mark_peaks:
-            try:
-                peak = data[data.argmax('energy_interstate')]
-                ax.text(
-                    float(
-                        convert_energy(peak['energy_interstate'], to=energy.eV).values
-                    ),
-                    float(peak),
-                    f"{t:.2f}:{sc}",
-                    fontsize='xx-small',
-                )
-            except Exception as e:
-                logging.warning(f"{e}")
+            # curr_count = sc_count[sc]
+            sc_count[sc] += 1
+
+            sc_color = state_selection.get_state_combination_color(sc)
+            # sc_label = state_selection.get_state_combination_tex_label(sc)
+            # special casing for now
+            linestyle = times_styles[t]
+
+            # c = cmap(cnorm(t))
+            # ax.fill_between(data['energy'], data, alpha=0.5, color=c)
+            converted_energy = convert_energy(data['energy_interstate'], to=energy.eV)
+            converted_energy = np.abs(converted_energy)
+            ax.plot(
+                converted_energy,
+                data,
+                # linestyle=linestyles[t], c=dcol_inter[sc],
+                linestyle=linestyle,
+                c=sc_color,
+                linewidth=0.8,
+            )
+            if mark_peaks:
+                try:
+                    peak = data[data.argmax('energy_interstate')]
+                    ax.text(
+                        float(
+                            convert_energy(
+                                peak['energy_interstate'], to=energy.eV
+                            ).values
+                        ),
+                        float(peak),
+                        f"{t:.2f}:{sc}",
+                        fontsize='xx-small',
+                    )
+                except Exception as e:
+                    logging.warning(f"{e}")
 
     handles = []
     labels = []
@@ -274,7 +282,7 @@ def plot_spectra(
 )
 def plot_separated_spectra_and_hists(
     inter_state: InterState,
-    spectra_groups: tuple[SpectraDictType, SpectraDictType],
+    spectra_groups: tuple[xr.DataArray, xr.DataArray],
     state_selection: StateSelection,
     fig: Figure | SubFigure | None = None,
     axs: dict[str, Axes] | None = None,
@@ -286,7 +294,7 @@ def plot_separated_spectra_and_hists(
     ----------
     inter_state : InterState
         The interstate data to use for the spectra plots
-    spectra_groups : tuple[SpectraDictType, SpectraDictType]
+    spectra_groups : tuple[xr.DataArray, xr.DataArray]
         Spectra separated into `ground` state spectra and `excited` spectra.
     state_selection : StateSelection
         State selection object to limit the states included in plotting and to provide state names.
@@ -444,7 +452,7 @@ def plot_separated_spectra_and_hists(
 )
 def plot_separated_spectra_and_hists_groundstate(
     inter_state: InterState,
-    spectra_groups: tuple[SpectraDictType, SpectraDictType],
+    spectra_groups: tuple[xr.DataArray, xr.DataArray],
     state_selection: StateSelection,
     fig: Figure | SubFigure | None = None,
     axs: dict[str, Axes] | None = None,
@@ -458,7 +466,7 @@ def plot_separated_spectra_and_hists_groundstate(
     ----------
     inter_state : InterState
         Inter-State dataset containing energy differences
-    spectra_groups : tuple[SpectraDictType, SpectraDictType]
+    spectra_groups : tuple[xr.DataArray, xr.DataArray]
         Tuple holding the spectra groups of ground-state transitions and excited-state transitions.
     state_selection : StateSelection
         State selection object to limit the states included in plotting and to provide state names.
@@ -482,7 +490,12 @@ def plot_separated_spectra_and_hists_groundstate(
     """
     assert axs is not None, "Could not acquire axes to plot to."
     ground, excited = spectra_groups
-    times = [tup[0] for lst in spectra_groups for tup in lst]
+    times = [
+        np.unique(spectrum.times.values)
+        for spectrum in spectra_groups
+        if 'times' in spectrum
+    ]
+    times = np.unique(times)
     scnorm = plt.Normalize(inter_state.time.min(), inter_state.time.max() + 50)
     scscale = mpl.cm.ScalarMappable(norm=scnorm, cmap=scmap)
 

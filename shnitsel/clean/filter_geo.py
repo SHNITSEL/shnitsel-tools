@@ -266,7 +266,10 @@ def filter_by_length(
 
     filter_res = dispatch_filter(frames_dataset, filter_method)
 
-    if isinstance(frames_or_trajectory, xr.Dataset):
-        return filter_res.dataset
-    else:
-        return filter_res
+    if filter_res is not None:
+        if isinstance(frames_or_trajectory, xr.Dataset):
+            return filter_res.dataset
+        else:
+            return filter_res
+
+    return None

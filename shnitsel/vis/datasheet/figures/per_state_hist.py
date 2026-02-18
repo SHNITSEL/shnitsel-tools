@@ -10,7 +10,7 @@ from .common import figaxs_defaults, centertext
 from .hist import truncate_from_above
 
 symbols = dict(
-    energy=r"$E_i$", forces=r"$|\mathbf{F}_i|$", dip_perm=r"$|\mathbf{\mu}_i|$"
+    energy=r"$E_i$", forces_norm=r"$|\mathbf{F}_i|$", dip_perm_norm=r"$|\mathbf{\mu}_i|$"
 )
 
 
@@ -61,7 +61,7 @@ def plot_per_state_histograms(
                 assert fig is not None, "Figure is required if shape is passed."
                 ax_list = fig.subplots(rows, cols)
                 ax_list = ax_list.flatten()
-                for label, ax in zip(['energy', 'forces', 'dip_perm'], ax_list):
+                for label, ax in zip(['energy', 'forces_norm', 'dip_perm_norm'], ax_list):
                     axs[label] = ax
 
                 for pos in range(0, total, cols):
@@ -69,7 +69,7 @@ def plot_per_state_histograms(
         else:
             axs['energy'].set_ylabel('# points')
 
-    for quantity in ['energy', 'forces', 'dip_perm']:
+    for quantity in ['energy', 'forces_norm', 'dip_perm_norm']:
         ax = axs[quantity]
         if (
             not per_state.has_variable(quantity)

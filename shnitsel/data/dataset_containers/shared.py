@@ -94,6 +94,10 @@ class ShnitselDataset(SupportsFromXrConversion, SupportsToXrConversion):
         return self.coords["astate"]
 
     @property
+    def astate(self):
+        return self.active_state
+
+    @property
     def state_diagonal(self):
         if "sdiag" not in self.dataset.coords:
             raise KeyError(

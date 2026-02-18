@@ -7,6 +7,7 @@ import xarray as xr
 from shnitsel.core.typedefs import DimName
 from shnitsel.data.dataset_containers import wrap_dataset
 from shnitsel.data.dataset_containers.frames import Frames
+from shnitsel.data.dataset_containers.shared import ShnitselDataset
 from shnitsel.data.dataset_containers.trajectory import Trajectory
 
 from shnitsel.data.multi_indices import ensure_unstacked, stack_trajs
@@ -152,7 +153,7 @@ def _filter_mask_from_dataset(ds: xr.Dataset) -> xr.DataArray:
 # All the action functions take a dataset
 # They can use the functions above to get the info they need
 
-TrajectoryOrFrames = TypeVar("TrajectoryOrFrames", bound=Trajectory | Frames)
+TrajectoryOrFrames = TypeVar("TrajectoryOrFrames", bound=ShnitselDataset)
 
 
 def omit(frames_or_trajectory: TrajectoryOrFrames) -> TrajectoryOrFrames | None:
@@ -218,8 +219,8 @@ def truncate(
     # Ensure the mask is cumulative. (This operation is idempotent.)
 
     # If stacked:
-    if 'atrajectory' in noncum_mask.coords:
-        cum_mask = noncum_mask.groupby('atrajectory').cumprod().astype(bool)
+    if {'time', 'atrajectory'}.issubset(noncum_mask.coords):
+        cum_mask = noncum_mask.groupby('atrajectory').cumprod('time').astype(bool)
     # If layered:
     elif {'time', 'trajectory'}.issubset(noncum_mask.dims):
         cum_mask = noncum_mask.cumprod('time').astype(bool)
@@ -264,15 +265,18 @@ def transect(
         "Dataset has no coordinate `time` but time-based truncation has been requested, which cannot be performed!"
     )
 
-    time_sliced_dataset = wrapped_dataset.loc[{"time": slice(float(cutoff_time))}]
-    good_upto = _filter_mask_from_dataset(time_sliced_dataset)
-    assert good_upto.name == "good_upto", (
-        "Despite a `time` dimension being present, the filter mask returned for the dataset was not a `good_upto` value."
+    good_upto = _filter_mask_from_dataset(wrapped_dataset.dataset)
+
+    assert "good_upto" in good_upto.coords, (
+        "Despite a `time` dimension being present, the filter mask returned for the dataset did not contain a `good_upto` value. "
     )
+
+    good_upto = good_upto.coords['good_upto']
     # TODO: FIXME: We may want to accept the last time before `cutoff_time` to be true.
     is_trajectory_good = (good_upto >= cutoff_time).all("criterion").item()
     if is_trajectory_good:
-        return Trajectory(time_sliced_dataset)
+        time_sliced_dataset = wrapped_dataset.loc[{"time": slice(float(cutoff_time))}]
+        return wrap_dataset(time_sliced_dataset)
     else:
         return None
 
@@ -328,8 +332,8 @@ def dispatch_filter(
         return truncate(frames_or_trajectory)
     elif filter_method == "omit":
         return omit(frames_or_trajectory)
-    elif isinstance(filter_method, float):
-        transect_position: float = filter_method
+    elif isinstance(filter_method, (float, int)):
+        transect_position: float = float(filter_method)
         # assert isinstance(frames_or_trajectory, Trajectory), (
         #     "Cannot provide a `Frames` object to a `transect()` call. Unsupported operation."
         # )

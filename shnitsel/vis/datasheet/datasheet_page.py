@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from functools import cached_property
 import logging
+from typing import Hashable
 from matplotlib.axes import Axes
 from sklearn.decomposition import PCA as sk_PCA
 from tqdm import tqdm
@@ -13,6 +14,7 @@ from timeit import default_timer as timer
 
 from matplotlib.figure import Figure, SubFigure
 
+from shnitsel.analyze.generic import keep_norming
 from shnitsel.analyze.pca import PCAResult
 from shnitsel.analyze.populations import (
     PopulationStatistics,
@@ -32,12 +34,14 @@ from shnitsel.data.dataset_containers import (
     PerState,
     wrap_dataset,
 )
+from shnitsel.data.dataset_containers.shared import ShnitselDataset
 from shnitsel.filtering.helpers import (
     _get_default_state_selection,
     _get_default_structure_selection,
 )
 from shnitsel.filtering.state_selection import StateSelection, StateSelectionDescriptor
 from shnitsel.filtering.structure_selection import (
+    FeatureDescriptor,
     StructureSelection,
     StructureSelectionDescriptor,
 )
@@ -50,6 +54,7 @@ from shnitsel.vis.datasheet.figures.soc_trans_hist import (
 )
 from shnitsel.vis.colormaps import st_grey
 from shnitsel.vis.plot.common import inlabel, outlabel
+from shnitsel.vis.plot.structure_grid import feature_highlight_grid
 
 try:
     from typing import Self
@@ -84,8 +89,8 @@ class DatasheetPage:
     """
 
     state_selection: StateSelection
+    structure_selection: StructureSelection
     state_selection_provided: bool = False
-    structure_selection: StructureSelection | None = None
     structure_selection_provided: bool = False
 
     spectra_times: list[int | float] | np.ndarray | None = None
@@ -192,14 +197,14 @@ class DatasheetPage:
 
         # Initialize feature selection or use provided selection
         if structure_selection is not None:
-            position_data: xr.DataArray
+            position_data: xr.DataArray | ShnitselDataset
             charge_info: int | None
             if isinstance(self.frames, xr.DataArray):
                 position_data = self.frames
                 charge_info = None
             else:
-                wrapped_ds = wrap_dataset(self.frames, (Trajectory | Frames))
-                position_data = wrapped_ds.atXYZ
+                wrapped_ds = wrap_dataset(self.frames, ShnitselDataset)
+                position_data = wrapped_ds
                 charge_info = int(wrapped_ds.charge)
 
             structure_selection = _get_default_structure_selection(
@@ -211,7 +216,19 @@ class DatasheetPage:
             self.structure_selection_provided = True
             self.structure_selection = structure_selection
         else:
-            self.structure_selection = None
+            wrapped_ds = wrap_dataset(self.frames, ShnitselDataset)
+            position_data = wrapped_ds
+            charge_info = int(wrapped_ds.charge)
+
+            structure_selection = _get_default_structure_selection(
+                None,
+                atXYZ_source=position_data,
+                default_levels=['atoms', 'bonds', 'angles', 'dihedrals', 'pyramids'],
+                charge_info=charge_info,
+            ).non_redundant()
+
+            self.structure_selection = structure_selection
+            self.structure_selection_provided = False
 
         # print(self.frames)
 
@@ -436,20 +453,24 @@ class DatasheetPage:
         return res
 
     @cached_property
-    def spectra(self) -> SpectraDictType:
+    def spectra(self) -> xr.DataArray:
         """Spectral statistics of the self.frames object.
 
         Returns
         -------
-        SpectraDictType
+        xr.DataArray
             The spectral information per state transition
         """
         start = timer()
         # TODO: FIXME: Use state selection for limit on which to calculate
         if self.frames.has_variable('dip_trans'):
-            res = get_spectra(self.inter_state, times=self.spectra_times)
+            res = get_spectra(
+                self.inter_state,
+                times=self.spectra_times,
+                state_selection=self.state_selection,
+            )
         else:
-            res = {}
+            res = xr.DataArray(())
         end = timer()
         info(f"cached spectra in {end - start} s")
         return res
@@ -458,8 +479,8 @@ class DatasheetPage:
     def spectra_groups(
         self,
     ) -> tuple[
-        SpectraDictType,
-        SpectraDictType,
+        xr.DataArray,
+        xr.DataArray,
     ]:
         """Get different spectral groups for ground-state transitions and for excited-state transitions
 
@@ -471,32 +492,32 @@ class DatasheetPage:
         start = timer()
         # TODO: FIXME: Use state selection for split
         if self.frames.has_variable('dip_trans'):
-            res = get_spectra_groups(self.spectra)
+            res = get_spectra_groups(self.spectra, self.state_selection)
         else:
-            res = ({}, {})
+            res = (xr.DataArray(), xr.DataArray())
 
         end = timer()
         info(f"cached spectra_groups in {end - start} s")
         return res
 
     @cached_property
-    def spectra_ground(self) -> SpectraDictType:
+    def spectra_ground(self) -> xr.DataArray:
         """Extracted spectral information of only the ground-state transitions
 
         Returns
         -------
-        SpectraDictType
+        xr.DataArray
             Extracted spectral information of only the ground-state transitions
         """
         return self.spectra_groups[0]
 
     @cached_property
-    def spectra_excited(self) -> SpectraDictType:
+    def spectra_excited(self) -> xr.DataArray:
         """Extracted spectral information of only the excited-state transitions
 
         Returns
         -------
-        SpectraDictType
+        xr.DataArray
             Extracted spectral information of only the excited-state transitions
         """
         return self.spectra_groups[1]
@@ -513,7 +534,9 @@ class DatasheetPage:
         from shnitsel.analyze.pca import pca
 
         start = timer()
-        res = pca(self.frames, structure_selection=self.structure_selection)
+        res = pca(
+            self.frames, structure_selection=self.structure_selection.without('atoms')
+        )
         end = timer()
         info(f"cached pca_data in {end - start} s")
         return res
@@ -561,7 +584,7 @@ class DatasheetPage:
         return res
 
     @cached_property
-    def hops(self) -> xr.DataArray:
+    def hops(self) -> xr.DataArray | None:
         """The PCA plots at the hopping points
 
         Returns:
@@ -569,8 +592,11 @@ class DatasheetPage:
         """
         from shnitsel.analyze.hops import hops_mask_from_active_state
 
-        mask = hops_mask_from_active_state(self.frames)
-        return mask  # self.pca_data[mask]
+        try:
+            mask = hops_mask_from_active_state(self.frames)
+            return mask  # self.pca_data[mask]
+        except:
+            return None
 
     @cached_property
     def structure_atXYZ(self) -> AtXYZ:
@@ -1023,10 +1049,9 @@ class DatasheetPage:
         metainfo = []
         if 'trajectory' in self.frames.sizes:
             num_trajs = self.frames.sizes['trajectory']
-            trajectory_ids = list(set(self.frames.coords['trajectory'].values))
+            trajectory_ids = np.unique(self.frames.coords['trajectory'].values)
         elif 'atrajectory' in self.frames.coords:
-            trajectory_ids = list(set(self.frames.coords['atrajectory'].values))
-
+            trajectory_ids = np.unique(self.frames.coords['atrajectory'].values)
             num_trajs = len(trajectory_ids)
         else:
             num_trajs = 1
@@ -1063,11 +1088,13 @@ class DatasheetPage:
             metainfo.append(('Number of frames', str(self.frames.sizes['frame'])))
         elif 'time' in self.frames.sizes:
             metainfo.append(('Number of frames', str(self.frames.sizes['time'])))
-        metainfo.append(('Maximum $t$', np.max(var_or_attr(self.frames, 't_max', -1))))
+        metainfo.append(
+            ('Maximum $t$', f"{np.max(var_or_attr(self.frames, 't_max', -1)):.4f}")
+        )
         metainfo.append(
             (
                 'Timestep $\\Delta t$',
-                np.max(var_or_attr(self.frames, 'delta_t', -1)),
+                f"{np.max(var_or_attr(self.frames, 'delta_t', -1)):.4f}",
             )
         )
         metainfo.append(('$t$ unit', time_unit))
@@ -1088,7 +1115,7 @@ class DatasheetPage:
 
         metainfo.append(('Num Triplets', self.frames.num_triplets))
 
-        var_meta_info: list[tuple[str, tuple[str, str]]] = []
+        var_meta_info: list[tuple[Hashable, tuple[str, str]]] = []
         for varname, val in self.frames.data_vars.items():
             unit = '-'
             orig_unit = '-'
@@ -1114,7 +1141,7 @@ class DatasheetPage:
 
         ax = subfigs['length_plot'].add_subplot(1, 1, 1)
         if num_trajs > 1:
-            ax.set_ylabel('Trajectory (sorted by length)')
+            ax.set_ylabel('Trajectory (sorted by id)')
             ax.set_xlabel(f'Traj. length (t / {time_unit})')
             ax.set_ylim((0, num_trajs - 1))
             ax.set_xlim((0, t_max))
@@ -1122,22 +1149,22 @@ class DatasheetPage:
 
             ax.yaxis.set_major_locator(MaxNLocator(integer=True))
 
-            cutoff_times = []
+            cutoff_times = {}
             if 'atrajectory' in self.frames.dataset and 'time' in self.frames.coords:
                 for id, traj_data in self.frames.dataset.groupby('atrajectory'):
-                    t_max_present = traj_data['time'].max()
-                    cutoff_times.append(t_max_present)
-            cutoff_times.sort()
+                    t_max_present = traj_data['time'].max().item()
+                    cutoff_times[id] = t_max_present
             index = list(range(num_trajs))
-            ax.plot(cutoff_times, index)
+            cutoff_lengths = [cutoff_times.get(id, 0) for id in trajectory_ids]
+            ax.plot(cutoff_lengths, index)
 
             ax.fill_between(
-                [0] + cutoff_times + [t_max],
+                [0] + cutoff_lengths + [t_max],
                 [0] + index + [num_trajs - 1],
-                [num_trajs - 1] + [num_trajs - 1] * len(cutoff_times) + [num_trajs - 1],
+                [num_trajs - 1] + [num_trajs - 1] * num_trajs + [num_trajs - 1],
                 color=st_grey,
             )
-
+            # ax.set_yticks(index, trajectory_ids, minor=True)
         else:
             centertext("Not enough data", ax, clearticks='xy')
         outlabel(ax, next(letter_it))
@@ -1150,13 +1177,14 @@ class DatasheetPage:
         )
         meta_table.auto_set_font_size(False)
         meta_table.set_fontsize(12)
+        meta_table.auto_set_column_width(col=list(range(len(metainfo[0]))))
         # centertext("Metadata", ax, clearticks='xy')
         outlabel(ax, next(letter_it))
         # Variables and units
         ax = subfigs['variables_a'].add_subplot(1, 1, 1)
         ax.axis('off')
         var_table = ax.table(
-            [[k, *(v)] for k, v in var_meta_info],
+            [[str(k), *(v)] for k, v in var_meta_info],
             colLabels=['Variable', 'Unit', 'Orig unit'],
             loc='center',
         )
@@ -1171,6 +1199,172 @@ class DatasheetPage:
         outlabel(hist_axs['energy'], next(letter_it))
 
         return fig, subfigs
+
+    def render_pca_page(self):
+        fig, subfigs = self.get_subfigures_pca_page()
+        from ..plot.biplot import biplot_kde
+
+        ax_features_overall_struct, ax_features_overall_explain = subfigs[
+            'features_overall'
+        ].subplots(1, 2, width_ratios=[1, 2.5])
+        ax_features_comp_1 = subfigs['features_component_1'].subplots(1, 1)
+        ax_features_comp_2 = subfigs['features_component_2'].subplots(1, 1)
+
+        if self.pca_full_data:
+            fig.suptitle(f'Datasheet:{self.name} [Page: PCA]', fontsize=16)
+            biplot_fig = biplot_kde(
+                self.frames,
+                pca_data=self.pca_full_data,
+                structure_selection=self.structure_selection,
+                state_selection=self.state_selection,
+                scatter_color_property='state',
+                show_loadings=4,
+                fig=subfigs['pca_biplot'],
+            )
+            # ax = self.plot_noodle(
+            #     state_selection=self.state_selection, fig=subfigs['pca_plot']
+            # )
+            # ax = self.plot_pca_structure(
+            #     state_selection=self.state_selection, fig=subfigs['pca_extrema_plot']
+            # )
+
+            # self.pca_explanation
+            from shnitsel.analyze.generic import norm
+
+            per_comp_loadings, total_loadings = (
+                self.pca_full_data.get_most_significant_loadings(12, 6)
+            )
+
+            sorted_total = total_loadings.sortby(
+                lambda x: norm(x, self.pca_full_data.component_dimension),
+                ascending=False,
+            )
+
+            if self.structure_selection.mol:
+                label = 'Overall features'
+                mol = self.structure_selection.mol
+                h_f, h_axs = feature_highlight_grid(
+                    mol,
+                    [sorted_total.feature_indices.values],
+                    [label],
+                    cmaps={label: 'inferno'},
+                    axs={label: ax_features_overall_struct},
+                )
+            else:
+                centertext("Missing mol structure", ax=ax_features_overall_struct)
+
+            ax_features_overall_explain.set_title(
+                f"Maximum contributing features overall:\n"
+            )
+
+            rows_data = []
+            for descriptor_val in sorted_total.descriptor.values:
+                #     , desc_type, indices, coeff, abs_coeff in zip(
+                #     sorted_total.descriptor_tex.values,
+                #     sorted_total.descriptor_type.values,
+                #     sorted_total.feature_indices.values,
+                #     sorted_total.values,
+                #     norm(sorted_total, dim=self.pca_full_data.component_dimension).values,
+                # ):
+                selection = sorted_total.sel(descriptor=descriptor_val)
+                feature_label, desc_type, indices, coeff, abs_coeff = (
+                    selection.descriptor_tex.item(),
+                    selection.descriptor_type.item(),
+                    selection.feature_indices.item(),
+                    selection.values,
+                    norm(selection, dim=self.pca_full_data.component_dimension).values,
+                )
+                # total_expl += f" {feature} (weight: {coeff}) (Idxs: {indices}) \n"
+                rows_data.append(
+                    [
+                        f"${feature_label}$",
+                        str(desc_type),
+                        str(indices),
+                        f"{abs_coeff:.5f} ({coeff[0]:.3f},{coeff[1]:.3f})",
+                    ]
+                )
+            ax_features_overall_explain.axis('off')
+            overall_feature_table = ax_features_overall_explain.table(
+                rows_data,
+                colLabels=[
+                    'Feature',
+                    'Type',
+                    'Indices',
+                    'Abs loadings (per component)',
+                ],
+                rowLabels=[f"$\\#{i + 1}$" for i in range(len(rows_data))],
+                loc='center',
+            )
+            overall_feature_table.auto_set_font_size(False)
+            overall_feature_table.set_fontsize(11)
+            overall_feature_table.auto_set_column_width(
+                col=list(range(len(rows_data[0])))
+            )
+            # centertext("Metadata", ax, clearticks='xy')
+            # outlabel(ax, next(letter_it))
+
+            for comp_label, axes in zip(
+                sorted(list(per_comp_loadings.keys())),
+                [ax_features_comp_1, ax_features_comp_2],
+            ):
+                sorted_comp = per_comp_loadings[comp_label].sortby(
+                    lambda x: np.abs(x),
+                    ascending=False,
+                )
+                rows_data = []
+
+                for descriptor_val in sorted_comp.descriptor.values:
+                    selection = sorted_comp.sel(descriptor=descriptor_val)
+                    feature_label, desc_type, indices, coeff = (
+                        selection.descriptor_tex.item(),
+                        selection.descriptor_type.item(),
+                        selection.feature_indices.item(),
+                        selection.values,
+                    )
+                    # for feature_label, desc_type, indices, coeff, abs_coeff in zip(
+                    #     sorted_comp.descriptor_tex.values,
+                    #     sorted_total.descriptor_type.values,
+                    #     sorted_comp.feature_indices.values,
+                    #     sorted_comp.values,
+                    #     np.abs(sorted_comp.values),
+                    # ):
+                    # total_expl += f" {feature} (weight: {coeff}) (Idxs: {indices}) \n"
+                    rows_data.append(
+                        [
+                            f"${feature_label}$",
+                            str(desc_type),
+                            str(indices),
+                            f"{coeff:.5f}",
+                        ]
+                    )
+                axes.set_title(
+                    f"Maximum contributing features for {self.pca_full_data.component_dimension}{int(comp_label) + 1}:\n"
+                )
+
+                axes.axis('off')
+                component_feature_table = axes.table(
+                    rows_data,
+                    colLabels=['Feature', 'Type', 'Indices', 'Loadings'],
+                    rowLabels=[f"$\\#{i + 1}$" for i in range(len(rows_data))],
+                    loc='center',
+                )
+                component_feature_table.auto_set_column_width(
+                    col=list(range(len(rows_data[0])))
+                )
+                # component_feature_table.auto_set_font_size(False)
+                # component_feature_table.set_fontsize(12)
+                # centertext("Metadata", ax, clearticks='xy')
+                # outlabel(ax, next(letter_it))
+
+        else:
+            ax_pca_biplot = subfigs['pca_biplot'].subplots(1, 1)
+            centertext("Missing PCA data", ax=ax_pca_biplot)
+            centertext("Missing PCA data", ax=ax_features_overall_explain)
+            centertext("Missing PCA data", ax=ax_features_overall_struct)
+            centertext("Missing PCA data", ax=ax_features_comp_1)
+            centertext("Missing PCA data", ax=ax_features_comp_2)
+        self.pca_explanation
+        return fig
 
     @staticmethod
     def get_subfigures_main_page(
@@ -1233,7 +1427,7 @@ class DatasheetPage:
         tuple[Figure, dict[str, SubFigure]]
             The overall figure and a dict to access individual subfigures by their name.
         """
-        nrows = 8
+        nrows = 6
 
         fig, oaxs = plt.subplots(nrows, 4, layout='constrained')
         fig.set_size_inches(8.27, 11.69)  # portrait A4
@@ -1246,10 +1440,11 @@ class DatasheetPage:
         for ax in oaxs.ravel():
             ax.remove()
         gridspecs = dict(
-            pca_plot=gs[:2, :2],
-            pca_extrema_plot=gs[:2, 2:],
-            feature_selection=gs[2:4, :],
-            feature_explanation=gs[4:, :],
+            pca_biplot=gs[:2, :4],
+            # pca_extrema_plot=gs[:2, 2:],
+            features_overall=gs[2:4, :],
+            features_component_1=gs[4:, :2],
+            features_component_2=gs[4:, 2:],
         )
         subfigures = {
             sub_name: fig.add_subfigure(sub_gridspec)
@@ -1530,21 +1725,7 @@ class DatasheetPage:
             figures.append(fig)
 
         if include_pca_page:
-            fig, subfigs = self.get_subfigures_pca_page()
-
-            fig.suptitle(f'Datasheet:{self.name} [Page: PCA]', fontsize=16)
-            ax = self.plot_noodle(
-                state_selection=self.state_selection, fig=subfigs['pca_plot']
-            )
-            ax = self.plot_pca_structure(
-                state_selection=self.state_selection, fig=subfigs['pca_extrema_plot']
-            )
-            ax = subfigs['feature_selection'].subplots(1, 1)
-            centertext("Missing", ax=ax)
-            ax = subfigs['feature_explanation'].subplots(1, 1)
-            centertext("Missing", ax=ax)
-            figures.append(fig)
-            self.pca_explanation
+            figures.append(self.render_pca_page())
 
         if include_meta_page:
             fig, subfigs = self.render_meta_page()

@@ -42,7 +42,7 @@ class DataLeaf(Generic[DataType], TreeNode[None, DataType]):
         self,
         children: Mapping[Hashable, None] | None = None,
         dtype: None = None,
-        data: DataType | None = None,
+        data: DataType | None = ...,
         **kwargs,
     ) -> Self: ...
 
@@ -51,7 +51,7 @@ class DataLeaf(Generic[DataType], TreeNode[None, DataType]):
         self,
         children: None = None,
         dtype: type[ResType] | UnionType | None = None,
-        data: ResType | None = None,
+        data: ResType | None = ...,
         **kwargs,
     ) -> "DataLeaf[ResType]": ...
 
@@ -78,7 +78,7 @@ class DataLeaf(Generic[DataType], TreeNode[None, DataType]):
         | Mapping[Hashable, NewChildType]
         | None = None,
         dtype: type[ResType] | UnionType | None = None,
-        data: ResType | None = None,
+        data: ResType | None = ...,
         **kwargs,
     ) -> Self | "DataLeaf[ResType]":
         """Helper function to create a copy of this tree structure, but with potential changes to metadata or data
@@ -111,7 +111,7 @@ class DataLeaf(Generic[DataType], TreeNode[None, DataType]):
         if 'attrs' not in kwargs:
             kwargs['attrs'] = self._attrs
 
-        if data is None:
+        if data is ...:
             assert dtype is None, (
                 "Cannot reassign data type if new data entry is not provided"
             )
@@ -180,26 +180,80 @@ class DelayedDataLeaf(DataLeaf[DataType]):
     def __init__(
         self,
         *,
+        base_leaf: DataLeaf | None = None,
         name: str | None = None,
-        data_provider: ProvidesDelayedData[DataType] | None = None,
+        data: ProvidesDelayedData[DataType] | None = None,
         attrs: Mapping[str, Any] | None = None,
+        **kwargs,
     ):
-        data_dummy = None
-        super().__init__(name=name, data=data_dummy, attrs=attrs)
+        """Construct a delayed leaf either directly from the metadata and the data provider or from
+        a base leaf with a data provider for the new data.
 
-        if data_provider is not None:
+        Parameters
+        ----------
+        base_leaf : DataLeaf | None, optional
+            Leaf to copy the metadata from, by default None
+        name : str | None, optional
+            Name of the new delayed leaf if not provided a `base_leaf`, by default None
+        data : ProvidesDelayedData[DataType] | None, optional
+            The provider of delayed data. Needs to implement the protocol `ProvidesDelayedData`, by default None
+        attrs : Mapping[str, Any] | None, optional
+            Attribute mapping of the new delayed leaf if not provided a `base_leaf`, by default None
+        """
+        # TODO: FIXME: The way that the type derivation of the tree works the delayed execution breaks the resulting tree dtype.
+        data_dummy = None
+        if base_leaf is not None:
+            if 'name' not in kwargs:
+                kwargs['name'] = base_leaf._name
+            if 'attrs' not in kwargs:
+                kwargs['attrs'] = base_leaf._attrs
+            super().__init__(
+                name=base_leaf.name, data=data_dummy, attrs=base_leaf.attrs, **kwargs
+            )
+        else:
+            if 'name' not in kwargs:
+                kwargs['name'] = self._name
+            if 'attrs' not in kwargs:
+                kwargs['attrs'] = self._attrs
+            super().__init__(name=name, data=data_dummy, attrs=attrs, **kwargs)
+
+        if data is not None:
             self._data_is_set = True
-            self._data_provider = None
+            self._data_provider = data
         else:
             self._data_is_set = False
-            self._data_provider = data_provider
+            self._data_provider = None
 
     @property
     def has_data(self) -> bool:
+        # TODO: FIXME: We may want to instead use the `._data_is_set` flag to check for data?
         try:
             return self.data is not None
         except ValueError:
             return False
+
+    @property
+    def data_ready(self) -> bool:
+        """Property to check whether the data in this delayed node is ready to be accessed
+
+        Returns
+        -------
+        bool
+            _description_
+        """
+        try:
+            # We have data already set
+            if self.has_data:
+                return True
+
+            # Data is set to a provider but not yet retrieved.
+            if self._data_is_set:
+                if self._data_provider is not None and self._data_provider.data_ready():
+                    return True
+        except:
+            return False
+
+        return False
 
     @property
     def data(self) -> DataType:
@@ -214,3 +268,95 @@ class DelayedDataLeaf(DataLeaf[DataType]):
                 )
         # Perform parent class data accession
         return super().data
+
+    @overload
+    def construct_copy(
+        self,
+        children: Mapping[Hashable, None] | None = None,
+        dtype: None = None,
+        data: DataType | ProvidesDelayedData[ResType] | None = ...,
+        **kwargs,
+    ) -> Self: ...
+
+    @overload
+    def construct_copy(
+        self,
+        children: None = None,
+        dtype: type[ResType] | UnionType | None = None,
+        data: ResType | ProvidesDelayedData[ResType] | None = ...,
+        **kwargs,
+    ) -> "DataLeaf[ResType]": ...
+
+    @overload
+    def construct_copy(
+        self,
+        children: Mapping[Hashable, NewChildType] | None = None,
+        dtype: type[ResType] | UnionType | None = None,
+        data: None = None,
+        **kwargs,
+    ) -> "DataLeaf[ResType]": ...
+
+    # def construct_copy_(
+    #     self,
+    #     children: Mapping[Hashable, CompoundGroup[ResType]] | None = None,
+    #     dtype: type[ResType] | TypeForm[ResType] | None = None,
+    #     data: None = None,
+    #     **kwargs,
+    # ) -> Self | "ShnitselDBRoot[ResType]":
+
+    def construct_copy(
+        self,
+        children: Mapping[Hashable, None]
+        | Mapping[Hashable, NewChildType]
+        | None = None,
+        dtype: type[ResType] | UnionType | None = None,
+        data: ResType | ProvidesDelayedData[ResType] | None = ...,
+        **kwargs,
+    ) -> Self | "DataLeaf[ResType]":
+        """Helper function to create a copy of this tree structure, but with potential changes to metadata or data.
+
+        If the data in this delayed DataLeaf is available, this will instead return a normal DataLeaf.
+
+        Parameters:
+        -----------
+        data: ResType | ProvidesDelayedData[ResType] | None, optional
+            Data to replace the current data in the copy of this node
+        children: None, optional
+            Parameter not supported by this type of node.
+        dtype: type[ResType] | TypeForm[ResType], optional
+            The data type of the data in the copy constructed tree.
+
+        Raises
+        -----------
+        AssertionError
+            If dtype is set without a new `data` entry being provided
+
+        Returns:
+        -----------
+            Self
+                A copy of this node with recursively copied children if `data` is not set .
+            DataLeaf[ResType]
+                A new leaf with a new data type if `data` is provided.
+        """
+        assert children is None, "No children can be provided for a Leaf node"
+
+        if 'name' not in kwargs:
+            kwargs['name'] = self._name
+        if 'attrs' not in kwargs:
+            kwargs['attrs'] = self._attrs
+
+        if data is ...:
+            assert dtype is None, (
+                "Cannot reassign data type if new data entry is not provided"
+            )
+            return type(self)(
+                data=self._data,
+                dtype=self._dtype,
+                **kwargs,
+            )
+        else:
+            return DataLeaf(
+                data=data,
+                dtype=dtype,
+                **kwargs,
+            )

@@ -33,7 +33,7 @@ def _at_XYZ_subset_to_descriptor(da: xr.DataArray) -> xr.DataArray:
         The patched array
     """
     da = da.drop_vars(
-        'atom',
+        ['atom', 'atNames', 'atNums', 'direction'],
         errors='ignore',
     )
 

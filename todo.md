@@ -52,10 +52,16 @@
 - biplot_kde needs to be fixed to use the descriptors of the PCA in the side plots.
   - [x] Fix PCA loadings main contribution plot not being the same as the explained PCA.
   - [x] Fix cluster loadings plot occasionally empty.
-  - [ ] Add a `state` coloring option to explore splits between different states in state space
+  - [x] Add a `state` coloring option to explore splits between different states in state space
 - Visualization support
   - [ ] Add generic `plot()` function to various types
   - [ ] Add option for plots from tree hierarchies
+  - [ ] Refactor the spectra plots
+    - [x] Make spectra plots work with wrapper types/datasets
+    - [ ] TODO: Make spectra plots work with trees.
+  - [ ] Refactor colored PCA line plots
+  - [ ] Refactor time plots
+  - [ ] Refactor 
 - [ ] Add tutorial for further CLI tools
 - Dimension reduction:
   - [ ] Refactor PLS
@@ -68,8 +74,9 @@
     - [x] Refactor documentation
     - [ ] Make docstrings more detailed
   - DatasheetPage:
-    - [ ] Improve PCA Page
+    - [x] Improve PCA Page (finished)
     - [x] Improve default settings for datasheet and pages.
+    - [ ] Add page for spectral analysis
 - Hops
   - [ ] Fix some functions not yet moved to tree types or new style of type selection.
     - [x] `assign_hop_time()` done

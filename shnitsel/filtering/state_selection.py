@@ -2098,6 +2098,9 @@ class StateSelection:
         """
         from shnitsel.vis.colormaps import st_grey
 
+        if self.state_colors is None:
+            self.auto_assign_colors(inplace=True)
+
         if self.state_colors is not None and id in self.state_colors:
             return self.state_colors[id]
         else:
@@ -2118,6 +2121,9 @@ class StateSelection:
 
         """
         from shnitsel.vis.colormaps import st_grey
+
+        if self.state_combination_colors is None:
+            self.auto_assign_colors(inplace=True)
 
         if (
             self.state_combination_colors is not None

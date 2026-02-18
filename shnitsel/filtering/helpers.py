@@ -115,15 +115,22 @@ def _get_default_state_selection(
             return state_selection
         else:
             # try and construct structure selection:
-            try:
-                sel = StateSelection.init_from_dataset(state_source)
+            if state_source is not None:
+                try:
+                    sel = StateSelection.init_from_dataset(state_source)
 
-                tmp_res = sel.select(state_selection)
-            except:
+                    tmp_res = sel.select(state_selection)
+                except:
+                    try:
+                        tmp_res = StateSelection.init_from_descriptor(state_selection)
+                    except:
+                        raise
+            else:
                 try:
                     tmp_res = StateSelection.init_from_descriptor(state_selection)
                 except:
                     raise
+
 
             if tmp_res is None:
                 raise ValueError(
