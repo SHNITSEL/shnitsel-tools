@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Literal, Sequence, TypeVar
+from typing import Any, Literal, Sequence, TypeVar, overload
 from copy import copy
 
 import numpy as np
@@ -10,6 +10,7 @@ from shnitsel.data.dataset_containers import wrap_dataset
 from shnitsel.data.dataset_containers.data_series import DataSeries
 from shnitsel.data.dataset_containers.frames import Frames
 from shnitsel.data.dataset_containers.trajectory import Trajectory
+from shnitsel.data.tree.node import TreeNode
 from shnitsel.filtering.structure_selection import SMARTSstring, StructureSelection
 from shnitsel.geo.geocalc import get_distances
 from shnitsel.bridges import construct_default_mol
@@ -181,7 +182,21 @@ def calculate_bond_length_filtranda(
     )
 
 
-# TODO: FIXME: This should operate on single trajectories.
+@overload
+def filter_by_length(
+    frames_or_trajectory: TreeNode[Any, TrajectoryOrFrames],
+    filter_method: Literal["truncate", "omit", "annotate"] | float = "truncate",
+    *,
+    geometry_thresholds: dict[SMARTSstring, float]
+    | GeometryFiltrationThresholds
+    | None = None,
+    mol: Mol | None = None,
+    plot_thresholds: bool | Sequence[float] = False,
+    plot_populations: Literal["independent", "intersections", False] = False,
+) -> TreeNode[Any, TrajectoryOrFrames] | None: ...
+
+
+@overload
 def filter_by_length(
     frames_or_trajectory: TrajectoryOrFrames,
     filter_method: Literal["truncate", "omit", "annotate"] | float = "truncate",
@@ -192,7 +207,20 @@ def filter_by_length(
     mol: Mol | None = None,
     plot_thresholds: bool | Sequence[float] = False,
     plot_populations: Literal["independent", "intersections", False] = False,
-) -> TrajectoryOrFrames | None:
+) -> TrajectoryOrFrames | None: ...
+
+
+def filter_by_length(
+    frames_or_trajectory: TreeNode[Any, TrajectoryOrFrames] | TrajectoryOrFrames,
+    filter_method: Literal["truncate", "omit", "annotate"] | float = "truncate",
+    *,
+    geometry_thresholds: dict[SMARTSstring, float]
+    | GeometryFiltrationThresholds
+    | None = None,
+    mol: Mol | None = None,
+    plot_thresholds: bool | Sequence[float] = False,
+    plot_populations: Literal["independent", "intersections", False] = False,
+) -> TreeNode[Any, TrajectoryOrFrames] | TrajectoryOrFrames | None:
     """Filter trajectories according to bond length
 
     Parameters
@@ -248,6 +276,15 @@ def filter_by_length(
     If the input has a ``filtranda`` data_var, it is overwritten. An existing 'criterion' dimension will be dropped from
     the `frames_or_trajectory` parameter along with all variables and coordinates tied to it.
     """
+    if isinstance(frames_or_trajectory, TreeNode):
+        return frames_or_trajectory.map_data(
+            filter_by_length,
+            filter_method=filter_method,
+            geometry_thresholds=geometry_thresholds,
+            mol=mol,
+            plot_thresholds=plot_thresholds,
+            plot_populations=plot_populations,
+        )
 
     analysis_data: Trajectory | Frames = wrap_dataset(
         frames_or_trajectory, Trajectory | Frames
