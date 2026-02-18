@@ -150,18 +150,13 @@ class DatasheetPage:
         else:
             if isinstance(data, xr.Dataset):
                 try:
-                    data = Trajectory(data)
+                    data = wrap_dataset(data, Trajectory | Frames)
                 except:
-                    try:
-                        data = Frames(data)
-                    except:
-                        raise TypeError(
-                            "Data provided to datasheet page is neither of the right shape to be a trajectory nor of the type to be considered frames data."
-                        )
+                    raise TypeError(
+                        "Data provided to datasheet page is neither of the right shape to be a trajectory nor of the type to be considered frames data."
+                    )
 
             if isinstance(data, Frames):
-                self.frames = data
-            elif isinstance(data, Trajectory):
                 self.frames = data.as_frames
             else:
                 raise TypeError("Neither DatasheetPage nor frames/Trajectory given.")
