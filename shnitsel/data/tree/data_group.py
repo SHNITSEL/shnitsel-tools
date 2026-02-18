@@ -281,6 +281,8 @@ class DataGroup(
 
         max_search = len(self.children) * 10
 
+        last_hit = -1
+
         for key, group in subgroup_member_children.items():
             try:
                 # First try to treat it as a dataclass
@@ -307,9 +309,14 @@ class DataGroup(
                     dtype=self._dtype,
                 )
                 found_key = False
-                for i in range(10000):
+                for i in range(last_hit + 1, 10000):
+                    group_name_try = f"group_{i}"
+                    if group_name_try not in new_children:
+                        new_children[group_name_try] = new_group
+                        found_key = True
+                        last_hit = i
+                        break
                     idx = random.randint(0, max_search)
-
                     group_name_try = f"group_{idx}"
                     if group_name_try not in new_children:
                         new_children[group_name_try] = new_group
