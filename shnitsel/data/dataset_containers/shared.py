@@ -244,10 +244,21 @@ class ShnitselDataset(SupportsFromXrConversion, SupportsToXrConversion):
         for key in ["__mol", "_mol", "mol"]:
             if key in self.attrs:
                 return rdkit.Chem.Mol(self.attrs[key])
+            if key in self.coords:
+                return rdkit.Chem.Mol(self.coords[key].item())
 
         mol_constr = construct_default_mol(self)
         # Cache the molecule
-        self.attrs["__mol"] = mol_constr
+        mol_da = xr.DataArray(
+            (mol_constr),
+            dims=(),
+            attrs={
+                "description": "The rc.Mol object representing the structure of a molecular graph."
+            },
+        )
+        self._raw_dataset = self._raw_dataset.assign_attrs(
+            __mol=mol_constr
+        ).assign_coords(__mol=mol_da)
         return mol_constr
 
     def sel(
