@@ -1,6 +1,6 @@
 import logging
 import pathlib
-from typing import Any, Dict, Hashable
+from typing import Any, Dict, Hashable, Literal
 import numpy as np
 
 import xarray as xr
@@ -147,7 +147,9 @@ def _prepare_dataset(dataset: xr.Dataset) -> xr.Dataset:
                         value, cls=NumpyDataEncoder
                     )
                 except ValueError as e:
-                    print(f"ds['{data_var}'].attrs['{attr}']={cleaned_ds[data_var].attrs[attr]} -> {e}")
+                    print(
+                        f"ds['{data_var}'].attrs['{attr}']={cleaned_ds[data_var].attrs[attr]} -> {e}"
+                    )
         for attr in remove_attrs:
             logging.debug(f"Stripping attribute {data_var}.{attr}")
             del cleaned_ds[data_var].attrs[attr]
@@ -198,6 +200,18 @@ def _dataset_to_encoding(dataset: xr.Dataset, complevel: int) -> dict[Hashable, 
     }
     return encoding
 
+# T_NetcdfEngine = Literal["netcdf4", "scipy", "h5netcdf"]
+# T_Engine = Union[
+#     T_NetcdfEngine,
+#     Literal["pydap", "zarr"],  # noqa: PYI051
+#     type[BackendEntrypoint],
+#     str,  # no nice typing support for custom backends
+#     None,
+# ]
+# T_NetcdfTypes = Literal[
+#     "NETCDF4", "NETCDF4_CLASSIC", "NETCDF3_64BIT", "NETCDF3_CLASSIC"
+# ]
+
 
 def write_shnitsel_file(
     dataset: xr.Dataset
@@ -206,6 +220,8 @@ def write_shnitsel_file(
     | TreeNode[Any, xr.Dataset | xr.DataArray | SupportsToXrConversion],
     savepath: PathOptionsType,
     complevel: int = 9,
+    output_engine: str | Literal['netcdf4', 'h5netcdf'] = 'h5netcdf',
+    output_format: Literal["NETCDF4", "NETCDF4_CLASSIC"] | None = None,
 ):
     """Function to write a trajectory in Shnitsel format (xr.) to a ntcdf hdf5 file format.
 
@@ -220,6 +236,11 @@ def write_shnitsel_file(
         The path at which to save the trajectory file.
     complevel : int, optional
         The compression level to apply during saving, by default 9
+    output_engine : {'netcdf4', 'h5netcdf'}, default='h5netcdf'
+        The backend engine to output the data structure to file. Must be registered with the xarray backend.
+    output_format : {'NETCDF4', 'NETCDF4_CLASSIC"}, optional
+        Option to specify the format of the `xr.to_netcdf()` method of the dataset, tree or array.
+
 
     Returns
     -------
@@ -248,14 +269,16 @@ def write_shnitsel_file(
         # import pprint
 
         # pprint.pprint(cleaned_tree)
-        return cleaned_tree.to_netcdf(savepath, engine='h5netcdf', encoding=encoding)
+        return cleaned_tree.to_netcdf(
+            savepath, engine=output_engine, format=output_format, encoding=encoding
+        )
     elif isinstance(dataset, xr.Dataset):
         cleaned_ds = _prepare_dataset(dataset)
         encoding = _dataset_to_encoding(cleaned_ds, complevel)
 
         cleaned_ds.attrs["__shnitsel_format_version"] = "v1.3"
 
-        return cleaned_ds.to_netcdf(savepath, engine='h5netcdf', encoding=encoding)
+        return cleaned_ds.to_netcdf(savepath, engine=output_engine, encoding=encoding)
     else:
         ds, metadata = data_to_xarray_dataset(dataset, dict())
         if ds is None:
