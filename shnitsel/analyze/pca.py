@@ -133,6 +133,7 @@ class PCAResult(
     def principal_components(self) -> xr.DataArray:
         return self.components
 
+
 @overload
 def pca_and_hops(
     frames: TreeNode[Any, ShnitselDataset | xr.Dataset],
@@ -425,7 +426,7 @@ def pca(
             ) -> ShnitselDataset | xr.DataArray | None:
                 if isinstance(x, xr.DataArray):
                     return x
-                x = wrap_dataset(x)
+                x = wrap_dataset(x, ShnitselDataset)
                 return x
 
                 if isinstance(x, (Trajectory, Frames)):
