@@ -172,7 +172,7 @@ def omit(frames_or_trajectory: TrajectoryOrFrames) -> TrajectoryOrFrames | None:
     """
     wrapped_dataset = wrap_dataset(frames_or_trajectory)
     try:
-        filter_mask = _filter_mask_from_dataset(frames_or_trajectory.dataset)
+        filter_mask = _filter_mask_from_dataset(wrapped_dataset.dataset)
         good_throughout = filter_mask["good_throughout"]
         all_critera_fulfilled = good_throughout.all("criterion").item()
         if all_critera_fulfilled:
@@ -197,7 +197,7 @@ def _log_omit(before, after):
 
 def truncate(
     frames_or_trajectory: TrajectoryOrFrames | xr.Dataset,
-) -> TrajectoryOrFrames | Trajectory | Frames:
+) -> TrajectoryOrFrames | Trajectory | Frames | None:
     """Perform a truncation on the trajectory or frameset, i.e. cut off the trajectory
     after the last frame that fulfils all filtration conditions.
 
@@ -229,11 +229,18 @@ def truncate(
         cum_mask = noncum_mask.cumprod().astype(bool)
 
     tmp_res = wrapped_dataset.dataset.isel({wrapped_dataset.leading_dim: cum_mask})
-    # TODO: FIXME: Test whether this works. May be wrong shape
-    if not isinstance(frames_or_trajectory, xr.Dataset):
-        return type(frames_or_trajectory)(tmp_res)
-    else:
-        return wrap_dataset(tmp_res, Trajectory | Frames)
+
+    # Guard agains empty trajectories being kept
+    if (
+        wrapped_dataset.leading_dim in tmp_res.dims
+        and tmp_res.sizes[wrapped_dataset.leading_dim] > 0
+    ):
+        # TODO: FIXME: Test whether this works. May be wrong shape
+        if not isinstance(frames_or_trajectory, xr.Dataset):
+            return type(frames_or_trajectory)(tmp_res)
+        else:
+            return wrap_dataset(tmp_res, Trajectory | Frames)
+    return None
 
 
 _truncate = truncate
@@ -276,9 +283,14 @@ def transect(
     is_trajectory_good = (good_upto >= cutoff_time).all("criterion").item()
     if is_trajectory_good:
         time_sliced_dataset = wrapped_dataset.loc[{"time": slice(float(cutoff_time))}]
-        return wrap_dataset(time_sliced_dataset)
-    else:
-        return None
+
+        # Guard agains empty trajectories being kept
+        if (
+            wrapped_dataset.leading_dim in time_sliced_dataset.dims
+            and time_sliced_dataset.sizes[wrapped_dataset.leading_dim] > 0
+        ):
+            return wrap_dataset(time_sliced_dataset)
+    return None
 
 
 _transect = transect
