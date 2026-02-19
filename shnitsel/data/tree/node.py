@@ -578,12 +578,6 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
         """
         return len(self._children)
 
-    def __contains__(self, value: str | ChildType) -> bool:
-        if isinstance(value, str):
-            return value in self._children
-        else:
-            return value in self._children.values()
-
     def __getitem__(
         self, key: str | tuple[str] | Any
     ) -> "TreeNode[Any, DataType] |  DataType | TreeNode[Any, Any] |None":
@@ -689,6 +683,44 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
                 else:
                     return child_entry._find_tree_entry(path_tail)
         return None
+
+    def __contains__(self, item: "TreeNode[Any, Any] | str | ChildType | Any") -> bool:
+        """Helper method to check if either a key is a valid path in this tree or if one of
+        the data sets in this tree contains the item
+
+        Parameters
+        ----------
+        item : Any
+            The item to check for being in the tree.
+        """
+
+        if isinstance(item, (str, tuple)):
+            if item in self._children:
+                return True
+            try:
+                res = self.__getitem__(item)
+                if res is not None:
+                    return True
+            except:
+                pass
+        elif isinstance(item, TreeNode):
+            # See if it is a direct node in this subtree:
+            if item in self._children.values():
+                return True
+            else:
+                return any(item in x for x in self._children.values() if x is not None)
+
+        # Try and find it in any of the data entries
+        for x in self.collect_data():
+            if x is item:
+                return True
+            try:
+                if x in item:  # type: ignore # We are aware that the data type may not support __contains__
+                    return True
+            except:
+                pass
+
+        return False
 
     def __setitem__(self, key, value):
         """We do not supporrt setting an item on the tree with this syntax due to the
