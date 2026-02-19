@@ -496,7 +496,7 @@ def biplot_kde(
     if kde_data:
         if contour_colors is None:
             contour_colors = plt.get_cmap(noodleplot_cmap)(
-                np.linspace(0, 1, len(contour_levels))
+                np.linspace(0, 1, len(kde_data))
             )
 
         xx, yy, Zs = kde_data
