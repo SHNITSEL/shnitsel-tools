@@ -143,9 +143,25 @@ def lda(
     else:
         cats_name = cats.name
 
+    dataset = dataset.transpose(..., dim)
+
     # Scale all features/variables in the dataset to be in 0.0-1.0 range
-    scaled = xr.apply_ufunc(MinMaxScaler().fit_transform, dataset.transpose(..., dim))
+    scaled = xr.apply_ufunc(
+        MinMaxScaler().fit_transform,
+    )
     lda_object = sk_LDA(n_components=n_components)
+
+    scaler = MinMaxScaler()
+    lda_object = sk_LDA(n_components=n_components)
+
+    pipeline = Pipeline([('scaler', scaler), ('lda', lda_object)])
+
+    lda_res: xr.DataArray = xr.apply_ufunc(
+        pipeline.fit_transform,
+        data,
+        input_core_dims=[[dim]],
+        output_core_dims=[['scaling']],
+    )
 
     def fit_transform(X):
         # cats: nonlocal
