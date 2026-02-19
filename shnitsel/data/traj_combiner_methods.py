@@ -412,8 +412,12 @@ def concat_trajs(
     if all_traj:
         wrapped_ds = [wrap_dataset(x, (Trajectory | Frames)) for x in datasets]
 
+        # NOTE: Here, we filter out all trajectories that are empty. This breaks concatenation due to empty arrays causing issues in stacking
+
         datasets_pure = list(
-            x.as_frames if isinstance(x, Trajectory) else x for x in wrapped_ds
+            x.as_frames if isinstance(x, Trajectory) else x
+            for x in wrapped_ds
+            if x.sizes[x.leading_dimension] > 0
         )
 
         if len(datasets_pure) == 0:
@@ -518,14 +522,22 @@ def concat_trajs(
     elif all_da:
         # Concatenate data arrays
 
-        def da_to_frame(da, default_id):
+        def da_to_frame(da, default_id) -> xr.DataArray | None:
             if 'frame' in da.dims:
-                return da
+                if da.sizes['frame'] > 0:
+                    return da
+                # Empty array, don't keep
+                return None
 
             if 'time' not in da.dims:
                 raise ValueError(
                     f"The data array {da=} did not have sufficient information for concatenation. Missing `time` dimension."
                 )
+
+            # TODO: Probably check for sizes of all dimensions!
+            if da.sizes['time'] == 0:
+                # Empty array, don't keep
+                return None
 
             if 'atrajectory' not in da.coords:
                 trajectory_id = da.attrs.get(
@@ -552,7 +564,9 @@ def concat_trajs(
             return da.stack(frame=["atrajectory", "time"])
 
         framed_da: list[xr.DataArray] = [
-            da_to_frame(da, i) for i, da in enumerate(datasets)
+            res
+            for i, da in enumerate(datasets)
+            if (res := da_to_frame(da, i)) is not None
         ]
 
         # Check that all dimensions match. May want to check the values match as well?
@@ -700,6 +714,22 @@ def layer_trajs(
 
     if len(datasets_converted) == 0:
         raise ValueError("No trajectories were provided.")
+
+    leading_dimension = [
+        'time'
+        if 'time' in x.dims
+        else 'frame'
+        if 'frame' in x.dims
+        else "missing_leading_dimension"
+        for x in datasets_converted
+    ]
+
+    # NOTE: Filter out empty data sets before concatentation due to issues with empty arrays
+    datasets_converted = [
+        x
+        for x, ld in zip(datasets, leading_dimension)
+        if x.sizes[leading_dimension] > 0
+    ]
 
     if not _check_matching_dimensions(datasets_converted, {'time', 'frame'}):
         message = "Dimensions of the provided datasets are not consistent."
