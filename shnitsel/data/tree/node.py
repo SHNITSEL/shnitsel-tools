@@ -585,33 +585,99 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
             return value in self._children.values()
 
     def __getitem__(
-        self, key: str | tuple[str]
-    ) -> "TreeNode[Any, DataType] | DataType | None":
+        self, key: str | tuple[str] | Any
+    ) -> "TreeNode[Any, DataType] |  DataType | TreeNode[Any, Any] |None":
+        """Array-style index accessor method.
+
+        Can traverse paths within the tree.
+        Note that if the path is not found within the tree, we will first try and
+        gracefully map the access over all data entries within the tree.
+
+        Parameters
+        ----------
+        key : str | tuple[str] | Any
+            The path/key under which data should be looked up
+
+        Returns
+        -------
+        TreeNode[Any, DataType] |  DataType | TreeNode[Any, Any] |None
+            Either the subtree that was selected, the data that was unwrapped or the tree
+            resulting from mapping the access over all entries.
+        """
         path_parts: tuple
+
+        is_handled = True
+        handle_error = ValueError(
+            f"Could not find requested data in the tree. ({key=})"
+        )
         if isinstance(key, str):
             path_parts = Path(key).parts
         elif isinstance(key, tuple):
             path_parts = key
         else:
-            raise ValueError("Unsupported index type: %s", type(key))
+            # All other keys should go to other handlers
+            path_parts = ()
+            is_handled = False
+            handle_error = ValueError("Unsupported index type: %s", type(key))
 
+        if is_handled:
+            res = self._find_tree_entry(path_parts)
+
+            if res is not None:
+                return res
+
+            is_handled = False
+            handle_error = KeyError(f"Key {key} not found in current tree.")
+
+        # NOTE: Try and see it as an attempt to call `__getitem__` on the data entries in the tree:
+
+        if not is_handled:
+            try:
+                res = self.map_data(lambda x: x[key])
+                return res
+            except:
+                # None of our attempts was successful, this is a true error
+                raise handle_error
+
+        return None
+
+    def _find_tree_entry(
+        self, path_parts: tuple
+    ) -> "TreeNode[Any, DataType] | DataType | None":
+        """Helper method to handle path traversal within the tree to try and find
+        a resolution for a path.
+
+        Not supposed to be called directly from outside.
+        Used from the __getitem__ method performing some internal preprocessing first.
+
+        Parameters
+        ----------
+        path_parts : tuple
+            The split parts of the path
+
+        Returns
+        -------
+        TreeNode[Any, DataType] | DataType | None
+            Either a subtree of the current tree, a data entry within the current tree or None if no result was found for the query
+        """
         if len(path_parts) == 0:
             return self
 
         first_part = path_parts[0]
         path_tail = tuple(path_parts[1:])
+
         if first_part == os.path.sep:
             # print("goto root")
-            return self.root[path_tail]
+            return self.root._find_tree_entry(path_tail)
         elif first_part == '.':
             # print("goto self")
-            return self[path_tail]
+            return self._find_tree_entry(path_tail)
         elif first_part == '..':
             if self._parent is not None:
                 # print("goto parent")
-                return self._parent[path_tail]
+                return self._parent._find_tree_entry(path_tail)
             # print("goto parent impossible")
-            return self[path_tail]
+            return self._find_tree_entry(path_tail)
         else:
             if self.has_data and first_part == 'data':
                 # print("yield data")
@@ -621,14 +687,71 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
                 if child_entry is None:
                     return None
                 else:
-                    return child_entry[path_tail]
+                    return child_entry._find_tree_entry(path_tail)
         return None
 
     def __setitem__(self, key, value):
+        """We do not supporrt setting an item on the tree with this syntax due to the
+        invariance constraints on the tree.
+
+        Parameters
+        ----------
+        key : Any
+            The key to which a value would be assigned
+        value : Any
+            The value to assign to the entry
+
+        Raises
+        ------
+        RuntimeError
+            Setting entries with this syntax is not supported.
+        """
         # self.daten[key] = value
-        raise AssertionError(
-            "Cannot set tree items with the array syntax. Would violate the "
+        raise RuntimeError(
+            "Cannot set tree items with the array syntax. Would violate the invariance conditions."
         )
+
+    def __getattr__(self, name: str) -> "TreeNode[Any, Any]":
+        """Helper method to support forwarding of attribute requests to
+        all data entries if the tree itself does not support them.
+
+        Parameters
+        ----------
+        name : str
+            The name of the attribute to resolve
+
+        Returns
+        -------
+        TreeNode[Any, Any]
+            We cannot predict, what the resolution on data entries will yield.
+            If a data entry does not have the requested attribute, the result
+            will be `None` on that entry.
+            If none of the entries had the attribute, an `AttributeError`
+            will be raised instead
+
+        Raises
+        ------
+        AttributeError
+            If the attribute could not be found on the contained data.
+        """
+        # If we arrive here, the tree has not had the attribute set via traditional means.
+        # We will broadcast/map this access over all data entries:
+
+        try:
+            res = self.map_data(lambda x: getattr(x, name, None))
+            coll_data = list(res.collect_data())
+            if len(coll_data) > 0 and any(x is not None for x in coll_data):
+                return res
+
+            raise AttributeError(
+                f"Attribute `{name=}` could not be found on any data in the tree."
+            )
+        except AttributeError:
+            raise
+        except Exception as e:
+            raise AttributeError(
+                f"Could not find attribute `{name=}` on the tree or its data entries"
+            ) from e
 
     @property
     def is_leaf(self) -> bool:
@@ -1793,7 +1916,7 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
             params['level'] = str(self._level_name)
         if self._children:
             childrep = {k: repr(x) for k, x in self._children.items()}
-            params['children'] = f"{len(self._children)}: " + repr(childrep)
+            params['children'] = f"{len(self._children)} children: " + repr(childrep)
 
         return f"{type(self)} [{params}]"
 
