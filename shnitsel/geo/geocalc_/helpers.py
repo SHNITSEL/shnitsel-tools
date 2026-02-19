@@ -33,7 +33,7 @@ def _at_XYZ_subset_to_descriptor(da: xr.DataArray) -> xr.DataArray:
         The patched array
     """
     da = da.drop_vars(
-        ['atom', 'atNames', 'atNums', 'direction'],
+        ['atom', 'atNames', 'atNums'],
         errors='ignore',
     )
 
@@ -109,6 +109,12 @@ def _assign_descriptor_coords(
     xr.DataArray
         The resulting DataArray with the new coordinates assigned.
     """
+
+    if 'direction' in obj.coords:
+        obj = obj.drop_vars('direction', errors='ignore')
+
+    if 'direction' in obj.dims:
+        obj = obj.squeeze('direction')
 
     feature_descriptors_np = np.empty((len(feature_descriptors),), dtype='O')
     feature_descriptors_np[:] = feature_descriptors
