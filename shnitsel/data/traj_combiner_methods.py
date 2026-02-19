@@ -728,7 +728,7 @@ def layer_trajs(
     datasets_converted = [
         x
         for x, ld in zip(datasets, leading_dimension)
-        if x.sizes[leading_dimension] > 0
+        if x.sizes[ld] > 0
     ]
 
     if not _check_matching_dimensions(datasets_converted, {'time', 'frame'}):
