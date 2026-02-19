@@ -232,7 +232,7 @@ def biplot_kde(
 
     try:
         hops_mask = hops_mask_from_active_state(
-            frames, hop_type_selection=state_selection
+            pca_data.inputs, hop_type_selection=state_selection
         )
     except:
         logging.warning("Could not obtain `hops` mask from `frames` input.")
