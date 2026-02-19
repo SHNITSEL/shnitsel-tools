@@ -428,7 +428,7 @@ def biplot_kde(
         noodleplot_cnorm = None
         noodleplot_colorbar_kws = None
         kde_data = None
-        colorbar_label = None
+        colorbar_label = 'time'
         # raise ValueError(
         #     f"Unsupported coloring option `{scatter_color_property}` only supported options are `geo` or `time`."
         # )
