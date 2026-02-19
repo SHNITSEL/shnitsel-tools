@@ -86,21 +86,26 @@ def plot_noodleplot(
     fig, ax = figax(fig=fig, ax=ax)
 
     if c is None:
-        c = noodle['time']
+        c = noodle.time
         c_is_time = True
     else:
         c_is_time = False
+        
+    if isinstance(c, TreeNode):
+        color_scatter = c.as_stacked
+    else:
+        color_scatter = c
 
     if colorbar_label is not None:
         pass
-    elif hasattr(c, 'attrs') and 'long_name' in c.attrs:
-        colorbar_label = str(c.attrs['long_name'])
-        if 'units' in c.attrs:
-            colorbar_label = f"${colorbar_label}$ / {c.attrs['units']}"
-    elif hasattr(c, 'name') and c.name is not None:
-        colorbar_label = str(c.name)
-        if 'units' in c.attrs:
-            colorbar_label = f"{colorbar_label} / {c.attrs['units']}"
+    elif hasattr(color_scatter, 'attrs') and 'long_name' in color_scatter.attrs:
+        colorbar_label = str(color_scatter.attrs['long_name'])
+        if 'units' in color_scatter.attrs:
+            colorbar_label = f"${colorbar_label}$ / {color_scatter.attrs['units']}"
+    elif hasattr(color_scatter, 'name') and color_scatter.name is not None:
+        colorbar_label = str(color_scatter.name)
+        if 'units' in color_scatter.attrs:
+            colorbar_label = f"{colorbar_label} / {color_scatter.attrs['units']}"
     elif c_is_time:
         colorbar_label = '$t$ / fs'
 
@@ -118,10 +123,6 @@ def plot_noodleplot(
     else:
         noodle_scatter = noodle
 
-    if isinstance(c, TreeNode):
-        color_scatter = c.as_stacked
-    else:
-        color_scatter = c
 
     cnorm = cnorm or mpl.colors.Normalize(color_scatter.min(), color_scatter.max())  # type: ignore
 
