@@ -151,8 +151,10 @@ def lda(
     )
     lda_object = sk_LDA(n_components=n_components)
 
+    # TODO: For the fit, we may need to apply a different approach than for transform. The category data is only needed for fit, not for transform.
     scaler = MinMaxScaler()
     lda_object = sk_LDA(n_components=n_components)
+    scaler.fit()
 
     pipeline = Pipeline([('scaler', scaler), ('lda', lda_object)])
 
@@ -179,7 +181,7 @@ def lda(
     scalings = xr.DataArray(
         lda_object.scalings_,
         dims=(dim, 'scaling'),
-        coords={'dim': dataset.coords[dim]},
+        coords={dim: dataset.coords[dim], 'scaling': [i for i in range(n_components)]},
     )
 
     if _state.DATAARRAY_ACCESSOR_REGISTERED:
