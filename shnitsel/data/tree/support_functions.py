@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+import logging
 from types import UnionType
 from typing import Any, Hashable, Iterable, Sequence, TypeVar, Union, overload
 from typing_extensions import TypeForm
@@ -173,6 +175,28 @@ def tree_zip(
         return tree_list[0].construct_copy(children=new_children)
 
 
+@dataclass
+class TreeStructureMismatchError(ValueError):
+    """Class signifying a mismatch between
+    the structure of multiple trees.
+    """
+
+    mismatched_path: str | None
+    trees: tuple[TreeNode, ...] | None
+
+    def __init__(
+        self,
+        msg: str,
+        *args,
+        path: str | None = None,
+        trees: tuple[TreeNode, ...] | None = None,
+        **kwargs,
+    ):
+        super().__init__(msg, *args, **kwargs)
+        self.mismatched_path = path
+        self.trees = trees
+
+
 def has_same_structure(*trees: TreeNode) -> bool:
     """Function to check whether a set of trees has the same overall structure
 
@@ -182,6 +206,11 @@ def has_same_structure(*trees: TreeNode) -> bool:
     -------
     bool
         True if all tree structures match, False otherwise.
+
+    Raises
+    ------
+    TreeStructureMismatchError(ValueError)
+        If the structure is mismatched
     """
     child_keys: set[str] | None = None
     has_data: bool | None = None
@@ -193,13 +222,24 @@ def has_same_structure(*trees: TreeNode) -> bool:
         if child_keys is None:
             child_keys = tree_keys
         else:
-            if child_keys.symmetric_difference(tree_keys):
-                return False
+            diff_children = child_keys.symmetric_difference(tree_keys)
+            if diff_children:
+                raise TreeStructureMismatchError(
+                    f"Tree mismatch at path {tree.path}: Keys of children do not match (mismatched: {diff_children})",
+                    path=tree.path,
+                    trees=trees,
+                )
+                # return False
         if has_data is None:
             has_data = tree.has_data
         else:
             if has_data != tree.has_data:
-                return False
+                raise TreeStructureMismatchError(
+                    f"Tree mismatch at path {tree.path}: Some trees have data, some don't",
+                    path=tree.path,
+                    trees=trees,
+                )
+                # return False
 
     if child_keys is None:
         return True
