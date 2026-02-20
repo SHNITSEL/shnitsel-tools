@@ -74,6 +74,10 @@ class DimRedResult(
         return self.loadings
 
     @property
+    def num_components(self) -> int:
+        return self.loadings.sizes[self._component_dimension]
+
+    @property
     def loadings(self) -> xr.DataArray:
         return self._loadings
 

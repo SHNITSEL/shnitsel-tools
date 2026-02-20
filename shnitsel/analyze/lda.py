@@ -1,4 +1,6 @@
+import logging
 from typing import TYPE_CHECKING, Any, Generic, TypeVar
+import numpy as np
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as sk_LDA
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import MinMaxScaler
@@ -59,10 +61,11 @@ class LDAResult(
             assert isinstance(lda_projected_inputs, xr.DataArray), (
                 "If inputs are provided as a single data array, the results must also be a single data array"
             )
-            coord_initial = [
-                lda_projected_inputs.coords['scaling'],
-                lda_inputs.coords[lda_dimension],
-            ]
+            coord_initial = {
+                'scaling': lda_projected_inputs.coords['scaling'],
+                lda_dimension: lda_inputs.coords[lda_dimension],
+            }
+
             scalings = xr.DataArray(
                 lda_object.scalings_,
                 dims=(lda_dimension, 'scaling'),
@@ -71,8 +74,6 @@ class LDAResult(
             )
             scalings_ids = list(range(scalings.sizes['scaling']))
             _lda_components = scalings.assign_coords(
-                scalings=('scaling', scalings_ids)
-            ).assign_coords(
                 LDAResult.get_extra_coords_for_loadings(lda_inputs, lda_dimension)
             )
 
@@ -88,10 +89,10 @@ class LDAResult(
             assert all(isinstance(x, xr.DataArray) for x in outputs_collected), (
                 "Tree-shaped results of LDA are not of data type xr.DataArray"
             )
-            coord_initial = [
-                outputs_collected[0].coords['scaling'],
-                inputs_collected[0].coords[lda_dimension],
-            ]
+            coord_initial = {
+                'scaling': outputs_collected[0].coords['scaling'],
+                lda_dimension: inputs_collected[0].coords[lda_dimension],
+            }
             scalings = xr.DataArray(
                 lda_object.scalings_,
                 dims=(lda_dimension, 'scaling'),
@@ -226,14 +227,6 @@ def lda(
             group_categories: DataGroup[xr.DataArray] = flat_group.map_data(
                 lambda x: x[1], dtype=xr.DataArray
             )
-
-            # Extract feature arrays out of leaves
-            collected_data = list(flat_group.collect_data())
-            if collected_data and 'time' in collected_features[0][0].sizes:
-                leading_dim = 'time'
-            else:
-                leading_dim = 'frame'
-
             # Concatenate features
             glued_features: xr.DataArray = group_features.as_stacked
             glued_categories: xr.DataArray = group_categories.as_stacked
@@ -369,7 +362,18 @@ def lda_direct(
 
     input_features = input_features.transpose(..., dim)
     cats_name = categories.name
-    category_flags = categories
+    category_flags = categories  # .transpose(..., dim) # Has no features dimension. Only category per frame
+
+    num_categories = len(np.unique(category_flags.values))
+    num_features = input_features.sizes[dim]
+
+    max_components = min(num_features, num_categories - 1)
+
+    if n_components > max_components:
+        logging.error(
+            f"LDA can only work on `min(num_features, num_categories-1)={max_components}` compontents, not `{n_components}`. Limiting number to maximum possible."
+        )
+        n_components = max_components
 
     # TODO: For the fit, we may need to apply a different approach than for transform. The category data is only needed for fit, not for transform.
     scaler = MinMaxScaler()
