@@ -354,7 +354,13 @@ def biplot_kde(
 
         state_ranges = [(s - 0.25, s + 0.25) for s in relevant_states]
 
-        kde_data = _fit_and_eval_kdes(pca_data, state_prop, state_ranges, num_steps=100)
+        if pca_data.num_components > 1:
+            kde_data = _fit_and_eval_kdes(
+                pca_data, state_prop, state_ranges, num_steps=100
+            )
+        else:
+            kde_data = None
+
         noodleplot_c = state_prop
         noodleplot_cmap = cm
         noodleplot_cnorm = state_norm
@@ -413,7 +419,12 @@ def biplot_kde(
                     "The value provided to `biplot_kde()` as a `geo_feature` tuple does not constitute a Feature descriptor"
                 )
         geo_prop = geo_prop.squeeze('descriptor')
-        kde_data = _fit_and_eval_kdes(pca_data, geo_prop, geo_kde_ranges, num_steps=100)
+        if pca_data.num_components > 1:
+            kde_data = _fit_and_eval_kdes(
+                pca_data, geo_prop, geo_kde_ranges, num_steps=100
+            )
+        else:
+            kde_data = None
         noodleplot_c = geo_prop
         noodleplot_cmap = property_cmap if property_cmap is not None else 'PRGn'
         noodleplot_cnorm = None
@@ -455,6 +466,9 @@ def biplot_kde(
         ax=pcaax,
         noodle_kws=dict(alpha=1, marker='.'),
         hops_kws=dict(c='r', s=0.2),
+        component_dimension=pca_data.component_dimension,
+        n_components=pca_data.num_components,
+        component_label=pca_data.component_dimension,
     )
 
     if cluster_loadings:
@@ -478,11 +492,13 @@ def biplot_kde(
         # Add a structure highlight grid to the side highlighting
         # the contributions to the components
 
+        comp_dim = pca_data.component_dimension
+
         component_axes = {
-            'PC1 +': structaxs['a'],
-            'PC1 -': structaxs['b'],
-            'PC2 +': structaxs['c'],
-            'PC2 -': structaxs['d'],
+            f'{comp_dim}1 +': structaxs['a'],
+            f'{comp_dim}1 -': structaxs['b'],
+            f'{comp_dim}2 +': structaxs['c'],
+            f'{comp_dim}2 -': structaxs['d'],
         }
 
         pb.plot_pca_components(

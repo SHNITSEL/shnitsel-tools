@@ -378,8 +378,11 @@ def _fit_and_eval_kdes(
         geo_property = geo_property.as_stacked
     assert isinstance(geo_property, xr.DataArray)
     pca_data_da = pca_data_da.transpose(
-        'frame', 'time', 'PC', missing_dims='ignore'
+        'frame', 'time', ..., missing_dims='ignore'
     )  # required order for the following 3 lines
+    # pca_data_da = pca_data_da.transpose(
+    #     'frame', 'time', 'PC', missing_dims='ignore'
+    # )  # required order for the following 3 lines
 
     xx, yy = _get_oversized_meshgrid(
         pca_data_da, num_steps=num_steps, extension=extension

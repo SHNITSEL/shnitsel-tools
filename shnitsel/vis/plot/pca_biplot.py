@@ -17,7 +17,9 @@ from scipy import stats
 from sklearn.cluster import KMeans
 
 from shnitsel.analyze.generic import get_standardized_pairwise_dists
+from shnitsel.analyze.lda import LDAResult
 from shnitsel.analyze.pca import PCAResult, pca
+from shnitsel.core.typedefs import DimName
 from shnitsel.data.dataset_containers import wrap_dataset, Trajectory, Frames
 from shnitsel.data.tree.node import TreeNode
 from shnitsel.data.tree.support_functions import tree_merge, tree_zip
@@ -44,6 +46,9 @@ def plot_noodleplot(
     noodle_kws: dict | None = None,
     hops_kws: dict | None = None,
     rasterized: bool = True,
+    n_components: int = 2,
+    component_dimension: DimName = 'PC',
+    component_label: str = 'PC',
 ) -> Axes:
     """Create a `noodle` plot, i.e. a line or scatter plot of PCA-decomposed data.
 
@@ -90,7 +95,7 @@ def plot_noodleplot(
         c_is_time = True
     else:
         c_is_time = False
-        
+
     if isinstance(c, TreeNode):
         color_scatter = c.as_stacked
     else:
@@ -123,15 +128,21 @@ def plot_noodleplot(
     else:
         noodle_scatter = noodle
 
-
     cnorm = cnorm or mpl.colors.Normalize(color_scatter.min(), color_scatter.max())  # type: ignore
 
     assert isinstance(noodle_scatter, xr.DataArray)
     assert isinstance(color_scatter, xr.DataArray)
+    assert n_components > 0, "At least one component must be present for a noodleplot"
+
+    x_data = noodle_scatter.isel({component_dimension: 0}).values
+    if n_components > 1:
+        y_data = noodle_scatter.isel({component_dimension: 1}).values
+    else:
+        y_data = np.zeros_like(x_data)
 
     sc = ax.scatter(
-        noodle_scatter.isel(PC=0).values,
-        noodle_scatter.isel(PC=1).values,
+        x_data,
+        y_data,
         c=color_scatter,
         cmap=cmap,
         norm=cnorm,
@@ -139,8 +150,11 @@ def plot_noodleplot(
         **noodle_kws,
     )
 
-    ax.set_xlabel('PC1')
-    ax.set_ylabel('PC2')
+    x_label = f"{component_label}1"
+    y_label = f"{component_label}2" if n_components > 1 else ""
+
+    ax.set_xlabel(x_label)
+    ax.set_ylabel(y_label)
     if hops_mask is not None:
         hops_kws = dict(s=0.5, c='limegreen') | (hops_kws or {})
         if isinstance(noodle, TreeNode):
@@ -165,9 +179,14 @@ def plot_noodleplot(
 
             hops_noodle = noodle[hops_mask]
 
+        x_data_hops = hops_noodle.isel({component_dimension: 0}).values
+        if n_components > 1:
+            y_data_hops = hops_noodle.isel({component_dimension: 1}).values
+        else:
+            y_data_hops = np.zeros_like(x_data_hops)
         ax.scatter(
-            hops_noodle.isel(PC=0).values,
-            hops_noodle.isel(PC=1).values,
+            x_data_hops,
+            y_data_hops,
             rasterized=rasterized,
             **hops_kws,
         )
@@ -524,7 +543,7 @@ def _get_axs(clusters, labels):
 
 
 def plot_pca_components(
-    pca_res: PCAResult,
+    pca_res: PCAResult | LDAResult,
     axs: dict[str, Axes] | None = None,
     mol: Mol | None = None,
     show_loadings: int = 4,
@@ -556,19 +575,21 @@ def plot_pca_components(
     """
     from .structure_grid import feature_highlight_grid
 
-    principal_components = pca_res.principal_components
+    principal_components = pca_res.components
 
     component_contributions, main_contributions = pca_res.get_most_significant_loadings(
         top_n_total=max(show_loadings, 0)
     )
 
+    comp_dim =pca_res.component_dimension
+
     highlight_data: Sequence[Sequence[FeatureDescriptor | None]] = []
     labels = []
     cmaps = dict()
     gridspec = []
-    for i in principal_components.coords['PC'].values:
-        plus_label = f"PC{i + 1} +"
-        minus_label = f"PC{i + 1} -"
+    for i in principal_components.coords[comp_dim].values:
+        plus_label = f"{comp_dim}{i + 1} +"
+        minus_label = f"{comp_dim}{i + 1} -"
         cmaps[plus_label] = 'autumn'
         cmaps[minus_label] = 'cool'
 
@@ -607,7 +628,7 @@ def plot_pca_components(
         for feature_label, feature_part in main_contributions.groupby('descriptor'):
             feature_tex_label = feature_part.descriptor_tex.item()
             coeffs = feature_part.squeeze().values
-            if len(coeffs) == 2:
+            if coeffs.shape != () and len(coeffs) == 2:
                 x, y = coeffs
                 ax_loadings.arrow(
                     0, 0, x, y, head_width=0.01, length_includes_head=True
