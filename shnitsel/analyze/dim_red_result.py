@@ -12,6 +12,7 @@ from shnitsel.core.typedefs import DimName
 
 OriginType = TypeVar('OriginType')
 ResultType = TypeVar('ResultType')
+PredictionType = TypeVar('PredictionType')
 
 
 class DimRedResult(
@@ -280,3 +281,68 @@ class DimRedResult(
 
     def __repr__(self) -> str:
         return self.__str__() + "\n" + self.explain_loadings()
+
+
+class PredictorDimRedResult(
+    Generic[OriginType, ResultType, PredictionType],
+    DimRedResult[OriginType, ResultType],
+):
+    """Specialization of the general dimensionality reduction result
+    encapsulating a reduction that provides predictive behavior.
+
+    """
+
+    @overload
+    def predict(
+        self, other_da: TreeNode[Any, xr.DataArray]
+    ) -> TreeNode[Any, PredictionType]: ...
+    @overload
+    def predict(self, other_da: xr.DataArray) -> PredictionType: ...
+
+    def predict(
+        self, other_da: xr.DataArray | TreeNode[Any, xr.DataArray]
+    ) -> PredictionType | TreeNode[Any, PredictionType]:
+        """Apply the transformation encoded by this dimensionality reduction
+        to the provided (set of) DataArray(s) and return the prediction of the
+        underlying predictor
+
+        Parameters
+        ----------
+        other_da : xr.DataArray | TreeNode[Any, xr.DataArray]
+            The data to apply the transformation to and predict classification for.
+
+        Returns
+        -------
+        PredictionType | TreeNode[Any, PredictionType]
+            The transformed data
+        """
+        if isinstance(other_da, TreeNode):
+            return other_da.map_data(self._predict_single)
+
+        return self._predict_single(other_da=other_da)
+
+    def _predict_single(self, other_da: xr.DataArray) -> PredictionType:
+        if other_da.sizes[self.mapped_dimension] == 0:
+            return self._empty_prediction(other_da)
+
+        return xr.apply_ufunc(
+            self.pipeline.predict,
+            other_da,
+            input_core_dims=[[self.mapped_dimension]],
+            output_core_dims=[[self.component_dimension]],
+        )
+
+    def _empty_prediction(self, other_da: xr.DataArray) -> PredictionType:
+        """Helper method to yield an empty prediction result for empty arrays
+
+        Parameters
+        ----------
+        other_da : xr.DataArray
+            The empty array for which a prediction was requested
+
+        Returns
+        -------
+        PredictionType
+            The empty prediction
+        """
+        return xr.zeros_like(other_da, dtype=int)
