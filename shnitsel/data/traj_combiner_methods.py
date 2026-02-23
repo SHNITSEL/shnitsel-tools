@@ -531,9 +531,10 @@ def concat_trajs(
                 return None
 
             if 'time' not in da.dims:
-                raise ValueError(
-                    f"The data array {da=} did not have sufficient information for concatenation. Missing `time` dimension."
-                )
+                da = da.expand_dims('time')
+                # raise ValueError(
+                #     f"The data array {da=} did not have sufficient information for concatenation. Missing `time` dimension."
+                # )
 
             # TODO: Probably check for sizes of all dimensions!
             if da.sizes['time'] == 0:
