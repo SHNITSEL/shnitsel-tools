@@ -237,15 +237,21 @@ class DimRedResult(
         if isinstance(other_da, TreeNode):
             return other_da.map_data(self.project_array, dtype=xr.DataArray)
 
-        if other_da.sizes[self.mapped_dimension] == 0:
-            return xr.zeros_like(other_da, dtype=float)
+        if isinstance(other_da, xr.DataArray):
+            if other_da.sizes[self.mapped_dimension] == 0:
+                return xr.zeros_like(other_da, dtype=float)
 
-        return xr.apply_ufunc(
-            self.pipeline.transform,
-            other_da,
-            input_core_dims=[[self.mapped_dimension]],
-            output_core_dims=[[self.component_dimension]],
-        )
+            return xr.apply_ufunc(
+                self.pipeline.transform,
+                other_da,
+                input_core_dims=[[self.mapped_dimension]],
+                output_core_dims=[[self.component_dimension]],
+            )
+        else:
+            if len(other_da.shape) < 2 or other_da.shape[-2] < 1:
+                return xr.zeros_like(other_da, dtype=float)
+
+            return self.pipeline.transform(other_da)
 
     @staticmethod
     def get_extra_coords_for_loadings(
