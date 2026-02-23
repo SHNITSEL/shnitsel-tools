@@ -117,6 +117,7 @@ class PCAResult(
 
         self._pca_object = pca_object
         super().__init__(
+            dimred_label='PCA',
             inputs=pca_inputs,
             mapped_dimension=pca_dimension,
             pipeline=pca_pipeline,
