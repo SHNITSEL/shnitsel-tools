@@ -135,20 +135,24 @@ def plot_noodleplot(
     assert n_components > 0, "At least one component must be present for a noodleplot"
 
     x_data = noodle_scatter.isel({component_dimension: 0}).values
+
+    num_bins = int(min(np.floor(np.sqrt(len(x_data))), 50))
+    x_range = x_data.min(), x_data.max()
     if n_components > 1:
         y_data = noodle_scatter.isel({component_dimension: 1}).values
+        sc = ax.scatter(
+            x_data,
+            y_data,
+            c=color_scatter,
+            cmap=cmap,
+            norm=cnorm,
+            rasterized=rasterized,
+            **noodle_kws,
+        )
     else:
         y_data = np.zeros_like(x_data)
-
-    sc = ax.scatter(
-        x_data,
-        y_data,
-        c=color_scatter,
-        cmap=cmap,
-        norm=cnorm,
-        rasterized=rasterized,
-        **noodle_kws,
-    )
+        ax.hist(x_data, num_bins, range=x_range)
+        sc= None
 
     x_label = f"{component_label}1"
     y_label = f"{component_label}2" if n_components > 1 else ""
@@ -182,19 +186,21 @@ def plot_noodleplot(
         x_data_hops = hops_noodle.isel({component_dimension: 0}).values
         if n_components > 1:
             y_data_hops = hops_noodle.isel({component_dimension: 1}).values
+            ax.scatter(
+                x_data_hops,
+                y_data_hops,
+                rasterized=rasterized,
+                **hops_kws,
+            )
         else:
             y_data_hops = np.zeros_like(x_data_hops)
-        ax.scatter(
-            x_data_hops,
-            y_data_hops,
-            rasterized=rasterized,
-            **hops_kws,
-        )
+            ax.hist(x_data, num_bins, range=x_range)
 
-    if colorbar_kws:
-        fig.colorbar(sc, ax=ax, label=colorbar_label, pad=0.02, **colorbar_kws)
-    else:
-        fig.colorbar(sc, ax=ax, label=colorbar_label, pad=0.02)
+    if sc is not None:
+        if colorbar_kws:
+            fig.colorbar(sc, ax=ax, label=colorbar_label, pad=0.02, **colorbar_kws)
+        else:
+            fig.colorbar(sc, ax=ax, label=colorbar_label, pad=0.02)
 
     # Alternative layout solution
     # d = make_axes_locatable(ax)
@@ -581,7 +587,7 @@ def plot_pca_components(
         top_n_total=max(show_loadings, 0)
     )
 
-    comp_dim =pca_res.component_dimension
+    comp_dim = pca_res.component_dimension
 
     highlight_data: Sequence[Sequence[FeatureDescriptor | None]] = []
     labels = []
