@@ -36,6 +36,7 @@ class DimRedResult(
         Either an xr.DataArray or a DataGroup same as for `OriginType`.
     """
 
+    _dimred_label: str
     _inputs: OriginType
     _pipeline: Pipeline
     _mapped_dimension: DimName
@@ -45,6 +46,7 @@ class DimRedResult(
 
     def __init__(
         self,
+        dimred_label: str,
         inputs: OriginType,
         mapped_dimension: DimName,
         pipeline: Pipeline,
@@ -52,12 +54,17 @@ class DimRedResult(
         component_dimension: DimName,
         projected_inputs: ResultType,
     ):
+        self._dimred_label = dimred_label
         self._inputs = inputs
         self._mapped_dimension = mapped_dimension
         self._pipeline = pipeline
         self._loadings = loadings
         self._component_dimension = component_dimension
         self._projected_inputs = projected_inputs
+
+    @property
+    def label(self) -> str:
+        return self._dimred_label
 
     @property
     def inputs(self) -> OriginType:
