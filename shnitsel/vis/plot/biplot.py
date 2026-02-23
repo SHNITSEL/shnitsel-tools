@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import xarray as xr
 
 from shnitsel.analyze.hops import hops_mask_from_active_state
+from shnitsel.analyze.lda import LDAResult
 from shnitsel.analyze.pca import PCAResult, pca
 from shnitsel.core.typedefs import DimName
 from shnitsel.data.dataset_containers import wrap_dataset
@@ -201,7 +202,8 @@ def biplot_kde(
                 center_mean=center_mean,
             )  # type: ignore # For single PCA, we get single result.
             assert isinstance(fig, Figure)
-            fig.suptitle("PCA:" + pca_path)
+            dim_red_label = "PCA" if isinstance(pca_res, PCAResult) else "LDA" if isinstance(pca_res, LDAResult) else "Dim. reduction"
+            fig.suptitle(f"{dim_red_label}:" + pca_path)
             return x.construct_copy(data=fig)
 
         mapped_biplots = pca_data.map_filtered_nodes(
