@@ -3,6 +3,8 @@ from dataclasses import dataclass
 from functools import cached_property
 from typing import Any, Literal, Self
 
+import numpy as np
+
 from ..trajectory_grouping_params import TrajectoryGroupingMetadata
 
 
@@ -53,10 +55,18 @@ class Trajectory(DataSeries):
         --------
             Frames: The resulting frames instance with a stacked dimension `frame` and a new coordinate `active_trajectory` along the `frame` dimension
         """
+        if 'time' in self._raw_dataset.dims:
+            frame_ds = self.dataset.expand_dims(atrajectory=[self.trajectory_id]).stack(
+                frame=["atrajectory", "time"]
+            )
+        else:
+            # We have a single frame:
+            frame_ds = (
+                self.dataset.expand_dims('time')
+                .expand_dims(atrajectory=[self.trajectory_id])
+                .stack(frame=["atrajectory", "time"])
+            )
 
-        frame_ds = self.dataset.expand_dims(atrajectory=[self.trajectory_id]).stack(
-            frame=["atrajectory", "time"]
-        )
         return Frames(frame_ds)
 
     @cached_property
