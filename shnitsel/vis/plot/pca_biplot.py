@@ -93,6 +93,9 @@ def plot_noodleplot(
 
     fig, ax = figax(fig=fig, ax=ax)
 
+    if not colorbar_kws:
+        colorbar_kws = {}
+
     if c is None:
         c = noodle.time
         c_is_time = True
@@ -146,7 +149,7 @@ def plot_noodleplot(
 
     x_data = noodle_scatter.isel({component_dimension: 0}).values
 
-    num_bins = int(min(np.floor(np.sqrt(len(x_data))), 50))
+    num_bins = int(max(30, min(np.floor(np.sqrt(len(x_data))), 50)))
     x_range = x_data.min(), x_data.max()
     if n_components > 1:
         y_data = noodle_scatter.isel({component_dimension: 1}).values
@@ -166,12 +169,20 @@ def plot_noodleplot(
                 {component_dimension: 0}
             )
             cat_x_data = []
+            cat_color = []
             for category_value, data in x_data.groupby("category"):
                 cat_x_data.append(data)
+                cat_color.append(cmap(cnorm(category_value)))
             x_data = cat_x_data
+        else:
+            cat_color = None
 
-        ax.hist(x_data, num_bins, range=x_range)
+        h_res = ax.hist(x_data, num_bins, range=x_range, color=cat_color, density=True)
         sc = None
+
+        plt.colorbar(
+            mpl.cm.ScalarMappable(norm=cnorm, cmap=cmap), ax=ax, **colorbar_kws
+        )
 
     x_label = f"{component_label}1"
     y_label = f"{component_label}2" if n_components > 1 else "frequency"
@@ -213,13 +224,10 @@ def plot_noodleplot(
             )
         else:
             y_data_hops = np.zeros_like(x_data_hops)
-            ax.hist(x_data, num_bins, range=x_range)
+            ax.hist(x_data, num_bins, range=x_range, density=True)
 
     if sc is not None:
-        if colorbar_kws:
-            fig.colorbar(sc, ax=ax, label=colorbar_label, pad=0.02, **colorbar_kws)
-        else:
-            fig.colorbar(sc, ax=ax, label=colorbar_label, pad=0.02)
+        fig.colorbar(sc, ax=ax, label=colorbar_label, pad=0.02, **colorbar_kws)
 
     # Alternative layout solution
     # d = make_axes_locatable(ax)
