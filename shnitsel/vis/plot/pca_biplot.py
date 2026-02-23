@@ -35,6 +35,7 @@ from rdkit.Chem import Mol
 def plot_noodleplot(
     noodle: xr.DataArray | TreeNode[Any, xr.DataArray],
     hops_mask: xr.DataArray | TreeNode[Any, xr.DataArray] | None = None,
+    categories: xr.DataArray | TreeNode[Any, xr.DataArray] | None = None,
     fig: Figure | SubFigure | None = None,
     ax: Axes | None = None,
     c: NDArray | xr.DataArray | TreeNode[Any, xr.DataArray] | None = None,
@@ -58,6 +59,8 @@ def plot_noodleplot(
         PCA decomposed data.
     hops_mask : xr.DataArray | TreeNode[Any, xr.DataArray], optional
         DataArray holding hopping-point information of the trajectories. Defaults to None.
+    categories : xr.DataArray | TreeNode[Any, xr.DataArray], optional
+        DataArray holding category labels for the noodleplot data. Used for splitting up histogram data. Defaults to None.
     fig : Figure | SubFigure | None, optional
         Figure to plot the graph into. Defaults to None.
     ax : Axes, optional
@@ -128,6 +131,13 @@ def plot_noodleplot(
     else:
         noodle_scatter = noodle
 
+    if categories:
+        stacked_cats = (
+            categories.as_stacked if isinstance(categories, TreeNode) else categories
+        )
+    else:
+        stacked_cats = None
+
     cnorm = cnorm or mpl.colors.Normalize(color_scatter.min(), color_scatter.max())  # type: ignore
 
     assert isinstance(noodle_scatter, xr.DataArray)
@@ -151,11 +161,20 @@ def plot_noodleplot(
         )
     else:
         y_data = np.zeros_like(x_data)
+        if stacked_cats is not None:
+            x_data = noodle_scatter.assign_coords(category=stacked_cats).isel(
+                {component_dimension: 0}
+            )
+            cat_x_data = []
+            for category_value, data in x_data.groupby("category"):
+                cat_x_data.append(data)
+            x_data = cat_x_data
+
         ax.hist(x_data, num_bins, range=x_range)
-        sc= None
+        sc = None
 
     x_label = f"{component_label}1"
-    y_label = f"{component_label}2" if n_components > 1 else ""
+    y_label = f"{component_label}2" if n_components > 1 else "frequency"
 
     ax.set_xlabel(x_label)
     ax.set_ylabel(y_label)

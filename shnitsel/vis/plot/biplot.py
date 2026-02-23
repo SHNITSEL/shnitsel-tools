@@ -10,6 +10,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import xarray as xr
 
+from shnitsel.analyze.dim_red_result import PredictorDimRedResult
 from shnitsel.analyze.hops import hops_mask_from_active_state
 from shnitsel.analyze.lda import LDAResult
 from shnitsel.analyze.pca import PCAResult, pca
@@ -202,7 +203,13 @@ def biplot_kde(
                 center_mean=center_mean,
             )  # type: ignore # For single PCA, we get single result.
             assert isinstance(fig, Figure)
-            dim_red_label = "PCA" if isinstance(pca_res, PCAResult) else "LDA" if isinstance(pca_res, LDAResult) else "Dim. reduction"
+            dim_red_label = (
+                "PCA"
+                if isinstance(pca_res, PCAResult)
+                else "LDA"
+                if isinstance(pca_res, LDAResult)
+                else "Dim. reduction"
+            )
             fig.suptitle(f"{dim_red_label}:" + pca_path)
             return x.construct_copy(data=fig)
 
@@ -214,7 +221,14 @@ def biplot_kde(
         )
         return list(mapped_biplots.collect_data())
 
-    if scatter_color_property not in {'time', 'geo', 'state'}:
+    if scatter_color_property not in {
+        'time',
+        'geo',
+        'state',
+        'cat',
+        'category',
+        'predict',
+    }:
         raise ValueError("`scatter_color_property` must be 'time', 'geo', or 'state'")
 
     if contour_levels is None:
@@ -284,6 +298,11 @@ def biplot_kde(
         res_mol, atomLabel=True, atomNote=[''] * res_mol.GetNumAtoms()
     )
 
+    if isinstance(pca_data, PredictorDimRedResult):
+        categories = pca_data.predict(pca_data.inputs)
+    else:
+        categories = None
+
     if scatter_color_property == 'time':
         noodleplot_c = None
         noodleplot_cmap = property_cmap if property_cmap is not None else 'cividis'
@@ -327,7 +346,7 @@ def biplot_kde(
                 boundaries=[relevant_states[0] - 0.5, relevant_states[0] + 0.5],
                 ncolors=1,
             )
-            tick_positions = [0.0]
+            tick_positions = [relevant_states[0]]
 
         missing_color = (0.5, 0.5, 0.5)
 
@@ -367,6 +386,75 @@ def biplot_kde(
         noodleplot_cmap = cm
         noodleplot_cnorm = state_norm
         colorbar_label = "State"
+
+    elif (
+        scatter_color_property in {'cat', 'category', 'predict'}
+        and (isinstance(pca_data, PredictorDimRedResult))
+        and categories is not None
+    ):
+        if tree_mode:
+            all_categories = np.unique(categories.as_stacked)
+        else:
+            all_categories = np.unique(categories)
+
+        num_categories = len(all_categories)
+
+        assert num_categories > 0, (
+            "Input data has no category data associated with it. Cannot color by category."
+        )
+
+        if num_categories > 1:
+            cat_cutoffs = (
+                [np.min(all_categories) - 0.5]
+                + ((all_categories[1:] + all_categories[:-1]) / 2.0).tolist()
+                + [np.max(all_categories) + 0.5]
+            )
+            cat_norm = mpl.colors.BoundaryNorm(
+                boundaries=cat_cutoffs,
+                ncolors=num_categories,
+            )
+            tick_positions = (
+                1 + np.arange(num_categories)
+            )  # [s for s in all_states] # 0.5 + np.arange(num_states) * (num_states - 1) / num_states
+        else:
+            cat_norm = mpl.colors.BoundaryNorm(
+                boundaries=[all_categories[0] - 0.5, all_categories[0] + 0.5],
+                ncolors=1,
+            )
+            tick_positions = [all_categories[0]]
+
+        missing_color = (0.5, 0.5, 0.5)
+
+        cat_colors = mpl.colormaps.get_cmap('rainbow')(
+            np.linspace(0, 1, num_categories)
+        )
+
+        cat_labels = [f"cat {i}" for i in all_categories]
+
+        if contour_colors is None:
+            contour_colors = cat_colors.tolist()
+
+        cm = LinearSegmentedColormap.from_list(
+            'category_color_map', cat_colors, N=num_categories
+        )
+        noodleplot_colorbar_kws = {
+            'ticks': tick_positions,
+            'format': mpl.ticker.FixedFormatter(cat_labels),
+        }
+
+        cat_ranges = [(s - 0.25, s + 0.25) for s in all_categories]
+
+        if pca_data.num_components > 1:
+            kde_data = _fit_and_eval_kdes(
+                pca_data, categories, cat_ranges, num_steps=100
+            )
+        else:
+            kde_data = None
+
+        noodleplot_c = categories
+        noodleplot_cmap = cm
+        noodleplot_cnorm = cat_norm
+        colorbar_label = "Category"
 
     elif scatter_color_property == 'geo' and 'atXYZ' in frames.data_vars:
         if geo_feature is None:
@@ -460,6 +548,7 @@ def biplot_kde(
     pb.plot_noodleplot(
         pca_noodles,
         hops_mask,
+        categories=categories,
         c=noodleplot_c,
         cmap=noodleplot_cmap,
         cnorm=noodleplot_cnorm,
