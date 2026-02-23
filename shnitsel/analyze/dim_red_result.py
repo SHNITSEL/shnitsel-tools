@@ -1,7 +1,9 @@
 import xarray as xr
+
+from shnitsel.data.tree.node import TreeNode
 from .generic import norm
 import abc
-from typing import Generic, Hashable, Mapping, TypeVar
+from typing import Any, Generic, Hashable, Mapping, TypeVar, overload
 
 import numpy as np
 from sklearn.pipeline import Pipeline
@@ -201,7 +203,35 @@ class DimRedResult(
             explanation += component_expl + "\n"
         return explanation
 
-    def project_array(self, other_da: xr.DataArray) -> xr.DataArray:
+    @overload
+    def project_array(
+        self, other_da: TreeNode[Any, xr.DataArray]
+    ) -> TreeNode[Any, xr.DataArray]: ...
+    @overload
+    def project_array(self, other_da: xr.DataArray) -> xr.DataArray: ...
+
+    def project_array(
+        self, other_da: xr.DataArray | TreeNode[Any, xr.DataArray]
+    ) -> xr.DataArray | TreeNode[Any, xr.DataArray]:
+        """Apply the transformation encoded by this dimensionality reduction
+        to the provided (set of) DataArray(s).
+
+        Parameters
+        ----------
+        other_da : xr.DataArray | TreeNode[Any, xr.DataArray]
+            The data to apply the transformation to.
+
+        Returns
+        -------
+        xr.DataArray | TreeNode[Any, xr.DataArray]
+            The transformed data
+        """
+        if isinstance(other_da, TreeNode):
+            return other_da.map_data(self.project_array, dtype=xr.DataArray)
+
+        if other_da.sizes[self.mapped_dimension] == 0:
+            return xr.zeros_like(other_da, dtype=float)
+
         return xr.apply_ufunc(
             self.pipeline.transform,
             other_da,
@@ -226,7 +256,7 @@ class DimRedResult(
         Returns
         -------
         Mapping[Hashable, xr.DataArray]
-            _description_
+            Mapping from coordinate name to the data array holding the coordinate values/labels
         """
         coords = {
             key: coord
