@@ -329,7 +329,7 @@ def qda_direct(
 
     # TODO: For the fit, we may need to apply a different approach than for transform. The category data is only needed for fit, not for transform.
     scaler = MinMaxScaler()
-    qda_object = sk_QDA(n_components=n_components)
+    qda_object = sk_QDA()#n_components=n_components)
     # Fit the scalers first and get scaled inputs
     scaled_inputs = scaler.fit_transform(input_features.values)
 
