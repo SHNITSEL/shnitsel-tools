@@ -208,7 +208,7 @@ def lda_direct(
     categories: xr.DataArray,
     dim: DimName,
     n_components: int = 2,
-) -> LDAResult[xr.DataArray, xr.DataArray]:
+) -> LDAResult[xr.DataArray, xr.DataArray] | None:
     """Linear discriminant analysis performed on the data in `data_array` along `dim` in a total of `n_components
 
     Parameters
@@ -240,6 +240,12 @@ def lda_direct(
     num_features = input_features.sizes[dim]
 
     max_components = min(num_features, num_categories - 1)
+
+    if max_components == 0:
+        logging.error(
+            "Maxium number of supported components for LDA analysis with provided inputs is 0. Cannot perform LDA. Skipping"
+        )
+        return None
 
     if n_components > max_components:
         logging.error(
@@ -288,7 +294,7 @@ def qda_direct(
     categories: xr.DataArray,
     dim: DimName,
     n_components: int = 2,
-) -> QDAResult[xr.DataArray, xr.DataArray]:
+) -> QDAResult[xr.DataArray, xr.DataArray] | None:
     """Quadratic discriminant analysis performed on the data in `data_array` along `dim` in a total of `n_components
 
     Parameters
@@ -323,20 +329,20 @@ def qda_direct(
 
     if n_components > max_components:
         logging.error(
-            f"LDA can only work on `min(num_features, num_categories-1)={max_components}` compontents, not `{n_components}`. Limiting number to maximum possible."
+            f"QDA can only work on `min(num_features, num_categories-1)={max_components}` compontents, not `{n_components}`. Limiting number to maximum possible."
         )
         n_components = max_components
 
     # TODO: For the fit, we may need to apply a different approach than for transform. The category data is only needed for fit, not for transform.
     scaler = MinMaxScaler()
-    qda_object = sk_QDA()#n_components=n_components)
+    qda_object = sk_QDA()  # n_components=n_components)
     # Fit the scalers first and get scaled inputs
     scaled_inputs = scaler.fit_transform(input_features.values)
 
     # Fit with category flags separately
     fitted_qda = qda_object.fit(X=scaled_inputs, y=category_flags)
 
-    pipeline = Pipeline([('scaler', scaler), ('lda', fitted_qda)])
+    pipeline = Pipeline([('scaler', scaler), ('qda', fitted_qda)])
 
     projected_inputs: xr.DataArray = xr.apply_ufunc(
         pipeline.transform,
@@ -448,7 +454,7 @@ def _da_shared_core(
 
         def lda_on_flat_group(
             flat_group: TreeNode[Any, tuple[xr.DataArray, xr.DataArray]],
-        ) -> DataGroup:
+        ) -> DataGroup | None:
             assert isinstance(flat_group, DataGroup)
             assert flat_group.is_flat_group, (
                 f"Something went wrong filtering for only flat groups in {da_label}"
@@ -473,6 +479,9 @@ def _da_shared_core(
                 dim=dim,
                 n_components=n_components,
             )
+
+            if tmp_res is None:
+                return None
 
             # Calculate hierarchical projected results
             mapped_inputs: DataGroup[xr.DataArray] = flat_group.map_data(
