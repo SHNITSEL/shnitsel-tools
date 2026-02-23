@@ -1511,11 +1511,11 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
             if n_dims == 0:
                 empty = True
             else:
-                for cnt, dim in enumerate(input_dataset.dims):
-                    if len(input_dataset[dim]) > 0:
-                        return False
+                for cnt in input_dataset.sizes.values():
+                    if cnt == 0:
+                        return True
 
-            return True
+            return False
 
         if self._level_name == DataTreeLevelMap['compound']:
             compound_indexer = indexers.get("compound", None)
@@ -1603,31 +1603,35 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
                         pass
             if indexers:
                 # We are a relevant data leaf node:
-                if (
-                    self.has_data
-                    and hasattr(self._data, 'sel')
-                    and callable(self._data)
-                ):
-                    indexers = dict(indexers)
+                if self.has_data:
+                    if hasattr(self._data, 'sel') and callable(self._data.sel):
+                        indexers = dict(indexers)
 
-                    for key in ["compounds", "groups"]:
-                        if key in indexers:
-                            del indexers[key]
-                    # Invoke with remaining indexers
-                    res_data = self._data.sel(
-                        indexers=indexers, method=method, tolerance=tolerance, drop=drop
-                    )
-                    # assert isinstance(res_data, xr.Dataset)
-                    if dataset_is_empty(res_data):
-                        return None
-                    return self.construct_copy(data=res_data)
+                        for key in ["compounds", "groups"]:
+                            if key in indexers:
+                                del indexers[key]
+                        # Invoke with remaining indexers
+                        res_data = self._data.sel(
+                            indexers=indexers,
+                            method=method,
+                            tolerance=tolerance,
+                            drop=drop,
+                        )
+                        # assert isinstance(res_data, xr.Dataset)
+                        if dataset_is_empty(res_data):
+                            return None
+                        return self.construct_copy(data=res_data)
+                    else:
+                        logging.warning(
+                            "Data in the tree does not support the `.sel()` operation to process the remaining indexers."
+                        )
+                        return self.construct_copy()
+                # Nothing to find in this leaf
+                return None
             else:
-                # No forther Search criteria. Just build a copy
+                # No further Search criteria. Just build a copy
                 # NOTE: This allows `.sel()` to work with data types that do not support `sel` themselves
                 return self.construct_copy()
-
-            # Nothing to find in this leaf
-            return None
 
         if indexers:
             result = self.construct_copy(
@@ -1833,24 +1837,29 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
 
             if indexers:
                 # We are a relevant data leaf node and there is still selection to be done
-                if (
-                    self.has_data
-                    and hasattr(self._data, 'isel')
-                    and callable(self._data)
-                ):
-                    indexers = dict(indexers)
+                if self.has_data:
+                    if hasattr(self._data, 'isel') and callable(self._data.isel):
+                        indexers = dict(indexers)
 
-                    for key in ["compounds", "groups"]:
-                        if key in indexers:
-                            del indexers[key]
-                    # Invoke with remaining indexers
-                    res_data = self._data.isel(
-                        indexers=indexers, missing_dims=missing_dims, drop=drop
-                    )
-                    # assert isinstance(res_data, xr.Dataset)
-                    if dataset_is_empty(res_data):
-                        return None
-                    return self.construct_copy(data=res_data)
+                        for key in ["compounds", "groups"]:
+                            if key in indexers:
+                                del indexers[key]
+                        # Invoke with remaining indexers
+                        res_data = self._data.isel(
+                            indexers=indexers, missing_dims=missing_dims, drop=drop
+                        )
+                        # assert isinstance(res_data, xr.Dataset)
+                        if dataset_is_empty(res_data):
+                            return None
+                        return self.construct_copy(data=res_data)
+                    else:
+                        logging.warning(
+                            "Data in the tree does not support the `.isel()` operation to process the remaining indexers."
+                        )
+                        return self.construct_copy()
+
+                # Nothing to find in this leaf
+                return None
             else:
                 # No forther Search criteria. Just build a copy
                 # NOTE: This allows `.isel()` to work with data types that do not support `sel` themselves
