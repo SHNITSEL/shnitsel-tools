@@ -335,7 +335,7 @@ class PredictorDimRedResult(
             self.pipeline.predict,
             other_da,
             input_core_dims=[[self.mapped_dimension]],
-            output_core_dims=[[self.component_dimension]],
+            # output_core_dims=[],
         )
 
     def _empty_prediction(self, other_da: xr.DataArray) -> PredictionType:
