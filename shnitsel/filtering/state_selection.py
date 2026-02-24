@@ -250,7 +250,11 @@ class StateSelection:
         )
 
         if 'states' in dataset.coords:
-            states = list(int(n) for n in dataset.coords['states'].values)
+            if 'states' not in dataset.dims:
+                # NOTE: We have a single state combination
+                states = list(dataset.coords['states'].item())
+            else:
+                states = list(int(n) for n in dataset.coords['states'].values)
         elif 'state' in dataset.sizes:
             states = list(
                 int(n) for n in np.arange(1, 1 + dataset.sizes['state'], dtype=StateId)
@@ -302,7 +306,11 @@ class StateSelection:
 
         if not is_directed:
             if 'statecomb' in dataset.coords:
-                state_combinations = list(dataset.coords['statecomb'].values)
+                if 'statecomb' not in dataset.dims:
+                    # NOTE: We have a single state combination
+                    state_combinations = list(dataset.coords['statecomb'].item())
+                else:
+                    state_combinations = list(dataset.coords['statecomb'].values)
             else:
                 state_combinations = list(combinations(states, 2))
         else:
