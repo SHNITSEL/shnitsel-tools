@@ -67,7 +67,7 @@
 - [ ] Add tutorial for further CLI tools
 - Dimension reduction:
   - [ ] Refactor PLS
-  - [ ] Refactor LDA
+  - [x] Refactor LDA
   - [x] Make projection onto PCA/other lower dimension return an appropriate wrapper format (e.g. PCAResult) 
 - [ ] Clustering support
   - [ ] DBSCAN sounds like a good option to support
