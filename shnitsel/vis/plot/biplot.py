@@ -240,9 +240,14 @@ def biplot_kde(
         tree_mode = False
 
     if tree_mode:
-        state_selection = _get_default_state_selection(
-            state_selection, list(frames.collect_data())[0]
-        )
+        ds_options = list(frames.collect_data())
+        # We need to consider that some of the datasets may be empty and therefore unfit for building the state selection.
+        for ds in ds_options:
+            try:
+                state_selection = _get_default_state_selection(state_selection, ds)
+                break
+            except:
+                continue
     else:
         state_selection = _get_default_state_selection(state_selection, frames)
 
