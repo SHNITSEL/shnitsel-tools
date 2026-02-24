@@ -74,6 +74,8 @@ def biplot_kde(
     fig: Figure | SubFigure | None = None,
     center_mean: bool = False,
     cluster_loadings: bool = False,
+    xlim: tuple[float, float] | None = None,
+    ylim: tuple[float, float] | None = None,
 ) -> Figure | SubFigure | Sequence[Figure]:
     """\
     Generates a biplot that visualizes PCA projections and kernel density estimates (KDE) 
@@ -140,6 +142,8 @@ def biplot_kde(
         Flag to enable clustering of the resulting loadings of the dimensionality reduction and 
         highlight only the clustered results.
         Defaults to `False`, meaning the most significant loadings will be plotted instead.
+    xlim, ylim: tuple[float,float], optional
+        Lower and upper limits of the x and y axis of the scatterplot respectively
 
     Returns
     -------
@@ -201,6 +205,8 @@ def biplot_kde(
                 contour_fill=contour_fill,
                 num_bins=num_bins,
                 center_mean=center_mean,
+                xlim=xlim,
+                ylim=ylim,
             )  # type: ignore # For single PCA, we get single result.
             assert isinstance(fig, Figure)
             dim_red_label = (
@@ -451,7 +457,7 @@ def biplot_kde(
 
         if pca_data.num_components > 1:
             kde_data = _fit_and_eval_kdes(
-                pca_data, categories, cat_ranges, num_steps=100
+                pca_data, categories, cat_ranges, num_steps=100, xlim=xlim, ylim=ylim
             )
         else:
             kde_data = None
@@ -596,6 +602,11 @@ def biplot_kde(
             f'{comp_dim}2 +': structaxs['c'],
             f'{comp_dim}2 -': structaxs['d'],
         }
+
+        if xlim is not None:
+            pcaax.set_xlim(xlim)
+        if ylim is not None:
+            pcaax.set_ylim(ylim)
 
         pb.plot_pca_components(
             pca_data,
