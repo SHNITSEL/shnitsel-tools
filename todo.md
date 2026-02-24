@@ -53,6 +53,8 @@
   - [x] Fix PCA loadings main contribution plot not being the same as the explained PCA.
   - [x] Fix cluster loadings plot occasionally empty.
   - [x] Add a `state` coloring option to explore splits between different states in state space
+  - [ ] Add 'feature_extractor' to dimensionality reduction wrapper and allow for datasets to be provided to the project call
+  - [ ] Retain settings of feature extractor like `get_bats` in bats object and the dimensionality reduction wrapper. (i.e. the settings with which bats were calculated.)
 - Visualization support
   - [ ] Add generic `plot()` function to various types
   - [ ] Add option for plots from tree hierarchies
