@@ -252,7 +252,7 @@ class StateSelection:
         if 'states' in dataset.coords:
             if 'states' not in dataset.dims:
                 # NOTE: We have a single state combination
-                states = list(dataset.coords['states'].item())
+                states = [int(dataset.coords['states'].item())]
             else:
                 states = list(int(n) for n in dataset.coords['states'].values)
         elif 'state' in dataset.sizes:
@@ -308,14 +308,17 @@ class StateSelection:
             if 'statecomb' in dataset.coords:
                 if 'statecomb' not in dataset.dims:
                     # NOTE: We have a single state combination
-                    state_combinations = list(dataset.coords['statecomb'].item())
+                    state_combinations = [dataset.coords['statecomb'].item()]
                 else:
                     state_combinations = list(dataset.coords['statecomb'].values)
             else:
                 state_combinations = list(combinations(states, 2))
         else:
             if 'full_statecomb' in dataset.coords:
-                state_combinations = list(dataset.coords['full_statecomb'].values)
+                if 'full_statecomb' not in dataset.dims:
+                    state_combinations = [dataset.coords['full_statecomb'].item()]
+                else:
+                    state_combinations = list(dataset.coords['full_statecomb'].values)
             elif 'statecomb' in dataset.coords:
                 # Gather both directions of pairs initially.
                 state_combinations = list(
