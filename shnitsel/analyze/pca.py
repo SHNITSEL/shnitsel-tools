@@ -21,7 +21,7 @@ from .hops import hops_mask_from_active_state
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.pipeline import Pipeline
 
-from shnitsel.data.tree.data_group import DataGroup
+from shnitsel.data.tree.data_group import DataGroup, is_flat_group
 from shnitsel.data.tree.data_leaf import DataLeaf
 from shnitsel.data.tree.node import TreeNode
 from shnitsel.data.tree.tree import ShnitselDB
@@ -449,6 +449,8 @@ def pca(
                     return get_bats(
                         x,
                         structure_selection=structure_selection,  # angles='trig'
+                        # signed=True,
+                        angles='deg',
                     )
             else:
 
@@ -462,12 +464,6 @@ def pca(
             # We extract the features either with the selection or with the
             # Pairwise distances approach
             feature_data_grouped = data_grouped.map_data(extract_features)
-
-            def filter_flat_group(node: TreeNode) -> bool:
-                # We only want to process flat groups
-                if isinstance(node, DataGroup):
-                    return node.is_flat_group
-                return False
 
             def pca_on_flat_group(
                 flat_group: TreeNode[Any, xr.DataArray],
@@ -520,7 +516,7 @@ def pca(
                 return new_group
 
             pca_res = feature_data_grouped.map_filtered_nodes(
-                filter_flat_group, pca_on_flat_group
+                is_flat_group, pca_on_flat_group
             )
             return pca_res
         else:
