@@ -388,7 +388,7 @@ def biplot_kde(
 
         if pca_data.num_components > 1:
             kde_data = _fit_and_eval_kdes(
-                pca_data, state_prop, state_ranges, num_steps=100
+                pca_data, state_prop, state_ranges, num_steps=100, xlim=xlim, ylim=ylim
             )
         else:
             kde_data = None
@@ -522,7 +522,7 @@ def biplot_kde(
         geo_prop = geo_prop.squeeze('descriptor')
         if pca_data.num_components > 1:
             kde_data = _fit_and_eval_kdes(
-                pca_data, geo_prop, geo_kde_ranges, num_steps=100
+                pca_data, geo_prop, geo_kde_ranges, num_steps=100, xlim=xlim, ylim=ylim
             )
         else:
             kde_data = None
