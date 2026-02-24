@@ -1,9 +1,11 @@
 import xarray as xr
 
+from shnitsel.data.tree.data_group import DataGroup, is_flat_group
+from shnitsel.data.tree.data_leaf import DataLeaf
 from shnitsel.data.tree.node import TreeNode
 from .generic import norm
 import abc
-from typing import Any, Generic, Hashable, Mapping, TypeVar, overload
+from typing import Any, Generic, Hashable, Mapping, Self, TypeVar, overload
 
 import numpy as np
 from sklearn.pipeline import Pipeline
@@ -238,12 +240,12 @@ class DimRedResult(
             return other_da.map_data(self.project_array, dtype=xr.DataArray)
 
         if isinstance(other_da, xr.DataArray):
-            if other_da.sizes[self.mapped_dimension] == 0:
+            if other_da.size == 0:
                 return xr.zeros_like(other_da, dtype=float)
 
             return xr.apply_ufunc(
                 self.pipeline.transform,
-                other_da,
+                other_da.transpose(..., self.mapped_dimension),
                 input_core_dims=[[self.mapped_dimension]],
                 output_core_dims=[[self.component_dimension]],
             )
@@ -252,6 +254,73 @@ class DimRedResult(
                 return xr.zeros_like(other_da, dtype=float)
 
             return self.pipeline.transform(other_da)
+
+    @overload
+    def project_as_container(
+        self,
+        other_da: TreeNode[Any, xr.DataArray],
+        restrict_to_flat_groups: bool = False,
+    ) -> TreeNode[Any, Self]: ...
+
+    @overload
+    def project_as_container(self, other_da: xr.DataArray) -> Self: ...
+
+    def project_as_container(
+        self,
+        other_da: xr.DataArray | TreeNode[Any, xr.DataArray],
+        restrict_to_flat_groups: bool = False,
+    ) -> Self | TreeNode[Any, Self]:
+        """Apply the transformation encoded by this dimensionality reduction
+        to the provided (set of) DataArray(s) and return the result as a
+        dimension reduction result container (e.g. PCA, LDA, etc.).
+
+        Parameters
+        ----------
+        other_da : xr.DataArray | TreeNode[Any, xr.DataArray]
+            The data to apply the transformation to.
+        restrict_to_flat_groups : bool, default=False
+            Set to True to map the projection over flat groups if a tree is provided.
+
+        Returns
+        -------
+        DimRedResult | TreeNode[Any, DimRedResult]
+            The transformed data in a dimension reduction result container.
+        """
+        if restrict_to_flat_groups and isinstance(other_da, TreeNode):
+            if not isinstance(other_da, DataGroup) or not other_da.is_flat_group:
+                return other_da.map_filtered_nodes(
+                    is_flat_group,
+                    lambda x: x.construct_copy(
+                        children={
+                            self.label.lower(): DataLeaf(
+                                name=self.label, data=self.project_as_container(x)
+                            )
+                        }
+                    ),
+                )
+        new_inputs = other_da
+        new_projected_inputs = self.project_array(other_da)
+        return self._copy_with_new_data(
+            new_inputs=new_inputs, new_projected_inputs=new_projected_inputs
+        )
+
+    def _copy_with_new_data(self, new_inputs, new_projected_inputs, **kwargs) -> Self:
+        from copy import copy
+
+        """Helper function to create a copy of the current dimension reduction result 
+        with different inputs and outputs.
+
+        Returns
+        -------
+        Self | DimRedResult
+            The new DimRedResult container with different inputs and outputs set in its
+            member variables.
+        """
+
+        new_entry = copy(self)
+        new_entry._inputs = new_inputs
+        new_entry._projected_inputs = new_projected_inputs
+        return new_entry
 
     @staticmethod
     def get_extra_coords_for_loadings(
