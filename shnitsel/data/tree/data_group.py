@@ -329,3 +329,21 @@ class DataGroup(
                     )
 
         return self.construct_copy(children=new_children, group_info=base_group_info)
+
+
+def is_flat_group(dt: TreeNode) -> bool:
+    """Helper function to check if a tree node is actually a flat group.
+
+    Refactored into a function because this check is very common.
+
+    Parameters
+    ----------
+    dt : TreeNode
+        Tree node to check for being a group and being flat.
+
+    Returns
+    -------
+    bool
+        True if the provided node is a flat group, False otherwise
+    """
+    return isinstance(dt, DataGroup) and dt.is_flat_group
