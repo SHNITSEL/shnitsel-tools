@@ -97,10 +97,20 @@ class PCAResult(
             assert all(isinstance(x, xr.DataArray) for x in outputs_collected), (
                 "Tree-shaped results of PCA are not of data type xr.DataArray"
             )
-            coord_initial = [
-                outputs_collected[0].coords['PC'],
-                inputs_collected[0].coords[pca_dimension],
-            ]
+            coord_initial = None
+            for i_coll, o_coll in zip(inputs_collected, outputs_collected):
+                try:
+                    coord_initial = [
+                        o_coll.coords['PC'],
+                        i_coll.coords[pca_dimension],
+                    ]
+                except:
+                    continue
+
+            if coord_initial is None:
+                raise ValueError(
+                    "No dataset in input had data that could be projected in PCA decomposition."
+                )
 
             _pca_components = xr.DataArray(
                 pca_object.components_,
