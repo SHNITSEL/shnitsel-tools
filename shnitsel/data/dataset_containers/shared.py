@@ -1,6 +1,7 @@
 from contextlib import suppress
 from dataclasses import dataclass
 from typing import Any, Hashable, Iterable, Literal, Mapping, Self
+import numpy as np
 import rdkit
 import rdkit.Chem  # Avoid import error seen in RDKit 2025.09.3, Python 3.12.7
 import xarray as xr
@@ -42,6 +43,53 @@ class ShnitselDataset(SupportsFromXrConversion, SupportsToXrConversion):
             raise ValueError(
                 "Unknown leading dimension of the contained dataset. The Dataset may have been misconstructed or loaded from malformed data."
             )
+
+    def get_frame_mask(
+        self, fill_value: Any = False, dtype: type = bool
+    ) -> xr.DataArray:
+        """Helper method to get a mask for the leading dimension (`time` or `frame`)
+        of the current dataset
+
+        Parameters
+        ----------
+        fill_value : Any, default=False
+            The default value to put in the mask, by default False
+        dtype : type, default = bool
+            The datatype of the mask, by default bool
+
+        Returns
+        -------
+        xr.DataArray
+            The mask as an xarray data array.
+
+        Raises
+        ------
+        ValueError
+            If the leading dimension has turned into a scalar due to prior selections, no mask size can be
+            determined.
+        ValueError
+            If the leading dimension is neither a dimension nor a coordinate of the dataset, an inconsistent state
+            has been encountered.
+        """
+
+        if self.leading_dim in self.sizes:
+            dim_name = self.leading_dim
+            leading_dim_len = self.sizes[self.leading_dim]
+        else:
+            if self.leading_dim in self.coords:
+                # We have a scalar dimension already
+                raise ValueError(
+                    "Leading dimension is scalar. Cannot create frame mask."
+                )
+            raise ValueError(
+                "Leading dimension missing from dataset. Cannot create frame mask."
+            )
+
+        return xr.DataArray(
+            np.full((leading_dim_len,), fill_value=fill_value, dtype=dtype),
+            dims=[dim_name],
+        )
+        return self.leading_dim
 
     @property
     def state_ids(self):
