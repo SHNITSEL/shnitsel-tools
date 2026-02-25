@@ -440,9 +440,10 @@ def biplot_kde(
                 boundaries=cat_cutoffs,
                 ncolors=num_categories,
             )
-            tick_positions = (
-                1 + np.arange(num_categories)
-            )  # [s for s in all_states] # 0.5 + np.arange(num_states) * (num_states - 1) / num_states
+            tick_positions = all_categories
+            # tick_positions = (
+            #     1 + np.arange(num_categories)
+            # )  # [s for s in all_states] # 0.5 + np.arange(num_states) * (num_states - 1) / num_states
         else:
             cat_norm = mpl.colors.BoundaryNorm(
                 boundaries=[all_categories[0] - 0.5, all_categories[0] + 0.5],
