@@ -57,9 +57,8 @@ def biplot_kde(
     | None = None,
     mol: rdkit.Chem.Mol | None = None,
     geo_kde_ranges: Sequence[tuple[float, float]] | None = None,
-    scatter_color_property: Literal[
-        'time', 'geo', 'state'
-    ] = 'time',  # TODO: FIXME: Add a 'state' color option.
+    scatter_color_property: Literal['time', 'geo', 'state'] = 'time',
+    scatter_color_values: xr.DataArray | TreeNode[Any, xr.DataArray] | None = None,
     show_loadings: int = 4,
     geo_feature: BondDescriptor
     | AngleDescriptor
@@ -117,6 +116,11 @@ def biplot_kde(
         if 'geo', the scatter-points will be colored based on the relevant geometry feature (see above);
         if 'state', the scatter-points will be colored based on the active state at that point in time using the colors associated
         with the `state_selection` parameter.
+    scatter_color_values : xr.DataArray | TreeNode[Any, xr.DataArray], optional
+        The values to use for the scatter plot color of each point. 
+        Should be in the same format (tree/flat) as `frames` and the inputs of 
+        `pca_data` if provided. 
+        Defaults to `None` meaning the values will be calculated from the `scatter_color_property` setting.
     show_loadings : int, default=4
         Option to control whether the most relevant loadings should be plotted over the scatterplot of PCA results.
         By default 4, meaning the top 4 contributing features across all components will be plotted into the graph.
@@ -188,6 +192,17 @@ def biplot_kde(
             except:
                 pass
 
+            # Try and extract the scatter color value if provided
+            scatter_color_data = None
+            if scatter_color_values is not None:
+                try:
+                    input_path = x._parent.path if x._parent is not None else "."
+                    if input_path.startswith("/"):
+                        input_path = "." + input_path
+                    scatter_color_data = scatter_color_values[input_path]
+                except:
+                    pass
+
             fig: Figure = biplot_kde(
                 frame_input_data,
                 *ids,
@@ -197,6 +212,7 @@ def biplot_kde(
                 mol=mol,
                 geo_kde_ranges=geo_kde_ranges,
                 scatter_color_property=scatter_color_property,
+                scatter_color_values=scatter_color_data,
                 show_loadings=show_loadings,
                 geo_feature=geo_feature,
                 property_cmap=property_cmap,  # any valid cmap type
@@ -404,9 +420,9 @@ def biplot_kde(
         and categories is not None
     ):
         if tree_mode:
-            all_categories = np.unique(categories.as_stacked)
+            all_categories = np.unique(categories.as_stacked.values)
         else:
-            all_categories = np.unique(categories)
+            all_categories = np.unique(categories.values)
 
         num_categories = len(all_categories)
 
@@ -440,7 +456,23 @@ def biplot_kde(
             np.linspace(0, 1, num_categories)
         )
 
-        cat_labels = [f"cat {i}" for i in all_categories]
+        cat_labels = None
+
+        if (
+            hasattr(pca_data, 'category_labels')
+            and pca_data.category_labels is not None
+        ):
+            try:
+                cat_labels = [
+                    pca_data.category_labels[i]
+                    for i in np.unique(list(pca_data.category_labels.keys()))
+                ]
+            except Exception as e:
+                print(e)
+                pass
+
+        if cat_labels is None:
+            cat_labels = [f"cat {i}" for i in all_categories]
 
         if contour_colors is None:
             contour_colors = cat_colors.tolist()
@@ -555,7 +587,10 @@ def biplot_kde(
     pca_noodles: TreeNode[Any, xr.DataArray] | xr.DataArray
     pca_noodles = pca_data.projected_inputs
 
-    # TODO: FIXME: Noodle plot seems to have issues with rendering when passed data as a tree?
+    if scatter_color_values:
+        logging.info("Setting color values to provided values instead of defaults")
+        noodleplot_c = scatter_color_values
+
     pb.plot_noodleplot(
         pca_noodles,
         hops_mask,
