@@ -1,6 +1,6 @@
 from functools import partial
 import logging
-from typing import TYPE_CHECKING, Any, Callable, Generic, TypeVar
+from typing import TYPE_CHECKING, Any, Callable, Generic, Mapping, TypeVar
 import numpy as np
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as sk_LDA
 from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis as sk_QDA
@@ -49,6 +49,7 @@ class DAResult(
 
     _da_object: Any
     _da_categories: OriginType
+    _category_labels: Mapping[Any, str] | None
 
     def __init__(
         self,
@@ -59,6 +60,7 @@ class DAResult(
         da_pipeline: Pipeline,
         da_object,
         da_projected_inputs: ResultType,
+        category_labels: Mapping[Any, str] | None = None,
     ):
         if isinstance(da_inputs, xr.DataArray):
             assert isinstance(da_projected_inputs, xr.DataArray), (
@@ -122,6 +124,7 @@ class DAResult(
             loadings=_da_components,
             component_dimension="scaling",
             projected_inputs=da_projected_inputs,
+            category_labels=category_labels,
         )
 
     @property
@@ -153,6 +156,7 @@ class LDAResult(
         da_pipeline: Pipeline,
         da_object: sk_LDA,
         da_projected_inputs: ResultType,
+        category_labels: Mapping[Any, str] | None = None,
     ):
         self._lda_object = da_object
         super().__init__(
@@ -163,6 +167,7 @@ class LDAResult(
             da_pipeline=da_pipeline,
             da_object=da_object,
             da_projected_inputs=da_projected_inputs,
+            category_labels=category_labels,
         )
 
     @property
@@ -186,6 +191,7 @@ class QDAResult(
         da_pipeline: Pipeline,
         da_object: sk_QDA,
         da_projected_inputs: ResultType,
+        category_labels: Mapping[Any, str] | None = None,
     ):
         self._qda_object = da_object
         super().__init__(
@@ -196,6 +202,7 @@ class QDAResult(
             da_pipeline=da_pipeline,
             da_object=da_object,
             da_projected_inputs=da_projected_inputs,
+            category_labels=category_labels,
         )
 
     @property
@@ -208,6 +215,7 @@ def lda_direct(
     categories: xr.DataArray,
     dim: DimName,
     n_components: int = 2,
+    category_labels: Mapping[Any, str] | None = None,
 ) -> LDAResult[xr.DataArray, xr.DataArray] | None:
     """Linear discriminant analysis performed on the data in `data_array` along `dim` in a total of `n_components
 
@@ -222,6 +230,8 @@ def lda_direct(
         Should have dimension `dim`.
     n_components : int, optional
         The number of best main components to retrieve eventually. Defaults to 2.
+    category_labels : Mapping[Any, str], optional
+        Labels for the categories. Will be assigned in the LDAResult entry.
 
     Returns
     -------
@@ -278,6 +288,7 @@ def lda_direct(
         da_pipeline=pipeline,
         da_object=fitted_lda,
         da_projected_inputs=projected_inputs,
+        category_labels=category_labels,
     )
 
     if _state.DATAARRAY_ACCESSOR_REGISTERED:
@@ -294,6 +305,7 @@ def qda_direct(
     categories: xr.DataArray,
     dim: DimName,
     n_components: int = 2,
+    category_labels: Mapping[Any, str] | None = None,
 ) -> QDAResult[xr.DataArray, xr.DataArray] | None:
     """Quadratic discriminant analysis performed on the data in `data_array` along `dim` in a total of `n_components
 
@@ -308,6 +320,8 @@ def qda_direct(
         Should have dimension `dim`.
     n_components : int, optional
         The number of best main components to retrieve eventually. Defaults to 2.
+    category_labels : Mapping[Any, str], optional
+        Labels for the categories. Will be assigned in the LDAResult entry.
 
     Returns
     -------
@@ -358,6 +372,7 @@ def qda_direct(
         da_pipeline=pipeline,
         da_object=fitted_qda,
         da_projected_inputs=projected_inputs,
+        category_labels=category_labels,
     )
 
     if _state.DATAARRAY_ACCESSOR_REGISTERED:
@@ -378,6 +393,7 @@ def _da_shared_core(
     dim: DimName | None = None,
     features: str | None = None,
     n_components: int = 2,
+    category_labels: Mapping[Any, str] | None = None,
     da_result_class: type[LDAResult] | type[QDAResult] = LDAResult,
     da_label: str = 'LDA',
     da_direct_func: Callable = lda_direct,
@@ -402,6 +418,8 @@ def _da_shared_core(
         xr.DataArray. Should have dimension `dim`.
     n_components : int, optional
         The number of best main components to retrieve eventually. Defaults to 2.
+    category_labels : Mapping[Any, str], optional
+        Labels for the categories. Will be assigned in the LDAResult entry.
 
     Returns
     -------
@@ -478,6 +496,7 @@ def _da_shared_core(
                 categories=glued_categories,
                 dim=dim,
                 n_components=n_components,
+                category_labels=category_labels,
             )
 
             if tmp_res is None:
@@ -497,6 +516,7 @@ def _da_shared_core(
                 da_pipeline=tmp_res.pipeline,
                 da_object=tmp_res.fitted_da_object,
                 da_projected_inputs=mapped_inputs,
+                category_labels=category_labels,
             )
 
             # Build new subtree with only pca result
@@ -567,6 +587,7 @@ def _da_shared_core(
             categories=category_flags,
             dim=dim,
             n_components=n_components,
+            category_labels=category_labels,
         )
 
 
@@ -579,6 +600,7 @@ def lda(
     dim: DimName | None = None,
     features: str | None = None,
     n_components: int = 2,
+    category_labels: Mapping[Any, str] | None = None,
 ) -> (
     TreeNode[Any, LDAResult[DataGroup[xr.DataArray], DataGroup[xr.DataArray]]]
     | LDAResult[xr.DataArray, xr.DataArray]
@@ -597,6 +619,8 @@ def lda(
         xr.DataArray. Should have dimension `dim`.
     n_components : int, optional
         The number of best main components to retrieve eventually. Defaults to 2.
+    category_labels : Mapping[Any, str], optional
+        Labels for the categories. Will be assigned in the LDAResult entry.
 
     Returns
     -------
@@ -612,6 +636,7 @@ def lda(
         da_result_class=LDAResult,
         da_label='LDA',
         da_direct_func=lda_direct,
+        category_labels=category_labels,
     )  # type: ignore # For the LDA case, the appropriate LDA results are returned
 
 

@@ -367,6 +367,20 @@ class PredictorDimRedResult(
 
     """
 
+    def __init__(
+        self, *posargs, category_labels: Mapping[Any, str] | None = None, **kwargs
+    ):
+        self._category_labels = category_labels
+        super().__init__(*posargs, **kwargs)
+
+    @property
+    def category_labels(self) -> Mapping[Any, str] | None:
+        return self._category_labels
+
+    @category_labels.setter
+    def category_labels(self, value: Mapping[Any, str] | None):
+        self._category_labels = value
+
     @overload
     def predict(
         self, other_da: TreeNode[Any, xr.DataArray]
