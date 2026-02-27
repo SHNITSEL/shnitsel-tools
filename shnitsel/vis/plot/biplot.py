@@ -224,7 +224,7 @@ def biplot_kde(
                 xlim=xlim,
                 ylim=ylim,
             )  # type: ignore # For single PCA, we get single result.
-            assert isinstance(fig, Figure)
+            assert isinstance(fig, (Figure, SubFigure)), f"Expected figure return from biplot, but got {type(fig)} instead"
             dim_red_label = (
                 "PCA"
                 if isinstance(pca_res, PCAResult)
