@@ -312,6 +312,7 @@ class DataGroup(
                 for i in range(last_hit + 1, 10000):
                     group_name_try = f"group_{i}"
                     if group_name_try not in new_children:
+                        new_group._name = group_name_try
                         new_children[group_name_try] = new_group
                         found_key = True
                         last_hit = i
@@ -319,6 +320,7 @@ class DataGroup(
                     idx = random.randint(0, max_search)
                     group_name_try = f"group_{idx}"
                     if group_name_try not in new_children:
+                        new_group._name = group_name_try
                         new_children[group_name_try] = new_group
                         found_key = True
                         break
