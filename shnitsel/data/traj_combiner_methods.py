@@ -201,6 +201,7 @@ def _check_matching_var_meta(
             )
 
             if distinct_keys is not None and len(distinct_keys) > 0:
+                logging.warning("Meta mismatch detected in keys %s", str(distinct_keys))
                 return False
 
     return True
