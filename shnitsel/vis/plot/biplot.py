@@ -224,7 +224,9 @@ def biplot_kde(
                 xlim=xlim,
                 ylim=ylim,
             )  # type: ignore # For single PCA, we get single result.
-            assert isinstance(fig, (Figure, SubFigure)), f"Expected figure return from biplot, but got {type(fig)} instead"
+            assert isinstance(fig, (Figure, SubFigure)), (
+                f"Expected figure return from biplot, but got {type(fig)} instead"
+            )
             dim_red_label = (
                 "PCA"
                 if isinstance(pca_res, PCAResult)
@@ -263,15 +265,22 @@ def biplot_kde(
 
     if tree_mode:
         ds_options = list(frames.collect_data())
+        found = False
         # We need to consider that some of the datasets may be empty and therefore unfit for building the state selection.
         for ds in ds_options:
             try:
                 state_selection = _get_default_state_selection(state_selection, ds)
+                found = True
                 break
             except:
                 continue
+        if not found:
+            state_selection = None
     else:
-        state_selection = _get_default_state_selection(state_selection, frames)
+        try:
+            state_selection = _get_default_state_selection(state_selection, frames)
+        except:
+            state_selection = None
 
     try:
         hops_mask = hops_mask_from_active_state(
