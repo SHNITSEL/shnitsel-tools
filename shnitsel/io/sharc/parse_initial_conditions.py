@@ -583,7 +583,7 @@ def parse_QM_in(qm_in: TextIOWrapper) -> dict[str, Any]:
         raise FileNotFoundError("QM.in did not contain all necessary information")
 
     atXYZ = np.full((num_atoms, 3), np.nan)
-    atNames = np.full((num_atoms), "")
+    atNames = np.full((num_atoms,), "", dtype="U8")
 
     for i in range(num_atoms):
         line_parts = [x.strip() for x in lines[i + 2].split()]
@@ -702,11 +702,11 @@ def parse_QM_log(log: TextIOWrapper) -> dict[str, Any]:
 
         elif line.startswith("Geometry in Bohrs:"):
             # NB. Geometry is indeed in bohrs!
-            atnames = []
+            atnames = np.empty((natom,), dtype="U8")
             atxyz = np.zeros((natom, 3))
             for i in range(natom):
                 geometry_line = re.split(" +", next(log).strip())
-                atnames.append(geometry_line[0])
+                atnames[i] = geometry_line[0]
                 atxyz[i] = [float(geometry_line[j]) for j in range(1, 4)]
 
             info["atNames"] = atnames
@@ -738,7 +738,7 @@ def parse_QM_log_geom(f: TextIOWrapper, out: xr.Dataset):
 
     natoms = out.sizes["atom"]
     nstates = out.sizes["state"]
-    tmp_names = np.full((natoms,), "")
+    tmp_names = np.full((natoms,), "", dtype="U8")
     tmp_nums = np.full((natoms,), -1)
     tmp_positions = np.full((natoms, 3), 0.0)
 

@@ -376,8 +376,8 @@ def parse_dyn_out(f: TextIOWrapper, dataset: xr.Dataset) -> xr.Dataset:
         )
     )
 
-    tmp_atNames = []
-    tmp_atMasses = []
+    tmp_atNames = np.full((natoms,), "", dtype="U8")
+    tmp_atMasses = np.full((natoms,), -1, dtype=float)
     has_atNames = False
 
     tmp_astate = np.full((ntimesteps,), -1)
@@ -431,8 +431,8 @@ def parse_dyn_out(f: TextIOWrapper, dataset: xr.Dataset) -> xr.Dataset:
                 tmp_mass = float(line_parts[-1])
 
                 if not has_atNames:
-                    tmp_atNames.append(atName)
-                    tmp_atMasses.append(tmp_mass)
+                    tmp_atNames[iatom]= atName
+                    tmp_atMasses[iatom]= tmp_mass
 
             has_atNames = True
         elif stripline.find("velocity:") > 0:

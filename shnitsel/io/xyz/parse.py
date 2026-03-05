@@ -7,7 +7,7 @@ from shnitsel.data.atom_helpers import get_atom_number_from_symbol
 
 
 @internal()
-def parse_xyz(f: TextIOWrapper) -> tuple[list[str], list[int], np.ndarray]:
+def parse_xyz(f: TextIOWrapper) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Read the inputs from a text file stream into a tuple of atom names, atom numbers and positions.
 
     Parameters
@@ -17,7 +17,7 @@ def parse_xyz(f: TextIOWrapper) -> tuple[list[str], list[int], np.ndarray]:
 
     Returns
     -------
-    tuple[list[str], list[int], np.ndarray]
+    tuple[np.ndarray, np.ndarray, np.ndarray]
         The tuple of (atom_symbols, atom_numbers, atom_positions), where the latter has dimensions [timestep][atom][direction]
     """
 
@@ -26,8 +26,8 @@ def parse_xyz(f: TextIOWrapper) -> tuple[list[str], list[int], np.ndarray]:
     # ts = 0
 
     atXYZ = []  # np.full((nsteps, natoms, 3), np.nan)
-    atNames = []  # np.full((natoms), '')
-    atNums = []  # np.full((natoms), '')
+    atNames = np.full((natoms), '', dtype=U8)
+    atNums = np.full((natoms), -1, dtype=int)
 
     # Skip one line of the input file
     next(f)
@@ -36,8 +36,8 @@ def parse_xyz(f: TextIOWrapper) -> tuple[list[str], list[int], np.ndarray]:
         geometry_line = next(f).strip().split()
         # atNames[iatom] = geometry_line[0]
         # atXYZ[ts, iatom] = [float(n) for n in geometry_line[1:]]
-        atNames.append(geometry_line[0])
-        atNums.append(get_atom_number_from_symbol(geometry_line[0]))
+        atNames[iatom] = geometry_line[0]
+        atNums[iatom] = get_atom_number_from_symbol(geometry_line[0])
         thisXYZ[iatom] = [float(n) for n in geometry_line[1:]]
     atXYZ.append(thisXYZ)
 

@@ -288,7 +288,7 @@ def create_initial_dataset(
         "astate": np.dtypes.Int16DType,
         "sdiag": np.dtypes.Int16DType,
         "phases": default_float_type,
-        "atNames": default_string_type,
+        "atNames": "U3", #default_string_type,
         "atNums": np.dtypes.Int8DType,
     }
 
