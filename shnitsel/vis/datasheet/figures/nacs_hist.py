@@ -23,6 +23,8 @@ def plot_nacs_histograms(
     state_selection: StateSelection,
     fig: Figure | SubFigure | None = None,
     axs: dict[str, Axes] | None = None,
+    num_bins = 100,
+    rasterized: bool = True,
 ) -> dict[str, Axes]:
     """Plot 2D histograms of NACS vs delta_E or dip_trans
 
@@ -38,6 +40,11 @@ def plot_nacs_histograms(
         Unused figure provided to the plot. Consumed by the figaxs_defaults decorator.
     axs : dict[str, Axes]
         Axes objects to plot to with the respective keys of the plot. Defaults to None.
+    num_bins : int, default=100
+        Number of bins to use for histogram plotting. Defaults to 100.
+    rasterized : bool, default=True
+        Flag to make the scatter plots rasterized to reduce rendering time of the output graph for large systems.
+        Defaults to True.
 
     Returns
     -------
@@ -79,7 +86,6 @@ def plot_nacs_histograms(
     def plot(label, yname, nacs_data):
         ax = axs[label]
         axx, axy = create_marginals(ax)
-        bins = 100
 
         for i, (sc, data) in enumerate(nacs_data.groupby('statecomb')):
             if not nacs_selection.has_state_combination(sc):
@@ -98,7 +104,7 @@ def plot_nacs_histograms(
                 xdata,
                 # range=(0, xmax),
                 color=color,
-                bins=bins,
+                bins=num_bins,
             )
             # Don't bother if we have no data
             if ymax > 0:
@@ -107,10 +113,10 @@ def plot_nacs_histograms(
                     range=(0, ymax),
                     orientation='horizontal',
                     color=color,
-                    bins=bins,
+                    bins=num_bins,
                 )
 
-            ax.scatter(xdata, ydata, color=color, s=0.2, alpha=0.5)
+            ax.scatter(xdata, ydata, color=color, s=0.2, alpha=0.5, rasterized=rasterized)
 
     if inter_state.has_variable('energy_interstate'):
         plot('nde', 'energy_interstate', hop_filter_data)
