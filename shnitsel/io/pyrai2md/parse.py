@@ -407,7 +407,7 @@ def parse_observables_from_log(
     astate = np.full((expected_nsteps), -1, dtype=int)
     forces = np.full((expected_nsteps, nstates, natoms, 3), np.nan)
     atXYZ = np.full((expected_nsteps, natoms, 3), np.nan)
-    atNames = np.full((natoms), "", dtype=str)
+    atNames = np.full((natoms), "", dtype="U8")
     got_atNames = False
     # TODO: Use velocities?
     veloc = np.full((expected_nsteps, natoms, 3), np.nan)

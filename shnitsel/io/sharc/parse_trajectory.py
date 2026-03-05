@@ -544,8 +544,8 @@ def parse_trajout_dat(
     # 0.1837143472948E+004
 
     # NOTE: dtype specification required to ensure two-letter symbols are parsed correctly
-    atNames = np.full((natoms,), "", dtype='U2')
-    atNums = np.full((natoms,), "")
+    atNames = np.full((natoms,), "", dtype=trajectory_in.atNames.dtype) # dtype="U2")
+    atNums = np.full((natoms,), -1)
     for line in f:
         stripped = line.strip()
 
@@ -801,7 +801,7 @@ def parse_trajout_xyz(
     natoms = int(first.strip())
 
     # NOTE: dtype specification required to ensure two-letter symbols are parsed correctly
-    atNames = np.full((natoms), "", dtype='U2')
+    atNames = np.full((natoms), "", dtype='U8')
     atNums = np.full((natoms), -1)
     atXYZ = np.full((nsteps, natoms, 3), np.nan)
 
