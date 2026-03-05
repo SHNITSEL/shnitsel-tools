@@ -426,7 +426,7 @@ def read(
         "frames": concat_trajs,
         "layers": layer_trajs,
         "db": db_from_data,
-        "list": lambda x: x,
+        "list": lambda x, dtype=None: x,
     }
     if concat_method not in cats:
         raise ValueError(f"`concat_method` must be one of {cats.keys()!r}")

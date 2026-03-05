@@ -542,7 +542,9 @@ def parse_trajout_dat(
     # 0.1837143472948E+004
     # 0.1837143472948E+004
     # 0.1837143472948E+004
-    atNames = np.full((natoms,), "")
+
+    # NOTE: dtype specification required to ensure two-letter symbols are parsed correctly
+    atNames = np.full((natoms,), "", dtype='U2')
     atNums = np.full((natoms,), "")
     for line in f:
         stripped = line.strip()
@@ -556,7 +558,6 @@ def parse_trajout_dat(
         if stripped.startswith("! Elements"):
             for i in range(natoms):
                 atNames[i] = next(f).strip()
-
     trajectory_in.coords["atNames"] = (
         "atom",
         atNames,
@@ -627,7 +628,7 @@ def parse_trajout_dat(
             new_ts = int(next(f).strip())
             if new_ts != (ts or 0) + 1:
                 logging.warning(
-                    "Non-consecutive timesteps: %(ts)d -> %(next_ts)d",
+                    "Non-consecutive timesteps: %(ts)d -> %(new_ts)d",
                     {'ts': ts, 'new_ts': new_ts},
                 )
             ts = new_ts
@@ -772,7 +773,6 @@ def parse_trajout_dat(
             f"greatest timestep index was {max_ts + 1=}"
         )
     completed = max_ts + 1 == nsteps
-
     return completed, max_ts + 1, trajectory_in
 
 
@@ -800,7 +800,8 @@ def parse_trajout_xyz(
     assert first.startswith(" " * 6)
     natoms = int(first.strip())
 
-    atNames = np.full((natoms), "")
+    # NOTE: dtype specification required to ensure two-letter symbols are parsed correctly
+    atNames = np.full((natoms), "", dtype='U2')
     atNums = np.full((natoms), -1)
     atXYZ = np.full((nsteps, natoms, 3), np.nan)
 
