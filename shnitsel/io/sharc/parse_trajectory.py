@@ -627,7 +627,7 @@ def parse_trajout_dat(
             new_ts = int(next(f).strip())
             if new_ts != (ts or 0) + 1:
                 logging.warning(
-                    "Non-consecutive timesteps: %(ts)d -> %(next_ts)d",
+                    "Non-consecutive timesteps: %(ts)d -> %(new_ts)d",
                     {'ts': ts, 'new_ts': new_ts},
                 )
             ts = new_ts
