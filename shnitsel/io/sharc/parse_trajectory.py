@@ -593,6 +593,7 @@ def parse_trajout_dat(
     astate_assigned = False
     nacs_assigned = False
     socs_assigned = False
+    velocities_assigned = False
 
     sharc_version_parts = [int(x) for x in settings["SHARC_version"].split(".")]
     _sharc_main_version = sharc_version_parts[0]
@@ -606,6 +607,7 @@ def parse_trajout_dat(
     tmp_astate = np.full_like(trajectory_in.astate.values, 0, dtype=np.int32)
     tmp_nacs = np.full_like(trajectory_in.nacs.values, np.nan)
     tmp_socs = np.full_like(trajectory_in.socs, 0 + 0j)
+    tmp_velocities = np.full_like(trajectory_in.velocities, np.nan)
 
     # skip through until initial step:
     for line in f:
@@ -700,6 +702,11 @@ def parse_trajout_dat(
             tmp_sdiag[ts] = int(pair[0])
             tmp_astate[ts] = int(pair[1])
 
+        if line.startswith("! 12 Velocities in a.u."):
+            velocities_assigned = True
+            for atom in range(natoms):
+                tmp_velocities[ts, atom] = [float(n) for n in next(f).strip().split()]
+
         if line.startswith("! 15 Gradients (MCH)"):
             state = int(line.strip().split()[-1]) - 1
             force_assigned = True
@@ -762,9 +769,11 @@ def parse_trajout_dat(
         trajectory_in["energy"].values = tmp_energy
         mark_variable_assigned(trajectory_in["energy"])
     if e_kin_assigned:
-        # For now, we do not include e_kin or velocities.
-        # mark_variable_assigned(trajectory_in["e_kin"])
-        pass
+        trajectory_in["e_kin"].values = tmp_e_kin
+        mark_variable_assigned(trajectory_in["e_kin"])
+    if velocities_assigned:
+        trajectory_in["velocities"].values = tmp_velocities
+        mark_variable_assigned(trajectory_in["velocities"])
 
     if not (max_ts + 1 <= nsteps):
         raise ValueError(
