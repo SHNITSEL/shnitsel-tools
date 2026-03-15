@@ -156,9 +156,9 @@ class TICAResult(Generic[OriginType, ResultType]):
     def project_array(self, other_da: xr.DataArray) -> xr.DataArray:
         scaled = self.scale_func(other_da)
         return xr.apply_ufunc(
-            reducer_object.transform,
+            self.pca_object.transform,
             scaled,
-            input_core_dims=[[dim]],
+            input_core_dims=[[self.pca_mapped_dimension]],
             output_core_dims=[['PC']],
         )
 
