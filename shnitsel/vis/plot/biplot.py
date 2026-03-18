@@ -7,6 +7,7 @@ from matplotlib.figure import Figure, SubFigure
 import numpy as np
 from numpy.typing import ArrayLike
 import rdkit
+import rdkit.Chem.Draw
 from scipy import stats
 import matplotlib as mpl
 import matplotlib.pyplot as plt
