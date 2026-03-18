@@ -594,6 +594,7 @@ def parse_trajout_dat(
     nacs_assigned = False
     socs_assigned = False
     velocities_assigned = False
+    coefs_assigned = False
 
     sharc_version_parts = [int(x) for x in settings["SHARC_version"].split(".")]
     _sharc_main_version = sharc_version_parts[0]
@@ -608,6 +609,7 @@ def parse_trajout_dat(
     tmp_nacs = np.full_like(trajectory_in.nacs.values, np.nan)
     tmp_socs = np.full_like(trajectory_in.socs, 0 + 0j)
     tmp_velocities = np.full_like(trajectory_in.velocities, np.nan)
+    tmp_coefs = np.full_like(trajectory_in.coefs.values, 0 + 0j)
 
     # skip through until initial step:
     for line in f:
@@ -690,6 +692,14 @@ def parse_trajout_dat(
             if found_overlap:
                 phases_assigned = True
                 tmp_phases[ts] = phasevector
+
+        if line.startswith("! 5 Coefficients"):
+            coefs = [
+                float((split := next(f).strip().split())[0]) + 1j * float(split[1])
+                for _ in range(nstates)
+            ]
+            coefs_assigned = True
+            tmp_coefs[ts] = coefs
 
         if line.startswith("! 7 Ekin"):
             e_kin_assigned = True
@@ -774,6 +784,9 @@ def parse_trajout_dat(
     if velocities_assigned:
         trajectory_in["velocities"].values = tmp_velocities
         mark_variable_assigned(trajectory_in["velocities"])
+    if coefs_assigned:
+        trajectory_in["coefs"].values = tmp_coefs
+        mark_variable_assigned(trajectory_in["coefs"])
 
     if not (max_ts + 1 <= nsteps):
         raise ValueError(

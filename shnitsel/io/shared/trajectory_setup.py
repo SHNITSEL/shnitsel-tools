@@ -239,6 +239,7 @@ def create_initial_dataset(
         "astate": ["time"],
         "sdiag": ["time"],
         "phases": ["time", "state"],
+        "coefs": ["time", "state"],
         "atNames": ["atom"],
         "atNums": ["atom"],
     }
@@ -264,6 +265,7 @@ def create_initial_dataset(
         "phases": np.nan,
         "atNames": "",
         "atNums": -1,
+        "coefs": np.nan + 0j,
     }
 
     default_float_type = np.dtypes.Float32DType
@@ -290,6 +292,7 @@ def create_initial_dataset(
         "phases": default_float_type,
         "atNames": default_string_type,
         "atNums": np.dtypes.Int8DType,
+        "coefs": np.complex128,
     }
 
     dim_lengths = {
