@@ -6,6 +6,8 @@
   <a href="https://shnitsel.github.io/"><img src="https://img.shields.io/badge/Website-shnitsel.github.io-yellow.svg" alt="DOI"></a>
   &nbsp;&nbsp;&nbsp;
   <a href="https://shnitsel.github.io/tools/docs/_build/index.html"><img src="https://img.shields.io/badge/Docs-shnitsel.github.io-yellow.svg" alt="DOI"></a>
+  &nbsp;&nbsp;&nbsp;
+  <a href="https://doi.org/10.5281/zenodo.1913576"><img src="https://img.shields.io/badge/Code-Zenodo-blue.svg" alt="DOI"></a>
 </div>
 
 --------------------
@@ -331,5 +333,5 @@ uv tool install shnitsel-tools
 ## Further Information
 
 [![Website](https://img.shields.io/badge/Website-shnitsel.github.io-yellow.svg)](https://shnitsel.github.io/)
-
+[![Code](https://zenodo.org/badge/DOI/10.5281/zenodo.19135766.svg)](https://doi.org/10.5281/zenodo.19135766)
 
