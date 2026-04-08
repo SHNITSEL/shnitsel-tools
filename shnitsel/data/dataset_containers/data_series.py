@@ -34,7 +34,7 @@ class DataSeries(ShnitselDataset):
     _is_multi_trajectory: bool = False
 
     def __init__(self, ds: xr.Dataset):
-        assert 'state' in ds.dims
+        assert 'state' in ds.dims or 'state' in ds.coords
         assert 'atom' in ds.dims
         super().__init__(ds)
 

@@ -23,7 +23,7 @@ class MultiSeriesStacked(Frames, MultiSeriesDataset):
         self, framesets: Sequence[Frames | Trajectory | xr.Dataset] | xr.Dataset
     ):
         if isinstance(framesets, xr.Dataset):
-            assert 'frame' in framesets.coords, (
+            assert 'frame' in framesets.dims, (
                 "Stacked dataset must have `frame` dimension"
             )
             assert 'atrajectory' in framesets.coords, (
