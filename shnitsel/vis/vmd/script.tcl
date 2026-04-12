@@ -18,34 +18,50 @@ proc mtransl {molid x y z} {
     translate by [expr -$x] [expr -$y] [expr -$z]
 }
 
-proc spread {{scale 0.5} {ncols 5} {molids "sentinel"}} {
+proc spread {{sep 0.5} {ncols 5} {vsep_ratio 1} {molids "sentinel"} {ignore "ignore"}} {
+    display update off
+    set old_scale [molinfo top get scale_matrix]
     display resetview
     display projection Orthographic
     if {$molids eq "sentinel"} {
         set molids [molinfo list]
     }
     foreach m $molids {
-        puts $m
-        set scale $scale
-        set x [expr $scale * ($m % $ncols)]
-        set y [expr $scale * ($m / $ncols)]
+        puts molid=$m
+        puts sep=$sep
+        puts ncols=$ncols
+        set x [expr $sep * ($m % $ncols)]
+        set y [expr $vsep_ratio * $sep * ($m / $ncols)]
         mtransl $m $x $y 0
+        molinfo $m set scale_matrix $old_scale
     }
-    translate by [expr $scale * ($ncols - 1) / 2.0] 0 0
+    translate by [expr $sep * ($ncols - 1) / 2.0] 0 0
+    # scale to $old_scale
+    display update on
 }
 
 proc spread_gui {} {
     toplevel .spread
     label .spread.label_scale -text "Separation"
-    entry .spread.entry_scale -textvariable entry_scale
+    scale .spread.entry_scale -orient horizontal -length 200 -from 0 -to 2 -resolution 0.1 \
+      -variable entry_scale -command {spread $entry_scale $entry_ncols $entry_vsep sentinel}
+    
+    label .spread.label_vsep -text "Vertical sep."
+    scale .spread.entry_vsep -orient horizontal -length 200 -from 0.1 -to 3 -resolution 0.1 \
+      -variable entry_vsep -command {spread $entry_scale $entry_ncols $entry_vsep sentinel}
+    .spread.entry_vsep set 1  ; # Default value
+    
     label .spread.label_ncols -text "Columns"
-    entry .spread.entry_ncols -textvariable entry_ncols
-    button .spread.button_spread -text "Spread" -command {spread $entry_scale $entry_ncols}
+    scale .spread.entry_ncols -orient horizontal -length 200 -from 1 -to [llength [molinfo list]] -resolution 1 \
+      -variable entry_ncols -command {spread $entry_scale $entry_ncols 1 sentinel}
+    
+    button .spread.button_spread -text "Spread" -command {spread $entry_scale $entry_ncols $entry_vsep}
 
-    bind .spread.entry_scale <Return> {spread $entry_scale $entry_ncols}
-    bind .spread.entry_ncols <Return> {spread $entry_scale $entry_ncols}
+    bind .spread.entry_scale <Return> {spread $entry_scale $entry_ncols $entry_vsep}
+    bind .spread.entry_ncols <Return> {spread $entry_scale $entry_ncols $entry_vsep}
     
     grid .spread.label_scale .spread.entry_scale -sticky nsew
+    grid .spread.label_vsep  .spread.entry_vsep  -sticky nsew
     grid .spread.label_ncols .spread.entry_ncols -sticky nsew
     grid .spread.button_spread                   -sticky nsew -columnspan 2
 }
