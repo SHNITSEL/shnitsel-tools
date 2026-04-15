@@ -96,7 +96,7 @@ def hops_mask_from_active_state(
             tmp = wrap_dataset(active_state_source, DataSeries)
             active_state_data = tmp.active_state
             leading_dim = tmp.leading_dim
-        if isinstance(active_state_source, ShnitselDataset):
+        elif isinstance(active_state_source, ShnitselDataset):
             active_state_data = active_state_source.active_state
             leading_dim = active_state_source.leading_dim
         elif isinstance(active_state_source, xr.DataArray):
