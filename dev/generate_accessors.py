@@ -32,7 +32,7 @@ def main():
         )
         from shnitsel.io.ase.write import write_ase_db
         from shnitsel.vis.plot import p3mhelpers
-        from shnitsel.vis.plot import select
+        from shnitsel.vis.plot import select, time
         from shnitsel.vis import vmd
 
     except ImportError as e:
@@ -98,8 +98,11 @@ def main():
         p3mhelpers.trajs3Dgrid,
         ### vmd
         vmd.traj_vmd,
+        ### plot.*
+        time.timeplot,
         ### ml
         pca.pca,
+        pca.pca_direct,
         lda.lda,
         pls.pls,
         # hops
