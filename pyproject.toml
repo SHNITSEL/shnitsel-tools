@@ -1,10 +1,12 @@
 [build-system]
-requires = ["setuptools>=61.0"]
+requires = ["setuptools>=80", "setuptools-scm>=8"]
 build-backend = "setuptools.build_meta"
+
 
 [project]
 name = "shnitsel-tools"
-version = "2026.01.1"  # YYYY.0M.MICRO format; see https://calver.org
+# version = "2026.01.1"  # YYYY.0M.MICRO format; see https://calver.org
+dynamic = ["version"]
 authors = [
   { name = "Theodor Everley Röhrkasten", email = "theodor.roehrkasten@fau.de" },
   { name = "Kevin Höllring", email = "kevin.hoellring@fau.de" },
@@ -86,6 +88,10 @@ include = ["shnitsel*"]
 
 [tool.setuptools.package-data]
 shnitsel = ["vis/static/css/*.css", "vis/static/html/*.htm*"]
+
+[tool.setuptools_scm]
+# Non-code configuration stays here
+version_file = "shnitsel/_version.py"
 
 [tool.ruff]
 include = ["shnitsel/**/*.py"]
