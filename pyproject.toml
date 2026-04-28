@@ -84,6 +84,9 @@ merge_shnitsel_files = "shnitsel.cli.merge_shnitsel_files:main"
 where = ["."]
 include = ["shnitsel*"]
 
+[tool.setuptools.package-data]
+shnitsel = ["vis/static/css/*.css", "vis/static/html/*.htm*"]
+
 [tool.ruff]
 include = ["shnitsel/**/*.py"]
 extend-exclude = ["shnitsel/_generated_accessors.py"]
