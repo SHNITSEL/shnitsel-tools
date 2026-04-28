@@ -19,7 +19,7 @@ from rdkit.Chem.rdchem import Mol
 from shnitsel.analyze.generic import keep_norming, norm, pwdists, subtract_combinations
 from shnitsel.analyze.hops import assign_hop_time, filter_data_at_hops, focus_hops, hops_mask_from_active_state
 from shnitsel.analyze.lda import lda
-from shnitsel.analyze.pca import PCAResult, pca, pca_and_hops
+from shnitsel.analyze.pca import PCAResult, pca, pca_and_hops, pca_direct
 from shnitsel.analyze.pls import pls, pls_ds
 from shnitsel.analyze.populations import PopulationStatistics, calc_classical_populations
 from shnitsel.analyze.spectra import get_spectra
@@ -54,6 +54,7 @@ from shnitsel.io.shnitsel.write import write_shnitsel_file
 from shnitsel.units.conversion import convert_dipole, convert_energy, convert_force, convert_length, convert_nacs, convert_socs, convert_time
 from shnitsel.vis.plot.p3mhelpers import frame3D, frames3Dgrid, traj3D, trajs3Dgrid
 from shnitsel.vis.plot.select import FrameSelector, TrajSelector
+from shnitsel.vis.plot.time import timeplot
 from shnitsel.vis.vmd import traj_vmd
 from typing import Any, Callable, Dict, List, Literal, Optional, Union
 from xarray.core.dataarray import DataArray
@@ -326,9 +327,23 @@ class DataArrayAccessor(DAManualAccessor):
         """Wrapper for :py:func:`shnitsel.vis.vmd.traj_vmd`."""
         return traj_vmd(self._obj, groupby = groupby)
 
+    def timeplot(
+        self,
+        ax = None,
+        trajs = None,
+        sep = False,
+        time_coord='time',
+    ):
+        """Wrapper for :py:func:`shnitsel.vis.plot.time.timeplot`."""
+        return timeplot(self._obj, ax=ax, trajs=trajs, sep=sep, time_coord=time_coord)
+
     def pca(self, structure_selection: (StructureSelection | str | Literal["atoms", "bonds", "angles", "dihedrals", "pyramids", "pwdist", "BLA"] | int | tuple | tuple | tuple | tuple | Collection | None) = None, dim: (Hashable | None) = None, n_components: int = 2, center_mean: bool = False) -> (PCAResult | TreeNode):
         """Wrapper for :py:func:`shnitsel.analyze.pca.pca`."""
         return pca(self._obj, structure_selection = structure_selection, dim = dim, n_components = n_components, center_mean = center_mean)
+
+    def pca_direct(self, dim, n_components=2):
+        """Wrapper for :py:func:`shnitsel.analyze.pca.pca_direct`."""
+        return pca_direct(self._obj, dim=dim, n_components=n_components)
 
     def lda(self, dim: str, cats: (str | DataArray), n_components: int = 2) -> DataArray:
         """Wrapper for :py:func:`shnitsel.analyze.lda.lda`."""

@@ -346,7 +346,7 @@ def biplot_kde(
         noodleplot_cnorm = None
         noodleplot_colorbar_kws = None
         kde_data = None
-        colorbar_label = f"time / {frames['time'].attrs.get('units', "unknown")}"
+        colorbar_label = f"time / {frames['time'].attrs.get('units', 'unknown')}"
     elif scatter_color_property == 'state' and (
         'astate' in frames.data_vars or 'astate' in frames.coords
     ):

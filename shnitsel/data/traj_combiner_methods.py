@@ -495,7 +495,7 @@ def concat_trajs(
 
         # TODO: Check if the order of datasets stays the same. Otherwise distinct attributes may not be appropriately sorted.
         frames = xr.concat(
-            datasets_amended, dim="frame", coords="different", combine_attrs="override"
+            datasets_amended, dim="frame", coords="different", compat="equals", combine_attrs="override"
         )
 
         # DataArrays without a `trajectory` dimension cannot have these coords assigned
