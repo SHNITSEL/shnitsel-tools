@@ -11,7 +11,7 @@ from shnitsel.core._api_info import internal
 from shnitsel._contracts import needs
 from shnitsel.analyze.generic import relativize
 from shnitsel.data.multi_indices import sel_trajs
-from shnitsel.core.typedefs import DatasetOrArray, Frames
+from shnitsel.core.typedefs import DatasetOrArray
 from shnitsel.units.conversion import convert_energy
 
 T = TypeVar("T")
@@ -224,7 +224,7 @@ def setup_frames(
     return ds
 
 
-def validate(frames: Frames) -> np.ndarray:
+def validate(frames) -> np.ndarray:
     if "time" in frames.coords:
         tdim = "time"
     elif "ts" in frames.coords:
@@ -246,6 +246,7 @@ def validate(frames: Frames) -> np.ndarray:
                 f"Skipping verification of `{varname}` "
                 f"as no bad value known for dtype `{dtype}`"
             )
+            continue
 
         if mask.all():
             print(
@@ -274,7 +275,7 @@ def validate(frames: Frames) -> np.ndarray:
     return res
 
 
-def split_for_saving(frames: Frames, bytes_per_chunk=50e6):
+def split_for_saving(frames, bytes_per_chunk=50e6):
     trajids = frames.get("trajid_", np.unique(frames["trajid"]))
     ntrajs = len(trajids)
     nchunks = math.trunc(frames.nbytes / 50e6)

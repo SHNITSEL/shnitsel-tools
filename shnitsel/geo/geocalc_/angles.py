@@ -1,4 +1,4 @@
-from typing import Any, Literal, Sequence, overload
+from typing import Any, Iterable, Literal, Sequence, overload
 from shnitsel._contracts import needs
 from shnitsel.core._api_info import API
 import xarray as xr
@@ -16,7 +16,9 @@ from shnitsel.geo.geocalc_.algebra import angle_, angle_cos_sin_
 import numpy as np
 
 from shnitsel.geo.geocalc_.helpers import (
+    AngleOptions,
     _assign_descriptor_coords,
+    _at_XYZ_subset_to_descriptor,
     _empty_descriptor_results,
 )
 from shnitsel.filtering.helpers import _get_default_structure_selection
@@ -25,7 +27,12 @@ from shnitsel.filtering.helpers import _get_default_structure_selection
 @API()
 @needs(dims={'atom'})
 def angle(
-    atXYZ: AtXYZ, a_index: int, b_index: int, c_index: int, *, deg: bool = False
+    atXYZ: AtXYZ,
+    a_index: int | list[int],
+    b_index: int | list[int],
+    c_index: int | list[int],
+    *,
+    angles: AngleOptions = 'deg',
 ) -> xr.DataArray:  # noqa: F821
     """Method to calculate the angle between atoms with indices `a_index`, `b_index`, and `c_index` in the positions DataArray throughout time.
     The `b_index` specifies the center atom at which the angle is located.
@@ -43,44 +50,58 @@ def angle(
         Index of second center atom comprising the angle.
     c_index : int
         Index of third atom.
-    deg : bool, optional
-        Flag whether the results should be in degrees instead of radian. Defaults to False.
+    angles : Literal['deg', 'rad', 'trig'], default='deg'
+        Option parameter to control the unit/representation of the angle.
+        Use `'deg'` for results in 'degrees', `'rad'` for results in 'radian'
+        and `'trig'` for a representation as a sin and a cos
 
     Returns
     -------
     xr.DataArray
         The resulting angles between the denoted atoms.
     """
+    if angles == 'trig':
+        return angle_cos_sin()
     if isinstance(atXYZ, TreeNode):
         return atXYZ.map_data(
             angle,
             a_index=a_index,
             b_index=b_index,
             c_index=c_index,
-            deg=deg,
+            angles=angles,
         )
-    a = atXYZ.sel(atom=a_index, drop=True)
-    b = atXYZ.sel(atom=b_index, drop=True)
-    c = atXYZ.sel(atom=c_index, drop=True)
+    a = _at_XYZ_subset_to_descriptor(atXYZ.sel(atom=a_index))
+    b = _at_XYZ_subset_to_descriptor(atXYZ.sel(atom=b_index))
+    c = _at_XYZ_subset_to_descriptor(atXYZ.sel(atom=c_index))
     ab = a - b
     cb = c - b
     result: xr.DataArray = angle_(ab, cb)
-    if deg:
+    if angles == 'deg':
         result = result * 180 / np.pi
         result.attrs['units'] = 'degrees'
     else:
         result.attrs['units'] = 'rad'
+    result.attrs['unitdim'] = 'angles'
+
     result.name = 'angle'
-    result.attrs['long_name'] = r"\theta_{%d,%d,%d}" % (a_index, b_index, c_index)
+    if isinstance(a, int):
+        result.attrs['long_name'] = r"\theta_{%d,%d,%d}" % (a_index, b_index, c_index)
+    else:
+        result.attrs['long_name'] = r"\theta_{i,j,k}"
+
     return result
 
 
 @API()
 @needs(dims={'atom'})
 def angle_cos_sin(
-    atXYZ: AtXYZ, a_index: int, b_index: int, c_index: int, *, deg: bool = False
+    atXYZ: AtXYZ,
+    a_index: int | list[int],
+    b_index: int | list[int],
+    c_index: int | list[int],
 ) -> tuple[xr.DataArray, xr.DataArray]:
-    """Method to calculate the cosine and sine of the angle between atoms with indices `a_index`, `b_index`, and `c_index` in the positions DataArray throughout time.
+    """Method to calculate the cosine and sine of the angle between atoms with
+    indices `a_index`, `b_index`, and `c_index` in the positions DataArray throughout time.
     The `b_index` specifies the center atom at which the angle is located.
     The other two indices specify the legs of the angle.
 
@@ -88,11 +109,11 @@ def angle_cos_sin(
     ----------
     atXYZ : AtXYZ
         DataArray with positions
-    a_index : int
+    a_index : int | Iterable[int]
         Index of first atom.
-    b_index : int
+    b_index : int | Iterable[int]
         Index of second center atom comprising the angle.
-    c_index : int
+    c_index : int | Iterable[int]
         Index of third atom.
 
     Returns
@@ -106,19 +127,20 @@ def angle_cos_sin(
             a_index=a_index,
             b_index=b_index,
             c_index=c_index,
-            deg=deg,
         )
-    a = atXYZ.sel(atom=a_index, drop=True)
-    b = atXYZ.sel(atom=b_index, drop=True)
-    c = atXYZ.sel(atom=c_index, drop=True)
+    a = _at_XYZ_subset_to_descriptor(atXYZ.sel(atom=a_index))
+    b = _at_XYZ_subset_to_descriptor(atXYZ.sel(atom=b_index))
+    c = _at_XYZ_subset_to_descriptor(atXYZ.sel(atom=c_index))
     ab = a - b
     cb = c - b
 
     res_cos, res_sin = angle_cos_sin_(ab, cb)
     res_cos.name = 'cos'
     res_cos.attrs['units'] = 'trig'
+    res_cos.attrs['unitdim'] = 'angles'
     res_sin.name = 'sin'
     res_sin.attrs['units'] = 'trig'
+    res_sin.attrs['unitdim'] = 'angles'
     return res_cos, res_sin
 
 
@@ -128,7 +150,7 @@ def get_angles(
     structure_selection: StructureSelection
     | StructureSelectionDescriptor
     | None = None,
-    deg: bool | Literal['trig'] = True,
+    angles: AngleOptions = 'deg',
     signed=True,
 ) -> TreeNode[Any, xr.DataArray]: ...
 
@@ -139,7 +161,7 @@ def get_angles(
     structure_selection: StructureSelection
     | StructureSelectionDescriptor
     | None = None,
-    deg: bool | Literal['trig'] = True,
+    angles: AngleOptions = 'deg',
     signed=True,
 ) -> xr.DataArray: ...
 
@@ -154,7 +176,7 @@ def get_angles(
     structure_selection: StructureSelection
     | StructureSelectionDescriptor
     | None = None,
-    deg: bool | Literal['trig'] = True,
+    angles: AngleOptions = 'deg',
     signed: bool = True,
 ) -> TreeNode[Any, xr.DataArray] | xr.DataArray:
     """Identify triples of bonded atoms (using RDKit) and calculate bond angles for each frame.
@@ -168,9 +190,10 @@ def get_angles(
     structure_selection: StructureSelection | StructureSelectionDescriptor, optional
          Object encapsulating feature selection on the structure whose positional information is provided in `atXYZ`.
          If this argument is omitted altogether, a default selection for all bonds within the structure is created.
-    deg: bool | Literal['trig'], optional
-         Whether to return angles in degrees (as opposed to radians), by default True.
-         Can also be set to the string literal `trig` if sin and cos of the calculated angle should be returned instead.
+    angles : Literal['deg', 'rad', 'trig'], default='deg'
+        Option parameter to control the unit/representation of the angles.
+        Use `'deg'` for results in 'degrees', `'rad'` for results in 'radian'
+        and `'trig'` for a representation as a sin and a cos
     signed: bool, optional
          Whether the result should be returned with a sign or just as an absolute value in the range. Only relevant for `trig` option in `deg`.
 
@@ -185,7 +208,7 @@ def get_angles(
     if isinstance(atXYZ_source, TreeNode):
         return atXYZ_source.map_data(
             lambda x: get_angles(
-                x, structure_selection=structure_selection, deg=deg, signed=signed
+                x, structure_selection=structure_selection, angles=angles, signed=signed
             ),
             keep_empty_branches=True,
             dtype=xr.DataArray,
@@ -216,13 +239,18 @@ def get_angles(
     if len(angle_indices) == 0:
         return _empty_descriptor_results(position_data)
 
-    if isinstance(deg, bool):
-        angle_arrs = [
-            angle(position_data, a, b, c, deg=deg).expand_dims('descriptor')
-            for a, b, c in angle_indices
-        ]
+    a_indices, b_indices, c_indices = zip(*[[a, b, c] for a, b, c in angle_indices])
 
-        angle_res = xr.concat(angle_arrs, dim='descriptor')
+    if angles != 'trig':
+        angle_res = angle(
+            position_data,
+            list(a_indices),
+            list(b_indices),
+            list(c_indices),
+            angles=angles,
+        )
+
+        # angle_res = xr.concat(angle_arrs, dim='descriptor')
         angle_res.name = "angles"
 
         descriptor_tex = [r"\theta_{%d,%d,%d}" % (a, b, c) for a, b, c in angle_indices]
@@ -238,21 +266,22 @@ def get_angles(
         )
     else:
         # Trigonometric results requested
-        cos_res: Sequence[xr.DataArray]
-        sin_res: Sequence[xr.DataArray]
-        cos_res, sin_res = zip(
-            *[angle_cos_sin(position_data, a, b, c) for a, b, c in angle_indices]
+        cos_res: xr.DataArray
+        sin_res: xr.DataArray
+
+        cos_res, sin_res = angle_cos_sin(
+            position_data, list(a_indices), list(b_indices), list(c_indices)
         )
 
-        cos_res = [
-            x.expand_dims('descriptor')  # .squeeze('atom', drop=True,)
-            for x in cos_res
-        ]
-        sin_res = [
-            x.expand_dims('descriptor')  # .squeeze('atom', drop=True)
-            for x in sin_res
-        ]
-        all_res: Sequence[xr.DataArray] = cos_res + sin_res
+        # cos_res = [
+        #     x.expand_dims('descriptor')  # .squeeze('atom', drop=True,)
+        #     for x in cos_res
+        # ]
+        # sin_res = [
+        #     x.expand_dims('descriptor')  # .squeeze('atom', drop=True)
+        #     for x in sin_res
+        # ]
+        all_res: Sequence[xr.DataArray] = [cos_res, sin_res]
 
         if not signed:
             all_res = [np.abs(x) for x in all_res]
@@ -265,9 +294,9 @@ def get_angles(
             r'cos(%d,%d,%d)' % (a, b, c) for a, b, c in angle_indices
         ] + [r'sin(%d,%d,%d)' % (a, b, c) for a, b, c in angle_indices]
 
-        descriptor_type: list[FeatureTypeLabel] = ['cos_angle'] * len(cos_res) + [
-            'sin_angle'
-        ] * len(sin_res)  # pyright: ignore[reportAssignmentType] # Is allowed string, but not generally advertised
+        descriptor_type: list[FeatureTypeLabel] = ['cos_angle'] * cos_res.sizes[
+            'descriptor'
+        ] + ['sin_angle'] * sin_res.sizes['descriptor']  # pyright: ignore[reportAssignmentType] # Is allowed string, but not generally advertised
 
         angle_res: xr.DataArray = xr.concat(all_res, dim='descriptor')  # type: ignore
         angle_res.name = "angles"

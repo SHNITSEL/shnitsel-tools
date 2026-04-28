@@ -1,8 +1,10 @@
 """General timeplots -- use on anything with a time coordinate"""
+
 # import shnitsel as st
 from logging import warning
-from typing import Literal
+from typing import Hashable, Literal
 
+from matplotlib.axes import Axes
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -12,29 +14,45 @@ from shnitsel._contracts import needs
 from shnitsel.vis.plot.common import figax
 from shnitsel.analyze.stats import time_grouped_confidence_interval
 
-def _set_axes(data, ax=None):
+
+def _set_axes(data, ax=None, xlabel: str | None = None, ylabel: str | None = None):
     _, ax = figax(ax=ax)
 
-    ylabel = data.attrs.get('long_name', data.name or '')
-    if (yunits := data.attrs.get('units')):
+    # TODO: FIXME: Add a `unit_name_to_label()` function for general mapping of units to latex labels
+
+    if ylabel is None:
+        ylabel = data.attrs.get('long_name', data.name or '')
+
+    if yunits := data.attrs.get('units'):
         ylabel += f' / {yunits}'
+
     ax.set_ylabel(ylabel)
-    xlabel = 'time'
-    if (xunits := data['time'].attrs.get('units')):
+
+    if xlabel is None:
+        xlabel = 'time'
+
+    if xunits := data['time'].attrs.get('units'):
         xlabel += f' / {xunits}'
+        
     ax.set_xlabel(xlabel)
     return ax
 
-def plot_single(data, ax=None, time_coord='time'):
+
+def plot_single(
+    data: xr.DataArray, ax: Axes | None = None, time_coord: Hashable = 'time'
+):
     """Plot some property of a single trajectory over time
 
     Parameters
     ----------
-    data
-        Data to plot
-    ax
+    data : xr.DataArray
+        Data to plot as an `xarray.DataArray` with at least a coordinate of `time_coord` to
+        use as the x-axis positions.
+    ax : Axes, optional
         A matplotlib ``Axes`` onto which to plot;
         if not provided, one will be created.
+    time_coord: Hashable, default='time'
+        The name of the variable/coordinate on the data to use as the x-axis
 
     Returns
     -------
@@ -48,10 +66,10 @@ def plot_single(data, ax=None, time_coord='time'):
     if 'state' in data.dims and 'statecomb' in data.dims:
         raise ValueError("data shouldn't have both `state` and `statecomb` dimensions")
     if 'state' in data.dims:
-        groupby='state'
+        groupby = 'state'
         coord_name = 'state_names'
     elif 'statecomb' in data.dims:
-        groupby='statecomb'
+        groupby = 'statecomb'
         coord_name = 'statecomb_names'
     else:
         data = data.expand_dims('_dummy').assign_coords(_dummy=[''])
@@ -72,7 +90,8 @@ def plot_single(data, ax=None, time_coord='time'):
         )
     return _set_axes(data, ax)
 
-def plot_ci(data, ax=None, time_coord='time'):
+
+def plot_with_confidence_interval(data, ax=None, time_coord='time'):
     """Plot some property of trajectories over time, aggregated as means and confidence intervals
 
     Parameters
@@ -97,18 +116,19 @@ def plot_ci(data, ax=None, time_coord='time'):
     if 'state' in data.dims and 'statecomb' in data.dims:
         raise ValueError("data shouldn't have both `state` and `statecomb` dimensions")
     elif 'state' in data.dims:
-        dim='state'
+        dim = 'state'
         coord_name = 'state_names'
     elif 'statecomb' in data.dims:
-        dim='statecomb'
+        dim = 'statecomb'
         coord_name = 'statecomb_names'
     else:
         # TODO FIXME The expand_dims and squeeze steps shouldn't be necessary
-        ci = time_grouped_confidence_interval(data.expand_dims('state')).squeeze('state')
+        ci = time_grouped_confidence_interval(data.expand_dims('state')).squeeze(
+            'state'
+        )
         ax.fill_between(time_coord, 'upper', 'lower', data=ci, alpha=0.3)
         line2d = ax.plot(time_coord, 'mean', data=ci, lw=0.8)
         return _set_axes(data, ax)
-        
 
     ci = time_grouped_confidence_interval(data)
     for _, sdata in ci.groupby(dim):
@@ -123,6 +143,7 @@ def plot_ci(data, ax=None, time_coord='time'):
             c=line2d[0].get_color(),
         )
     return _set_axes(data, ax)
+
 
 def plot_many(data, ax=None, time_coord='time'):
     """Plot some property of trajectories over time as thin lines;
@@ -150,7 +171,7 @@ def plot_many(data, ax=None, time_coord='time'):
     if 'state' in data.dims and 'statecomb' in data.dims:
         raise ValueError("data shouldn't have both `state` and `statecomb` dimensions")
     elif 'state' in data.dims:
-        dim='state'
+        dim = 'state'
         groupby = data.groupby('state')
         coord_name = 'state_names'
     elif 'statecomb' in data.dims:
@@ -163,7 +184,7 @@ def plot_many(data, ax=None, time_coord='time'):
         for _, traj in data.groupby('atrajectory'):
             ax.plot(traj[time_coord], traj, lw=0.5, c='k')
         return _set_axes(data, ax)
-    
+
     colors = iter(plt.get_cmap('tab10').colors)
     for _, sdata in groupby:
         sdata = sdata.squeeze(dim)
@@ -173,6 +194,7 @@ def plot_many(data, ax=None, time_coord='time'):
             ax.plot(traj[time_coord], traj, lw=0.5, label=label, c=c)
     # TODO: legend
     return _set_axes(data, ax)
+
 
 def plot_shaded(data, ax, time_coord='time'):
     """Plot some property of trajectories over time, aggregated by using colour
@@ -198,7 +220,9 @@ def plot_shaded(data, ax, time_coord='time'):
     try:
         import datashader as ds
     except ImportError as err:
-        raise ImportError('plot_shaded requires the optional datashader dependency') from err
+        raise ImportError(
+            'plot_shaded requires the optional datashader dependency'
+        ) from err
     try:
         import colorcet
 
@@ -214,18 +238,21 @@ def plot_shaded(data, ax, time_coord='time'):
     for _, traj in data.groupby('atrajectory'):
         x.append(traj.coords[time_coord].values)
         y.append(traj.values)
-    df = pd.DataFrame({
-        'x': pd.array(x, dtype='Ragged[float64]'),
-        'y': pd.array(y, dtype='Ragged[float64]'),
-    })
+    df = pd.DataFrame(
+        {
+            'x': pd.array(x, dtype='Ragged[float64]'),
+            'y': pd.array(y, dtype='Ragged[float64]'),
+        }
+    )
     cvs = ds.Canvas(plot_height=2000, plot_width=2000)
     agg = cvs.line(df, x='x', y='y', agg=ds.count(), line_width=5, axis=1)
     img = ds.tf.shade(agg, how='log', cmap=cmap)
     arr = np.array(img.to_pil())
-    x0, x1 = agg.coords['x'].values[[0,-1]]
+    x0, x1 = agg.coords['x'].values[[0, -1]]
     y0, y1 = agg.coords['y'].values[[0, -1]]
     ax.imshow(arr, extent=[x0, x1, y0, y1], aspect='auto')
     return _set_axes(data, ax)
+
 
 @needs(coords={"time"})
 def timeplot(
@@ -324,3 +351,7 @@ def timeplot(
         raise ValueError(
             f"`trajs` should be one of 'ci', 'shade' or None, rather than {trajs}"
         )
+
+
+# Backward compatibility alias
+plot_ci = plot_with_confidence_interval

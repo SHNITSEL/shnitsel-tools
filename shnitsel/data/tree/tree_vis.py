@@ -70,12 +70,12 @@ def collapsible_section(
 
 
 def _mapping_section(
-    mapping:Mapping[Hashable, Any],
-    name:str,
-    details_func:Callable,
+    mapping: Mapping[Hashable, Any],
+    name: str,
+    details_func: Callable,
     max_items_collapse: int = 5,
-    enabled:bool=True,
-    expanded:bool = False
+    enabled: bool = True,
+    expanded: bool = False,
 ) -> str:
     n_items = len(mapping)
     collapsed = not expanded
@@ -126,27 +126,27 @@ def summarize_tree_children(children: Mapping[str, TreeNode]) -> str:
 
 attr_section = partial(
     _mapping_section,
-    name=_icon('file-text2')+"&nbsp;Attributes",
+    name=_icon('file-text2') + "&nbsp;Attributes",
     details_func=summarize_attrs,
     max_items_collapse=10,
 )
 
 root_children_section = partial(
     _mapping_section,
-    name=_icon('molecule2')+"&nbsp;Compounds",
+    name=_icon('molecule2') + "&nbsp;Compounds",
     details_func=summarize_tree_children,
     expanded=True,
 )
 
 groups_section = partial(
     _mapping_section,
-    name=_icon('tree_struct')+"&nbsp;Groups",
+    name=_icon('tree_struct') + "&nbsp;Groups",
     details_func=summarize_tree_children,
 )
 
 leaves_section = partial(
     _mapping_section,
-    name=_icon('file_dark')+"Data",
+    name=_icon('file_dark') + "Data",
     details_func=summarize_tree_children,
 )
 
@@ -201,19 +201,20 @@ def datatree_child_repr(node: TreeNode, end: bool = False) -> str:
     sections = tree_node_sections(node, root=False)
     section_items = "".join(f"<li class='st-section-item'>{s}</li>" for s in sections)
 
+    mol = ''
     if node.is_level('CompoundGroup'):
         mol_data = list(node.collect_data())
-        if len(mol_data)>0:
+        if len(mol_data) > 0:
             mol_source = mol_data[0]
             try:
                 mol_object = default_mol(mol_source)
-                mol = rdkit.Chem.Draw.rdMolDraw2D.MolToSVG(mol_object, width=100, height=60)
+                mol = rdkit.Chem.Draw.rdMolDraw2D.MolToSVG(
+                    mol_object, width=100, height=60
+                )
                 mol = ''.join(mol.split('\n')[1:])
-            except: #ValueError:
+            except:  # ValueError:
                 # default_mol didn't work
                 mol = ''
-    else:
-        mol = ''
 
     # TODO: Can we make the group name clickable to toggle the sections below?
     # This looks like it would require the input/label pattern used above.

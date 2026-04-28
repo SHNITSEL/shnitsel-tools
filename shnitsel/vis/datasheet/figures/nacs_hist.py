@@ -1,3 +1,4 @@
+import logging
 from matplotlib.figure import Figure, SubFigure
 import numpy as np
 from shnitsel._contracts import needs
@@ -11,16 +12,19 @@ from .common import figaxs_defaults, centertext
 from .hist import create_marginals, calc_truncation_maximum
 
 from matplotlib.axes import Axes
+import xarray as xr
 
 
 @figaxs_defaults(mosaic=[['ntd'], ['nde']], scale_factors=(1 / 3, 1 / 3))
 @needs(data_vars={'nacs'})
 def plot_nacs_histograms(
     inter_state: InterState,
-    hops_mask,
+    hops_mask: xr.DataArray | None,
     state_selection: StateSelection,
     fig: Figure | SubFigure | None = None,
     axs: dict[str, Axes] | None = None,
+    num_bins = 100,
+    rasterized: bool = True,
 ) -> dict[str, Axes]:
     """Plot 2D histograms of NACS vs delta_E or dip_trans
 
@@ -36,6 +40,11 @@ def plot_nacs_histograms(
         Unused figure provided to the plot. Consumed by the figaxs_defaults decorator.
     axs : dict[str, Axes]
         Axes objects to plot to with the respective keys of the plot. Defaults to None.
+    num_bins : int, default=100
+        Number of bins to use for histogram plotting. Defaults to 100.
+    rasterized : bool, default=True
+        Flag to make the scatter plots rasterized to reduce rendering time of the output graph for large systems.
+        Defaults to True.
 
     Returns
     -------
@@ -50,8 +59,11 @@ def plot_nacs_histograms(
         leading_dim = 'time'
     else:
         raise ValueError("`inter_state` parameter is no data series.")
-
-    hop_filter_data = inter_state.dataset.sel({leading_dim: hops_mask})
+    if hops_mask is not None:
+        hop_filter_data = inter_state.dataset.sel({leading_dim: hops_mask})
+    else:
+        logging.info("No hop information for filtering hop positions")
+        hop_filter_data = inter_state.dataset
 
     nacs_selection = state_selection.same_multiplicity_transitions()
 
@@ -74,7 +86,6 @@ def plot_nacs_histograms(
     def plot(label, yname, nacs_data):
         ax = axs[label]
         axx, axy = create_marginals(ax)
-        bins = 100
 
         for i, (sc, data) in enumerate(nacs_data.groupby('statecomb')):
             if not nacs_selection.has_state_combination(sc):
@@ -93,7 +104,7 @@ def plot_nacs_histograms(
                 xdata,
                 # range=(0, xmax),
                 color=color,
-                bins=bins,
+                bins=num_bins,
             )
             # Don't bother if we have no data
             if ymax > 0:
@@ -102,10 +113,10 @@ def plot_nacs_histograms(
                     range=(0, ymax),
                     orientation='horizontal',
                     color=color,
-                    bins=bins,
+                    bins=num_bins,
                 )
 
-            ax.scatter(xdata, ydata, color=color, s=0.2, alpha=0.5)
+            ax.scatter(xdata, ydata, color=color, s=0.2, alpha=0.5, rasterized=rasterized)
 
     if inter_state.has_variable('energy_interstate'):
         plot('nde', 'energy_interstate', hop_filter_data)

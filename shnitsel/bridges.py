@@ -314,6 +314,8 @@ def construct_default_mol(
         # TODO: FIXME: Make these internal attributes with double underscores so they don't get written out.
         if '__mol' in obj.attrs:
             return sap(rc.Mol(obj.attrs['__mol']))
+        if '__mol' in obj.coords:
+            return sap(rc.Mol(obj.coords['__mol'].item()))
         elif 'atXYZ' in obj:  # We have a frames Dataset
             atXYZ = _most_stable_frame(obj['atXYZ'], obj)
         else:
@@ -321,6 +323,8 @@ def construct_default_mol(
     elif isinstance(obj, ShnitselDataset):
         if '__mol' in obj.attrs:
             return rc.Mol(obj.attrs['__mol'])
+        if '__mol' in obj.coords:
+            return sap(rc.Mol(obj.coords['__mol'].item()))
         atXYZ = _most_stable_frame(obj.positions, obj)
         if charge is None:
             charge = obj.charge
@@ -329,6 +333,8 @@ def construct_default_mol(
     else:
         if '__mol' in obj.attrs:
             return sap(rc.Mol(obj.attrs['__mol']))
+        if '__mol' in obj.coords:
+            return sap(rc.Mol(obj.coords['__mol'].item()))
         atXYZ = obj  # We have an atXYZ DataArray
 
     if charge is not None:

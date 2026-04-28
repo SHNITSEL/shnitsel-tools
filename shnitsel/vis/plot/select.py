@@ -18,6 +18,7 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
+
 class FrameSelector:
     selected_frame_indices: list[int] = []
 
@@ -34,7 +35,12 @@ class FrameSelector:
         webgl=True,
     ):
         if not _bokeh_package_available:
-            logging.error(f"ERROR: Package <bokeh> was not found in the current environment. Please install the missing package to use the {self.__class__.__name__} class.")
+            logging.error(
+                f"ERROR: Package <bokeh> was not found in the current environment. Please install the missing package to use the {self.__class__.__name__} class."
+            )
+            raise RuntimeError(
+                "Missing package `bokeh`. Please install this package first."
+            )
 
         output_notebook()
 
@@ -76,8 +82,8 @@ class FrameSelector:
 
         # Column names must be strings
         for col in df.columns:
-             if not isinstance(col, str):
-                 df = df.rename(columns={col: str(col)})
+            if not isinstance(col, str):
+                df = df.rename(columns={col: str(col)})
 
         if xname is None:
             xname = df.columns[0]
@@ -108,11 +114,10 @@ class FrameSelector:
             )
             settings.allowed_ws_origin.set_value('*')
 
-        show(self.bkapp) 
+        show(self.bkapp)
 
     def _selected_on_change(self, attr, old, new):
         self.selected_frame_indices = new
-
 
     def bkapp(self, doc):
         source = ColumnDataSource(data=self.df)
@@ -126,8 +131,7 @@ class FrameSelector:
         source.selected.on_change('indices', self._selected_on_change)
 
         doc.add_root(column(plot))
-        
-    
+
     @property
     def df_selection(self):
         return self.df.iloc[self.selected_frame_indices, :]
@@ -157,7 +161,7 @@ class TrajSelector(FrameSelector):
             (85, 85, 85, 1),
             (68, 119, 17, 1),
             (102, 204, 136, 1),
-            (85, 85, 85, 0.1)
+            (85, 85, 85, 0.1),
         ]
         plot.scatter(
             self.xname,

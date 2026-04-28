@@ -3,6 +3,13 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 
+from shnitsel.analyze.spectra import get_spectra
+from shnitsel.data.dataset_containers import wrap_dataset
+from shnitsel.data.dataset_containers.data_series import DataSeries
+from shnitsel.data.dataset_containers.inter_state import InterState
+from shnitsel.filtering.helpers import _get_default_state_selection
+from shnitsel.filtering.state_selection import StateSelection, StateSelectionDescriptor
+
 
 # TODO: Use plot.common.inlabel instead?
 def _inlabel(s, ax, ha='center', va='center'):
@@ -16,7 +23,13 @@ def _inlabel(s, ax, ha='center', va='center'):
         va=va,
     )
 
-def ski_plots(spectra: xr.DataArray, threshold: float = np.inf) -> mpl.figure.Figure:
+
+def ski_plot(
+    spectra: xr.DataArray | xr.Dataset | DataSeries | InterState,
+    threshold: float = np.inf,
+    state_selection: StateSelection | StateSelectionDescriptor | None = None,
+    show_peak_tracker: bool = False,
+) -> mpl.figure.Figure:
     """Plot spectra for different times on top of each other,
     along with a dashed "ski"-line that tracks the maximum.
     One plot per statecomb; plots stacked vertically.
@@ -24,12 +37,18 @@ def ski_plots(spectra: xr.DataArray, threshold: float = np.inf) -> mpl.figure.Fi
 
     Parameters
     ----------
-    spectra
+    spectra : xr.DataArray | xr.Dataset | DataSeries | InterState
         DataArray containing fosc values organized along 'energy', 'time' and
         'statecomb' dimensions.
-    threshold
+        Alternatively, a dataset from which interstate data can be derived or
+        directly an interstate dataset.
+    threshold : float, default=np.inf
         The "ski" line will not be drawn between successive
         points for which the change in energy-coordinate is greater than this.
+    state_selection: StateSelection | StateSelectionDescriptor, optional
+        Optionally a state selection specifying, which state transitions to consider.
+    show_peak_tracker : bool, default=False
+        Flag whether to plot a line tracking the peak of the distribution
 
     Returns
     -------
@@ -48,55 +67,134 @@ def ski_plots(spectra: xr.DataArray, threshold: float = np.inf) -> mpl.figure.Fi
                     .st.spectra_all_times())
             >>> spectra3d.ski_plots(spectra_data)
     """
-    assert 'time' in spectra.coords, "Missing 'time' coordinate"
-    assert 'statecomb' in spectra.coords, "Missing 'statecomb' coordinate"
-    assert 'energy_interstate' in spectra.coords, (
-        "Missing 'energy_interstate' coordinate"
+    # TODO: FIXME: Adapt to tree structure
+
+    spectra_data: xr.DataArray
+    time_data: xr.DataArray
+
+    state_selection = _get_default_state_selection(
+        state_selection, state_source=spectra
     )
 
-    nstatecombs = spectra.sizes['statecomb']
+    if isinstance(spectra, xr.DataArray):
+        assert 'time' in spectra.coords, "Missing 'time' coordinate"
+        assert 'statecomb' in spectra.coords, "Missing 'statecomb' coordinate"
+        assert 'energy_interstate' in spectra.coords, (
+            "Missing 'energy_interstate' coordinate"
+        )
+        spectra_data = spectra
+    else:
+        spectra_source = wrap_dataset(spectra, DataSeries | InterState)
+
+        if not isinstance(spectra_source, InterState):
+            spectra_source = spectra_source.inter_state
+
+        if isinstance(spectra_source, InterState):
+            assert 'fosc' in spectra_source, (
+                "Could not derive `fosc` from input dataset."
+            )
+            assert 'time' in spectra_source.coords, (
+                "No time information present in InterState dataset. Cannot plot time evolution"
+            )
+            assert 'energy_interstate' in spectra_source, (
+                "Missing delta E across states."
+            )
+        else:
+            raise ValueError("Could not convert input dataset to interstate data.")
+
+        spectra_data = get_spectra(
+            spectra_source, state_selection=state_selection, times='all'
+        )
+
+        # # Set energy interstate coordinate if not yet there:
+        # if 'energy_interstate' not in fosc_data.coords:
+        #     fosc_data = fosc_data.assign_coords({'energy_interstate': dE_data})
+
+    time_data = spectra['time']
+
+    nstatecombs = len(state_selection.state_combinations)  # spectra.sizes['statecomb']
+
+    # TODO: FIXME: Allow passing in figure/state axes.
     fig, axs = plt.subplots(nstatecombs, 1, layout='constrained', sharex=True)
     fig.set_size_inches(6, 10)
 
-    cnorm = mpl.colors.Normalize(spectra.time.min(), spectra.time.max())
+    cnorm = mpl.colors.Normalize(time_data.min(), time_data.max())
     cmap = plt.get_cmap('viridis')
 
     if nstatecombs == 1:
         axs = [axs]
 
-    for ax, (sc, scdata) in zip(axs, spectra.groupby('statecomb')):
+    ax = None
+    curr_index = 0
+
+    # print(list(spectra_data.coords.keys()))
+    # print(list(spectra_data.sizes.keys()))
+
+    for sc, scdata in spectra_data.groupby('statecomb'):
+        if not state_selection.has_state_combination(sc):
+            continue
+
+        ax = axs[curr_index]
+        curr_index += 1
+
         scdata = scdata.squeeze('statecomb')
+
         for t, tdata in scdata.groupby('time'):
+            if 'time' in tdata.dims:
+                tdata = tdata.squeeze('time')
             ax.plot(
                 tdata['energy_interstate'],
-                tdata.squeeze('time'),
+                tdata,
                 c=cmap(cnorm(t)),
                 linewidth=0.2,
             )
-        maxes = scdata[scdata.argmax('energy_interstate')]
-        xs = maxes['energy_interstate'].data
-        ys = maxes.data
 
-        segments = np.c_[xs[:-1], ys[:-1], xs[1:], ys[1:]].reshape(-1, 2, 2)
-        mask = np.abs(segments[:, 0, 0] - segments[:, 1, 0]) < threshold
-        segments = segments[mask]
-        lc = mpl.collections.LineCollection(
-            segments,
-            color='k',
-            linewidths=1,
-            linestyles='--',
-            # cmap=cmap, norm=cnorm,
-        )
-        lc.set_array(maxes['time'].data)
-        ax.add_collection(lc)
+        if show_peak_tracker:
+            # Only plot the peak tracker if requested
+            maxes = scdata.isel(energy_interstate=scdata.argmax('energy_interstate'))
+            xs = maxes['energy_interstate'].data
+            ys = maxes.data
 
-        _inlabel(sc, ax)
+            segments = np.c_[xs[:-1], ys[:-1], xs[1:], ys[1:]].reshape(-1, 2, 2)
+            mask = np.abs(segments[:, 0, 0] - segments[:, 1, 0]) < threshold
+            segments = segments[mask]
+            lc = mpl.collections.LineCollection(
+                segments,
+                color='k',
+                linewidths=1,
+                linestyles='--',
+                # cmap=cmap, norm=cnorm,
+            )
+            lc.set_array(maxes['time'].data)
+            ax.add_collection(lc)
+
+        _inlabel(f"${state_selection.get_state_combination_tex_label(sc)}$", ax)
         ax.set_ylabel(r'$f_\mathrm{osc}$')
-    ax.set_xlabel(r'$E$ / eV')
+    if ax is not None:
+        ax.set_xlabel(r'$E$ / eV')
+
+    if nstatecombs > 0:
+        cb = plt.colorbar(
+            mpl.cm.ScalarMappable(norm=cnorm, cmap=cmap),
+            ax=axs,
+            orientation='horizontal',
+        )
+        cb.set_label("$t$/" + spectra.time.attrs.get("units", "fs"))
+        
     return fig
 
 
-def pcm_plots(spectra: xr.DataArray) -> mpl.figure.Figure:
+# Alias for backward compatibility
+
+ski_plots = ski_plot
+
+
+def pcm_plots(
+    spectra: xr.DataArray,
+    state_selection: StateSelection | StateSelectionDescriptor | None = None,
+    show_peak_tracker: bool = False,
+    threshold: float = np.inf,
+) -> mpl.figure.Figure:
     """Represent fosc as colour in a plot of fosc against time and energy.
     The colour scale is logarithmic.
     One plot per statecomb; plots stacked horizontally.
@@ -107,6 +205,8 @@ def pcm_plots(spectra: xr.DataArray) -> mpl.figure.Figure:
     spectra
         DataArray containing fosc values organized along 'energy', 'time' and
         'statecomb' dimensions.
+    state_selection: StateSelection | StateSelectionDescriptor, optional
+        Optionally a state selection specifying, which state transitions to consider.
 
     Returns
     -------
@@ -123,23 +223,85 @@ def pcm_plots(spectra: xr.DataArray) -> mpl.figure.Figure:
                 .st.spectra_all_times())
         >>> spectra3d.pcm_plots(spectra_data)
     """
-    assert 'time' in spectra.coords, "Missing 'time' coordinate"
-    assert 'statecomb' in spectra.coords, "Missing 'statecomb' coordinate"
-    assert 'energy_interstate' in spectra.coords, (
-        "Missing 'energy_interstate' coordinate"
+    # TODO: FIXME: Adapt to tree structure
+
+    state_selection = _get_default_state_selection(
+        state_selection, state_source=spectra
     )
 
-    nstatecombs = spectra.sizes['statecomb']
+    spectra_data: xr.DataArray
+    if isinstance(spectra, xr.DataArray):
+        assert 'time' in spectra.coords, "Missing 'time' coordinate"
+        assert 'statecomb' in spectra.coords, "Missing 'statecomb' coordinate"
+        assert 'energy_interstate' in spectra.coords, (
+            "Missing 'energy_interstate' coordinate"
+        )
+
+        # Only keep combinations in our state selection
+        filter_combs = set(spectra.statecomb.values).intersection(
+            state_selection.state_combinations
+        )
+        spectra_data = spectra.sel(statecomb=filter_combs)
+    else:
+        spectra_source = wrap_dataset(spectra, DataSeries | InterState)
+
+        if not isinstance(spectra_source, InterState):
+            spectra_source = spectra_source.inter_state
+
+        if isinstance(spectra_source, InterState):
+            assert 'fosc' in spectra_source, (
+                "Could not derive `fosc` from input dataset."
+            )
+            assert 'time' in spectra_source.coords, (
+                "No time information present in InterState dataset. Cannot plot time evolution"
+            )
+            assert 'energy_interstate' in spectra_source, (
+                "Missing delta E across states."
+            )
+        else:
+            raise ValueError("Could not convert input dataset to interstate data.")
+
+        spectra_data = get_spectra(
+            spectra_source, state_selection=state_selection, times='all'
+        )
+
+    nstatecombs = spectra_data.sizes['statecomb']
     fig, axs = plt.subplots(1, nstatecombs, layout='constrained', sharey=True)
 
-    cnorm = mpl.colors.LogNorm(5e-4, spectra.max())
-    
+    cnorm = mpl.colors.LogNorm(5e-4, spectra_data.max())
+
     if nstatecombs == 1:
         axs = [axs]
-    for ax, (sc, scdata) in zip(axs, spectra.groupby('statecomb')):
+    qm = None
+    for ax, (sc, scdata) in zip(axs, spectra_data.groupby('statecomb')):
         qm = scdata.squeeze('statecomb').plot.pcolormesh(
-            x='energy_interstate', y='time', ax=ax, norm=cnorm
+            x='energy_interstate', y='time', ax=ax, norm=cnorm, add_colorbar=False
         )
         qm.axes.invert_yaxis()
-        ax.set_title(str(sc))  # TODO (thevro): Use TeX state names
+        ax.set_xlabel(r"$\Delta E$")
+        ax.set_ylabel(r"$t$ / " + scdata.time.attrs.get("units", "fs"))
+        ax.set_title(f"${state_selection.get_state_combination_tex_label(sc)}$")
+
+        if show_peak_tracker:
+            # Only plot the peak tracker if requested
+            maxes = scdata.isel(energy_interstate=scdata.argmax('energy_interstate'))
+            xs = maxes['energy_interstate'].data
+            ys = maxes['time'].data
+
+            segments = np.c_[xs[:-1], ys[:-1], xs[1:], ys[1:]].reshape(-1, 2, 2)
+            mask = np.abs(segments[:, 0, 0] - segments[:, 1, 0]) < threshold
+            segments = segments[mask]
+            lc = mpl.collections.LineCollection(
+                segments,
+                color='k',
+                linewidths=1,
+                linestyles='--',
+                # cmap=cmap, norm=cnorm,
+            )
+            lc.set_array(maxes['time'].data)
+            ax.add_collection(lc)
+
+    if qm is not None:
+        cb = plt.colorbar(qm, ax=axs)
+        cb.set_label(r"$f_{osc}$")
     return fig

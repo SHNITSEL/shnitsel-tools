@@ -15,9 +15,11 @@
   - [ ] Pattern matching in the `getitem()` method, i.e. `db['/I01/**/data']` `db["/I01/*/{1-20}"]`
   - [ ] TODO: FIXME: typing.get_origin() does not work on TreeNode specializations. Maybe just patch the `base` class in `_create_extended_node_class`?
   - [ ] TODO: Add backup visualization probably with networkx to circumvent issue with html repr not working on github. (See TODO: note in TreeNode class after `_repr_html()`)
+  - [ ] Implement parallel/delayed execution of maps on tree
 - (De)serialization:
   - [x] Implementation of Supports(To/From)XrConversion for various (wrapper) types
   - [ ] Tutorial on how to add own types
+  - [ ] Improve import performance of tree. Currently incredibly slow due to issues with how h5netcdf resolves variable names, which causes the input file to be parsed again (apprently?). Import spends 90% of time in `name` resolution for variables.
 - Wrapper types:
   - [ ] Add supported Shnitsel-tools functions as direct methods on wrapper types
   - [ ] Improve Visualization/helper text
@@ -36,23 +38,37 @@
   - [ ] Structure selection (raise error if empty/warning if empty)
   - [x] draw: Draw grid of highlighted feature levels
   - [x] draw: Use highlight_features function
+- [x] Profiling of key functions like `get_bats()`
+  - [x] Drastically improved performance of `get_bats()` and other `geocalc` functions by employing multi-`.sel()` feature of xarray we originally had used before the rewrite.
 - [ ] Analogs tree, structure selection, warning if no match for compounds
   - [x] Adapted to tree support
+  - [ ] Add intermediate result of extracted matches and visualization
+  - [ ] Make punch-out work on structure selection objects? We can allow provision of structure selections with atoms selected and then those will be punched out an relabeled?
   - [ ] Copy if multiple matches
-  - [ ] For now: error if multiple matches
+  - [ ] For now: ignore if multiple matches
 - StateSelection
   - [x] Add Support for textual representation of state selection
   - [x] Add merge/subtract/intersect operations
 - biplot_kde needs to be fixed to use the descriptors of the PCA in the side plots.
   - [x] Fix PCA loadings main contribution plot not being the same as the explained PCA.
   - [x] Fix cluster loadings plot occasionally empty.
+  - [x] Add a `state` coloring option to explore splits between different states in state space
+  - [ ] Add 'feature_extractor' to dimensionality reduction wrapper and allow for datasets to be provided to the project call
+  - [ ] Retain settings of feature extractor like `get_bats` in bats object and the dimensionality reduction wrapper. (i.e. the settings with which bats were calculated.)
 - Visualization support
   - [ ] Add generic `plot()` function to various types
   - [ ] Add option for plots from tree hierarchies
+  - [ ] Refactor the spectra plots
+    - [x] Make spectra plots work with wrapper types/datasets
+    - [ ] TODO: Make spectra plots work with trees.
+  - [ ] Refactor colored PCA line plots
+  - [ ] Refactor time plots
+  - [ ] Refactor 
 - [ ] Add tutorial for further CLI tools
 - Dimension reduction:
   - [ ] Refactor PLS
-  - [ ] Refactor LDA
+  - [x] Refactor LDA
+  - [x] Make projection onto PCA/other lower dimension return an appropriate wrapper format (e.g. PCAResult) 
 - [ ] Clustering support
   - [ ] DBSCAN sounds like a good option to support
 - Datasheet
@@ -60,8 +76,9 @@
     - [x] Refactor documentation
     - [ ] Make docstrings more detailed
   - DatasheetPage:
-    - [ ] Improve PCA Page
+    - [x] Improve PCA Page (finished)
     - [x] Improve default settings for datasheet and pages.
+    - [ ] Add page for spectral analysis
 - Hops
   - [ ] Fix some functions not yet moved to tree types or new style of type selection.
     - [x] `assign_hop_time()` done
@@ -95,7 +112,6 @@
 
 ## Tertiary TODO:
 
-- [ ] Profiling of key functions like `get_bats()`
 - [ ] FIXME: Shape mismatch between DCM in PyRAI2md and default trajectory setup
 - [ ] Support reading SHARC netcdf output files
 

@@ -417,7 +417,7 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
         self,
         children: Mapping[Hashable, ChildType] | None = None,
         dtype: None = None,
-        data: DataType | None = None,
+        data: DataType | None = ...,
         **kwargs,
     ) -> Self: ...
 
@@ -435,7 +435,7 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
         self,
         children: None = None,
         dtype: type[ResType] | UnionType | None = None,
-        data: ResType | None = None,
+        data: ResType | None = ...,
         **kwargs,
     ) -> "TreeNode[Any, ResType]": ...
 
@@ -446,7 +446,7 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
         | Mapping[Hashable, NewChildType]
         | None = None,
         dtype: type[ResType] | UnionType | None = None,
-        data: ResType | None = None,
+        data: ResType | None = ...,
         **kwargs,
     ) -> Self | "TreeNode[NewChildType, ResType]":
         """Every class inheriting from TreeNode should implement this method to create a copy of that subtree
@@ -458,7 +458,7 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
         Parameters
         ----------
         data : ResType | None, optional
-            The new data to be set in the copy of this node, by default None, which should populate it with the node's current data
+            The new data to be set in the copy of this node. If not provided, this will populate it with the node's current data
         children : Mapping[str, NewChildType], optional
             A new set of children to replace the old mapping of children can be provided with this parameter.
             The data type can also be changed with appropriate typing here:
@@ -578,40 +578,100 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
         """
         return len(self._children)
 
-    def __contains__(self, value: str | ChildType) -> bool:
-        if isinstance(value, str):
-            return value in self._children
-        else:
-            return value in self._children.values()
-
     def __getitem__(
-        self, key: str | tuple[str]
-    ) -> "TreeNode[Any, DataType] | DataType | None":
+        self, key: str | tuple[str] | Any
+    ) -> "TreeNode[Any, DataType] |  DataType | TreeNode[Any, Any] |None":
+        """Array-style index accessor method.
+
+        Can traverse paths within the tree.
+        Note that if the path is not found within the tree, we will first try and
+        gracefully map the access over all data entries within the tree.
+
+        Parameters
+        ----------
+        key : str | tuple[str] | Any
+            The path/key under which data should be looked up
+
+        Returns
+        -------
+        TreeNode[Any, DataType] |  DataType | TreeNode[Any, Any] |None
+            Either the subtree that was selected, the data that was unwrapped or the tree
+            resulting from mapping the access over all entries.
+        """
         path_parts: tuple
+
+        is_handled = True
+        handle_error = ValueError(
+            f"Could not find requested data in the tree. ({key=})"
+        )
         if isinstance(key, str):
             path_parts = Path(key).parts
         elif isinstance(key, tuple):
             path_parts = key
         else:
-            raise ValueError("Unsupported index type: %s", type(key))
+            # All other keys should go to other handlers
+            path_parts = ()
+            is_handled = False
+            handle_error = ValueError("Unsupported index type: %s", type(key))
 
+        if is_handled:
+            res = self._find_tree_entry(path_parts)
+
+            if res is not None:
+                return res
+
+            is_handled = False
+            handle_error = KeyError(f"Key {key} not found in current tree.")
+
+        # NOTE: Try and see it as an attempt to call `__getitem__` on the data entries in the tree:
+
+        if not is_handled:
+            try:
+                res = self.map_data(lambda x: x[key])
+                return res
+            except:
+                # None of our attempts was successful, this is a true error
+                raise handle_error
+
+        return None
+
+    def _find_tree_entry(
+        self, path_parts: tuple
+    ) -> "TreeNode[Any, DataType] | DataType | None":
+        """Helper method to handle path traversal within the tree to try and find
+        a resolution for a path.
+
+        Not supposed to be called directly from outside.
+        Used from the __getitem__ method performing some internal preprocessing first.
+
+        Parameters
+        ----------
+        path_parts : tuple
+            The split parts of the path
+
+        Returns
+        -------
+        TreeNode[Any, DataType] | DataType | None
+            Either a subtree of the current tree, a data entry within the current tree or None if no result was found for the query
+        """
         if len(path_parts) == 0:
             return self
 
         first_part = path_parts[0]
         path_tail = tuple(path_parts[1:])
+
         if first_part == os.path.sep:
             # print("goto root")
-            return self.root[path_tail]
+            return self.root._find_tree_entry(path_tail)
         elif first_part == '.':
             # print("goto self")
-            return self[path_tail]
+            return self._find_tree_entry(path_tail)
         elif first_part == '..':
             if self._parent is not None:
                 # print("goto parent")
-                return self._parent[path_tail]
+                return self._parent._find_tree_entry(path_tail)
             # print("goto parent impossible")
-            return self[path_tail]
+            return self._find_tree_entry(path_tail)
         else:
             if self.has_data and first_part == 'data':
                 # print("yield data")
@@ -621,14 +681,109 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
                 if child_entry is None:
                     return None
                 else:
-                    return child_entry[path_tail]
+                    return child_entry._find_tree_entry(path_tail)
         return None
 
+    def __contains__(self, item: "TreeNode[Any, Any] | str | ChildType | Any") -> bool:
+        """Helper method to check if either a key is a valid path in this tree or if one of
+        the data sets in this tree contains the item
+
+        Parameters
+        ----------
+        item : Any
+            The item to check for being in the tree.
+        """
+
+        if isinstance(item, (str, tuple)):
+            if item in self._children:
+                return True
+            try:
+                res = self.__getitem__(item)
+                if res is not None:
+                    return True
+            except:
+                pass
+        elif isinstance(item, TreeNode):
+            # See if it is a direct node in this subtree:
+            if item in self._children.values():
+                return True
+            else:
+                return any(item in x for x in self._children.values() if x is not None)
+
+        # Try and find it in any of the data entries
+        for x in self.collect_data():
+            if x is item:
+                return True
+            try:
+                if x in item:  # type: ignore # We are aware that the data type may not support __contains__
+                    return True
+            except:
+                pass
+
+        return False
+
     def __setitem__(self, key, value):
+        """We do not supporrt setting an item on the tree with this syntax due to the
+        invariance constraints on the tree.
+
+        Parameters
+        ----------
+        key : Any
+            The key to which a value would be assigned
+        value : Any
+            The value to assign to the entry
+
+        Raises
+        ------
+        RuntimeError
+            Setting entries with this syntax is not supported.
+        """
         # self.daten[key] = value
-        raise AssertionError(
-            "Cannot set tree items with the array syntax. Would violate the "
+        raise RuntimeError(
+            "Cannot set tree items with the array syntax. Would violate the invariance conditions."
         )
+
+    def __getattr__(self, name: str) -> "TreeNode[Any, Any]":
+        """Helper method to support forwarding of attribute requests to
+        all data entries if the tree itself does not support them.
+
+        Parameters
+        ----------
+        name : str
+            The name of the attribute to resolve
+
+        Returns
+        -------
+        TreeNode[Any, Any]
+            We cannot predict, what the resolution on data entries will yield.
+            If a data entry does not have the requested attribute, the result
+            will be `None` on that entry.
+            If none of the entries had the attribute, an `AttributeError`
+            will be raised instead
+
+        Raises
+        ------
+        AttributeError
+            If the attribute could not be found on the contained data.
+        """
+        # If we arrive here, the tree has not had the attribute set via traditional means.
+        # We will broadcast/map this access over all data entries:
+
+        try:
+            res = self.map_data(lambda x: getattr(x, name, None))
+            coll_data = list(res.collect_data())
+            if len(coll_data) > 0 and any(x is not None for x in coll_data):
+                return res
+
+            raise AttributeError(
+                f"Attribute `{name=}` could not be found on any data in the tree."
+            )
+        except AttributeError:
+            raise
+        except Exception as e:
+            raise AttributeError(
+                f"Could not find attribute `{name=}` on the tree or its data entries"
+            ) from e
 
     @property
     def is_leaf(self) -> bool:
@@ -1356,11 +1511,11 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
             if n_dims == 0:
                 empty = True
             else:
-                for cnt, dim in enumerate(input_dataset.dims):
-                    if len(input_dataset[dim]) > 0:
-                        return False
+                for cnt in input_dataset.sizes.values():
+                    if cnt == 0:
+                        return True
 
-            return True
+            return False
 
         if self._level_name == DataTreeLevelMap['compound']:
             compound_indexer = indexers.get("compound", None)
@@ -1448,31 +1603,35 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
                         pass
             if indexers:
                 # We are a relevant data leaf node:
-                if (
-                    self.has_data
-                    and hasattr(self._data, 'sel')
-                    and callable(self._data)
-                ):
-                    indexers = dict(indexers)
+                if self.has_data:
+                    if hasattr(self._data, 'sel') and callable(self._data.sel):
+                        indexers = dict(indexers)
 
-                    for key in ["compounds", "groups"]:
-                        if key in indexers:
-                            del indexers[key]
-                    # Invoke with remaining indexers
-                    res_data = self._data.sel(
-                        indexers=indexers, method=method, tolerance=tolerance, drop=drop
-                    )
-                    # assert isinstance(res_data, xr.Dataset)
-                    if dataset_is_empty(res_data):
-                        return None
-                    return self.construct_copy(data=res_data)
+                        for key in ["compounds", "groups"]:
+                            if key in indexers:
+                                del indexers[key]
+                        # Invoke with remaining indexers
+                        res_data = self._data.sel(
+                            indexers=indexers,
+                            method=method,
+                            tolerance=tolerance,
+                            drop=drop,
+                        )
+                        # assert isinstance(res_data, xr.Dataset)
+                        if dataset_is_empty(res_data):
+                            return None
+                        return self.construct_copy(data=res_data)
+                    else:
+                        logging.warning(
+                            "Data in the tree does not support the `.sel()` operation to process the remaining indexers."
+                        )
+                        return self.construct_copy()
+                # Nothing to find in this leaf
+                return None
             else:
-                # No forther Search criteria. Just build a copy
+                # No further Search criteria. Just build a copy
                 # NOTE: This allows `.sel()` to work with data types that do not support `sel` themselves
                 return self.construct_copy()
-
-            # Nothing to find in this leaf
-            return None
 
         if indexers:
             result = self.construct_copy(
@@ -1678,24 +1837,29 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
 
             if indexers:
                 # We are a relevant data leaf node and there is still selection to be done
-                if (
-                    self.has_data
-                    and hasattr(self._data, 'isel')
-                    and callable(self._data)
-                ):
-                    indexers = dict(indexers)
+                if self.has_data:
+                    if hasattr(self._data, 'isel') and callable(self._data.isel):
+                        indexers = dict(indexers)
 
-                    for key in ["compounds", "groups"]:
-                        if key in indexers:
-                            del indexers[key]
-                    # Invoke with remaining indexers
-                    res_data = self._data.isel(
-                        indexers=indexers, missing_dims=missing_dims, drop=drop
-                    )
-                    # assert isinstance(res_data, xr.Dataset)
-                    if dataset_is_empty(res_data):
-                        return None
-                    return self.construct_copy(data=res_data)
+                        for key in ["compounds", "groups"]:
+                            if key in indexers:
+                                del indexers[key]
+                        # Invoke with remaining indexers
+                        res_data = self._data.isel(
+                            indexers=indexers, missing_dims=missing_dims, drop=drop
+                        )
+                        # assert isinstance(res_data, xr.Dataset)
+                        if dataset_is_empty(res_data):
+                            return None
+                        return self.construct_copy(data=res_data)
+                    else:
+                        logging.warning(
+                            "Data in the tree does not support the `.isel()` operation to process the remaining indexers."
+                        )
+                        return self.construct_copy()
+
+                # Nothing to find in this leaf
+                return None
             else:
                 # No forther Search criteria. Just build a copy
                 # NOTE: This allows `.isel()` to work with data types that do not support `sel` themselves
@@ -1793,7 +1957,7 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
             params['level'] = str(self._level_name)
         if self._children:
             childrep = {k: repr(x) for k, x in self._children.items()}
-            params['children'] = f"{len(self._children)}: " + repr(childrep)
+            params['children'] = f"{len(self._children)} children: " + repr(childrep)
 
         return f"{type(self)} [{params}]"
 

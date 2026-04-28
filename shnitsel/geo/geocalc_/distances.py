@@ -15,6 +15,7 @@ from shnitsel.filtering.structure_selection import (
 )
 from shnitsel.geo.geocalc_.helpers import (
     _assign_descriptor_coords,
+    _at_XYZ_subset_to_descriptor,
     _empty_descriptor_results,
 )
 from shnitsel.filtering.helpers import _get_default_structure_selection
@@ -24,16 +25,20 @@ from shnitsel.geo.geocalc_.algebra import dnorm
 
 @API()
 @needs(dims={'atom'})
-def distance(atXYZ: AtXYZ, i: int, j: int) -> xr.DataArray:
+def distance(
+    atXYZ: AtXYZ,
+    i_index: int | list[int],
+    j_index: int | list[int],
+) -> xr.DataArray:
     """Method to calculate the various distances between atoms i and j throughout time
 
     Parameters
     ----------
     atXYZ : AtXYZ
         Array with atom positions
-    i : int
+    i_index : int | list[int]
         Index of the first atom
-    j : int
+    j_index : int | list[int]
         Index of the second atom
 
     Returns
@@ -44,16 +49,23 @@ def distance(atXYZ: AtXYZ, i: int, j: int) -> xr.DataArray:
     if isinstance(atXYZ, TreeNode):
         return atXYZ.map_data(
             distance,
-            i=i,
-            j=j,
+            i_index=i_index,
+            j_index=j_index,
         )
 
-    a = atXYZ.sel(atom=i, drop=True)
-    b = atXYZ.sel(atom=j, drop=True)
+    a = _at_XYZ_subset_to_descriptor(atXYZ.sel(atom=i_index))
+    b = _at_XYZ_subset_to_descriptor(atXYZ.sel(atom=j_index))
+
     with xr.set_options(keep_attrs=True):
         result: xr.DataArray = dnorm(a - b)
+
     result.name = 'distance'
-    result.attrs['long_name'] = r"\|\mathbf{r}_{%d,%d}\|" % (i, j)
+
+    if isinstance(i_index, int):
+        result.attrs['long_name'] = r"\|\mathbf{r}_{%d,%d}\|" % (i_index, j_index)
+    else:
+        result.attrs['long_name'] = r"\|\mathbf{r}_{i,j}\|"
+
     return result
 
 
@@ -137,20 +149,18 @@ def get_distances(
     if len(bond_indices) == 0:
         return _empty_descriptor_results(position_data)
 
-    distance_arrs = [
-        distance(position_data, a, b).expand_dims('descriptor') for a, b in bond_indices
-    ]
+    a_indices, b_indices = [list(x) for x in zip(*[[a, b] for a, b in bond_indices])]
 
-    distance_res = xr.concat(distance_arrs, dim='descriptor')
+    distance_arr = distance(position_data, a_indices, b_indices)
 
     descriptor_tex = [r'|\vec{r}_{%d,%d}|' % (a, b) for a, b in bond_indices]
     descriptor_name = [r'dist(%d,%d)' % (a, b) for a, b in bond_indices]
     descriptor_type: list[FeatureTypeLabel] = ['dist'] * len(descriptor_tex)
 
-    distance_res.name = "distances"
+    distance_arr.name = "distances"
 
     return _assign_descriptor_coords(
-        distance_res,
+        distance_arr,
         feature_descriptors=bond_indices,
         feature_type=descriptor_type,
         feature_tex_label=descriptor_tex,

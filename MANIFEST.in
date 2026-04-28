@@ -1,0 +1,9 @@
+exclude tutorials/**
+exclude .github/**
+exclude dev/**
+exclude docs/**
+exclude todo*
+exclude *.png
+exclude uv.lock
+exclude .*
+exclude MANIFEST.in

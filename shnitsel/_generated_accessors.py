@@ -241,29 +241,29 @@ class DataArrayAccessor(DAManualAccessor):
         return true_upto(self._obj, dim)
 
     @needs(dims={'atom'})
-    def distance(self, i: int, j: int) -> DataArray:
+    def distance(self, i_index: (int | list), j_index: (int | list)) -> DataArray:
         """Wrapper for :py:func:`shnitsel.geo.geocalc_.distances.distance`."""
-        return distance(self._obj, i, j)
+        return distance(self._obj, i_index, j_index)
 
     @needs(dims={'atom'})
-    def angle(self, a_index: int, b_index: int, c_index: int, deg: bool = False) -> DataArray:
+    def angle(self, a_index: (int | list), b_index: (int | list), c_index: (int | list), angles: Literal["deg", "rad", "trig"] = 'deg') -> DataArray:
         """Wrapper for :py:func:`shnitsel.geo.geocalc_.angles.angle`."""
-        return angle(self._obj, a_index, b_index, c_index, deg = deg)
+        return angle(self._obj, a_index, b_index, c_index, angles = angles)
 
     @needs(dims={'atom'})
-    def dihedral(self, a_index: int, b_index: int, c_index: int, d_index: int, deg: (bool | Literal["trig"]) = True, full: bool = False) -> (DataArray | tuple):
+    def dihedral(self, a_index: (int | list), b_index: (int | list), c_index: (int | list), d_index: (int | list), angles: Literal["deg", "rad", "trig"] = 'deg', full: bool = False) -> (DataArray | tuple):
         """Wrapper for :py:func:`shnitsel.geo.geocalc_.dihedrals.dihedral`."""
-        return dihedral(self._obj, a_index, b_index, c_index, d_index, deg = deg, full = full)
+        return dihedral(self._obj, a_index, b_index, c_index, d_index, angles = angles, full = full)
 
     @needs(dims={'atom', 'direction'})
-    def pyramidalization_angle(self, x_index: int, a_index: int, b_index: int, c_index: int, deg: (bool | Literal["trig"]) = True) -> (DataArray | tuple):
+    def pyramidalization_angle(self, x_index: (int | list), a_index: (int | list), b_index: (int | list), c_index: (int | list), angles: Literal["deg", "rad", "trig"] = 'deg') -> (DataArray | tuple):
         """Wrapper for :py:func:`shnitsel.geo.geocalc_.pyramids.pyramidalization_angle`."""
-        return pyramidalization_angle(self._obj, x_index, a_index, b_index, c_index, deg = deg)
+        return pyramidalization_angle(self._obj, x_index, a_index, b_index, c_index, angles = angles)
 
     @needs(dims={'atom', 'direction'})
-    def get_bats(self, structure_selection: (StructureSelection | str | Literal["atoms", "bonds", "angles", "dihedrals", "pyramids", "pwdist", "BLA"] | int | tuple | tuple | tuple | tuple | Collection | None) = None, default_features: Sequence = ['bonds', 'angles', 'dihedrals'], signed: bool = False, deg: (bool | Literal["trig"]) = True) -> (DataArray | TreeNode[Any, DataArray]):
+    def get_bats(self, structure_selection: (StructureSelection | str | Literal["atoms", "bonds", "angles", "dihedrals", "pyramids", "pwdist", "BLA"] | int | tuple | tuple | tuple | tuple | Collection | None) = None, default_features: Sequence = ['bonds', 'angles', 'dihedrals'], signed: bool = False, angles: Literal["deg", "rad", "trig"] = 'deg') -> (DataArray | TreeNode[Any, DataArray]):
         """Wrapper for :py:func:`shnitsel.geo.geocalc.get_bats`."""
-        return get_bats(self._obj, structure_selection = structure_selection, default_features = default_features, signed = signed, deg = deg)
+        return get_bats(self._obj, structure_selection = structure_selection, default_features = default_features, signed = signed, angles = angles)
 
     @needs(dims={'atom', 'direction'})
     def get_distances(self, structure_selection: (StructureSelection | str | Literal["atoms", "bonds", "angles", "dihedrals", "pyramids", "pwdist", "BLA"] | int | tuple | tuple | tuple | tuple | Collection | None) = None) -> (TreeNode[Any, DataArray] | DataArray):
@@ -271,18 +271,18 @@ class DataArrayAccessor(DAManualAccessor):
         return get_distances(self._obj, structure_selection = structure_selection)
 
     @needs(dims={'atom', 'direction'})
-    def get_angles(self, structure_selection: (StructureSelection | str | Literal["atoms", "bonds", "angles", "dihedrals", "pyramids", "pwdist", "BLA"] | int | tuple | tuple | tuple | tuple | Collection | None) = None, deg: (bool | Literal["trig"]) = True, signed: bool = True) -> (TreeNode[Any, DataArray] | DataArray):
+    def get_angles(self, structure_selection: (StructureSelection | str | Literal["atoms", "bonds", "angles", "dihedrals", "pyramids", "pwdist", "BLA"] | int | tuple | tuple | tuple | tuple | Collection | None) = None, angles: Literal["deg", "rad", "trig"] = 'deg', signed: bool = True) -> (TreeNode[Any, DataArray] | DataArray):
         """Wrapper for :py:func:`shnitsel.geo.geocalc_.angles.get_angles`."""
-        return get_angles(self._obj, structure_selection = structure_selection, deg = deg, signed = signed)
+        return get_angles(self._obj, structure_selection = structure_selection, angles = angles, signed = signed)
 
     @needs(dims={'atom', 'direction'})
-    def get_dihedrals(self, structure_selection: (StructureSelection | str | Literal["atoms", "bonds", "angles", "dihedrals", "pyramids", "pwdist", "BLA"] | int | tuple | tuple | tuple | tuple | Collection | None) = None, deg: (bool | Literal["trig"]) = True, signed: bool = True) -> (TreeNode[Any, DataArray] | DataArray):
+    def get_dihedrals(self, structure_selection: (StructureSelection | str | Literal["atoms", "bonds", "angles", "dihedrals", "pyramids", "pwdist", "BLA"] | int | tuple | tuple | tuple | tuple | Collection | None) = None, angles: Literal["deg", "rad", "trig"] = 'deg', signed: bool = True) -> (TreeNode[Any, DataArray] | DataArray):
         """Wrapper for :py:func:`shnitsel.geo.geocalc_.dihedrals.get_dihedrals`."""
-        return get_dihedrals(self._obj, structure_selection = structure_selection, deg = deg, signed = signed)
+        return get_dihedrals(self._obj, structure_selection = structure_selection, angles = angles, signed = signed)
 
-    def get_pyramidalization(self, structure_selection: (StructureSelection | str | Literal["atoms", "bonds", "angles", "dihedrals", "pyramids", "pwdist", "BLA"] | int | tuple | tuple | tuple | tuple | Collection | None) = None, deg: (bool | Literal["trig"]) = True, signed: bool = True) -> (TreeNode[Any, DataArray] | DataArray):
+    def get_pyramidalization(self, structure_selection: (StructureSelection | str | Literal["atoms", "bonds", "angles", "dihedrals", "pyramids", "pwdist", "BLA"] | int | tuple | tuple | tuple | tuple | Collection | None) = None, angles: Literal["deg", "rad", "trig"] = 'deg', signed: bool = True) -> (TreeNode[Any, DataArray] | DataArray):
         """Wrapper for :py:func:`shnitsel.geo.geocalc_.pyramids.get_pyramidalization`."""
-        return get_pyramidalization(self._obj, structure_selection = structure_selection, deg = deg, signed = signed)
+        return get_pyramidalization(self._obj, structure_selection = structure_selection, angles = angles, signed = signed)
 
     @needs(dims={'atom', 'direction'})
     def get_max_chromophor_BLA(self, structure_selection: (StructureSelection | str | Literal["atoms", "bonds", "angles", "dihedrals", "pyramids", "pwdist", "BLA"] | int | tuple | tuple | tuple | tuple | Collection | None) = None, SMARTS: (str | None) = None, num_double_bonds: (int | None) = None, allowed_chain_elements: str = '#6,#7,#8,#15,#16', max_considered_BLA_double_bonds: int = 50) -> (TreeNode[Any, DataArray] | DataArray):
@@ -350,7 +350,7 @@ class DataArrayAccessor(DAManualAccessor):
         """Wrapper for :py:func:`shnitsel.analyze.hops.focus_hops`."""
         return focus_hops(self._obj, hop_type_selection = hop_type_selection, window = window)
 
-    def assign_hop_time(self, hop_type_selection: (StateSelection | Sequence | Sequence | str | None) = None, which: Literal["first", "last"] = 'last'):
+    def assign_hop_time(self, hop_type_selection: (StateSelection | Sequence | Sequence | str | None) = None, which: Literal["first", "last"] = 'last') -> (Dataset | DataArray | DataSeries | TreeNode):
         """Wrapper for :py:func:`shnitsel.analyze.hops.assign_hop_time`."""
         return assign_hop_time(self._obj, hop_type_selection = hop_type_selection, which = which)
 
@@ -401,7 +401,7 @@ class DatasetAccessor(DSManualAccessor):
         return validate(self._obj)
 
     @needs(coords={'statecomb', 'time'}, data_vars={'energy', 'fosc'})
-    def get_spectra(self, state_selection: (StateSelection | None) = None, times: (Iterable | Literal["all"] | None) = None, rel_cutoff: float = 0.01) -> (dict | TreeNode):
+    def get_spectra(self, state_selection: (StateSelection | None) = None, times: (Iterable | Literal["all"] | None) = None, rel_cutoff: float = 0.01) -> (DataArray | TreeNode[Any, DataArray]):
         """Wrapper for :py:func:`shnitsel.analyze.spectra.get_spectra`."""
         return get_spectra(self._obj, state_selection = state_selection, times = times, rel_cutoff = rel_cutoff)
 
@@ -457,15 +457,15 @@ class DatasetAccessor(DSManualAccessor):
         """Wrapper for :py:func:`shnitsel.data.multi_indices.stack_trajs`."""
         return stack_trajs(self._obj)
 
-    def write_shnitsel_file(self, savepath: (str | PathLike), complevel: int = 9):
+    def write_shnitsel_file(self, savepath: (str | PathLike), complevel: int = 9, output_engine: (str | Literal["netcdf4", "h5netcdf"]) = 'h5netcdf', output_format: (Literal["NETCDF4", "NETCDF4_CLASSIC"] | None) = None):
         """Wrapper for :py:func:`shnitsel.io.shnitsel.write.write_shnitsel_file`."""
-        return write_shnitsel_file(self._obj, savepath, complevel = complevel)
+        return write_shnitsel_file(self._obj, savepath, complevel = complevel, output_engine = output_engine, output_format = output_format)
 
     def calculate_energy_filtranda(self, energy_thresholds: (dict | EnergyFiltrationThresholds | None) = None) -> DataArray:
         """Wrapper for :py:func:`shnitsel.clean.filter_energy.calculate_energy_filtranda`."""
         return calculate_energy_filtranda(self._obj, energy_thresholds = energy_thresholds)
 
-    def filter_by_energy(self, filter_method: (Literal["truncate", "omit", "annotate"] | float) = 'truncate', energy_thresholds: (dict | EnergyFiltrationThresholds | None) = None, plot_thresholds: (bool | Sequence) = False, plot_populations: Literal["independent", "intersections", False] = False) -> (TrajectoryOrFrames | None):
+    def filter_by_energy(self, filter_method: (Literal["truncate", "omit", "annotate"] | float) = 'truncate', energy_thresholds: (dict | EnergyFiltrationThresholds | None) = None, plot_thresholds: (bool | Sequence) = False, plot_populations: Literal["independent", "intersections", False] = False) -> (TreeNode | TrajectoryOrFrames | None):
         """Wrapper for :py:func:`shnitsel.clean.filter_energy.filter_by_energy`."""
         return filter_by_energy(self._obj, filter_method = filter_method, energy_thresholds = energy_thresholds, plot_thresholds = plot_thresholds, plot_populations = plot_populations)
 
@@ -477,7 +477,7 @@ class DatasetAccessor(DSManualAccessor):
         """Wrapper for :py:func:`shnitsel.clean.filter_geo.calculate_bond_length_filtranda`."""
         return calculate_bond_length_filtranda(self._obj, geometry_thresholds = geometry_thresholds, mol = mol)
 
-    def filter_by_length(self, filter_method: (Literal["truncate", "omit", "annotate"] | float) = 'truncate', geometry_thresholds: (dict | GeometryFiltrationThresholds | None) = None, mol: (Mol | None) = None, plot_thresholds: (bool | Sequence) = False, plot_populations: Literal["independent", "intersections", False] = False) -> (TrajectoryOrFrames | None):
+    def filter_by_length(self, filter_method: (Literal["truncate", "omit", "annotate"] | float) = 'truncate', geometry_thresholds: (dict | GeometryFiltrationThresholds | None) = None, mol: (Mol | None) = None, plot_thresholds: (bool | Sequence) = False, plot_populations: Literal["independent", "intersections", False] = False) -> (TreeNode | TrajectoryOrFrames | None):
         """Wrapper for :py:func:`shnitsel.clean.filter_geo.filter_by_length`."""
         return filter_by_length(self._obj, filter_method = filter_method, geometry_thresholds = geometry_thresholds, mol = mol, plot_thresholds = plot_thresholds, plot_populations = plot_populations)
 
@@ -485,7 +485,7 @@ class DatasetAccessor(DSManualAccessor):
         """Wrapper for :py:func:`shnitsel.clean.common.omit`."""
         return omit(self._obj)
 
-    def truncate(self) -> (TrajectoryOrFrames | Trajectory | Frames):
+    def truncate(self) -> (TrajectoryOrFrames | Trajectory | Frames | None):
         """Wrapper for :py:func:`shnitsel.clean.common.truncate`."""
         return truncate(self._obj)
 
@@ -514,7 +514,7 @@ class DatasetAccessor(DSManualAccessor):
         """Wrapper for :py:func:`shnitsel.analyze.hops.focus_hops`."""
         return focus_hops(self._obj, hop_type_selection = hop_type_selection, window = window)
 
-    def assign_hop_time(self, hop_type_selection: (StateSelection | Sequence | Sequence | str | None) = None, which: Literal["first", "last"] = 'last'):
+    def assign_hop_time(self, hop_type_selection: (StateSelection | Sequence | Sequence | str | None) = None, which: Literal["first", "last"] = 'last') -> (Dataset | DataArray | DataSeries | TreeNode):
         """Wrapper for :py:func:`shnitsel.analyze.hops.assign_hop_time`."""
         return assign_hop_time(self._obj, hop_type_selection = hop_type_selection, which = which)
 

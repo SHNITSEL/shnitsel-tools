@@ -85,7 +85,7 @@ def fit_kde(
         logging.warning(f"No points for KDE to fit")
         return None
     else:
-        base = data.transpose(..., leading_dim) # Swap leading dimension to the end
+        base = data.transpose(..., leading_dim)  # Swap leading dimension to the end
 
         try:
             return stats.gaussian_kde(base)
@@ -282,6 +282,8 @@ def _get_oversized_meshgrid(
     num_steps: int = 500,
     extension: float = 0.1,
     leading_dim: DimName | None = None,
+    xlim: tuple[float, float] | None = None,
+    ylim: tuple[float, float] | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Get appropriately over-sized mesh-grids for x and y coordinates
     with an excess overhang of `extension` relative to the min/max-to-mean distance
@@ -305,6 +307,8 @@ def _get_oversized_meshgrid(
         Name of the leading dimension which enumerates the different samples.
         Needs to be shifted to the back of the dataset.
         If not provided, will be guessed from 'time' or 'frame'.
+    xlim, ylim: tuple[float,float], optional
+        Lower and upper limits of the x and y axis of the scatterplot respectively
 
     Returns
     ----------
@@ -321,12 +325,21 @@ def _get_oversized_meshgrid(
             raise ValueError(
                 "Could not guess leading dimension name from `data` input."
             )
-
     means: np.ndarray = data.mean(dim=leading_dim).values
     mins: np.ndarray = data.min(dim=leading_dim).values
     mins -= (means - mins) * extension
     maxs: np.ndarray = data.max(dim=leading_dim).values
     maxs += (maxs - means) * extension
+
+    if xlim is not None:
+        x_extent = abs(xlim[1] - xlim[0])
+        mins[0] = xlim[0] - extension * x_extent
+        maxs[0] = xlim[1] + extension * x_extent
+    if ylim is not None:
+        y_extent = abs(ylim[1] - ylim[0])
+        mins[1] = ylim[0] - extension * y_extent
+        maxs[1] = ylim[1] + extension * y_extent
+
     ls = np.linspace(mins, maxs, num=num_steps).T
     xx, yy = np.meshgrid(ls[0], ls[1])
     return xx, yy
@@ -338,6 +351,8 @@ def _fit_and_eval_kdes(
     geo_kde_ranges: Sequence[tuple[float, float]],
     num_steps: int = 500,
     extension: float = 0.1,
+    xlim: tuple[float, float] | None = None,
+    ylim: tuple[float, float] | None = None,
 ) -> tuple[np.ndarray, np.ndarray, Sequence[np.ndarray]]:
     """Fit KDEs for each range of the `geo_kde_ranges` and filter by the value of `geo_property`
     being within the respective range.
@@ -359,6 +374,8 @@ def _fit_and_eval_kdes(
     extension, optional : float
         Excess overhang beyond minima and maxima in x and y direction
         relative to their distance from the mean. Defaults to 0.1.
+    xlim, ylim: tuple[float,float], optional
+        Lower and upper limits of the x and y axis of the scatterplot respectively
 
     Returns
     ----------
@@ -378,11 +395,18 @@ def _fit_and_eval_kdes(
         geo_property = geo_property.as_stacked
     assert isinstance(geo_property, xr.DataArray)
     pca_data_da = pca_data_da.transpose(
-        'frame', 'time', 'PC', missing_dims='ignore'
+        'frame', 'time', ..., missing_dims='ignore'
     )  # required order for the following 3 lines
+    # pca_data_da = pca_data_da.transpose(
+    #     'frame', 'time', 'PC', missing_dims='ignore'
+    # )  # required order for the following 3 lines
 
     xx, yy = _get_oversized_meshgrid(
-        pca_data_da, num_steps=num_steps, extension=extension
+        pca_data_da,
+        num_steps=num_steps,
+        extension=extension,
+        xlim=xlim,
+        ylim=ylim,
     )
     kernels = fit_filtered_kdes(pca_data_da, geo_property, geo_kde_ranges)
     return xx, yy, _eval_kdes_on_mesh_grid(kernels, xx, yy)
@@ -433,8 +457,10 @@ def plot_distribution_on_mesh(
             colors = ['purple', 'green']
         else:
             colors = plt.get_cmap('inferno')(range(len(Zs)))
+    else:
+        colors = list(colors)
 
-    if isinstance(Zs, Sequence):
+    if not isinstance(Zs, np.ndarray) and isinstance(Zs, Sequence):
         for Z, c in zip(Zs, colors):
             if Z is None:
                 continue

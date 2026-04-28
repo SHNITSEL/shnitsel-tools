@@ -16,7 +16,9 @@ from shnitsel.filtering.structure_selection import (
 from shnitsel.geo.geocalc_.algebra import angle_cos_sin_, normal, angle_, normalize
 
 from shnitsel.geo.geocalc_.helpers import (
+    AngleOptions,
     _assign_descriptor_coords,
+    _at_XYZ_subset_to_descriptor,
     _empty_descriptor_results,
 )
 from shnitsel.filtering.helpers import _get_default_structure_selection
@@ -26,11 +28,11 @@ from shnitsel.filtering.helpers import _get_default_structure_selection
 @needs(dims={'atom', 'direction'})
 def pyramidalization_angle(
     atXYZ: AtXYZ,
-    x_index: int,
-    a_index: int,
-    b_index: int,
-    c_index: int,
-    deg: Literal['trig'],
+    x_index: int | list[int],
+    a_index: int | list[int],
+    b_index: int | list[int],
+    c_index: int | list[int],
+    angles: Literal['trig'],
 ) -> tuple[xr.DataArray, xr.DataArray]: ...
 
 
@@ -38,22 +40,22 @@ def pyramidalization_angle(
 @needs(dims={'atom', 'direction'})
 def pyramidalization_angle(
     atXYZ: AtXYZ,
-    x_index: int,
-    a_index: int,
-    b_index: int,
-    c_index: int,
-    deg: bool = True,
+    x_index: int | list[int],
+    a_index: int | list[int],
+    b_index: int | list[int],
+    c_index: int | list[int],
+    angles: AngleOptions = 'deg',
 ) -> xr.DataArray: ...
 
 
 @needs(dims={'atom', 'direction'})
 def pyramidalization_angle(
     atXYZ: AtXYZ,
-    x_index: int,
-    a_index: int,
-    b_index: int,
-    c_index: int,
-    deg: bool | Literal['trig'] = True,
+    x_index: int | list[int],
+    a_index: int | list[int],
+    b_index: int | list[int],
+    c_index: int | list[int],
+    angles: AngleOptions = 'deg',
 ) -> xr.DataArray | tuple[xr.DataArray, xr.DataArray]:
     """Method to calculate the pyramidalization angle of a quadruple of atoms.
 
@@ -67,14 +69,18 @@ def pyramidalization_angle(
     ----------
     atXYZ : AtXYZ
         Array with atom positions
-    x_index : int
+    x_index : int | list[int]
         Index of the center atom in the pyramidalization
-    a_index : int
+    a_index : int | list[int]
         Index of the first atom bonded to the `x`-atom
-    b_index : int
+    b_index : int | list[int]
         Index of the second atom bonded to the `x`-atom
-    c_index : int
+    c_index : int | list[int]
         Index of the third atom bonded to the `x`-atom
+    angles : Literal['deg', 'rad', 'trig'], default='deg'
+        Option parameter to control the unit/representation of the angle.
+        Use 'deg' for results in 'degrees', 'rad' for results in 'radian'
+        and 'trig' for a representation as a sin and a cos
 
     Returns
     -------
@@ -95,33 +101,45 @@ def pyramidalization_angle(
             a_index=a_index,
             b_index=b_index,
             c_index=c_index,
-            deg=deg,
+            angles=angles,
         )
     # NOTE: According to https://doi.org/10.1063/5.0008368 this should yield a unique angle independent of the permutation of a,b,c if the distances are normalized first.
     # This should give the p-orbital-aligned perpendicular normal.
 
-    x: xr.DataArray = atXYZ.sel(atom=x_index, drop=True)
-    a: xr.DataArray = atXYZ.sel(atom=a_index, drop=True)
-    b: xr.DataArray = atXYZ.sel(atom=b_index, drop=True)
-    c: xr.DataArray = atXYZ.sel(atom=c_index, drop=True)
+    x: xr.DataArray = _at_XYZ_subset_to_descriptor(atXYZ.sel(atom=x_index))
+    a: xr.DataArray = _at_XYZ_subset_to_descriptor(atXYZ.sel(atom=a_index))
+    b: xr.DataArray = _at_XYZ_subset_to_descriptor(atXYZ.sel(atom=b_index))
+    c: xr.DataArray = _at_XYZ_subset_to_descriptor(atXYZ.sel(atom=c_index))
 
     da_norm = normalize(a - x)
     db_norm = normalize(b - x)
     dc_norm = normalize(c - x)
     orbital_aligned_normal = normal(da_norm, db_norm, dc_norm)
 
-    if deg == 'trig':
+    if angles == 'trig':
         cos_raw, sin_raw = angle_cos_sin_(orbital_aligned_normal, x - b)
+
+        if isinstance(a, int):
+            cos_raw.attrs['long_name'] = r"\cos(\chi^{%d}_{%d,%d,%d})" % (x, a, b, c)
+            sin_raw.attrs['long_name'] = r"\sin(\chi^{%d}_{%d,%d,%d})" % (x, a, b, c)
+        else:
+            cos_raw.attrs['long_name'] = r"\cos(\chi^{x}_{a,b,c})"
+            sin_raw.attrs['long_name'] = r"\sin(\chi^{x}_{a,b,c})"
         # The 90-x swaps cos and sin
         return (sin_raw, cos_raw)  # type: ignore # Cannot be a variable if provided with a DataArray
 
     angle_rad = 0.5 * np.pi - angle_(orbital_aligned_normal, x - b)
 
-    if deg:
+    if angles == 'deg':
         angle_rad *= 180 / np.pi
         angle_rad.attrs['units'] = 'degrees'
     else:
         angle_rad.attrs['units'] = 'rad'
+
+    if isinstance(a, int):
+        angle_rad.attrs['long_name'] = r"\chi^{%d}_{%d,%d,%d}" % (x, a, b, c)
+    else:
+        angle_rad.attrs['long_name'] = r"\chi^{x}_{a,b,c}"
 
     return angle_rad  # type: ignore # Cannot be a variable if provided with a DataArray
 
@@ -132,7 +150,7 @@ def get_pyramidalization(
     structure_selection: StructureSelection
     | StructureSelectionDescriptor
     | None = None,
-    deg: bool | Literal['trig'] = True,
+    angles: AngleOptions = 'deg',
     signed=True,
 ) -> TreeNode[Any, xr.DataArray]: ...
 
@@ -143,7 +161,7 @@ def get_pyramidalization(
     structure_selection: StructureSelection
     | StructureSelectionDescriptor
     | None = None,
-    deg: bool | Literal['trig'] = True,
+    angles: AngleOptions = 'deg',
     signed=True,
 ) -> xr.DataArray: ...
 
@@ -157,7 +175,7 @@ def get_pyramidalization(
     structure_selection: StructureSelection
     | StructureSelectionDescriptor
     | None = None,
-    deg: bool | Literal['trig'] = True,
+    angles: AngleOptions = 'deg',
     signed: bool = True,
 ) -> TreeNode[Any, xr.DataArray] | xr.DataArray:
     """Identify atoms with three bonds (using RDKit) and calculate the corresponding pyramidalization angles
@@ -183,7 +201,10 @@ def get_pyramidalization(
         If not provided, will be generated using `_get_default_structure_selection()` using the atXYZ data for the pyramids level.
     deg : bool | Literal['trig'] = True, optional
         Whether to return angles in degrees (as opposed to radians), by default False.
-        Alternatively with the option `trig`, this will yield the sin and cos of each pyramidalization angle instead.
+    angles : Literal['deg', 'rad', 'trig'], default='deg'
+        Option parameter to control the unit/representation of the pyramidalization angle.
+        Use 'deg' for results in 'degrees', 'rad' for results in 'radian'.
+        Alternatively, with the option `trig`, this will yield the sin and cos of each pyramidalization angle instead.
     signed : bool, optional
         Whether the result should be returned with a sign or just as an absolute value. Defaults to True, yielding the signed pyramidalization.
 
@@ -197,7 +218,7 @@ def get_pyramidalization(
     if isinstance(atXYZ_source, TreeNode):
         return atXYZ_source.map_data(
             lambda x: get_pyramidalization(
-                x, structure_selection=structure_selection, deg=deg, signed=signed
+                x, structure_selection=structure_selection, angles=angles, signed=signed
             ),
             keep_empty_branches=True,
             dtype=xr.DataArray,
@@ -228,19 +249,22 @@ def get_pyramidalization(
     if len(pyramid_descriptors) == 0:
         return _empty_descriptor_results(position_data)
 
-    pyr_angles = [
-        pyramidalization_angle(position_data, x, a, b, c, deg=deg)
-        for x, (a, b, c) in pyramid_descriptors
+    x_indices, a_indices, b_indices, c_indices = [
+        list(x) for x in zip(*[[x, a, b, c] for x, (a, b, c) in pyramid_descriptors])
     ]
 
-    if deg == 'trig':
-        pyr_angles_cos, pyr_angles_sin = zip(*pyr_angles)
+    pyr_angles = pyramidalization_angle(
+        position_data, x_indices, a_indices, b_indices, c_indices, angles=angles
+    )
+
+    if angles == 'trig':
+        pyr_angles_cos, pyr_angles_sin = pyr_angles
         descriptor_tex_cos = [
-            r'\cos(\chi_{%d,%d}^{%d,%d})' % (b, x, a, c)
+            r'\cos(\chi^{%d}_{%d,%d,%d})' % (x, a, b, c)
             for x, (a, b, c) in pyramid_descriptors
         ]
         descriptor_tex_sin = [
-            r'\sin(\chi_{%d,%d}^{%d,%d})' % (b, x, a, c)
+            r'\sin(\chi^{%d}_{%d,%d,%d})' % (x, a, b, c)
             for x, (a, b, c) in pyramid_descriptors
         ]
         descriptor_name_cos = [
@@ -256,9 +280,7 @@ def get_pyramidalization(
             descriptor_tex_sin
         )
 
-        pyr_angles_extended: list[xr.DataArray] = [
-            arr.expand_dims('descriptor') for arr in pyr_angles_cos
-        ] + [arr.expand_dims('descriptor') for arr in pyr_angles_sin]
+        pyr_angles_extended: list[xr.DataArray] = [pyr_angles_cos, pyr_angles_sin]
 
         pyr_concatenated = xr.concat(pyr_angles_extended, 'descriptor')
 
@@ -273,11 +295,12 @@ def get_pyramidalization(
         pyr_res: xr.DataArray = pyr_res
         pyr_res.name = "pyramids"
         pyr_res.attrs['units'] = 'trig'
+        pyr_res.attrs['unitdim'] = 'angles'
         return pyr_res
 
     else:
         descriptor_tex = [
-            r'\chi_{%d,%d}^{%d,%d}' % (b, x, a, c)
+            r'\chi^{%d}_{%d,%d,%d}' % (x, a, b, c)
             for x, (a, b, c) in pyramid_descriptors
         ]
         descriptor_name = [
@@ -285,12 +308,8 @@ def get_pyramidalization(
         ]
         descriptor_type: list[FeatureTypeLabel] = ['pyr'] * len(descriptor_tex)
 
-        pyr_angles_extended = [arr.expand_dims('descriptor') for arr in pyr_angles]
-
-        pyr_concatenated = xr.concat(pyr_angles_extended, 'descriptor')
-
         pyr_res = _assign_descriptor_coords(
-            pyr_concatenated,
+            pyr_angles,
             feature_name=descriptor_name,
             feature_tex_label=descriptor_tex,
             feature_type=descriptor_type,
@@ -299,7 +318,7 @@ def get_pyramidalization(
         pyr_res.name = "pyramids"
 
         pyr_res: xr.DataArray = pyr_res
-        if deg:
+        if angles == 'deg':
             pyr_res.attrs['units'] = 'degrees'
         else:
             pyr_res.attrs['units'] = 'rad'

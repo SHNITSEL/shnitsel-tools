@@ -1458,6 +1458,7 @@ class StructureSelection:
             new_selection = self.pyramids.copy()
         else:
             new_selection = set()
+            # TODO: FIXME: This does not select pyramids. The logic for breaking out of the look early seems to be broken.
 
             for entry in atoms:
                 filter_set: Sequence[AtomDescriptor]

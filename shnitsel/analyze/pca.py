@@ -7,6 +7,7 @@ from shnitsel._contracts import needs
 import xarray as xr
 
 from shnitsel.analyze.generic import get_standardized_pairwise_dists
+from shnitsel.core.typedefs import DimName
 from shnitsel.data.dataset_containers import wrap_dataset
 from shnitsel.data.dataset_containers.frames import Frames
 from shnitsel.data.dataset_containers.multi_series import MultiSeriesDataset
@@ -20,7 +21,7 @@ from .hops import hops_mask_from_active_state
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.pipeline import Pipeline
 
-from shnitsel.data.tree.data_group import DataGroup
+from shnitsel.data.tree.data_group import DataGroup, is_flat_group
 from shnitsel.data.tree.data_leaf import DataLeaf
 from shnitsel.data.tree.node import TreeNode
 from shnitsel.data.tree.tree import ShnitselDB
@@ -30,6 +31,7 @@ from shnitsel.filtering.structure_selection import (
 )
 from shnitsel.geo.geocalc import get_bats
 from shnitsel.analyze.generic import norm
+from .dim_red_result import DimRedResult
 
 OriginType = TypeVar('OriginType')
 ResultType = TypeVar('ResultType')
@@ -38,6 +40,7 @@ DataType = TypeVar('DataType')
 
 class PCAResult(
     Generic[OriginType, ResultType],
+    DimRedResult[OriginType, ResultType],
 ):
     """Class to hold the results of a PCA analysis.
 
@@ -58,24 +61,16 @@ class PCAResult(
         Either an xr.DataArray or a DataGroup same as for `OriginType`.
     """
 
-    _pca_inputs: OriginType
-    _pca_pipeline: Pipeline
-    _pca_dimension: Hashable
-    _pca_components: xr.DataArray
     _pca_object: sk_PCA
-    _pca_inputs_projected: ResultType
 
     def __init__(
         self,
         pca_inputs: OriginType,
-        pca_dimension: Hashable,
+        pca_dimension: DimName,
         pca_pipeline: Pipeline,
         pca_object: sk_PCA,
         pca_projected_inputs: ResultType,
     ):
-        self._pca_inputs = pca_inputs
-        self._pca_pipeline = pca_pipeline
-        self._pca_dimension = pca_dimension
         if isinstance(pca_inputs, xr.DataArray):
             assert isinstance(pca_projected_inputs, xr.DataArray), (
                 "If inputs are provided as a single data array, the results must also be a single data array"
@@ -84,7 +79,7 @@ class PCAResult(
                 pca_projected_inputs.coords['PC'],
                 pca_inputs.coords[pca_dimension],
             ]
-            self._pca_components = xr.DataArray(
+            _pca_components = xr.DataArray(
                 pca_object.components_,
                 coords=coord_initial,
             ).assign_coords(
@@ -102,12 +97,22 @@ class PCAResult(
             assert all(isinstance(x, xr.DataArray) for x in outputs_collected), (
                 "Tree-shaped results of PCA are not of data type xr.DataArray"
             )
-            coord_initial = [
-                outputs_collected[0].coords['PC'],
-                inputs_collected[0].coords[pca_dimension],
-            ]
+            coord_initial = None
+            for i_coll, o_coll in zip(inputs_collected, outputs_collected):
+                try:
+                    coord_initial = [
+                        o_coll.coords['PC'],
+                        i_coll.coords[pca_dimension],
+                    ]
+                except:
+                    continue
 
-            self._pca_components = xr.DataArray(
+            if coord_initial is None:
+                raise ValueError(
+                    "No dataset in input had data that could be projected in PCA decomposition."
+                )
+
+            _pca_components = xr.DataArray(
                 pca_object.components_,
                 coords=coord_initial,
             ).assign_coords(
@@ -115,181 +120,30 @@ class PCAResult(
                     inputs_collected[0], pca_dimension
                 )
             )
-        self._pca_object = pca_object
-        self._pca_inputs_projected = pca_projected_inputs
-        # TODO: Get the projected inputs?
+        else:
+            raise ValueError(
+                f"Unsupported input format: {type(pca_inputs)}. Supported are xarray.DataArray and TreeNode thereof."
+            )
 
-    @property
-    def inputs(self) -> OriginType:
-        return self._pca_inputs
+        self._pca_object = pca_object
+        super().__init__(
+            dimred_label='PCA',
+            inputs=pca_inputs,
+            mapped_dimension=pca_dimension,
+            pipeline=pca_pipeline,
+            loadings=_pca_components,
+            component_dimension="PC",
+            projected_inputs=pca_projected_inputs,
+        )
 
     @property
     def fitted_pca_object(self) -> sk_PCA:
         return self._pca_object
 
     @property
-    def pca_mapped_dimension(self) -> Hashable:
-        return self._pca_dimension
-
-    @property
-    def pca_pipeline(self) -> Pipeline:
-        return self._pca_pipeline
-
-    @property
     def principal_components(self) -> xr.DataArray:
-        return self._pca_components
+        return self.components
 
-    @property
-    def loadings(self) -> xr.DataArray:
-        return self._pca_components
-
-    @property
-    def projected_inputs(self) -> ResultType:
-        return self._pca_inputs_projected
-
-    @property
-    def results(self) -> ResultType:
-        return self.projected_inputs
-
-    def get_most_significant_loadings(
-        self, top_n_per: int = 5, top_n_total: int = 5
-    ) -> tuple[Mapping[Hashable, xr.DataArray], xr.DataArray]:
-        """Function to retrieve the most significant loadings in the
-        PCA result for each individual component and in total.
-
-        You can configure the amount of
-
-        Parameters
-        ----------
-        top_n_per : int, optional
-            Number of top (most significant absolute loading) n loadings per component, by default 5
-        top_n_total : int, optional
-            Number of overall top (i.e. most significant by 2-norm of their loadings across all PC) n features across all components, by default 5
-
-        Returns
-        -------
-        tuple[Mapping[Hashable, xr.DataArray], xr.DataArray]
-            First the mapping of each PC to the array holding the data of all their most significant loadings.
-            Second the overall most significant loadings across all components.
-        """
-        loadings = self.loadings
-
-        per_pc_results = {}
-        for pc in loadings.PC.values:
-            component = loadings.sel(PC=pc)
-            # print(component)
-            # print(component.values)
-
-            top_n_per_local = min(component.sizes[self.pca_mapped_dimension], top_n_per)
-
-            abs_loading = np.abs(component)
-            top_arg_indices = np.argpartition(abs_loading, -top_n_per_local)[
-                -top_n_per_local:
-            ]
-            top_arg_coords = component.coords[self.pca_mapped_dimension].values[
-                top_arg_indices
-            ]
-
-            # print(top_arg_indices)
-            # print(top_arg_coords)
-
-            per_pc_results[pc] = component.sel(
-                {self.pca_mapped_dimension: top_arg_coords}
-            )
-
-        top_n_total_local = min(loadings.sizes[self.pca_mapped_dimension], top_n_total)
-        total_abs_loadings = norm(loadings, dim='PC')
-
-        top_arg_indices = np.argpartition(total_abs_loadings, -top_n_total_local)[
-            -top_n_total_local:
-        ]
-        top_arg_coords = loadings.coords[self.pca_mapped_dimension].values[
-            top_arg_indices
-        ]
-
-        # print(top_arg_indices)
-        # print(top_arg_coords)
-        total_pc_results = loadings.sel({self.pca_mapped_dimension: top_arg_coords})
-        # print(component.feature_indices)
-        return per_pc_results, total_pc_results
-
-    def explain_loadings(self, top_n_per: int = 5, top_n_total: int = 5) -> str:
-        """Generate a textual explanation of the top influential loadings in the PCA result.
-
-        Tries to put the results of `get_most_significant_loadings()` into a textual form.
-
-        Parameters
-        ----------
-        top_n_per : int, optional
-            Number of top (most significant absolute loading) n loadings per component, by default 5
-        top_n_total : int, optional
-            Number of overall top (i.e. most significant by 2-norm of their loadings across all PC) n features across all components, by default 5
-
-        Returns
-        -------
-        str
-            A text describing the results of the principal components analysis.
-        """
-        per_top, total_top = self.get_most_significant_loadings(
-            top_n_per=top_n_per, top_n_total=top_n_total
-        )
-
-        explanation: str = ""
-
-        total_expl = f"Maximum contributing features overall:\n"
-        for feature, indices, coeff in zip(
-            total_top.descriptor.values,
-            total_top.feature_indices.values,
-            norm(total_top, dim='PC').values,
-        ):
-            total_expl += f" {feature} (weight: {coeff}) (Idxs: {indices}) \n"
-        explanation += total_expl + "\n\n"
-
-        for pc in per_top:
-            loadings = per_top[pc]
-
-            pc_expl = f"Maximum contributing features to component {pc} :\n"
-            for feature, indices, coeff in zip(
-                loadings.descriptor.values,
-                loadings.feature_indices.values,
-                loadings.values,
-            ):
-                pc_expl += f" {feature}  (weight: {coeff}) (Idxs: {indices}) \n"
-            explanation += pc_expl + "\n"
-        return explanation
-
-    def project_array(self, other_da: xr.DataArray) -> xr.DataArray:
-        return xr.apply_ufunc(
-            self._pca_pipeline.transform,
-            other_da,
-            input_core_dims=[[self._pca_dimension]],
-            output_core_dims=[['PC']],
-        )
-
-    @staticmethod
-    def get_extra_coords_for_loadings(
-        data: xr.DataArray, dim: Hashable
-    ) -> Mapping[Hashable, xr.DataArray]:
-        # coords = {'PC': pca_res.coords['PC']}
-        # coords.update(
-        #     {
-        #         key: coord
-        #         for key, coord in data.coords.items()
-        #         if dim in coord.dims and key != dim
-        #     }
-        # )
-        coords = {
-            key: coord
-            for key, coord in data.coords.items()
-            if dim in coord.dims and key != dim
-        }
-        return coords
-
-    def __str__(self)-> str:
-        return type(self).__name__+f" on {type(self.inputs).__name__} with {self._pca_components.sizes['PC']} components"
-    
-    def __repr__(self)-> str:
-        return self.__str__() + "\n" + self.explain_loadings()
 
 @overload
 def pca_and_hops(
@@ -583,7 +437,7 @@ def pca(
             ) -> ShnitselDataset | xr.DataArray | None:
                 if isinstance(x, xr.DataArray):
                     return x
-                x = wrap_dataset(x)
+                x = wrap_dataset(x, ShnitselDataset)
                 return x
 
                 if isinstance(x, (Trajectory, Frames)):
@@ -604,7 +458,9 @@ def pca(
                 def extract_features(x: ShnitselDataset | xr.DataArray) -> xr.DataArray:
                     return get_bats(
                         x,
-                        structure_selection=structure_selection,  # deg='trig'
+                        structure_selection=structure_selection,  # angles='trig'
+                        # signed=True,
+                        angles='deg',
                     )
             else:
 
@@ -618,12 +474,6 @@ def pca(
             # We extract the features either with the selection or with the
             # Pairwise distances approach
             feature_data_grouped = data_grouped.map_data(extract_features)
-
-            def filter_flat_group(node: TreeNode) -> bool:
-                # We only want to process flat groups
-                if isinstance(node, DataGroup):
-                    return node.is_flat_group
-                return False
 
             def pca_on_flat_group(
                 flat_group: TreeNode[Any, xr.DataArray],
@@ -662,8 +512,8 @@ def pca(
                 # subtree as output
                 full_res = PCAResult(
                     pca_inputs=inputs,
-                    pca_dimension=tmp_res.pca_mapped_dimension,
-                    pca_pipeline=tmp_res.pca_pipeline,
+                    pca_dimension=tmp_res.mapped_dimension,
+                    pca_pipeline=tmp_res.pipeline,
                     pca_object=tmp_res.fitted_pca_object,
                     pca_projected_inputs=mapped_inputs,
                 )
@@ -676,7 +526,7 @@ def pca(
                 return new_group
 
             pca_res = feature_data_grouped.map_filtered_nodes(
-                filter_flat_group, pca_on_flat_group
+                is_flat_group, pca_on_flat_group
             )
             return pca_res
         else:

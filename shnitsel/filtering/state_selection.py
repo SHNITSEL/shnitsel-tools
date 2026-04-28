@@ -250,7 +250,11 @@ class StateSelection:
         )
 
         if 'states' in dataset.coords:
-            states = list(int(n) for n in dataset.coords['states'].values)
+            if 'states' not in dataset.dims:
+                # NOTE: We have a single state combination
+                states = [int(dataset.coords['states'].item())]
+            else:
+                states = list(int(n) for n in dataset.coords['states'].values)
         elif 'state' in dataset.sizes:
             states = list(
                 int(n) for n in np.arange(1, 1 + dataset.sizes['state'], dtype=StateId)
@@ -302,12 +306,19 @@ class StateSelection:
 
         if not is_directed:
             if 'statecomb' in dataset.coords:
-                state_combinations = list(dataset.coords['statecomb'].values)
+                if 'statecomb' not in dataset.dims:
+                    # NOTE: We have a single state combination
+                    state_combinations = [dataset.coords['statecomb'].item()]
+                else:
+                    state_combinations = list(dataset.coords['statecomb'].values)
             else:
                 state_combinations = list(combinations(states, 2))
         else:
             if 'full_statecomb' in dataset.coords:
-                state_combinations = list(dataset.coords['full_statecomb'].values)
+                if 'full_statecomb' not in dataset.dims:
+                    state_combinations = [dataset.coords['full_statecomb'].item()]
+                else:
+                    state_combinations = list(dataset.coords['full_statecomb'].values)
             elif 'statecomb' in dataset.coords:
                 # Gather both directions of pairs initially.
                 state_combinations = list(
@@ -2098,6 +2109,9 @@ class StateSelection:
         """
         from shnitsel.vis.colormaps import st_grey
 
+        if self.state_colors is None:
+            self.auto_assign_colors(inplace=True)
+
         if self.state_colors is not None and id in self.state_colors:
             return self.state_colors[id]
         else:
@@ -2118,6 +2132,9 @@ class StateSelection:
 
         """
         from shnitsel.vis.colormaps import st_grey
+
+        if self.state_combination_colors is None:
+            self.auto_assign_colors(inplace=True)
 
         if (
             self.state_combination_colors is not None
