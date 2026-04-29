@@ -12,13 +12,14 @@ authors = [
   { name = "Kevin Höllring", email = "kevin.hoellring@fau.de" },
   { name = "Carolin Müller", email = "carolin.cpc.mueller@fau.de" },
 ]
+license = "MIT"
+license-files = ["LICEN[CS]E*", "AUTHORS.md"]
 
 description = "Collect, manage, process, analyse & visualize surface hopping data"
 readme = "README.md"
 requires-python = ">=3.11"
 classifiers = [
   "Programming Language :: Python :: 3",
-  "License :: OSI Approved :: MIT License",
   "Operating System :: OS Independent",
 ]
 dependencies = [
