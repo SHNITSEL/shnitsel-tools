@@ -6,10 +6,12 @@ from typing import Dict, List, Literal, Sequence, TypeVar, get_args
 from typing_extensions import TypeForm
 import xarray as xr
 import numpy as np
+from shnitsel.core.typedefs import DimName
 
 from shnitsel.core._api_info import internal
 from shnitsel._contracts import needs
 from shnitsel.analyze.generic import relativize
+from shnitsel.data.dataset_containers.shared import ShnitselDataset
 from shnitsel.data.multi_indices import sel_trajs
 from shnitsel.core.typedefs import DatasetOrArray
 from shnitsel.units.conversion import convert_energy
@@ -98,6 +100,46 @@ def is_assignable_to(
         )
     else:
         return any(issubclass(actual_type, y) for y in allowed_types)
+
+
+def guess_leading_dim(da: xr.DataArray | xr.Dataset | ShnitselDataset) -> DimName:
+    """Helper function to guess the leading dimension of an xarray data container or
+    a wrapped shnitsel-tools data container.
+    Result will be either `time`, `frame` or the first dimension of a `xr.DataArray`.
+    If neither of those are suitable strategies, an `IndexError` is thrown.
+
+    Parameters
+    ----------
+    da : xr.DataArray | xr.Dataset | ShnitselDataset
+        Data container ot find the leading dimension of
+
+    Returns
+    -------
+    DimName
+        The label of the dimension
+
+    Raises
+    ------
+    IndexError
+        Thrown if no leading dimension out of `time` or `frame` was detected and the object is not a
+        `xr.DataArray` instance with a unique leading dimension.
+    """
+    if "time" in da.dims:
+        leading_dim = "time"
+    elif "frame" in da.dims:
+        # We have independent frames. Don't try and conceive a `good up to this point` property
+        leading_dim = "frame"
+    else:
+        if isinstance(da, xr.DataArray):
+            logging.warning(
+                "Could not discern leading dimension of data container. Will resort to first dimension"
+            )
+            leading_dim = da.dims[0]
+        else:
+            raise IndexError(
+                f"Could not determine leading dimension of object of type {type(da)}, leading dimension"\
+                "is neither 'time' nor 'frame' and may otherwise not be unique."
+            )
 
 
 # # TODO: deprecate
