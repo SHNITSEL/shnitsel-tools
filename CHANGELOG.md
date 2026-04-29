@@ -9,6 +9,10 @@ changes here
 
 Bug fixes compared to previous version and addition of new features:
 
+### Breaking Changes
+
+* To keep the structure of shnitsel clearer, we moved the PCA, LDA, PLS, TICA and all dimensionality reduction related methods into the `shnitsel.analyze.dimred` submodule whereas they were previously located directly in `shnitsel.analyze`
+
 
 ### Features
 
@@ -18,7 +22,7 @@ Bug fixes compared to previous version and addition of new features:
 * Added accessors for creating timeplots and performing pca analysis to `shnitsel.xarray` support.
 * Improved VMD visualization support
 * Add generic debug information and version information support with `shnitsel.__version__` and `shnitsel.show_debug_info()` to help with error debugging support
-
+* Implement `focus_hops()` and `hops()` functionality to obtain more detailed analysis tools related to hop-relative statistics within trajectories
 
 ### Fixes
 

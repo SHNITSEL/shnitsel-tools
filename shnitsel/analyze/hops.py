@@ -11,6 +11,7 @@ from shnitsel.data.dataset_containers.data_series import DataSeries
 from shnitsel.data.dataset_containers.frames import Frames
 from shnitsel.data.dataset_containers.shared import ShnitselDataset
 from shnitsel.data.dataset_containers.trajectory import Trajectory
+from shnitsel.data.helpers import guess_leading_dim
 from shnitsel.data.multi_indices import mdiff, sel_trajs
 from shnitsel.data.tree.node import TreeNode
 from shnitsel.data.tree.tree import ShnitselDB
@@ -141,16 +142,43 @@ def hops_mask_from_active_state(
         return is_hop_mask
 
 
-# TODO: FIXME: Make compatible with trees and wrapper datasets
+@overload
 def hops(
-    frames, hop_type_selection: StateSelection | StateSelectionDescriptor | None = None
+    frames: xr.Dataset | DataSeries,
+    hop_type_selection: StateSelection | StateSelectionDescriptor | None = None,
+) -> xr.Dataset | DataSeries: ...
+@overload
+def hops(
+    frames: xr.DataArray,
+    hop_type_selection: StateSelection | StateSelectionDescriptor | None = None,
+) -> xr.DataArray: ...
+@overload
+def hops(
+    frames: TreeNode[Any, xr.DataArray],
+    hop_type_selection: StateSelection | StateSelectionDescriptor | None = None,
+) -> TreeNode[Any, xr.DataArray]: ...
+@overload
+def hops(
+    frames: TreeNode[Any, xr.Dataset | DataSeries],
+    hop_type_selection: StateSelection | StateSelectionDescriptor | None = None,
+) -> TreeNode[Any, xr.Dataset | DataSeries]: ...
+
+
+# TODO: FIXME: We may want to remove this and replace solely by `filter_by_hops()` and `assign_hop_times()`
+def hops(
+    frames: xr.Dataset
+    | xr.DataArray
+    | DataSeries
+    | TreeNode[Any, xr.DataArray | xr.Dataset | DataSeries],
+    hop_type_selection: StateSelection | StateSelectionDescriptor | None = None,
 ):
     """Select hops
 
     Parameters
     ----------
-    frames
-        An Xarray object (Dataset or DataArray) with a ``frames`` dimension
+    frames : xr.Dataset | xr.DataArray | TreeNode[Any, xr.Dataset | DataSeries]
+        An Xarray object (Dataset or DataArray) with a ``frames`` dimension or a tree
+        structure holding such objects
     hop_type_selection
         A list of pairs of states, e.g.:
         ``[(1, 2), (2, 1), (3, 1)]``
@@ -172,22 +200,63 @@ def hops(
         - ``hop_from``: the active state before the hop
         - ``hop_to``: the active state after the hop
     """
+
+    if isinstance(frames, TreeNode):
+        return frames.map_data(hops, hop_type_selection=hop_type_selection)
+
+    # TODO: FIXME: Do we want to error out on layered sets? We may want to only support stacked and single sets.
+
     is_hop_mask = hops_mask_from_active_state(
         frames, hop_type_selection=hop_type_selection
     )
 
-    res = frames.isel(frame=is_hop_mask)
-    tidxs = np.concat(
-        [np.arange(traj.sizes['frame']) for _, traj in frames.groupby('atrajectory')]
-    )
+    leading_dim = guess_leading_dim(frames)
+    if not isinstance(frames, xr.DataArray):
+        frames = wrap_dataset(frames, DataSeries)
+
+    sel_filter_dict = {leading_dim: is_hop_mask}
+
+    # We only keep the hopping points
+    res = frames.isel(sel_filter_dict)
+
+    # Rename the leading dimension to `frame` if we kick out all but hopping points.
+    res = res.rename({leading_dim: 'frame'})
+
+    # TODO: FIXME: If we have more than a single dimension indexing `hop_mask`, then this may break? Also if the frames are not ordered by `atrajectory, this will also break`
+    # Specifically, for layered instead of stacked datasets, this breaks, I assume
+    if 'atrajectory' in frames:
+        tidxs = np.concat(
+            [
+                np.arange(traj.sizes[leading_dim])
+                for _, traj in frames.groupby('atrajectory')
+            ]
+        )
+    elif 'trajectory' in frames:
+        tidxs = np.concat(
+            [
+                np.arange(traj.sizes[leading_dim])
+                for _, traj in frames.groupby('trajectory')
+            ]
+        )
+        logging.warning(
+            "For layered trajectories, `hops()` may not perform as intended."
+        )
+        # @reshief:
+        # TODO: FIXME: Here we need to reshape is_hop_mask to fit the one-dimensional shape of tidxs
+    else:
+        # Assume this is a single trajectory
+        tidxs = np.arange(frames.sizes[leading_dim])
+
     hop_tidx = tidxs[is_hop_mask]
+    # If we only cut out the hops, then the resulting leading dimension should be `frame`
     res = res.assign_coords(
         tidx=('frame', hop_tidx),
-        hop_from=(frames['astate'].shift({'frame': 1}, -1).isel(frame=is_hop_mask)),
+        hop_from=(frames['astate'].shift({'frame': 1}, -1).isel(sel_filter_dict)),
         hop_to=res['astate'],
     )
     if hasattr(res, 'drop_dims'):
         res = res.drop_dims(['trajectory'], errors='ignore')
+
     return res
 
 
@@ -319,7 +388,38 @@ def filter_data_at_hops(
             )
 
 
-# TODO: FIXME: Make StateSelection the preferred type for picking hopping types.
+@overload
+def focus_hops(
+    frames: xr.DataArray,
+    hop_type_selection: StateSelection | StateSelectionDescriptor | None = None,
+    window: slice | None = None,
+) -> xr.DataArray: ...
+
+
+@overload
+def focus_hops(
+    frames: xr.Dataset | DataSeries,
+    hop_type_selection: StateSelection | StateSelectionDescriptor | None = None,
+    window: slice | None = None,
+) -> xr.Dataset | DataSeries: ...
+
+
+@overload
+def focus_hops(
+    frames: TreeNode[Any, xr.DataArray],
+    hop_type_selection: StateSelection | StateSelectionDescriptor | None = None,
+    window: slice | None = None,
+) -> TreeNode[Any, xr.DataArray]: ...
+
+
+@overload
+def focus_hops(
+    frames: TreeNode[Any, xr.Dataset | DataSeries],
+    hop_type_selection: StateSelection | StateSelectionDescriptor | None = None,
+    window: slice | None = None,
+) -> TreeNode[Any, xr.Dataset | DataSeries]: ...
+
+
 def focus_hops(
     frames: xr.Dataset
     | xr.DataArray
@@ -327,13 +427,19 @@ def focus_hops(
     | TreeNode[Any, xr.Dataset | xr.DataArray | DataSeries],
     hop_type_selection: StateSelection | StateSelectionDescriptor | None = None,
     window: slice | None = None,
+) -> (
+    xr.Dataset
+    | xr.DataArray
+    | DataSeries
+    | TreeNode[Any, xr.Dataset | xr.DataArray | DataSeries]
 ):
     """For each hop, create a copy of its trajectory centered on the hop; align these
 
     Parameters
     ----------
     frames : xr.Dataset | xr.DataArray | DataSeries | TreeNode[Any, xr.Dataset | xr.DataArray | DataSeries]
-        An Xarray object (Dataset or DataArray) with a ``frames`` dimension
+        An Xarray object (Dataset or DataArray) with a ``frames`` dimension or a shnitsel-tools 
+        wrapped representation of those or a tree with entries of that shape in its leaves.
     hop_type_selection : StateSelection | StateSelectionDescriptor, optional
         Types of hops to include
         See like-named parameter in :py:func:`shnitsel.analyze.hops.hops`
@@ -366,16 +472,27 @@ def focus_hops(
         - ``hop_from``: the active state before the hop
         - ``hop_to``: the active state after the hop
         - ``trajid``: the ID of the trajectory in which the hop occurred
+
+    If there is no hop found, the result will be empty.
     """
-    raise NotImplementedError()
+    if isinstance(frames, TreeNode):
+        return frames.map_data(
+            focus_hops,
+            hop_type_selection=hop_type_selection,
+            window=window,
+        )
+
+    leading_dim = guess_leading_dim(frames)
+
     # TODO: FIXME: Refactor this to new wrapper types
     hop_vals = hops(frames, hop_type_selection=hop_type_selection)
+
     # If no hops, return empty
-    if hop_vals.sizes["frame"] == 0:
-        res = frames.isel(frame=[])
-        res = res.swap_dims({"frame": "hop_time"})
-        res = res.drop_vars(["frame", "trajid", "time"])
-        res = res.drop_dims(["trajid_"], errors="ignore")
+    if hop_vals.sizes[leading_dim] == 0:
+        res = frames.isel({leading_dim:[]})
+        res = res.rename({leading_dim: "hop_time"})
+        res = res.drop_vars([leading_dim, "atrajectory", "time"], errors='ignore')
+        res = res.drop_dims(["trajectory"], errors="ignore")
         res = res.expand_dims("hop").isel(hop=[])
         empty_2d = xr.Variable(("hop", "hop_time"), [[]]).isel(hop=[], hop_time=[])
         res = res.assign_coords(
@@ -391,48 +508,162 @@ def focus_hops(
         )
         return res
 
-    to_cat = []
-    trajids = []
-    for (trajid, time), hop in hop_vals.groupby("frame"):
-        traj = sel_trajs(frames, trajid)
-        orig_time = traj["time"].data
-        hop_time = traj.time - time
-        hop_time = hop_time.swap_dims({"frame": "hop_time"})
-        hop_time = hop_time.assign_coords(hop_time=hop_time).drop_vars(
-            ["frame", "trajid", "time"]
+    # Construct the hop-aligned windows:
+    hop_window_data = []
+    hop_trajectory_id = []
+    # TODO: FIXME: Breaks if only one frame in trajectory
+    if 'atrajectory' in frames.coords:
+        # Deal with stacked trajectories
+        for (hop_trajectory, hop_time), hop in hop_vals.groupby(leading_dim):
+            traj = frames.sel(atrajectory=[hop_trajectory])
+            # TODO: Do we need to rename the leading dim to `hop`?
+            traj_lead_dim = guess_leading_dim(traj)
+            orig_time = traj["time"].data
+            #Calculate relative time to jump
+            hop_relative_time = traj.time - hop_time
+            # Switch to `hop_time` dimension instead of `time`
+            hop_relative_time = hop_relative_time.rename({traj_lead_dim: "hop_time"})
+            hop_relative_time = hop_relative_time.drop_vars(
+                [traj_lead_dim, "atrajectory", "time"], errors='ignore'
+            )
+            # Switch to `hop_time` dimension in main trajectory data
+            res_traj = traj.rename({traj_lead_dim: "hop_time"})
+            # Add relative time to hop
+            res_traj = res_traj.assign_coords(hop_time=hop_relative_time).drop_vars(
+                [traj_lead_dim, "atrajectory", "time"]
+            )
+
+            # Add per-hop metadata
+            res_traj = res_traj.assign_coords(time=(("hop", "hop_time"), orig_time[None, :]))
+            tidx = xr.Variable(dims=("hop_time"), data=np.arange(len(orig_time)))
+            res_traj = res_traj.assign_coords(tidx=tidx.expand_dims("hop"))
+
+            # Add further hop-independent metadata
+            res_traj = res_traj.assign_coords(hop_tidx=tidx - hop["tidx"].item())
+
+            res_traj = res_traj.drop_dims(["trajectory"], errors="ignore")
+            if window is not None:
+                res_traj = res_traj.sel(hop_time=window)
+
+            hop_trajectory_id.append(hop_trajectory)
+            hop_window_data.append(res_traj)
+
+        res = xr.concat(hop_window_data, "hop", join="outer")
+        from_to = (
+            hop_vals[["hop_from", "hop_to"]]
+            .drop_vars(["frame", "atrajectory", "time", "tidx"], errors='ignore')
+            .rename({leading_dim: "hop"})
         )
-        traj = traj.swap_dims({"frame": "hop_time"})
-        traj = traj.assign_coords(hop_time=hop_time).drop_vars(
-            ["frame", "trajid", "time"]
+        return res.assign_coords(
+            atrajectory=("hop", hop_trajectory_id), hop_from=from_to["hop_from"], hop_to=from_to["hop_to"]
+        )
+    elif 'trajectory' in frames:
+        # Deal with layered trajectories
+        for (hop_trajectory, hop_time), hop in hop_vals.groupby(['trajectory', leading_dim]):
+            traj = frames.sel(trajectory=[hop_trajectory])
+            traj_lead_dim = guess_leading_dim(traj)
+            orig_time = traj["time"].data
+
+            #Calculate relative time to jump
+            hop_relative_time = traj.time - hop_time
+
+            # Switch to `hop_time` dimension instead of `time`
+            hop_relative_time = hop_relative_time.rename({traj_lead_dim: "hop_time"})
+            hop_relative_time = hop_relative_time.drop_vars(
+                [traj_lead_dim, "trajectory", "time"], errors='ignore'
+            )
+
+            # Switch to `hop_time` dimension in main trajectory data
+            res_traj = traj.rename({traj_lead_dim: "hop_time"})
+
+            # Add relative time to hop
+            res_traj = res_traj.assign_coords(hop_time=hop_relative_time).drop_vars(
+                [traj_lead_dim, "trajectory", "time"]
+            )
+
+            # Add per-hop metadata
+            res_traj = res_traj.assign_coords(time=(("hop", "hop_time"), orig_time[None, :]))
+            tidx = xr.Variable(dims=("hop_time"), data=np.arange(len(orig_time)))
+            res_traj = res_traj.assign_coords(tidx=tidx.expand_dims("hop"))
+
+            # Add further hop-independent metadata
+            res_traj = res_traj.assign_coords(hop_tidx=tidx - hop["tidx"].item())
+
+            res_traj = res_traj.drop_dims(["trajectory"], errors="ignore")
+            if window is not None:
+                res_traj = res_traj.sel(hop_time=window)
+
+            hop_trajectory_id.append(hop_trajectory)
+            hop_window_data.append(res_traj)
+        
+        res = xr.concat(hop_window_data, "hop", join="outer")
+        from_to = (
+            hop_vals[["hop_from", "hop_to"]]
+            .drop_vars(["frame", "atrajectory", "time", "tidx"], errors='ignore')
+            .rename({leading_dim: "hop"})
+        )
+        return res.assign_coords(
+            atrajectory=("hop", hop_trajectory_id), hop_from=from_to["hop_from"], hop_to=from_to["hop_to"]
+        )
+    else:
+        # Deal with layered trajectories
+        for lead_coord, hop in hop_vals.groupby(leading_dim):
+            traj = frames.sel({leading_dim:[lead_coord]})
+            orig_time = traj["time"].data
+
+            #Calculate relative time to jump
+            hop_relative_time = traj.time - hop.hop_time.item()
+
+            # Switch to `hop_time` dimension instead of `time`
+            hop_relative_time = hop_relative_time.rename({leading_dim: "hop_time"})
+            hop_relative_time = hop_relative_time.drop_vars(
+                [leading_dim, "time"], errors='ignore'
+            )
+
+            # Switch to `hop_time` dimension in main trajectory data
+            res_traj = traj.rename({leading_dim: "hop_time"})
+
+            # Add relative time to hop
+            res_traj = res_traj.assign_coords(hop_time=hop_relative_time).drop_vars(
+                [leading_dim, "time"]
+            )
+
+            # Add per-hop metadata
+            res_traj = res_traj.assign_coords(time=(("hop", "hop_time"), orig_time[None, :]))
+            tidx = xr.Variable(dims=("hop_time"), data=np.arange(len(orig_time)))
+            res_traj = res_traj.assign_coords(tidx=tidx.expand_dims("hop"))
+
+            # Add further hop-independent metadata
+            res_traj = res_traj.assign_coords(hop_tidx=tidx - hop["tidx"].item())
+
+            if window is not None:
+                res_traj = res_traj.sel(hop_time=window)
+            hop_window_data.append(res_traj)
+        
+        res = xr.concat(hop_window_data, "hop", join="outer")
+        from_to = (
+            hop_vals[["hop_from", "hop_to"]]
+            .drop_vars(["frame", "atrajectory", "time", "tidx"], errors='ignore')
+            .rename({leading_dim: "hop"})
+        )
+        # No active trajectory to keep track of for single trajectory
+        return res.assign_coords(
+            hop_from=from_to["hop_from"], hop_to=from_to["hop_to"]
         )
 
-        # Add per-hop metadata
-        traj = traj.assign_coords(time=(("hop", "hop_time"), orig_time[None, :]))
-        tidx = xr.Variable(dims=("hop_time"), data=np.arange(len(orig_time)))
-        traj = traj.assign_coords(tidx=tidx.expand_dims("hop"))
 
-        # Add further hop-independent metadata
-        traj = traj.assign_coords(hop_tidx=tidx - hop["tidx"].item())
-
-        traj = traj.drop_dims(["trajid_"], errors="ignore")
-        if window is not None:
-            traj = traj.sel(hop_time=window)
-
-        trajids.append(trajid)
-        to_cat.append(traj)
-
-    # FIXME @thevro: xarray 2025.12.0 FutureWarning: data_vars = 'all'->None
-    # FIXME @thevro: xarray 2025.12.0 FutureWarning: coords = 'different'->'minimal'
-    res = xr.concat(to_cat, "hop", join="outer")
-    from_to = (
-        hop_vals[["hop_from", "hop_to"]]
-        .drop_vars(["frame", "trajid", "time", "tidx"])
-        .rename({"frame": "hop"})
-    )
-    res = res.assign_coords(
-        trajid=("hop", trajids), hop_from=from_to["hop_from"], hop_to=from_to["hop_to"]
-    )
-    return res
+    # FIXME: @thevro: xarray 2025.12.0 FutureWarning: data_vars = 'all'->None
+    # FIXME: @thevro: xarray 2025.12.0 FutureWarning: coords = 'different'->'minimal'
+    # res = xr.concat(hop_window_data, "hop", join="outer")
+    # from_to = (
+    #     hop_vals[["hop_from", "hop_to"]]
+    #     .drop_vars(["frame", "trajid", "time", "tidx"])
+    #     .rename({"frame": "hop"})
+    # )
+    # res = res.assign_coords(
+    #     trajid=("hop", trajids), hop_from=from_to["hop_from"], hop_to=from_to["hop_to"]
+    # )
+    # return res
 
 
 @overload
@@ -529,6 +760,8 @@ def assign_hop_time(
     hop_data = filter_data_at_hops(
         frames, hop_type_selection=hop_type_selection
     )  # .reset_index("frame")
+
+    # Return early if no hop found
     if hop_data.sizes[leading_dim] == 0:
         # TODO: FIXME: This return does not match the description in the `Returns` docstring block. We state there, that we assign nan if no value was found, but we simply skip the trajectory.
         return frames.assign_coords(
