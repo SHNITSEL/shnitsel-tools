@@ -82,11 +82,13 @@
 - Hops
   - [ ] Fix some functions not yet moved to tree types or new style of type selection.
     - [x] `assign_hop_time()` done
-    - [ ] `focus_hops()`
-    - [ ] PLS
-    - [ ] LDA
-    - [ ] TICA not yet integrated into `DimRed` type hierarchy
-  
+    - [x] `focus_hops()`
+    - [x] PLS
+    - [x] LDA
+    - [x] TICA 
+    - [ ] Test restored hop functions
+    - [ ] Test new dimred functions
+      
 - [ ] CLI tutorial
 - [ ] Full tutorial retinal
   - [x] Retinal BLA/HOOP/Dihedrals (Put all dihedrals in), 3->2 Dimension reduction
