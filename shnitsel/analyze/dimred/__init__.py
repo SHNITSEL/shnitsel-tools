@@ -10,6 +10,7 @@ from .lda import (
     quadratic_discriminat_analysis,
     QDAResult,
 )
+from .tica import TICA, tica, TICAResult
 from .pls import PLS, pls, PLSResult
 
 __all__ = [
@@ -25,8 +26,11 @@ __all__ = [
     # "QDAResult",
     "PLS",
     "pls",
+    "tica",
+    "TICA",
     "DimRedResult",
     "PCAResult",
     "LDAResult",
     "PLSResult",
+    "TICAResult",
 ]

@@ -8,7 +8,6 @@ import rdkit.Chem as rdChem
 
 import matplotlib as mpl
 
-from shnitsel.analyze.pca import PCAResult
 from shnitsel.bridges import to_mol
 from shnitsel.data.dataset_containers import Frames
 

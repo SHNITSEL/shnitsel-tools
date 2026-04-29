@@ -8,7 +8,7 @@ from pytest import fixture
 from matplotlib.testing.decorators import image_comparison
 
 import shnitsel as st
-from shnitsel.analyze.pca import pca_and_hops
+from shnitsel.analyze.dimred.pca import pca_and_hops
 from shnitsel.data.dataset_containers.frames import Frames
 from shnitsel.data.tree.node import TreeNode
 from shnitsel.vis.plot.pca_biplot import cluster_loadings, plot_loadings
@@ -109,7 +109,7 @@ class TestPlotFunctionality:
     @pytest.fixture
     def clusters_loadings_mols(self, ensembles: Frames):
         import shnitsel.xarray
-        from shnitsel.analyze.pca import pca, PCAResult
+        from shnitsel.analyze._dimred.pca import pca, PCAResult
 
         pca_res: PCAResult = pca(ensembles)  # ['atXYZ'].st.pwdists().st.pca('atomcomb')
         loadings = pca_res.principal_components

@@ -16,7 +16,7 @@ from shnitsel.data.dataset_containers.shared import ShnitselDataset
 from shnitsel.data.dataset_containers.trajectory import Trajectory
 from shnitsel.data.multi_indices import mdiff
 from sklearn.decomposition import PCA as sk_PCA
-from .hops import hops_mask_from_active_state
+from ..hops import hops_mask_from_active_state
 
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.pipeline import Pipeline
@@ -454,7 +454,6 @@ def pca(
             assert data_grouped is not None
 
             if structure_selection is not None:
-
                 def extract_features(x: ShnitselDataset | xr.DataArray) -> xr.DataArray:
                     return get_bats(
                         x,
@@ -463,7 +462,6 @@ def pca(
                         angles='deg',
                     )
             else:
-
                 def extract_features(x: ShnitselDataset | xr.DataArray) -> xr.DataArray:
                     return (
                         get_standardized_pairwise_dists(x, center_mean=center_mean)

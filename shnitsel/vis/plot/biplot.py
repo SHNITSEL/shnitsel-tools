@@ -11,10 +11,10 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import xarray as xr
 
-from shnitsel.analyze.dim_red_result import PredictorDimRedResult
+from shnitsel.analyze.dimred.dim_red_result import PredictorDimRedResult
 from shnitsel.analyze.hops import hops_mask_from_active_state
-from shnitsel.analyze.lda import LDAResult
-from shnitsel.analyze.pca import PCAResult, pca
+from shnitsel.analyze.dimred.lda import LDAResult
+from shnitsel.analyze.dimred.pca import PCAResult, pca
 from shnitsel.core.typedefs import DimName
 from shnitsel.data.dataset_containers import wrap_dataset
 from shnitsel.data.dataset_containers.shared import ShnitselDataset

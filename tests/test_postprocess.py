@@ -23,7 +23,7 @@ from shnitsel.analyze.hops import (
     assign_hop_time,
 )
 from shnitsel.analyze.populations import calc_classical_populations
-from shnitsel.analyze.pca import pca
+from shnitsel.analyze.dimred.pca import pca
 # from shnitsel.data.helpers import ts_to_time
 # from shnitsel.io import read
 

@@ -3,7 +3,7 @@ import xarray as xr
 from shnitsel.data.tree.data_group import DataGroup, is_flat_group
 from shnitsel.data.tree.data_leaf import DataLeaf
 from shnitsel.data.tree.node import TreeNode
-from .generic import norm
+from ..generic import norm
 import abc
 from typing import Any, Generic, Hashable, Mapping, Self, TypeVar, overload
 

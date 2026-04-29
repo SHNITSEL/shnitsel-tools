@@ -14,12 +14,10 @@ def main():
             generic,
             spectra,
             stats,
-            pca,
-            lda,
-            pls,
             populations,
             hops,
         )
+        from shnitsel.analyze.dimred import lda, pca, pls
         from shnitsel.data import multi_indices
         import shnitsel.data.helpers as data_helpers
         from shnitsel.geo import geocalc, alignment  # , geomatch_exact

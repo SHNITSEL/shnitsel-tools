@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 import xarray as xr
 
 from shnitsel.analyze.hops import hops_mask_from_active_state
-from shnitsel.analyze.pca import PCAResult, pca, pca_and_hops
+from shnitsel.analyze.dimred.pca import PCAResult, pca, pca_and_hops
 from shnitsel.core.typedefs import DimName
 from shnitsel.data.dataset_containers import Frames, Trajectory, wrap_dataset
 from shnitsel.data.dataset_containers.multi_layered import MultiSeriesLayered

@@ -15,7 +15,7 @@ from timeit import default_timer as timer
 from matplotlib.figure import Figure, SubFigure
 
 from shnitsel.analyze.generic import keep_norming
-from shnitsel.analyze.pca import PCAResult
+from shnitsel.analyze.dimred.pca import PCAResult
 from shnitsel.analyze.populations import (
     PopulationStatistics,
     calc_classical_populations,
@@ -526,7 +526,7 @@ class DatasheetPage:
         xr.DataArray
             The pairwise distance PCA results
         """
-        from shnitsel.analyze.pca import pca
+        from shnitsel.analyze.dimred.pca import pca
 
         start = timer()
         res = pca(

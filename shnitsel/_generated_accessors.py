@@ -18,9 +18,9 @@ from os import PathLike
 from rdkit.Chem.rdchem import Mol
 from shnitsel.analyze.generic import keep_norming, norm, pwdists, subtract_combinations
 from shnitsel.analyze.hops import assign_hop_time, filter_data_at_hops, focus_hops, hops_mask_from_active_state
-from shnitsel.analyze.lda import lda
-from shnitsel.analyze.pca import PCAResult, pca, pca_and_hops, pca_direct
-from shnitsel.analyze.pls import pls, pls_ds
+from shnitsel.analyze.dimred.lda import lda
+from shnitsel.analyze.dimred.pca import PCAResult, pca, pca_and_hops, pca_direct
+from shnitsel.analyze.dimred.pls import pls, pls_ds
 from shnitsel.analyze.populations import PopulationStatistics, calc_classical_populations
 from shnitsel.analyze.spectra import get_spectra
 from shnitsel.analyze.stats import calc_confidence_interval, get_inter_state, get_per_state, time_grouped_confidence_interval

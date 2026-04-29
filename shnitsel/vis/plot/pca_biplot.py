@@ -17,8 +17,8 @@ from scipy import stats
 from sklearn.cluster import KMeans
 
 from shnitsel.analyze.generic import get_standardized_pairwise_dists
-from shnitsel.analyze.lda import LDAResult
-from shnitsel.analyze.pca import PCAResult, pca
+from shnitsel.analyze.dimred.lda import LDAResult
+from shnitsel.analyze.dimred.pca import PCAResult, pca
 from shnitsel.core.typedefs import DimName
 from shnitsel.data.dataset_containers import wrap_dataset, Trajectory, Frames
 from shnitsel.data.tree.node import TreeNode
