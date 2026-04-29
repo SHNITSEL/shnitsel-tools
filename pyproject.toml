@@ -45,6 +45,13 @@ dependencies = [
   "aiohttp>=3.13.3"  # versions specified avoid CVE-2025-69223 (vulnerability to zip bombs)
 ]
 
+[project.urls]
+Homepage = "https://shnitsel.github.io/"
+Documentation = "https://shnitsel.github.io/tools/docs/_build/index.html"
+Repository = "https://github.com/CompPhotoChem/shnitsel-tools.git"
+"Bug Tracker" = "https://github.com/CompPhotoChem/shnitsel-tools/issues"
+Changelog = "https://github.com/CompPhotoChem/shnitsel-tools/blob/main/CHANGELOG.md"
+
 [project.optional-dependencies]
 vis = [
   "bokeh>=3.5",
