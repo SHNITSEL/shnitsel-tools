@@ -85,6 +85,7 @@
     - [ ] `focus_hops()`
     - [ ] PLS
     - [ ] LDA
+    - [ ] TICA not yet integrated into `DimRed` type hierarchy
   
 - [ ] CLI tutorial
 - [ ] Full tutorial retinal
