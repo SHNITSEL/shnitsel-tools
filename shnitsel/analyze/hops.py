@@ -179,7 +179,7 @@ def hops(
     frames : xr.Dataset | xr.DataArray | TreeNode[Any, xr.Dataset | DataSeries]
         An Xarray object (Dataset or DataArray) with a ``frames`` dimension or a tree
         structure holding such objects
-    hop_type_selection
+    hop_type_selection : StateSelection | StateSelectionDescriptor
         A list of pairs of states, e.g.:
         ``[(1, 2), (2, 1), (3, 1)]``
         to select only hops between states 1 and 2 as well as from
@@ -328,7 +328,7 @@ def filter_data_at_hops(
     active_state_and_data_source : xr.Dataset |  xr.DataArray | DataSeries | TreeNode[Any, xr.Dataset | DataSeries]| TreeNode[Any, xr.DataArray]
         A source for extracting the active state along a leading dimension and the leading dimension name as well as to filter
         the data from.
-    hop_type_selection: StateSelection, optional
+    hop_type_selection: StateSelection | StateSelectionDescriptor, optional
         A state selection holding state transitions that should be used in hop filtering.
 
     Returns
