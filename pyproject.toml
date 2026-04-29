@@ -67,6 +67,7 @@ dev = [
   "types-tqdm",
   "build",
   "grayskull",
+  "nbconvert>=7.17.0",
 
   # Sphinx and its extensions for building documentation
   "sphinx==8.2.3",
