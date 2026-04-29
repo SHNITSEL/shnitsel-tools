@@ -7,3 +7,4 @@ exclude *.png
 exclude uv.lock
 exclude .*
 exclude MANIFEST.in
+exclude .git_archival.txt
