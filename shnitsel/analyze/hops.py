@@ -8,6 +8,7 @@ import numpy as np
 from shnitsel.core.typedefs import DimName
 from shnitsel.data.dataset_containers import wrap_dataset
 from shnitsel.data.dataset_containers.data_series import DataSeries
+from shnitsel.data.dataset_containers.multi_layered import MultiSeriesLayered
 from shnitsel.data.dataset_containers.frames import Frames
 from shnitsel.data.dataset_containers.shared import ShnitselDataset
 from shnitsel.data.dataset_containers.trajectory import Trajectory
@@ -346,8 +347,7 @@ def filter_data_at_hops(
         return active_state_and_data_source.map_data(
             lambda x: filter_data_at_hops(x, hop_type_selection=hop_type_selection)
         )
-    else:
-        if isinstance(active_state_and_data_source, xr.DataArray):
+    elif isinstance(active_state_and_data_source, xr.DataArray):
             is_hop_mask = hops_mask_from_active_state(
                 active_state_source=active_state_and_data_source,
                 hop_type_selection=hop_type_selection,
@@ -355,37 +355,44 @@ def filter_data_at_hops(
 
             hop_dim = list(is_hop_mask.sizes.keys())[0]
             return active_state_and_data_source[{hop_dim: is_hop_mask}]
-        else:
-            # Frames or Trajectory
-            input_dataset = wrap_dataset(active_state_and_data_source, DataSeries)
-            is_hop_mask = hops_mask_from_active_state(
-                active_state_source=active_state_and_data_source,
-                hop_type_selection=hop_type_selection,
+    elif isinstance(active_state_and_data_source, MultiSeriesLayered):
+        # i.e. if we have a layered Dataset
+        # TODO what about layered DataArray?
+        is_hop_mask = hops_mask_from_active_state(
+            active_state_source=active_state_and_data_source,
+            hop_type_selection=hop_type_selection,
+        )
+        if (ndims := len(is_hop_mask.dims)) != 2:
+            raise ValueError(
+                "Would expect a MultiSeriesLayered to produce a hop mask with two dimensions, "
+                f"rather than {ndims}"
             )
-            # This introduces the coordinates for is_hop_mask, namely the mask of hopping point flags, the hop_from and hop_to coordinates.
-            tmp_dataset = input_dataset.assign_coords(is_hop_mask=is_hop_mask)
-            res_dataset = tmp_dataset.sel(is_hop_mask=True)
+        tmp_dataset = active_state_and_data_source.assign_coords(
+            hop_from=is_hop_mask.coords['hop_from'],
+            hop_to=is_hop_mask.coords['hop_to'],
+        )
+        tmp_dataset = tmp_dataset[{is_hop_mask.dims[0]: is_hop_mask.data.any(axis=1)}]
+        tmp_dataset = tmp_dataset[{is_hop_mask.dims[1]: is_hop_mask.data.any(axis=0)}]
+        is_frame = is_hop_mask.data
+        is_frame = is_frame[is_frame.any(axis=1)]
+        is_frame = is_frame[:, is_frame.any(axis=0)]
+        tmp_dataset = tmp_dataset.assign_coords(is_frame=(is_hop_mask.dims, is_frame))
+        return tmp_dataset
+    else:
+        # Frames or Trajectory
+        input_dataset = wrap_dataset(active_state_and_data_source, DataSeries)
+        is_hop_mask = hops_mask_from_active_state(
+            active_state_source=active_state_and_data_source,
+            hop_type_selection=hop_type_selection,
+        )
+        # This introduces the coordinates for is_hop_mask, namely the mask of hopping point flags, the hop_from and hop_to coordinates.
+        tmp_dataset = input_dataset.assign_coords(
+            hop_from=is_hop_mask.coords['hop_from'],
+            hop_to=is_hop_mask.coords['hop_to'],
+        )
+        res_dataset = tmp_dataset[{is_hop_mask.dims[0]: is_hop_mask.data}]
 
-            # time_step_idxs = np.concat(
-            #     [np.arange(traj.sizes['frame']) for _, traj in frames.groupby('trajid')]
-            # )
-            # hop_tidx = tidxs[is_hop]
-            # res = res.assign_coords(
-            #     # tidx=('frame', hop_tidx),
-            #     hop_from=(frames.astate.shift({'frame': 1}, -1).isel(frame=is_hop)),
-            #     hop_to=res.astate,
-            # # )
-            # if hop_type_selection is not None:
-            #     acc = np.full(res.sizes['frame'], False)
-            #     for hop_from, hop_to in hop_type_selection:
-            #         acc |= (res.hop_from == hop_from) & (res.hop_to == hop_to)
-            #     res = res.isel(frame=acc)
-            # return res.drop_dims(['trajid_'], errors='ignore')
-
-            # We drop the mask that should be all True values now.
-            return wrap_dataset(
-                res_dataset.drop("is_hop_mask", errors="ignore"), DataSeries
-            )
+        return wrap_dataset(res_dataset, DataSeries)
 
 
 @overload
