@@ -252,7 +252,7 @@ def hops(
     # If we only cut out the hops, then the resulting leading dimension should be `frame`
     res = res.assign_coords(
         tidx=('frame', hop_tidx),
-        hop_from=(frames['astate'].shift({'frame': 1}, -1).isel(sel_filter_dict)),
+        hop_from=(frames['astate'].shift({leading_dim: 1}, -1).isel(sel_filter_dict)),
         hop_to=res['astate'],
     )
     if hasattr(res, 'drop_dims'):
