@@ -619,7 +619,7 @@ def focus_hops(
             orig_time = traj["time"].data
 
             #Calculate relative time to jump
-            hop_relative_time = traj.time - hop.hop_time.item()
+            hop_relative_time = traj.time - hop.time.item()
 
             # Switch to `hop_time` dimension instead of `time`
             hop_relative_time = hop_relative_time.rename({leading_dim: "hop_time"})
