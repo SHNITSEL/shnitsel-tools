@@ -34,6 +34,7 @@ Bug fixes compared to previous version and addition of new features:
 * Fix construction of `default_mol()` if mol information is stored in `atXYZ` variable of a dataset for legacy support.
 * Fix issues arising from too strict constraints on different ShnitselDataset container types leading to issues when filtering data.
 * Fix state selection and other state-related operations failing if the state dimension was reduced to a scalar coordinate during filtering.
+* Fix NewtonX import failing due to bad type specifier for atom type names
 
 
 ### Known issues
