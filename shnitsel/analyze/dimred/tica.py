@@ -231,7 +231,7 @@ class TICATransformer(BaseEstimator, TransformerMixin):
     def __init__(self, n_components: int, lagtime: int, reduce_dim: DimName) -> None:
         super().__init__()
         self.scaler = MinMaxScaler()
-        self.reducer_object = "dt_TICA"(lagtime=lagtime, dim=n_components)
+        self.reducer_object = dt_TICA(lagtime=lagtime, dim=n_components)
         self.reduce_dim = reduce_dim
 
     def scale_func(self, da: xr.DataArray | np.ndarray) -> xr.DataArray | np.ndarray:
