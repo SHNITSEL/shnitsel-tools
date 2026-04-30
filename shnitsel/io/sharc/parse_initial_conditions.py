@@ -860,6 +860,7 @@ def parse_QM_out(
     dipole_assigned = False
     nacs_assigned = False
     phases_assigned = False
+    # FIXME: TODO: Add diag coefs, phop and umatrix?
 
     for index, line in enumerate(f):
         line = line.strip()
