@@ -596,6 +596,8 @@ def parse_trajout_dat(
     socs_assigned = False
     velocities_assigned = False
     coefs_assigned = False
+    phop_assigned = False
+    umatrix_assigned = False
 
     sharc_version_parts = [int(x) for x in settings["SHARC_version"].split(".")]
     _sharc_main_version = sharc_version_parts[0]
@@ -612,6 +614,8 @@ def parse_trajout_dat(
     tmp_velocities = np.full_like(trajectory_in.velocities, np.nan)
     # TODO: Do we need to specify the type here?
     tmp_coefs = np.full_like(trajectory_in.state_coefs_diag.values, 0 + 0j)
+    tmp_umatrix = np.full_like(trajectory_in.u_matrix.values, 0 + 0j)
+    tmp_phop = np.full_like(trajectory_in.prob_hop_diag.values, 0.)
 
     # skip through until initial step:
     for line in f:
@@ -662,6 +666,14 @@ def parse_trajout_dat(
                         tmp_socs[ts, full_comb] = np.complex128(
                             float_entries[jstate * 2], float_entries[jstate * 2 + 1]
                         )
+        if line.startswith("! 2 U matrix"):
+            umatrix_assigned = True
+            for istate in range(nstates):
+                linecont = next(f).strip().split()
+                float_entries = [float(i) for i in linecont]
+                # convert list of even number of floats to list of complex numbers
+                complex_entries = [np.complex128(float_entries[2*j], float_entries[2*j+1]) for j in range(nstates)]
+                tmp_umatrix[ts, istate, :] = complex_entries
 
         if line.startswith("! 3 Dipole moments"):
             dipole_assigned = True
@@ -702,6 +714,10 @@ def parse_trajout_dat(
             ]
             coefs_assigned = True
             tmp_coefs[ts] = coefs
+        
+        if line.startswith("! 6 Hopping Probabilities"):
+            phop_assigned = True
+            tmp_phop[ts, :] = [float(next(f).strip()) for i in range(nstates)]
 
         if line.startswith("! 7 Ekin"):
             e_kin_assigned = True
@@ -789,6 +805,12 @@ def parse_trajout_dat(
     if coefs_assigned:
         trajectory_in["state_coefs_diag"].values = tmp_coefs
         mark_variable_assigned(trajectory_in["state_coefs_diag"])
+    if umatrix_assigned:
+        trajectory_in["u_matrix"].values = tmp_umatrix
+        mark_variable_assigned(trajectory_in["u_matrix"])
+    if phop_assigned:
+        trajectory_in["prob_hop_diag"].values = tmp_phop
+        mark_variable_assigned(trajectory_in["prob_hop_diag"])
 
     if not (max_ts + 1 <= nsteps):
         raise ValueError(
