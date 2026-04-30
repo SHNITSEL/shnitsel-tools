@@ -610,7 +610,8 @@ def parse_trajout_dat(
     tmp_nacs = np.full_like(trajectory_in.nacs.values, np.nan)
     tmp_socs = np.full_like(trajectory_in.socs, 0 + 0j)
     tmp_velocities = np.full_like(trajectory_in.velocities, np.nan)
-    tmp_coefs = np.full_like(trajectory_in.coefs.values, 0 + 0j)
+    # TODO: Do we need to specify the type here?
+    tmp_coefs = np.full_like(trajectory_in.state_coefs_diag.values, 0 + 0j)
 
     # skip through until initial step:
     for line in f:
@@ -786,8 +787,8 @@ def parse_trajout_dat(
         trajectory_in["velocities"].values = tmp_velocities
         mark_variable_assigned(trajectory_in["velocities"])
     if coefs_assigned:
-        trajectory_in["coefs"].values = tmp_coefs
-        mark_variable_assigned(trajectory_in["coefs"])
+        trajectory_in["state_coefs_diag"].values = tmp_coefs
+        mark_variable_assigned(trajectory_in["state_coefs_diag"])
 
     if not (max_ts + 1 <= nsteps):
         raise ValueError(
