@@ -238,10 +238,12 @@ def create_initial_dataset(
         "state_charges": ["state"],
         "astate": ["time"],
         "sdiag": ["time"],
-        "phases": ["time", "state"],
-        "coefs": ["time", "state"],
         "atNames": ["atom"],
         "atNums": ["atom"],
+        "phases": ["time", "state"],
+        "state_coefs_diag": ["time", "state"],
+        "prob_hop_diag": ["time", "state"],
+        "u_matrix": ["time", "state", "state2"],
     }
 
     template_default_values = {
@@ -265,7 +267,9 @@ def create_initial_dataset(
         "phases": np.nan,
         "atNames": "",
         "atNums": -1,
-        "coefs": np.nan + 0j,
+        "state_coefs_diag": np.nan + 0j,
+        "prob_hop_diag": np.nan,
+        "u_matrix": np.nan + 0j,
     }
 
     default_float_type = np.dtypes.Float32DType
@@ -292,7 +296,9 @@ def create_initial_dataset(
         "phases": default_float_type,
         "atNames": "U3", #default_string_type,
         "atNums": np.dtypes.Int8DType,
-        "coefs": np.complex128,
+        "state_coefs_diag": np.complex128,
+        "prob_hop_diag": default_float_type,
+        "u_matrix": np.complex128,
     }
 
     dim_lengths = {
