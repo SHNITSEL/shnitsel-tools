@@ -26,7 +26,7 @@ def parse_xyz(f: TextIOWrapper) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     # ts = 0
 
     atXYZ = []  # np.full((nsteps, natoms, 3), np.nan)
-    atNames = np.full((natoms), '', dtype=U8)
+    atNames = np.full((natoms), '', dtype="U3")
     atNums = np.full((natoms), -1, dtype=int)
 
     # Skip one line of the input file
