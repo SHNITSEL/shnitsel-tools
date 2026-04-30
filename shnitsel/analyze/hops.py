@@ -8,6 +8,7 @@ import numpy as np
 from shnitsel.core.typedefs import DimName
 from shnitsel.data.dataset_containers import wrap_dataset
 from shnitsel.data.dataset_containers.data_series import DataSeries
+from shnitsel.data.dataset_containers.multi_layered import MultiSeriesLayered
 from shnitsel.data.dataset_containers.frames import Frames
 from shnitsel.data.dataset_containers.shared import ShnitselDataset
 from shnitsel.data.dataset_containers.trajectory import Trajectory
@@ -354,6 +355,29 @@ def filter_data_at_hops(
 
             hop_dim = list(is_hop_mask.sizes.keys())[0]
             return active_state_and_data_source[{hop_dim: is_hop_mask}]
+    elif isinstance(active_state_and_data_source, MultiSeriesLayered):
+        # i.e. if we have a layered Dataset
+        # TODO what about layered DataArray?
+        is_hop_mask = hops_mask_from_active_state(
+            active_state_source=active_state_and_data_source,
+            hop_type_selection=hop_type_selection,
+        )
+        if (ndims := len(is_hop_mask.dims)) != 2:
+            raise ValueError(
+                "Would expect a MultiSeriesLayered to produce a hop mask with two dimensions, "
+                f"rather than {ndims}"
+            )
+        tmp_dataset = active_state_and_data_source.assign_coords(
+            hop_from=is_hop_mask.coords['hop_from'],
+            hop_to=is_hop_mask.coords['hop_to'],
+        )
+        tmp_dataset = tmp_dataset[{is_hop_mask.dims[0]: is_hop_mask.data.any(axis=1)}]
+        tmp_dataset = tmp_dataset[{is_hop_mask.dims[1]: is_hop_mask.data.any(axis=0)}]
+        is_frame = is_hop_mask.data
+        is_frame = is_frame[is_frame.any(axis=1)]
+        is_frame = is_frame[:, is_frame.any(axis=0)]
+        tmp_dataset = tmp_dataset.assign_coords(is_frame=(is_hop_mask.dims, is_frame))
+        return tmp_dataset
     else:
         # Frames or Trajectory
         input_dataset = wrap_dataset(active_state_and_data_source, DataSeries)
