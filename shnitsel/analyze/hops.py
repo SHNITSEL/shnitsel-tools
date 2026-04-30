@@ -346,8 +346,7 @@ def filter_data_at_hops(
         return active_state_and_data_source.map_data(
             lambda x: filter_data_at_hops(x, hop_type_selection=hop_type_selection)
         )
-    else:
-        if isinstance(active_state_and_data_source, xr.DataArray):
+    elif isinstance(active_state_and_data_source, xr.DataArray):
             is_hop_mask = hops_mask_from_active_state(
                 active_state_source=active_state_and_data_source,
                 hop_type_selection=hop_type_selection,
@@ -355,21 +354,21 @@ def filter_data_at_hops(
 
             hop_dim = list(is_hop_mask.sizes.keys())[0]
             return active_state_and_data_source[{hop_dim: is_hop_mask}]
-        else:
-            # Frames or Trajectory
-            input_dataset = wrap_dataset(active_state_and_data_source, DataSeries)
-            is_hop_mask = hops_mask_from_active_state(
-                active_state_source=active_state_and_data_source,
-                hop_type_selection=hop_type_selection,
-            )
-            # This introduces the coordinates for is_hop_mask, namely the mask of hopping point flags, the hop_from and hop_to coordinates.
-            tmp_dataset = input_dataset.assign_coords(
-                hop_from=is_hop_mask.coords['hop_from'],
-                hop_to=is_hop_mask.coords['hop_to'],
-            )
-            res_dataset = tmp_dataset[{is_hop_mask.dims[0]: is_hop_mask.data}]
+    else:
+        # Frames or Trajectory
+        input_dataset = wrap_dataset(active_state_and_data_source, DataSeries)
+        is_hop_mask = hops_mask_from_active_state(
+            active_state_source=active_state_and_data_source,
+            hop_type_selection=hop_type_selection,
+        )
+        # This introduces the coordinates for is_hop_mask, namely the mask of hopping point flags, the hop_from and hop_to coordinates.
+        tmp_dataset = input_dataset.assign_coords(
+            hop_from=is_hop_mask.coords['hop_from'],
+            hop_to=is_hop_mask.coords['hop_to'],
+        )
+        res_dataset = tmp_dataset[{is_hop_mask.dims[0]: is_hop_mask.data}]
 
-            return wrap_dataset(res_dataset, DataSeries)
+        return wrap_dataset(res_dataset, DataSeries)
 
 
 @overload
