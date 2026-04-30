@@ -218,7 +218,7 @@ def hops(
     sel_filter_dict = {leading_dim: is_hop_mask}
 
     # We only keep the hopping points
-    res = frames.isel(sel_filter_dict)
+    res = frames.sel(sel_filter_dict)
 
     # Rename the leading dimension to `frame` if we kick out all but hopping points.
     res = res.rename({leading_dim: 'frame'})
@@ -537,7 +537,7 @@ def focus_hops(
             res_traj = traj.rename({traj_lead_dim: "hop_time"})
             # Add relative time to hop
             res_traj = res_traj.assign_coords(hop_time=hop_relative_time).drop_vars(
-                [traj_lead_dim, "atrajectory", "time"]
+                [traj_lead_dim, "atrajectory", "time"], errors='ignore'
             )
 
             # Add per-hop metadata
@@ -585,7 +585,7 @@ def focus_hops(
 
             # Add relative time to hop
             res_traj = res_traj.assign_coords(hop_time=hop_relative_time).drop_vars(
-                [traj_lead_dim, "trajectory", "time"]
+                [traj_lead_dim, "trajectory", "time"], errors='ignore'
             )
 
             # Add per-hop metadata
@@ -632,7 +632,7 @@ def focus_hops(
 
             # Add relative time to hop
             res_traj = res_traj.assign_coords(hop_time=hop_relative_time).drop_vars(
-                [leading_dim, "time"]
+                [leading_dim, "time"], errors='ignore'
             )
 
             # Add per-hop metadata
