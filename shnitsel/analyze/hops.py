@@ -128,7 +128,7 @@ def hops_mask_from_active_state(
             state_selection = _get_default_state_selection(
                 hop_type_selection, active_state_source
             )
-            type_filter = np.full(is_hop_mask.sizes[leading_dim], False)
+            type_filter = np.full_like(is_hop_mask, False)
             # TODO: FIXME: We need to make sure that the state combinations returned are actually bidirectional is not directed.
             for hop_from, hop_to in state_selection.state_combinations:
                 type_filter |= (is_hop_mask.hop_from == hop_from) & (
