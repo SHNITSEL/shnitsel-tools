@@ -23,12 +23,12 @@ class PopulationStatistics:
 
     _absolute_statistics: xr.DataArray
 
-    def __init__(self, base_traj_or_data: DataSeries | xr.DataArray):
+    def __init__(self, base_traj_or_data: xr.Dataset | DataSeries | xr.DataArray):
         if isinstance(base_traj_or_data, xr.DataArray):
             self._absolute_statistics = base_traj_or_data
         else:
             self._absolute_statistics = (
-                PopulationStatistics._calc_classical_populations(base_traj_or_data)
+                PopulationStatistics._calc_classical_populations(wrap_dataset(base_traj_or_data, DataSeries))
             )
 
     @property
@@ -75,9 +75,9 @@ class PopulationStatistics:
     @internal()
     @staticmethod
     def _calc_classical_populations(
-        frames: Frames,
+        frames: DataSeries,
     ) -> xr.DataArray:
-        """Function to calculate classical state populations from the active state information in `astate` of the dataset `frames.
+        """Function to calculate classical state populations from the active state information in `astate` of the dataset `frames`.
 
         Does not use the partial QM coefficients of the states.
 
