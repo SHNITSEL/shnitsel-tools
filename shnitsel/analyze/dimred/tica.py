@@ -6,7 +6,7 @@ from sklearn.preprocessing import MinMaxScaler
 from sklearn.pipeline import Pipeline
 import xarray as xr
 
-from shnitsel.analyze._dimred.dim_red_result import DimRedResult
+from .dim_red_result import DimRedResult
 from shnitsel.analyze.generic import norm
 from shnitsel.core.typedefs import DimName
 from shnitsel.data.tree.node import TreeNode
@@ -23,14 +23,14 @@ class TICAResult(
     DimRedResult[OriginType, ResultType],
 ):
     _scaler_object = MinMaxScaler
-    _tica_object: dt_TICA
+    _tica_object: "dt_TICA"
 
     def __init__(
         self,
         inputs: OriginType,
         reduced_dimension: DimName,
         scaler: MinMaxScaler,
-        reducer_object: dt_TICA,
+        reducer_object: "dt_TICA",
         projected_inputs: ResultType,
         pipeline: Pipeline,
     ):
@@ -114,7 +114,7 @@ class TICAResult(
             return self.pipeline.transform(other_da)
 
     @property
-    def fitted_tica_object(self) -> dt_TICA:
+    def fitted_tica_object(self) -> "dt_TICA":
         return self._tica_object
 
 
@@ -223,7 +223,7 @@ from sklearn.base import BaseEstimator, TransformerMixin
 
 class TICATransformer(BaseEstimator, TransformerMixin):
     scaler: MinMaxScaler
-    reducer_object: dt_TICA
+    reducer_object: "dt_TICA"
     reduce_dim: DimName
     # n_components:int
     lagtime: int
@@ -231,7 +231,7 @@ class TICATransformer(BaseEstimator, TransformerMixin):
     def __init__(self, n_components: int, lagtime: int, reduce_dim: DimName) -> None:
         super().__init__()
         self.scaler = MinMaxScaler()
-        self.reducer_object = dt_TICA(lagtime=lagtime, dim=n_components)
+        self.reducer_object = "dt_TICA"(lagtime=lagtime, dim=n_components)
         self.reduce_dim = reduce_dim
 
     def scale_func(self, da: xr.DataArray | np.ndarray) -> xr.DataArray | np.ndarray:
