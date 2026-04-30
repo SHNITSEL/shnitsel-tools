@@ -363,29 +363,13 @@ def filter_data_at_hops(
                 hop_type_selection=hop_type_selection,
             )
             # This introduces the coordinates for is_hop_mask, namely the mask of hopping point flags, the hop_from and hop_to coordinates.
-            tmp_dataset = input_dataset.assign_coords(is_hop_mask=is_hop_mask)
-            res_dataset = tmp_dataset.sel(is_hop_mask=True)
-
-            # time_step_idxs = np.concat(
-            #     [np.arange(traj.sizes['frame']) for _, traj in frames.groupby('trajid')]
-            # )
-            # hop_tidx = tidxs[is_hop]
-            # res = res.assign_coords(
-            #     # tidx=('frame', hop_tidx),
-            #     hop_from=(frames.astate.shift({'frame': 1}, -1).isel(frame=is_hop)),
-            #     hop_to=res.astate,
-            # # )
-            # if hop_type_selection is not None:
-            #     acc = np.full(res.sizes['frame'], False)
-            #     for hop_from, hop_to in hop_type_selection:
-            #         acc |= (res.hop_from == hop_from) & (res.hop_to == hop_to)
-            #     res = res.isel(frame=acc)
-            # return res.drop_dims(['trajid_'], errors='ignore')
-
-            # We drop the mask that should be all True values now.
-            return wrap_dataset(
-                res_dataset.drop("is_hop_mask", errors="ignore"), DataSeries
+            tmp_dataset = input_dataset.assign_coords(
+                hop_from=is_hop_mask.coords['hop_from'],
+                hop_to=is_hop_mask.coords['hop_to'],
             )
+            res_dataset = tmp_dataset[{is_hop_mask.dims[0]: is_hop_mask.data}]
+
+            return wrap_dataset(res_dataset, DataSeries)
 
 
 @overload
