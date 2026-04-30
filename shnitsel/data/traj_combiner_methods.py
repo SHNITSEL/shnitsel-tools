@@ -767,7 +767,12 @@ def layer_trajs(
     # coords_trajids = xr.Coordinates(indexes={"trajid": trajids})
     # breakpoint()
     layers = xr.concat(
-        datasets, dim="trajectory", combine_attrs="drop_conflicts", join="outer"
+        datasets,
+        dim="trajectory",
+        coords="different",
+        compat="equals",
+        combine_attrs="drop_conflicts",
+        join="outer",
     )
 
     # layers = layers.assign_coords(trajid=trajids)
