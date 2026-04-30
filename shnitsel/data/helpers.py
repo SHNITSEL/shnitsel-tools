@@ -140,6 +140,7 @@ def guess_leading_dim(da: xr.DataArray | xr.Dataset | ShnitselDataset) -> DimNam
                 f"Could not determine leading dimension of object of type {type(da)}, leading dimension"\
                 "is neither 'time' nor 'frame' and may otherwise not be unique."
             )
+    return leading_dim
 
 
 # # TODO: deprecate
