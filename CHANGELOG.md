@@ -37,6 +37,8 @@ Bug fixes compared to previous version and addition of new features:
 * Fix issues arising from too strict constraints on different ShnitselDataset container types leading to issues when filtering data.
 * Fix state selection and other state-related operations failing if the state dimension was reduced to a scalar coordinate during filtering.
 * Fix NewtonX import failing due to bad type specifier for atom type names
+* Fix `sanity_check()` failing on stacked trajectories due to bad invocation of `.cumprod()`
+* Fix plots failing due to change in naming conventions.
 
 
 ### Known issues

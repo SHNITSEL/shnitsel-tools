@@ -220,7 +220,8 @@ def truncate(
 
     # If stacked:
     if {'time', 'atrajectory'}.issubset(noncum_mask.coords):
-        cum_mask = noncum_mask.groupby('atrajectory').cumprod('time').astype(bool)
+        # @reshief: The groupby does not promote 'time' to coordinate, so the cumprod must be over 'frame' for stacked trajectories
+        cum_mask = noncum_mask.groupby('atrajectory').cumprod('frame').astype(bool)
     # If layered:
     elif {'time', 'trajectory'}.issubset(noncum_mask.dims):
         cum_mask = noncum_mask.cumprod('time').astype(bool)
