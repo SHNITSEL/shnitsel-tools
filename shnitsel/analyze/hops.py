@@ -822,20 +822,18 @@ def assign_hop_time(
             )
         elif 'trajectory' in frames.dims:
             # We have a layered trajectory set
-            d_times = {
-                trajid: fn(traj.coords["time"]).item()
-                for trajid, traj in hop_data.groupby("trajectory")
-            }
+            assert 'is_frame' in hop_data
+            if which == 'last':
+                rev = hop_data.is_frame[{'time': slice(None, None, -1)}]
+                rev_idxs = rev.argmax('time')
+                idxs = frames.sizes['time'] - 1 - rev_idxs
+            else:
+                assert which == 'first'
+                idxs = hop_data.is_frame.argmax('time')
 
-            hop_time = (
-                frames.time.groupby("trajectory")
-                .map(
-                    lambda traj: (
-                        traj.time.data - d_times.get(traj['trajectory'].item(0), np.nan)
-                    )
-                )
-                .assign_attrs(**hop_time_attrs)
-            )
+            time_at_hop = frames.time[idxs].where(hop_data.is_frame.any('time'))
+            hop_time = (frames.time - time_at_hop).assign_attrs(**hop_time_attrs)
+            d_times = dict(zip(time_at_hop['trajectory'].data, time_at_hop.data))
         else:
             raise ValueError(
                 "Unknown trajectory format: Trajectory could not be identified as either a stacked or layered multi-trajectory format."
