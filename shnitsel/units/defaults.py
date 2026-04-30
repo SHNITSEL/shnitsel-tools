@@ -75,7 +75,7 @@ def get_default_input_attributes(
         "sdiag": {"long_name": "Active state (diag)"},
         "astate": {"long_name": "Active state in dynamic trajectories (MCH)"},
         "state": {"long_name": "Index of relevant states for indexing"},
-        "state2": {"long_name": "The second state to build state combinations out of"},
+        "state2": {"long_name": "The second state to build state combinations out of."},
         "state_names": {"long_name": "String representations of the states."},
         "state_types": {
             "long_name": "Multiplicity to indicate whether the respective state is singlet (1), doublet (2), or triplet(3)"
@@ -129,6 +129,23 @@ def get_default_input_attributes(
             "unitdim": unit_dimensions.velocity,
             "units": override_defaults(unit_dimensions.velocity, "velocities"),
         },
+        "state_coefs_diag": {
+            "long_name": "Coefficients of current active state in diagonal basis",
+            "units": "1",
+        },
+        "prob_hop_diag": {
+            "long_name": "Hopping probability to states in diagonal basis",
+            "description": "Hopping probabilities denote the probability of hopping from the currently active diagonal state to the respective target diagonal state.",
+            "units": "1",
+        },
+        "u_matrix": {
+            "long_name": "Diag to MCH transformation matrix",
+            "units": "1",
+            "description": "The U matrix converts from the diag into the MCH matrix like $c_{MCH} = U c_{diag}$. "
+            "As such, the 'state2' dimension should be considered as the index in the diagonal basis and the 'state' dimension as the index in the MCH basis.",
+        },
+        # history
+        # A global attribute for an audit trail. This is a character array with a line for each invocation of a program that has modified the dataset. Well-behaved generic netCDF applications should append a line containing: date, time of day, user name, program name and command arguments.
     }
 
     return res
