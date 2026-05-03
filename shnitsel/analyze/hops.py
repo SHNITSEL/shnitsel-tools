@@ -647,8 +647,15 @@ def focus_hops(
             if window is not None:
                 res_traj = res_traj.sel(hop_time=window)
             hop_window_data.append(res_traj)
-        
-        res = xr.concat(hop_window_data, "hop", join="outer")
+
+        res = xr.concat(
+            hop_window_data,
+            "hop",
+            join="outer",
+            data_vars='all',
+            coords='different',
+            compat='equals',
+        )
         from_to = (
             hop_vals[["hop_from", "hop_to"]]
             .drop_vars(["frame", "atrajectory", "time", "tidx"], errors='ignore')
