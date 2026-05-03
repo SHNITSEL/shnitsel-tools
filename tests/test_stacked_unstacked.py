@@ -14,6 +14,8 @@ PER_TRAJ_COORDS = [
     'max_ts',
     'has_forces',
     'input_format',
+    'delta_t',
+    'nsteps',
 ]
 
 
@@ -33,10 +35,13 @@ def stacked():
 def unstacked(stacked):
     return stacked.st.unstack_trajs()
 
+# def test_round_trip(stacked):
+
 
 @pytest.mark.parametrize(
     "func,data_var,kws",
     [
+        (lambda x: x, None, {}),
         (st.analyze.generic.norm, None, {}),
         (st.analyze.generic.center, 'atXYZ', dict(dim='atom')),
         (st.analyze.generic.subtract_combinations, 'atXYZ', dict(dim='atom')),
