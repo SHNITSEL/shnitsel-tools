@@ -763,6 +763,12 @@ def layer_trajs(
         ds.expand_dims(trajectory=[id]) for ds, id in zip(datasets_converted, trajids)
     ]
 
+    # Indicate which array entries are placeholders
+    datasets = [
+        x.assign_coords({'is_frame': (ld, np.ones(x.sizes[ld]))})
+        for x, ld in zip(datasets, leading_dimension)
+    ]
+
     # trajids = pd.Index(meta["trajid"], name="trajid")
     # coords_trajids = xr.Coordinates(indexes={"trajid": trajids})
     # breakpoint()
@@ -773,6 +779,10 @@ def layer_trajs(
         compat="equals",
         combine_attrs="drop_conflicts",
         join="outer",
+    )
+    # Convert 1.0 and nan to True and False
+    layers = layers.assign_coords(
+        is_frame=layers.coords['is_frame'].fillna(0.0).astype(bool)
     )
 
     # layers = layers.assign_coords(trajid=trajids)
