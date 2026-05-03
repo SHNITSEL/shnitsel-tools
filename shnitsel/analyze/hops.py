@@ -615,7 +615,8 @@ def focus_hops(
     else:
         # Deal with layered trajectories
         for lead_coord, hop in hop_vals.groupby(leading_dim):
-            traj = frames.sel({leading_dim:[lead_coord]})
+            # traj = frames.sel({leading_dim:[lead_coord]})
+            traj = frames
             orig_time = traj["time"].data
 
             #Calculate relative time to jump
