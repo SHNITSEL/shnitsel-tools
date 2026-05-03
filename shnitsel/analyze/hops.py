@@ -13,7 +13,7 @@ from shnitsel.data.dataset_containers.frames import Frames
 from shnitsel.data.dataset_containers.shared import ShnitselDataset
 from shnitsel.data.dataset_containers.trajectory import Trajectory
 from shnitsel.data.helpers import guess_leading_dim
-from shnitsel.data.multi_indices import mdiff, sel_trajs
+from shnitsel.data.multi_indices import mdiff, sel_trajs, stack_trajs
 from shnitsel.data.tree.node import TreeNode
 from shnitsel.data.tree.tree import ShnitselDB
 from shnitsel.filtering.state_selection import StateSelection, StateSelectionDescriptor
@@ -205,7 +205,11 @@ def hops(
     if isinstance(frames, TreeNode):
         return frames.map_data(hops, hop_type_selection=hop_type_selection)
 
-    # TODO: FIXME: Do we want to error out on layered sets? We may want to only support stacked and single sets.
+    # Test for layered format:
+    if 'trajectory' in frames.dims and 'atrajectory' not in frames.coords:
+        # It doesn't make sense to output hops in layered form; they're too sparse.
+        # So, converting here save trouble dealing with a third format later.
+        frames = stack_trajs(frames)
 
     is_hop_mask = hops_mask_from_active_state(
         frames, hop_type_selection=hop_type_selection
@@ -220,9 +224,6 @@ def hops(
     # We only keep the hopping points
     res = frames.sel(sel_filter_dict)
 
-    # Rename the leading dimension to `frame` if we kick out all but hopping points.
-    res = res.rename({leading_dim: 'frame'})
-
     # TODO: FIXME: If we have more than a single dimension indexing `hop_mask`, then this may break? Also if the frames are not ordered by `atrajectory, this will also break`
     # Specifically, for layered instead of stacked datasets, this breaks, I assume
     if 'atrajectory' in frames:
@@ -232,18 +233,6 @@ def hops(
                 for _, traj in frames.groupby('atrajectory')
             ]
         )
-    elif 'trajectory' in frames:
-        tidxs = np.concat(
-            [
-                np.arange(traj.sizes[leading_dim])
-                for _, traj in frames.groupby('trajectory')
-            ]
-        )
-        logging.warning(
-            "For layered trajectories, `hops()` may not perform as intended."
-        )
-        # @reshief:
-        # TODO: FIXME: Here we need to reshape is_hop_mask to fit the one-dimensional shape of tidxs
     else:
         # Assume this is a single trajectory
         tidxs = np.arange(frames.sizes[leading_dim])
@@ -251,7 +240,7 @@ def hops(
     hop_tidx = tidxs[is_hop_mask]
     # If we only cut out the hops, then the resulting leading dimension should be `frame`
     res = res.assign_coords(
-        tidx=('frame', hop_tidx),
+        tidx=(leading_dim, hop_tidx),
         hop_from=(frames['astate'].shift({leading_dim: 1}, -1).isel(sel_filter_dict)),
         hop_to=res['astate'],
     )
@@ -571,7 +560,7 @@ def focus_hops(
         return res.assign_coords(
             atrajectory=("hop", hop_trajectory_id), hop_from=from_to["hop_from"], hop_to=from_to["hop_to"]
         )
-    elif 'trajectory' in frames:
+    elif 'trajectory' in frames.dims:
         # Deal with layered trajectories
         for (hop_trajectory, hop_time), hop in hop_vals.groupby(['trajectory', leading_dim]):
             traj = frames.sel(trajectory=[hop_trajectory])
