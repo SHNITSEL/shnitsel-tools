@@ -477,6 +477,10 @@ def focus_hops(
             hop_type_selection=hop_type_selection,
             window=window,
         )
+    # Test for layered format:
+    if 'trajectory' in frames.dims and 'atrajectory' not in frames.coords:
+        # Conversion is fast, and there is no advantage to the layered layout in this scenario
+        frames = stack_trajs(frames)
 
     leading_dim = guess_leading_dim(frames)
 
@@ -560,54 +564,54 @@ def focus_hops(
         return res.assign_coords(
             atrajectory=("hop", hop_trajectory_id), hop_from=from_to["hop_from"], hop_to=from_to["hop_to"]
         )
-    elif 'trajectory' in frames.dims:
-        # Deal with layered trajectories
-        for (hop_trajectory, hop_time), hop in hop_vals.groupby(['trajectory', leading_dim]):
-            traj = frames.sel(trajectory=[hop_trajectory])
-            traj_lead_dim = guess_leading_dim(traj)
-            orig_time = traj["time"].data
+    # elif 'trajectory' in frames.dims:
+    #     # Deal with layered trajectories
+    #     for (hop_trajectory, hop_time), hop in hop_vals.groupby(['trajectory', leading_dim]):
+    #         traj = frames.sel(trajectory=[hop_trajectory])
+    #         traj_lead_dim = guess_leading_dim(traj)
+    #         orig_time = traj["time"].data
 
-            #Calculate relative time to jump
-            hop_relative_time = traj.time - hop_time
+    #         #Calculate relative time to jump
+    #         hop_relative_time = traj.time - hop_time
 
-            # Switch to `hop_time` dimension instead of `time`
-            hop_relative_time = hop_relative_time.rename({traj_lead_dim: "hop_time"})
-            hop_relative_time = hop_relative_time.drop_vars(
-                [traj_lead_dim, "trajectory", "time"], errors='ignore'
-            )
+    #         # Switch to `hop_time` dimension instead of `time`
+    #         hop_relative_time = hop_relative_time.rename({traj_lead_dim: "hop_time"})
+    #         hop_relative_time = hop_relative_time.drop_vars(
+    #             [traj_lead_dim, "trajectory", "time"], errors='ignore'
+    #         )
 
-            # Switch to `hop_time` dimension in main trajectory data
-            res_traj = traj.rename({traj_lead_dim: "hop_time"})
+    #         # Switch to `hop_time` dimension in main trajectory data
+    #         res_traj = traj.rename({traj_lead_dim: "hop_time"})
 
-            # Add relative time to hop
-            res_traj = res_traj.assign_coords(hop_time=hop_relative_time).drop_vars(
-                [traj_lead_dim, "trajectory", "time"], errors='ignore'
-            )
+    #         # Add relative time to hop
+    #         res_traj = res_traj.assign_coords(hop_time=hop_relative_time).drop_vars(
+    #             [traj_lead_dim, "trajectory", "time"], errors='ignore'
+    #         )
 
-            # Add per-hop metadata
-            res_traj = res_traj.assign_coords(time=(("hop", "hop_time"), orig_time[None, :]))
-            tidx = xr.Variable(dims=("hop_time"), data=np.arange(len(orig_time)))
-            res_traj = res_traj.assign_coords(tidx=tidx.expand_dims("hop"))
+    #         # Add per-hop metadata
+    #         res_traj = res_traj.assign_coords(time=(("hop", "hop_time"), orig_time[None, :]))
+    #         tidx = xr.Variable(dims=("hop_time"), data=np.arange(len(orig_time)))
+    #         res_traj = res_traj.assign_coords(tidx=tidx.expand_dims("hop"))
 
-            # Add further hop-independent metadata
-            res_traj = res_traj.assign_coords(hop_tidx=tidx - hop["tidx"].item())
+    #         # Add further hop-independent metadata
+    #         res_traj = res_traj.assign_coords(hop_tidx=tidx - hop["tidx"].item())
 
-            res_traj = res_traj.drop_dims(["trajectory"], errors="ignore")
-            if window is not None:
-                res_traj = res_traj.sel(hop_time=window)
+    #         res_traj = res_traj.drop_dims(["trajectory"], errors="ignore")
+    #         if window is not None:
+    #             res_traj = res_traj.sel(hop_time=window)
 
-            hop_trajectory_id.append(hop_trajectory)
-            hop_window_data.append(res_traj)
-        
-        res = xr.concat(hop_window_data, "hop", join="outer")
-        from_to = (
-            hop_vals[["hop_from", "hop_to"]]
-            .drop_vars(["frame", "atrajectory", "time", "tidx"], errors='ignore')
-            .rename({leading_dim: "hop"})
-        )
-        return res.assign_coords(
-            atrajectory=("hop", hop_trajectory_id), hop_from=from_to["hop_from"], hop_to=from_to["hop_to"]
-        )
+    #         hop_trajectory_id.append(hop_trajectory)
+    #         hop_window_data.append(res_traj)
+
+    #     res = xr.concat(hop_window_data, "hop", join="outer")
+    #     from_to = (
+    #         hop_vals[["hop_from", "hop_to"]]
+    #         .drop_vars(["frame", "atrajectory", "time", "tidx"], errors='ignore')
+    #         .rename({leading_dim: "hop"})
+    #     )
+    #     return res.assign_coords(
+    #         atrajectory=("hop", hop_trajectory_id), hop_from=from_to["hop_from"], hop_to=from_to["hop_to"]
+    #     )
     else:
         # Deal with layered trajectories
         for lead_coord, hop in hop_vals.groupby(leading_dim):
