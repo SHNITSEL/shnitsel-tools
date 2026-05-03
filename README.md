@@ -269,7 +269,7 @@ conda activate shnitsel
 pip install shnitsel-tools[vis]
 ```
 
-### Instalation using uv
+### Installation using uv
 This tool is typically faster and more light-weight than `pip` and `conda`.
 Unlike `conda`, it creates traditional Python virtual environments, which are stored in the folder in which the command is run and activated by sourcing
 a shell-script. It can be installed by following the instructions at https://docs.astral.sh/uv/.
