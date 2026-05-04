@@ -95,7 +95,8 @@ class MultiSeriesLayered(MultiSeriesDataset):
                 wrap_dataset(
                     (tmp_ds := ds.sel(trajectory=id))
                     .isel(time=slice(None, tmp_ds.max_ts.item() + 1))
-                    .drop_dims('trajectory', errors="ignore"),
+                    .drop_vars('trajid', errors='ignore')
+                    .rename(trajectory='trajid'),
                     expected_types=Trajectory | Frames,
                 )
                 for id in ds.coords['trajectory'].values

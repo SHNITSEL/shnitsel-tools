@@ -114,27 +114,27 @@ class Frames(DataSeries):
         Usually `time` or `frame`."""
         return "frame"
 
-    @property
-    def trajid(self) -> int | str | None:
-        """Id of the trajectory. If assigned it is expected to be unique across the same input
-        but may clash with other trajectory ids if multiple separate imports are combined
-        or indepdendent simulation data is combined."""
-        trajid = super().trajid
-        if trajid is None:
-            # Try and get the own trajectory id from the active trajectory
-            trajid = self._param_from_vars_or_attrs('atrajectory')
+    # @property
+    # def trajid(self) -> int | str | None:
+    #     """Id of the trajectory. If assigned it is expected to be unique across the same input
+    #     but may clash with other trajectory ids if multiple separate imports are combined
+    #     or indepdendent simulation data is combined."""
+    #     trajid = super().trajid
+    #     if trajid is None:
+    #         # Try and get the own trajectory id from the active trajectory
+    #         trajid = self._param_from_vars_or_attrs('atrajectory')
 
-        if trajid is not None and not isinstance(trajid, (int, str)):
-            trajids = set(
-                trajid.values[:].tolist()
-                if isinstance(trajid, xr.DataArray)
-                else trajid
-            )
+    #     if trajid is not None and not isinstance(trajid, (int, str)):
+    #         trajids = set(
+    #             trajid.values[:].tolist()
+    #             if isinstance(trajid, xr.DataArray)
+    #             else trajid
+    #         )
 
-            if len(trajids) == 1:
-                return trajids.pop()
+    #         if len(trajids) == 1:
+    #             return trajids.pop()
 
-        return trajid
+    #     return trajid
 
     @property
     def atrajectory(self) -> xr.DataArray | None:

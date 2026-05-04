@@ -1,7 +1,8 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from functools import cached_property
-from typing import Any, Literal, TYPE_CHECKING
+from typing import Any, Literal, TYPE_CHECKING, Sequence
+import numpy as np
 
 from ..trajectory_grouping_params import TrajectoryGroupingMetadata
 
@@ -183,6 +184,7 @@ class DataSeries(ShnitselDataset):
             return self._raw_dataset.coords[key]
         elif key in self._raw_dataset.attrs:
             return self._raw_dataset.attrs.get(key, None)
+        return None
 
     @property
     def t_max(self) -> float:
@@ -213,7 +215,7 @@ class DataSeries(ShnitselDataset):
         return float(delta_t)
 
     @property
-    def trajid(self) -> int | str | None:
+    def trajid(self) -> int | str | Sequence[int|str] | None:
         """Id of the trajectory. If assigned it is expected to be unique across the same input
         but may clash with other trajectory ids if multiple separate imports are combined
         or indepdendent simulation data is combined."""
@@ -226,10 +228,38 @@ class DataSeries(ShnitselDataset):
             trajid = self._param_from_vars_or_attrs('trajectory_id')
         if trajid is None:
             trajid = self._param_from_vars_or_attrs('trajectory')
+
+        if trajid is None:
+            # Try and get the own trajectory id from the active trajectory
+            atrajs:xr.DataArray = self._param_from_vars_or_attrs('atrajectory')
+            if np.atleast_1d(atrajs):
+                trajid = np.unique(atrajs.values).tolist()
+                if len(trajid)>1:
+                    return trajid
+                else:
+                    return trajid[0]
+            else:
+                trajid = atrajs.item()
+                return trajid
+
+        if trajid is not None:
+            if isinstance(trajid, (int, str)):
+                return trajid
+            
+            if np.atleast_1d(trajid):
+                trajid = np.unique(trajid.values).tolist()
+                if len(trajid)>1:
+                    return trajid
+                else:
+                    return trajid[0]
+
+            if isinstance(trajid, xr.DataArray):
+                return trajid.item()
+            
         return trajid
 
     @property
-    def trajectory_id(self) -> int | str | None:
+    def trajectory_id(self) -> int | str | Sequence[int|str] | None:
         """An alias for `trajid` with a more telling name"""
         return self.trajid
 
