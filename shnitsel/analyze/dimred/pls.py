@@ -6,6 +6,7 @@ from sklearn.preprocessing import MinMaxScaler
 import xarray as xr
 
 from shnitsel.core.typedefs import DimName
+from shnitsel.data.multi_indices import ensure_stacked
 from shnitsel.data.tree.node import TreeNode
 from .dim_red_result import DimRedResult
 
@@ -146,20 +147,31 @@ def pls(
     xr.Dataset
         The dataset holding the results of the PLS analysis. Results will either be in variables with the same name as `xdata_array` or `ydata_array` or in variables `x` and `y` if the names on the respective array are not set.
     """
+
+    # We only implement stacked versions of pls-analysis.
+    xdata_array, _ = ensure_stacked(xdata_array)
+    ydata_array, _ = ensure_stacked(ydata_array)
+
     if common_dim is None:
         candidates = set(xdata_array.sizes.keys())
         intersection = candidates.intersection(ydata_array.sizes.keys())
 
         if len(intersection) > 1:
-            raise ValueError(f"Common dimension for PLS analysis not specified, but xdata and ydata share more than one dimension: {intersection}. Please specify the common dimension to use.")
+            raise ValueError(
+                f"Common dimension for PLS analysis not specified, but xdata and ydata share more than one dimension: {intersection}. Please specify the common dimension to use."
+            )
         elif len(intersection) == 0:
-            raise ValueError(f"xdata and ydata do not share any common dimensions. PLS analysis impossible.")
+            raise ValueError(
+                f"xdata and ydata do not share any common dimensions. PLS analysis impossible."
+            )
         else:
             common_dim = str(intersection.pop())
 
     if len(xdata_array.dims) != 2:
         if len(xdata_array.dims) == 1:
-            logging.warning(f"xdata array is of dimension 1 and will be padded to represent a 2d-array with 1 feature")
+            logging.warning(
+                f"xdata array is of dimension 1 and will be padded to represent a 2d-array with 1 feature"
+            )
             xdata_array = xdata_array.expand_dims("features").transpose(common_dim, ...)
         else:
             raise ValueError(
@@ -168,14 +180,16 @@ def pls(
             )
     if len(ydata_array.dims) != 2:
         if len(ydata_array.dims) == 1:
-            logging.warning(f"ydata array is of dimension 1 and will be padded to represent a 2d-array with 1 target")
+            logging.warning(
+                f"ydata array is of dimension 1 and will be padded to represent a 2d-array with 1 target"
+            )
             ydata_array = ydata_array.expand_dims("targets").transpose(common_dim, ...)
         else:
             raise ValueError(
                 "ydata_array should have 1 or 2 dimensions, in fact it has "
                 f"{len(ydata_array.dims)}, namely {ydata_array.dims}"
             )
-        
+
     if common_dim is None:
         common_dims = set(xdata_array.dims).intersection(ydata_array.dims)
         if len(common_dims) != 1:
