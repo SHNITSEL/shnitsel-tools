@@ -10,6 +10,7 @@ from matplotlib.testing.decorators import image_comparison
 import shnitsel as st
 from shnitsel.analyze.dimred.pca import pca_and_hops
 from shnitsel.data.dataset_containers.frames import Frames
+from shnitsel.data.dataset_containers.multi_stacked import MultiSeriesStacked
 from shnitsel.data.tree.node import TreeNode
 from shnitsel.vis.plot.pca_biplot import cluster_loadings, plot_loadings
 import shnitsel.xarray
@@ -35,7 +36,7 @@ class TestPlotFunctionality:
             ('./tutorials/test_data/shnitsel/traj_I02.nc', 1),
         ]
     )
-    def ensembles(self, request) -> Frames:
+    def ensembles(self, request) -> MultiSeriesStacked:
         path, charge = request.param
         db = read(path)
         assert isinstance(db, TreeNode)
@@ -43,8 +44,8 @@ class TestPlotFunctionality:
         return res
 
     @pytest.fixture
-    def spectra3d(self, ensembles):
-        return ensembles.st.get_inter_state().st.assign_fosc().st.spectra_all_times()
+    def spectra3d(self, ensembles:MultiSeriesStacked):
+        return ensembles.inter_state.st.get_spectra()
 
     #################
     # plot.spectra3d:
@@ -64,9 +65,9 @@ class TestPlotFunctionality:
 
     ###########
     # plot.kde:
-    @pytest.mark.xfail
+    # @pytest.mark.xfail
     def test_biplot_kde(self, ensembles):
-        from shnitsel.vis.plot.kde import biplot_kde
+        from shnitsel.vis.plot.biplot import biplot_kde
 
         biplot_kde(
             ensembles,
@@ -82,13 +83,19 @@ class TestPlotFunctionality:
 
         noodle, _ = pca_and_hops(ensembles, center_mean=False)
         geo_prop = np.zeros(noodle.projected_inputs.sizes['frame'])
-        return _fit_and_eval_kdes(noodle, geo_prop, [(-1, 1)])
+        return _fit_and_eval_kdes(noodle, geo_property=geo_prop, geo_kde_ranges=[(-1, 1)])
     
     @pytest.mark.xfail
-    def test_plot_kdes(self, kde_data):
-        from shnitsel.vis.plot.kde import _plot_kdes
+    def test_plot_distribution_on_mesh(self, kde_data):
+        from shnitsel.vis.plot.kde import plot_distribution_on_mesh
 
-        _plot_kdes(*kde_data)
+        plot_distribution_on_mesh(*kde_data)
+
+    @pytest.mark.xfail
+    def test_plot_distribution_heatmap(self, kde_data):
+        from shnitsel.vis.plot.kde import plot_distribution_heatmap
+
+        plot_distribution_heatmap(*kde_data)
 
     @pytest.mark.xfail
     def test_plot_cdf_for_kde(self, kde_data):
@@ -109,7 +116,7 @@ class TestPlotFunctionality:
     @pytest.fixture
     def clusters_loadings_mols(self, ensembles: Frames):
         import shnitsel.xarray
-        from shnitsel.analyze._dimred.pca import pca, PCAResult
+        from shnitsel.analyze.dimred.pca import pca, PCAResult
 
         pca_res: PCAResult = pca(ensembles)  # ['atXYZ'].st.pwdists().st.pca('atomcomb')
         loadings = pca_res.principal_components
