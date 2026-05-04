@@ -17,7 +17,10 @@ def main():
             populations,
             hops,
         )
-        from shnitsel.analyze.dimred import lda, pca, pls
+        import shnitsel.analyze.dimred.lda as lda
+        import shnitsel.analyze.dimred.pls as pls
+        import shnitsel.analyze.dimred.pca as pca
+
         from shnitsel.data import multi_indices
         import shnitsel.data.helpers as data_helpers
         from shnitsel.geo import geocalc, alignment  # , geomatch_exact

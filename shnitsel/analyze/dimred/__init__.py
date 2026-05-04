@@ -1,8 +1,7 @@
 from .dim_red_result import DimRedResult
-from .pca import PCA, pca, pca_direct, PCAResult
+from .pca import PCA, pca_direct, PCAResult
 from .lda import (
     LDA,
-    lda,
     linear_discriminat_analysis,
     LDAResult,
     qda,
@@ -11,7 +10,7 @@ from .lda import (
     QDAResult,
 )
 from .tica import TICA, tica, TICAResult
-from .pls import PLS, pls, PLSResult
+from .pls import PLS, pls_ds, PLSResult
 
 __all__ = [
     "PCA",
@@ -25,7 +24,7 @@ __all__ = [
     # "quadratic_discriminat_analysis",
     # "QDAResult",
     "PLS",
-    "pls",
+    "pls_ds",
     "tica",
     "TICA",
     "DimRedResult",
