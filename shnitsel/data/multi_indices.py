@@ -374,7 +374,7 @@ def sel_trajs(
     ------
     NotImplementedError
         when an attempt is made to index an :py:class:`xr.Datset` without a
-        ``trajid_`` dimension/coordinate using a boolean mask
+        ``trajectory`` dimension/coordinate using a boolean mask
     TypeError
         If ``trajids_or_mask`` has a dtype other than integer or boolean
     """
@@ -384,15 +384,18 @@ def sel_trajs(
         return _sel_trajs_unstacked(obj, trajids_or_mask, invert)
     trajids: npt.NDArray | xr.DataArray
     if np.issubdtype(trajids_or_mask.dtype, np.integer):
+        # We have trajectory ids in the selector
         trajids = trajids_or_mask
     elif np.issubdtype(trajids_or_mask.dtype, bool):
+        # We have a mask in the selector and need to select the appropriate trajectory ids based on that mask
         mask = trajids_or_mask
-        if 'trajid_' in obj.dims:
-            trajids = obj['trajid_'][mask]
+        # We can only mask a list of trajectory ids if we have a trajectory coordinate
+        if 'trajectory' in obj.coords:
+            trajids = obj['trajectory'][mask]
         else:
             raise NotImplementedError(
                 "Indexing trajids with a boolean mask is only supported when the "
-                "coordinate 'trajid_' is present, or if `frames` has unstacked trajectories "
+                "coordinate 'trajectory' is present, or if `frames` has unstacked trajectories "
                 "(i.e. separate dimesions for trajectory and time)"
             )
     else:
@@ -403,7 +406,7 @@ def sel_trajs(
     return _sel_trajids(frames=obj, trajids=trajids, invert=invert)
 
 
-@needs(dims={'frame'}, coords_or_vars={'trajid'})
+@needs(dims={'frame'}, coords={'trajectory'}, coords_or_vars={'atrajectory'})
 def _sel_trajids(
     frames: DatasetOrArray, trajids: npt.ArrayLike, invert: bool = False
 ) -> DatasetOrArray:
@@ -435,48 +438,82 @@ def _sel_trajids(
         missing = trajids[~np.isin(trajids, frames.coords['trajectory'])]
         raise KeyError(
             f"Of the supplied trajectory IDs, {len(missing)} were "
-            f"not found in index 'trajid': {missing}"
+            f"not found in index 'trajectory': {missing}"
         )
-    mask = frames['trajectory'].isin(trajids)
+    # we want to filter for `atrajectory` and for trajectory
+    # mask = frames['trajectory'].isin(trajids)
+    mask = frames['atrajectory'].isin(trajids)
     if invert:
         mask = ~mask
+
     res = frames.sel(frame=mask)
 
     # TODO: FIXME: This needs to be made resilient to stacked and layered sets. Selecting from within the `frames` stack fails the test
 
     if 'trajectory' in frames.dims:
-        actually_selected = np.unique(res['trajectory'])
+        actually_selected = np.unique(res['atrajectory'])
         res = res.sel(trajectory=actually_selected)
     return res
 
 
-def _sel_trajs_unstacked(obj, indexer, invert):
+def _sel_trajs_unstacked(
+    obj: DatasetOrArray, trajids: npt.ArrayLike, invert: bool = False
+) -> DatasetOrArray:
+    """Select trajectories from a layered set using a list of trajectories IDs;
+    note that the trajectories may not be returned in the order specified.
+
+    Parameters
+    ----------
+    frames : DatasetOrArray
+        The :py:class:`xr.Dataset` in layered/unstacked form from which a selection is to be drawn
+    trajids : npt.ArrayLike
+        A sequences of integers representing trajectory IDs to be included,
+    invert :bool, optional
+        Whether to invert the selection, i.e. return those trajectories not specified, by default False
+
+    Returns
+    -------
+    DatasetOrArray
+        A new layered/unstacked :py:class:`xr.Dataset` containing only the specified trajectories
+
+    Raises
+    ------
+    KeyError
+        If some of the supplied trajectory IDs are not present in the ``trajectory`` coordinate
+    """
     traj_dim_name = (
         'trajectory'
         if 'trajectory' in obj.dims
         else 'trajid'
         if 'trajid' in obj.dims
-        else 'atrajectory'
-        if 'atrajectory' in obj.dims
+        # atrajectory is no valid trajectory dimension name
+        # else 'atrajectory'
+        # if 'atrajectory' in obj.dims
         else None
     )
-    assert traj_dim_name is not None
-    if not invert:
-        return obj.loc[{traj_dim_name: indexer}]
+    assert traj_dim_name is not None, (
+        f"Could not identify trajectory indexing dimension in layered dataset: {obj}"
+    )
 
-    if np.issubdtype(indexer.dtype, np.integer):
+    if not invert:
+        return obj.loc[{traj_dim_name: trajids}]
+
+    if np.issubdtype(trajids.dtype, np.integer):
         full_coord = obj.coords[traj_dim_name]
-        indexer = full_coord[~full_coord.isin(indexer)]
-    elif np.issubdtype(indexer.dtype, bool):
-        indexer = ~indexer
+        trajids = full_coord[~full_coord.isin(trajids)]
+    elif np.issubdtype(trajids.dtype, bool):
+        trajids = ~trajids
     else:
         raise ValueError(
             "Could not invert selection, please provide integer labels or a boolean mask"
         )
 
+    # Now locate with inverted list of trajectory ids
+    return obj.loc[{traj_dim_name: trajids}]
+
 
 class dtype_NA:
-    """A sentinel value for the ``fill_value`` param in
+    """A sentinel value for the ``fill_value`` param in.sel(trajectory=trajids)
     :py:func:`shnitsel.data.multi_indices.unstack_trajs`"""
 
 
@@ -636,11 +673,16 @@ def stack_trajs(unstacked: DatasetOrArray) -> DatasetOrArray:
         tscoord = unstacked.coords['time'].rename(time='time_slice')
         per_time_coords['time_slice'] = tscoord
 
-    res = (
-        unstacked.drop_vars(to_drop)
-        .rename_dims(trajectory='atrajectory')
-        .stack({'frame': ['atrajectory', 'time']})
-    )
+    dropped_res = res = unstacked.drop_vars(to_drop)
+    if 'trajectory' in dropped_res.coords or 'trajectory' in dropped_res.dims:
+        if isinstance(unstacked, xr.DataArray):
+            dropped_res = dropped_res.rename(trajectory='atrajectory')
+        else:
+            dropped_res = dropped_res.rename_dims(trajectory='atrajectory')
+    else:
+        dropped_res = dropped_res.expand_dims({'atrajectory': ['1']})
+    
+    res =  dropped_res.stack({'frame': ['atrajectory', 'time']})
 
     if 'is_frame' in res:
         res = res.isel(frame=res.is_frame).drop_vars('is_frame')
@@ -735,6 +777,31 @@ def ensure_unstacked(obj, fill_value=dtype_NA):
     was_stacked = is_stacked(obj)
     unstacked = unstack_trajs(obj, fill_value=fill_value) if was_stacked else obj
     return unstacked, was_stacked
+
+
+def ensure_stacked(obj, fill_value=dtype_NA):
+    """Stack ``obj`` if it contains unstacked trajectories
+
+    Parameters
+    ----------
+    obj
+        An xarray Dataset/DataArray, or a wrapper around one
+    fill_value
+        The value used to identify entries that were unspecified in
+        unstacked format; by default, the dtype's NA value will be used.
+
+    Returns
+    -------
+    stacked
+        The stacked Dataset/DataArray
+    was_unstacked
+        Whether ``obj`` had unstacked trajectories
+    """
+    # TODO: FIXME: Generate `is_frame` mask on-demand based on fill_value.
+
+    was_unstacked = is_unstacked(obj)
+    stacked = stack_trajs(obj) if was_unstacked else obj
+    return stacked, was_unstacked
 
 
 @needs(dims={'frame'})
