@@ -118,6 +118,7 @@ class TestAccessors:
             # 'msel': dict(),
             'sel_trajs': dict(trajids_or_mask=[1]),
             'stack_trajs': dict(),
+            'unstack_trajs': dict(),
             'energy_filtranda': dict(),
             'sanity_check': dict(),
             'omit': dict(),
