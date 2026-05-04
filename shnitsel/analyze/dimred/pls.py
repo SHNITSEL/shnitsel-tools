@@ -1,3 +1,4 @@
+import logging
 from typing import Generic, TypeVar
 from sklearn.cross_decomposition import PLSRegression as sk_PLS
 from sklearn.pipeline import Pipeline
@@ -145,16 +146,36 @@ def pls(
     xr.Dataset
         The dataset holding the results of the PLS analysis. Results will either be in variables with the same name as `xdata_array` or `ydata_array` or in variables `x` and `y` if the names on the respective array are not set.
     """
+    if common_dim is None:
+        candidates = set(xdata_array.sizes.keys())
+        intersection = candidates.intersection(ydata_array.sizes.keys())
+
+        if len(intersection) > 1:
+            raise ValueError(f"Common dimension for PLS analysis not specified, but xdata and ydata share more than one dimension: {intersection}. Please specify the common dimension to use.")
+        elif len(intersection) == 0:
+            raise ValueError(f"xdata and ydata do not share any common dimensions. PLS analysis impossible.")
+        else:
+            common_dim = str(intersection.pop())
+
     if len(xdata_array.dims) != 2:
-        raise ValueError(
-            "xdata_array should have 2 dimensions, in fact it has "
-            f"{len(xdata_array.dims)}, namely {xdata_array.dims}"
-        )
+        if len(xdata_array.dims) == 1:
+            logging.warning(f"xdata array is of dimension 1 and will be padded to represent a 2d-array with 1 feature")
+            xdata_array = xdata_array.expand_dims("features").transpose(common_dim, ...)
+        else:
+            raise ValueError(
+                "xdata_array should have 1 or 2 dimensions, in fact it has "
+                f"{len(xdata_array.dims)}, namely {xdata_array.dims}"
+            )
     if len(ydata_array.dims) != 2:
-        raise ValueError(
-            "ydata_array should have 2 dimensions, in fact it has "
-            f"{len(ydata_array.dims)}, namely {ydata_array.dims}"
-        )
+        if len(ydata_array.dims) == 1:
+            logging.warning(f"ydata array is of dimension 1 and will be padded to represent a 2d-array with 1 target")
+            ydata_array = ydata_array.expand_dims("targets").transpose(common_dim, ...)
+        else:
+            raise ValueError(
+                "ydata_array should have 1 or 2 dimensions, in fact it has "
+                f"{len(ydata_array.dims)}, namely {ydata_array.dims}"
+            )
+        
     if common_dim is None:
         common_dims = set(xdata_array.dims).intersection(ydata_array.dims)
         if len(common_dims) != 1:
@@ -187,7 +208,12 @@ def pls(
     )
     xname = xdata_array.name or 'x'
     yname = ydata_array.name or 'y'
-    pls_res = xr.Dataset({xname: xres, yname: yres})
+
+    # Avoid clashes in shape if we had to expand dimensions of one or both of the arrays
+    xres = xres.drop_vars([yname], errors='ignore')
+    yres = yres.drop_vars([xname], errors='ignore')
+
+    pls_res = xr.Dataset({xname: xres, yname: yres.drop_vars([xname], errors='ignore')})
     # TODO: What are these loadings? and why do we not optionally return them?
     loadings = xr.Dataset(
         {
