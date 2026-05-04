@@ -12,15 +12,16 @@ import xarray
 import xarray as xr
 from ._accessors import DAManualAccessor, DSManualAccessor
 from ._contracts import needs
-from collections.abc import Collection, Hashable, Iterable, Sequence
+from collections.abc import Collection, Hashable, Iterable, Mapping, Sequence
+from matplotlib.axes._axes import Axes
 from numpy import nan, ndarray
 from os import PathLike
 from rdkit.Chem.rdchem import Mol
-from shnitsel.analyze.generic import keep_norming, norm, pwdists, subtract_combinations
-from shnitsel.analyze.hops import assign_hop_time, filter_data_at_hops, focus_hops, hops_mask_from_active_state
-from shnitsel.analyze.dimred.lda import lda
+from shnitsel.analyze.dimred.lda import LDAResult, lda
 from shnitsel.analyze.dimred.pca import PCAResult, pca, pca_and_hops, pca_direct
 from shnitsel.analyze.dimred.pls import pls, pls_ds
+from shnitsel.analyze.generic import keep_norming, norm, pwdists, subtract_combinations
+from shnitsel.analyze.hops import assign_hop_time, filter_data_at_hops, focus_hops, hops_mask_from_active_state
 from shnitsel.analyze.populations import PopulationStatistics, calc_classical_populations
 from shnitsel.analyze.spectra import get_spectra
 from shnitsel.analyze.stats import calc_confidence_interval, get_inter_state, get_per_state, time_grouped_confidence_interval
@@ -113,7 +114,9 @@ class DataArrayAccessor(DAManualAccessor):
         'traj3D',
         'trajs3Dgrid',
         'traj_vmd',
+        'timeplot',
         'pca',
+        'pca_direct',
         'lda',
         'pls',
         'hops_mask_from_active_state',
@@ -122,11 +125,11 @@ class DataArrayAccessor(DAManualAccessor):
         'assign_hop_time',
     ]
 
-    def norm(self, dim: str = 'direction', keep_attrs: (bool | str | None) = None) -> DataArrayOrVar:
+    def norm(self, dim: (str | Hashable) = 'direction', keep_attrs: (bool | str | None) = None) -> DataArrayOrVar:
         """Wrapper for :py:func:`shnitsel.analyze.generic.norm`."""
         return norm(self._obj, dim = dim, keep_attrs = keep_attrs)
 
-    def subtract_combinations(self, dim: str, add_labels: bool = False) -> DataArray:
+    def subtract_combinations(self, dim: (str | Hashable), add_labels: bool = False) -> DataArray:
         """Wrapper for :py:func:`shnitsel.analyze.generic.subtract_combinations`."""
         return subtract_combinations(self._obj, dim, add_labels = add_labels)
 
@@ -233,7 +236,7 @@ class DataArrayAccessor(DAManualAccessor):
         """Wrapper for :py:func:`shnitsel.data.multi_indices.stack_trajs`."""
         return stack_trajs(self._obj)
 
-    def unstack_trajs(self, fill_value = dtype_NA) -> DatasetOrArray:
+    def unstack_trajs(self, fill_value = dtype_NA) -> DatasetOrArray | ShnitselDataset:
         """Wrapper for :py:func:`shnitsel.data.multi_indices.unstack_trajs`."""
         return unstack_trajs(self._obj, fill_value = fill_value)
 
@@ -329,31 +332,31 @@ class DataArrayAccessor(DAManualAccessor):
 
     def timeplot(
         self,
-        ax = None,
-        trajs = None,
-        sep = False,
-        time_coord='time',
+        ax: (Axes | None) = None,
+        trajs: Literal["ci", "shade", "conv", None] = None,
+        sep: bool = False,
+        time_coord = 'time',
     ):
         """Wrapper for :py:func:`shnitsel.vis.plot.time.timeplot`."""
-        return timeplot(self._obj, ax=ax, trajs=trajs, sep=sep, time_coord=time_coord)
+        return timeplot(self._obj, ax = ax, trajs = trajs, sep = sep, time_coord = time_coord)
 
     def pca(self, structure_selection: (StructureSelection | str | Literal["atoms", "bonds", "angles", "dihedrals", "pyramids", "pwdist", "BLA"] | int | tuple | tuple | tuple | tuple | Collection | None) = None, dim: (Hashable | None) = None, n_components: int = 2, center_mean: bool = False) -> (PCAResult | TreeNode):
-        """Wrapper for :py:func:`shnitsel.analyze.pca.pca`."""
+        """Wrapper for :py:func:`shnitsel.analyze.dimred.pca.pca`."""
         return pca(self._obj, structure_selection = structure_selection, dim = dim, n_components = n_components, center_mean = center_mean)
 
-    def pca_direct(self, dim, n_components=2):
-        """Wrapper for :py:func:`shnitsel.analyze.pca.pca_direct`."""
-        return pca_direct(self._obj, dim=dim, n_components=n_components)
+    def pca_direct(self, dim: Hashable, n_components: int = 2) -> PCAResult:
+        """Wrapper for :py:func:`shnitsel.analyze.dimred.pca.pca_direct`."""
+        return pca_direct(self._obj, dim = dim, n_components = n_components)
 
-    def lda(self, dim: str, cats: (str | DataArray), n_components: int = 2) -> DataArray:
-        """Wrapper for :py:func:`shnitsel.analyze.lda.lda`."""
-        return lda(self._obj, dim, cats, n_components = n_components)
+    def lda(self, categories: (TreeNode[Any, DataArray] | str | DataArray), dim: (str | Hashable | None) = None, features: (str | None) = None, n_components: int = 2, category_labels: (Mapping | None) = None) -> (TreeNode | LDAResult | None):
+        """Wrapper for :py:func:`shnitsel.analyze.dimred.lda.lda`."""
+        return lda(self._obj, categories, dim = dim, features = features, n_components = n_components, category_labels = category_labels)
 
     def pls(self, ydata_array: DataArray, n_components: int = 2, common_dim: (str | None) = None) -> Dataset:
-        """Wrapper for :py:func:`shnitsel.analyze.pls.pls`."""
+        """Wrapper for :py:func:`shnitsel.analyze.dimred.pls.pls`."""
         return pls(self._obj, ydata_array, n_components = n_components, common_dim = common_dim)
 
-    def hops_mask_from_active_state(self, hop_type_selection: (StateSelection | Sequence | Sequence | str | None) = None, dim: (str | None) = None) -> (DataArray | TreeNode[Any, DataArray]):
+    def hops_mask_from_active_state(self, hop_type_selection: (StateSelection | Sequence | Sequence | str | None) = None, dim: (str | Hashable | None) = None) -> (DataArray | TreeNode[Any, DataArray]):
         """Wrapper for :py:func:`shnitsel.analyze.hops.hops_mask_from_active_state`."""
         return hops_mask_from_active_state(self._obj, hop_type_selection = hop_type_selection, dim = dim)
 
@@ -361,7 +364,7 @@ class DataArrayAccessor(DAManualAccessor):
         """Wrapper for :py:func:`shnitsel.analyze.hops.filter_data_at_hops`."""
         return filter_data_at_hops(self._obj, hop_type_selection = hop_type_selection)
 
-    def focus_hops(self, hop_type_selection: (StateSelection | Sequence | Sequence | str | None) = None, window: (slice | None) = None):
+    def focus_hops(self, hop_type_selection: (StateSelection | Sequence | Sequence | str | None) = None, window: (slice | None) = None) -> (Dataset | DataArray | DataSeries | TreeNode):
         """Wrapper for :py:func:`shnitsel.analyze.hops.focus_hops`."""
         return focus_hops(self._obj, hop_type_selection = hop_type_selection, window = window)
 
@@ -408,7 +411,7 @@ class DatasetAccessor(DSManualAccessor):
 
     @needs(coords_or_vars={'astate', 'atXYZ'})
     def pca_and_hops(self, structure_selection: (StructureSelection | str | Literal["atoms", "bonds", "angles", "dihedrals", "pyramids", "pwdist", "BLA"] | int | tuple | tuple | tuple | tuple | Collection | None) = None, center_mean: bool = False, n_components: int = 2) -> (TreeNode | tuple):
-        """Wrapper for :py:func:`shnitsel.analyze.pca.pca_and_hops`."""
+        """Wrapper for :py:func:`shnitsel.analyze.dimred.pca.pca_and_hops`."""
         return pca_and_hops(self._obj, structure_selection = structure_selection, center_mean = center_mean, n_components = n_components)
 
     def validate(self) -> ndarray:
@@ -464,7 +467,7 @@ class DatasetAccessor(DSManualAccessor):
         """Wrapper for :py:func:`shnitsel.data.multi_indices.sel_trajs`."""
         return sel_trajs(self._obj, trajids_or_mask, invert = invert)
 
-    def unstack_trajs(self, fill_value = dtype_NA) -> DatasetOrArray:
+    def unstack_trajs(self, fill_value = dtype_NA) -> DatasetOrArray | ShnitselDataset:
         """Wrapper for :py:func:`shnitsel.data.multi_indices.unstack_trajs`."""
         return unstack_trajs(self._obj, fill_value = fill_value)
 
@@ -514,10 +517,10 @@ class DatasetAccessor(DSManualAccessor):
         return write_ase_db(self._obj, db_path, db_format = db_format, keys_to_write = keys_to_write, preprocess = preprocess, force = force)
 
     def pls_ds(self, xname: str, yname: str, n_components: int = 2, common_dim: (str | None) = None) -> Dataset:
-        """Wrapper for :py:func:`shnitsel.analyze.pls.pls_ds`."""
+        """Wrapper for :py:func:`shnitsel.analyze.dimred.pls.pls_ds`."""
         return pls_ds(self._obj, xname, yname, n_components = n_components, common_dim = common_dim)
 
-    def hops_mask_from_active_state(self, hop_type_selection: (StateSelection | Sequence | Sequence | str | None) = None, dim: (str | None) = None) -> (DataArray | TreeNode[Any, DataArray]):
+    def hops_mask_from_active_state(self, hop_type_selection: (StateSelection | Sequence | Sequence | str | None) = None, dim: (str | Hashable | None) = None) -> (DataArray | TreeNode[Any, DataArray]):
         """Wrapper for :py:func:`shnitsel.analyze.hops.hops_mask_from_active_state`."""
         return hops_mask_from_active_state(self._obj, hop_type_selection = hop_type_selection, dim = dim)
 
@@ -525,7 +528,7 @@ class DatasetAccessor(DSManualAccessor):
         """Wrapper for :py:func:`shnitsel.analyze.hops.filter_data_at_hops`."""
         return filter_data_at_hops(self._obj, hop_type_selection = hop_type_selection)
 
-    def focus_hops(self, hop_type_selection: (StateSelection | Sequence | Sequence | str | None) = None, window: (slice | None) = None):
+    def focus_hops(self, hop_type_selection: (StateSelection | Sequence | Sequence | str | None) = None, window: (slice | None) = None) -> (Dataset | DataArray | DataSeries | TreeNode):
         """Wrapper for :py:func:`shnitsel.analyze.hops.focus_hops`."""
         return focus_hops(self._obj, hop_type_selection = hop_type_selection, window = window)
 
