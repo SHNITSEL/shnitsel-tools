@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import itertools
-from typing import Callable, Sequence, TypeVar
+import logging
+from typing import TYPE_CHECKING, Callable, Sequence, TypeVar
 
 import numpy.typing as npt
 
@@ -12,6 +13,9 @@ import numpy as np
 import pandas as pd
 
 from shnitsel.core._api_info import internal
+
+if TYPE_CHECKING:
+    from shnitsel.data.dataset_containers.shared import ShnitselDataset
 
 from .._contracts import needs
 
@@ -470,12 +474,15 @@ def _sel_trajs_unstacked(obj, indexer, invert):
             "Could not invert selection, please provide integer labels or a boolean mask"
         )
 
+
 class dtype_NA:
     """A sentinel value for the ``fill_value`` param in
     :py:func:`shnitsel.data.multi_indices.unstack_trajs`"""
 
 
-def unstack_trajs(frames: DatasetOrArray, fill_value=dtype_NA) -> DatasetOrArray:
+def unstack_trajs(
+    frames: DatasetOrArray | ShnitselDataset, fill_value=dtype_NA
+) -> DatasetOrArray | ShnitselDataset:
     """Unstack the ``frame`` MultiIndex so that ``atrajectory`` and ``time`` become
     separate dims, with ``atrajectory`` renamed to ``trajectory``.
     Wraps the :py:meth:`xarray.Dataset.unstack` method.
@@ -498,6 +505,10 @@ def unstack_trajs(frames: DatasetOrArray, fill_value=dtype_NA) -> DatasetOrArray
         An :py:class:`xarray.Dataset` with independent ``trajectory`` and ``time``
         dimensions. Same type as `frames`
     """
+    if not is_stacked(frames):
+        logging.warning("Input dataset is not stacked and cannot be unstacked")
+        return frames
+
     per_traj_coords = {
         k: v for k, v in dict(frames.coords).items() if 'trajectory' in v.dims
     }
@@ -581,11 +592,15 @@ def stack_trajs(unstacked: DatasetOrArray) -> DatasetOrArray:
         ``time_slice`` will be independent of the ``frame`` dimension and its ``atrajectory`` and
         ``time`` levels.
     """
+    if is_stacked(unstacked):
+        logging.info("Input dataset is already stacked")
+        return unstacked
+
     # NOTE: In the following, we do NOT exclude the 'trajectory' coord itself
     per_traj_coords = {
         k: v
         for k, v in dict(unstacked.coords).items()
-        if 'trajectory' in v.dims and 'time' not in v.dims
+        if 'trajectory' in v.dims and 'time' not in v.dims and k != 'trajectory'
     }
     # NOTE: In the following, we DO exclude the 'time' coord itself, since it needs to be renamed
     per_time_coords = {
@@ -593,6 +608,7 @@ def stack_trajs(unstacked: DatasetOrArray) -> DatasetOrArray:
         for k, v in dict(unstacked.coords).items()
         if 'time' in v.dims and 'trajectory' not in v.dims and v.name != 'time'
     }
+
     if hasattr(unstacked, 'data_vars'):
         has_data_vars = True
         per_traj_vars = {
@@ -625,11 +641,14 @@ def stack_trajs(unstacked: DatasetOrArray) -> DatasetOrArray:
         .rename_dims(trajectory='atrajectory')
         .stack({'frame': ['atrajectory', 'time']})
     )
+
     if 'is_frame' in res:
         res = res.isel(frame=res.is_frame).drop_vars('is_frame')
     res = res.assign_coords(per_traj_coords).assign_coords(per_time_coords)
+
     if has_data_vars:
         res = res.assign(per_traj_vars).assign(per_time_vars)
+
     return res
 
 
@@ -659,7 +678,40 @@ def is_stacked(obj):
     )
     time_coord = c.get('time', xr.DataArray())
     coords_share_dim = not set(traj_coord.dims).isdisjoint(time_coord.dims)
+
     return is_wrapped_stacked or coords_share_dim
+
+
+def is_layered(obj: xr.Dataset | xr.DataArray | ShnitselDataset):
+    """Test whether an object has layered trajectories
+
+    Parameters
+    ----------
+    obj
+        An xarray Dataset/DataArray, or a wrapper around one
+
+    Returns
+    -------
+        True if ``obj`` shows signs of containing multiple
+        trajectories along a separate `trajectory` dimension.
+    """
+    from shnitsel.data.dataset_containers.multi_layered import MultiSeriesLayered
+
+    TRAJECTORY_DIM_NAMES = {'trajid', 'atrajectory'}
+
+    is_wrapped_layered = isinstance(obj, MultiSeriesLayered)
+
+    c = obj.coords
+    traj_coord = c.get(
+        'trajid', c.get('atrajectory', c.get('trajectory', xr.DataArray()))
+    )
+    time_coord = c.get('time', xr.DataArray())
+    coords_dont_share_dim = set(traj_coord.dims).isdisjoint(time_coord.dims)
+
+    return is_wrapped_layered or coords_dont_share_dim
+
+
+is_unstacked = is_layered
 
 
 def ensure_unstacked(obj, fill_value=dtype_NA):
