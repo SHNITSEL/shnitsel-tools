@@ -1,3 +1,5 @@
+from shnitsel.data.dataset_containers.multi_layered import MultiSeriesLayered
+from shnitsel.data.dataset_containers.multi_stacked import MultiSeriesStacked
 from shnitsel.data.tree.node import TreeNode
 import shnitsel.xarray
 import xarray as xr
@@ -12,7 +14,7 @@ class TestAccessors:
             ('./tutorials/test_data/shnitsel/traj_I02.nc', 1),
         ]
     )
-    def ds(self, request):
+    def ds_stacked(self, request) -> MultiSeriesStacked:
         from shnitsel.io import read
 
         path, charge = request.param
@@ -21,9 +23,24 @@ class TestAccessors:
         res = db.as_stacked
         return res
 
+    @pytest.fixture(
+        params=[
+            ('./tutorials/test_data/shnitsel/traj_I02.nc', 1),
+        ]
+    )
+    def ds_layered(self, request) -> MultiSeriesLayered:
+        from shnitsel.io import read
+
+        path, charge = request.param
+        db = read(path).set_charge(charge)
+        assert isinstance(db, TreeNode)
+        res = db.as_layered
+        return res
+
     # TODO: Subtests is a feature of pytest 9, which we do not list as requirement
-    # def test_da_accessors(self, ds, subtests):
-    def test_da_accessors(self, ds):
+    def test_da_accessors(
+        self, ds_stacked: MultiSeriesStacked, ds_layered: MultiSeriesLayered, subtests
+    ):
         kws = {
             'norm': dict(),
             'subtract_combinations': dict(),
@@ -73,22 +90,25 @@ class TestAccessors:
             'lda': dict(),
             'pls': dict(),
         }
-        for var_name, da in ds.data_vars.items():
-            for method_name in da.st.suitable:
-                # with subtests.test(
-                #     f"ds['{var_name}'].st.{method_name}",
-                #     var_name=var_name,
-                #     method_name=method_name,
-                # ):
-                assert hasattr(da.st, method_name)
-                # if method_name in kws:
-                #     getattr(da.st, method_name)(**kws[method_name])
+        for multi_key, multi_set in {"stacked": ds_stacked, "layered": ds_layered}.items():
+            for var_name, da in multi_set.data_vars.items():
+                for method_name in da.st.suitable:
+                    with subtests.test(
+                        f"ds({multi_key})['{var_name}'].st.{method_name}",
+                        var_name=var_name,
+                        method_name=method_name,
+                    ):
+                        assert hasattr(da.st, method_name)
+                        # TODO: FIXME: The generic invocation on all variables leads to issues with some accessors due to missing dimensions etc.
+                        # if method_name in kws:
+                        #     getattr(da.st, method_name)(**kws[method_name])
 
     # TODO: Subtests is a feature of pytest 9, which we do not list as requirement
-    # def test_ds_accessors(self, ds, subtests):
     # TODO: FIXME: Multi-index selectors/helpers are broken
-    @pytest.mark.xfail
-    def test_ds_accessors(self, ds):
+    # @pytest.mark.xfail
+    def test_ds_accessors(
+        self, ds_stacked: MultiSeriesStacked, ds_layered: MultiSeriesLayered, subtests
+    ):
         kws = {
             'pca_and_hops': dict(center_mean=False),
             'flatten_levels': dict(idx_name='frame', levels=['time']),
@@ -102,8 +122,8 @@ class TestAccessors:
             'sanity_check': dict(),
             'omit': dict(),
             'truncate': dict(),
-            'transect': dict(),
-            'pls_ds': dict(x='energy', y='astate'),
+            'transect': dict(cutoff_time=100),
+            'pls_ds': dict(xname='energy', yname='astate'),
             'FrameSelector': dict(data_var='energy', dim='frame'),
             'TrajSelector': dict(),
         }
@@ -114,9 +134,12 @@ class TestAccessors:
             'FrameSelector',  # test Dataset may lack 2d data_var with size 2 dimension
             'TrajSelector',  # cf. FrameSelector
         ]
-        for method_name in ds.st.suitable:
-            # with subtests.test(f"ds.st.{method_name}", method_name=method_name):
-            assert hasattr(ds.st, method_name)
-            if method_name in kws and method_name not in blacklist:
-                print(method_name)
-                getattr(ds.st, method_name)(**kws[method_name])
+        for multi_key, multi_set in {"stacked": ds_stacked, "layered": ds_layered}.items():
+            for method_name in multi_set.st.suitable:
+                with subtests.test(
+                    f"ds({multi_key}).st.{method_name}", method_name=method_name
+                ):
+                    assert hasattr(multi_set.st, method_name)
+                    if method_name in kws and method_name not in blacklist:
+                        print(method_name)
+                        getattr(multi_set.st, method_name)(**kws[method_name])
