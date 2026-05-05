@@ -1107,8 +1107,8 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
         from .compound import CompoundGroup
         from .tree import ShnitselDBRoot
 
-        assert isinstance(self, (DataGroup, CompoundGroup, ShnitselDBRoot)), (
-            "Unsupported node type provided to `map` function: %s" % type(self)
+        assert isinstance(self, (DataLeaf, DataGroup, CompoundGroup, ShnitselDBRoot)), (
+            "Unsupported node type provided to `filter_nodes` function: %s" % type(self)
         )
 
         keep_self = filter_func(self)
