@@ -39,6 +39,9 @@ Bug fixes compared to previous version and addition of new features:
 * Fix NewtonX import failing due to bad type specifier for atom type names
 * Fix `sanity_check()` failing on stacked trajectories due to bad invocation of `.cumprod()`
 * Fix plots failing due to change in naming conventions.
+* Fix issues with constructing default molecular structures from layered trajectories
+* Fix filtering for physical sanity not working on layered trajectories
+
 
 
 ### Known issues

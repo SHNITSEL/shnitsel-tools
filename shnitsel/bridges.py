@@ -361,19 +361,23 @@ def construct_default_mol(
         mol = numbered_smiles_to_mol(obj.attrs['smiles_map'])
     elif 'smiles_map' in atXYZ.attrs:
         return sap(numbered_smiles_to_mol(atXYZ.attrs['smiles_map']))
+    
+    # Figure out if there are remaining dimensions that we have not yet singled out
+    atXYZ_dims = set(atXYZ.dims)
+    excess_dims = atXYZ_dims.difference({'atom', 'direction'})
 
-    if 'frame' in atXYZ.dims:
+    if len(excess_dims) >0:
         if not silent_mode:
             logging.info("Picking first frame for molecule construction")
-        atXYZ = atXYZ.isel(frame=0)
-        if 'frame' in atXYZ.dims:
-            atXYZ = atXYZ.squeeze('frame')
-    if 'time' in atXYZ.dims:
-        if not silent_mode:
-            logging.info("Picking first time step for molecule construction")
-        atXYZ = atXYZ.isel(time=0)
-        if 'time' in atXYZ.dims:
-            atXYZ = atXYZ.squeeze('time')
+        # Just pick the first entry:
+        selector = {}
+        for e_dim in excess_dims:
+            selector[e_dim] = 0
+        atXYZ = atXYZ.isel(selector)
+        # If the dimension is still remaining with length 1, squeeze it out.
+        remaining_dims = set(atXYZ.dims).intersection(excess_dims)
+        if remaining_dims:
+            atXYZ = atXYZ.squeeze(remaining_dims)
 
     try:
         if charge_int != 0 and not silent_mode:
