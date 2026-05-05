@@ -133,7 +133,7 @@ def _filter_mask_from_dataset(ds: xr.Dataset) -> xr.DataArray:
         if "good_throughout" not in mask.coords:
             raise ValueError(
                 "data_var 'good_upto' is missing expected coord "
-                "'good_throughout'; will recalculate."
+                "'good_throughout'"
             )
         else:
             return mask
@@ -229,7 +229,7 @@ def truncate(
     else:
         cum_mask = noncum_mask.cumprod().astype(bool)
 
-    tmp_res = wrapped_dataset.dataset.isel({wrapped_dataset.leading_dim: cum_mask})
+    tmp_res = wrapped_dataset.dataset.where(cum_mask)
 
     # Guard agains empty trajectories being kept
     if (
