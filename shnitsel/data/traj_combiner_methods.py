@@ -782,7 +782,7 @@ def layer_trajs(
     )
     # Convert 1.0 and nan to True and False
     layers = layers.assign_coords(
-        is_frame=layers.coords['is_frame'].fillna(0.0).astype(bool)
+        is_frame=layers.coords['is_frame'].fillna(0).astype(bool)
     )
 
     # layers = layers.assign_coords(trajid=trajids)
