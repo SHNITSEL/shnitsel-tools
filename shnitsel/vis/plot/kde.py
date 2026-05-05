@@ -96,7 +96,7 @@ def fit_kde(
 
 def filter_by_property_range(
     data: xr.DataArray,
-    property_values: xr.DataArray,
+    property_values: np.ndarray | xr.DataArray,
     property_ranges: Sequence[tuple[float, float]],
     leading_dim: DimName | None = None,
 ) -> Sequence[xr.DataArray]:
@@ -112,7 +112,7 @@ def filter_by_property_range(
     data : xr.DataArray
         The data which should be filtered for the various ranges. 
         Usually PCA data or data obtained from another kind of clustering or dimensionality reduction.
-    property_values : xr.DataArray
+    property_values : np.ndarray | xr.DataArray
         The (geometric) property that the data should be clustered/filtered by.
     property_ranges : Sequence[tuple[float, float]]
         The sequence of (distinct) ranges of values of the (geometric) property
@@ -151,7 +151,7 @@ def filter_by_property_range(
 
 def fit_filtered_kdes(
     data: xr.DataArray,
-    geo_property: xr.DataArray,
+    geo_property: np.ndarray | xr.DataArray,
     geo_kde_ranges: Sequence[tuple[float, float]],
     leading_dim: DimName | None = None,
 ) -> Sequence[stats.gaussian_kde | None]:
@@ -170,7 +170,7 @@ def fit_filtered_kdes(
     data : xr.DataArray
         The data for which KDEs should be fitted on the various ranges. 
         Usually PCA data or data obtained from another kind of clustering or dimensionality reduction.
-    geo_property : xr.DataArray
+    geo_property : np.ndarray | xr.DataArray
         The geometric property that the data should be clustered/filtered by.
     geo_kde_ranges : Sequence[tuple[float, float]]
         The sequence of (distinct) ranges of values of the geometric property
@@ -347,7 +347,7 @@ def _get_oversized_meshgrid(
 
 def _fit_and_eval_kdes(
     pca_data: PCAResult,
-    geo_property: xr.DataArray | TreeNode[Any, xr.DataArray],
+    geo_property: np.ndarray | xr.DataArray | TreeNode[Any, xr.DataArray],
     geo_kde_ranges: Sequence[tuple[float, float]],
     num_steps: int = 500,
     extension: float = 0.1,
@@ -361,10 +361,10 @@ def _fit_and_eval_kdes(
 
     Parameters
     ----------
-    pca_data: xr.DataArray
+    pca_data: xr.DataArray | PCAResult
         The transformed pca data to get the supporting mesh grid for and extract
         the KDEs from.
-    geo_property : xr.DataArray
+    geo_property : np.ndarray | xr.DataArray
         The geometric property that the data should be clustered/filtered by.
     geo_kde_ranges : Sequence[tuple[float, float]]
         The sequence of (distinct) ranges of values of the geometric property
@@ -393,7 +393,7 @@ def _fit_and_eval_kdes(
 
     if isinstance(geo_property, TreeNode):
         geo_property = geo_property.as_stacked
-    assert isinstance(geo_property, xr.DataArray)
+    assert isinstance(geo_property, (xr.DataArray, np.ndarray))
     pca_data_da = pca_data_da.transpose(
         'frame', 'time', ..., missing_dims='ignore'
     )  # required order for the following 3 lines
@@ -510,7 +510,7 @@ def plot_distribution_heatmap(
     if cmap is None:
         cmap = plt.get_cmap('inferno')
 
-    ax.pcolormesh(xx, yy, Zs, cmap=cmap, rasterized=True)
+    ax.pcolormesh(xx, yy, Zs, cmap=cmap, rasterized=True, shading="nearest")
     return fig, ax
 
 
