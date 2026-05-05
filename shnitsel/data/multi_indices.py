@@ -708,7 +708,7 @@ def stack_trajs(unstacked: DatasetOrArray) -> DatasetOrArray:
             k: v.attrs.get("fill_value", np.nan) for k, v in unstacked.variables.items()
         }
     orig_unstacked = unstacked
-    
+
     # NOTE: In the following, we do NOT exclude the 'trajectory' coord itself
     per_traj_coords = {
         k: v
@@ -750,6 +750,7 @@ def stack_trajs(unstacked: DatasetOrArray) -> DatasetOrArray:
         per_time_coords['time_slice'] = tscoord
 
     dropped_res = res = unstacked.drop_vars(to_drop)
+
     if 'trajectory' in dropped_res.coords or 'trajectory' in dropped_res.dims:
         if isinstance(unstacked, xr.DataArray):
             dropped_res = dropped_res.rename(trajectory='atrajectory')
@@ -760,7 +761,8 @@ def stack_trajs(unstacked: DatasetOrArray) -> DatasetOrArray:
 
     res = dropped_res.stack({'frame': ['atrajectory', 'time']})
 
-    if 'is_frame' in res:
+
+    if 'is_frame' in res.coords:
         res = res.isel(frame=res.is_frame).drop_vars('is_frame')
 
     if isinstance(res, xr.DataArray):

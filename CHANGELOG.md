@@ -43,6 +43,7 @@ Bug fixes compared to previous version and addition of new features:
 * Fix issues with constructing default molecular structures from layered trajectories
 * Fix filtering for physical sanity not working on layered trajectories
 * Fix multi-index methods failing on layered trajectories. Will now simply not modify the trajectory if they cannot be applied and print out a warning.
+* Fix repeated stacking and unstacking not correctly filtering out padding entries in data.
 
 
 ### Known issues
