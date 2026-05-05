@@ -640,7 +640,7 @@ def unstack_trajs(
     replacements = {}
     for retained_var_name, retained_dtype in retain_type.items():
         if retained_var_name in res and 'frame' in orig_frames[retained_var_name].dims:
-            if res[retained_var_name].dtype is not retained_dtype:
+            if res[retained_var_name].dtype != retained_dtype:
                 try:
                     replacements[retained_var_name] = (
                         res[retained_var_name]
@@ -658,7 +658,7 @@ def unstack_trajs(
 
     if isinstance(res, xr.DataArray):
         # The main data in the array is not covered by our replacement strategy for xr.DataArray instances
-        if res.dtype is not frames.dtype:
+        if res.dtype != frames.dtype:
             try:
                 res = res.astype(frames.dtype)
             except:
@@ -746,6 +746,7 @@ def stack_trajs(unstacked: DatasetOrArray) -> DatasetOrArray:
     )
 
     if per_time_coords or per_time_vars:
+        # Keep a coordinate with all contained time values as `time_slice`
         tscoord = unstacked.coords['time'].rename(time='time_slice')
         per_time_coords['time_slice'] = tscoord
 
@@ -791,18 +792,30 @@ def stack_trajs(unstacked: DatasetOrArray) -> DatasetOrArray:
     for retained_var_name, retained_dtype in retain_type.items():
         if retained_var_name in res and 'frame' in res[retained_var_name].dims:
             # Filter out all fill_value entries
+            has_update = False
             mask = res[retained_var_name] != fill_value.get(retained_var_name, np.nan)
-            tmp_array = res[retained_var_name].where(mask)
 
-            if tmp_array.dtype is not retained_dtype:
+            if not mask.all():
+                # print(f"{retained_var_name} has invalid entries left: {res[retained_var_name]}")
+                has_update = True
+                tmp_array = res[retained_var_name].where(mask)
+            else: 
+                tmp_array = res[retained_var_name]
+
+            if tmp_array.dtype != retained_dtype:
+                # print(f"{retained_var_name} has changed types: {retained_dtype} -> {tmp_array.dtype}")
+                has_update = True
                 try:
-                    replacements[retained_var_name] = tmp_array.fillna(
+                    tmp_array = tmp_array.fillna(
                         fill_value.get(retained_var_name, np.nan)
                     ).astype(retained_dtype)
                 except:
                     logging.warning(
                         f"Failed to convert variable {retained_var_name} back to its original type {retained_dtype}."
                     )
+            
+            if has_update:
+                replacements[retained_var_name] = tmp_array
 
     if replacements:
         res = res.assign(replacements)
