@@ -471,6 +471,8 @@ def focus_hops(
 
     If there is no hop found, the result will be empty.
     """
+    # TODO: FIXME: The `hop_tidx` shape depends on whether `window` is set and whether that window fits within the trajectory
+    # TODO: FIXME: mapping over the tree should yield new leaves for each hop instead of a stacked entry in the tree leaves.
     if isinstance(frames, TreeNode):
         return frames.map_data(
             focus_hops,
@@ -498,7 +500,7 @@ def focus_hops(
         res = res.assign_coords(
             {
                 "hop_time": ("hop_time", []),
-                "hop_tidx": ("hop_time", []),
+                "hop_tidx": (("hop_time", []) if window is None else empty_2d),
                 "hop_from": ("hop", []),
                 "hop_to": ("hop", []),
                 "atrajectory": ("hop", []),
