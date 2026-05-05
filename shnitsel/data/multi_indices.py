@@ -572,6 +572,8 @@ def unstack_trajs(
             k: v.attrs.get("fill_value", np.nan) for k, v in frames.variables.items()
         }
 
+    orig_frames = frames
+
     per_traj_coords = {
         k: v for k, v in dict(frames.coords).items() if 'trajectory' in v.dims
     }
@@ -580,6 +582,7 @@ def unstack_trajs(
         for k, v in dict(frames.coords).items()
         if 'time_slice' in v.dims and 'frame' not in v.dims
     }
+
     if hasattr(frames, 'data_vars'):
         has_data_vars = True
         per_traj_vars = {
@@ -636,7 +639,7 @@ def unstack_trajs(
     # Try and restore value types from np.float where possible.
     replacements = {}
     for retained_var_name, retained_dtype in retain_type.items():
-        if retained_var_name in res:
+        if retained_var_name in res and 'frame' in orig_frames[retained_var_name].dims:
             if res[retained_var_name].dtype is not retained_dtype:
                 try:
                     replacements[retained_var_name] = (
@@ -704,7 +707,8 @@ def stack_trajs(unstacked: DatasetOrArray) -> DatasetOrArray:
         fill_value = {
             k: v.attrs.get("fill_value", np.nan) for k, v in unstacked.variables.items()
         }
-
+    orig_unstacked = unstacked
+    
     # NOTE: In the following, we do NOT exclude the 'trajectory' coord itself
     per_traj_coords = {
         k: v
@@ -783,7 +787,7 @@ def stack_trajs(unstacked: DatasetOrArray) -> DatasetOrArray:
     # Try and filter out filler entries:
     replacements = {}
     for retained_var_name, retained_dtype in retain_type.items():
-        if retained_var_name in res:
+        if retained_var_name in res and 'frame' in res[retained_var_name].dims:
             # Filter out all fill_value entries
             mask = res[retained_var_name] != fill_value.get(retained_var_name, np.nan)
             tmp_array = res[retained_var_name].where(mask)
