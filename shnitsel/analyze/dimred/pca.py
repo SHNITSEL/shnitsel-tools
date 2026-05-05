@@ -1,3 +1,4 @@
+import logging
 from typing import Any, Generic, Hashable, Mapping, TypeVar, overload
 
 import numpy as np
@@ -14,7 +15,7 @@ from shnitsel.data.dataset_containers.multi_series import MultiSeriesDataset
 from shnitsel.data.dataset_containers.multi_stacked import MultiSeriesStacked
 from shnitsel.data.dataset_containers.shared import ShnitselDataset
 from shnitsel.data.dataset_containers.trajectory import Trajectory
-from shnitsel.data.multi_indices import mdiff
+from shnitsel.data.multi_indices import ensure_stacked, is_layered, mdiff
 from sklearn.decomposition import PCA as sk_PCA
 from ..hops import hops_mask_from_active_state
 
@@ -454,6 +455,7 @@ def pca(
             assert data_grouped is not None
 
             if structure_selection is not None:
+
                 def extract_features(x: ShnitselDataset | xr.DataArray) -> xr.DataArray:
                     return get_bats(
                         x,
@@ -462,6 +464,7 @@ def pca(
                         angles='deg',
                     )
             else:
+
                 def extract_features(x: ShnitselDataset | xr.DataArray) -> xr.DataArray:
                     return (
                         get_standardized_pairwise_dists(x, center_mean=center_mean)
@@ -600,6 +603,25 @@ def pca_direct(data: xr.DataArray, dim: Hashable, n_components: int = 2) -> PCAR
     pca_object = sk_PCA(n_components=n_components)
 
     pipeline = Pipeline([('scaler', scaler), ('pca', pca_object)])
+
+    if len(data.dims) > 2:
+        # Only 2 dimensions are supported. Try whether stacking would solve this
+        if is_layered(data):
+            logging.warning(
+                "Provided data was layered, will be converted to stacked representation"
+            )
+            data, _ = ensure_stacked(data)
+
+        if len(data.dims) > 2:
+            logging.warning(
+                f"Provided data had excess dimensions. Will reduce all dimensions but {dim} to a temporary dimension"
+            )
+            dims_to_stack = list(set(data.dims).difference({dim}))
+            logging.info(
+                f"Reducing all dimensions in `{dims_to_stack}` to `tmp_frame`."
+            )
+
+            data = data.stack(tmp_frame=dims_to_stack)
 
     pca_res: xr.DataArray = xr.apply_ufunc(
         pipeline.fit_transform,
