@@ -241,7 +241,7 @@ def pcm_plots(
         filter_combs = set(spectra.statecomb.values).intersection(
             state_selection.state_combinations
         )
-        spectra_data = spectra.sel(statecomb=filter_combs)
+        spectra_data = spectra.sel(statecomb=list(filter_combs))
     else:
         spectra_source = wrap_dataset(spectra, DataSeries | InterState)
 
