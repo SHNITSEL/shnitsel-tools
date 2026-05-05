@@ -33,16 +33,16 @@ class Frames(DataSeries):
         )
         if "frame" not in ds.dims and "frame" in ds.coords:
             curr_fdim = ds.coords["frame"].dims[0]
-            ds = ds.swap_dims({curr_fdim: "frame"})
+            ds = ds.rename({curr_fdim: "frame"})
         assert "frame" in ds.dims, (
             "Dataset is missing `frame` dimension and cannot be considered a set of Frames"
         )
-        assert "atom" in ds.dims, (
-            "Dataset is missing `atom` dimension and cannot be considered a set of Frames"
-        )
-        assert "state" in ds.dims, (
-            "Dataset is missing `state` dimension and cannot be considered a set of Frames"
-        )
+        # assert "atom" in ds.dims, (
+        #     "Dataset is missing `atom` dimension and cannot be considered a set of Frames"
+        # )
+        # assert "state" in ds.dims, (
+        #     "Dataset is missing `state` dimension and cannot be considered a set of Frames"
+        # )
         super().__init__(ds)
 
         # TODO: FIXME: This should be harmonized across all creation and use points. Make the frame-component `active_trajectory` and the per-trajectory property `trajectory`
