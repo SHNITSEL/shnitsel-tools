@@ -510,6 +510,13 @@ def plot_distribution_heatmap(
     if cmap is None:
         cmap = plt.get_cmap('inferno')
 
+    Zs = np.array(Zs)
+
+    if len(Zs.shape) > 2:
+        logging.warning("The Z-values for plotting kernel heatmaps should only have one entry. We will attempt to squeeze out all but 2 dimensions of Z.")
+        # TODO: FIXME: This may fail if multiple kernels are present.
+        Zs = Zs.squeeze()
+
     ax.pcolormesh(xx, yy, Zs, cmap=cmap, rasterized=True, shading="nearest")
     return fig, ax
 
