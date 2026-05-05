@@ -78,21 +78,29 @@ class MultiSeriesStacked(Frames, MultiSeriesDataset):
 
             return self._layered_repr_cached
 
-        if self._basis_data is not None:
-            tmp_res = MultiSeriesLayered(self._basis_data)
-        else:
-            ds: xr.Dataset = self.dataset
-            datasets: Sequence[Frames | Trajectory] = [
-                wrap_dataset(
-                    ds.sel(trajectory=id, atrajectory=id)
-                    .drop_dims(['trajectory', 'atrajectory'], errors="ignore")
-                    .drop_vars('atrajectory'),
-                    expected_types=Trajectory | Frames,
-                )
-                for id in ds.coords['trajectory'].values
-            ]
 
-            tmp_res = MultiSeriesLayered(datasets)
+        # Use multi-index stack/unstack logic
+        from shnitsel.data.multi_indices import unstack_trajs
+        ds: xr.Dataset = self.dataset
+        ds_unstacked = unstack_trajs(ds)
+        tmp_res = MultiSeriesLayered(ds_unstacked)
+        tmp_res._basis_data = self._basis_data
+
+        # if self._basis_data is not None:
+        #     tmp_res = MultiSeriesLayered(self._basis_data)
+        # else:
+        #     ds: xr.Dataset = self.dataset
+        #     datasets: Sequence[Frames | Trajectory] = [
+        #         wrap_dataset(
+        #             ds.sel(trajectory=id, atrajectory=id)
+        #             .drop_dims(['trajectory', 'atrajectory'], errors="ignore")
+        #             .drop_vars('atrajectory'),
+        #             expected_types=Trajectory | Frames,
+        #         )
+        #         for id in ds.coords['trajectory'].values
+        #     ]
+
+        #     tmp_res = MultiSeriesLayered(datasets)
         # Set self as cached result of the inverse conversion
         tmp_res._stacked_repr_cached = self
         self._layered_repr_cached = tmp_res

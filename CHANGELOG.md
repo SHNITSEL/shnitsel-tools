@@ -44,6 +44,7 @@ Bug fixes compared to previous version and addition of new features:
 * Fix filtering for physical sanity not working on layered trajectories
 * Fix multi-index methods failing on layered trajectories. Will now simply not modify the trajectory if they cannot be applied and print out a warning.
 * Fix repeated stacking and unstacking not correctly filtering out padding entries in data.
+* Fix conversion between stacked and unstacked wrappers not using the correct conversion functions to filter out invalid entries due to padding.
 
 
 ### Known issues
