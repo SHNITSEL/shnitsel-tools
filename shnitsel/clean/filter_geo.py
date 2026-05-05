@@ -9,7 +9,9 @@ from rdkit.Chem import Mol
 from shnitsel.data.dataset_containers import wrap_dataset
 from shnitsel.data.dataset_containers.data_series import DataSeries
 from shnitsel.data.dataset_containers.frames import Frames
+from shnitsel.data.dataset_containers.multi_layered import MultiSeriesLayered
 from shnitsel.data.dataset_containers.trajectory import Trajectory
+from shnitsel.data.multi_indices import unstack_trajs
 from shnitsel.data.tree.node import TreeNode
 from shnitsel.filtering.structure_selection import SMARTSstring, StructureSelection
 from shnitsel.geo.geocalc import get_distances
@@ -147,6 +149,12 @@ def calculate_bond_length_filtranda(
     if isinstance(frames, xr.Dataset):
         frames = wrap_dataset(frames, DataSeries)
 
+    unstack_result = False
+    if isinstance(frames, MultiSeriesLayered):
+        # Convert layered to stacked representation
+        frames = frames.as_stacked
+        unstack_result = True
+
     # Assign default threshold rules.
     if not isinstance(geometry_thresholds, GeometryFiltrationThresholds):
         geometry_thresholds = GeometryFiltrationThresholds(geometry_thresholds)
@@ -177,9 +185,14 @@ def calculate_bond_length_filtranda(
         # Add criterion dimension and append to results
         criteria_results.append(max_distances.expand_dims("criterion"))
 
-    return xr.concat(criteria_results, dim="criterion").assign_coords(
+    res = xr.concat(criteria_results, dim="criterion").assign_coords(
         {"thresholds": thresholds_array}
     )
+    
+    if unstack_result:
+        return unstack_trajs(res)    
+    
+    return res
 
 
 @overload

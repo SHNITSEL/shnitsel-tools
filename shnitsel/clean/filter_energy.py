@@ -7,8 +7,9 @@ from shnitsel.data.dataset_containers import Frames, Trajectory, wrap_dataset
 import xarray as xr
 
 from shnitsel.data.dataset_containers.data_series import DataSeries
+from shnitsel.data.dataset_containers.multi_layered import MultiSeriesLayered
 from shnitsel.data.dataset_containers.shared import ShnitselDataset
-from shnitsel.data.multi_indices import mdiff
+from shnitsel.data.multi_indices import mdiff, unstack_trajs
 from shnitsel.clean.common import dispatch_filter
 from shnitsel.clean.dispatch_plots import dispatch_plots
 from shnitsel.data.tree.node import TreeNode
@@ -132,6 +133,12 @@ def calculate_energy_filtranda(
         message: str = 'Filtered dataset object is of type %s instead of the required type ShnitselDataset'
         logging.warning(message, type(frames_or_trajectory))
         raise ValueError(message % type(frames_or_trajectory))
+    
+    unstack_result = False
+    if isinstance(frames_or_trajectory, MultiSeriesLayered):
+        # Convert layered to stacked representation
+        frames_or_trajectory = frames_or_trajectory.as_stacked
+        unstack_result = True
 
     if energy_thresholds is None or not isinstance(
         energy_thresholds, EnergyFiltrationThresholds
@@ -201,6 +208,10 @@ def calculate_energy_filtranda(
             selected_criteria=da.coords["criterion"].values
         )
     )
+    
+    if unstack_result:
+        return unstack_trajs(da)
+    
     return da
 
 
