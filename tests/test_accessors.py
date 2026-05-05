@@ -90,7 +90,10 @@ class TestAccessors:
             'lda': dict(),
             'pls': dict(),
         }
-        for multi_key, multi_set in {"stacked": ds_stacked, "layered": ds_layered}.items():
+        for multi_key, multi_set in {
+            "stacked": ds_stacked,
+            "layered": ds_layered,
+        }.items():
             for var_name, da in multi_set.data_vars.items():
                 for method_name in da.st.suitable:
                     with subtests.test(
@@ -134,13 +137,26 @@ class TestAccessors:
             'assign_levels',  # acceptable values depend on Dataset contents
             'FrameSelector',  # test Dataset may lack 2d data_var with size 2 dimension
             'TrajSelector',  # cf. FrameSelector
+            'truncate', # Cannot be invoked without filtranda set, which we do not have by default
+            'transect', # Cannot be invoked without filtranda set, which we do not have by default
         ]
-        for multi_key, multi_set in {"stacked": ds_stacked, "layered": ds_layered}.items():
+        variant_blacklist = {
+            "stacked": [],
+            "layered": ["flatten_levels", "expand_midx", "mgroupby"],
+        }
+        for multi_key, multi_set in {
+            "stacked": ds_stacked,
+            "layered": ds_layered,
+        }.items():
             for method_name in multi_set.st.suitable:
                 with subtests.test(
                     f"ds({multi_key}).st.{method_name}", method_name=method_name
                 ):
                     assert hasattr(multi_set.st, method_name)
-                    if method_name in kws and method_name not in blacklist:
+                    if (
+                        method_name in kws
+                        and method_name not in blacklist
+                        and method_name not in variant_blacklist[multi_key]
+                    ):
                         print(method_name)
                         getattr(multi_set.st, method_name)(**kws[method_name])
