@@ -243,6 +243,7 @@ def pls(
         accessor_object.loadings = loadings
         accessor_object.pls_object = pls_object
 
+    # TODO: FIXME: No tree support and no PLSResult wrapper being used.
     return pls_res
 
 
