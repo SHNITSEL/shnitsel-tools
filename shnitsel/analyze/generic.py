@@ -294,8 +294,8 @@ def pwdists(
         atxyz_ds = atXYZ_source.dataset
         atxyz_da = atXYZ_source.positions
 
-    struct_selection = StructureSelection.init_from_dataset(
-        atxyz_ds, default_selection=['atoms']
+    struct_selection = StructureSelection.init_dummy_from_atoms(
+        atxyz_ds.coords['atom'], default_selection=['atoms']
     )
 
     bats_distances = get_distances(

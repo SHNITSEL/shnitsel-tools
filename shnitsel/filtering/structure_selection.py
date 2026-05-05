@@ -388,13 +388,76 @@ class StructureSelection:
         #         f"Had dimensions : {filtered_dataset.dims}"
         #     )
         # print(filtered_dataset.charge)
-        # TODO: FIXME: Consider the charges needing to be set from the dataset settings.s
-        mol = construct_default_mol(
-            filtered_dataset,
-            to2D=to2D,
+        try:
+            # TODO: FIXME: Consider the charges needing to be set from the dataset settings.s
+            mol = construct_default_mol(
+                filtered_dataset,
+                to2D=to2D,
+            )
+            # Create an initial state selection
+            return cls.init_from_mol(mol, default_selection=default_selection)
+        except Exception as e:
+            logging.warning(
+                f"Could not initialize structure selection from default molecule construction. Exception: {e}"
+            )
+
+            if 'atom' in filtered_dataset.coords:
+                logging.warning(
+                    f"Constructing default structure selection from just atom indices, no higher features are enabled.\n Note that selection will not be possible."
+                )
+                return cls.init_dummy_from_atoms(
+                    filtered_dataset.coords['atom'], default_selection=default_selection
+                )
+
+            raise
+
+    @classmethod
+    def init_dummy_from_atoms(
+        cls: type[Self],
+        atoms: xr.DataArray,
+        default_selection: Sequence[FeatureLevelOptions] = [
+            'atoms',
+        ],
+    ) -> Self:
+        """Helper function to provide a fallback for constructing a dummy structure selection if not
+        enough structural data is present in the provided information.
+
+        Parameters
+        ----------
+        cls : type[Self]
+            The type of this StructureSelection so that we can create instances of it.
+        atoms : xr.DataArray
+            The array with atom indices to be used as the basis for this very simple structure selection.
+        default_selection : Sequence[FeatureLevelOptions], optional
+            List of features to activate as selected by default. Defaults to [ 'atoms', ].
+
+        Returns
+        -------
+        Self
+            A structure selection containing the provided atom indices, selected if 'atoms' key is set in `default_seletion`.
+            All other higher-order features will be initialized empty to avoid massive combinatorial cost. 
+            Functions like `pwdist` will still work but no SMARTS-based selection will be supported.
+        """
+        at_indices = np.unique(atoms)
+        return cls(
+            mol=None,
+            atoms=at_indices,
+            atoms_selected=at_indices if 'atoms' in default_selection else set(),
+            atoms_types={},
+            bonds=set(),
+            bonds_selected=set(),
+            bonds_types={},
+            angles=set(),
+            angles_selected=set(),
+            angles_types={},
+            dihedrals=set(),
+            dihedrals_selected=set(),
+            dihedrals_types={},
+            pyramids=set(),
+            pyramids_selected=set(),
+            pyramids_types={},
+            is_BLA_selected=False,
         )
-        # Create an initial state selection
-        return cls.init_from_mol(mol, default_selection=default_selection)
 
     @classmethod
     def init_from_mol(
