@@ -134,6 +134,13 @@ def flatten_levels(
         If the specified index is associated with more than one dimension
         (this should not be possible for a MultiIndex anyway)
     """
+    if idx_name not in obj.coords:
+        # TODO: FIXME: Should this raise an error instead?
+        logging.warning(
+            f"Multi-index f{idx_name} not found on object. No flattening performed."
+        )
+        return obj
+
     dims = obj.coords[idx_name].dims
     if len(dims) != 1:
         raise ValueError(
@@ -180,6 +187,13 @@ def expand_midx(
     DatasetOrArray
         An object differing from ``obj`` only in the addition of the MultiIndex level
     """
+    if midx_name not in obj.coords:
+        # TODO: FIXME: Should this raise an error instead?
+        logging.warning(
+            f"Multi-index f{midx_name} not found on object. No expansion performed."
+        )
+        return obj
+
     midx = obj.indexes[midx_name]
     to_drop = [midx.name] + midx.names
     df = midx.to_frame()
