@@ -288,7 +288,7 @@ def pwdists(
     atxyz_ds: xr.Dataset
     atxyz_da: xr.DataArray
     if isinstance(atXYZ_source, xr.DataArray):
-        atxyz_ds = atXYZ_source.to_dataset()
+        atxyz_ds = atXYZ_source.to_dataset(name="atXYZ")
         atxyz_da = atXYZ_source
     else:
         atxyz_ds = atXYZ_source.dataset
