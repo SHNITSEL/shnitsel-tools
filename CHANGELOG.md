@@ -25,6 +25,7 @@ Bug fixes compared to previous version and addition of new features:
 * Implement `focus_hops()` and `hops()` functionality to obtain more detailed analysis tools related to hop-relative statistics within trajectories
 * Add reading of `state_coeffs_diag` from sharc trajectories, i.e. the coefficients associated with the diagonal basis states.
 * Add reading of `prob_hop_diag` (hopping probability in diagonal basis) and `u_matrix` (Basis transform matrix from diagonal to MCH state coefficients) from SHARC data.
+* Stacking and unstacking trajectories will now try and restore original types like `int` for the active state.
 
 ### Fixes
 

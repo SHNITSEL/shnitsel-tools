@@ -560,6 +560,18 @@ def unstack_trajs(
         logging.warning("Input dataset is not stacked and cannot be unstacked")
         return frames
 
+    # Retain types where possible.
+    if isinstance(frames, xr.DataArray):
+        retain_type = {k: v.dtype for k, v in frames.coords.items()}
+        retain_fill_value = {
+            k: v.attrs.get("fill_value", np.nan) for k, v in frames.coords.items()
+        }
+    else:
+        retain_type = {k: v.dtype for k, v in frames.variables.items()}
+        retain_fill_value = {
+            k: v.attrs.get("fill_value", np.nan) for k, v in frames.variables.items()
+        }
+
     per_traj_coords = {
         k: v for k, v in dict(frames.coords).items() if 'trajectory' in v.dims
     }
@@ -605,6 +617,10 @@ def unstack_trajs(
     else:
         frames = frames.rename(atrajectory='trajectory')
 
+    # Try and get the fill value for arrays
+    if fill_value is dtype_NA and isinstance(frames, xr.DataArray):
+        fill_value = frames.attrs.get("fill_value", dtype_NA)
+
     # NOTE: We use this kws approach to avoid importing the default value for fill_value
     # in xr's unstack, which is their internal `xarray.core.dtypes.NA`.
     kws = {'fill_value': fill_value} if fill_value is not dtype_NA else {}
@@ -616,7 +632,37 @@ def unstack_trajs(
     )
     if has_data_vars:
         res = res.assign(per_traj_vars).assign(per_time_vars)
+
+    # Try and restore value types from np.float where possible.
+    replacements = {}
+    for retained_var_name, retained_dtype in retain_type.items():
+        if retained_var_name in res:
+            if res[retained_var_name].dtype is not retained_dtype:
+                try:
+                    replacements[retained_var_name] = (
+                        res[retained_var_name]
+                        .fillna(retain_fill_value[retained_var_name])
+                        .astype(retained_dtype)
+                    )
+                except:
+                    logging.warning(
+                        f"Failed to convert variable {retained_var_name} to back to its original type {retained_dtype}."
+                    )
+    if replacements:
+        res = res.assign(replacements)
+
     res['is_frame'] = res['is_frame'].fillna(0).astype(bool)
+
+    if isinstance(res, xr.DataArray):
+        # The main data in the array is not covered by our replacement strategy for xr.DataArray instances
+        if res.dtype is not frames.dtype:
+            try:
+                res = res.astype(frames.dtype)
+            except:
+                logging.warning(
+                    f"Failed to array content back to its original type {frames}."
+                )
+
     return res
 
 
@@ -646,6 +692,18 @@ def stack_trajs(unstacked: DatasetOrArray) -> DatasetOrArray:
     if is_stacked(unstacked):
         logging.info("Input dataset is already stacked")
         return unstacked
+
+    # Retain types where possible.
+    if isinstance(unstacked, xr.DataArray):
+        retain_type = {k: v.dtype for k, v in unstacked.coords.items()}
+        fill_value = {
+            k: v.attrs.get("fill_value", np.nan) for k, v in unstacked.coords.items()
+        }
+    else:
+        retain_type = {k: v.dtype for k, v in unstacked.variables.items()}
+        fill_value = {
+            k: v.attrs.get("fill_value", np.nan) for k, v in unstacked.variables.items()
+        }
 
     # NOTE: In the following, we do NOT exclude the 'trajectory' coord itself
     per_traj_coords = {
@@ -692,18 +750,68 @@ def stack_trajs(unstacked: DatasetOrArray) -> DatasetOrArray:
         if isinstance(unstacked, xr.DataArray):
             dropped_res = dropped_res.rename(trajectory='atrajectory')
         else:
-            dropped_res = dropped_res.rename_dims(trajectory='atrajectory')
+            dropped_res = dropped_res.rename(trajectory='atrajectory')
     else:
         dropped_res = dropped_res.expand_dims({'atrajectory': ['1']})
-    
-    res =  dropped_res.stack({'frame': ['atrajectory', 'time']})
+
+    res = dropped_res.stack({'frame': ['atrajectory', 'time']})
 
     if 'is_frame' in res:
         res = res.isel(frame=res.is_frame).drop_vars('is_frame')
+
+    if isinstance(res, xr.DataArray):
+        # Need to filter out all coordinates that do not have all dimensions intersecting with array dimensions
+
+        allowed_dims = set(res.dims)
+
+        def has_allowed_dims(da):
+            return set(da.dims).issubset(allowed_dims)
+
+        # Only keep variables that have dimensions occurring in the array
+        per_traj_coords = {
+            k: v for k, v in per_traj_coords.items() if has_allowed_dims(v)
+        }
+        per_time_coords = {
+            k: v for k, v in per_time_coords.items() if has_allowed_dims(v)
+        }
+
     res = res.assign_coords(per_traj_coords).assign_coords(per_time_coords)
 
     if has_data_vars:
         res = res.assign(per_traj_vars).assign(per_time_vars)
+
+    # Try and filter out filler entries:
+    replacements = {}
+    for retained_var_name, retained_dtype in retain_type.items():
+        if retained_var_name in res:
+            # Filter out all fill_value entries
+            mask = res[retained_var_name] != fill_value.get(retained_var_name, np.nan)
+            tmp_array = res[retained_var_name].where(mask)
+
+            if tmp_array.dtype is not retained_dtype:
+                try:
+                    replacements[retained_var_name] = tmp_array.fillna(
+                        fill_value.get(retained_var_name, np.nan)
+                    ).astype(retained_dtype)
+                except:
+                    logging.warning(
+                        f"Failed to convert variable {retained_var_name} back to its original type {retained_dtype}."
+                    )
+
+    if replacements:
+        res = res.assign(replacements)
+
+    if isinstance(res, xr.DataArray):
+        # The main data in the array is not covered by our replacement strategy for xr.DataArray instances
+        res = res.where(res != unstacked.attrs.get("fill_value", np.nan))
+
+        if res.dtype is not unstacked.dtype:
+            try:
+                res = res.astype(unstacked.dtype)
+            except:
+                logging.warning(
+                    f"Failed to array content back to its original type {unstacked.dtype}."
+                )
 
     return res
 
