@@ -44,7 +44,7 @@ class TestPlotFunctionality:
         return res
 
     @pytest.fixture
-    def spectra3d(self, ensembles:MultiSeriesStacked):
+    def spectra3d(self, ensembles: MultiSeriesStacked):
         return ensembles.inter_state.st.get_spectra()
 
     #################
@@ -83,8 +83,10 @@ class TestPlotFunctionality:
 
         noodle, _ = pca_and_hops(ensembles, center_mean=False)
         geo_prop = np.zeros(noodle.projected_inputs.sizes['frame'])
-        return _fit_and_eval_kdes(noodle, geo_property=geo_prop, geo_kde_ranges=[(-1, 1)])
-    
+        return _fit_and_eval_kdes(
+            noodle, geo_property=geo_prop, geo_kde_ranges=[(-1, 1)]
+        )
+
     # @pytest.mark.xfail
     def test_plot_distribution_on_mesh(self, kde_data):
         from shnitsel.vis.plot.kde import plot_distribution_on_mesh
@@ -113,7 +115,6 @@ class TestPlotFunctionality:
         noodle, hops = pca_and_hops(ensembles, center_mean=False)
         plot_noodleplot(noodle.projected_inputs, hops)
 
-
     @pytest.fixture
     def highlighted_features(self, ensembles):
         from shnitsel.rd import highlight_features
@@ -137,13 +138,13 @@ class TestPlotFunctionality:
         clusters = cluster_loadings(loadings)
         mol = default_mol(ensembles)
         return clusters, loadings, mol
-    
+
     @pytest.mark.xfail
     def test_plot_loadings(self, clusters_loadings_mols):
         _, loadings, _ = clusters_loadings_mols
         _, ax = plt.subplots(1, 1)
         plot_loadings(ax, loadings)
-        
+
     @pytest.mark.xfail
     def test_plot_clusters(self, clusters_loadings_mols):
         from shnitsel.vis.plot.pca_biplot import plot_clusters
