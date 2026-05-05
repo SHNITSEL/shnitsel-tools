@@ -72,13 +72,18 @@ def get_default_input_attributes(
             "units": override_defaults(unit_dimensions.time, "time"),
         },
         "phases": {"long_name": "Phase vector"},
-        "sdiag": {"long_name": "Active state (diag)"},
-        "astate": {"long_name": "Active state in dynamic trajectories (MCH)"},
+        "sdiag": {"long_name": "Active state (diag)",
+            "fill_value": -1,},
+        "astate": {
+            "long_name": "Active state in dynamic trajectories (MCH)",
+            "fill_value": -1,
+        },
         "state": {"long_name": "Index of relevant states for indexing"},
         "state2": {"long_name": "The second state to build state combinations out of."},
         "state_names": {"long_name": "String representations of the states."},
         "state_types": {
-            "long_name": "Multiplicity to indicate whether the respective state is singlet (1), doublet (2), or triplet(3)"
+            "long_name": "Multiplicity to indicate whether the respective state is singlet (1), doublet (2), or triplet(3)",
+            "fill_value": -1,
         },
         "state_charges": {
             "long_name": "Charge of the various states.",
@@ -108,7 +113,8 @@ def get_default_input_attributes(
             "long_name": "An alias for the second state of a full_statecomb combination"
         },
         "atNames": {"long_name": "Names of atomic elements (short form)"},
-        "atNums": {"long_name": "Periodic number of atomic elements"},
+        "atNums": {"long_name": "Periodic number of atomic elements",
+            "fill_value": -1,},
         "forces": {
             "long_name": "Per-atom forces",
             "unitdim": unit_dimensions.force,
