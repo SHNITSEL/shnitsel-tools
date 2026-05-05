@@ -51,13 +51,13 @@ class TestPlotFunctionality:
     # plot.spectra3d:
 
     # @image_comparison(['ski_plots'])
-    @pytest.mark.xfail
+    # @pytest.mark.xfail
     def test_ski_plots(self, spectra3d):
         from shnitsel.vis.plot import ski_plots
 
         ski_plots(spectra3d)
 
-    @pytest.mark.xfail
+    # @pytest.mark.xfail
     def test_pcm_plots(self, spectra3d):
         from shnitsel.vis.plot.spectra3d import pcm_plots
 
@@ -85,19 +85,19 @@ class TestPlotFunctionality:
         geo_prop = np.zeros(noodle.projected_inputs.sizes['frame'])
         return _fit_and_eval_kdes(noodle, geo_property=geo_prop, geo_kde_ranges=[(-1, 1)])
     
-    @pytest.mark.xfail
+    # @pytest.mark.xfail
     def test_plot_distribution_on_mesh(self, kde_data):
         from shnitsel.vis.plot.kde import plot_distribution_on_mesh
 
         plot_distribution_on_mesh(*kde_data)
 
-    @pytest.mark.xfail
+    # @pytest.mark.xfail
     def test_plot_distribution_heatmap(self, kde_data):
         from shnitsel.vis.plot.kde import plot_distribution_heatmap
 
         plot_distribution_heatmap(*kde_data)
 
-    @pytest.mark.xfail
+    # @pytest.mark.xfail
     def test_plot_cdf_for_kde(self, kde_data):
         from shnitsel.vis.plot.kde import plot_cdf_for_kde
 
@@ -112,6 +112,20 @@ class TestPlotFunctionality:
 
         noodle, hops = pca_and_hops(ensembles, center_mean=False)
         plot_noodleplot(noodle.projected_inputs, hops)
+
+
+    @pytest.fixture
+    def highlighted_features(self, ensembles):
+        from shnitsel.rd import highlight_features
+
+        mol = default_mol(ensembles)
+        return highlight_features(mol, [(0, 1)])
+
+    def test_mpl_imshow_png(self, highlighted_features):
+        from shnitsel.vis.plot.common import mpl_imshow_png
+
+        _, ax = plt.subplots(1, 1)
+        mpl_imshow_png(ax, highlighted_features)
 
     @pytest.fixture
     def clusters_loadings_mols(self, ensembles: Frames):
@@ -129,21 +143,7 @@ class TestPlotFunctionality:
         _, loadings, _ = clusters_loadings_mols
         _, ax = plt.subplots(1, 1)
         plot_loadings(ax, loadings)
-
-    @pytest.fixture
-    def highlighted_features(self, ensembles):
-        from shnitsel.rd import highlight_features
-
-        mol = default_mol(ensembles)
-        return highlight_features(mol, [(0, 1)])
-
-    @pytest.mark.xfail
-    def test_mpl_imshow_png(self, highlighted_features):
-        from shnitsel.vis.plot.common import mpl_imshow_png
-
-        _, ax = plt.subplots(1, 1)
-        mpl_imshow_png(ax, highlighted_features)
-
+        
     @pytest.mark.xfail
     def test_plot_clusters(self, clusters_loadings_mols):
         from shnitsel.vis.plot.pca_biplot import plot_clusters
