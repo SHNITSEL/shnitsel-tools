@@ -13,7 +13,7 @@ from shnitsel.data.dataset_containers.frames import Frames
 from shnitsel.data.dataset_containers.shared import ShnitselDataset
 from shnitsel.data.dataset_containers.trajectory import Trajectory
 from shnitsel.data.helpers import guess_leading_dim
-from shnitsel.data.multi_indices import mdiff, sel_trajs, stack_trajs
+from shnitsel.data.multi_indices import ensure_stacked, mdiff
 from shnitsel.data.tree.node import TreeNode
 from shnitsel.data.tree.tree import ShnitselDB
 from shnitsel.filtering.state_selection import StateSelection, StateSelectionDescriptor
@@ -209,7 +209,7 @@ def hops(
     if 'trajectory' in frames.dims and 'atrajectory' not in frames.coords:
         # It doesn't make sense to output hops in layered form; they're too sparse.
         # So, converting here save trouble dealing with a third format later.
-        frames = stack_trajs(frames)
+        frames, _ = ensure_stacked(frames)
 
     is_hop_mask = hops_mask_from_active_state(
         frames, hop_type_selection=hop_type_selection
@@ -242,7 +242,7 @@ def hops(
     res = res.assign_coords(
         tidx=(leading_dim, hop_tidx),
         hop_from=(frames['astate'].shift({leading_dim: 1}, -1).isel(sel_filter_dict)),
-        hop_to=res['astate'],
+        hop_to=(frames['astate'].isel(sel_filter_dict)),
     )
     if hasattr(res, 'drop_dims'):
         res = res.drop_dims(['trajectory'], errors='ignore')
@@ -337,13 +337,13 @@ def filter_data_at_hops(
             lambda x: filter_data_at_hops(x, hop_type_selection=hop_type_selection)
         )
     elif isinstance(active_state_and_data_source, xr.DataArray):
-            is_hop_mask = hops_mask_from_active_state(
-                active_state_source=active_state_and_data_source,
-                hop_type_selection=hop_type_selection,
-            )
+        is_hop_mask = hops_mask_from_active_state(
+            active_state_source=active_state_and_data_source,
+            hop_type_selection=hop_type_selection,
+        )
 
-            hop_dim = list(is_hop_mask.sizes.keys())[0]
-            return active_state_and_data_source[{hop_dim: is_hop_mask}]
+        hop_dim = list(is_hop_mask.sizes.keys())[0]
+        return active_state_and_data_source[{hop_dim: is_hop_mask}]
     elif isinstance(active_state_and_data_source, MultiSeriesLayered):
         # i.e. if we have a layered Dataset
         # TODO what about layered DataArray?
@@ -434,7 +434,7 @@ def focus_hops(
     Parameters
     ----------
     frames : xr.Dataset | xr.DataArray | DataSeries | TreeNode[Any, xr.Dataset | xr.DataArray | DataSeries]
-        An Xarray object (Dataset or DataArray) with a ``frames`` dimension or a shnitsel-tools 
+        An Xarray object (Dataset or DataArray) with a ``frames`` dimension or a shnitsel-tools
         wrapped representation of those or a tree with entries of that shape in its leaves.
     hop_type_selection : StateSelection | StateSelectionDescriptor, optional
         Types of hops to include
@@ -480,7 +480,7 @@ def focus_hops(
     # Test for layered format:
     if 'trajectory' in frames.dims and 'atrajectory' not in frames.coords:
         # Conversion is fast, and there is no advantage to the layered layout in this scenario
-        frames = stack_trajs(frames)
+        frames, _ = ensure_stacked(frames)
 
     leading_dim = guess_leading_dim(frames)
 
@@ -489,9 +489,9 @@ def focus_hops(
 
     # If no hops, return empty
     if hop_vals.sizes[leading_dim] == 0:
-        res = frames.isel({leading_dim:[]})
+        res = frames.isel({leading_dim: []})
         res = res.rename({leading_dim: "hop_time"})
-        res = res.drop_vars([leading_dim, "atrajectory", "time"], errors='ignore')
+        res = res.drop_vars([leading_dim, "time"], errors='ignore')
         res = res.drop_dims(["trajectory"], errors="ignore")
         res = res.expand_dims("hop").isel(hop=[])
         empty_2d = xr.Variable(("hop", "hop_time"), [[]]).isel(hop=[], hop_time=[])
@@ -501,7 +501,7 @@ def focus_hops(
                 "hop_tidx": ("hop_time", []),
                 "hop_from": ("hop", []),
                 "hop_to": ("hop", []),
-                "trajid": ("hop", []),
+                "atrajectory": ("hop", []),
                 "time": empty_2d,
                 "tidx": empty_2d,
             }
@@ -519,7 +519,7 @@ def focus_hops(
             # TODO: Do we need to rename the leading dim to `hop`?
             traj_lead_dim = guess_leading_dim(traj)
             orig_time = traj["time"].data
-            #Calculate relative time to jump
+            # Calculate relative time to jump
             hop_relative_time = traj.time - hop_time
             # Switch to `hop_time` dimension instead of `time`
             hop_relative_time = hop_relative_time.rename({traj_lead_dim: "hop_time"})
@@ -534,7 +534,9 @@ def focus_hops(
             )
 
             # Add per-hop metadata
-            res_traj = res_traj.assign_coords(time=(("hop", "hop_time"), orig_time[None, :]))
+            res_traj = res_traj.assign_coords(
+                time=(("hop", "hop_time"), orig_time[None, :])
+            )
             tidx = xr.Variable(dims=("hop_time"), data=np.arange(len(orig_time)))
             res_traj = res_traj.assign_coords(tidx=tidx.expand_dims("hop"))
 
@@ -562,7 +564,9 @@ def focus_hops(
             .rename({leading_dim: "hop"})
         )
         return res.assign_coords(
-            atrajectory=("hop", hop_trajectory_id), hop_from=from_to["hop_from"], hop_to=from_to["hop_to"]
+            atrajectory=("hop", hop_trajectory_id),
+            hop_from=from_to["hop_from"],
+            hop_to=from_to["hop_to"],
         )
     # elif 'trajectory' in frames.dims:
     #     # Deal with layered trajectories
@@ -619,7 +623,7 @@ def focus_hops(
             traj = frames
             orig_time = traj["time"].data
 
-            #Calculate relative time to jump
+            # Calculate relative time to jump
             hop_relative_time = traj.time - hop.time.item()
 
             # Switch to `hop_time` dimension instead of `time`
@@ -637,7 +641,9 @@ def focus_hops(
             )
 
             # Add per-hop metadata
-            res_traj = res_traj.assign_coords(time=(("hop", "hop_time"), orig_time[None, :]))
+            res_traj = res_traj.assign_coords(
+                time=(("hop", "hop_time"), orig_time[None, :])
+            )
             tidx = xr.Variable(dims=("hop_time"), data=np.arange(len(orig_time)))
             res_traj = res_traj.assign_coords(tidx=tidx.expand_dims("hop"))
 
@@ -662,10 +668,7 @@ def focus_hops(
             .rename({leading_dim: "hop"})
         )
         # No active trajectory to keep track of for single trajectory
-        return res.assign_coords(
-            hop_from=from_to["hop_from"], hop_to=from_to["hop_to"]
-        )
-
+        return res.assign_coords(hop_from=from_to["hop_from"], hop_to=from_to["hop_to"])
 
     # FIXME: @thevro: xarray 2025.12.0 FutureWarning: data_vars = 'all'->None
     # FIXME: @thevro: xarray 2025.12.0 FutureWarning: coords = 'different'->'minimal'
