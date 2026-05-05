@@ -46,6 +46,7 @@ Bug fixes compared to previous version and addition of new features:
 * Fix repeated stacking and unstacking not correctly filtering out padding entries in data.
 * Fix conversion between stacked and unstacked wrappers not using the correct conversion functions to filter out invalid entries due to padding.
 * Fix `sanity_check()` breaking for layered inputs.
+* Fix `StateSelection` construction failing if no state info present on input data.
 
 
 ### Known issues

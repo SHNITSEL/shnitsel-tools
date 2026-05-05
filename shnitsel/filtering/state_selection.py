@@ -245,9 +245,9 @@ class StateSelection:
 
 
         """
-        assert 'state' in dataset.sizes, (
-            "No state information on the provided dataset. Cannot initialize state selection."
-        )
+        # assert 'state' in dataset.sizes, (
+        #     "No state information on the provided dataset. Cannot initialize state selection."
+        # )
 
         if 'states' in dataset.coords:
             if 'states' not in dataset.dims:
@@ -260,9 +260,10 @@ class StateSelection:
                 int(n) for n in np.arange(1, 1 + dataset.sizes['state'], dtype=StateId)
             )
         else:
-            raise ValueError(
-                "No sufficient state information on the provided dataset. Cannot initialize state selection."
+            logging.warning(
+                "No sufficient state information on the provided dataset. Will just a ground state."
             )
+            states = [0]
         ground_state_id = np.min(states)
 
         if 'state_types' in dataset.coords:
