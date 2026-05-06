@@ -229,8 +229,8 @@ def truncate(
     else:
         cum_mask = noncum_mask.cumprod().astype(bool)
 
-    tmp_res = wrapped_dataset.dataset.where(cum_mask)
-
+    tmp_res = wrapped_dataset.dataset.where(cum_mask, drop=True)
+    
     # Guard agains empty trajectories being kept
     if (
         wrapped_dataset.leading_dim in tmp_res.dims
