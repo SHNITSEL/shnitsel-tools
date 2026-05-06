@@ -196,7 +196,7 @@ def highlight_features(
         if isinstance(feature, int):
             # Position
             a = feature
-            atoms_to_color = [a]
+            atoms_to_color = [int(a)]
         elif isinstance(feature, tuple):
             match feature:
                 case a1, (a2, a3, a4):
@@ -205,26 +205,26 @@ def highlight_features(
                         continue
                     # Mark bonds
                     for other in (a2, a3, a4):
-                        if (bond := mol.GetBondBetweenAtoms(a1, other)) is not None:
+                        if (bond := mol.GetBondBetweenAtoms(int(a1), int(other))) is not None:
                             bondid = bond.GetIdx()
                             if bondid not in bond_colors:
                                 bond_colors[bondid] = []
                             bond_colors[bond.GetIdx()].append(c)
                     # Mark all atoms
-                    atoms_to_color = [a1, a2, a3, a4]
+                    atoms_to_color = [int(x) for x in [a1, a2, a3, a4]]
                 case (a1, a2):
                     # Bond
                     a1, a2 = feature
                     if a1 < 0 or a2 < 0:
                         continue
 
-                    if (bond := mol.GetBondBetweenAtoms(a1, a2)) is not None:
+                    if (bond := mol.GetBondBetweenAtoms(int(a1), int(a2))) is not None:
                         bondid = bond.GetIdx()
                         if bondid not in bond_colors:
                             bond_colors[bondid] = []
                         bond_colors[bond.GetIdx()].append(c)
                     else:
-                        atoms_to_color = [a1, a2]
+                        atoms_to_color = [int(x) for x in [a1, a2]]
                 case _:
                     # angle or dihedral
                     # Mark bonds
@@ -236,14 +236,14 @@ def highlight_features(
                     for i in range(flen - 1):
                         a1, a2 = feature[i], feature[i + 1]
                         if isinstance(a1, int) and isinstance(a2, int):
-                            if (bond := mol.GetBondBetweenAtoms(a1, a2)) is not None:
+                            if (bond := mol.GetBondBetweenAtoms(int(a1), int(a2))) is not None:
                                 bondid = bond.GetIdx()
                                 if bondid not in bond_colors:
                                     bond_colors[bondid] = []
                                 bond_colors[bond.GetIdx()].append(c)
 
                     # Mark all atoms
-                    atoms_to_color = [x for x in feature if isinstance(x, int)]
+                    atoms_to_color = [int(x) for x in feature if isinstance(x, int)]
 
         # Mark all atoms
         for a in atoms_to_color:
