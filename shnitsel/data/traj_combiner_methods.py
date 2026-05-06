@@ -10,6 +10,7 @@ from shnitsel.data.dataset_containers import Trajectory, Frames, wrap_dataset
 import xarray as xr
 
 from shnitsel.data.dataset_containers.shared import ShnitselDataset
+from shnitsel.units.defaults import get_fill_value
 
 if TYPE_CHECKING:
     from shnitsel.data.tree import ShnitselDB
@@ -495,7 +496,11 @@ def concat_trajs(
 
         # TODO: Check if the order of datasets stays the same. Otherwise distinct attributes may not be appropriately sorted.
         frames = xr.concat(
-            datasets_amended, dim="frame", coords="different", compat="equals", combine_attrs="override"
+            datasets_amended,
+            dim="frame",
+            coords="different",
+            compat="equals",
+            combine_attrs="override",
         )
 
         # DataArrays without a `trajectory` dimension cannot have these coords assigned
@@ -735,6 +740,26 @@ def layer_trajs(
         if ld not in x.sizes or x.sizes[ld] > 0
     ]
 
+    retain_type = {}
+    retain_fill_value = {}
+
+    def register_type(da, name):
+        nonlocal retain_type, retain_fill_value
+        da_dtype = da.dtype
+        da_fv = get_fill_value(da)
+
+        retain_type[name] = da_dtype
+        retain_fill_value[name] = da_fv
+
+    for ds in datasets:
+        if isinstance(ds, xr.DataArray):
+            register_type(ds, "__root")
+            for k, v in ds.coords.items():
+                register_type(v, k)
+        else:
+            for k, v in ds.variables.items():
+                register_type(v, k)
+
     if not _check_matching_dimensions(datasets_converted, {'time', 'frame'}):
         message = "Dimensions of the provided datasets are not consistent."
         logging.warning(
@@ -820,6 +845,40 @@ def layer_trajs(
 
     if not isinstance(layers, xr.Dataset):
         layers = xr.Dataset(layers)
+
+    # Try and filter out filler entries:
+    replacements = {}
+    for retained_var_name, retained_dtype in retain_type.items():
+        if (retained_var_name in layers or retained_var_name in layers.coords) and 'trajecotry' in layers[retained_var_name].dims and len(layers[retained_var_name].dims) > 1:
+            if layers[retained_var_name].dtype != retained_dtype:
+                try:
+                    replacements[retained_var_name] = (
+                        layers[retained_var_name]
+                        .fillna(retain_fill_value[retained_var_name])
+                        .astype(retained_dtype)
+                    )
+                except:
+                    logging.warning(
+                        f"Failed to convert variable {retained_var_name} to back to its original type {retained_dtype}."
+                    )
+
+    if replacements:
+        if hasattr(layers, "assign"):
+            layers = layers.assign(replacements)
+        elif hasattr(layers, "assign_coords"):
+            layers = layers.assign_coords(replacements)
+
+    if isinstance(layers, xr.DataArray):
+        # The main data in the array is not covered by our replacement strategy for xr.DataArray instances
+        layers = layers.where(layers != retain_fill_value.get("__root"))
+
+        if layers.dtype is not retain_type.get("__root", np.float64):
+            try:
+                layers = layers.astype(retain_type.get("__root"))
+            except:
+                logging.warning(
+                    f"Failed to convert array content back to its original type {retain_type.get('__root')}."
+                )
 
     if TYPE_CHECKING:
         assert isinstance(layers, xr.Dataset)

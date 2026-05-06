@@ -161,3 +161,17 @@ def wrap_dataset(
         )
 
     return ds
+
+def unwrap_dataset(ds: xr.DataArray|xr.Dataset| ShnitselDataset):
+    """Helper function to ensure the result is a bare xarray data structure.
+
+    Parameters
+    ----------
+    ds : xr.DataArray | xr.Dataset | ShnitselDataset
+        Either a wrapped or an unwrapped data structure
+    """
+
+    if isinstance(ds, ShnitselDataset):
+        return ds.dataset
+
+    return ds

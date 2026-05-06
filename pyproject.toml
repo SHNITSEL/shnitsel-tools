@@ -25,16 +25,16 @@ classifiers = [
 dependencies = [
   "scipy>=1.16",
   "matplotlib>=3.10",
-  "xarray>=2025.7.1",  # Development currently on 2025.10.1
-  "rdkit>=2025",       # 2025.9.1 currently in testing
-  "ase>=3",            # 3.26.0 currently in testing
-  "numpy>=2.3",        # 2.3.6 currently in testing
+  "xarray>=2025.7.1",    # Development currently on 2025.10.1
+  "rdkit>=2025",         # 2025.9.1 currently in testing
+  "ase>=3",              # 3.26.0 currently in testing
+  "numpy>=2.3",          # 2.3.6 currently in testing
   "pandas>=2.2",
   "h5netcdf>=1.7.0",
   "h5py",
   "scikit-learn>=1.5",
-  "jupyter>=1.0.0",    # TODO: make optional?
-  "py3dmol>=2.0.4",    # TODO: make optional?
+  "jupyter>=1.0.0",      # TODO: make optional?
+  "py3dmol>=2.0.4",      # TODO: make optional?
   "tqdm>=4.66.2",
   "pyparsing>=3.2.5",
   "svgpathtools>=1.7.2",
@@ -42,7 +42,7 @@ dependencies = [
   "fsspec",
   "requests",
   "urllib3>=2.6.3",  # urllib3 is required by requests; versions specified avoid CVE-2026-21441 (vulnerability to zip bombs)
-  "aiohttp>=3.13.3"  # versions specified avoid CVE-2025-69223 (vulnerability to zip bombs)
+  "aiohttp>=3.13.3", # versions specified avoid CVE-2025-69223 (vulnerability to zip bombs)
 ]
 
 [project.urls]
@@ -56,15 +56,16 @@ Changelog = "https://github.com/CompPhotoChem/shnitsel-tools/blob/main/CHANGELOG
 vis = [
   "bokeh>=3.5",
   "datashader",
-  "numba>=0.60", # Required for datashader; some lower versions affected by build error, see https://github.com/astral-sh/uv/issues/6281
+  "numba>=0.60",       # Required for datashader; some lower versions affected by build error, see https://github.com/astral-sh/uv/issues/6281
   "seaborn>=0.13.2",
-  "holoviews>=1.22.1"
+  "holoviews>=1.22.1",
 ]
 
 dev = [
   "pytest>=9.0.2",
   "pytest-cov>=4.1.0",
-  "hypothesis>=6",         # ==6.127.3
+  "pytest-xdist>=3.8.0",
+  "hypothesis>=6",       # ==6.127.3
   "tox>=4.10.0",
   "tox-uv>=1.29.0",
   "pre-commit>=2.20.0",
@@ -111,8 +112,8 @@ quote-style = "preserve"
 
 [tool.ruff.lint]
 select = [
-  "D103",  # Undocumented public function
-  "PERF",  # Identify more performant approaches
+  "D103", # Undocumented public function
+  "PERF", # Identify more performant approaches
 ]
 
 ignore = [
@@ -123,19 +124,10 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 # Don't require docstrings in tests
-"tests/*" = [
-  "D102",  
-  "D103",
-]
+"tests/*" = ["D102", "D103"]
 # Don't require docstrings in cli programs
-"dev/*" = [
-  "D102",  
-  "D103",
-]
-"cli/*" = [
-  "D102",  
-  "D103",
-]
+"dev/*" = ["D102", "D103"]
+"cli/*" = ["D102", "D103"]
 
 [tool.ruff.lint.flake8-annotations]
 ignore-fully-untyped = true

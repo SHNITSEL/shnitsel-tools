@@ -26,6 +26,8 @@ Bug fixes compared to previous version and addition of new features:
 * Add reading of `state_coeffs_diag` from sharc trajectories, i.e. the coefficients associated with the diagonal basis states.
 * Add reading of `prob_hop_diag` (hopping probability in diagonal basis) and `u_matrix` (Basis transform matrix from diagonal to MCH state coefficients) from SHARC data.
 * Stacking and unstacking trajectories will now try and restore original types like `int` for the active state.
+* Harmonized fill values for layering/unstacking of data to avoid integer type fields being converted into `float` to allow for `np.nan` padding. Setting a desired fill value can be achieved by setting `fill_value` attribute. Note that this value must be serializable or storing the dataset on disk will become impossible.
+* Add an `unwrap_dataset()` helper method to strip away bare `xarray` data types to help with testing and compatibility with other frameworks possibly checking for precise types.
 
 ### Fixes
 

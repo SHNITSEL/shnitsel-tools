@@ -13,6 +13,7 @@ import numpy as np
 import pandas as pd
 
 from shnitsel.core._api_info import internal
+from shnitsel.units.defaults import get_fill_value
 
 if TYPE_CHECKING:
     from shnitsel.data.dataset_containers.shared import ShnitselDataset
@@ -563,14 +564,10 @@ def unstack_trajs(
     # Retain types where possible.
     if isinstance(frames, xr.DataArray):
         retain_type = {k: v.dtype for k, v in frames.coords.items()}
-        retain_fill_value = {
-            k: v.attrs.get("fill_value", np.nan) for k, v in frames.coords.items()
-        }
+        retain_fill_value = {k: get_fill_value(v) for k, v in frames.coords.items()}
     else:
         retain_type = {k: v.dtype for k, v in frames.variables.items()}
-        retain_fill_value = {
-            k: v.attrs.get("fill_value", np.nan) for k, v in frames.variables.items()
-        }
+        retain_fill_value = {k: get_fill_value(v) for k, v in frames.variables.items()}
 
     orig_frames = frames
 
@@ -622,7 +619,8 @@ def unstack_trajs(
 
     # Try and get the fill value for arrays
     if fill_value is dtype_NA and isinstance(frames, xr.DataArray):
-        fill_value = frames.attrs.get("fill_value", dtype_NA)
+        tmp_val = get_fill_value(frames)
+        fill_value = dtype_NA if tmp_val is np.nan else dtype_NA
 
     # NOTE: We use this kws approach to avoid importing the default value for fill_value
     # in xr's unstack, which is their internal `xarray.core.dtypes.NA`.
@@ -639,7 +637,9 @@ def unstack_trajs(
     # Try and restore value types from np.float where possible.
     replacements = {}
     for retained_var_name, retained_dtype in retain_type.items():
-        if retained_var_name in res and 'frame' in orig_frames[retained_var_name].dims:
+        if (
+            retained_var_name in res or retained_var_name in res.coords
+        ) and 'frame' in orig_frames[retained_var_name].dims:
             if res[retained_var_name].dtype != retained_dtype:
                 try:
                     replacements[retained_var_name] = (
@@ -652,7 +652,10 @@ def unstack_trajs(
                         f"Failed to convert variable {retained_var_name} to back to its original type {retained_dtype}."
                     )
     if replacements:
-        res = res.assign(replacements)
+        if hasattr(res, "assign"):
+            res = res.assign(replacements)
+        elif hasattr(res, "assign_coords"):
+            res = res.assign_coords(replacements)
 
     res['is_frame'] = res['is_frame'].fillna(0).astype(bool)
 
@@ -699,14 +702,10 @@ def stack_trajs(unstacked: DatasetOrArray) -> DatasetOrArray:
     # Retain types where possible.
     if isinstance(unstacked, xr.DataArray):
         retain_type = {k: v.dtype for k, v in unstacked.coords.items()}
-        fill_value = {
-            k: v.attrs.get("fill_value", np.nan) for k, v in unstacked.coords.items()
-        }
+        fill_value = {k: get_fill_value(v) for k, v in unstacked.coords.items()}
     else:
         retain_type = {k: v.dtype for k, v in unstacked.variables.items()}
-        fill_value = {
-            k: v.attrs.get("fill_value", np.nan) for k, v in unstacked.variables.items()
-        }
+        fill_value = {k: get_fill_value(v) for k, v in unstacked.variables.items()}
     orig_unstacked = unstacked
 
     # NOTE: In the following, we do NOT exclude the 'trajectory' coord itself
@@ -762,7 +761,6 @@ def stack_trajs(unstacked: DatasetOrArray) -> DatasetOrArray:
 
     res = dropped_res.stack({'frame': ['atrajectory', 'time']})
 
-
     if 'is_frame' in res.coords:
         res = res.isel(frame=res.is_frame).drop_vars('is_frame')
 
@@ -799,7 +797,7 @@ def stack_trajs(unstacked: DatasetOrArray) -> DatasetOrArray:
                 # print(f"{retained_var_name} has invalid entries left: {res[retained_var_name]}")
                 has_update = True
                 tmp_array = res[retained_var_name].where(mask)
-            else: 
+            else:
                 tmp_array = res[retained_var_name]
 
             if tmp_array.dtype != retained_dtype:
@@ -813,16 +811,19 @@ def stack_trajs(unstacked: DatasetOrArray) -> DatasetOrArray:
                     logging.warning(
                         f"Failed to convert variable {retained_var_name} back to its original type {retained_dtype}."
                     )
-            
+
             if has_update:
                 replacements[retained_var_name] = tmp_array
 
     if replacements:
-        res = res.assign(replacements)
+        if hasattr(res, "assign"):
+            res = res.assign(replacements)
+        elif hasattr(res, "assign_coords"):
+            res = res.assign_coords(replacements)
 
-    if isinstance(res, xr.DataArray):
+    if isinstance(unstacked, xr.DataArray):
         # The main data in the array is not covered by our replacement strategy for xr.DataArray instances
-        res = res.where(res != unstacked.attrs.get("fill_value", np.nan))
+        res = res.where(res != get_fill_value(unstacked))
 
         if res.dtype is not unstacked.dtype:
             try:

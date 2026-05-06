@@ -1,6 +1,34 @@
 from typing import Dict, Literal
 from ..io.shared.helpers import LoadingParameters
 from .definitions import standard_units_of_formats, unit_dimensions
+import xarray as xr
+import numpy as np
+
+DUMMY_INT_FILL_VALUE = -2e63 + 1
+
+
+def get_fill_value(da: xr.DataArray | xr.Variable | np.ndarray):
+    """Helper function to obtain either the set or the default fill value
+    for a certain array dtype.
+
+    Parameters
+    ----------
+    da : xr.DataArray | np.ndarray
+        The array to get the fill value for. Either from the `fill_value` attribute or based on the dtype
+
+    Returns
+    ----------
+    The value used as a fill value for the array.
+    """
+    tmp_res = None
+    if isinstance(da, (xr.DataArray, xr.Variable)):
+        tmp_res = da.attrs.get("fill_value", None)
+
+    if tmp_res is None:
+        global DUMMY_INT_FILL_VALUE
+        dtype = da.dtype
+        return DUMMY_INT_FILL_VALUE if np.issubdtype(dtype, np.integer) else np.nan
+    return np.nan
 
 
 def get_default_input_attributes(
@@ -72,8 +100,10 @@ def get_default_input_attributes(
             "units": override_defaults(unit_dimensions.time, "time"),
         },
         "phases": {"long_name": "Phase vector"},
-        "sdiag": {"long_name": "Active state (diag)",
-            "fill_value": -1,},
+        "sdiag": {
+            "long_name": "Active state (diag)",
+            "fill_value": -1,
+        },
         "astate": {
             "long_name": "Active state in dynamic trajectories (MCH)",
             "fill_value": -1,
@@ -113,8 +143,10 @@ def get_default_input_attributes(
             "long_name": "An alias for the second state of a full_statecomb combination"
         },
         "atNames": {"long_name": "Names of atomic elements (short form)"},
-        "atNums": {"long_name": "Periodic number of atomic elements",
-            "fill_value": -1,},
+        "atNums": {
+            "long_name": "Periodic number of atomic elements",
+            "fill_value": -1,
+        },
         "forces": {
             "long_name": "Per-atom forces",
             "unitdim": unit_dimensions.force,
