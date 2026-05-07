@@ -1,9 +1,11 @@
 from io import TextIOWrapper
+from os import PathLike
 from typing import List, Tuple
 import numpy as np
 
 from shnitsel.core._api_info import internal
 from shnitsel.data.atom_helpers import get_atom_number_from_symbol
+import xarray as xr
 
 
 @internal()
@@ -42,18 +44,25 @@ def parse_xyz(f: TextIOWrapper) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     atXYZ.append(thisXYZ)
 
     for line in f:
-        assert line.startswith(' '), f'Expected empty line but got content: {line!r}'
-        # ts += 1
-        line = next(f)
-        assert line.startswith(' '), f'Expected empty line but got content: {line!r}'
+        try:
+            assert line.startswith(' '), (
+                f'Expected empty line but got content: {line!r}'
+            )
+            # ts += 1
+            line = next(f)
+            assert line.startswith(' '), (
+                f'Expected empty line but got content: {line!r}'
+            )
 
-        thisXYZ = np.full((natoms, 3), np.nan)
-        for iatom, atName in enumerate(atNames):
-            geometry_line = next(f).strip().split()
-            assert geometry_line[0] == atName, "Inconsistent atom order"
-            # atXYZ[ts, iatom] = [float(n) for n in geometry_line[1:]]
-            thisXYZ[iatom] = [float(n) for n in geometry_line[1:]]
-        atXYZ.append(thisXYZ)
+            thisXYZ = np.full((natoms, 3), np.nan)
+            for iatom, atName in enumerate(atNames):
+                geometry_line = next(f).strip().split()
+                assert geometry_line[0] == atName, "Inconsistent atom order"
+                # atXYZ[ts, iatom] = [float(n) for n in geometry_line[1:]]
+                thisXYZ[iatom] = [float(n) for n in geometry_line[1:]]
+            atXYZ.append(thisXYZ)
+        except:
+            break
 
     return (atNames, atNums, np.stack(atXYZ, axis=0))
 
@@ -83,3 +92,33 @@ def get_dipoles_per_xyz(file: TextIOWrapper, n: int, m: int) -> np.ndarray:
         dip[istate] = [float(i) for i in linecont[::2]]
 
     return dip
+
+
+def dataset_from_xyz(path: PathLike) -> xr.Dataset:
+    """Helper function to parse atom position frames from xyz files.
+
+    Parameters
+    ----------
+    path : PathLike
+        _description_
+
+    Returns
+    -------
+    xr.Dataset
+        _description_
+    """
+    with open(path) as f:
+        atNames, atNums, positions = parse_xyz(f)
+
+    ds = xr.Dataset(
+        {
+            "atXYZ": (
+                ("frame", "atom", "direction"),
+                positions,
+                {'units': 'angstrom', 'unitdim': 'length'},
+            )
+        },
+        {"atNames": (("atom",), atNames), "atNums": ("atom", atNums)},
+    )
+
+    return ds
