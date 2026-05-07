@@ -163,7 +163,7 @@ def kabsch(
     reference_or_indexers : xr.DataArray | dict, optional
         Either a reference geometry (with dims 'atom', 'direction')
         or an indexer dictionary which will be passed to ``atXYZ.sel()``
-        to indetify a single geometry in the `atXYZ` parameter to
+        to indentify a single geometry in the `atXYZ` parameter to
         use as a reference point.
 
     **indexer_kwargs
