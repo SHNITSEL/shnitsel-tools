@@ -528,13 +528,13 @@ def biplot_kde(
                 geo_prop = pyramids.pyramidalization_angle(
                     wrapped_ds.positions, atc, at1, at2, at3, angles='deg'
                 )
-                if not geo_kde_ranges:
+                if geo_kde_ranges is None:
                     geo_kde_ranges = [(-90, -10), (-10, 10), (10, 90)]
                 colorbar_label = f"pyr({atc}, ({at1}, {at2}, {at3}))/°"
             case (at1, at2):
                 # compute distance between atoms at1 and at2
                 geo_prop = distance(wrapped_ds.positions, at1, at2)
-                if not geo_kde_ranges:
+                if geo_kde_ranges is None:
                     geo_kde_ranges = [(0, 3), (5, 100)]
                 colorbar_label = (
                     f'dist({at1}, {at2}) / {geo_prop.attrs.get("units", "Bohr")}'
@@ -543,7 +543,7 @@ def biplot_kde(
                 # compute angle between vectors at1 - at2 and at2 - at3
                 assert at3 is not None  # to satisfy the typechecker
                 geo_prop = angle(wrapped_ds.positions, at1, at2, at3, angles='deg')
-                if not geo_kde_ranges:
+                if geo_kde_ranges is None:
                     geo_kde_ranges = [(0, 80), (110, 180)]
                 colorbar_label = (
                     f'angle({at1}, {at2}, {at3}) / {geo_prop.attrs.get("units", "°")}'
@@ -555,7 +555,7 @@ def biplot_kde(
                 geo_prop = dihedral(
                     wrapped_ds.positions, at1, at2, at3, at4, angles='deg', full=True
                 )
-                if not geo_kde_ranges:
+                if geo_kde_ranges is None:
                     geo_kde_ranges = [(0, 80), (110, 180)]
                 colorbar_label = f'dih({at1}, {at2}, {at3}, {at4}) / {geo_prop.attrs.get("units", "°")}'
             case _:
