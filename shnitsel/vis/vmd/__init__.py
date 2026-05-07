@@ -81,8 +81,9 @@ def traj_vmd(
             with open(directory / "script.tcl", "w") as f_out:
                 print(f_in.readlines(), file=f_out)
         print(f"VMD files written to `{path}`")
+        cmd_paths = [f"\"{_path}\"" for _path in paths]
         print(
-            f"Use `vmd -e {directory / 'script.tcl'} -m {' '.join(paths)}` to show vmd results."
+            f"Use `vmd -e {directory / 'script.tcl'} -m {' '.join(cmd_paths)}` to show vmd results."
         )
 
     try:
