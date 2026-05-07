@@ -347,7 +347,7 @@ def read_traj(
         trajectory = set_sharc_state_type_and_name_defaults(
             trajectory, state_multiplicities, charges
         )
-    trajectory =assign_optional_settings(trajectory, optional_settings)
+    trajectory = assign_optional_settings(trajectory, optional_settings)
 
     return trajectory
 
@@ -400,7 +400,7 @@ def parse_output_listings(path: pathlib.Path) -> tuple[dict[str, Any], dict[str,
     Returns
     -------
     tuple[dict[str, Any], dict[str, Any]]
-        First, a key-value dictionary, where the keys are the names of the settings like delta_t, nsteps and t_max. 
+        First, a key-value dictionary, where the keys are the names of the settings like delta_t, nsteps and t_max.
         Then a key_value dictionary with names of variables and their values extracted from the file.
     """
     settings = {}
@@ -413,7 +413,12 @@ def parse_output_listings(path: pathlib.Path) -> tuple[dict[str, Any], dict[str,
     settings["nsteps"] = nsteps
 
     times = lis_data[:, 1]
-    settings["delta_t"] = times[1] - times[0]
+    if len(times) > 1:
+        settings["delta_t"] = times[1] - times[0]
+    else:
+        logging.warning("Only one frame detected in trajectory. Time step delta may be arbitrary.")
+        settings["delta_t"] = 0.0
+
     settings["t_max"] = np.max(times)
 
     active_state = np.array([int(round(x)) for x in lis_data[:, 2]])
@@ -544,7 +549,7 @@ def parse_trajout_dat(
     # 0.1837143472948E+004
 
     # NOTE: dtype specification required to ensure two-letter symbols are parsed correctly
-    atNames = np.full((natoms,), "", dtype=trajectory_in.atNames.dtype) # dtype="U2")
+    atNames = np.full((natoms,), "", dtype=trajectory_in.atNames.dtype)  # dtype="U2")
     atNums = np.full((natoms,), -1)
     for line in f:
         stripped = line.strip()
@@ -615,7 +620,7 @@ def parse_trajout_dat(
     # TODO: Do we need to specify the type here?
     tmp_coefs = np.full_like(trajectory_in.state_coefs_diag.values, 0 + 0j)
     tmp_umatrix = np.full_like(trajectory_in.u_matrix.values, 0 + 0j)
-    tmp_phop = np.full_like(trajectory_in.prob_hop_diag.values, 0.)
+    tmp_phop = np.full_like(trajectory_in.prob_hop_diag.values, 0.0)
 
     # skip through until initial step:
     for line in f:
@@ -672,7 +677,10 @@ def parse_trajout_dat(
                 linecont = next(f).strip().split()
                 float_entries = [float(i) for i in linecont]
                 # convert list of even number of floats to list of complex numbers
-                complex_entries = [np.complex128(float_entries[2*j], float_entries[2*j+1]) for j in range(nstates)]
+                complex_entries = [
+                    np.complex128(float_entries[2 * j], float_entries[2 * j + 1])
+                    for j in range(nstates)
+                ]
                 tmp_umatrix[ts, istate, :] = complex_entries
 
         if line.startswith("! 3 Dipole moments"):
@@ -714,7 +722,7 @@ def parse_trajout_dat(
             ]
             coefs_assigned = True
             tmp_coefs[ts] = coefs
-        
+
         if line.startswith("! 6 Hopping Probabilities"):
             phop_assigned = True
             tmp_phop[ts, :] = [float(next(f).strip()) for i in range(nstates)]
