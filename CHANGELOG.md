@@ -29,6 +29,7 @@ Bug fixes compared to previous version and addition of new features:
 * Harmonized fill values for layering/unstacking of data to avoid integer type fields being converted into `float` to allow for `np.nan` padding. Setting a desired fill value can be achieved by setting `fill_value` attribute. Note that this value must be serializable or storing the dataset on disk will become impossible.
 * Add an `unwrap_dataset()` helper method to strip away bare `xarray` data types to help with testing and compatibility with other frameworks possibly checking for precise types.
 * Extended `traj_vmd()` support for exporting trajectories to be displayed using `vmd`.
+* Added on-demand padding with temporary dimensions for rotational alignment in `shnitsel.geo.alignment` functions to allow provision of single geometries.
 
 ### Fixes
 

@@ -134,7 +134,28 @@ def rotational_procrustes(
     xr.DataArray
         An xr.DataArray with the same shape as ``A`` but with entries aligned to the overall geometry of ``B``
     """
-    return xr.apply_ufunc(
+    min_dims = {'atom', 'direction'}
+    assert min_dims.issubset(A.dims), (
+        "A must have at least dimensions `atom` and `direction`"
+    )
+    assert min_dims.issubset(B.dims), (
+        "B must have at least dimensions `atom` and `direction`"
+    )
+
+    if len(A.dims) == 2:
+        A = A.expand_dims('frame_A')
+    if len(B.dims) == 2:
+        B = A.expand_dims('frame_B')
+
+    # excess_dims_A = set(A.dims).difference(min_dims)
+    # excess_dims_B = set(B.dims).difference(min_dims)
+
+    # if len(excess_dims_A) > 1:
+    #     A = A.stack(tmp_frame_A=list(excess_dims_A))
+    # if len(excess_dims_B) > 1:
+    #     B = B.stack(tmp_frame_B=list(excess_dims_B))
+
+    tmp_res: xr.DataArray = xr.apply_ufunc(
         rotational_procrustes_np,
         A,
         B,
@@ -142,6 +163,13 @@ def rotational_procrustes(
         output_core_dims=[[dim0, dim1]],
         kwargs={'weight': weight},
     )
+
+    # Strip dummy dimensions
+    for tmp_dim in ['frame_A', 'frame_B']:
+        if tmp_dim in tmp_res.dims:
+            tmp_res = tmp_res.squeeze(tmp_dim)
+
+    return tmp_res
 
 
 @needs(dims={'atom', 'direction'})
