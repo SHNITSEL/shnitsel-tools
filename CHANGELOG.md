@@ -30,6 +30,7 @@ Bug fixes compared to previous version and addition of new features:
 * Add an `unwrap_dataset()` helper method to strip away bare `xarray` data types to help with testing and compatibility with other frameworks possibly checking for precise types.
 * Extended `traj_vmd()` support for exporting trajectories to be displayed using `vmd`.
 * Added on-demand padding with temporary dimensions for rotational alignment in `shnitsel.geo.alignment` functions to allow provision of single geometries.
+* Add RMSD calculation support with `calc_rmsd` in `shnitsel.analyze.rmsd`.
 
 ### Fixes
 
