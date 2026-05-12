@@ -5,7 +5,7 @@ to keep track of the updates happening in various version, we list the
 changes here
 
 
-## shnitsel-tools v2026.4.1
+## shnitsel-tools v2026.5.1
 
 Bug fixes compared to previous version and addition of new features:
 
