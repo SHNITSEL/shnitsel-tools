@@ -161,7 +161,7 @@ convert_nacs = Converter(
 )
 
 # Helper to convert socs
-convert_socs = Converter(definitions.unit_dimensions.time, definitions._socs_unit_scale)
+convert_socs = Converter(definitions.unit_dimensions.socs, definitions._socs_unit_scale)
 
 # Helper to convert charges
 convert_charge = Converter(

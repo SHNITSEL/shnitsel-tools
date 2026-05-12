@@ -10,7 +10,9 @@ from .common import figaxs_defaults, centertext
 from .hist import truncate_from_above
 
 symbols = dict(
-    energy=r"$E_i$", forces=r"$|\mathbf{F}_i|$", dip_perm=r"$|\mathbf{\mu}_i|$"
+    energy=r"$E_i$",
+    forces_norm=r"$|\mathbf{F}_i|$",
+    dip_perm_norm=r"$|\mathbf{\mu}_i|$",
 )
 
 
@@ -44,6 +46,9 @@ def plot_per_state_histograms(
     """
     assert axs is not None, "Could not obtain axes for plotting the graphs."
 
+    axis_names = ['energy', 'forces', 'dip_perm']
+    quantity_names = ['energy', 'forces_norm', 'dip_perm_norm']
+
     if shape is not None:
         rows = shape[0]
         cols = shape[1]
@@ -61,7 +66,7 @@ def plot_per_state_histograms(
                 assert fig is not None, "Figure is required if shape is passed."
                 ax_list = fig.subplots(rows, cols)
                 ax_list = ax_list.flatten()
-                for label, ax in zip(['energy', 'forces', 'dip_perm'], ax_list):
+                for label, ax in zip(axis_names, ax_list):
                     axs[label] = ax
 
                 for pos in range(0, total, cols):
@@ -69,26 +74,26 @@ def plot_per_state_histograms(
         else:
             axs['energy'].set_ylabel('# points')
 
-    for quantity in ['energy', 'forces', 'dip_perm']:
-        ax = axs[quantity]
+    for quantity_axis, quantity_name in zip(axis_names, quantity_names):
+        ax = axs[quantity_axis]
         if (
-            not per_state.has_variable(quantity)
-            or not per_state.dataset[quantity].notnull().any()
+            not per_state.has_variable(quantity_name)
+            or not per_state.dataset[quantity_name].notnull().any()
         ):
-            centertext("No %s data" % symbols.get(quantity, quantity), ax)
+            centertext("No %s data" % symbols.get(quantity_name, quantity_name), ax)
             continue
 
         for state, data in per_state.dataset.groupby('state'):
             if not state_selection.has_state(state):
                 continue
 
-            if not data[quantity].notnull().any():
+            if not data[quantity_name].notnull().any():
                 continue
 
             color = state_selection.get_state_color(state)
             state_label = state_selection.get_state_tex_label(state)
             counts, edges, _ = ax.hist(
-                truncate_from_above(data[quantity].squeeze().values, bins=100),
+                truncate_from_above(data[quantity_name].squeeze().values, bins=100),
                 color=color,
                 alpha=0.2,
                 bins=30,
@@ -102,9 +107,9 @@ def plot_per_state_histograms(
                 c=color,
             )
 
-        long_name = symbols[quantity]  # per_state[quantity].attrs.get('long_name')
-        units = per_state.data_vars[quantity].attrs.get('units')
-        axs[quantity].set_xlabel(rf'{long_name} / {units}')
+        long_name = symbols[quantity_name]  # per_state[quantity].attrs.get('long_name')
+        units = per_state[quantity_name].attrs.get('units')
+        axs[quantity_axis].set_xlabel(rf'{long_name} / {units}')
 
     # for quantity in ['forces', 'dip_perm']:
     #     axs[quantity].

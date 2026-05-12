@@ -86,22 +86,29 @@ class MultiSeriesLayered(MultiSeriesDataset):
 
             return self._stacked_repr_cached
 
-        if self._basis_data is not None:
-            tmp_res = MultiSeriesStacked(self._basis_data)
-        else:
-            # TODO: FIXME: Fix the typing issue with `wrap_dataset`
-            ds: xr.Dataset = self.dataset
-            datasets: Sequence[Frames | Trajectory] = [
-                wrap_dataset(
-                    (tmp_ds := ds.sel(trajectory=id))
-                    .isel(time=slice(None, tmp_ds.max_ts.item() + 1))
-                    .drop_dims('trajectory', errors="ignore"),
-                    expected_types=Trajectory | Frames,
-                )
-                for id in ds.coords['trajectory'].values
-            ]
+        # if self._basis_data is not None:
+        #     tmp_res = MultiSeriesStacked(self._basis_data)
+        # else:
+        
+        # TODO: FIXME: Fix the typing issue with `wrap_dataset`
+        ds: xr.Dataset = self.dataset
+        # datasets: Sequence[Frames | Trajectory] = [
+        #     wrap_dataset(
+        #         (tmp_ds := ds.sel(trajectory=id))
+        #         .isel(time=slice(None, tmp_ds.max_ts.item() + 1))
+        #         .drop_vars('trajid', errors='ignore')
+        #         .rename(trajectory='trajid'),
+        #         expected_types=Trajectory | Frames,
+        #     )
+        #     for id in ds.coords['trajectory'].values
+        # ]
+        # tmp_res = MultiSeriesStacked(datasets)
 
-            tmp_res = MultiSeriesStacked(datasets)
+        # Use multi-index stack/unstack logic
+        from shnitsel.data.multi_indices import stack_trajs
+        ds_stacked = stack_trajs(ds)
+        tmp_res = MultiSeriesStacked(ds_stacked)
+        tmp_res._basis_data = self._basis_data
 
         # Set self as cached result of the inverse conversion
         tmp_res._layered_repr_cached = self

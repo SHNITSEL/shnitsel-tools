@@ -1,5 +1,7 @@
 import inspect
-from typing import Callable, Dict, List
+from types import NoneType, UnionType
+from typing import Callable, Dict, List, TypeVar
+import typing
 
 
 def generate_class_code(
@@ -28,27 +30,84 @@ def generate_class_code(
     # Maybe we should include a flag if the import failed for each individual module and throw an error only if an accessor method
     # using that import is called?
 
-    def get_ann_str(annotation):
-        """Convert annotation to string, handling complex types better."""
-        if annotation is None or annotation is inspect._empty:
+    def type_to_type_label(type_annotation: type | str) -> str:
+        if type_annotation is None or type_annotation is inspect._empty:
             return ""
 
+        if type_annotation == NoneType:
+            return "None"
+
         # Handle string annotations (forward references)
-        if isinstance(annotation, str):
-            return annotation
+        if isinstance(type_annotation, str):
+            return type_annotation
+
+        # TODO: Type Vars replace by bounds/constraints or Any
+        # FIXME: TreeNode subtypes result in generic imports.
+        # if isinstance(type_annotation, TypeVar):
+        #     return (
+        #         type_to_type_label(type_annotation.__bound__)
+        #         if type_annotation.__bound__
+        #         else "Any"
+        #     )
+
+        # TODO: FIXME: Add the generic parameters back into the representation for things like `Collection[DimName]`. Currently only `Collection` appears.
+
+        # For unions, unwrap the union
+        if (
+            isinstance(type_annotation, UnionType)
+            or typing.get_origin(type_annotation) == typing.Union
+        ):
+            return "(" + union_to_typestring(type_annotation) + ")"
+
+        import_base_class = typing.get_origin(type_annotation)
+
+        if import_base_class == typing.Literal:
+            return literal_to_typestring(type_annotation)
+
+        if import_base_class is None:
+            if (
+                hasattr(type_annotation, '__module__')
+                and type_annotation.__module__ != "builtins"
+                and not type_annotation.__name__.find("TreeNode") >= 0
+            ):
+                module_name = type_annotation.__module__
+                if module_name not in ['typing', 'builtins']:
+                    imports[type_annotation.__name__] = module_name
+        elif import_base_class is not None:
+            if (
+                hasattr(import_base_class, '__module__')
+                and import_base_class.__module__ != "builtins"
+            ):
+                module_name = import_base_class.__module__
+                if module_name not in ['typing', 'builtins']:
+                    imports[import_base_class.__name__] = module_name
+        else:
+            import_base_class = type_to_type_label(import_base_class)
 
         # For simple types, use __name__ if available
-        if hasattr(annotation, '__name__'):
-            if (
-                hasattr(annotation, '__module__')
-                and annotation.__module__ != "builtins"
-            ):
-                module_name = annotation.__module__
-                if module_name not in ['typing', 'builtins']:
-                    imports[annotation.__name__] = module_name
-            return annotation.__name__
+        if hasattr(type_annotation, '__name__'):
+            return type_annotation.__name__
 
-        return repr(annotation)
+        return repr(type_annotation)
+
+    def union_to_typestring(union_annotation) -> str:
+        subtypes = typing.get_args(union_annotation)
+
+        return " | ".join(type_to_type_label(x) for x in subtypes)
+
+    def literal_to_typestring(literal_annotation) -> str:
+        args = typing.get_args(literal_annotation)
+
+        return (
+            "Literal["
+            + ", ".join(f"\"{x}\"" if isinstance(x, str) else str(x) for x in args)
+            + "]"
+        )
+
+    def get_ann_str(annotation):
+        """Convert annotation to string, handling complex types better."""
+
+        return type_to_type_label(annotation)
 
     lines = []
 
@@ -98,8 +157,11 @@ def generate_class_code(
                     else:
                         # Regular parameters
                         if param.default is not inspect.Parameter.empty:
-                            pdefault = f"={param.default!r}"
-                            adefault = f"={pname}"
+                            if isinstance(param.default, type):
+                                pdefault = " = " + type_to_type_label(param.default)
+                            else:
+                                pdefault = f" = {param.default!r}"
+                            adefault = f" = {pname}"
                         else:
                             pdefault = ""
                             adefault = ""

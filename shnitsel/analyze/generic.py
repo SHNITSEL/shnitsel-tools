@@ -138,7 +138,7 @@ def subtract_combinations(
             comb_indices.append((index_from, index_to))
     else:
         logging.info(f"Dimension {combination_dimension_name} is being generated.")
-        da = da.assign_coords()  # TODO FIXME What does this do?
+        da = da.assign_coords()  # TODO: FIXME: What does this do?
         comb_indices = list(itertools.combinations(range(n), 2))
         coordinates = {combination_dimension_name: midx(da, dim), dim: dim_index}
 
@@ -288,14 +288,14 @@ def pwdists(
     atxyz_ds: xr.Dataset
     atxyz_da: xr.DataArray
     if isinstance(atXYZ_source, xr.DataArray):
-        atxyz_ds = atXYZ_source.to_dataset()
+        atxyz_ds = atXYZ_source.to_dataset(name="atXYZ")
         atxyz_da = atXYZ_source
     else:
         atxyz_ds = atXYZ_source.dataset
         atxyz_da = atXYZ_source.positions
 
-    struct_selection = StructureSelection.init_from_dataset(
-        atxyz_ds, default_selection=['atoms']
+    struct_selection = StructureSelection.init_dummy_from_atoms(
+        atxyz_ds.coords['atom'], default_selection=['atoms']
     )
 
     bats_distances = get_distances(

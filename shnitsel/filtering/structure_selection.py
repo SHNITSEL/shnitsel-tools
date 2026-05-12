@@ -1,7 +1,19 @@
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from itertools import combinations
 import logging
-from typing import Collection, Iterator, Literal, Self, Sequence, TypeAlias
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Collection,
+    Iterator,
+    Literal,
+    Self,
+    Sequence,
+    TypeAlias,
+)
+from matplotlib.colors import Colormap
+from matplotlib.figure import Figure
 import numpy as np
 import rdkit
 import xarray as xr
@@ -20,8 +32,6 @@ from shnitsel.vis.colormaps import (
     st_pink,
     st_violet,
 )
-from IPython.display import SVG
-
 
 AtomDescriptor: TypeAlias = int
 BondDescriptor: TypeAlias = tuple[int, int]
@@ -39,12 +49,15 @@ FeatureDescriptor: TypeAlias = (
     | PyramidsDescriptor
 )
 
+if TYPE_CHECKING:
+    from IPython.display import SVG
+
 FeatureList: TypeAlias = list[FeatureDescriptor]
 
 ActiveFlag: TypeAlias = bool
 
 FeatureLevelType: TypeAlias = Literal[
-    'atoms', 'bonds', 'angles', 'dihedrals', 'pyramids'
+    'atoms', 'bonds', 'angles', 'dihedrals', 'pyramids', 'pwdist', 'BLA'
 ]
 FeatureLevelOptions: TypeAlias = FeatureLevelType | Literal[1, 2, 3, 4, 5]
 
@@ -54,7 +67,19 @@ FEATURE_LEVELS: list[FeatureLevelType] = [
     'angles',
     'dihedrals',
     'pyramids',
+    'pwdist',
+    'BLA',
 ]
+
+PLOTTABLE_FEATURE_LEVELS: list[FeatureLevelType] = [
+    'atoms',
+    'bonds',
+    'angles',
+    'dihedrals',
+    'pyramids',
+    # 'BLA',
+]
+
 
 FeatureTypeLabel: TypeAlias = Literal[
     'bla',
@@ -77,6 +102,22 @@ FEATURE_LEVEL_DEFAULT_COLORS: dict[FeatureLevelType, str] = {
     'angles': st_pink,
     'dihedrals': st_violet,
     'pyramids': st_orange,
+}
+
+from shnitsel.vis.colormaps import (
+    st_greens_cmap,
+    st_blues_cmap,
+    st_greys_cmap,
+    st_purples_cmap,
+    st_oranges_cmap,
+)
+
+FEATURE_LEVEL_DEFAULT_CMAPS: dict[FeatureLevelType, str | Colormap] = {
+    'atoms': st_greys_cmap,  #'Greys',
+    'bonds': st_blues_cmap,  #'Blues',
+    'angles': st_greens_cmap,  #'Greens',
+    'dihedrals': st_purples_cmap,  #'Purples',
+    'pyramids': st_oranges_cmap,  #'Oranges',
 }
 
 SMARTSstring: TypeAlias = str
@@ -115,8 +156,14 @@ class StructureSelection:
     pyramids_types: dict[PyramidsDescriptor, bool]
     pyramids_selected: set[PyramidsDescriptor]
 
+    is_BLA_selected: bool
+
     feature_level_colors: dict[FeatureLevelType, str] = field(
         default_factory=lambda: dict(FEATURE_LEVEL_DEFAULT_COLORS)
+    )
+
+    feature_level_cmaps: dict[FeatureLevelType, str | Colormap] = field(
+        default_factory=lambda: dict(FEATURE_LEVEL_DEFAULT_CMAPS)
     )
 
     def copy_or_update(
@@ -137,6 +184,7 @@ class StructureSelection:
         pyramids: set[PyramidsDescriptor] | None = None,
         pyramids_selected: set[PyramidsDescriptor] | None = None,
         pyramids_types: dict[PyramidsDescriptor, bool] | None = None,
+        is_BLA_selected: bool | None = None,
         inplace: bool = False,
     ) -> Self:
         """Function to create a copy with replaced member values.
@@ -178,6 +226,8 @@ class StructureSelection:
             Set of selected indices of pyramids. Defaults to None.
         pyramids_types : dict[PyramidsDescriptor, optional
             Dict with metadata about pyramids. Defaults to None.
+        is_BLA_selected : bool, optional
+            New flag to signify whether a BLA for the maximum chromophor has been requested.
         inplace : bool, optional
             Flag to allow for in-place updates instead of returning a new cop. Defaults to False.
 
@@ -227,6 +277,9 @@ class StructureSelection:
             if pyramids_types is not None:
                 self.pyramids_types = pyramids_types
 
+            if is_BLA_selected is not None:
+                self.is_BLA_selected = is_BLA_selected
+
             return self
         else:
             if mol is None:
@@ -267,6 +320,9 @@ class StructureSelection:
             if pyramids_types is None:
                 pyramids_types = self.pyramids_types
 
+            if is_BLA_selected is None:
+                is_BLA_selected = self.is_BLA_selected
+
             return type(self)(
                 mol=mol,
                 atoms=atoms,
@@ -284,6 +340,7 @@ class StructureSelection:
                 pyramids=pyramids,
                 pyramids_selected=pyramids_selected,
                 pyramids_types=pyramids_types,
+                is_BLA_selected=is_BLA_selected,
             )
 
     @classmethod
@@ -331,13 +388,76 @@ class StructureSelection:
         #         f"Had dimensions : {filtered_dataset.dims}"
         #     )
         # print(filtered_dataset.charge)
-        # TODO: FIXME: Consider the charges needing to be set from the dataset settings.s
-        mol = construct_default_mol(
-            filtered_dataset,
-            to2D=to2D,
+        try:
+            # TODO: FIXME: Consider the charges needing to be set from the dataset settings.s
+            mol = construct_default_mol(
+                filtered_dataset,
+                to2D=to2D,
+            )
+            # Create an initial state selection
+            return cls.init_from_mol(mol, default_selection=default_selection)
+        except Exception as e:
+            logging.warning(
+                f"Could not initialize structure selection from default molecule construction. Exception: {e}"
+            )
+
+            if 'atom' in filtered_dataset.coords:
+                logging.warning(
+                    f"Constructing default structure selection from just atom indices, no higher features are enabled.\n Note that selection will not be possible."
+                )
+                return cls.init_dummy_from_atoms(
+                    filtered_dataset.coords['atom'], default_selection=default_selection
+                )
+
+            raise
+
+    @classmethod
+    def init_dummy_from_atoms(
+        cls: type[Self],
+        atoms: xr.DataArray,
+        default_selection: Sequence[FeatureLevelOptions] = [
+            'atoms',
+        ],
+    ) -> Self:
+        """Helper function to provide a fallback for constructing a dummy structure selection if not
+        enough structural data is present in the provided information.
+
+        Parameters
+        ----------
+        cls : type[Self]
+            The type of this StructureSelection so that we can create instances of it.
+        atoms : xr.DataArray
+            The array with atom indices to be used as the basis for this very simple structure selection.
+        default_selection : Sequence[FeatureLevelOptions], optional
+            List of features to activate as selected by default. Defaults to [ 'atoms', ].
+
+        Returns
+        -------
+        Self
+            A structure selection containing the provided atom indices, selected if 'atoms' key is set in `default_seletion`.
+            All other higher-order features will be initialized empty to avoid massive combinatorial cost. 
+            Functions like `pwdist` will still work but no SMARTS-based selection will be supported.
+        """
+        at_indices = np.unique(atoms)
+        return cls(
+            mol=None,
+            atoms=at_indices,
+            atoms_selected=at_indices if 'atoms' in default_selection else set(),
+            atoms_types={},
+            bonds=set(),
+            bonds_selected=set(),
+            bonds_types={},
+            angles=set(),
+            angles_selected=set(),
+            angles_types={},
+            dihedrals=set(),
+            dihedrals_selected=set(),
+            dihedrals_types={},
+            pyramids=set(),
+            pyramids_selected=set(),
+            pyramids_types={},
+            is_BLA_selected=False,
         )
-        # Create an initial state selection
-        return cls.init_from_mol(mol, default_selection=default_selection)
 
     @classmethod
     def init_from_mol(
@@ -373,17 +493,17 @@ class StructureSelection:
         """
         # TODO: FIXME: Implement actual feature selection with geomatch
 
-        atoms = set()
-        atoms_selected = set()
+        atoms: set[AtomDescriptor] = set()
+        atoms_selected: set[AtomDescriptor] = set()
         atoms_types = dict()
-        bonds = set()
-        bonds_selected = set()
+        bonds: set[BondDescriptor] = set()
+        bonds_selected: set[BondDescriptor] = set()
         bonds_types = dict()
-        angles = set()
-        angles_selected = set()
+        angles: set[AngleDescriptor] = set()
+        angles_selected: set[AngleDescriptor] = set()
         angles_types = dict()
-        dihedrals = set()
-        dihedrals_selected = set()
+        dihedrals: set[DihedralDescriptor] = set()
+        dihedrals_selected: set[DihedralDescriptor] = set()
         dihedrals_types = dict()
         pyramids: set[PyramidsDescriptor] = set()
         pyramids_selected: set[PyramidsDescriptor] = set()
@@ -395,9 +515,11 @@ class StructureSelection:
 
         are_atoms_selected = 'atoms' in default_selection
         are_bonds_selected = 'bonds' in default_selection
+        are_pwdist_selected = 'pwdist' in default_selection
         are_angles_selected = 'angles' in default_selection
         are_dihedrals_selected = 'dihedrals' in default_selection
         are_pyramids_selected = 'pyramids' in default_selection
+        is_BLA_selected = 'BLA' in default_selection
 
         # ATOMS/POSITIONS
         for atom in mol.GetAtoms():
@@ -419,8 +541,16 @@ class StructureSelection:
                 bond_type = bond.GetBondTypeAsDouble()
                 bonds_types[bondId] = bond_type
 
-        if are_bonds_selected:
-            bonds_selected.update(bonds)
+        # Get all pwdists if pwdists selected
+        if are_pwdist_selected:
+            bonds_selected.update(
+                StructureSelection.canonicalize_bond(pwcomb)
+                for pwcomb in combinations(atoms, 2)
+            )
+        else:
+            # Otherwise just the bonds
+            if are_bonds_selected:
+                bonds_selected.update(bonds)
 
         # ANGLES
         for bond_j in mol.GetBonds():
@@ -521,6 +651,7 @@ class StructureSelection:
             pyramids=pyramids,
             pyramids_selected=pyramids_selected,
             pyramids_types=pyramids_types,
+            is_BLA_selected=is_BLA_selected,
         )
 
     def derive_other_from_descriptor(
@@ -622,10 +753,55 @@ class StructureSelection:
 
         return self.copy_or_update(
             atoms_selected=None if 'atoms' in feature_levels else set(),
-            bonds_selected=None if 'bonds' in feature_levels else set(),
+            bonds_selected=None
+            if 'bonds' in feature_levels or 'pwdist' in feature_levels
+            else set(),
             angles_selected=None if 'angles' in feature_levels else set(),
             dihedrals_selected=None if 'dihedrals' in feature_levels else set(),
             pyramids_selected=None if 'pyramids' in feature_levels else set(),
+            is_BLA_selected=None if 'BLA' in feature_level else False,
+            inplace=inplace,
+        )
+
+    def without(
+        self,
+        feature_level: FeatureLevelOptions | Sequence[FeatureLevelOptions] | None,
+        inplace: bool = False,
+    ) -> Self:
+        """Retain all but the selected features of the specified feature levels.
+
+        E.g. selection.without('atoms') yields a selection where atoms/positions are not selected
+        but all other features are selected as according to the previous selection.
+        All selections for features not in `feature_level` will be retained.
+
+        Parameters
+        ----------
+        feature_level : FeatureLevelOptions | Sequence[FeatureLevelOptions] | None
+            The desired feature levels to remove in the resulting selection. If set to `None`, all selections will be cleared.
+        inplace : bool, optional
+            Whether to update the selection in-place. Defaults to False.
+
+        Returns
+        -------
+        Self
+            The selection where all but the chosen feature levels are still active.
+
+        """
+        if feature_level is None:
+            feature_level = []
+        elif isinstance(feature_level, str) or not isinstance(feature_level, Sequence):
+            feature_level = [feature_level]
+        feature_levels = [self._to_feature_level_str(x) for x in feature_level]
+
+        return self.copy_or_update(
+            atoms_selected=None if 'atoms' not in feature_levels else set(),
+            bonds_selected=None
+            if 'bonds' not in feature_levels and 'pwdist' not in feature_levels
+            else set(),
+            angles_selected=None if 'angles' not in feature_levels else set(),
+            dihedrals_selected=None if 'dihedrals' not in feature_levels else set(),
+            pyramids_selected=None if 'pyramids' not in feature_levels else set(),
+            is_BLA_selected=None if 'BLA' not in feature_level else False,
             inplace=inplace,
         )
 
@@ -658,7 +834,12 @@ class StructureSelection:
         feature_levels = [self._to_feature_level_str(x) for x in feature_level]
         return self.copy_or_update(
             atoms_selected=self.atoms if 'atoms' in feature_levels else None,
-            bonds_selected=self.bonds if 'bonds' in feature_levels else None,
+            bonds_selected=set(
+                StructureSelection.canonicalize_bond(pwcomb)
+                for pwcomb in combinations(self.atoms, 2)
+            )
+            if 'pwdist' in feature_levels
+            else (self.bonds if 'bonds' in feature_levels else None),
             angles_selected=self.angles if 'angles' in feature_levels else None,
             dihedrals_selected=self.dihedrals
             if 'dihedrals' in feature_levels
@@ -1340,6 +1521,7 @@ class StructureSelection:
             new_selection = self.pyramids.copy()
         else:
             new_selection = set()
+            # TODO: FIXME: This does not select pyramids. The logic for breaking out of the look early seems to be broken.
 
             for entry in atoms:
                 filter_set: Sequence[AtomDescriptor]
@@ -1581,17 +1763,18 @@ class StructureSelection:
 
     def draw(
         self,
-        flag_level: FeatureLevelOptions = 'bonds',
+        flag_level: FeatureLevelOptions | Iterable[FeatureLevelOptions] | None = None,
         highlight_color: tuple[float, float, float] | str | None = None,
         width=300,
         height=300,
-    ) -> SVG:
+    ) -> "Figure | SVG | Iterable[SVG] | Any":
         """Helper function to allow visualization of the structure represented in this selection.
 
         Parameters
         ----------
         flag_level : FeatureLevelOptions, optional
-            Currently unused. Defaults to 'bonds'.
+            Chooses the features to plot.
+            If not set, will plot a grid of all feature levels.
         highlight_color : tuple[float, float, float] | str, optional
             Color to use for highlights of the active parts. Defaults to a flag-level dependent color.
         width : int, optional
@@ -1601,54 +1784,112 @@ class StructureSelection:
 
         Returns
         -------
+        Figure
+            A figure holding the visualizations of the feature levels.
+            Should be the default behaviour for non-interactive environments
         SVG
-            The SVG representation of this selection's figure.
-
+            The SVG representation of this selection's figure of the desired level.
+        Iterable[SVG]
+            A sequence of SVG representations of the multiple selection levels if multiple requested.
+        Any
+            If outside of an ipython environment, this function returns either a single output drawing
+            or a sequence thereof of format `svg` (in its textual representation).
         """
-        # TODO: FIXME: Use different colors for different feature levels.
-        from rdkit.Chem.Draw import rdMolDraw2D
-
-        if highlight_color is None:
-            # Get feature-level color if not set
-            feature_level = self._to_feature_level_str(flag_level)
-            highlight_color = self.feature_level_colors[feature_level]
-
-        if isinstance(highlight_color, str):
-            highlight_color = tuple(hex2rgb(highlight_color))
-
-        # draw molecule with highlights
-        drawer = rdMolDraw2D.MolDraw2DSVG(width, height)
-        drawer.drawOptions().fillHighlights = True
-        drawer.drawOptions().addAtomIndices = True
-        drawer.drawOptions().setHighlightColour(highlight_color)
-        drawer.drawOptions().clearBackground = False
-
-        active_bonds = self.__get_active_bonds(flag_level=flag_level)
-        active_atoms = self.__get_active_atoms(flag_level=flag_level)
-
-        if len(active_bonds) == 0:
-            active_bonds = None
-        else:
-            active_bonds = self.bond_descriptor_to_mol_index(active_bonds)
-
-        # print(f"{drawer=}")
-        # print(f"{self.mol=}")
-        # print(f"{active_atoms=}")
-        # print(f"{active_bonds=}")
-
-        rdMolDraw2D.PrepareAndDrawMolecule(
-            drawer,
-            self.mol,
-            highlightAtoms=active_atoms,
-            highlightBonds=active_bonds,
+        assert self.mol is not None, (
+            "Cannot visualize a structure selection with an invalid `mol` structure"
         )
-        # drawer.DrawMolecule(mol)
-        drawer.FinishDrawing()
-        img_text = drawer.GetDrawingText()
-        # TODO: FIXME: Consider not returning an IPython object. Return only IPython if in IPython environment?
-        img = SVG(img_text)
 
-        return img
+        from shnitsel.vis.plot.structure_grid import feature_highlight_grid
+        # from shnitsel.core.feature_detection import is_ipython_notebook
+
+        if flag_level is None:
+            flag_level = PLOTTABLE_FEATURE_LEVELS
+        elif isinstance(flag_level, (str, int)):
+            flag_level = [flag_level]
+
+        # plots = []
+
+        feature_indices = []
+        feature_labels = []
+
+        feature_colors = dict()
+        feature_cmaps = dict()
+
+        for level in flag_level:
+            feature_level = self._to_feature_level_str(level)
+            highlight_color = None
+            highlight_cmap = None
+            if highlight_color is None:
+                # Get feature-level color if not set
+                if feature_level in self.feature_level_cmaps:
+                    highlight_cmap = self.feature_level_cmaps[feature_level]
+                elif feature_level in self.feature_level_colors:
+                    highlight_color = self.feature_level_colors[feature_level]
+
+            if isinstance(highlight_color, str):
+                highlight_color = tuple(hex2rgb(highlight_color))
+
+            match level:
+                case 'atoms':
+                    feature_set = self.atoms_selected
+                case 'bonds' | 'pwdist':
+                    feature_set = self.bonds_selected
+                case 'angles':
+                    feature_set = self.angles_selected
+                case 'dihedrals':
+                    feature_set = self.dihedrals_selected
+                case 'pyramids':
+                    feature_set = self.pyramids_selected
+                case _:
+                    logging.error(f"Plotting of feature {level=} not supported.")
+                    continue
+                    raise ValueError(f"Plotting of feature {level=} not supported.")
+
+            feature_indices.append(feature_set)
+            feature_labels.append(level)
+
+            if highlight_color is not None:
+                feature_colors[level] = highlight_color
+            if highlight_cmap is not None:
+                feature_cmaps[level] = highlight_cmap
+
+            # TODO: FIXME: Consider not returning an IPython object. Return only IPython if in IPython environment?
+            # img = highlight_features(
+            #     self.mol,
+            #     feature_indices=list(feature_set),
+            #     fmt='svg',
+            #     width=width,
+            #     height=height,
+            # )
+            # if not is_ipython_notebook():
+            #     logging.info(
+            #         "Cannot use `ipython.display` features in `StructureSelection.draw()` outside of `ipython` environment"
+            #     )
+            # else:
+            #     from IPython.display import SVG
+
+            #     img = SVG(img)
+
+            # plots.append(img)
+
+        # if len(plots) == 1:
+        #     return plots[0]
+        # else:
+        #     return plots
+        fig, axs = feature_highlight_grid(
+            mol=self.mol,
+            features=feature_indices,
+            labels=feature_labels,
+            colors=feature_colors,
+            cmaps=feature_cmaps,
+            width=width,
+            height=height,
+        )
+
+        if fig is not None:
+            return fig
+        else:
+            return axs
 
     def __get_active_atoms(
         self, flag_level: FeatureLevelOptions = 'atoms'
@@ -1998,7 +2239,9 @@ class StructureSelection:
             The bond descriptor with standardized index order
 
         """
-        return (np.min(bond), np.max(bond))
+        if bond[1] < bond[0]:
+            return (bond[1], bond[0])
+        return bond
 
     @staticmethod
     def canonicalize_angle(angle: AngleDescriptor) -> AngleDescriptor:
@@ -2153,8 +2396,14 @@ class StructureSelection:
             The updated StructureSelection object with only non-redundant coordinates in bonds,
             angles and dihedrals.
 
-        Note
-        ----
+        Notes
+        -----
+        The non-redundant coordinates are built from the entire molecular structure
+        with no concern for the current selection.
+        If you wish to restrict the current selection, intersect it with the result.
+        Ideally, you wirst make the set non-redundant and then pick the coordinates you would want
+        out of the non-redundant set.
+
         For many cases including methane, the internal coordinates
         returned by this function will not be complete (but should still be
         non-redundant). E.g. in the case of methane, 7 (distinct) coordinates
@@ -2166,58 +2415,316 @@ class StructureSelection:
             "Mol object of selection not set. Cannot filter for SMILES order."
         )
 
-        def join_run(s):
-            """
-            Get a str representation of a run up to an atom
-            """
-            return ' '.join(str(x) for x in s)
+        # Neighbor lists
+        neighbors: dict[AtomDescriptor, set[AtomDescriptor]] = {
+            a: set() for a in self.atoms
+        }
 
-        logger = logging.getLogger('flag_nonredundant')
-        order = self.__get_smiles_order(self.mol, include_h)
+        for a, b in self.bonds:
+            neighbors[a].add(b)
+            neighbors[b].add(a)
+
+        component_indices = np.full((len(self.atoms),), -1)
+
+        components: list[set[AtomDescriptor]] = []
+
+        for a_i in self.atoms:
+            if component_indices[a_i] >= 0:
+                continue
+            new_comp_index = len(components)
+            # Found new component
+            queue = set({a_i})
+            curr_component = set()
+            while queue:
+                next_atom = queue.pop()
+                if component_indices[next_atom] < 0:
+                    # Set the component for this atom and add it to current component
+                    component_indices[next_atom] = new_comp_index
+                    curr_component.add(next_atom)
+                    # Add all non-visited neighbors of the current atom to queue
+                    queue.update(
+                        x for x in neighbors[next_atom] if component_indices[x] < 0
+                    )
+
+            components.append(curr_component)
+
+        # We now have information about all components (if the mol is disjoint)
 
         new_bonds: list[BondDescriptor] = []
         new_angles: list[AngleDescriptor] = []
         new_dihedrals: list[DihedralDescriptor] = []
-        runs = {}
-        min_run_len = 0
-        # TODO: FIXME: Test this algorithm throroughly. I could not find a reference for this.
-        for i in order:
-            if len(runs) == 0:
-                logger.info(f'Atom {i}: Nothing to do')
-                runs[i] = [i]
+
+        for component in components:
+            if len(component) < 2:
+                # No internal coordinates needed for a single atom.
+                # TODO: FIXME: Should we add the position of that single atom?
                 continue
 
-            neigh_runs = (
-                runs.get(neighbor.GetIdx(), [])
-                for neighbor in self.mol.GetAtomWithIdx(i).GetNeighbors()
-            )
-            runs[i] = run = max(neigh_runs, key=lambda x: len(x)) + [i]
+            # We now have at least two atoms with bonds connecting all atoms within the selection.
 
-            assert len(run) >= min_run_len
+            # Differentiate between leaves and inner nodes
+            comp_leaves = [x for x in component if len(neighbors[x]) == 1]
+            comp_inner = [x for x in component if len(neighbors[x]) > 1]
 
-            if len(run) > 4:
-                logger.info(
-                    f"Atom {i}: Using run ({join_run(run[:-4])}) {join_run(run[-4:])}"
+            if len(comp_inner) == 0:
+                # We have two bonded atoms
+                new_bonds.append(
+                    self.canonicalize_bond((comp_leaves[0], comp_leaves[1]))
                 )
+                continue
+            elif len(comp_inner) == 1:
+                # We have at least 2 leaves around a central atom
+
+                # Add all bond lengths
+                new_bonds.extend(
+                    self.canonicalize_bond((x, comp_inner[0])) for x in comp_leaves
+                )
+                # Add at least one angle:
+                new_angles.append(
+                    self.canonicalize_angle(
+                        (comp_leaves[0], comp_inner[0], comp_leaves[1])
+                    )
+                )
+                # Check if we have 3 or more at the same center
+                if len(comp_leaves) >= 3:
+                    for add_leav_idx in range(2, len(comp_leaves)):
+                        # Add the angle to the prior leaf
+                        new_angles.append(
+                            self.canonicalize_angle(
+                                (
+                                    comp_leaves[add_leav_idx - 1],
+                                    comp_inner[0],
+                                    comp_leaves[add_leav_idx],
+                                )
+                            )
+                        )
+                        # Add a pseudo dihedral, otherwise the chirality may be wrong with only angles as coordinates:
+                        new_dihedrals.append(
+                            self.canonicalize_dihedral(
+                                (
+                                    comp_leaves[add_leav_idx - 2],
+                                    comp_leaves[add_leav_idx - 1],
+                                    comp_inner[0],
+                                    comp_leaves[add_leav_idx],
+                                )
+                            )
+                        )
             else:
-                logger.info(f"Atom {i}: Using run {join_run(run)}")
+                # We have at least 2 inner nodes. All inner nodes have to be connected with each other
+                # The plan:
+                # - Find 2 connected inner nodes (a, b)
+                # - Find one neighbor of each of these nodes (a_, and b_) that is neither the other nor the same shared note (special case: 3-ring a_=b_)
+                # - Add the 3 bonds (a_,a), (a,b), (b,b_)
+                # - Add the 2 angles (a_,a,b), (a,b,b_)
+                # - Add the dihedral (a_,a,b,b_)
+                # This 4-geometry is now entirely characterized. Set `prior-paths` for the 4 atoms so that we can extend further to their neighbors
 
-            for n, k in enumerate(run[:-1]):
-                if len(runs.get(k, [])) < 4 <= len(run) - n:
-                    new_run = run[n:][::-1]
-                    logger.info(f"Overwriting run for {k} with {join_run(new_run)}")
-                    runs[k] = new_run
+                # Try and find such a bond (a,b)
 
-            if min_run_len < 4 and len(run) > min_run_len:
-                min_run_len = len(run)
-                logger.info(f'{min_run_len=}')
+                # Keep track of a found triangle
+                ring_a: AtomDescriptor
+                ring_b: AtomDescriptor
+                ring_c: AtomDescriptor
 
-            if len(run) >= 2:
-                new_bonds.append(tuple(run[-2:]))
-            if len(run) >= 3:
-                new_angles.append(tuple(run[-3:]))
-            if len(run) >= 4:
-                new_dihedrals.append(tuple(run[-4:]))
+                # Keep track of one other (reasonable) configurations
+                res_a: AtomDescriptor
+                res_b: AtomDescriptor
+                res_a_: AtomDescriptor
+                res_b_: AtomDescriptor
+                found_fitting_inner_bond: bool = False
+                for a in comp_inner:
+                    if found_fitting_inner_bond:
+                        break
+                    a_inner_neighbors = set(
+                        n for n in neighbors[a] if len(neighbors[n]) > 1
+                    )
+                    for n in a_inner_neighbors:
+                        a_remaining_neighbors = neighbors[a].difference({n})
+                        n_remaining_neighbors = neighbors[n].difference({a})
+                        # If we have at least two options for one node, we can choose different neighbors
+                        # If we only have one for each node, then we need to check if it is the same for both
+                        if (
+                            len(a_remaining_neighbors) == 1
+                            and a_remaining_neighbors == n_remaining_neighbors
+                        ):
+                            # Found a triangle/ 3-ring
+                            ring_a = a
+                            ring_b = n
+                            ring_c = a_remaining_neighbors.pop()
+                            continue
+                        else:
+                            # We have a reasonable configuration
+                            res_a = a
+                            res_b = n
+
+                            # Start with choice from smaller set in case one has only 1 option
+                            if len(a_remaining_neighbors) <= len(n_remaining_neighbors):
+                                # Get one neighbor of a
+                                res_a_ = a_remaining_neighbors.pop()
+                                # Get rid of potentially shared element
+                                n_remaining_neighbors.discard(res_a_)
+                                res_b_ = n_remaining_neighbors.pop()
+                                found_fitting_inner_bond = True
+                                break
+                            else:
+                                # Get one neighbor of n
+                                res_b_ = n_remaining_neighbors.pop()
+                                a_remaining_neighbors.discard(res_b_)
+                                res_a_ = a_remaining_neighbors.pop()
+                                # Get rid of potentially shared element
+                                found_fitting_inner_bond = True
+                                break
+
+                if not found_fitting_inner_bond:
+                    # 3 ring with 3 bonds:
+                    # NOTE: The ring indices must have been set if no fitting inner bond has been found
+                    new_bonds.extend(
+                        [
+                            self.canonicalize_bond((ring_a, ring_b)),
+                            self.canonicalize_bond((ring_b, ring_c)),
+                            self.canonicalize_bond((ring_c, ring_a)),
+                        ]
+                    )
+                    continue
+                else:
+                    new_bonds.extend(
+                        [
+                            self.canonicalize_bond((res_a, res_a_)),
+                            self.canonicalize_bond((res_a, res_b)),
+                            self.canonicalize_bond((res_b, res_b_)),
+                        ]
+                    )
+                    new_angles.extend(
+                        [
+                            self.canonicalize_angle((res_b, res_a, res_a_)),
+                            self.canonicalize_angle((res_a, res_b, res_b_)),
+                        ]
+                    )
+                    new_dihedrals.extend(
+                        [
+                            self.canonicalize_dihedral((res_b_, res_b, res_a, res_a_)),
+                        ]
+                    )
+
+                    # Set of already fixed points in component
+                    fixed_set = {res_b_, res_a, res_a_, res_b}
+
+                    # A map of fixed atom predecessors of this node (including the node itself) to use for construction of new node fixes
+                    # Should be exactly 3 long to construct bond length, angle and dihedral with new neighbor.
+                    traces: dict[AtomDescriptor, list[AtomDescriptor]] = {
+                        res_a: [res_b_, res_b, res_a],
+                        res_a_: [res_b, res_a, res_a_],
+                        res_b: [res_a_, res_a, res_b],
+                        res_b_: [res_a, res_b, res_b_],
+                    }
+
+                    queue = (
+                        neighbors[res_a_]
+                        .union(neighbors[res_a])
+                        .union(neighbors[res_b])
+                        .union(neighbors[res_b_])
+                    )
+
+                    while queue:
+                        next_neighbor = queue.pop()
+
+                        # Node already fixed, do nothing
+                        if next_neighbor in fixed_set:
+                            continue
+
+                        # Find fixed neighbor:
+                        fixed_neighbors = neighbors[next_neighbor].intersection(
+                            fixed_set
+                        )
+                        # There must be at least one predecessor, because we got to this point somehow
+                        predecessor = fixed_neighbors.pop()
+
+                        new_trace = traces[predecessor] + [next_neighbor]
+
+                        # Add fixing constraints to set of coordinates
+                        new_bonds.append(
+                            self.canonicalize_bond((new_trace[-2], new_trace[-1]))
+                        )
+                        new_angles.append(
+                            self.canonicalize_angle(
+                                (new_trace[-3], new_trace[-2], new_trace[-1])
+                            )
+                        )
+                        new_dihedrals.append(
+                            self.canonicalize_dihedral(
+                                (
+                                    new_trace[-4],
+                                    new_trace[-3],
+                                    new_trace[-2],
+                                    new_trace[-1],
+                                )
+                            )
+                        )
+
+                        # Cut off trace
+                        traces[next_neighbor] = new_trace[-3:]
+                        # Set next_neighbor as fixed
+                        fixed_set.add(next_neighbor)
+                        # Update queue to visit its neighbors
+                        queue.update(neighbors[next_neighbor])
+
+                    # We have now fixed all nodes in the component
+
+        # def join_run(s):
+        #     """
+        #     Get a str representation of a run up to an atom
+        #     """
+        #     return ' '.join(str(x) for x in s)
+
+        # logger = logging.getLogger('flag_nonredundant')
+        # order = self.__get_smiles_order(self.mol, include_h)
+        # print(order)
+
+        # new_bonds: list[BondDescriptor] = []
+        # new_angles: list[AngleDescriptor] = []
+        # new_dihedrals: list[DihedralDescriptor] = []
+        # runs = {}
+        # min_run_len = 0
+        # # TODO: FIXME: Test this algorithm throroughly. I could not find a reference for this.
+        # for i in order:
+        #     if len(runs) == 0:
+        #         logger.info(f'Atom {i}: Nothing to do')
+        #         runs[i] = [i]
+        #         continue
+
+        #     neigh_runs = (
+        #         runs.get(neighbor.GetIdx(), [])
+        #         for neighbor in self.mol.GetAtomWithIdx(i).GetNeighbors()
+        #     )
+        #     runs[i] = run = max(neigh_runs, key=lambda x: len(x)) + [i]
+
+        #     assert len(run) >= min_run_len
+
+        #     if len(run) > 4:
+        #         logger.info(
+        #             f"Atom {i}: Using run ({join_run(run[:-4])}) {join_run(run[-4:])}"
+        #         )
+        #     else:
+        #         logger.info(f"Atom {i}: Using run {join_run(run)}")
+
+        #     for n, k in enumerate(run[:-1]):
+        #         if len(runs.get(k, [])) < 4 <= len(run) - n:
+        #             new_run = run[n:][::-1]
+        #             logger.info(f"Overwriting run for {k} with {join_run(new_run)}")
+        #             runs[k] = new_run
+
+        #     if min_run_len < 4 and len(run) > min_run_len:
+        #         min_run_len = len(run)
+        #         logger.info(f'{min_run_len=}')
+
+        #     if len(run) >= 2:
+        #         new_bonds.append(tuple(run[-2:]))
+        #     if len(run) >= 3:
+        #         new_angles.append(tuple(run[-3:]))
+        #     if len(run) >= 4:
+        #         new_dihedrals.append(tuple(run[-4:]))
+
+        # print(runs)
 
         return self.copy_or_update(
             bonds_selected=set(new_bonds),
@@ -2428,3 +2935,38 @@ class StructureSelection:
     intersect = __and__
     difference = __sub__
     invert = __invert__
+
+    def __str__(self) -> str:
+        # Simple representation stating how many of each feature have been selected
+        res = (
+            type(self).__name__
+            + f": ({len(self.atoms_selected)}/{len(self.atoms)}) atoms"
+            " | " + f": ({len(self.bonds_selected)}/{len(self.bonds)}) bonds"
+            " | " + f": ({len(self.angles_selected)}/{len(self.angles)}) angles"
+            " | " + f": ({len(self.dihedrals_selected)}/{len(self.dihedrals)}) dih"
+            " | " + f": ({len(self.pyramids_selected)}/{len(self.pyramids)}) pyr"
+            " | " + "BLA: " + ("yes" if self.is_BLA_selected else "no")
+        )
+
+        return res
+
+    def __repr__(self) -> str:
+        # List the selected states:
+        res = type(self).__name__ + ":\n"
+
+        sections: list[tuple[str, set, set]] = [
+            ('atoms', self.atoms_selected, self.atoms),
+            ('bonds', self.bonds_selected, self.bonds),
+            ('angles', self.angles_selected, self.angles),
+            ('dihedrals', self.dihedrals_selected, self.dihedrals),
+            ('pyramids', self.pyramids_selected, self.pyramids),
+        ]
+        for title, f_selected, f_total in sections:
+            section_str = (
+                f"- ({len(f_selected)}/{len(f_total)}) {title}: "
+                + ", ".join(str(f_tuple) for f_tuple in f_selected)
+                + "\n"
+            )
+            res += section_str
+
+        return res

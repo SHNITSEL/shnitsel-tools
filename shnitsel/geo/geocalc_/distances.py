@@ -6,8 +6,7 @@ from shnitsel.core.typedefs import AtXYZ
 import xarray as xr
 
 from shnitsel.data.dataset_containers import wrap_dataset
-from shnitsel.data.dataset_containers.frames import Frames
-from shnitsel.data.dataset_containers.trajectory import Trajectory
+from shnitsel.data.dataset_containers.shared import ShnitselDataset
 from shnitsel.data.tree.node import TreeNode
 from shnitsel.filtering.structure_selection import (
     FeatureTypeLabel,
@@ -16,6 +15,7 @@ from shnitsel.filtering.structure_selection import (
 )
 from shnitsel.geo.geocalc_.helpers import (
     _assign_descriptor_coords,
+    _at_XYZ_subset_to_descriptor,
     _empty_descriptor_results,
 )
 from shnitsel.filtering.helpers import _get_default_structure_selection
@@ -25,16 +25,20 @@ from shnitsel.geo.geocalc_.algebra import dnorm
 
 @API()
 @needs(dims={'atom'})
-def distance(atXYZ: AtXYZ, i: int, j: int) -> xr.DataArray:
+def distance(
+    atXYZ: AtXYZ,
+    i_index: int | list[int],
+    j_index: int | list[int],
+) -> xr.DataArray:
     """Method to calculate the various distances between atoms i and j throughout time
 
     Parameters
     ----------
     atXYZ : AtXYZ
         Array with atom positions
-    i : int
+    i_index : int | list[int]
         Index of the first atom
-    j : int
+    j_index : int | list[int]
         Index of the second atom
 
     Returns
@@ -45,29 +49,36 @@ def distance(atXYZ: AtXYZ, i: int, j: int) -> xr.DataArray:
     if isinstance(atXYZ, TreeNode):
         return atXYZ.map_data(
             distance,
-            i=i,
-            j=j,
+            i_index=i_index,
+            j_index=j_index,
         )
 
-    a = atXYZ.sel(atom=i, drop=True)
-    b = atXYZ.sel(atom=j, drop=True)
+    a = _at_XYZ_subset_to_descriptor(atXYZ.sel(atom=i_index))
+    b = _at_XYZ_subset_to_descriptor(atXYZ.sel(atom=j_index))
+
     with xr.set_options(keep_attrs=True):
         result: xr.DataArray = dnorm(a - b)
+
     result.name = 'distance'
-    result.attrs['long_name'] = r"\|\mathbf{r}_{%d,%d}\|" % (i, j)
+
+    if isinstance(i_index, int):
+        result.attrs['long_name'] = r"\|\mathbf{r}_{%d,%d}\|" % (i_index, j_index)
+    else:
+        result.attrs['long_name'] = r"\|\mathbf{r}_{i,j}\|"
+
     return result
 
 
 @overload
 def get_distances(
-    atXYZ_source: TreeNode[Any, Trajectory | Frames | xr.Dataset | xr.DataArray],
+    atXYZ_source: TreeNode[Any, ShnitselDataset | xr.Dataset | xr.DataArray],
     structure_selection: StructureSelection
     | StructureSelectionDescriptor
     | None = None,
 ) -> TreeNode[Any, xr.DataArray]: ...
 @overload
 def get_distances(
-    atXYZ_source: Trajectory | Frames | xr.Dataset | xr.DataArray,
+    atXYZ_source: ShnitselDataset | xr.Dataset | xr.DataArray,
     structure_selection: StructureSelection
     | StructureSelectionDescriptor
     | None = None,
@@ -77,9 +88,8 @@ def get_distances(
 @API()
 @needs(dims={'atom', 'direction'})
 def get_distances(
-    atXYZ_source: TreeNode[Any, Trajectory | Frames | xr.Dataset | xr.DataArray]
-    | Trajectory
-    | Frames
+    atXYZ_source: TreeNode[Any, ShnitselDataset | xr.Dataset | xr.DataArray]
+    | ShnitselDataset
     | xr.Dataset
     | xr.DataArray,
     structure_selection: StructureSelection
@@ -91,7 +101,7 @@ def get_distances(
 
     Parameters
     ----------
-    atXYZ_source : TreeNode[Any, Trajectory | Frames | xr.Dataset | xr.DataArray] | Trajectory | Frames | xr.Dataset | xr.DataArray
+    atXYZ_source : TreeNode[Any, ShnitselDataset | xr.Dataset | xr.DataArray] | ShnitselDataset| xr.Dataset | xr.DataArray
         An :py:class:`xarray.DataArray` of molecular coordinates, with dimensions ``atom`` and
         ``direction`` or another source of positional data like a trajectory, a frameset,
         a dataset representing either of those or a tree structure holding such data.
@@ -115,18 +125,21 @@ def get_distances(
         )
 
     position_data: xr.DataArray
+    position_source: ShnitselDataset | xr.Dataset | xr.DataArray
     charge_info: int | None
     if isinstance(atXYZ_source, xr.DataArray):
         position_data = atXYZ_source
+        position_source = atXYZ_source
         charge_info = None
     else:
-        wrapped_ds = wrap_dataset(atXYZ_source, (Trajectory | Frames))
+        wrapped_ds = wrap_dataset(atXYZ_source, ShnitselDataset)
         position_data = wrapped_ds.atXYZ
+        position_source = wrapped_ds
         charge_info = int(wrapped_ds.charge)
 
     structure_selection = _get_default_structure_selection(
         structure_selection,
-        atXYZ_source=position_data,
+        atXYZ_source=position_source,
         default_levels=['bonds'],
         charge_info=charge_info,
     )
@@ -136,20 +149,18 @@ def get_distances(
     if len(bond_indices) == 0:
         return _empty_descriptor_results(position_data)
 
-    distance_arrs = [
-        distance(position_data, a, b).expand_dims('descriptor') for a, b in bond_indices
-    ]
+    a_indices, b_indices = [list(x) for x in zip(*[[a, b] for a, b in bond_indices])]
 
-    distance_res = xr.concat(distance_arrs, dim='descriptor')
+    distance_arr = distance(position_data, a_indices, b_indices)
 
     descriptor_tex = [r'|\vec{r}_{%d,%d}|' % (a, b) for a, b in bond_indices]
     descriptor_name = [r'dist(%d,%d)' % (a, b) for a, b in bond_indices]
     descriptor_type: list[FeatureTypeLabel] = ['dist'] * len(descriptor_tex)
 
-    distance_res.name = "distances"
+    distance_arr.name = "distances"
 
     return _assign_descriptor_coords(
-        distance_res,
+        distance_arr,
         feature_descriptors=bond_indices,
         feature_type=descriptor_type,
         feature_tex_label=descriptor_tex,

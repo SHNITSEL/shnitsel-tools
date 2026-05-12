@@ -8,6 +8,7 @@ import numpy as np
 from numpy.typing import NDArray
 import xarray as xr
 import matplotlib as mpl
+import matplotlib.pyplot as plt
 
 from matplotlib.axes import Axes
 from matplotlib.pyplot import subplot_mosaic
@@ -16,13 +17,16 @@ from scipy import stats
 from sklearn.cluster import KMeans
 
 from shnitsel.analyze.generic import get_standardized_pairwise_dists
-from shnitsel.analyze.pca import PCAResult, pca
+from shnitsel.analyze.dimred.lda import LDAResult
+from shnitsel.analyze.dimred.pca import PCAResult, pca
+from shnitsel.core.typedefs import DimName
 from shnitsel.data.dataset_containers import wrap_dataset, Trajectory, Frames
 from shnitsel.data.tree.node import TreeNode
 from shnitsel.data.tree.support_functions import tree_merge, tree_zip
+from shnitsel.filtering.structure_selection import FeatureDescriptor
 
 from .common import figax, extrude, mpl_imshow_png
-from ...rd import highlight_pairs
+from ...rd import highlight_features
 
 # if TYPE_CHECKING:
 from rdkit.Chem import Mol
@@ -31,16 +35,21 @@ from rdkit.Chem import Mol
 def plot_noodleplot(
     noodle: xr.DataArray | TreeNode[Any, xr.DataArray],
     hops_mask: xr.DataArray | TreeNode[Any, xr.DataArray] | None = None,
+    categories: xr.DataArray | TreeNode[Any, xr.DataArray] | None = None,
     fig: Figure | SubFigure | None = None,
     ax: Axes | None = None,
     c: NDArray | xr.DataArray | TreeNode[Any, xr.DataArray] | None = None,
     colorbar_label: str | None = None,
+    colorbar_kws: dict | None = None,
     cmap: str | Colormap | None = None,
     cnorm: Normalize | None = None,
     cscale=None,
     noodle_kws: dict | None = None,
     hops_kws: dict | None = None,
     rasterized: bool = True,
+    n_components: int = 2,
+    component_dimension: DimName = 'PC',
+    component_label: str = 'PC',
 ) -> Axes:
     """Create a `noodle` plot, i.e. a line or scatter plot of PCA-decomposed data.
 
@@ -50,6 +59,8 @@ def plot_noodleplot(
         PCA decomposed data.
     hops_mask : xr.DataArray | TreeNode[Any, xr.DataArray], optional
         DataArray holding hopping-point information of the trajectories. Defaults to None.
+    categories : xr.DataArray | TreeNode[Any, xr.DataArray], optional
+        DataArray holding category labels for the noodleplot data. Used for splitting up histogram data. Defaults to None.
     fig : Figure | SubFigure | None, optional
         Figure to plot the graph into. Defaults to None.
     ax : Axes, optional
@@ -57,7 +68,10 @@ def plot_noodleplot(
     c : xr.DataArray | TreeNode[Any, xr.DataArray], optional
         The data to use for assigning the color to each individual data point. Defaults to None.
     colorbar_label : str | None, optional
-        Label to plot next to the colorbar. If not provided will wither be taken from the `long_name` attribute or `name` attribute of the data or defaults to `t/fs`.
+        Label to plot next to the colorbar. If not provided will wither be taken from the `long_name`
+        attribute or `name` attribute of the data or defaults to `t/fs`.
+    colorbar_kws : dict, optional
+        Optional dictionary of keyword arguments to the colorbar command.
     cmap : str | Colormap | None, optional
         Colormap for plotting the datapoints. Defaults to None.
     cnorm : Normalize | None, optional
@@ -79,22 +93,30 @@ def plot_noodleplot(
 
     fig, ax = figax(fig=fig, ax=ax)
 
+    if not colorbar_kws:
+        colorbar_kws = {}
+
     if c is None:
-        c = noodle['time']
+        c = noodle.time
         c_is_time = True
     else:
         c_is_time = False
 
+    if isinstance(c, TreeNode):
+        color_scatter = c.as_stacked
+    else:
+        color_scatter = c
+
     if colorbar_label is not None:
         pass
-    elif hasattr(c, 'attrs') and 'long_name' in c.attrs:
-        colorbar_label = str(c.attrs['long_name'])
-        if 'units' in c.attrs:
-            colorbar_label = f"${colorbar_label}$ / {c.attrs['units']}"
-    elif hasattr(c, 'name') and c.name is not None:
-        colorbar_label = str(c.name)
-        if 'units' in c.attrs:
-            colorbar_label = f"{colorbar_label} / {c.attrs['units']}"
+    elif hasattr(color_scatter, 'attrs') and 'long_name' in color_scatter.attrs:
+        colorbar_label = str(color_scatter.attrs['long_name'])
+        if 'units' in color_scatter.attrs:
+            colorbar_label = f"${colorbar_label}$ / {color_scatter.attrs['units']}"
+    elif hasattr(color_scatter, 'name') and color_scatter.name is not None:
+        colorbar_label = str(color_scatter.name)
+        if 'units' in color_scatter.attrs:
+            colorbar_label = f"{colorbar_label} / {color_scatter.attrs['units']}"
     elif c_is_time:
         colorbar_label = '$t$ / fs'
 
@@ -112,28 +134,61 @@ def plot_noodleplot(
     else:
         noodle_scatter = noodle
 
-    if isinstance(c, TreeNode):
-        color_scatter = c.as_stacked
+    if categories:
+        stacked_cats = (
+            categories.as_stacked if isinstance(categories, TreeNode) else categories
+        )
     else:
-        color_scatter = c
+        stacked_cats = None
 
     cnorm = cnorm or mpl.colors.Normalize(color_scatter.min(), color_scatter.max())  # type: ignore
 
     assert isinstance(noodle_scatter, xr.DataArray)
     assert isinstance(color_scatter, xr.DataArray)
+    assert n_components > 0, "At least one component must be present for a noodleplot"
 
-    sc = ax.scatter(
-        noodle_scatter.isel(PC=0).values,
-        noodle_scatter.isel(PC=1).values,
-        c=color_scatter,
-        cmap=cmap,
-        norm=cnorm,
-        rasterized=rasterized,
-        **noodle_kws,
-    )
+    x_data = noodle_scatter.isel({component_dimension: 0}).values
 
-    ax.set_xlabel('PC1')
-    ax.set_ylabel('PC2')
+    num_bins = int(max(30, min(np.floor(np.sqrt(len(x_data))), 50)))
+    x_range = x_data.min(), x_data.max()
+    if n_components > 1:
+        y_data = noodle_scatter.isel({component_dimension: 1}).values
+        sc = ax.scatter(
+            x_data,
+            y_data,
+            c=color_scatter,
+            cmap=cmap,
+            norm=cnorm,
+            rasterized=rasterized,
+            **noodle_kws,
+        )
+    else:
+        y_data = np.zeros_like(x_data)
+        if stacked_cats is not None:
+            x_data = noodle_scatter.assign_coords(category=stacked_cats).isel(
+                {component_dimension: 0}
+            )
+            cat_x_data = []
+            cat_color = []
+            for category_value, data in x_data.groupby("category"):
+                cat_x_data.append(data)
+                cat_color.append(cmap(cnorm(category_value)))
+            x_data = cat_x_data
+        else:
+            cat_color = None
+
+        h_res = ax.hist(x_data, num_bins, range=x_range, color=cat_color, density=True)
+        sc = None
+
+        plt.colorbar(
+            mpl.cm.ScalarMappable(norm=cnorm, cmap=cmap), ax=ax, **colorbar_kws
+        )
+
+    x_label = f"{component_label}1"
+    y_label = f"{component_label}2" if n_components > 1 else "frequency"
+
+    ax.set_xlabel(x_label)
+    ax.set_ylabel(y_label)
     if hops_mask is not None:
         hops_kws = dict(s=0.5, c='limegreen') | (hops_kws or {})
         if isinstance(noodle, TreeNode):
@@ -158,14 +213,21 @@ def plot_noodleplot(
 
             hops_noodle = noodle[hops_mask]
 
-        ax.scatter(
-            hops_noodle.isel(PC=0).values,
-            hops_noodle.isel(PC=1).values,
-            rasterized=rasterized,
-            **hops_kws,
-        )
+        x_data_hops = hops_noodle.isel({component_dimension: 0}).values
+        if n_components > 1:
+            y_data_hops = hops_noodle.isel({component_dimension: 1}).values
+            ax.scatter(
+                x_data_hops,
+                y_data_hops,
+                rasterized=rasterized,
+                **hops_kws,
+            )
+        else:
+            y_data_hops = np.zeros_like(x_data_hops)
+            ax.hist(x_data, num_bins, range=x_range, density=True)
 
-    fig.colorbar(sc, ax=ax, label=colorbar_label, pad=0.02)
+    if sc is not None:
+        fig.colorbar(sc, ax=ax, label=colorbar_label, pad=0.02, **colorbar_kws)
 
     # Alternative layout solution
     # d = make_axes_locatable(ax)
@@ -239,7 +301,7 @@ def plot_loadings(ax: Axes, loadings: xr.DataArray):
         A DataArray of PCA loadings including an 'descriptor' dimension;
         as produced by :py:func:`shnitsel.vis.plot.pca_biplot.get_loadings`.
     """
-    # TODO: FIXME: This needs to be reconciled ith pairwise distances using StructureSelection now.
+    # TODO: FIXME: This needs to be reconciled with pairwise distances using StructureSelection now.
     raise NotImplementedError("Descriptor decomposition not implemented")
     for _, pcs in loadings.groupby('descriptor'):
         assert len(pcs) == 2
@@ -495,7 +557,7 @@ def plot_clusters_insets(
         iax = ax.inset_axes([x2, y2, *inset_size], transform=ax.transData)
         iax.set_anchor('SW')  # keep bottom-left corner of image at arrow tip!
 
-        png = highlight_pairs(mol, acs.feature_indices.values)
+        png = highlight_features(mol, acs.feature_indices.values)
         mpl_imshow_png(iax, png)
 
 
@@ -511,6 +573,110 @@ def _get_axs(clusters, labels):
     mosaic = np.array(flat).reshape(-1, ncols)
     _, axs = subplot_mosaic(mosaic)
     return axs
+
+
+def plot_pca_components(
+    pca_res: PCAResult | LDAResult,
+    axs: dict[str, Axes] | None = None,
+    mol: Mol | None = None,
+    show_loadings: int = 4,
+    ax_loadings: Axes | None = None,
+):
+    """Function to plot the main contributors to the PCA components
+    and create a grid of the highlighted features with main contribution to
+    each of the components.
+
+    Parameters
+    ----------
+    pca_res : PCAResult
+        The PCA analysis result from which to draw the main components and their weights for various features.
+    axs : dict[str, Axes], optional
+        A dictionary mapping from plot labels to :py:class:`matplotlib.pyplot.axes.Axes`
+        objects (If not provided, one will be created.)
+        Note that labels are of the form `PC1 +`, `PC1 -`, etc. with the integer index
+        indicating the index of the component (offset by 1) and the mathematical sign indicating whether the contribution is
+        positive or negative.
+    mol : Mol, optional
+        An RDKit ``Mol`` object to be used for structure display
+    show_loadings : int, default=4
+        The number of most significant overall features to plot into the graph `ax_loadings`.
+        Defaults to the 4 most significant features.
+    ax_loadings : Axes, optional
+        The :py:class:`matplotlib.pyplot.axes.Axes` object onto which to plot
+        the direction of the main contributing features.
+        (If not provided, the main features will not be plotted.)
+    """
+    from .structure_grid import feature_highlight_grid
+
+    principal_components = pca_res.components
+
+    component_contributions, main_contributions = pca_res.get_most_significant_loadings(
+        top_n_total=max(show_loadings, 0)
+    )
+
+    comp_dim = pca_res.component_dimension
+
+    highlight_data: Sequence[Sequence[FeatureDescriptor | None]] = []
+    labels = []
+    cmaps = dict()
+    gridspec = []
+    for i in principal_components.coords[comp_dim].values:
+        plus_label = f"{comp_dim}{i + 1} +"
+        minus_label = f"{comp_dim}{i + 1} -"
+        cmaps[plus_label] = 'autumn'
+        cmaps[minus_label] = 'cool'
+
+        label_list = [plus_label, minus_label]
+        gridspec.append(label_list)
+        labels += label_list
+        if i in component_contributions:
+            comp_main = component_contributions[i]
+
+            comp_pos = comp_main[comp_main > 0]
+            comp_neg = comp_main[comp_main < 0]
+
+            highlight_data.append(comp_pos.feature_indices.values)
+            highlight_data.append(comp_neg.feature_indices.values)
+        else:
+            highlight_data += [[], []]
+
+    if axs is None and show_loadings > 0 and ax_loadings is None:
+        fig, sub_axs = subplot_mosaic([["loadings", "structure"]])
+        ax_loadings = sub_axs["loadings"]
+        struct_axes_sgs = sub_axs["structure"].get_subplotspec()
+        subfig_struct = fig.add_subfigure(struct_axes_sgs)
+        axs = subfig_struct.subplot_mosaic(gridspec)
+    elif show_loadings > 0 and ax_loadings is None:
+        fig, ax_loadings = plt.subplots(1, 1)
+    elif axs is None:
+        fig, axs = subplot_mosaic(gridspec)
+    else:
+        fig = None
+
+    h_f, h_axs = feature_highlight_grid(
+        mol, highlight_data, labels, cmaps=cmaps, axs=axs
+    )
+
+    if show_loadings > 0 and ax_loadings is not None:
+        for feature_label, feature_part in main_contributions.groupby('descriptor'):
+            feature_tex_label = feature_part.descriptor_tex.item()
+            coeffs = feature_part.squeeze().values
+            if coeffs.shape != () and len(coeffs) == 2:
+                x, y = coeffs
+                ax_loadings.arrow(
+                    0, 0, x, y, head_width=0.01, length_includes_head=True
+                )
+
+                x2, y2 = extrude(x, y, *ax_loadings.get_xlim(), *ax_loadings.get_ylim())
+
+                ax_loadings.plot([x, x2], [y, y2], '--', c='k', lw=0.5)
+                ax_loadings.text(x2, y2, f"${feature_tex_label}$")
+            else:
+                logging.warning(
+                    f"Cannot plot contribution of {feature_label}: not exactly 2 components"
+                )
+
+    return fig, ax_loadings, h_axs
 
 
 def plot_clusters_grid(
@@ -574,9 +740,11 @@ def plot_clusters_grid(
         ax.text(x2, y2, s)
 
         if axs is not None and mol is not None:
-            png = highlight_pairs(mol, acs.feature_indices.values)
+            png = highlight_features(mol, acs.feature_indices.values)
             mpl_imshow_png(axs[s], png)
             axs[s].set_title(s)
+
+    return fig, axs
 
 
 # Compatability with old notebooks:
@@ -718,11 +886,11 @@ def pick_clusters(
 
             - loadings: the loadings of the PCA
             - clusters: a list of clusters, where each cluster is represented as a
-        list of indices corresponding to ``loadings``; as produced
-        by :py:func:`shnitsel.vis.plot.pca_biplot.get_clusters`.
+                list of indices corresponding to ``loadings``; as produced
+                by :py:func:`shnitsel.vis.plot.pca_biplot.get_clusters`.
             - picks: the cluster chosen from each bin of clusters
             - angles: the angular argument (rotation from the positive x-axis) of each
-            cluster center
+                cluster center
             - center: the circular mean of the angle of all picked clusters
             - radii: The distance of each cluster from the origin
             - bins: Indices of angles belonging to each bin
@@ -739,6 +907,7 @@ def pick_clusters(
     else:
         wrapped_ds = wrap_dataset(frames, Frames | Trajectory)
         loadings = get_loadings(wrapped_ds, center_mean)
+
     clusters = cluster_loadings(loadings)
     points = _get_clusters_coords(loadings, clusters)
 

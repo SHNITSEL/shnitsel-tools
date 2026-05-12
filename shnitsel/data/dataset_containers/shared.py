@@ -1,6 +1,7 @@
 from contextlib import suppress
 from dataclasses import dataclass
 from typing import Any, Hashable, Iterable, Literal, Mapping, Self
+import numpy as np
 import rdkit
 import rdkit.Chem  # Avoid import error seen in RDKit 2025.09.3, Python 3.12.7
 import xarray as xr
@@ -30,6 +31,10 @@ class ShnitselDataset(SupportsFromXrConversion, SupportsToXrConversion):
 
     @property
     def leading_dimension(self) -> str:
+        return self.leading_dim
+
+    @property
+    def leading_dim(self) -> str:
         if "frame" in self.dataset.dims:
             return "frame"
         elif "time" in self.dataset.dims:
@@ -38,6 +43,53 @@ class ShnitselDataset(SupportsFromXrConversion, SupportsToXrConversion):
             raise ValueError(
                 "Unknown leading dimension of the contained dataset. The Dataset may have been misconstructed or loaded from malformed data."
             )
+
+    def get_frame_mask(
+        self, fill_value: Any = False, dtype: type = bool
+    ) -> xr.DataArray:
+        """Helper method to get a mask for the leading dimension (`time` or `frame`)
+        of the current dataset
+
+        Parameters
+        ----------
+        fill_value : Any, default=False
+            The default value to put in the mask, by default False
+        dtype : type, default = bool
+            The datatype of the mask, by default bool
+
+        Returns
+        -------
+        xr.DataArray
+            The mask as an xarray data array.
+
+        Raises
+        ------
+        ValueError
+            If the leading dimension has turned into a scalar due to prior selections, no mask size can be
+            determined.
+        ValueError
+            If the leading dimension is neither a dimension nor a coordinate of the dataset, an inconsistent state
+            has been encountered.
+        """
+
+        if self.leading_dim in self.sizes:
+            dim_name = self.leading_dim
+            leading_dim_len = self.sizes[self.leading_dim]
+        else:
+            if self.leading_dim in self.coords:
+                # We have a scalar dimension already
+                raise ValueError(
+                    "Leading dimension is scalar. Cannot create frame mask."
+                )
+            raise ValueError(
+                "Leading dimension missing from dataset. Cannot create frame mask."
+            )
+
+        return xr.DataArray(
+            np.full((leading_dim_len,), fill_value=fill_value, dtype=dtype),
+            dims=[dim_name],
+        )
+        return self.leading_dim
 
     @property
     def state_ids(self):
@@ -88,6 +140,10 @@ class ShnitselDataset(SupportsFromXrConversion, SupportsToXrConversion):
                 )
             return self.data_vars['astate']
         return self.coords["astate"]
+
+    @property
+    def astate(self):
+        return self.active_state
 
     @property
     def state_diagonal(self):
@@ -236,10 +292,21 @@ class ShnitselDataset(SupportsFromXrConversion, SupportsToXrConversion):
         for key in ["__mol", "_mol", "mol"]:
             if key in self.attrs:
                 return rdkit.Chem.Mol(self.attrs[key])
+            if key in self.coords:
+                return rdkit.Chem.Mol(self.coords[key].item())
 
         mol_constr = construct_default_mol(self)
         # Cache the molecule
-        self.attrs["__mol"] = mol_constr
+        mol_da = xr.DataArray(
+            (mol_constr),
+            dims=(),
+            attrs={
+                "description": "The rc.Mol object representing the structure of a molecular graph."
+            },
+        )
+        self._raw_dataset = self._raw_dataset.assign_attrs(
+            __mol=mol_constr
+        ).assign_coords(__mol=mol_da)
         return mol_constr
 
     def sel(

@@ -3,6 +3,7 @@ from xarray.testing import assert_equal, assert_allclose
 
 
 import shnitsel as st
+from shnitsel.data.dataset_containers import unwrap_dataset
 import shnitsel.xarray
 
 PER_TRAJ_COORDS = [
@@ -14,6 +15,8 @@ PER_TRAJ_COORDS = [
     'max_ts',
     'has_forces',
     'input_format',
+    'delta_t',
+    'nsteps',
 ]
 
 
@@ -33,10 +36,13 @@ def stacked():
 def unstacked(stacked):
     return stacked.st.unstack_trajs()
 
+# def test_round_trip(stacked):
+
 
 @pytest.mark.parametrize(
     "func,data_var,kws",
     [
+        (lambda x: x, None, {}),
         (st.analyze.generic.norm, None, {}),
         (st.analyze.generic.center, 'atXYZ', dict(dim='atom')),
         (st.analyze.generic.subtract_combinations, 'atXYZ', dict(dim='atom')),
@@ -52,7 +58,7 @@ def unstacked(stacked):
     ],
 )
 def test_stacked_equal_unstacked(stacked, unstacked, func, data_var, kws):
-    from shnitsel.data.multi_indices import unstack_trajs
+    from shnitsel.data.multi_indices import unstack_trajs, stack_trajs
 
     # args = args or []
     kws = kws or {}
@@ -66,4 +72,7 @@ def test_stacked_equal_unstacked(stacked, unstacked, func, data_var, kws):
         input_unstacked = unstacked
     res_stacked = func(input_stacked, **kws)
     res_unstacked = func(input_unstacked, **kws)
-    assert_equal(unstack_trajs(res_stacked), res_unstacked)
+    res_stacked_to_unstacked = unstack_trajs(res_stacked)
+    res_unstacked_to_stacked = stack_trajs(res_unstacked)
+    assert_equal(unwrap_dataset(res_stacked), unwrap_dataset(res_unstacked_to_stacked))
+    assert_equal(unwrap_dataset(res_stacked_to_unstacked), unwrap_dataset(res_unstacked))

@@ -314,6 +314,8 @@ def construct_default_mol(
         # TODO: FIXME: Make these internal attributes with double underscores so they don't get written out.
         if '__mol' in obj.attrs:
             return sap(rc.Mol(obj.attrs['__mol']))
+        if '__mol' in obj.coords:
+            return sap(rc.Mol(obj.coords['__mol'].item()))
         elif 'atXYZ' in obj:  # We have a frames Dataset
             atXYZ = _most_stable_frame(obj['atXYZ'], obj)
         else:
@@ -321,6 +323,8 @@ def construct_default_mol(
     elif isinstance(obj, ShnitselDataset):
         if '__mol' in obj.attrs:
             return rc.Mol(obj.attrs['__mol'])
+        if '__mol' in obj.coords:
+            return sap(rc.Mol(obj.coords['__mol'].item()))
         atXYZ = _most_stable_frame(obj.positions, obj)
         if charge is None:
             charge = obj.charge
@@ -329,6 +333,8 @@ def construct_default_mol(
     else:
         if '__mol' in obj.attrs:
             return sap(rc.Mol(obj.attrs['__mol']))
+        if '__mol' in obj.coords:
+            return sap(rc.Mol(obj.coords['__mol'].item()))
         atXYZ = obj  # We have an atXYZ DataArray
 
     if charge is not None:
@@ -348,26 +354,30 @@ def construct_default_mol(
 
     # TODO: FIXME: Make these internal attributes with double underscores so they don't get written out.
     if '__mol' in atXYZ.attrs:
-        return sap(rc.Mol(obj.attrs['__mol']))
+        return sap(rc.Mol(atXYZ.attrs['__mol']))
     elif 'smiles_map' in obj.attrs:
         if not silent_mode:
             logging.debug("default_mol: Using `obj.attrs['smiles_map']`")
         mol = numbered_smiles_to_mol(obj.attrs['smiles_map'])
     elif 'smiles_map' in atXYZ.attrs:
         return sap(numbered_smiles_to_mol(atXYZ.attrs['smiles_map']))
+    
+    # Figure out if there are remaining dimensions that we have not yet singled out
+    atXYZ_dims = set(atXYZ.dims)
+    excess_dims = atXYZ_dims.difference({'atom', 'direction'})
 
-    if 'frame' in atXYZ.dims:
+    if len(excess_dims) >0:
         if not silent_mode:
             logging.info("Picking first frame for molecule construction")
-        atXYZ = atXYZ.isel(frame=0)
-        if 'frame' in atXYZ.dims:
-            atXYZ = atXYZ.squeeze('frame')
-    if 'time' in atXYZ.dims:
-        if not silent_mode:
-            logging.info("Picking first time step for molecule construction")
-        atXYZ = atXYZ.isel(time=0)
-        if 'time' in atXYZ.dims:
-            atXYZ = atXYZ.squeeze('time')
+        # Just pick the first entry:
+        selector = {}
+        for e_dim in excess_dims:
+            selector[e_dim] = 0
+        atXYZ = atXYZ.isel(selector)
+        # If the dimension is still remaining with length 1, squeeze it out.
+        remaining_dims = set(atXYZ.dims).intersection(excess_dims)
+        if remaining_dims:
+            atXYZ = atXYZ.squeeze(remaining_dims)
 
     try:
         if charge_int != 0 and not silent_mode:

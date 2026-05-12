@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import itertools
-from typing import Callable, Sequence, TypeVar
+import logging
+from typing import TYPE_CHECKING, Callable, Sequence, TypeVar
 
 import numpy.typing as npt
 
@@ -12,6 +13,10 @@ import numpy as np
 import pandas as pd
 
 from shnitsel.core._api_info import internal
+from shnitsel.units.defaults import get_fill_value
+
+if TYPE_CHECKING:
+    from shnitsel.data.dataset_containers.shared import ShnitselDataset
 
 from .._contracts import needs
 
@@ -130,6 +135,13 @@ def flatten_levels(
         If the specified index is associated with more than one dimension
         (this should not be possible for a MultiIndex anyway)
     """
+    if idx_name not in obj.coords:
+        # TODO: FIXME: Should this raise an error instead?
+        logging.warning(
+            f"Multi-index f{idx_name} not found on object. No flattening performed."
+        )
+        return obj
+
     dims = obj.coords[idx_name].dims
     if len(dims) != 1:
         raise ValueError(
@@ -176,6 +188,13 @@ def expand_midx(
     DatasetOrArray
         An object differing from ``obj`` only in the addition of the MultiIndex level
     """
+    if midx_name not in obj.coords:
+        # TODO: FIXME: Should this raise an error instead?
+        logging.warning(
+            f"Multi-index f{midx_name} not found on object. No expansion performed."
+        )
+        return obj
+
     midx = obj.indexes[midx_name]
     to_drop = [midx.name] + midx.names
     df = midx.to_frame()
@@ -370,7 +389,7 @@ def sel_trajs(
     ------
     NotImplementedError
         when an attempt is made to index an :py:class:`xr.Datset` without a
-        ``trajid_`` dimension/coordinate using a boolean mask
+        ``trajectory`` dimension/coordinate using a boolean mask
     TypeError
         If ``trajids_or_mask`` has a dtype other than integer or boolean
     """
@@ -380,15 +399,18 @@ def sel_trajs(
         return _sel_trajs_unstacked(obj, trajids_or_mask, invert)
     trajids: npt.NDArray | xr.DataArray
     if np.issubdtype(trajids_or_mask.dtype, np.integer):
+        # We have trajectory ids in the selector
         trajids = trajids_or_mask
     elif np.issubdtype(trajids_or_mask.dtype, bool):
+        # We have a mask in the selector and need to select the appropriate trajectory ids based on that mask
         mask = trajids_or_mask
-        if 'trajid_' in obj.dims:
-            trajids = obj['trajid_'][mask]
+        # We can only mask a list of trajectory ids if we have a trajectory coordinate
+        if 'trajectory' in obj.coords:
+            trajids = obj['trajectory'][mask]
         else:
             raise NotImplementedError(
                 "Indexing trajids with a boolean mask is only supported when the "
-                "coordinate 'trajid_' is present, or if `frames` has unstacked trajectories "
+                "coordinate 'trajectory' is present, or if `frames` has unstacked trajectories "
                 "(i.e. separate dimesions for trajectory and time)"
             )
     else:
@@ -399,7 +421,7 @@ def sel_trajs(
     return _sel_trajids(frames=obj, trajids=trajids, invert=invert)
 
 
-@needs(dims={'frame'}, coords_or_vars={'trajid'})
+@needs(dims={'frame'}, coords={'trajectory'}, coords_or_vars={'atrajectory'})
 def _sel_trajids(
     frames: DatasetOrArray, trajids: npt.ArrayLike, invert: bool = False
 ) -> DatasetOrArray:
@@ -431,62 +453,100 @@ def _sel_trajids(
         missing = trajids[~np.isin(trajids, frames.coords['trajectory'])]
         raise KeyError(
             f"Of the supplied trajectory IDs, {len(missing)} were "
-            f"not found in index 'trajid': {missing}"
+            f"not found in index 'trajectory': {missing}"
         )
-    mask = frames['trajectory'].isin(trajids)
+    # we want to filter for `atrajectory` and for trajectory
+    # mask = frames['trajectory'].isin(trajids)
+    mask = frames['atrajectory'].isin(trajids)
     if invert:
         mask = ~mask
+
     res = frames.sel(frame=mask)
 
     # TODO: FIXME: This needs to be made resilient to stacked and layered sets. Selecting from within the `frames` stack fails the test
 
     if 'trajectory' in frames.dims:
-        actually_selected = np.unique(res['trajectory'])
+        actually_selected = np.unique(res['atrajectory'])
         res = res.sel(trajectory=actually_selected)
     return res
 
 
-def _sel_trajs_unstacked(obj, indexer, invert):
+def _sel_trajs_unstacked(
+    obj: DatasetOrArray, trajids: npt.ArrayLike, invert: bool = False
+) -> DatasetOrArray:
+    """Select trajectories from a layered set using a list of trajectories IDs;
+    note that the trajectories may not be returned in the order specified.
+
+    Parameters
+    ----------
+    frames : DatasetOrArray
+        The :py:class:`xr.Dataset` in layered/unstacked form from which a selection is to be drawn
+    trajids : npt.ArrayLike
+        A sequences of integers representing trajectory IDs to be included,
+    invert :bool, optional
+        Whether to invert the selection, i.e. return those trajectories not specified, by default False
+
+    Returns
+    -------
+    DatasetOrArray
+        A new layered/unstacked :py:class:`xr.Dataset` containing only the specified trajectories
+
+    Raises
+    ------
+    KeyError
+        If some of the supplied trajectory IDs are not present in the ``trajectory`` coordinate
+    """
     traj_dim_name = (
         'trajectory'
         if 'trajectory' in obj.dims
         else 'trajid'
         if 'trajid' in obj.dims
-        else 'atrajectory'
-        if 'atrajectory' in obj.dims
+        # atrajectory is no valid trajectory dimension name
+        # else 'atrajectory'
+        # if 'atrajectory' in obj.dims
         else None
     )
-    assert traj_dim_name is not None
-    if not invert:
-        return obj.loc[{traj_dim_name: indexer}]
+    assert traj_dim_name is not None, (
+        f"Could not identify trajectory indexing dimension in layered dataset: {obj}"
+    )
 
-    if np.issubdtype(indexer.dtype, np.integer):
+    if not invert:
+        return obj.loc[{traj_dim_name: trajids}]
+
+    if np.issubdtype(trajids.dtype, np.integer):
         full_coord = obj.coords[traj_dim_name]
-        indexer = full_coord[~full_coord.isin(indexer)]
-    elif np.issubdtype(indexer.dtype, bool):
-        indexer = ~indexer
+        trajids = full_coord[~full_coord.isin(trajids)]
+    elif np.issubdtype(trajids.dtype, bool):
+        trajids = ~trajids
     else:
         raise ValueError(
             "Could not invert selection, please provide integer labels or a boolean mask"
         )
 
+    # Now locate with inverted list of trajectory ids
+    return obj.loc[{traj_dim_name: trajids}]
+
+
 class dtype_NA:
-    """A sentinel value for the ``fill_value`` param in
+    """A sentinel value for the ``fill_value`` param in.sel(trajectory=trajids)
     :py:func:`shnitsel.data.multi_indices.unstack_trajs`"""
 
-@internal()
-def unstack_trajs(frames: DatasetOrArray, fill_value=dtype_NA) -> DatasetOrArray:
-    """Unstack the ``frame`` MultiIndex so that ``trajid`` and ``time`` become
-    separate dims. Wraps the :py:meth:`xarray.Dataset.unstack` method.
+
+def unstack_trajs(
+    frames: DatasetOrArray | ShnitselDataset, fill_value=dtype_NA
+) -> DatasetOrArray | ShnitselDataset:
+    """Unstack the ``frame`` MultiIndex so that ``atrajectory`` and ``time`` become
+    separate dims, with ``atrajectory`` renamed to ``trajectory``.
+    Wraps the :py:meth:`xarray.Dataset.unstack` method.
 
     Parameters
     ----------
     frames : DatasetOrArray
         An :py:class:`xarray.Dataset` with a ``frame`` dimension associated with
-        a MultiIndex coordinate with levels named ``trajid`` and ``time``. The
-        Dataset may also have a ``trajid_`` dimension used for variables and coordinates
+        a MultiIndex coordinate with levels named ``atrajectory`` and ``time``. The
+        Dataset may also have a ``trajectory`` dimension used for variables and coordinates
         that store information pertaining to each trajectory in aggregate; this will be
-        aligned along the ``trajid`` dimension of the unstacked Dataset.
+        aligned along the ``trajectory`` dimension of the unstacked Dataset.
     fill_value
         The value used to fill in entries that were unspecified in
         stacked format; by default, the dtype's NA value will be used.
@@ -494,109 +554,184 @@ def unstack_trajs(frames: DatasetOrArray, fill_value=dtype_NA) -> DatasetOrArray
     Returns
     -------
     DatasetOrArray
-        An :py:class:`xarray.Dataset` with independent ``trajid`` and ``time``
+        An :py:class:`xarray.Dataset` with independent ``trajectory`` and ``time``
         dimensions. Same type as `frames`
     """
+    if not is_stacked(frames):
+        logging.warning("Input dataset is not stacked and cannot be unstacked")
+        return frames
+
+    # Retain types where possible.
+    if isinstance(frames, xr.DataArray):
+        retain_type = {k: v.dtype for k, v in frames.coords.items()}
+        retain_fill_value = {k: get_fill_value(v) for k, v in frames.coords.items()}
+    else:
+        retain_type = {k: v.dtype for k, v in frames.variables.items()}
+        retain_fill_value = {k: get_fill_value(v) for k, v in frames.variables.items()}
+
+    orig_frames = frames
+
     per_traj_coords = {
-        k: v.rename(trajid_='trajid')
-        for k, v in dict(frames.coords).items()
-        if 'trajid_' in v.dims and 'frame' not in v.dims
+        k: v for k, v in dict(frames.coords).items() if 'trajectory' in v.dims
     }
     per_time_coords = {
-        k: v.rename(time_='time')
+        k: v.rename(time_slice='time')
         for k, v in dict(frames.coords).items()
-        if 'time_' in v.dims and 'frame' not in v.dims
+        if 'time_slice' in v.dims and 'frame' not in v.dims
     }
+
     if hasattr(frames, 'data_vars'):
         has_data_vars = True
         per_traj_vars = {
-            k: v.rename(trajid_='trajid')
-            for k, v in dict(frames.data_vars).items()
-            if 'trajid_' in v.dims and 'frame' not in v.dims
+            k: v for k, v in dict(frames.data_vars).items() if 'trajectory' in v.dims
         }
         per_time_vars = {
-            k: v.rename(time_='time')
+            k: v.rename(time_slice='time')
             for k, v in dict(frames.data_vars).items()
-            if 'time_' in v.dims and 'frame' not in v.dims
+            if 'time_slice' in v.dims and 'frame' not in v.dims
         }
     else:
         has_data_vars = False
         per_traj_vars = []
         per_time_vars = []
 
-    to_drop = to_drop = (
-        list(per_traj_coords)
-        + list(per_time_coords)
-        + list(per_traj_vars)
-        + list(per_time_vars)
-    )
-
     # Don't re-add to unstacked dataset
-    if 'trajid_' in per_traj_coords:
-        del per_traj_coords['trajid_']
-    if 'time_' in per_time_coords:
-        del per_time_coords['time_']
+    if 'trajectory' in per_traj_coords:
+        del per_traj_coords['trajectory']
+    if 'time_slice' in per_time_coords:
+        del per_time_coords['time_slice']
+
+    if hasattr(frames, 'drop_dims'):
+        frames = frames.drop_dims('trajectory')
+        if 'time_slice' in frames.dims:
+            frames = frames.drop_dims('time_slice')
+    else:
+        frames = frames.drop_vars(
+            list(per_traj_coords)
+            + list(per_traj_vars)
+            + list(per_time_coords)
+            + list(per_time_vars),
+        )
+    if hasattr(frames, 'rename_vars'):
+        frames = frames.rename_vars(atrajectory='trajectory')
+    else:
+        frames = frames.rename(atrajectory='trajectory')
+
+    # Try and get the fill value for arrays
+    if fill_value is dtype_NA and isinstance(frames, xr.DataArray):
+        tmp_val = get_fill_value(frames)
+        fill_value = dtype_NA if tmp_val is np.nan else dtype_NA
 
     # NOTE: We use this kws approach to avoid importing the default value for fill_value
     # in xr's unstack, which is their internal `xarray.core.dtypes.NA`.
     kws = {'fill_value': fill_value} if fill_value is not dtype_NA else {}
     res = (
-        frames.drop_vars(to_drop)
-        .assign_coords({'is_frame': ('frame', np.ones(frames.sizes['frame']))})
+        frames.assign_coords({'is_frame': ('frame', np.ones(frames.sizes['frame']))})
         .unstack('frame', **kws)
         .assign_coords(per_traj_coords)
         .assign_coords(per_time_coords)
     )
     if has_data_vars:
         res = res.assign(per_traj_vars).assign(per_time_vars)
+
+    # Try and restore value types from np.float where possible.
+    replacements = {}
+    for retained_var_name, retained_dtype in retain_type.items():
+        if (
+            retained_var_name in res or retained_var_name in res.coords
+        ) and 'frame' in orig_frames[retained_var_name].dims:
+            if res[retained_var_name].dtype != retained_dtype:
+                try:
+                    replacements[retained_var_name] = (
+                        res[retained_var_name]
+                        .fillna(retain_fill_value[retained_var_name])
+                        .astype(retained_dtype)
+                    )
+                except:
+                    logging.warning(
+                        f"Failed to convert variable {retained_var_name} to back to its original type {retained_dtype}."
+                    )
+    if replacements:
+        if hasattr(res, "assign"):
+            res = res.assign(replacements)
+        elif hasattr(res, "assign_coords"):
+            res = res.assign_coords(replacements)
+
     res['is_frame'] = res['is_frame'].fillna(0).astype(bool)
+
+    if isinstance(res, xr.DataArray):
+        # The main data in the array is not covered by our replacement strategy for xr.DataArray instances
+        if res.dtype != frames.dtype:
+            try:
+                res = res.astype(frames.dtype)
+            except:
+                logging.warning(
+                    f"Failed to array content back to its original type {frames}."
+                )
+
     return res
 
 
-@internal()
 def stack_trajs(unstacked: DatasetOrArray) -> DatasetOrArray:
-    """Stack the ``trajid`` and ``time`` dims of an unstacked Dataset
-    into a MultiIndex along a new dimension called ``frame``.
+    """Stack the ``trajectory`` and ``time`` dims of an unstacked Dataset
+    into a MultiIndex along a new dimension called ``frame``, renaming
+    ``trajectory`` to ``atrajectory`` in the process.
     Wraps the :py:meth:`xarray.Dataset.stack` method.
 
     Parameters
     ----------
     frames : DatasetOrArray
-        An :py:class:`xarray.Dataset` with independent ``trajid`` and ``time``
+        An :py:class:`xarray.Dataset` with independent ``trajectory`` and ``time``
         dimensions.
 
     Returns
     -------
     DatasetOrArray
         An :py:class:`xarray.Dataset` with a ``frame`` dimension associated with
-        a MultiIndex coordinate with levels named ``trajid`` and ``time``. Those variables
-        and coordinates which only depended on one of ``trajid``
+        a MultiIndex coordinate with levels named ``trajectory`` and ``time``. Those variables
+        and coordinates which only depended on one of ``trajectory``
         or ``time`` but not the other in the unstacked Dataset, will be aligned along new
-        dimensions named ``trajid_`` and ``time_``. The new dimensions ``trajid_`` and
-        ``time_`` will be independent of the ``frame`` dimension and its ``trajid`` and
+        dimensions named ``trajectory`` and ``time_slice``. The new dimensions ``trajectory`` and
+        ``time_slice`` will be independent of the ``frame`` dimension and its ``atrajectory`` and
         ``time`` levels.
     """
+    if is_stacked(unstacked):
+        logging.info("Input dataset is already stacked")
+        return unstacked
+
+    # Retain types where possible.
+    if isinstance(unstacked, xr.DataArray):
+        retain_type = {k: v.dtype for k, v in unstacked.coords.items()}
+        fill_value = {k: get_fill_value(v) for k, v in unstacked.coords.items()}
+    else:
+        retain_type = {k: v.dtype for k, v in unstacked.variables.items()}
+        fill_value = {k: get_fill_value(v) for k, v in unstacked.variables.items()}
+    orig_unstacked = unstacked
+
+    # NOTE: In the following, we do NOT exclude the 'trajectory' coord itself
     per_traj_coords = {
-        k: v.rename(trajid='trajid_')
+        k: v
         for k, v in dict(unstacked.coords).items()
-        if 'trajid' in v.dims and 'time' not in v.dims and v.name != 'trajid'
+        if 'trajectory' in v.dims and 'time' not in v.dims and k != 'trajectory'
     }
+    # NOTE: In the following, we DO exclude the 'time' coord itself, since it needs to be renamed
     per_time_coords = {
-        k: v.rename(time='time_')
+        k: v.rename(time='time_slice')
         for k, v in dict(unstacked.coords).items()
-        if 'time' in v.dims and 'trajid' not in v.dims and v.name != 'time'
+        if 'time' in v.dims and 'trajectory' not in v.dims and v.name != 'time'
     }
+
     if hasattr(unstacked, 'data_vars'):
         has_data_vars = True
         per_traj_vars = {
-            k: v.rename(trajid='trajid_')
-            for k, v in (dict(unstacked.data_vars)).items()
-            if 'trajid' in v.dims and 'time' not in v.dims
+            k: v
+            for k, v in dict(unstacked.data_vars).items()
+            if 'trajectory' in v.dims and 'time' not in v.dims
         }
         per_time_vars = {
-            k: v.rename(time='time_')
+            k: v.rename(time='time_slice')
             for k, v in (dict(unstacked.data_vars)).items()
-            if 'time' in v.dims and 'trajid' not in v.dims
+            if 'time' in v.dims and 'trajectory' not in v.dims
         }
     else:
         has_data_vars = False
@@ -608,18 +743,96 @@ def stack_trajs(unstacked: DatasetOrArray) -> DatasetOrArray:
         + list(per_time_coords)
         + list(per_time_vars)
     )
-    per_traj_coords['trajid_'] = unstacked.coords['trajid'].rename(trajid='trajid_')
-    per_time_coords['time_'] = unstacked.coords['time'].rename(time='time_')
 
-    res = unstacked.drop_vars(to_drop).stack({'frame': ['trajid', 'time']})
-    res = (
-        res.isel(frame=res.is_frame)
-        .drop_vars('is_frame')
-        .assign_coords(per_traj_coords)
-        .assign_coords(per_time_coords)
-    )
+    if per_time_coords or per_time_vars:
+        # Keep a coordinate with all contained time values as `time_slice`
+        tscoord = unstacked.coords['time'].rename(time='time_slice')
+        per_time_coords['time_slice'] = tscoord
+
+    dropped_res = res = unstacked.drop_vars(to_drop)
+
+    if 'trajectory' in dropped_res.coords or 'trajectory' in dropped_res.dims:
+        if isinstance(unstacked, xr.DataArray):
+            dropped_res = dropped_res.rename(trajectory='atrajectory')
+        else:
+            dropped_res = dropped_res.rename(trajectory='atrajectory')
+    else:
+        dropped_res = dropped_res.expand_dims({'atrajectory': ['1']})
+
+    res = dropped_res.stack({'frame': ['atrajectory', 'time']})
+
+    if 'is_frame' in res.coords:
+        res = res.isel(frame=res.is_frame).drop_vars('is_frame')
+
+    if isinstance(res, xr.DataArray):
+        # Need to filter out all coordinates that do not have all dimensions intersecting with array dimensions
+
+        allowed_dims = set(res.dims)
+
+        def has_allowed_dims(da):
+            return set(da.dims).issubset(allowed_dims)
+
+        # Only keep variables that have dimensions occurring in the array
+        per_traj_coords = {
+            k: v for k, v in per_traj_coords.items() if has_allowed_dims(v)
+        }
+        per_time_coords = {
+            k: v for k, v in per_time_coords.items() if has_allowed_dims(v)
+        }
+
+    res = res.assign_coords(per_traj_coords).assign_coords(per_time_coords)
+
     if has_data_vars:
         res = res.assign(per_traj_vars).assign(per_time_vars)
+
+    # Try and filter out filler entries:
+    replacements = {}
+    for retained_var_name, retained_dtype in retain_type.items():
+        if retained_var_name in res and 'frame' in res[retained_var_name].dims:
+            # Filter out all fill_value entries
+            has_update = False
+            mask = res[retained_var_name] != fill_value.get(retained_var_name, np.nan)
+
+            if not mask.all():
+                # print(f"{retained_var_name} has invalid entries left: {res[retained_var_name]}")
+                has_update = True
+                tmp_array = res[retained_var_name].where(mask)
+            else:
+                tmp_array = res[retained_var_name]
+
+            if tmp_array.dtype != retained_dtype:
+                # print(f"{retained_var_name} has changed types: {retained_dtype} -> {tmp_array.dtype}")
+                has_update = True
+                try:
+                    tmp_array = tmp_array.fillna(
+                        fill_value.get(retained_var_name, np.nan)
+                    ).astype(retained_dtype)
+                except:
+                    logging.warning(
+                        f"Failed to convert variable {retained_var_name} back to its original type {retained_dtype}."
+                    )
+
+            if has_update:
+                replacements[retained_var_name] = tmp_array
+
+    if replacements:
+        if hasattr(res, "assign"):
+            res = res.assign(replacements)
+        elif hasattr(res, "assign_coords"):
+            res = res.assign_coords(replacements)
+
+    if isinstance(unstacked, xr.DataArray):
+        # The main data in the array is not covered by our replacement strategy for xr.DataArray instances
+        res = res.where(res != get_fill_value(unstacked))
+
+        if res.dtype is not unstacked.dtype:
+            try:
+                res = res.astype(unstacked.dtype)
+            except:
+                logging.warning(
+                    f"Failed to array content back to its original type {unstacked.dtype}."
+                )
+
     return res
 
 
@@ -649,7 +862,40 @@ def is_stacked(obj):
     )
     time_coord = c.get('time', xr.DataArray())
     coords_share_dim = not set(traj_coord.dims).isdisjoint(time_coord.dims)
+
     return is_wrapped_stacked or coords_share_dim
+
+
+def is_layered(obj: xr.Dataset | xr.DataArray | ShnitselDataset):
+    """Test whether an object has layered trajectories
+
+    Parameters
+    ----------
+    obj
+        An xarray Dataset/DataArray, or a wrapper around one
+
+    Returns
+    -------
+        True if ``obj`` shows signs of containing multiple
+        trajectories along a separate `trajectory` dimension.
+    """
+    from shnitsel.data.dataset_containers.multi_layered import MultiSeriesLayered
+
+    TRAJECTORY_DIM_NAMES = {'trajid', 'atrajectory'}
+
+    is_wrapped_layered = isinstance(obj, MultiSeriesLayered)
+
+    c = obj.coords
+    traj_coord = c.get(
+        'trajid', c.get('atrajectory', c.get('trajectory', xr.DataArray()))
+    )
+    time_coord = c.get('time', xr.DataArray())
+    coords_dont_share_dim = set(traj_coord.dims).isdisjoint(time_coord.dims)
+
+    return is_wrapped_layered or coords_dont_share_dim
+
+
+is_unstacked = is_layered
 
 
 def ensure_unstacked(obj, fill_value=dtype_NA):
@@ -673,6 +919,31 @@ def ensure_unstacked(obj, fill_value=dtype_NA):
     was_stacked = is_stacked(obj)
     unstacked = unstack_trajs(obj, fill_value=fill_value) if was_stacked else obj
     return unstacked, was_stacked
+
+
+def ensure_stacked(obj, fill_value=dtype_NA):
+    """Stack ``obj`` if it contains unstacked trajectories
+
+    Parameters
+    ----------
+    obj
+        An xarray Dataset/DataArray, or a wrapper around one
+    fill_value
+        The value used to identify entries that were unspecified in
+        unstacked format; by default, the dtype's NA value will be used.
+
+    Returns
+    -------
+    stacked
+        The stacked Dataset/DataArray
+    was_unstacked
+        Whether ``obj`` had unstacked trajectories
+    """
+    # TODO: FIXME: Generate `is_frame` mask on-demand based on fill_value.
+
+    was_unstacked = is_unstacked(obj)
+    stacked = stack_trajs(obj) if was_unstacked else obj
+    return stacked, was_unstacked
 
 
 @needs(dims={'frame'})

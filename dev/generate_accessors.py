@@ -14,12 +14,13 @@ def main():
             generic,
             spectra,
             stats,
-            pca,
-            lda,
-            pls,
             populations,
             hops,
         )
+        import shnitsel.analyze.dimred.lda as lda
+        import shnitsel.analyze.dimred.pls as pls
+        import shnitsel.analyze.dimred.pca as pca
+
         from shnitsel.data import multi_indices
         import shnitsel.data.helpers as data_helpers
         from shnitsel.geo import geocalc, alignment  # , geomatch_exact
@@ -32,7 +33,7 @@ def main():
         )
         from shnitsel.io.ase.write import write_ase_db
         from shnitsel.vis.plot import p3mhelpers
-        from shnitsel.vis.plot import select
+        from shnitsel.vis.plot import select, time
         from shnitsel.vis import vmd
 
     except ImportError as e:
@@ -54,7 +55,6 @@ def main():
         # TODO: This should either only have `to_mol` or only have `default_mol`.
         bridges.to_mol,
         bridges.smiles_map,
-        # TODO: FIXME: We should fix the naming logic that changes this into `construct_default_mol`
         bridges.default_mol,
         ### postprocess converters
         units.convert_energy,
@@ -99,8 +99,11 @@ def main():
         p3mhelpers.trajs3Dgrid,
         ### vmd
         vmd.traj_vmd,
+        ### plot.*
+        time.timeplot,
         ### ml
         pca.pca,
+        pca.pca_direct,
         lda.lda,
         pls.pls,
         # hops
@@ -132,7 +135,7 @@ def main():
         multi_indices.stack_trajs,
         st.io.shnitsel.write_shnitsel_file,
         # plot
-        spectra.get_spectra,
+        # spectra.get_spectra,
         # filtration
         clean.filter_energy.calculate_energy_filtranda,
         clean.filter_energy.filter_by_energy,
@@ -162,6 +165,7 @@ def main():
             "DatasetAccessor(DSManualAccessor)": ds_funcs,
         },
         imports={
+            'Any': 'typing',
             'Union': 'typing',
             'Optional': 'typing',
             'List': 'typing',
@@ -170,8 +174,8 @@ def main():
             'Sequence': 'typing',
             'Literal': 'typing',
             'Callable': 'typing',
-            'PCAResult' : 'shnitsel.analyze.pca',
-            'PopulationStatistics' : 'shnitsel.analyze.populations',
+            'PCAResult': 'shnitsel.analyze.pca',
+            'PopulationStatistics': 'shnitsel.analyze.populations',
             'DataArrayGroupBy': 'xarray.core.groupby',
             'DatasetGroupBy': 'xarray.core.groupby',
             'needs': '._contracts',
@@ -197,9 +201,7 @@ def main():
             'os',
             'pathlib',
         },
-        name_overrides={
-            'construct_default_mol': 'default_mol'
-        }
+        name_overrides={'construct_default_mol': 'default_mol'},
     )
     with open("../shnitsel/_generated_accessors.py", "w") as f:
         print(code, file=f)

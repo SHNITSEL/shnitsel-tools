@@ -23,6 +23,7 @@ from shnitsel.filtering.structure_selection import (
     StructureSelectionDescriptor,
 )
 from shnitsel.geo.geocalc_.helpers import (
+    AngleOptions,
     _empty_descriptor_results,
 )
 from shnitsel.filtering.helpers import _get_default_structure_selection
@@ -60,7 +61,7 @@ def get_bats(
     | None = None,
     default_features: Sequence[FeatureLevelType] = ['bonds', 'angles', 'dihedrals'],
     signed: bool = False,
-    deg: bool | Literal['trig'] = True,
+    angles: AngleOptions = 'deg',
 ) -> xr.DataArray: ...
 
 
@@ -72,7 +73,7 @@ def get_bats(
     | None = None,
     default_features: Sequence[FeatureLevelType] = ['bonds', 'angles', 'dihedrals'],
     signed: bool = False,
-    deg: bool | Literal['trig'] = True,
+    angles: AngleOptions = 'deg',
 ) -> ShnitselDB[xr.DataArray]: ...
 
 
@@ -88,7 +89,7 @@ def get_bats(
     | None = None,
     default_features: Sequence[FeatureLevelType] = ['bonds', 'angles', 'dihedrals'],
     signed: bool = False,
-    deg: bool | Literal['trig'] = True,
+    angles: AngleOptions = 'deg',
 ) -> xr.DataArray | TreeNode[Any, xr.DataArray]:
     """Get bond lengths, angles and torsions/dihedrals.
 
@@ -118,10 +119,10 @@ def get_bats(
         by default, do not distinguish.
         NB. This applies only to the dihedrals, not to the three-center angles.
         The latter are always unsigned.
-    deg : bool or Literal['trig'], optional
-        If True (the default), returns angles in degrees.
-        If False, returns angles in radians.
-        If set to 'trig' returns sines and cosines;
+    angles : Literal['deg', 'rad', 'trig'], default='deg'
+        Option parameter to control the unit/representation of angles in the output.
+        Use 'deg' for results in 'degrees', 'rad' for results in 'radian'
+        and 'trig' for a representation as a sin and a cos of the angle.
 
     Returns
     -------
@@ -143,7 +144,7 @@ def get_bats(
                 structure_selection=structure_selection,
                 default_features=default_features,
                 signed=signed,
-                deg=deg,
+                angles=angles,
             ),
             dtype=xr.DataArray,
         )
@@ -157,10 +158,11 @@ def get_bats(
             position_source = atXYZ
             charge_info = None
         else:
-            wrapped_ds = wrap_dataset(atXYZ, (Trajectory | Frames))
+            wrapped_ds = wrap_dataset(atXYZ, ShnitselDataset)
             position_source = wrapped_ds
             position_data = wrapped_ds.atXYZ
             charge_info = int(wrapped_ds.charge)
+            atXYZ = wrapped_ds
 
         # TODO: FIXME: Example is not up to date
         structure_selection = _get_default_structure_selection(
@@ -173,37 +175,44 @@ def get_bats(
         feature_data: list[xr.DataArray] = []
         if len(structure_selection.atoms_selected) > 0:
             feature_data.append(
-                get_positions(position_data, structure_selection=structure_selection)
+                get_positions(position_source, structure_selection=structure_selection)
             )
         if len(structure_selection.bonds_selected) > 0:
             feature_data.append(
-                get_distances(position_data, structure_selection=structure_selection)
+                get_distances(position_source, structure_selection=structure_selection)
             )
         if len(structure_selection.angles_selected) > 0:
             feature_data.append(
                 get_angles(
-                    position_data,
+                    position_source,
                     structure_selection=structure_selection,
-                    deg=deg,
+                    angles=angles,
                     signed=signed,
                 )
             )
         if len(structure_selection.dihedrals_selected) > 0:
             feature_data.append(
                 get_dihedrals(
-                    position_data,
+                    position_source,
                     structure_selection=structure_selection,
-                    deg=deg,
+                    angles=angles,
                     signed=signed,
                 )
             )
         if len(structure_selection.pyramids_selected) > 0:
             feature_data.append(
                 get_pyramidalization(
-                    position_data,
+                    position_source,
                     structure_selection=structure_selection,
-                    deg=deg,
+                    angles=angles,
                     signed=signed,
+                )
+            )
+        if structure_selection.is_BLA_selected:
+            feature_data.append(
+                get_max_chromophor_BLA(
+                    position_source,
+                    structure_selection=structure_selection,
                 )
             )
 

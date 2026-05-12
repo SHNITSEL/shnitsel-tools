@@ -153,7 +153,7 @@ def plot_populations_graph(
         # ax.text(float(time_in_fs[-1]), float(sdata[-1]), f"${state_label}$", c=c)
         ax.text(
             float(time_in_fs[max_index]),
-            float(sdata[max_index]) + 0.5e-1,
+            float(sdata[max_index].item()) + 0.5e-1,
             f"${state_label}$",
             c=color,
         )

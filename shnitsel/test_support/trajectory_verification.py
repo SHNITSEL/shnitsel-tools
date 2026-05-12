@@ -39,7 +39,10 @@ _optional_shnitsel_variables = [
     'full_statecomb',
     'full_statecomb_from',
     'full_statecomb_to',
-    'charge'
+    'charge',
+    'state_coefs_diag',
+    'prob_hop_diag',
+    'u_matrix',
 ]
 _required_shnitsel_attributes = [
     "input_format",

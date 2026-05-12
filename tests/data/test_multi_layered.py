@@ -38,7 +38,7 @@ def test_layered_type(layered):
 def test_layered_conversion_idempotent(layered):
     assert layered.as_layered is layered
 
-@pytest.mark.xfail
+# @pytest.mark.xfail
 def test_layered_conversion_to_stacked(layered):
     layered_to_stacked = layered.as_stacked
     assert isinstance(layered_to_stacked, MultiSeriesStacked)

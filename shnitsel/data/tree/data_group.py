@@ -1,4 +1,6 @@
 from dataclasses import dataclass, asdict
+import logging
+import random
 from types import UnionType
 from typing import Any, Callable, Generic, Hashable, Mapping, Self, TypeVar, overload
 from typing_extensions import TypeForm
@@ -82,7 +84,7 @@ class DataGroup(
         children: Mapping[Hashable, "DataGroup[DataType]|DataLeaf[DataType]"]
         | None = None,
         dtype: None = None,
-        data: DataType | None = None,
+        data: DataType | None = ...,
         **kwargs,
     ) -> Self: ...
 
@@ -91,7 +93,7 @@ class DataGroup(
         self,
         children: None = None,
         dtype: type[ResType] | UnionType | None = None,
-        data: ResType | None = None,
+        data: ResType | None = ...,
         **kwargs,
     ) -> "DataGroup[ResType]": ...
 
@@ -118,7 +120,7 @@ class DataGroup(
         | Mapping[Hashable, NewChildType]
         | None = None,
         dtype: type[ResType] | UnionType | None = None,
-        data: ResType | None = None,
+        data: ResType | None = ...,
         **kwargs,
     ) -> Self | "DataGroup[ResType]":
         """Helper function to create a copy of this tree structure, but with potential changes to metadata, data or children
@@ -136,7 +138,7 @@ class DataGroup(
         -----------
             Self: A copy of this node with recursively copied children if `children` is not set with an appropriate mapping.
         """
-        assert data is None, "No data must be set on a root node"
+        assert data is ... or data is None, "No data must be set on a group node"
         if 'name' not in kwargs:
             kwargs['name'] = self._name
         if 'group_info' not in kwargs:
@@ -229,7 +231,7 @@ class DataGroup(
         # At the end of this, we should have either only sub-groups or only sub-leaves
         num_categories = 0
         key_set: set[KeyType | str] = set()
-        member_children: Mapping[
+        subgroup_member_children: Mapping[
             KeyType | str,
             list[tuple[Hashable, DataGroup[DataType] | DataLeaf[DataType]]],
         ] = {}
@@ -243,6 +245,8 @@ class DataGroup(
             )
 
             if isinstance(child, DataGroup):
+                # We have a group that is grouped within itself.
+                # It consistutes a child after grouping and
                 if group_leaves_only:
                     res_children[k] = child
                     num_categories += 1
@@ -253,18 +257,18 @@ class DataGroup(
 
                     if key not in key_set:
                         key_set.add(key)
-                        member_children[key] = []
+                        subgroup_member_children[key] = []
                         num_categories += 1
-                    member_children[key].append((k, child))
+                    subgroup_member_children[key].append((k, child))
             elif isinstance(child, DataLeaf):
                 key = key_func(child)
                 if key is None:
                     continue
                 if key not in key_set:
                     key_set.add(key)
-                    member_children[key] = []
+                    subgroup_member_children[key] = []
                     num_categories += 1
-                member_children[key].append((k, child))
+                subgroup_member_children[key].append((k, child))
 
         new_children = res_children
         base_group_info = (
@@ -275,7 +279,11 @@ class DataGroup(
 
         # TODO: FIXME: Make key to group info more straightforward
 
-        for key, group in member_children.items():
+        max_search = len(self.children) * 10
+
+        last_hit = -1
+
+        for key, group in subgroup_member_children.items():
             try:
                 # First try to treat it as a dataclass
                 key_dict = asdict(key)  # type: ignore # We know that the type does not need to fit, but it will raise a TypeError that we handle right afterwards if we are wrong
@@ -300,9 +308,44 @@ class DataGroup(
                     children=group_child_dict,
                     dtype=self._dtype,
                 )
-                for i in range(10000):
+                found_key = False
+                for i in range(last_hit + 1, 10000):
                     group_name_try = f"group_{i}"
                     if group_name_try not in new_children:
+                        new_group._name = group_name_try
                         new_children[group_name_try] = new_group
+                        found_key = True
+                        last_hit = i
+                        break
+                    idx = random.randint(0, max_search)
+                    group_name_try = f"group_{idx}"
+                    if group_name_try not in new_children:
+                        new_group._name = group_name_try
+                        new_children[group_name_try] = new_group
+                        found_key = True
+                        break
+                if not found_key:
+                    logging.error(
+                        "Could not find new key for group with grouping meta: %s",
+                        key_dict,
+                    )
 
         return self.construct_copy(children=new_children, group_info=base_group_info)
+
+
+def is_flat_group(dt: TreeNode) -> bool:
+    """Helper function to check if a tree node is actually a flat group.
+
+    Refactored into a function because this check is very common.
+
+    Parameters
+    ----------
+    dt : TreeNode
+        Tree node to check for being a group and being flat.
+
+    Returns
+    -------
+    bool
+        True if the provided node is a flat group, False otherwise
+    """
+    return isinstance(dt, DataGroup) and dt.is_flat_group

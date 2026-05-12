@@ -10,6 +10,7 @@ from shnitsel.data.dataset_containers import Trajectory, Frames, wrap_dataset
 import xarray as xr
 
 from shnitsel.data.dataset_containers.shared import ShnitselDataset
+from shnitsel.units.defaults import get_fill_value
 
 if TYPE_CHECKING:
     from shnitsel.data.tree import ShnitselDB
@@ -201,6 +202,7 @@ def _check_matching_var_meta(
             )
 
             if distinct_keys is not None and len(distinct_keys) > 0:
+                logging.warning("Meta mismatch detected in keys %s", str(distinct_keys))
                 return False
 
     return True
@@ -412,8 +414,13 @@ def concat_trajs(
     if all_traj:
         wrapped_ds = [wrap_dataset(x, (Trajectory | Frames)) for x in datasets]
 
+        # NOTE: Here, we filter out all trajectories that are empty. This breaks concatenation due to empty arrays causing issues in stacking
+
         datasets_pure = list(
-            x.as_frames if isinstance(x, Trajectory) else x for x in wrapped_ds
+            x.as_frames if isinstance(x, Trajectory) else x
+            for x in wrapped_ds
+            # leading dimension not in sizes means we have a single frame
+            if x.leading_dimension not in x.sizes or x.sizes[x.leading_dimension] > 0
         )
 
         if len(datasets_pure) == 0:
@@ -489,7 +496,11 @@ def concat_trajs(
 
         # TODO: Check if the order of datasets stays the same. Otherwise distinct attributes may not be appropriately sorted.
         frames = xr.concat(
-            datasets_amended, dim="frame", coords="different", combine_attrs="override"
+            datasets_amended,
+            dim="frame",
+            coords="different",
+            compat="equals",
+            combine_attrs="override",
         )
 
         # DataArrays without a `trajectory` dimension cannot have these coords assigned
@@ -518,14 +529,23 @@ def concat_trajs(
     elif all_da:
         # Concatenate data arrays
 
-        def da_to_frame(da, default_id):
+        def da_to_frame(da, default_id) -> xr.DataArray | None:
             if 'frame' in da.dims:
-                return da
+                if da.sizes['frame'] > 0:
+                    return da
+                # Empty array, don't keep
+                return None
 
             if 'time' not in da.dims:
-                raise ValueError(
-                    f"The data array {da=} did not have sufficient information for concatenation. Missing `time` dimension."
-                )
+                da = da.expand_dims('time')
+                # raise ValueError(
+                #     f"The data array {da=} did not have sufficient information for concatenation. Missing `time` dimension."
+                # )
+
+            # TODO: Probably check for sizes of all dimensions!
+            if da.sizes['time'] == 0:
+                # Empty array, don't keep
+                return None
 
             if 'atrajectory' not in da.coords:
                 trajectory_id = da.attrs.get(
@@ -552,7 +572,9 @@ def concat_trajs(
             return da.stack(frame=["atrajectory", "time"])
 
         framed_da: list[xr.DataArray] = [
-            da_to_frame(da, i) for i, da in enumerate(datasets)
+            res
+            for i, da in enumerate(datasets)
+            if (res := da_to_frame(da, i)) is not None
         ]
 
         # Check that all dimensions match. May want to check the values match as well?
@@ -701,6 +723,43 @@ def layer_trajs(
     if len(datasets_converted) == 0:
         raise ValueError("No trajectories were provided.")
 
+    leading_dimension = [
+        'time'
+        if 'time' in x.dims
+        else 'frame'
+        if 'frame' in x.dims
+        else "missing_leading_dimension"
+        for x in datasets_converted
+    ]
+
+    # NOTE: Filter out empty data sets before concatentation due to issues with empty arrays
+    datasets_converted = [
+        x
+        for x, ld in zip(datasets, leading_dimension)
+        # if ld is not in x.sizes or we have a missing leading dimension, we probably have a single frame
+        if ld not in x.sizes or x.sizes[ld] > 0
+    ]
+
+    retain_type = {}
+    retain_fill_value = {}
+
+    def register_type(da, name):
+        nonlocal retain_type, retain_fill_value
+        da_dtype = da.dtype
+        da_fv = get_fill_value(da)
+
+        retain_type[name] = da_dtype
+        retain_fill_value[name] = da_fv
+
+    for ds in datasets:
+        if isinstance(ds, xr.DataArray):
+            register_type(ds, "__root")
+            for k, v in ds.coords.items():
+                register_type(v, k)
+        else:
+            for k, v in ds.variables.items():
+                register_type(v, k)
+
     if not _check_matching_dimensions(datasets_converted, {'time', 'frame'}):
         message = "Dimensions of the provided datasets are not consistent."
         logging.warning(
@@ -729,11 +788,26 @@ def layer_trajs(
         ds.expand_dims(trajectory=[id]) for ds, id in zip(datasets_converted, trajids)
     ]
 
+    # Indicate which array entries are placeholders
+    datasets = [
+        x.assign_coords({'is_frame': (ld, np.ones(x.sizes[ld]))})
+        for x, ld in zip(datasets, leading_dimension)
+    ]
+
     # trajids = pd.Index(meta["trajid"], name="trajid")
     # coords_trajids = xr.Coordinates(indexes={"trajid": trajids})
     # breakpoint()
     layers = xr.concat(
-        datasets, dim="trajectory", combine_attrs="drop_conflicts", join="outer"
+        datasets,
+        dim="trajectory",
+        coords="different",
+        compat="equals",
+        combine_attrs="drop_conflicts",
+        join="outer",
+    )
+    # Convert 1.0 and nan to True and False
+    layers = layers.assign_coords(
+        is_frame=layers.coords['is_frame'].fillna(0).astype(bool)
     )
 
     # layers = layers.assign_coords(trajid=trajids)
@@ -771,6 +845,40 @@ def layer_trajs(
 
     if not isinstance(layers, xr.Dataset):
         layers = xr.Dataset(layers)
+
+    # Try and filter out filler entries:
+    replacements = {}
+    for retained_var_name, retained_dtype in retain_type.items():
+        if (retained_var_name in layers or retained_var_name in layers.coords) and 'trajecotry' in layers[retained_var_name].dims and len(layers[retained_var_name].dims) > 1:
+            if layers[retained_var_name].dtype != retained_dtype:
+                try:
+                    replacements[retained_var_name] = (
+                        layers[retained_var_name]
+                        .fillna(retain_fill_value[retained_var_name])
+                        .astype(retained_dtype)
+                    )
+                except:
+                    logging.warning(
+                        f"Failed to convert variable {retained_var_name} to back to its original type {retained_dtype}."
+                    )
+
+    if replacements:
+        if hasattr(layers, "assign"):
+            layers = layers.assign(replacements)
+        elif hasattr(layers, "assign_coords"):
+            layers = layers.assign_coords(replacements)
+
+    if isinstance(layers, xr.DataArray):
+        # The main data in the array is not covered by our replacement strategy for xr.DataArray instances
+        layers = layers.where(layers != retain_fill_value.get("__root"))
+
+        if layers.dtype is not retain_type.get("__root", np.float64):
+            try:
+                layers = layers.astype(retain_type.get("__root"))
+            except:
+                logging.warning(
+                    f"Failed to convert array content back to its original type {retain_type.get('__root')}."
+                )
 
     if TYPE_CHECKING:
         assert isinstance(layers, xr.Dataset)

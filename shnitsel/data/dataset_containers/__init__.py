@@ -105,12 +105,22 @@ def wrap_dataset(
     else:
         raw_ds = ds
 
-    if MultiSeriesLayered in accepted_types or MultiSeriesDataset in accepted_types:
+    if (
+        ShnitselDataset in accepted_types
+        or DataSeries in accepted_types
+        or MultiSeriesDataset in accepted_types
+        or MultiSeriesLayered in accepted_types
+    ):
         try:
             return MultiSeriesLayered(raw_ds)
         except:
             pass
-    if MultiSeriesStacked in accepted_types or MultiSeriesDataset in accepted_types:
+    if (
+        ShnitselDataset in accepted_types
+        or DataSeries in accepted_types
+        or MultiSeriesDataset in accepted_types
+        or MultiSeriesStacked in accepted_types
+    ):
         try:
             return MultiSeriesStacked(raw_ds)
         except:
@@ -149,5 +159,19 @@ def wrap_dataset(
         raise AssertionError(
             f"Could not convert input dataset to expected types {expected_types}.\n Input type was {type(raw_ds)}"
         )
+
+    return ds
+
+def unwrap_dataset(ds: xr.DataArray|xr.Dataset| ShnitselDataset):
+    """Helper function to ensure the result is a bare xarray data structure.
+
+    Parameters
+    ----------
+    ds : xr.DataArray | xr.Dataset | ShnitselDataset
+        Either a wrapped or an unwrapped data structure
+    """
+
+    if isinstance(ds, ShnitselDataset):
+        return ds.dataset
 
     return ds

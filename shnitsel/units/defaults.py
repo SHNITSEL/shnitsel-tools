@@ -1,6 +1,34 @@
 from typing import Dict, Literal
 from ..io.shared.helpers import LoadingParameters
 from .definitions import standard_units_of_formats, unit_dimensions
+import xarray as xr
+import numpy as np
+
+DUMMY_INT_FILL_VALUE = -2e63 + 1
+
+
+def get_fill_value(da: xr.DataArray | xr.Variable | np.ndarray):
+    """Helper function to obtain either the set or the default fill value
+    for a certain array dtype.
+
+    Parameters
+    ----------
+    da : xr.DataArray | np.ndarray
+        The array to get the fill value for. Either from the `fill_value` attribute or based on the dtype
+
+    Returns
+    ----------
+    The value used as a fill value for the array.
+    """
+    tmp_res = None
+    if isinstance(da, (xr.DataArray, xr.Variable)):
+        tmp_res = da.attrs.get("fill_value", None)
+
+    if tmp_res is None:
+        global DUMMY_INT_FILL_VALUE
+        dtype = da.dtype
+        return DUMMY_INT_FILL_VALUE if np.issubdtype(dtype, np.integer) else np.nan
+    return np.nan
 
 
 def get_default_input_attributes(
@@ -72,13 +100,20 @@ def get_default_input_attributes(
             "units": override_defaults(unit_dimensions.time, "time"),
         },
         "phases": {"long_name": "Phase vector"},
-        "sdiag": {"long_name": "Active state (diag)"},
-        "astate": {"long_name": "Active state in dynamic trajectories (MCH)"},
+        "sdiag": {
+            "long_name": "Active state (diag)",
+            "fill_value": -1,
+        },
+        "astate": {
+            "long_name": "Active state in dynamic trajectories (MCH)",
+            "fill_value": -1,
+        },
         "state": {"long_name": "Index of relevant states for indexing"},
-        "state2": {"long_name": "The second state to build state combinations out of"},
+        "state2": {"long_name": "The second state to build state combinations out of."},
         "state_names": {"long_name": "String representations of the states."},
         "state_types": {
-            "long_name": "Multiplicity to indicate whether the respective state is singlet (1), doublet (2), or triplet(3)"
+            "long_name": "Multiplicity to indicate whether the respective state is singlet (1), doublet (2), or triplet(3)",
+            "fill_value": -1,
         },
         "state_charges": {
             "long_name": "Charge of the various states.",
@@ -108,7 +143,10 @@ def get_default_input_attributes(
             "long_name": "An alias for the second state of a full_statecomb combination"
         },
         "atNames": {"long_name": "Names of atomic elements (short form)"},
-        "atNums": {"long_name": "Periodic number of atomic elements"},
+        "atNums": {
+            "long_name": "Periodic number of atomic elements",
+            "fill_value": -1,
+        },
         "forces": {
             "long_name": "Per-atom forces",
             "unitdim": unit_dimensions.force,
@@ -129,6 +167,23 @@ def get_default_input_attributes(
             "unitdim": unit_dimensions.velocity,
             "units": override_defaults(unit_dimensions.velocity, "velocities"),
         },
+        "state_coefs_diag": {
+            "long_name": "Coefficients of current active state in diagonal basis",
+            "units": "1",
+        },
+        "prob_hop_diag": {
+            "long_name": "Hopping probability to states in diagonal basis",
+            "description": "Hopping probabilities denote the probability of hopping from the currently active diagonal state to the respective target diagonal state.",
+            "units": "1",
+        },
+        "u_matrix": {
+            "long_name": "Diag to MCH transformation matrix",
+            "units": "1",
+            "description": "The U matrix converts from the diag into the MCH matrix like $c_{MCH} = U c_{diag}$. "
+            "As such, the 'state2' dimension should be considered as the index in the diagonal basis and the 'state' dimension as the index in the MCH basis.",
+        },
+        # history
+        # A global attribute for an audit trail. This is a character array with a line for each invocation of a program that has modified the dataset. Well-behaved generic netCDF applications should append a line containing: date, time of day, user name, program name and command arguments.
     }
 
     return res

@@ -3,13 +3,16 @@ import numpy as np
 import numpy.typing as npt
 
 from shnitsel.core._api_info import internal
+import xarray as xr
 
 
 # it will be useful to truncate some of the histograms
 # this should be noted in the text
 # a logarithmic histogram could show outliers... probably not worth it
 @internal()
-def calc_truncation_maximum(data, rel_cutoff: float = 0.01, bins: int = 1000) -> float:
+def calc_truncation_maximum(
+    data: xr.DataArray, rel_cutoff: float = 0.01, bins: int = 1000
+) -> float:
     """Function to calculate the upper cutoff-threshold of data such that
     the frequency in the last bin is at least `rel_cutoff` times the maximum frequency.
 
@@ -17,7 +20,7 @@ def calc_truncation_maximum(data, rel_cutoff: float = 0.01, bins: int = 1000) ->
 
     Parameters
     ----------
-    data
+    data : xr.DataArray
         The data that should be histogrammed and filtered.
     rel_cutoff : float, optional
         Factor relative to the frequency maximum that should be used for determining the cutoff. Defaults to 0.01.

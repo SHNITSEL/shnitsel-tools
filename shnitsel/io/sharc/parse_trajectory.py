@@ -347,7 +347,7 @@ def read_traj(
         trajectory = set_sharc_state_type_and_name_defaults(
             trajectory, state_multiplicities, charges
         )
-    trajectory =assign_optional_settings(trajectory, optional_settings)
+    trajectory = assign_optional_settings(trajectory, optional_settings)
 
     return trajectory
 
@@ -400,7 +400,7 @@ def parse_output_listings(path: pathlib.Path) -> tuple[dict[str, Any], dict[str,
     Returns
     -------
     tuple[dict[str, Any], dict[str, Any]]
-        First, a key-value dictionary, where the keys are the names of the settings like delta_t, nsteps and t_max. 
+        First, a key-value dictionary, where the keys are the names of the settings like delta_t, nsteps and t_max.
         Then a key_value dictionary with names of variables and their values extracted from the file.
     """
     settings = {}
@@ -413,7 +413,12 @@ def parse_output_listings(path: pathlib.Path) -> tuple[dict[str, Any], dict[str,
     settings["nsteps"] = nsteps
 
     times = lis_data[:, 1]
-    settings["delta_t"] = times[1] - times[0]
+    if len(times) > 1:
+        settings["delta_t"] = times[1] - times[0]
+    else:
+        logging.warning("Only one frame detected in trajectory. Time step delta may be arbitrary.")
+        settings["delta_t"] = 0.0
+
     settings["t_max"] = np.max(times)
 
     active_state = np.array([int(round(x)) for x in lis_data[:, 2]])
@@ -542,8 +547,10 @@ def parse_trajout_dat(
     # 0.1837143472948E+004
     # 0.1837143472948E+004
     # 0.1837143472948E+004
-    atNames = np.full((natoms,), "")
-    atNums = np.full((natoms,), "")
+
+    # NOTE: dtype specification required to ensure two-letter symbols are parsed correctly
+    atNames = np.full((natoms,), "", dtype=trajectory_in.atNames.dtype)  # dtype="U2")
+    atNums = np.full((natoms,), -1)
     for line in f:
         stripped = line.strip()
 
@@ -556,7 +563,6 @@ def parse_trajout_dat(
         if stripped.startswith("! Elements"):
             for i in range(natoms):
                 atNames[i] = next(f).strip()
-
     trajectory_in.coords["atNames"] = (
         "atom",
         atNames,
@@ -593,6 +599,10 @@ def parse_trajout_dat(
     astate_assigned = False
     nacs_assigned = False
     socs_assigned = False
+    velocities_assigned = False
+    coefs_assigned = False
+    phop_assigned = False
+    umatrix_assigned = False
 
     sharc_version_parts = [int(x) for x in settings["SHARC_version"].split(".")]
     _sharc_main_version = sharc_version_parts[0]
@@ -606,6 +616,11 @@ def parse_trajout_dat(
     tmp_astate = np.full_like(trajectory_in.astate.values, 0, dtype=np.int32)
     tmp_nacs = np.full_like(trajectory_in.nacs.values, np.nan)
     tmp_socs = np.full_like(trajectory_in.socs, 0 + 0j)
+    tmp_velocities = np.full_like(trajectory_in.velocities, np.nan)
+    # TODO: Do we need to specify the type here?
+    tmp_coefs = np.full_like(trajectory_in.state_coefs_diag.values, 0 + 0j)
+    tmp_umatrix = np.full_like(trajectory_in.u_matrix.values, 0 + 0j)
+    tmp_phop = np.full_like(trajectory_in.prob_hop_diag.values, 0.0)
 
     # skip through until initial step:
     for line in f:
@@ -627,7 +642,7 @@ def parse_trajout_dat(
             new_ts = int(next(f).strip())
             if new_ts != (ts or 0) + 1:
                 logging.warning(
-                    "Non-consecutive timesteps: %(ts)d -> %(next_ts)d",
+                    "Non-consecutive timesteps: %(ts)d -> %(new_ts)d",
                     {'ts': ts, 'new_ts': new_ts},
                 )
             ts = new_ts
@@ -656,6 +671,17 @@ def parse_trajout_dat(
                         tmp_socs[ts, full_comb] = np.complex128(
                             float_entries[jstate * 2], float_entries[jstate * 2 + 1]
                         )
+        if line.startswith("! 2 U matrix"):
+            umatrix_assigned = True
+            for istate in range(nstates):
+                linecont = next(f).strip().split()
+                float_entries = [float(i) for i in linecont]
+                # convert list of even number of floats to list of complex numbers
+                complex_entries = [
+                    np.complex128(float_entries[2 * j], float_entries[2 * j + 1])
+                    for j in range(nstates)
+                ]
+                tmp_umatrix[ts, istate, :] = complex_entries
 
         if line.startswith("! 3 Dipole moments"):
             dipole_assigned = True
@@ -689,6 +715,18 @@ def parse_trajout_dat(
                 phases_assigned = True
                 tmp_phases[ts] = phasevector
 
+        if line.startswith("! 5 Coefficients"):
+            coefs = [
+                float((split := next(f).strip().split())[0]) + 1j * float(split[1])
+                for _ in range(nstates)
+            ]
+            coefs_assigned = True
+            tmp_coefs[ts] = coefs
+
+        if line.startswith("! 6 Hopping Probabilities"):
+            phop_assigned = True
+            tmp_phop[ts, :] = [float(next(f).strip()) for i in range(nstates)]
+
         if line.startswith("! 7 Ekin"):
             e_kin_assigned = True
             tmp_e_kin[ts] = float(next(f).strip())
@@ -699,6 +737,11 @@ def parse_trajout_dat(
             astate_assigned = True
             tmp_sdiag[ts] = int(pair[0])
             tmp_astate[ts] = int(pair[1])
+
+        if line.startswith("! 12 Velocities in a.u."):
+            velocities_assigned = True
+            for atom in range(natoms):
+                tmp_velocities[ts, atom] = [float(n) for n in next(f).strip().split()]
 
         if line.startswith("! 15 Gradients (MCH)"):
             state = int(line.strip().split()[-1]) - 1
@@ -762,9 +805,20 @@ def parse_trajout_dat(
         trajectory_in["energy"].values = tmp_energy
         mark_variable_assigned(trajectory_in["energy"])
     if e_kin_assigned:
-        # For now, we do not include e_kin or velocities.
-        # mark_variable_assigned(trajectory_in["e_kin"])
-        pass
+        trajectory_in["e_kin"].values = tmp_e_kin
+        mark_variable_assigned(trajectory_in["e_kin"])
+    if velocities_assigned:
+        trajectory_in["velocities"].values = tmp_velocities
+        mark_variable_assigned(trajectory_in["velocities"])
+    if coefs_assigned:
+        trajectory_in["state_coefs_diag"].values = tmp_coefs
+        mark_variable_assigned(trajectory_in["state_coefs_diag"])
+    if umatrix_assigned:
+        trajectory_in["u_matrix"].values = tmp_umatrix
+        mark_variable_assigned(trajectory_in["u_matrix"])
+    if phop_assigned:
+        trajectory_in["prob_hop_diag"].values = tmp_phop
+        mark_variable_assigned(trajectory_in["prob_hop_diag"])
 
     if not (max_ts + 1 <= nsteps):
         raise ValueError(
@@ -772,7 +826,6 @@ def parse_trajout_dat(
             f"greatest timestep index was {max_ts + 1=}"
         )
     completed = max_ts + 1 == nsteps
-
     return completed, max_ts + 1, trajectory_in
 
 
@@ -800,7 +853,8 @@ def parse_trajout_xyz(
     assert first.startswith(" " * 6)
     natoms = int(first.strip())
 
-    atNames = np.full((natoms), "")
+    # NOTE: dtype specification required to ensure two-letter symbols are parsed correctly
+    atNames = np.full((natoms), "", dtype='U8')
     atNums = np.full((natoms), -1)
     atXYZ = np.full((nsteps, natoms, 3), np.nan)
 

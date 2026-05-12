@@ -22,7 +22,9 @@ from typing_extensions import Literal, TypeForm
 
 from shnitsel.core.typedefs import ErrorOptionsWithWarn
 from shnitsel.data.dataset_containers.multi_layered import MultiSeriesLayered
+from shnitsel.data.dataset_containers.multi_series import MultiSeriesDataset
 from shnitsel.data.dataset_containers.multi_stacked import MultiSeriesStacked
+from shnitsel.data.tree.datatree_level import DataTreeLevelMap
 from ..trajectory_grouping_params import TrajectoryGroupingMetadata
 from pathlib import Path
 
@@ -52,14 +54,31 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
     @classmethod
     def _get_extended_class_name(cls: type, datatypes: Sequence[type]) -> str:
         dtype_string = "|".join([ot.__name__ for ot in datatypes])
-        resname = f"{cls.__name__}[{dtype_string}]"
+        resname = f"{cls.__name__}[Any, {dtype_string}]"
         return resname
 
     @classmethod
     def _create_extended_node_class(
-        cls: type[Self], datatypes: list[tuple[type, list[str], list[str]]]
+        cls: type[Self], datatypes: list[tuple[type, list[str], list[str]]], base=None
     ) -> type[Self]:
-        """Create a new version of the class with added methods for the datatypes."""
+        """Create a new node class with data-entry methods mapped over the tree
+
+        _extended_summary_
+
+        Parameters
+        ----------
+        cls : type[Self]
+            The class of which to create a specialization
+        datatypes : list[tuple[type, list[str], list[str]]]
+            The data type to be supported within data leaves
+        base : type, optional
+            The Base class to use for inheritance. If not set, will use `cls`, by default None
+
+        Returns
+        -------
+        type[Self]
+            The newly constructed type
+        """
 
         def make_mapped_method(method_name: str, docstring: str | None = None):
             # def method(self, *args, **kw):
@@ -149,11 +168,16 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
             #     namespace[name] = make_method(name)
         configured_datatypes = [ot for ot, _, _ in datatypes]
         namespace["__configured_datatypes__"] = configured_datatypes
+        namespace["__origin__"] = TreeNode
         resname = cls._get_extended_class_name(configured_datatypes)
         logging.debug(f"Creating patched node class {resname}")
 
         # return type("%s(%s)" % (cls.__name__, theclass.__name__), (cls,), namespace)
-        return type(resname, (cls,), namespace)
+        return type(
+            resname,
+            (cls,),
+            namespace,
+        )
 
     def __class_getitem__(
         cls: type[Self], args: "TypeVar | tuple[TypeVar , ...]"
@@ -213,7 +237,11 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
                     "Creating new class for dtype fields and methods: %s",
                     types_with_props_and_methods,
                 )
-                resclass = cls._create_extended_node_class(types_with_props_and_methods)
+                # TODO: FIXME: The node specializations do not work with typing.get_origin and probably not with typing.get_args
+                # We may just want to patch the `base` class result with the extended functions?
+                resclass = base._create_extended_node_class(
+                    types_with_props_and_methods, base=base
+                )
                 class_cache[resname] = resclass
                 setattr(cls, "__class_cache__", class_cache)
             return class_cache[resname]
@@ -389,7 +417,7 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
         self,
         children: Mapping[Hashable, ChildType] | None = None,
         dtype: None = None,
-        data: DataType | None = None,
+        data: DataType | None = ...,
         **kwargs,
     ) -> Self: ...
 
@@ -407,7 +435,7 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
         self,
         children: None = None,
         dtype: type[ResType] | UnionType | None = None,
-        data: ResType | None = None,
+        data: ResType | None = ...,
         **kwargs,
     ) -> "TreeNode[Any, ResType]": ...
 
@@ -418,7 +446,7 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
         | Mapping[Hashable, NewChildType]
         | None = None,
         dtype: type[ResType] | UnionType | None = None,
-        data: ResType | None = None,
+        data: ResType | None = ...,
         **kwargs,
     ) -> Self | "TreeNode[NewChildType, ResType]":
         """Every class inheriting from TreeNode should implement this method to create a copy of that subtree
@@ -430,7 +458,7 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
         Parameters
         ----------
         data : ResType | None, optional
-            The new data to be set in the copy of this node, by default None, which should populate it with the node's current data
+            The new data to be set in the copy of this node. If not provided, this will populate it with the node's current data
         children : Mapping[str, NewChildType], optional
             A new set of children to replace the old mapping of children can be provided with this parameter.
             The data type can also be changed with appropriate typing here:
@@ -550,40 +578,100 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
         """
         return len(self._children)
 
-    def __contains__(self, value: str | ChildType) -> bool:
-        if isinstance(value, str):
-            return value in self._children
-        else:
-            return value in self._children.values()
-
     def __getitem__(
-        self, key: str | tuple[str]
-    ) -> "TreeNode[Any, DataType] | DataType | None":
+        self, key: str | tuple[str] | Any
+    ) -> "TreeNode[Any, DataType] |  DataType | TreeNode[Any, Any] |None":
+        """Array-style index accessor method.
+
+        Can traverse paths within the tree.
+        Note that if the path is not found within the tree, we will first try and
+        gracefully map the access over all data entries within the tree.
+
+        Parameters
+        ----------
+        key : str | tuple[str] | Any
+            The path/key under which data should be looked up
+
+        Returns
+        -------
+        TreeNode[Any, DataType] |  DataType | TreeNode[Any, Any] |None
+            Either the subtree that was selected, the data that was unwrapped or the tree
+            resulting from mapping the access over all entries.
+        """
         path_parts: tuple
+
+        is_handled = True
+        handle_error = ValueError(
+            f"Could not find requested data in the tree. ({key=})"
+        )
         if isinstance(key, str):
             path_parts = Path(key).parts
         elif isinstance(key, tuple):
             path_parts = key
         else:
-            raise ValueError("Unsupported index type: %s", type(key))
+            # All other keys should go to other handlers
+            path_parts = ()
+            is_handled = False
+            handle_error = ValueError("Unsupported index type: %s", type(key))
 
+        if is_handled:
+            res = self._find_tree_entry(path_parts)
+
+            if res is not None:
+                return res
+
+            is_handled = False
+            handle_error = KeyError(f"Key {key} not found in current tree.")
+
+        # NOTE: Try and see it as an attempt to call `__getitem__` on the data entries in the tree:
+
+        if not is_handled:
+            try:
+                res = self.map_data(lambda x: x[key])
+                return res
+            except:
+                # None of our attempts was successful, this is a true error
+                raise handle_error
+
+        return None
+
+    def _find_tree_entry(
+        self, path_parts: tuple
+    ) -> "TreeNode[Any, DataType] | DataType | None":
+        """Helper method to handle path traversal within the tree to try and find
+        a resolution for a path.
+
+        Not supposed to be called directly from outside.
+        Used from the __getitem__ method performing some internal preprocessing first.
+
+        Parameters
+        ----------
+        path_parts : tuple
+            The split parts of the path
+
+        Returns
+        -------
+        TreeNode[Any, DataType] | DataType | None
+            Either a subtree of the current tree, a data entry within the current tree or None if no result was found for the query
+        """
         if len(path_parts) == 0:
             return self
 
         first_part = path_parts[0]
         path_tail = tuple(path_parts[1:])
+
         if first_part == os.path.sep:
             # print("goto root")
-            return self.root[path_tail]
+            return self.root._find_tree_entry(path_tail)
         elif first_part == '.':
             # print("goto self")
-            return self[path_tail]
+            return self._find_tree_entry(path_tail)
         elif first_part == '..':
             if self._parent is not None:
                 # print("goto parent")
-                return self._parent[path_tail]
+                return self._parent._find_tree_entry(path_tail)
             # print("goto parent impossible")
-            return self[path_tail]
+            return self._find_tree_entry(path_tail)
         else:
             if self.has_data and first_part == 'data':
                 # print("yield data")
@@ -593,14 +681,109 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
                 if child_entry is None:
                     return None
                 else:
-                    return child_entry[path_tail]
+                    return child_entry._find_tree_entry(path_tail)
         return None
 
+    def __contains__(self, item: "TreeNode[Any, Any] | str | ChildType | Any") -> bool:
+        """Helper method to check if either a key is a valid path in this tree or if one of
+        the data sets in this tree contains the item
+
+        Parameters
+        ----------
+        item : Any
+            The item to check for being in the tree.
+        """
+
+        if isinstance(item, (str, tuple)):
+            if item in self._children:
+                return True
+            try:
+                res = self.__getitem__(item)
+                if res is not None:
+                    return True
+            except:
+                pass
+        elif isinstance(item, TreeNode):
+            # See if it is a direct node in this subtree:
+            if item in self._children.values():
+                return True
+            else:
+                return any(item in x for x in self._children.values() if x is not None)
+
+        # Try and find it in any of the data entries
+        for x in self.collect_data():
+            if x is item:
+                return True
+            try:
+                if x in item:  # type: ignore # We are aware that the data type may not support __contains__
+                    return True
+            except:
+                pass
+
+        return False
+
     def __setitem__(self, key, value):
+        """We do not supporrt setting an item on the tree with this syntax due to the
+        invariance constraints on the tree.
+
+        Parameters
+        ----------
+        key : Any
+            The key to which a value would be assigned
+        value : Any
+            The value to assign to the entry
+
+        Raises
+        ------
+        RuntimeError
+            Setting entries with this syntax is not supported.
+        """
         # self.daten[key] = value
-        raise AssertionError(
-            "Cannot set tree items with the array syntax. Would violate the "
+        raise RuntimeError(
+            "Cannot set tree items with the array syntax. Would violate the invariance conditions."
         )
+
+    def __getattr__(self, name: str) -> "TreeNode[Any, Any]":
+        """Helper method to support forwarding of attribute requests to
+        all data entries if the tree itself does not support them.
+
+        Parameters
+        ----------
+        name : str
+            The name of the attribute to resolve
+
+        Returns
+        -------
+        TreeNode[Any, Any]
+            We cannot predict, what the resolution on data entries will yield.
+            If a data entry does not have the requested attribute, the result
+            will be `None` on that entry.
+            If none of the entries had the attribute, an `AttributeError`
+            will be raised instead
+
+        Raises
+        ------
+        AttributeError
+            If the attribute could not be found on the contained data.
+        """
+        # If we arrive here, the tree has not had the attribute set via traditional means.
+        # We will broadcast/map this access over all data entries:
+
+        try:
+            res = self.map_data(lambda x: getattr(x, name, None))
+            coll_data = list(res.collect_data())
+            if len(coll_data) > 0 and any(x is not None for x in coll_data):
+                return res
+
+            raise AttributeError(
+                f"Attribute `{name=}` could not be found on any data in the tree."
+            )
+        except AttributeError:
+            raise
+        except Exception as e:
+            raise AttributeError(
+                f"Could not find attribute `{name=}` on the tree or its data entries"
+            ) from e
 
     @property
     def is_leaf(self) -> bool:
@@ -924,8 +1107,8 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
         from .compound import CompoundGroup
         from .tree import ShnitselDBRoot
 
-        assert isinstance(self, (DataGroup, CompoundGroup, ShnitselDBRoot)), (
-            "Unsupported node type provided to `map` function: %s" % type(self)
+        assert isinstance(self, (DataLeaf, DataGroup, CompoundGroup, ShnitselDBRoot)), (
+            "Unsupported node type provided to `filter_nodes` function: %s" % type(self)
         )
 
         keep_self = filter_func(self)
@@ -1223,7 +1406,7 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
         tolerance: int | float | Iterable[int | float] | None = None,
         drop: bool = False,
         **indexers_kwargs: Any,
-    ) -> Self:
+    ) -> Self | None:
         """Returns a new dataset with each array indexed by tick labels
         along the specified dimension(s).
 
@@ -1291,26 +1474,186 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
             Tutorial material on basics of indexing
 
         """
-        raise NotImplementedError(
-            ".sel() not yet implemented for %s in hierarchical tree structures"
-            % type(self)
-        )
+        from xarray.namedarray.utils import either_dict_or_kwargs
+
+        # def either_dict_or_kwargs(
+        #     pos_kwargs: Mapping[Any, T] | None,
+        #     kw_kwargs: Mapping[str, T],
+        #     func_name: str,
+        # ) -> Mapping[Hashable, T]:
+        #     if pos_kwargs is None or pos_kwargs == {}:
+        #         # Need an explicit cast to appease mypy due to invariance; see
+        #         # https://github.com/python/mypy/issues/6228
+        #         return cast(Mapping[Hashable, T], kw_kwargs)
+
+        #     if not is_dict_like(pos_kwargs):
+        #         raise ValueError(f"the first argument to .{func_name} must be a dictionary")
+        #     if kw_kwargs:
+        #         raise ValueError(
+        #             f"cannot specify both keyword and positional arguments to .{func_name}"
+        #         )
+        #     return pos_kwargs
+
+        # raise NotImplementedError(
+        #     ".sel() not yet implemented for %s in hierarchical tree structures"
+        #     % type(self)
+        # )
         indexers = either_dict_or_kwargs(indexers, indexers_kwargs, "sel")
-        query_results = map_index_queries(
-            self, indexers=indexers, method=method, tolerance=tolerance
-        )
+        # query_results = map_index_queries(
+        #     self, indexers=indexers, method=method, tolerance=tolerance
+        # )
+        import xarray as xr
 
-        if drop:
-            no_scalar_variables = {}
-            for k, v in query_results.variables.items():
-                if v.dims:
-                    no_scalar_variables[k] = v
-                elif k in self._coord_names:
-                    query_results.drop_coords.append(k)
-            query_results.variables = no_scalar_variables
+        def dataset_is_empty(input_dataset):
+            """Test if an input xarray.Dataset is empty."""
+            n_dims = len(input_dataset.dims)
 
-        result = self.isel(indexers=query_results.dim_indexers, drop=drop)
-        return result._overwrite_indexes(*query_results.as_tuple()[1:])
+            if n_dims == 0:
+                empty = True
+            else:
+                for cnt in input_dataset.sizes.values():
+                    if cnt == 0:
+                        return True
+
+            return False
+
+        if self._level_name == DataTreeLevelMap['compound']:
+            compound_indexer = indexers.get("compound", None)
+            if compound_indexer is not None:
+                indexers = dict(indexers)
+                del indexers["compound"]
+
+                if isinstance(compound_indexer, slice):
+                    start = compound_indexer.start
+                    stop = compound_indexer.stop
+                    if self.name >= stop or self.name < start:
+                        # We are not part of the relevant compounds.
+                        # Return None
+                        return None
+                elif isinstance(compound_indexer, str):
+                    if self.name != compound_indexer:
+                        # We are not the specific compound requested.
+                        # Return None
+                        return None
+                else:
+                    try:
+                        if self.name not in compound_indexer:
+                            # The indexer might be a set, check if we are part of it.
+                            return None
+                    except:
+                        pass
+        elif self._level_name == DataTreeLevelMap['group']:
+            group_indexer = indexers.get("group", None)
+            if group_indexer is not None:
+                indexers = dict(indexers)
+                del indexers["group"]
+
+                if isinstance(group_indexer, slice):
+                    start = group_indexer.start
+                    stop = group_indexer.stop
+                    if self.name >= stop or self.name < start:
+                        # We are not part of the relevant groups.
+                        # Return None
+                        return None
+                elif isinstance(group_indexer, str):
+                    if self.name != group_indexer:
+                        # We are not the specific group requested.
+                        # Return None
+                        return None
+                else:
+                    try:
+                        # The indexer might be a set, check if we are part of it.
+                        if self.name not in group_indexer:
+                            # We are not in the requested group set.
+                            # Return None
+                            return None
+                    except:
+                        pass
+        elif self._level_name == DataTreeLevelMap['data']:
+            trajectory_indexer = indexers.get("trajectory", None)
+
+            # Only catch this, if we are not a node of a multi-series dataset.
+            # Otherwise, pass it on
+            if trajectory_indexer is not None and not isinstance(
+                self._data, MultiSeriesDataset
+            ):
+                indexers = dict(indexers)
+                del indexers["trajectory"]
+
+                if isinstance(trajectory_indexer, slice):
+                    start = trajectory_indexer.start
+                    stop = trajectory_indexer.stop
+                    if self.name >= stop or self.name < start:
+                        # We are not part of the relevant trajectories.
+                        # Return None
+                        return None
+                elif isinstance(trajectory_indexer, str):
+                    if self.name != trajectory_indexer:
+                        # We are not the specific compound requested.
+                        # Return None
+                        return None
+                else:
+                    try:
+                        # The indexer might be a set, check if we are part of it.
+                        if self.name not in trajectory_indexer:
+                            # We are not in the requested trajectory set.
+                            # Return None
+                            return None
+                    except:
+                        pass
+            if indexers:
+                # We are a relevant data leaf node:
+                if self.has_data:
+                    if hasattr(self._data, 'sel') and callable(self._data.sel):
+                        indexers = dict(indexers)
+
+                        for key in ["compounds", "groups"]:
+                            if key in indexers:
+                                del indexers[key]
+                        # Invoke with remaining indexers
+                        res_data = self._data.sel(
+                            indexers=indexers,
+                            method=method,
+                            tolerance=tolerance,
+                            drop=drop,
+                        )
+                        # assert isinstance(res_data, xr.Dataset)
+                        if dataset_is_empty(res_data):
+                            return None
+                        return self.construct_copy(data=res_data)
+                    else:
+                        logging.warning(
+                            "Data in the tree does not support the `.sel()` operation to process the remaining indexers."
+                        )
+                        return self.construct_copy()
+                # Nothing to find in this leaf
+                return None
+            else:
+                # No further Search criteria. Just build a copy
+                # NOTE: This allows `.sel()` to work with data types that do not support `sel` themselves
+                return self.construct_copy()
+
+        if indexers:
+            result = self.construct_copy(
+                children={
+                    k: v
+                    for k, child in self.children.items()
+                    if child is not None
+                    and (
+                        v := child.sel(
+                            indexers=indexers,
+                            method=method,
+                            tolerance=tolerance,
+                            drop=drop,
+                        )
+                    )
+                    is not None
+                }
+            )
+        else:
+            result = self.construct_copy()
+        return result
+        # return result._overwrite_indexes(*query_results.as_tuple()[1:])
 
     def isel(
         self,
@@ -1318,7 +1661,7 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
         drop: bool = False,
         missing_dims: ErrorOptionsWithWarn = "raise",
         **indexers_kwargs: Any,
-    ) -> Self:
+    ) -> Self | None:
         """Returns a new tree indexed along dimensions `compound`, `group` or `trajectory`
         and with data in leaves of the tree indexed along the remaining specified
         dimension(s) if the leaves support `.isel()` operations.
@@ -1411,47 +1754,170 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
         :func:`TreeNode.sel <TreeNode.sel>`
 
         """
-        raise NotImplementedError(
-            ".isel() not yet implemented for %s in hierarchical tree structures"
-            % type(self)
-        )
+        from xarray.namedarray.utils import either_dict_or_kwargs
+
+        # def either_dict_or_kwargs(
+        #     pos_kwargs: Mapping[Any, T] | None,
+        #     kw_kwargs: Mapping[str, T],
+        #     func_name: str,
+        # ) -> Mapping[Hashable, T]:
+        #     if pos_kwargs is None or pos_kwargs == {}:
+        #         # Need an explicit cast to appease mypy due to invariance; see
+        #         # https://github.com/python/mypy/issues/6228
+        #         return cast(Mapping[Hashable, T], kw_kwargs)
+
+        #     if not is_dict_like(pos_kwargs):
+        #         raise ValueError(f"the first argument to .{func_name} must be a dictionary")
+        #     if kw_kwargs:
+        #         raise ValueError(
+        #             f"cannot specify both keyword and positional arguments to .{func_name}"
+        #         )
+        #     return pos_kwargs
+
+        # raise NotImplementedError(
+        #     ".sel() not yet implemented for %s in hierarchical tree structures"
+        #     % type(self)
+        # )
         indexers = either_dict_or_kwargs(indexers, indexers_kwargs, "isel")
-        if any(is_fancy_indexer(idx) for idx in indexers.values()):
-            return self._isel_fancy(indexers, drop=drop, missing_dims=missing_dims)
+        # query_results = map_index_queries(
+        #     self, indexers=indexers, method=method, tolerance=tolerance
+        # )
+        import xarray as xr
 
-        # Much faster algorithm for when all indexers are ints, slices, one-dimensional
-        # lists, or zero or one-dimensional np.ndarray's
-        indexers = drop_dims_from_indexers(indexers, self.dims, missing_dims)
+        def dataset_is_empty(input_dataset):
+            """Test if an input xarray.Dataset is empty."""
+            n_dims = len(input_dataset.dims)
 
-        variables = {}
-        dims: dict[Hashable, int] = {}
-        coord_names = self._coord_names.copy()
-
-        indexes, index_variables = isel_indexes(self.xindexes, indexers)
-
-        for name, var in self._variables.items():
-            # preserve variable order
-            if name in index_variables:
-                var = index_variables[name]
+            if n_dims == 0:
+                empty = True
             else:
-                var_indexers = {k: v for k, v in indexers.items() if k in var.dims}
-                if var_indexers:
-                    var = var.isel(var_indexers)
-                    if drop and var.ndim == 0 and name in coord_names:
-                        coord_names.remove(name)
-                        continue
-            variables[name] = var
-            dims.update(zip(var.dims, var.shape, strict=True))
+                for cnt, dim in enumerate(input_dataset.dims):
+                    if len(input_dataset[dim]) > 0:
+                        return False
 
-        return self._construct_direct(
-            variables=variables,
-            coord_names=coord_names,
-            dims=dims,
-            attrs=self._attrs,
-            indexes=indexes,
-            encoding=self._encoding,
-            close=self._close,
+            return True
+
+        child_keys = list(self.children.keys())
+        if self._level_name == DataTreeLevelMap['root']:
+            compound_indexer = indexers.get("compound", None)
+            if compound_indexer is not None:
+                indexers = dict(indexers)
+                del indexers["compound"]
+                try:
+                    child_keys = child_keys[compound_indexer]
+                except:
+                    pass
+        elif self._level_name == DataTreeLevelMap['group']:
+            group_indexer = indexers.get("group", None)
+            if group_indexer is not None:
+                logging.warning(
+                    ".isel() does not support 'group' selection on trees by index due to issues of how they would apply in multi-group levels. "
+                )
+        elif self._level_name == DataTreeLevelMap['group']:
+            trajectory_indexer = indexers.get("trajectory", None)
+            # Only catch this, if we are not a node of a multi-series dataset.
+            # Otherwise, pass it on
+            if trajectory_indexer is not None:
+                group_child_keys = list(self.subgroups.keys())
+                group_leaf_keys = list(self.subleaves.keys())
+                indexers = dict(indexers)
+                # Only delete if we are not a multi-trajectory
+                del indexers["trajectory"]
+                try:
+                    # The indexer might be a set, check if we are part of it.
+                    group_leaf_keys = group_leaf_keys[trajectory_indexer]
+                except:
+                    pass
+                child_keys = group_child_keys + group_leaf_keys
+        elif self.is_leaf:
+            indexers = dict(indexers)
+            for key in ["compounds", "groups"]:
+                if key in indexers:
+                    del indexers[key]
+
+            if indexers:
+                # We are a relevant data leaf node and there is still selection to be done
+                if self.has_data:
+                    if hasattr(self._data, 'isel') and callable(self._data.isel):
+                        indexers = dict(indexers)
+
+                        for key in ["compounds", "groups"]:
+                            if key in indexers:
+                                del indexers[key]
+                        # Invoke with remaining indexers
+                        res_data = self._data.isel(
+                            indexers=indexers, missing_dims=missing_dims, drop=drop
+                        )
+                        # assert isinstance(res_data, xr.Dataset)
+                        if dataset_is_empty(res_data):
+                            return None
+                        return self.construct_copy(data=res_data)
+                    else:
+                        logging.warning(
+                            "Data in the tree does not support the `.isel()` operation to process the remaining indexers."
+                        )
+                        return self.construct_copy()
+
+                # Nothing to find in this leaf
+                return None
+            else:
+                # No forther Search criteria. Just build a copy
+                # NOTE: This allows `.isel()` to work with data types that do not support `sel` themselves
+                return self.construct_copy()
+
+        result = self.construct_copy(
+            children={
+                k: v
+                for k in child_keys
+                if (child := self.children[k]) is not None
+                and (
+                    v := child.isel(
+                        indexers=indexers, missing_dims=missing_dims, drop=drop
+                    )
+                    if indexers
+                    else child.construct_copy()
+                )
+                is not None
+            }
         )
+        return result
+        # indexers = either_dict_or_kwargs(indexers, indexers_kwargs, "isel")
+        # if any(is_fancy_indexer(idx) for idx in indexers.values()):
+        #     return self._isel_fancy(indexers, drop=drop, missing_dims=missing_dims)
+
+        # # Much faster algorithm for when all indexers are ints, slices, one-dimensional
+        # # lists, or zero or one-dimensional np.ndarray's
+        # indexers = drop_dims_from_indexers(indexers, self.dims, missing_dims)
+
+        # variables = {}
+        # dims: dict[Hashable, int] = {}
+        # coord_names = self._coord_names.copy()
+
+        # indexes, index_variables = isel_indexes(self.xindexes, indexers)
+
+        # for name, var in self._variables.items():
+        #     # preserve variable order
+        #     if name in index_variables:
+        #         var = index_variables[name]
+        #     else:
+        #         var_indexers = {k: v for k, v in indexers.items() if k in var.dims}
+        #         if var_indexers:
+        #             var = var.isel(var_indexers)
+        #             if drop and var.ndim == 0 and name in coord_names:
+        #                 coord_names.remove(name)
+        #                 continue
+        #     variables[name] = var
+        #     dims.update(zip(var.dims, var.shape, strict=True))
+
+        # return self._construct_direct(
+        #     variables=variables,
+        #     coord_names=coord_names,
+        #     dims=dims,
+        #     attrs=self._attrs,
+        #     indexes=indexes,
+        #     encoding=self._encoding,
+        #     close=self._close,
+        # )
 
     def __str__(self) -> str:
         """A basic representation of this node.
@@ -1491,7 +1957,7 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
             params['level'] = str(self._level_name)
         if self._children:
             childrep = {k: repr(x) for k, x in self._children.items()}
-            params['children'] = f"{len(self._children)}: " + repr(childrep)
+            params['children'] = f"{len(self._children)} children: " + repr(childrep)
 
         return f"{type(self)} [{params}]"
 
@@ -1533,8 +1999,10 @@ class TreeNode(Generic[ChildType, DataType], abc.ABC):
         # return "<div>" + res + "</div>"
         from .tree_vis import tree_repr
 
-        # TODO: Consider options: https://github.com/etetoolkit/ete, https://treelib.readthedocs.io/en/latest/, https://plotly.com/python/tree-plots/
         return tree_repr(self)
+
+    # TODO: FIXME: Add a backup visualization using networkx or any of the following tools. The current html representation does not work in github.
+    # TODO: Consider options: https://github.com/etetoolkit/ete, https://treelib.readthedocs.io/en/latest/, https://plotly.com/python/tree-plots/
 
 
 def _trajectory_key_func(node: TreeNode) -> None | str | TrajectoryGroupingMetadata:

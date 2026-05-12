@@ -22,8 +22,8 @@ from shnitsel.analyze.hops import (
     focus_hops,
     assign_hop_time,
 )
-from shnitsel.analyze.populations import calc_classical_populations
-from shnitsel.analyze.pca import pca
+from shnitsel.analyze.populations import PopulationStatistics, calc_classical_populations
+from shnitsel.analyze.dimred.pca import PCAResult, pca
 # from shnitsel.data.helpers import ts_to_time
 # from shnitsel.io import read
 
@@ -165,14 +165,14 @@ class TestProcessing:
         if (~(np.isnan(res) | np.isinf(res))).any():
             assert res.min() == 0
 
-    @pytest.mark.xfail
+    # @pytest.mark.xfail
     @given(xrst.variables(dims=dim_name_supersets_of(['atom', 'direction'])))
     def test_pwdists(self, da):
         da = xr.DataArray(da)
         res = pwdists(da)
 
         assert set(da.dims) - set(res.dims) == {'atom', 'direction'}
-        assert set(res.dims) - set(da.dims) == {'atomcomb'}
+        assert set(res.dims) - set(da.dims) == {'descriptor'}
         if not np.isnan(da).any() and not np.isinf(da).any():
             assert (res >= 0).all()
 
@@ -189,14 +189,14 @@ class TestProcessing:
 
         astate = get_var(int)
         time = get_var(float)
-        trajid = get_var(int)
+        atrajectory = get_var(int)
 
         da = xr.DataArray(
-            astate, coords={'time': ('frame', time), 'trajid': ('frame', trajid)}
-        ).set_xindex(['trajid', 'time'])
+            astate, coords={'time': ('frame', time), 'atrajectory': ('frame', atrajectory)}
+        ).set_xindex(['atrajectory', 'time'])
         return xr.Dataset({'astate': da})
     
-    @pytest.mark.xfail
+    # @pytest.mark.xfail
     @given(frames_for_hops())
     def test_hops(self, frames):
         res = hops(frames)
@@ -207,27 +207,29 @@ class TestProcessing:
     @pytest.mark.xfail
     @given(frames_for_hops())
     def test_focus_hops(self, frames):
+        # FIXME: Focus hops fails here, because the time does not increase reliabily in the `frames_for_hops` result. Therefore left as `xfail`
         res = focus_hops(frames)
         # Check hop-independent coord dimensions
         assert res['hop_time'].dims == ('hop_time',)
-        assert res['hop_tidx'].dims == ('hop_time',)
+        # If windows is None, then we have 2d results
+        assert set(res['hop_tidx'].dims) == {'hop', 'hop_time'}
 
         # Check per-hop 1D coord dimensions
         assert res['hop_from'].dims == ('hop',)
         assert res['hop_to'].dims == ('hop',)
-        assert res['trajid'].dims == ('hop',)
+        assert res['atrajectory'].dims == ('hop',)
 
         # Check per-hop 2D coord dimensions
         assert set(res['time'].dims) == {'hop', 'hop_time'}
         assert set(res['tidx'].dims) == {'hop', 'hop_time'}
 
-    @pytest.mark.xfail
+    # @pytest.mark.xfail
     @given(frames_for_hops(), st.booleans())
     def test_assign_hop_time(self, frames, choose_first):
         which = 'first' if choose_first else 'last'
         res = assign_hop_time(frames, which=which)
-        assert 'hop_time' in res.coords
-        assert res.coords['hop_time'].dims == ('frame',)
+        assert 'hop_time' in res.coords, "Missing hop_time coordinate on result."
+        assert res.coords['hop_time'].dims == ('frame',), "hop_time has invalid shape"
 
     #############
     # Populations
@@ -271,16 +273,17 @@ class TestProcessing:
         ).set_xindex(['trajid', 'time'])
         return xr.Dataset({'astate': da}, coords={'state': states})
 
+    # TODO: FIXME: Some funky things are happening with the generated data. All NaNs seem to be common.
     @pytest.mark.xfail
     @given(frames_for_populations())
     def test_calc_classical_populations(self, frames):
-        res = calc_classical_populations(frames)
-        assert 'state' in res.dims
-        assert ((0 <= res) & (res <= 1)).all()
+        res:PopulationStatistics = calc_classical_populations(frames)
+        assert 'state' in res.absolute.dims
+        assert ((0 <= res.relative) & (res.relative <= 1)).all()
 
     #################################
     # Dimensional reduction functions
-    @pytest.mark.xfail
+    # @pytest.mark.xfail
     @given(
         xrst.variables(
             dims=st.just({'test': 2, 'target': 4}),
@@ -292,9 +295,10 @@ class TestProcessing:
         assume(not np.isnan(da).any())  # no NaNs allowed
         da = xr.DataArray(da)
 
-        res = pca(da, dim='target')
-        assert isinstance(res, xr.DataArray) or isinstance(res, xr.Variable)
-        assert 'PC' in res.dims
+        res : PCAResult = pca(da, dim='target')
+        assert isinstance(res.inputs, xr.DataArray) or isinstance(res.inputs, xr.Variable)
+        assert isinstance(res.projected_inputs, xr.DataArray) or isinstance(res.projected_inputs, xr.Variable)
+        assert 'PC' in res.projected_inputs.dims
 
     def test_pairwise_dists_pca(self):
         pass

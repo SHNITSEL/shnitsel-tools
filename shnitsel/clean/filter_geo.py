@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Literal, Sequence, TypeVar
+from typing import Any, Literal, Sequence, TypeVar, overload
 from copy import copy
 
 import numpy as np
@@ -9,7 +9,10 @@ from rdkit.Chem import Mol
 from shnitsel.data.dataset_containers import wrap_dataset
 from shnitsel.data.dataset_containers.data_series import DataSeries
 from shnitsel.data.dataset_containers.frames import Frames
+from shnitsel.data.dataset_containers.multi_layered import MultiSeriesLayered
 from shnitsel.data.dataset_containers.trajectory import Trajectory
+from shnitsel.data.multi_indices import unstack_trajs
+from shnitsel.data.tree.node import TreeNode
 from shnitsel.filtering.structure_selection import SMARTSstring, StructureSelection
 from shnitsel.geo.geocalc import get_distances
 from shnitsel.bridges import construct_default_mol
@@ -146,6 +149,12 @@ def calculate_bond_length_filtranda(
     if isinstance(frames, xr.Dataset):
         frames = wrap_dataset(frames, DataSeries)
 
+    unstack_result = False
+    if isinstance(frames, MultiSeriesLayered):
+        # Convert layered to stacked representation
+        frames = frames.as_stacked
+        unstack_result = True
+
     # Assign default threshold rules.
     if not isinstance(geometry_thresholds, GeometryFiltrationThresholds):
         geometry_thresholds = GeometryFiltrationThresholds(geometry_thresholds)
@@ -176,12 +185,31 @@ def calculate_bond_length_filtranda(
         # Add criterion dimension and append to results
         criteria_results.append(max_distances.expand_dims("criterion"))
 
-    return xr.concat(criteria_results, dim="criterion").assign_coords(
+    res = xr.concat(criteria_results, dim="criterion").assign_coords(
         {"thresholds": thresholds_array}
     )
+    
+    if unstack_result:
+        return unstack_trajs(res)    
+    
+    return res
 
 
-# TODO: FIXME: This should operate on single trajectories.
+@overload
+def filter_by_length(
+    frames_or_trajectory: TreeNode[Any, TrajectoryOrFrames],
+    filter_method: Literal["truncate", "omit", "annotate"] | float = "truncate",
+    *,
+    geometry_thresholds: dict[SMARTSstring, float]
+    | GeometryFiltrationThresholds
+    | None = None,
+    mol: Mol | None = None,
+    plot_thresholds: bool | Sequence[float] = False,
+    plot_populations: Literal["independent", "intersections", False] = False,
+) -> TreeNode[Any, TrajectoryOrFrames] | None: ...
+
+
+@overload
 def filter_by_length(
     frames_or_trajectory: TrajectoryOrFrames,
     filter_method: Literal["truncate", "omit", "annotate"] | float = "truncate",
@@ -192,7 +220,20 @@ def filter_by_length(
     mol: Mol | None = None,
     plot_thresholds: bool | Sequence[float] = False,
     plot_populations: Literal["independent", "intersections", False] = False,
-) -> TrajectoryOrFrames | None:
+) -> TrajectoryOrFrames | None: ...
+
+
+def filter_by_length(
+    frames_or_trajectory: TreeNode[Any, TrajectoryOrFrames] | TrajectoryOrFrames,
+    filter_method: Literal["truncate", "omit", "annotate"] | float = "truncate",
+    *,
+    geometry_thresholds: dict[SMARTSstring, float]
+    | GeometryFiltrationThresholds
+    | None = None,
+    mol: Mol | None = None,
+    plot_thresholds: bool | Sequence[float] = False,
+    plot_populations: Literal["independent", "intersections", False] = False,
+) -> TreeNode[Any, TrajectoryOrFrames] | TrajectoryOrFrames | None:
     """Filter trajectories according to bond length
 
     Parameters
@@ -248,6 +289,15 @@ def filter_by_length(
     If the input has a ``filtranda`` data_var, it is overwritten. An existing 'criterion' dimension will be dropped from
     the `frames_or_trajectory` parameter along with all variables and coordinates tied to it.
     """
+    if isinstance(frames_or_trajectory, TreeNode):
+        return frames_or_trajectory.map_data(
+            filter_by_length,
+            filter_method=filter_method,
+            geometry_thresholds=geometry_thresholds,
+            mol=mol,
+            plot_thresholds=plot_thresholds,
+            plot_populations=plot_populations,
+        )
 
     analysis_data: Trajectory | Frames = wrap_dataset(
         frames_or_trajectory, Trajectory | Frames
@@ -266,7 +316,10 @@ def filter_by_length(
 
     filter_res = dispatch_filter(frames_dataset, filter_method)
 
-    if isinstance(frames_or_trajectory, xr.Dataset):
-        return filter_res.dataset
-    else:
-        return filter_res
+    if filter_res is not None:
+        if isinstance(frames_or_trajectory, xr.Dataset):
+            return filter_res.dataset
+        else:
+            return filter_res
+
+    return None

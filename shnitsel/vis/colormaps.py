@@ -8,6 +8,7 @@ st_violet = '#7E5273'
 st_blue = '#2233AA'
 st_orange = '#F67E00'
 st_pink = "#E00D99"
+st_green = "#15561B"
 
 __all__ = ['magma_rw', 'custom_ylgnr']
 
@@ -26,6 +27,22 @@ _cmap_mult_degeneracy: Colormap = mpl.colormaps["Greys"]
 default_singlet_state_colormap: Colormap = mpl.colormaps.get_cmap("winter")
 default_doublet_state_colormap: Colormap = mpl.colormaps.get_cmap("cool")
 default_triplet_state_colormap: Colormap = mpl.colormaps.get_cmap("autumn")
+
+st_greys_cmap: Colormap = mpl.colors.LinearSegmentedColormap.from_list(
+    "st_greys", ["#8f8f8f", st_grey]
+)
+st_blues_cmap: Colormap = mpl.colors.LinearSegmentedColormap.from_list(
+    "st_blues", ["#87ddd2", st_blue]
+)
+st_greens_cmap: Colormap = mpl.colors.LinearSegmentedColormap.from_list(
+    "st_greens", ["#dcffb1", st_green]
+)
+st_purples_cmap: Colormap = mpl.colors.LinearSegmentedColormap.from_list(
+    "st_purples", ["#fb9aee", "#450060"]
+)
+st_oranges_cmap: Colormap = mpl.colors.LinearSegmentedColormap.from_list(
+    "st_oranges", ["#fcdf5f", "#E74A07"]
+)
 
 default_lower_singlet_colors = [
     '#000000',

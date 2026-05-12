@@ -1,6 +1,7 @@
 import logging
 import matplotlib as mpl
 from matplotlib.axes import Axes
+from matplotlib.collections import QuadMesh
 from matplotlib.colors import Colormap, Normalize
 from matplotlib.figure import Figure, SubFigure
 from matplotlib.lines import Line2D
@@ -16,7 +17,7 @@ from shnitsel.vis.datasheet.figures.dip_trans_hist import (
 
 from shnitsel.data.dataset_containers import InterState
 
-from ....core.typedefs import SpectraDictType
+from ....core.typedefs import SpectraDictType, StateCombination
 from ....units.definitions import energy
 
 from .common import centertext, figaxs_defaults
@@ -24,6 +25,7 @@ from .hist import calc_truncation_maximum, create_marginals
 from ...colormaps import magma_rw
 from ....units.conversion import convert_energy
 from scipy.stats import gaussian_kde
+import xarray as xr
 
 
 def plot_energy_histogram(
@@ -135,8 +137,10 @@ def single_trans_hist(
     cmap=None,
     cnorm=None,
     rasterized: bool = True,
-):
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, QuadMesh] | None:
     """Function to plot a single histogram of interstate soc data vs. energy gaps.
+
+    The result of ax.hist2d will be returned.
 
     Parameters
     ----------
@@ -171,8 +175,16 @@ def single_trans_hist(
 
     Returns
     -------
-        The result of ax.hist2d will be returned. 
-    None 
+    h : 2D array
+        The bi-dimensional histogram of samples x and y. Values in x are
+        histogrammed along the first dimension and values in y are
+        histogrammed along the second dimension.
+    xedges : 1D array
+        The bin edges along the x-axis.
+    yedges : 1D array
+        The bin edges along the y-axis.
+    image : `~.matplotlib.collections.QuadMesh`
+    None
         is returned if data is missing
     """
     if ax is None:
@@ -262,10 +274,11 @@ def single_soc_trans_hist(
     cmap=None,
     cnorm=None,
     rasterized: bool = True,
-):
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, QuadMesh] | None:
     """Function to plot a single histogram of interstate data.
 
     Used for both delta_E vs. \\mu and delta_E vs SOC plots.
+    The result of ax.hist2d will be returned.
 
     Parameters
     ----------
@@ -292,8 +305,17 @@ def single_soc_trans_hist(
 
     Returns
     -------
-    The result of ax.hist2d will be returned. 
-    None is returned if data is missing
+    h : 2D array
+        The bi-dimensional histogram of samples x and y. Values in x are
+        histogrammed along the first dimension and values in y are
+        histogrammed along the second dimension.
+    xedges : 1D array
+        The bin edges along the x-axis.
+    yedges : 1D array
+        The bin edges along the y-axis.
+    image : `~.matplotlib.collections.QuadMesh`
+    None
+        is returned if data is missing
     """
     return single_trans_hist(
         interstate=interstate,
@@ -321,8 +343,10 @@ def single_dip_trans_hist(
     cmap=None,
     cnorm=None,
     rasterized: bool = True,
-):
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, QuadMesh] | None:
     """Function to plot a single histogram of interstate dip_trans data.
+
+    The result of ax.hist2d will be returned.
 
     Parameters
     ----------
@@ -349,7 +373,15 @@ def single_dip_trans_hist(
 
     Returns
     -------
-    The result of ax.hist2d will be returned
+    h : 2D array
+        The bi-dimensional histogram of samples x and y. Values in x are
+        histogrammed along the first dimension and values in y are
+        histogrammed along the second dimension.
+    xedges : 1D array
+        The bin edges along the x-axis.
+    yedges : 1D array
+        The bin edges along the y-axis.
+    image : `~.matplotlib.collections.QuadMesh`
     """
     return single_trans_hist(
         interstate=interstate,
@@ -371,7 +403,7 @@ def plot_soc_or_dip_trans_histograms(
     state_selection: StateSelection,
     axs: list[Axes] | None = None,
     cnorm: str | None = None,
-) -> list:
+) -> list[tuple[np.ndarray, np.ndarray, np.ndarray, QuadMesh]]:
     """Function to plot all relevant histograms for the provided inter_state data
 
     Parameters
@@ -387,8 +419,18 @@ def plot_soc_or_dip_trans_histograms(
 
     Returns
     -------
-    list
-        The list of the results of hist2d() calls for the provided data in inter_state
+    list[tuple[np.ndarray, np.ndarray, np.ndarray, QuadMesh]]
+        The list of the results of hist2d() calls for the provided data in inter_state. 
+        Each has the following entries:
+    h : 2D array
+        The bi-dimensional histogram of samples x and y. Values in x are
+        histogrammed along the first dimension and values in y are
+        histogrammed along the second dimension.
+    xedges : 1D array
+        The bin edges along the x-axis.
+    yedges : 1D array
+        The bin edges along the y-axis.
+    image : `~.matplotlib.collections.QuadMesh`
     """
     if axs is None:
         state_combs = list(state_selection.combination_info())
@@ -459,7 +501,7 @@ def plot_soc_or_dip_trans_histograms(
 )
 def plot_separated_spectra_and_soc_dip_hists(
     inter_state: InterState,
-    spectra_groups: tuple[SpectraDictType, SpectraDictType],
+    spectra_groups: tuple[xr.DataArray, xr.DataArray],
     state_selection: StateSelection,
     fig: Figure | SubFigure | None = None,
     axs: dict[str, Axes] | None = None,
@@ -491,11 +533,12 @@ def plot_separated_spectra_and_soc_dip_hists(
         The axes dict after plotting to it.
     """
     assert axs is not None, "Could not acquire axes for plotting"
+
     ground, excited = spectra_groups
     scnorm = plt.Normalize(
         inter_state.dataset.time.min(), inter_state.dataset.time.max()
     )
-    scmap = plt.get_cmap('turbo')
+    _unused_spectra_cmap = plt.get_cmap('turbo')
     # scscale = mpl.cm.ScalarMappable(norm=scnorm, cmap=scmap)
     non_degenerate_selection = state_selection.non_degenerate()
 
@@ -504,17 +547,37 @@ def plot_separated_spectra_and_soc_dip_hists(
 
     time_unit = inter_state.dataset.time.attrs.get('units', 'fs')
 
-    times = list(set([tup[0] for tup in ground]))
-    times.sort()
+    if 'time' in ground.coords:
+        times = np.unique(ground.time.values)
+    elif 'time' in excited.coords:
+        times = np.unique(excited.time.values)
+    else:
+        times = np.array([])
+
+    ground_spectrum_valid = (
+        ground is not None and 'time' in ground.coords and 'statecomb' in ground.coords
+    )
+    excited_spectrum_valid = (
+        excited is not None
+        and 'time' in excited.coords
+        and 'statecomb' in excited.coords
+    )
+    # times.sort()
 
     linestyles = ['solid', 'dashed', 'dashdot', 'dotted']
 
     times_styles = {t: linestyles[i % len(linestyles)] for i, t in enumerate(times)}
 
-    selection_ground_states = state_selection.ground_state_transitions()
+    selection_ground_states = non_degenerate_selection.ground_state_transitions()
+
+    used_transitions : list[StateCombination] = []
 
     hist2d_outputs = []
-    if current_multiplicity is None or current_multiplicity == 1 and len(ground) > 0:
+    if (
+        current_multiplicity is None
+        or current_multiplicity == 1
+        and ground_spectrum_valid
+    ):
         # Only plot ground state spectra in singlet mode
         # ground-state spectra and histograms
         plot_spectra(
@@ -523,8 +586,10 @@ def plot_separated_spectra_and_soc_dip_hists(
             lim_num_sc=2,
             state_selection=non_degenerate_selection,
             cnorm=scnorm,
-            cmap=scmap,
+            cmap=_unused_spectra_cmap,
         )
+
+        used_transitions += non_degenerate_selection.state_combinations
         # TODO: FIXME: Think about how to make the state transitions identifyable
 
         # if current_multiplicity == 1:
@@ -536,7 +601,7 @@ def plot_separated_spectra_and_soc_dip_hists(
         #             ),
         #             (
         #                 Line2D([0], [0], color='k', linestyle='--', linewidth=0.5),
-        #                 "$S_2/S_0$",
+        #                > "$S_2/S_0$",
         #             ),
         #         ]
         #     )
@@ -547,6 +612,7 @@ def plot_separated_spectra_and_soc_dip_hists(
             state_selection=selection_ground_states,
             ax=axs['sg'],
         )
+        used_transitions += selection_ground_states.state_combinations
 
     if len(selection_ground_states.state_combinations) > 1:
         selaxs = [axs['t1'], axs['t0']]
@@ -563,14 +629,14 @@ def plot_separated_spectra_and_soc_dip_hists(
         hist2d_outputs += res
 
     # excited-state spectra and histograms
-    if len(excited) >= 1:
+    if excited_spectrum_valid:
         plot_spectra(
             excited,
             ax=axs['se'],
             lim_num_sc=1,
             state_selection=non_degenerate_selection,
             cnorm=scnorm,
-            cmap=scmap,
+            cmap=_unused_spectra_cmap,
         )
         if current_multiplicity is None or current_multiplicity == 1:
             # Plot an excited state transition in the singlet case
@@ -596,7 +662,7 @@ def plot_separated_spectra_and_soc_dip_hists(
         )
         centertext(r"No $\mathbf{\mu}_{ij}$ or $SOC$ data", axs['t2'], clearticks='xy')
 
-    hists = np.array([tup[0] for tup in hist2d_outputs])
+    hists : np.ndarray = np.array([tup[0] for tup in hist2d_outputs])
 
     if len(hists) > 0:
         hcnorm = plt.Normalize(hists.min(), hists.max())
@@ -624,8 +690,16 @@ def plot_separated_spectra_and_soc_dip_hists(
         """
         return 4.135667696 * 2.99792458 * 100 / np.where(delta_E != 0, delta_E, 1)
 
-    lims = [l for ax in axs.values() for l in ax.get_xlim()]
-    new_lims = (min(lims), max(lims))
+    # Calc appropriate x cutoff   
+    sc_used = list(set(used_transitions))
+    energy_data = inter_state.energy_interstate.sel(statecomb=sc_used)
+    delta_e_data = np.abs(convert_energy(energy_data.squeeze(), to=energy.eV))
+
+    xlimmax = calc_truncation_maximum(delta_e_data)
+    xlimmin = -calc_truncation_maximum(-delta_e_data)
+
+    # lims = [l for ax in axs.values() for l in ax.get_xlim()]
+    new_lims = (xlimmin, xlimmax)
     for lax, ax in axs.items():
         if lax.startswith('cb'):
             continue
@@ -715,7 +789,7 @@ def plot_separated_spectra_and_soc_dip_hists(
 )
 def plot_separated_spectra_and_soc_dip_hists_groundstate(
     inter_state: InterState,
-    spectra_groups: tuple[SpectraDictType, SpectraDictType],
+    spectra_groups: tuple[xr.DataArray, xr.DataArray],
     state_selection: StateSelection,
     fig: Figure | SubFigure | None = None,
     axs: dict[str, Axes] | None = None,
@@ -729,7 +803,7 @@ def plot_separated_spectra_and_soc_dip_hists_groundstate(
     ----------
     inter_state : InterState
         Inter-State dataset containing energy differences
-    spectra_groups : tuple[SpectraDictType, SpectraDictType]
+    spectra_groups : tuple[ xr.DataArray,  xr.DataArray]
         Tuple holding the spectra groups of ground-state transitions and excited-state transitions.
     state_selection : StateSelection
         State selection object to limit the states included in plotting and to provide state names.

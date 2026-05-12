@@ -7,6 +7,7 @@ import xarray as xr
 from shnitsel.core.typedefs import DimName
 from shnitsel.data.dataset_containers import wrap_dataset
 from shnitsel.data.dataset_containers.frames import Frames
+from shnitsel.data.dataset_containers.shared import ShnitselDataset
 from shnitsel.data.dataset_containers.trajectory import Trajectory
 
 from shnitsel.data.multi_indices import ensure_unstacked, stack_trajs
@@ -132,7 +133,7 @@ def _filter_mask_from_dataset(ds: xr.Dataset) -> xr.DataArray:
         if "good_throughout" not in mask.coords:
             raise ValueError(
                 "data_var 'good_upto' is missing expected coord "
-                "'good_throughout'; will recalculate."
+                "'good_throughout'"
             )
         else:
             return mask
@@ -152,7 +153,7 @@ def _filter_mask_from_dataset(ds: xr.Dataset) -> xr.DataArray:
 # All the action functions take a dataset
 # They can use the functions above to get the info they need
 
-TrajectoryOrFrames = TypeVar("TrajectoryOrFrames", bound=Trajectory | Frames)
+TrajectoryOrFrames = TypeVar("TrajectoryOrFrames", bound=ShnitselDataset)
 
 
 def omit(frames_or_trajectory: TrajectoryOrFrames) -> TrajectoryOrFrames | None:
@@ -171,7 +172,7 @@ def omit(frames_or_trajectory: TrajectoryOrFrames) -> TrajectoryOrFrames | None:
     """
     wrapped_dataset = wrap_dataset(frames_or_trajectory)
     try:
-        filter_mask = _filter_mask_from_dataset(frames_or_trajectory.dataset)
+        filter_mask = _filter_mask_from_dataset(wrapped_dataset.dataset)
         good_throughout = filter_mask["good_throughout"]
         all_critera_fulfilled = good_throughout.all("criterion").item()
         if all_critera_fulfilled:
@@ -196,7 +197,7 @@ def _log_omit(before, after):
 
 def truncate(
     frames_or_trajectory: TrajectoryOrFrames | xr.Dataset,
-) -> TrajectoryOrFrames | Trajectory | Frames:
+) -> TrajectoryOrFrames | Trajectory | Frames | None:
     """Perform a truncation on the trajectory or frameset, i.e. cut off the trajectory
     after the last frame that fulfils all filtration conditions.
 
@@ -213,18 +214,34 @@ def truncate(
 
     wrapped_dataset = wrap_dataset(frames_or_trajectory, Trajectory | Frames)
 
-    filter_mask_all_criteria = _filter_mask_from_dataset(wrapped_dataset.dataset).all(
-        "criterion"
-    )
+    noncum_mask = _filter_mask_from_dataset(wrapped_dataset.dataset).all("criterion")
+    # TODO (thevro): Check whether filter_mask_all_criteria is supposed to be cumulative already.
+    # Ensure the mask is cumulative. (This operation is idempotent.)
 
-    tmp_res = wrapped_dataset.dataset.isel(
-        {frames_or_trajectory.leading_dim: filter_mask_all_criteria}
-    )
-    # TODO: FIXME: Test whether this works. May be wrong shape
-    if not isinstance(frames_or_trajectory, xr.Dataset):
-        return type(frames_or_trajectory)(tmp_res)
+    # If stacked:
+    if {'time', 'atrajectory'}.issubset(noncum_mask.coords):
+        # @reshief: The groupby does not promote 'time' to coordinate, so the cumprod must be over 'frame' for stacked trajectories
+        cum_mask = noncum_mask.groupby('atrajectory').cumprod('frame').astype(bool)
+    # If layered:
+    elif {'time', 'trajectory'}.issubset(noncum_mask.dims):
+        cum_mask = noncum_mask.cumprod('time').astype(bool)
+    # If single trajectory:
     else:
-        return wrap_dataset(tmp_res, Trajectory | Frames)
+        cum_mask = noncum_mask.cumprod().astype(bool)
+
+    tmp_res = wrapped_dataset.dataset.where(cum_mask, drop=True)
+    
+    # Guard agains empty trajectories being kept
+    if (
+        wrapped_dataset.leading_dim in tmp_res.dims
+        and tmp_res.sizes[wrapped_dataset.leading_dim] > 0
+    ):
+        # TODO: FIXME: Test whether this works. May be wrong shape
+        if not isinstance(frames_or_trajectory, xr.Dataset):
+            return type(frames_or_trajectory)(tmp_res)
+        else:
+            return wrap_dataset(tmp_res, Trajectory | Frames)
+    return None
 
 
 _truncate = truncate
@@ -256,17 +273,25 @@ def transect(
         "Dataset has no coordinate `time` but time-based truncation has been requested, which cannot be performed!"
     )
 
-    time_sliced_dataset = wrapped_dataset.loc[{"time": slice(float(cutoff_time))}]
-    good_upto = _filter_mask_from_dataset(time_sliced_dataset)
-    assert good_upto.name == "good_upto", (
-        "Despite a `time` dimension being present, the filter mask returned for the dataset was not a `good_upto` value."
+    good_upto = _filter_mask_from_dataset(wrapped_dataset.dataset)
+
+    assert "good_upto" in good_upto.coords, (
+        "Despite a `time` dimension being present, the filter mask returned for the dataset did not contain a `good_upto` value. "
     )
+
+    good_upto = good_upto.coords['good_upto']
     # TODO: FIXME: We may want to accept the last time before `cutoff_time` to be true.
     is_trajectory_good = (good_upto >= cutoff_time).all("criterion").item()
     if is_trajectory_good:
-        return Trajectory(time_sliced_dataset)
-    else:
-        return None
+        time_sliced_dataset = wrapped_dataset.loc[{"time": slice(float(cutoff_time))}]
+
+        # Guard agains empty trajectories being kept
+        if (
+            wrapped_dataset.leading_dim in time_sliced_dataset.dims
+            and time_sliced_dataset.sizes[wrapped_dataset.leading_dim] > 0
+        ):
+            return wrap_dataset(time_sliced_dataset)
+    return None
 
 
 _transect = transect
@@ -320,8 +345,8 @@ def dispatch_filter(
         return truncate(frames_or_trajectory)
     elif filter_method == "omit":
         return omit(frames_or_trajectory)
-    elif isinstance(filter_method, float):
-        transect_position: float = filter_method
+    elif isinstance(filter_method, (float, int)):
+        transect_position: float = float(filter_method)
         # assert isinstance(frames_or_trajectory, Trajectory), (
         #     "Cannot provide a `Frames` object to a `transect()` call. Unsupported operation."
         # )
