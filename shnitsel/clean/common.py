@@ -405,11 +405,13 @@ def cum_max_quantiles(
     if quantiles is None:
         quantiles = [0.25, 0.5, 0.75, 0.9, 0.95, 0.99, 1]
 
+    filtranda_array,_ = ensure_unstacked(filtranda_array)
+
     filtranda_array = filtranda_array.fillna(0)
     time_axis = filtranda_array.get_axis_num(cum_dim)
 
     cum_max = filtranda_array.copy(
         data=np.maximum.accumulate(filtranda_array.data, axis=time_axis)
     )
-    # TODO: FIXME: Rewrite this to allow for accumulation across collection of trajectories, not only stacked.
+    # TODO: FIXME: Rewrite this to allow for accumulation across collection of trajectories, not only simtacked.
     return cum_max.quantile(quantiles, group_dim)

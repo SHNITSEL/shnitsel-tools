@@ -57,135 +57,179 @@ def check_thresholds(
         The matplotlib ``Axes`` object of the plots
     """
     if isinstance(ds_or_da, TreeNode):
+        return check_thresholds(ds_or_da.as_stacked, quantiles=quantiles)
         # TODO: FIXME: We need to accumulate the data across flat groups first.
-        return MultiPlot(ds_or_da.map_data(check_thresholds, quantiles=quantiles))
+        # return MultiPlot(ds_or_da.map_data(check_thresholds, quantiles=quantiles))
     else:
+        energy_filtranda: xr.DataArray | None = None
+        length_filtranda: xr.DataArray | None = None
         if isinstance(ds_or_da, xr.DataArray):
-            filtranda = ds_or_da.copy()
-        elif "filtranda" in ds_or_da:
-            filtranda = ds_or_da['filtranda'].copy()
+            if 'energy_criterion' in ds_or_da.dims:
+                energy_filtranda = ds_or_da.copy()
+            elif 'energy_criterion' in ds_or_da.dims:
+                length_filtranda = ds_or_da.copy()
+            else:
+                raise ValueError(
+                    "neither energy_criterion nor length_criterion present on provided array"
+                )
+        # elif "filtranda" in ds_or_da:
+        #     filtranda = ds_or_da['filtranda'].copy()
         elif "energy_filtranda" in ds_or_da and "length_filtranda" not in ds_or_da:
-            filtranda = ds_or_da['energy_filtranda'].copy()
+            energy_filtranda = ds_or_da['energy_filtranda'].copy()
         elif "length_filtranda" in ds_or_da and "energy_filtranda" not in ds_or_da:
-            filtranda = ds_or_da['length_filtranda'].copy()
+            length_filtranda = ds_or_da['length_filtranda'].copy()
         elif "length_filtranda" in ds_or_da and "energy_filtranda" in ds_or_da:
-            filtranda = xr.concat(
-                [
-                    ds_or_da['energy_filtranda'].copy(),
-                    ds_or_da['length_filtranda'].copy(),
-                ],
-                dim='criterion',
-            )
+            energy_filtranda = ds_or_da['energy_filtranda'].copy()
+            length_filtranda = ds_or_da['length_filtranda'].copy()
+
+            # filtranda = xr.concat(
+            #     [
+            #         ds_or_da['energy_filtranda'].copy(),
+            #         ds_or_da['length_filtranda'].copy(),
+            #     ],
+            #     dim='criterion',
+            # )
         else:
             raise ValueError(
-                "Dataset provided to `check_thresholds()` has no filtranda data set."
+                "Dataset provided to `check_thresholds()` has no length_filtranda or energy_filtranda data set."
             )
 
-        if 'frame' in filtranda.dims:
-            filtranda = filtranda.assign_coords(
-                {'is_frame': ('frame', np.ones(filtranda.sizes['frame']))}
-            )
-            # Assuming filtranda is a stacked Dataset/DataArray, unstack it
-            if hasattr(filtranda, 'drop_dims'):
-                # DataArrays don't have this method
-                filtranda = filtranda.drop_dims(['trajectory'], errors='ignore')
-            filtranda = filtranda.unstack('frame').rename({'atrajectory': 'trajectory'})
-            filtranda['is_frame'] = filtranda['is_frame'].fillna(0).astype(bool)
+        # Make sure, we are unstacked
+        if energy_filtranda is not None:
+            energy_filtranda, _ = ensure_unstacked(energy_filtranda)
 
-        calculated_quantile_positions = cum_max_quantiles(
-            filtranda, quantiles=quantiles
+        if length_filtranda is not None:
+            length_filtranda, _ = ensure_unstacked(length_filtranda)
+
+        # if 'frame' in filtranda.dims:
+        #     filtranda = filtranda.assign_coords(
+        #         {'is_frame': ('frame', np.ones(filtranda.sizes['frame']))}
+        #     )
+        #     # Assuming filtranda is a stacked Dataset/DataArray, unstack it
+        #     if hasattr(filtranda, 'drop_dims'):
+        #         # DataArrays don't have this method
+        #         filtranda = filtranda.drop_dims(['trajectory'], errors='ignore')
+        #     filtranda = filtranda.unstack('frame').rename({'atrajectory': 'trajectory'})
+        #     filtranda['is_frame'] = filtranda['is_frame'].fillna(0).astype(bool)
+
+        num_energy_crit = (
+            energy_filtranda.sizes['energy_criterion']
+            if energy_filtranda is not None
+            else 0
+        )
+        num_length_crit = (
+            length_filtranda.sizes['length_criterion']
+            if length_filtranda is not None
+            else 0
         )
 
-        if 'thresholds' in filtranda.coords:
-            # TODO: This is too complicated. Why calculate quantiles first and and then calculate true_upto?
-            # Extract the true_upto per filtranda and then get the quantiles from the set of `true_upto`.
-            good_throughout = (
-                (filtranda < filtranda['thresholds']) | (~filtranda['is_frame'])
-            ).all('time')
-            filtranda['proportion'] = (
-                good_throughout.sum('trajectory') / good_throughout.sizes['trajectory']
-            )
-            calculated_quantile_positions['intercept'] = true_upto(
-                calculated_quantile_positions < filtranda['thresholds'], 'time'
-            )
+        total_criteria = num_energy_crit + num_length_crit
 
         fig, axs = plt.subplots(
-            calculated_quantile_positions.sizes['criterion'],
+            total_criteria,
             2,
             sharex='col',
             sharey='row',
             layout='constrained',
             width_ratios=[1, 2],
         )
-        fig.set_size_inches(6, 2 * calculated_quantile_positions.sizes['criterion'])
-        for (title, data), ax in zip(
-            calculated_quantile_positions.groupby('criterion'), axs[:, 1]
-        ):
-            if 'thresholds' in data.coords:
-                threshold = data.coords['thresholds'].item()
-                ax.axhline(threshold, c=shnitsel_yellow)
-            else:
-                threshold = None
+        fig.set_size_inches(6, 2 * total_criteria)
 
-            for qval, qdata in data.groupby('quantile'):
-                qdata = qdata.squeeze(['criterion', 'quantile'])
-
-                ax.fill_between(
-                    qdata.coords['time'], qdata, fc=(0, 0, 0, 0.2), ec=(0, 0, 0, 0)
+        def plot_criteria(criteria, axes, dim='criterion'):
+            criteria_quantiles = cum_max_quantiles(criteria, quantiles=quantiles)
+            if 'thresholds' in criteria.coords:
+                # TODO: This is too complicated. Why calculate quantiles first and and then calculate true_upto?
+                # Extract the true_upto per filtranda and then get the quantiles from the set of `true_upto`.
+                good_throughout = (
+                    (criteria < criteria['thresholds']) | (~criteria['is_frame'])
+                ).all('time')
+                criteria['proportion'] = (
+                    good_throughout.sum('trajectory')
+                    / good_throughout.sizes['trajectory']
                 )
-                ax.text(
-                    qdata['time'][-1], qdata[-1], f"{qval * 100} %", va='center', c='k'
+                criteria_quantiles['intercept'] = true_upto(
+                    criteria_quantiles < criteria['thresholds'], 'time'
                 )
 
-                if threshold is not None:
-                    t_icept = qdata['intercept'].item()
-                    ax.vlines(t_icept, 0, threshold, color=shnitsel_yellow, ls=':')
+            for (title, data), ax in zip(criteria_quantiles.groupby(dim), axes[:, 1]):
+                if 'thresholds' in data.coords:
+                    threshold = data.coords['thresholds'].item()
+                    ax.axhline(threshold, c=shnitsel_yellow)
+                else:
+                    threshold = None
+
+                for qval, qdata in data.groupby('quantile'):
+                    qdata = qdata.squeeze([dim, 'quantile'])
+
+                    ax.fill_between(
+                        qdata.coords['time'], qdata, fc=(0, 0, 0, 0.2), ec=(0, 0, 0, 0)
+                    )
                     ax.text(
-                        t_icept,
+                        qdata['time'][-1],
+                        qdata[-1],
+                        f"{qval * 100} %",
+                        va='center',
+                        c='k',
+                    )
+
+                    if threshold is not None:
+                        t_icept = qdata['intercept'].item()
+                        ax.vlines(t_icept, 0, threshold, color=shnitsel_yellow, ls=':')
+                        ax.text(
+                            t_icept,
+                            threshold,
+                            f"{qval * 100} % <{t_icept}",
+                            ha='right',
+                            va='center',
+                            c=text_color,
+                            backgroundcolor=text_backgroundcolor,
+                            rotation='vertical',
+                            fontsize=6,
+                        )
+
+            for (title, data), ax in zip(criteria.groupby(dim), axes[:, 0]):
+                data = data.squeeze(dim)
+                ax.set_ylabel(title)
+                # NOTE (thevro): groupby('trajectory').max() behaves strangely
+                # for unstacked format, so use groupby.map() instead
+                max_value_per_traj = data.groupby('trajectory').map(lambda x: x.max())
+                ax.hist(
+                    max_value_per_traj,
+                    density=True,
+                    cumulative=True,
+                    orientation='horizontal',
+                    color=shnitsel_blue,
+                )
+                if 'thresholds' in data.coords:
+                    threshold = data.coords['thresholds'].item()
+                    ax.axhline(threshold, c=shnitsel_yellow)
+                    # ax.text(
+                    #     0.5,
+                    #     threshold,
+                    #     str(threshold),
+                    #     ha='center',
+                    #     va='bottom',
+                    #     c=text_color,
+                    #     backgroundcolor=text_backgroundcolor,
+                    # )
+                    ax.text(
+                        0.5,
                         threshold,
-                        f"{qval * 100} % <{t_icept}",
-                        ha='right',
+                        f"{threshold}\n{data.coords['proportion'].item() * 100:.0f} %",
+                        ha='center',
                         va='center',
                         c=text_color,
                         backgroundcolor=text_backgroundcolor,
-                        rotation='vertical',
-                        fontsize=6,
                     )
 
-        for (title, data), ax in zip(filtranda.groupby('criterion'), axs[:, 0]):
-            data = data.squeeze('criterion')
-            ax.set_ylabel(title)
-            # NOTE (thevro): groupby('trajectory').max() behaves strangely
-            # for unstacked format, so use groupby.map() instead
-            max_value_per_traj = data.groupby('trajectory').map(lambda x: x.max())
-            ax.hist(
-                max_value_per_traj,
-                density=True,
-                cumulative=True,
-                orientation='horizontal',
-                color=shnitsel_blue,
+        if energy_filtranda is not None:
+            plot_criteria(
+                energy_filtranda, axes=axs[:num_energy_crit, :], dim='energy_criterion'
             )
-            if 'thresholds' in data.coords:
-                threshold = data.coords['thresholds'].item()
-                ax.axhline(threshold, c=shnitsel_yellow)
-                # ax.text(
-                #     0.5,
-                #     threshold,
-                #     str(threshold),
-                #     ha='center',
-                #     va='bottom',
-                #     c=text_color,
-                #     backgroundcolor=text_backgroundcolor,
-                # )
-                ax.text(
-                    0.5,
-                    threshold,
-                    f"{threshold}\n{data.coords['proportion'].item() * 100:.0f} %",
-                    ha='center',
-                    va='center',
-                    c=text_color,
-                    backgroundcolor=text_backgroundcolor,
-                )
+        if length_filtranda is not None:
+            plot_criteria(
+                length_filtranda, axes=axs[num_energy_crit:, :], dim='length_criterion'
+            )
 
         axs[-1, 0].set_xlabel('cumulative density\nof per-traj maxima')
         axs[-1, 1].set_xlabel('time / fs')

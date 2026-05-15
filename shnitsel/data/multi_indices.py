@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import itertools
 import logging
-from typing import TYPE_CHECKING, Callable, Sequence, TypeVar
+from typing import TYPE_CHECKING, Callable, Sequence, TypeVar, overload
 
 import numpy.typing as npt
 
@@ -898,12 +898,26 @@ def is_layered(obj: xr.Dataset | xr.DataArray | ShnitselDataset):
 is_unstacked = is_layered
 
 
-def ensure_unstacked(obj, fill_value=dtype_NA):
+@overload
+def ensure_unstacked(
+    obj: xr.Dataset, fill_value=dtype_NA
+) -> tuple[xr.Dataset, bool]: ...
+
+
+@overload
+def ensure_unstacked(
+    obj: xr.DataArray, fill_value=dtype_NA
+) -> tuple[xr.DataArray, bool]: ...
+
+
+def ensure_unstacked(
+    obj: xr.DataArray | xr.Dataset, fill_value=dtype_NA
+) -> tuple[xr.DataArray | xr.Dataset, bool]:
     """Unstack ``obj`` if it contains stacked trajectories
 
     Parameters
     ----------
-    obj
+    obj : xr.DataArray | xr.Dataset
         An xarray Dataset/DataArray, or a wrapper around one
     fill_value
         The value used to fill in entries that were unspecified in
@@ -921,12 +935,24 @@ def ensure_unstacked(obj, fill_value=dtype_NA):
     return unstacked, was_stacked
 
 
-def ensure_stacked(obj, fill_value=dtype_NA):
+@overload
+def ensure_stacked(obj: xr.Dataset, fill_value=dtype_NA) -> tuple[xr.Dataset, bool]: ...
+
+
+@overload
+def ensure_stacked(
+    obj: xr.DataArray, fill_value=dtype_NA
+) -> tuple[xr.DataArray, bool]: ...
+
+
+def ensure_stacked(
+    obj: xr.DataArray | xr.Dataset, fill_value=dtype_NA
+) -> tuple[xr.DataArray | xr.Dataset, bool]:
     """Stack ``obj`` if it contains unstacked trajectories
 
     Parameters
     ----------
-    obj
+    obj : xr.DataArray | xr.Dataset
         An xarray Dataset/DataArray, or a wrapper around one
     fill_value
         The value used to identify entries that were unspecified in
