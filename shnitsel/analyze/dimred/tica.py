@@ -229,8 +229,15 @@ class TICATransformer(BaseEstimator, TransformerMixin):
     lagtime: int
 
     def __init__(self, n_components: int, lagtime: int, reduce_dim: DimName) -> None:
+        try:
+            from deeptime.decomposition import TICA as dt_TICA
+        except ModuleNotFoundError as err:
+            print("Please install the deeptime package")
+            raise err
+        
         super().__init__()
         self.scaler = MinMaxScaler()
+        self.lagtime = lagtime
         self.reducer_object = dt_TICA(lagtime=lagtime, dim=n_components)
         self.reduce_dim = reduce_dim
 
