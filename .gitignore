@@ -188,3 +188,6 @@ tutorials/test_data/sharc/traj_I01_v3_triplets_nacs_socs.nc
 tutorials/test_data/sharc/traj_I01_v4.nc
 tutorials/test_data/sharc/traj_butene.nc
 tutorials/_wip/
+
+# Conda packaging artefacts
+conda-build/output
