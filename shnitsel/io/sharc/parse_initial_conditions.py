@@ -572,36 +572,47 @@ def parse_QM_in(qm_in: TextIOWrapper) -> dict[str, Any]:
     # NACDR
     # GRAD
 
-    # Get all non-empty lines
-    lines = [l.strip() for l in qm_in.readlines() if len(l.strip()) > 0]
-    if len(lines) < 1:
+    all_lines = qm_in.readlines()
+
+    # The geometry block begins on the first non-empty line;
+    # that line must consist of an integer.
+    for i, line in enumerate(all_lines):
+        if len(stripline:=line.strip()) > 0:
+            info["num_atoms"] = (num_atoms := int(stripline))
+            geom_block = all_lines[i : i+num_atoms+2]
+            rest_block = all_lines[i+num_atoms+2:]
+            break
+    else:
+        # FIXME: This is possibly a misleading choice of exception. After all, we did _find_ the file...
+        raise FileNotFoundError("QM.in did not contain all necessary information")
+    
+    if len(geom_block) < num_atoms + 2:
         raise FileNotFoundError("QM.in did not contain all necessary information")
 
-    info["num_atoms"] = (num_atoms := int(lines[0]))
-
-    if len(lines) < num_atoms + 2:
-        raise FileNotFoundError("QM.in did not contain all necessary information")
 
     atXYZ = np.full((num_atoms, 3), np.nan)
     atNames = np.full((num_atoms,), "", dtype="U8")
 
-    for i in range(num_atoms):
-        line_parts = [x.strip() for x in lines[i + 2].split()]
+    for line in geom_block[2:]:
+        line_parts = [x.strip() for x in line.split()]
         atNames[i] = line_parts[0]
         atXYZ[i] = [float(x) for x in line_parts[1:4]]
 
     info["atXYZ"] = atXYZ
     info["atNames"] = atNames
 
-    for i in range(num_atoms + 2, len(lines)):
-        if len(lines[i]) > 0:
-            line_parts = [x.strip() for x in lines[i].split()]
-            key = line_parts[0].lower()
-            if len(line_parts) > 1:
-                value = " ".join(line_parts[1:])
-            else:
-                value = True
-            info[key] = value
+    for line in rest_block:
+        stripline = line.strip()
+        if len(stripline) == 0:
+            continue
+
+        line_parts = [x.strip() for x in stripline.split()]
+        key = line_parts[0].lower()
+        if len(line_parts) > 1:
+            value = " ".join(line_parts[1:])
+        else:
+            value = True
+        info[key] = value
 
     if "states" in info:
         state_string = info["states"]
