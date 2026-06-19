@@ -460,3 +460,115 @@ class MultiSeriesStacked(Frames, MultiSeriesDataset):
             allowed_ws_origin=allowed_ws_origin,
             webgl=webgl,
         )
+
+    # Wrappers for functions that act on atXYZ
+
+    def distance(self, i_index: (int | list), j_index: (int | list)) -> "DataArray":
+        """Wrapper for :py:func:`shnitsel.geo.geocalc_.distances.distance`."""
+        return shnitsel.geo.geocalc_.distances.distance(self['atXYZ'], i_index, j_index)
+
+    def angle(
+        self,
+        a_index: (int | list),
+        b_index: (int | list),
+        c_index: (int | list),
+        angles: Literal["deg", "rad", "trig"] = 'deg',
+    ) -> "DataArray":
+        """Wrapper for :py:func:`shnitsel.geo.geocalc_.angles.angle`."""
+        return shnitsel.geo.geocalc_.angles.angle(
+            self['atXYZ'], a_index, b_index, c_index, angles=angles
+        )
+
+    def dihedral(
+        self,
+        a_index: (int | list),
+        b_index: (int | list),
+        c_index: (int | list),
+        d_index: (int | list),
+        angles: Literal["deg", "rad", "trig"] = 'deg',
+        full: bool = False,
+    ) -> " DataArray | tuple":
+        """Wrapper for :py:func:`shnitsel.geo.geocalc_.dihedrals.dihedral`."""
+        return shnitsel.geo.geocalc_.dihedrals.dihedral(
+            self['atXYZ'], a_index, b_index, c_index, d_index, angles=angles, full=full
+        )
+
+    def pyramidalization_angle(
+        self,
+        x_index: (int | list),
+        a_index: (int | list),
+        b_index: (int | list),
+        c_index: (int | list),
+        angles: Literal["deg", "rad", "trig"] = 'deg',
+    ) -> "DataArray | tuple":
+        """Wrapper for :py:func:`shnitsel.geo.geocalc_.pyramids.pyramidalization_angle`."""
+        return shnitsel.geo.geocalc_.pyramids.pyramidalization_angle(
+            self['atXYZ'], x_index, a_index, b_index, c_index, angles=angles
+        )
+
+    def get_bats(
+        self,
+        structure_selection: "StructureSelectionEquiv" = None,
+        default_features: Sequence = ['bonds', 'angles', 'dihedrals'],
+        signed: bool = False,
+        angles: Literal["deg", "rad", "trig"] = 'deg',
+    ) -> "DataArray | TreeNode[Any, DataArray]":
+        """Wrapper for :py:func:`shnitsel.geo.geocalc.get_bats`."""
+        return shnitsel.geo.geocalc.get_bats(
+            self['atXYZ'],
+            structure_selection=structure_selection,
+            default_features=default_features,
+            signed=signed,
+            angles=angles,
+        )
+
+    def get_distances(
+        self,
+        structure_selection: "StructureSelectionEquiv" = None,
+    ) -> "TreeNode[Any, DataArray] | DataArray":
+        """Wrapper for :py:func:`shnitsel.geo.geocalc_.distances.get_distances`."""
+        return shnitsel.geo.geocalc_.distances.get_distances(
+            self['atXYZ'], structure_selection=structure_selection
+        )
+
+    def get_angles(
+        self,
+        structure_selection: "StructureSelectionEquiv" = None,
+        angles: Literal["deg", "rad", "trig"] = 'deg',
+        signed: bool = True,
+    ) -> "TreeNode[Any, DataArray] | DataArray":
+        """Wrapper for :py:func:`shnitsel.geo.geocalc_.angles.get_angles`."""
+        return shnitsel.geo.geocalc_.angles.get_angles(
+            self['atXYZ'],
+            structure_selection=structure_selection,
+            angles=angles,
+            signed=signed,
+        )
+
+    def get_dihedrals(
+        self,
+        structure_selection: "StructureSelectionEquiv" = None,
+        angles: Literal["deg", "rad", "trig"] = 'deg',
+        signed: bool = True,
+    ) -> "TreeNode[Any, DataArray] | DataArray":
+        """Wrapper for :py:func:`shnitsel.geo.geocalc_.dihedrals.get_dihedrals`."""
+        return shnitsel.geo.geocalc_.dihedrals.get_dihedrals(
+            self['atXYZ'],
+            structure_selection=structure_selection,
+            angles=angles,
+            signed=signed,
+        )
+
+    def get_pyramidalization(
+        self,
+        structure_selection: "StructureSelectionEquiv" = None,
+        angles: Literal["deg", "rad", "trig"] = 'deg',
+        signed: bool = True,
+    ) -> "TreeNode[Any, DataArray] | DataArray":
+        """Wrapper for :py:func:`shnitsel.geo.geocalc_.pyramids.get_pyramidalization`."""
+        return shnitsel.geo.geocalc_.pyramids.get_pyramidalization(
+            self['atXYZ'],
+            structure_selection=structure_selection,
+            angles=angles,
+            signed=signed,
+        )
