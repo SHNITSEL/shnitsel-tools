@@ -572,3 +572,31 @@ class MultiSeriesStacked(Frames, MultiSeriesDataset):
             angles=angles,
             signed=signed,
         )
+
+    def get_max_chromophor_BLA(
+        self,
+        structure_selection: "StructureSelectionEquiv" = None,
+        SMARTS: (str | None) = None,
+        num_double_bonds: (int | None) = None,
+        allowed_chain_elements: str = '#6,#7,#8,#15,#16',
+        max_considered_BLA_double_bonds: int = 50,
+    ) -> "TreeNode[Any, DataArray] | DataArray":
+        """Wrapper for :py:func:`shnitsel.geo.geocalc_.bla_chromophor.get_max_chromophor_BLA`."""
+        return shnitsel.geo.geocalc_.bla_chromophor.get_max_chromophor_BLA(
+            self['atXYZ'],
+            structure_selection=structure_selection,
+            SMARTS=SMARTS,
+            num_double_bonds=num_double_bonds,
+            allowed_chain_elements=allowed_chain_elements,
+            max_considered_BLA_double_bonds=max_considered_BLA_double_bonds,
+        )
+
+    def trajs3Dgrid(self, trajids: (list | None) = None, loop: str = 'forward'):
+        """Wrapper for :py:func:`shnitsel.vis.plot.p3mhelpers.trajs3Dgrid`."""
+        return shnitsel.vis.plot.p3mhelpers.trajs3Dgrid(
+            self['atXYZ'], trajids=trajids, loop=loop
+        )
+
+    def traj_vmd(self, groupby: str = 'atrajectory'):
+        """Wrapper for :py:func:`shnitsel.vis.vmd.traj_vmd`."""
+        return shnitsel.vis.vmd.traj_vmd(self['atXYZ'], groupby=groupby)
