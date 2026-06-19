@@ -600,3 +600,61 @@ class MultiSeriesStacked(Frames, MultiSeriesDataset):
     def traj_vmd(self, groupby: str = 'atrajectory'):
         """Wrapper for :py:func:`shnitsel.vis.vmd.traj_vmd`."""
         return shnitsel.vis.vmd.traj_vmd(self['atXYZ'], groupby=groupby)
+
+    # Conversion wrappers
+
+    def convert_energy(self, to: str, convert_from: (str | None) = None):
+        """Wrapper for :py:func:`shnitsel.units.conversion.convert_energy`."""
+        da = shnitsel.units.conversion.convert_energy(
+            self['energy'], to, convert_from=convert_from
+        )
+        res = self.assign({'energy': da})
+        return shnitsel.data.dataset_containers.wrap_dataset(res)
+
+    def convert_force(self, to: str, convert_from: (str | None) = None):
+        """Wrapper for :py:func:`shnitsel.units.conversion.convert_force`."""
+        da = shnitsel.units.conversion.convert_force(
+            self['forces'], to, convert_from=convert_from
+        )
+        res = self.assign({'forces': da})
+        return shnitsel.data.dataset_containers.wrap_dataset(res)
+
+    def convert_dipole(self, to: str, convert_from: (str | None) = None):
+        """Wrapper for :py:func:`shnitsel.units.conversion.convert_dipole`."""
+        da = shnitsel.units.conversion.convert_dipole(
+            self['dipoles'], to, convert_from=convert_from
+        )
+        res = self.assign({'dipoles': da})
+        return shnitsel.data.dataset_containers.wrap_dataset(res)
+
+    def convert_length(self, to: str, convert_from: (str | None) = None):
+        """Wrapper for :py:func:`shnitsel.units.conversion.convert_length`."""
+        da = shnitsel.units.conversion.convert_length(
+            self['atXYZ'], to, convert_from=convert_from
+        )
+        res = self.assign({'atXYZ': da})
+        return shnitsel.data.dataset_containers.wrap_dataset(res)
+
+    def convert_time(self, to: str, convert_from: (str | None) = None):
+        """Wrapper for :py:func:`shnitsel.units.conversion.convert_time`."""
+        da = shnitsel.units.conversion.convert_time(
+            self.coords['time'], to, convert_from=convert_from
+        )
+        res = self.assign_coords({'time': da})
+        return shnitsel.data.dataset_containers.wrap_dataset(res)
+
+    def convert_nacs(self, to: str, convert_from: (str | None) = None):
+        """Wrapper for :py:func:`shnitsel.units.conversion.convert_nacs`."""
+        da = shnitsel.units.conversion.convert_nacs(
+            self['nacs'], to, convert_from=convert_from
+        )
+        res = self.assign({'nacs': da})
+        return shnitsel.data.dataset_containers.wrap_dataset(res)
+
+    def convert_socs(self, to: str, convert_from: (str | None) = None):
+        """Wrapper for :py:func:`shnitsel.units.conversion.convert_socs`."""
+        da = shnitsel.units.conversion.convert_socs(
+            self['socs'], to, convert_from=convert_from
+        )
+        res = self.assign({'socs': da})
+        return shnitsel.data.dataset_containers.wrap_dataset(res)
