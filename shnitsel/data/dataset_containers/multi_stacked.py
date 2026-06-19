@@ -26,55 +26,13 @@ if TYPE_CHECKING:
     from shnitsel.analyze.dimred.lda import LDAResult, lda
     from shnitsel.analyze.dimred.pca import PCAResult, pca, pca_and_hops, pca_direct
     from shnitsel.analyze.dimred.pls import pls, pls_ds
-    from shnitsel.analyze.generic import (
-        keep_norming,
-        norm,
-        pwdists,
-        subtract_combinations,
-    )
-    from shnitsel.analyze.hops import (
-        assign_hop_time,
-        filter_data_at_hops,
-        focus_hops,
-        hops_mask_from_active_state,
-    )
-    from shnitsel.analyze.populations import (
-        PopulationStatistics,
-        calc_classical_populations,
-    )
-    from shnitsel.analyze.spectra import get_spectra
-    from shnitsel.analyze.stats import (
-        calc_confidence_interval,
-        get_inter_state,
-        get_per_state,
-        time_grouped_confidence_interval,
-    )
-    from shnitsel.bridges import (
-        construct_default_mol,
-        default_mol,
-        smiles_map,
-        to_mol,
-        to_xyz,
-        traj_to_xyz,
-    )
+
+    from shnitsel.analyze.populations import PopulationStatistics
+
     from shnitsel.clean import sanity_check
-    from shnitsel.clean.common import (
-        TrajectoryOrFrames,
-        omit,
-        transect,
-        true_upto,
-        truncate,
-    )
-    from shnitsel.clean.filter_energy import (
-        EnergyFiltrationThresholds,
-        calculate_energy_filtranda,
-        filter_by_energy,
-    )
-    from shnitsel.clean.filter_geo import (
-        GeometryFiltrationThresholds,
-        calculate_bond_length_filtranda,
-        filter_by_length,
-    )
+    from shnitsel.clean.common import TrajectoryOrFrames
+    from shnitsel.clean.filter_energy import EnergyFiltrationThresholds
+    from shnitsel.clean.filter_geo import GeometryFiltrationThresholds
     from shnitsel.core.typedefs import DataArrayOrVar, DatasetOrArray
     from shnitsel.data.dataset_containers.data_series import DataSeries
     from shnitsel.data.dataset_containers.frames import Frames
@@ -82,52 +40,29 @@ if TYPE_CHECKING:
     from shnitsel.data.dataset_containers.multi_series import MultiSeriesDataset
     from shnitsel.data.dataset_containers.shared import ShnitselDataset
     from shnitsel.data.dataset_containers.trajectory import Trajectory
-    from shnitsel.data.helpers import validate
-    from shnitsel.data.multi_indices import (
-        assign_levels,
-        dtype_NA,
-        expand_midx,
-        flatten_levels,
-        mdiff,
-        mgroupby,
-        msel,
-        sel_trajs,
-        stack_trajs,
-        unstack_trajs,
-    )
+    from shnitsel.data.multi_indices import dtype_NA
     from shnitsel.data.tree.node import TreeNode
     from shnitsel.data.xr_io_compatibility import SupportsToXrConversion
     from shnitsel.filtering.state_selection import StateSelection
     from shnitsel.filtering.structure_selection import StructureSelection
-    from shnitsel.geo.alignment import kabsch
-    from shnitsel.geo.geocalc import get_bats
-    from shnitsel.geo.geocalc_.angles import angle, get_angles
-    from shnitsel.geo.geocalc_.bla_chromophor import get_max_chromophor_BLA
-    from shnitsel.geo.geocalc_.dihedrals import dihedral, get_dihedrals
-    from shnitsel.geo.geocalc_.distances import distance, get_distances
-    from shnitsel.geo.geocalc_.pyramids import (
-        get_pyramidalization,
-        pyramidalization_angle,
-    )
-    from shnitsel.io.ase.write import write_ase_db
-    from shnitsel.io.shnitsel.write import write_shnitsel_file
-    from shnitsel.units.conversion import (
-        convert_dipole,
-        convert_energy,
-        convert_force,
-        convert_length,
-        convert_nacs,
-        convert_socs,
-        convert_time,
-    )
+
     from shnitsel.vis.plot.p3mhelpers import frame3D, frames3Dgrid, traj3D, trajs3Dgrid
-    from shnitsel.vis.plot.select import FrameSelector, TrajSelector
-    from shnitsel.vis.plot.time import timeplot
-    from shnitsel.vis.vmd import traj_vmd
     from typing import Any, Callable, Dict, List, Literal, Optional, Union
     from xarray.core.dataarray import DataArray
     from xarray.core.dataset import Dataset
     from xarray.core.groupby import DataArrayGroupBy, DatasetGroupBy
+
+    from typing import TypeAlias
+
+    StructureSelectionEquiv: TypeAlias = (
+        StructureSelection
+        | str
+        | Literal["atoms", "bonds", "angles", "dihedrals", "pyramids", "pwdist", "BLA"]
+        | int
+        | tuple
+        | Collection
+        | None
+    )
 
 
 @dataclass
