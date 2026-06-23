@@ -3,7 +3,7 @@ from os import PathLike
 from typing import List, Tuple
 import numpy as np
 
-from shnitsel.core._api_info import internal
+from shnitsel.core._api_info import API, internal
 from shnitsel.data.atom_helpers import get_atom_number_from_symbol
 import xarray as xr
 
@@ -93,7 +93,7 @@ def get_dipoles_per_xyz(file: TextIOWrapper, n: int, m: int) -> np.ndarray:
 
     return dip
 
-
+@API()
 def dataset_from_xyz(path: PathLike) -> xr.Dataset:
     """Helper function to parse atom position frames from xyz files.
 
