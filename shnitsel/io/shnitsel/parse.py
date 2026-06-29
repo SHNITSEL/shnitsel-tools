@@ -25,7 +25,7 @@ T = TypeVar("T")
 def read_shnitsel_file(
     path: PathOptionsType,
     loading_parameters: LoadingParameters | None = None,
-    input_engine: Literal['h5netcdf', 'netcdf4'] = 'netcdf4',
+    input_engine: Literal["h5netcdf", "netcdf4", "sthdf5"] | None = None,
 ) -> xr.Dataset | xr.DataTree | None:
     """Opens a NetCDF4 file saved by shnitsel-tools, specially interpreting certain attributes.
 
@@ -53,10 +53,30 @@ def read_shnitsel_file(
     ValueError (or other exception)
         Raised by the underlying `h5netcdf <https://h5netcdf.org/>`_ engine if the file is corrupted.
     """
+    if input_engine is None:
+        try:
+            import sthdf5
+
+            input_engine = "sthdf5"
+        except:
+            try:
+                import netcdf4
+
+                input_engine = "netcdf4"
+            except:
+                try:
+                    import h5netcdf
+
+                    input_engine = "h5netcdf"
+                except:
+                    logging.error(
+                        "Could not find a compatible input engine. Neither netcdf4, h5netcdf, nor sthdf5 are installed. Please make sure that at least of one of these packages is installed."
+                    )
+
     # TODO: FIXME: use loading_parameters to configure units and state names
     # The error raised for a missing file can be misleading
     try:
-        frames = xr.open_datatree(path)
+        frames = xr.open_datatree(path, engine=input_engine)
 
         # Unpack the dataset if the file did not contain a tree
         if (
@@ -76,7 +96,7 @@ def read_shnitsel_file(
             raise FileNotFoundError(path)
         else:
             try:
-                frames = xr.open_dataset(path)
+                frames = xr.open_dataset(path, engine=input_engine)
             except ValueError as dt_err:
                 datatree_info = sys.exc_info()
                 message = "Failed to load file as either Dataset or DataTree: %(ds_err)s \n %(ds_info)s \n %(dt_err)s \n %(dt_info)s"
@@ -94,6 +114,8 @@ def read_shnitsel_file(
         del frames.attrs["__shnitsel_format_version"]
     else:
         shnitsel_format_version = "v1.0"
+
+    logging.info("Shnitsel input format result: %s", shnitsel_format_version)
 
     if shnitsel_format_version in _SHNITSEL_READERS:
         return _SHNITSEL_READERS[shnitsel_format_version](frames, loading_parameters)
@@ -163,7 +185,7 @@ def _parse_shnitsel_file_v1_0(
 
         frames = frames.assign_coords(time=times_array)
         tcoord = "time"
-        rename_map = {'ts':'time'}
+        rename_map = {"ts": "time"}
 
     # Restore MultiIndexes
     indicator = "_MultiIndex_levels_from_attrs"
@@ -175,8 +197,20 @@ def _parse_shnitsel_file_v1_0(
             if k.startswith(level_prefix):
                 index_name = k[len(level_prefix) :]
                 # print(f"Index {index_name=} : levels={v}")
-                remapped_v = [rename_map.get(level_name, level_name) for level_name in v]
-                if len(set([frames.coords[level_name].size for level_name in remapped_v])) == 1:
+                remapped_v = [
+                    rename_map.get(level_name, level_name) for level_name in v
+                ]
+                if (
+                    len(
+                        set(
+                            [
+                                frames.coords[level_name].size
+                                for level_name in remapped_v
+                            ]
+                        )
+                    )
+                    == 1
+                ):
                     # all levels have the same length:
                     frames = frames.set_xindex(remapped_v)
                     mark_variable_assigned(frames[index_name])
@@ -251,9 +285,17 @@ def _decode_shnitsel_v1_1_dataset(dataset: xr.Dataset) -> xr.Dataset:
             # Mark variables as assigned so they are not stripped in finalization
             mark_variable_assigned(dataset[data_var])
             for attr in dataset[data_var].attrs:
-                dataset[data_var].attrs[attr] = json_deserialize_ndarray(
-                    str(attr), dataset[data_var].attrs[attr]
-                )
+                try:
+                    dataset[data_var].attrs[attr] = json_deserialize_ndarray(
+                        str(attr), dataset[data_var].attrs[attr]
+                    )
+                except:
+                    logging.error(
+                        "Failed to decode json encoded field: %s.attrs('%s')",
+                        data_var,
+                        attr,
+                    )
+                    raise
 
     # Rename time coordinate to same name everywhere
     tcoord = None
