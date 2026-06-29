@@ -114,7 +114,14 @@ def _compare_dicts_of_values(
     matching_keys = []
     non_matching_keys = []
     # NOTE: This is a fix for NaN==NaN evaluating to false but being valid for our purposes
-    if curr_root_a == curr_root_b or (np.isnan(curr_root_a) and np.isnan(curr_root_b)):
+    try:
+        if np.isnan(curr_root_a) and np.isnan(curr_root_b):
+        # This subtree matches
+            return ([base_key], None)
+    except:
+        pass
+
+    if curr_root_a == curr_root_b :
         # This subtree matches
         return ([base_key], None)
     else:
