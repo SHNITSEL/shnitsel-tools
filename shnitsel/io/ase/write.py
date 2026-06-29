@@ -364,9 +364,9 @@ def _write_trajectory_to_db(
     # Set a few key parameters from our input parsing functions
     kv_pairs = {}
     kv_pairs["charge"] = float(traj.charge)
-    kv_pairs["max_ts"] = int(traj.max_timestep)
-    kv_pairs["t_max"] = float(traj.t_max)
-    kv_pairs["delta_t"] = float(traj.delta_t)
+    kv_pairs["max_ts"] = int(np.max(traj.max_timestep))
+    kv_pairs["t_max"] = float(np.max(traj.t_max))
+    kv_pairs["delta_t"] = float(np.unique(traj.delta_t)[0] if not isinstance(traj.delta_t, float) else float(traj.delta_t))
     kv_pairs["input_format"] = traj.input_format
     kv_pairs["input_type"] = traj.input_type
     # NOTE: This guard prefix was introduced, because ASE kept interpreting
@@ -375,7 +375,9 @@ def _write_trajectory_to_db(
 
     for i, frame in traj.groupby(traj.leading_dim):
         # Remove leading dimension
-        frame = frame.squeeze(traj.leading_dim)
+        if traj.leading_dim in frame.dims:
+            frame = frame.squeeze(traj.leading_dim)
+            
         local_kv: dict[str, float | str] = dict(kv_pairs)
 
         if "time" in frame:
