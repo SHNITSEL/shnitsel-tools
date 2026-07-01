@@ -113,7 +113,15 @@ def _compare_dicts_of_values(
     """
     matching_keys = []
     non_matching_keys = []
-    if curr_root_a == curr_root_b:
+    # NOTE: This is a fix for NaN==NaN evaluating to false but being valid for our purposes
+    try:
+        if np.isnan(curr_root_a) and np.isnan(curr_root_b):
+        # This subtree matches
+            return ([base_key], None)
+    except:
+        pass
+
+    if curr_root_a == curr_root_b :
         # This subtree matches
         return ([base_key], None)
     else:
@@ -155,7 +163,7 @@ def _compare_dicts_of_values(
 @internal()
 def _check_matching_var_meta(
     datasets: Sequence[xr.Dataset | Trajectory | Frames | xr.DataArray],
-) -> bool:
+) -> tuple[bool, str, str]:
     """Function to check if all of the variables have matching metadata.
 
     We do not want to merge trajectories with different metadata on variables.
@@ -171,6 +179,10 @@ def _check_matching_var_meta(
     -------
     bool
         True if the metadata matches on all trajectories, False otherwise
+    str
+        The key of the variable for which the mismatch was detected
+    str
+        The key of the attribute for which the mismatch was detected
     """
     collected_meta = []
 
@@ -191,7 +203,7 @@ def _check_matching_var_meta(
         collected_meta.append(ds_meta)
 
     if shared_vars is None:
-        return True
+        return True, "", ""
 
     # TODO: FIXME: This should probably fail if variables are not present on all datasets.
 
@@ -202,10 +214,10 @@ def _check_matching_var_meta(
             )
 
             if distinct_keys is not None and len(distinct_keys) > 0:
-                logging.warning("Meta mismatch detected in keys %s", str(distinct_keys))
-                return False
+                logging.error("Meta mismatch detected in keys %s", str(distinct_keys))
+                return False, str(var), distinct_keys[0][0]
 
-    return True
+    return True, "", ""
 
 
 @internal()
@@ -470,10 +482,14 @@ def concat_trajs(
             raise ValueError(f"{message} Will not merge.")
 
         # All units should be converted to same unit
-        if not _check_matching_var_meta(datasets_pure):
+        match_var_meta, mismatched_var, mismatched_attr = _check_matching_var_meta(
+            datasets_pure
+        )
+        if not match_var_meta:
             # TODO: FIXME: Add message info which variable did not match.
             message = (
                 "Variable meta attributes vary between different tajectories. "
+                f"Variable `{mismatched_var}` has attribute `{mismatched_attr}` mismatch. "
                 "This indicates inconsistencies like distinct units between trajectories. "
                 "Please ensure consistency between datasets before merging."
             )
@@ -587,10 +603,14 @@ def concat_trajs(
             raise ValueError(f"{message} Will not merge.")
 
         # All units should be converted to same unit
-        if not _check_matching_var_meta(framed_da):
+        match_var_meta, mismatched_var, mismatched_attr = _check_matching_var_meta(
+            framed_da
+        )
+        if not match_var_meta:
             # TODO: FIXME: Add message info which variable did not match.
             message = (
                 "Variable meta attributes vary between different tajectories. "
+                f"Variable `{mismatched_var}` has attribute `{mismatched_attr}` mismatch. "
                 "This indicates inconsistencies like distinct units between trajectories. "
                 "Please ensure consistency between datasets before merging."
             )
@@ -768,17 +788,23 @@ def layer_trajs(
         # TODO: Do we want to merge anyway?
         raise ValueError(f"{message} Will not merge.")
 
-    # All units should be converted to same unit
-    if not _check_matching_var_meta(datasets_converted):
-        # TODO: FIXME: Add message info which variable did not match.
-        message = (
-            "Variable meta attributes vary between different tajectories. "
-            "This indicates inconsistencies like distinct units between trajectories. "
-            "Please ensure consistency between datasets before merging."
+        # All units should be converted to same unit
+
+        # All units should be converted to same unit
+        match_var_meta, mismatched_var, mismatched_attr = _check_matching_var_meta(
+            datasets_converted
         )
-        logging.warning(f"{message} Merge result may be inconsistent.")
-        # TODO: Do we want to merge anyway?
-        raise ValueError(f"{message} Will not merge.")
+        if not match_var_meta:
+            # TODO: FIXME: Add message info which variable did not match.
+            message = (
+                "Variable meta attributes vary between different tajectories. "
+                f"Variable `{mismatched_var}` has attribute `{mismatched_attr}` mismatch. "
+                "This indicates inconsistencies like distinct units between trajectories. "
+                "Please ensure consistency between datasets before merging."
+            )
+            logging.warning(f"{message} Merge result may be inconsistent.")
+            # TODO: Do we want to merge anyway?
+            raise ValueError(f"{message} Will not merge.")
 
     consistent_metadata, distinct_metadata = _merge_traj_metadata(datasets_converted)
 
@@ -849,7 +875,11 @@ def layer_trajs(
     # Try and filter out filler entries:
     replacements = {}
     for retained_var_name, retained_dtype in retain_type.items():
-        if (retained_var_name in layers or retained_var_name in layers.coords) and 'trajecotry' in layers[retained_var_name].dims and len(layers[retained_var_name].dims) > 1:
+        if (
+            (retained_var_name in layers or retained_var_name in layers.coords)
+            and 'trajecotry' in layers[retained_var_name].dims
+            and len(layers[retained_var_name].dims) > 1
+        ):
             if layers[retained_var_name].dtype != retained_dtype:
                 try:
                     replacements[retained_var_name] = (

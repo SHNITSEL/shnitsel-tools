@@ -1,6 +1,8 @@
 from typing import Any, Sequence, overload
 from matplotlib.axes import Axes
+from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 import numpy as np
 import xarray as xr
 
@@ -10,7 +12,7 @@ from shnitsel.clean.common import (
     _filter_mask_from_criterion_mask,
 )
 from shnitsel.data.dataset_containers.shared import ShnitselDataset
-from shnitsel.data.multi_indices import ensure_unstacked
+from shnitsel.data.multi_indices import ensure_stacked, ensure_unstacked
 from shnitsel.data.tree.node import TreeNode
 from shnitsel.vis.support.multi_plot import MultiPlot
 
@@ -135,25 +137,25 @@ def check_thresholds(
         )
         fig.set_size_inches(6, 2 * total_criteria)
 
-        def plot_criteria(criteria, axes, dim='criterion'):
+        def plot_criteria(criteria, axes, dim='criterion', threshold_coord='threshold'):
             criteria_quantiles = cum_max_quantiles(criteria, quantiles=quantiles)
-            if 'thresholds' in criteria.coords:
+            if threshold_coord in criteria.coords:
                 # TODO: This is too complicated. Why calculate quantiles first and and then calculate true_upto?
                 # Extract the true_upto per filtranda and then get the quantiles from the set of `true_upto`.
                 good_throughout = (
-                    (criteria < criteria['thresholds']) | (~criteria['is_frame'])
+                    (criteria < criteria[threshold_coord]) | (~criteria['is_frame'])
                 ).all('time')
                 criteria['proportion'] = (
                     good_throughout.sum('trajectory')
                     / good_throughout.sizes['trajectory']
                 )
                 criteria_quantiles['intercept'] = true_upto(
-                    criteria_quantiles < criteria['thresholds'], 'time'
+                    criteria_quantiles < criteria[threshold_coord], 'time'
                 )
 
             for (title, data), ax in zip(criteria_quantiles.groupby(dim), axes[:, 1]):
-                if 'thresholds' in data.coords:
-                    threshold = data.coords['thresholds'].item()
+                if threshold_coord in data.coords:
+                    threshold = data.coords[threshold_coord].item()
                     ax.axhline(threshold, c=shnitsel_yellow)
                 else:
                     threshold = None
@@ -200,8 +202,8 @@ def check_thresholds(
                     orientation='horizontal',
                     color=shnitsel_blue,
                 )
-                if 'thresholds' in data.coords:
-                    threshold = data.coords['thresholds'].item()
+                if threshold_coord in data.coords:
+                    threshold = data.coords[threshold_coord].item()
                     ax.axhline(threshold, c=shnitsel_yellow)
                     # ax.text(
                     #     0.5,
@@ -224,16 +226,242 @@ def check_thresholds(
 
         if energy_filtranda is not None:
             plot_criteria(
-                energy_filtranda, axes=axs[:num_energy_crit, :], dim='energy_criterion'
+                energy_filtranda,
+                axes=axs[:num_energy_crit, :],
+                dim='energy_criterion',
+                threshold_coord='energy_thresholds',
             )
         if length_filtranda is not None:
             plot_criteria(
-                length_filtranda, axes=axs[num_energy_crit:, :], dim='length_criterion'
+                length_filtranda,
+                axes=axs[num_energy_crit:, :],
+                dim='length_criterion',
+                threshold_coord='length_thresholds',
             )
 
         axs[-1, 0].set_xlabel('cumulative density\nof per-traj maxima')
         axs[-1, 1].set_xlabel('time / fs')
         return axs
+
+
+@overload
+def filtered_frames(
+    ds_or_da: TreeNode[Any, xr.Dataset | xr.DataArray | ShnitselDataset],
+) -> MultiPlot: ...
+@overload
+def filtered_frames(
+    ds_or_da: xr.Dataset | xr.DataArray | ShnitselDataset,
+) -> tuple[Figure, Axes]: ...
+
+
+def filtered_frames(
+    ds_or_da: xr.Dataset
+    | xr.DataArray
+    | ShnitselDataset
+    | TreeNode[Any, xr.Dataset | xr.DataArray | ShnitselDataset],
+) -> tuple[Figure, Axes] | MultiPlot:
+    if isinstance(ds_or_da, TreeNode):
+        return filtered_frames(ds_or_da.as_stacked)
+        # TODO: FIXME: We need to accumulate the data across flat groups first.
+        # return MultiPlot(ds_or_da.map_data(check_thresholds, quantiles=quantiles))
+    else:
+        energy_filtranda: xr.DataArray | None = None
+        length_filtranda: xr.DataArray | None = None
+
+        if isinstance(ds_or_da, xr.DataArray):
+            if 'energy_criterion' in ds_or_da.dims:
+                energy_filtranda = ds_or_da.copy()
+            elif 'energy_criterion' in ds_or_da.dims:
+                length_filtranda = ds_or_da.copy()
+            else:
+                raise ValueError(
+                    "neither energy_criterion nor length_criterion present on provided array"
+                )
+        # elif "filtranda" in ds_or_da:
+        #     filtranda = ds_or_da['filtranda'].copy()
+        elif "energy_filtranda" in ds_or_da and "length_filtranda" not in ds_or_da:
+            energy_filtranda = ds_or_da['energy_filtranda'].copy()
+        elif "length_filtranda" in ds_or_da and "energy_filtranda" not in ds_or_da:
+            length_filtranda = ds_or_da['length_filtranda'].copy()
+        elif "length_filtranda" in ds_or_da and "energy_filtranda" in ds_or_da:
+            energy_filtranda = ds_or_da['energy_filtranda'].copy()
+            length_filtranda = ds_or_da['length_filtranda'].copy()
+
+            # filtranda = xr.concat(
+            #     [
+            #         ds_or_da['energy_filtranda'].copy(),
+            #         ds_or_da['length_filtranda'].copy(),
+            #     ],
+            #     dim='criterion',
+            # )
+        else:
+            raise ValueError(
+                "Dataset provided to `check_thresholds()` has no length_filtranda or energy_filtranda data set."
+            )
+
+        num_trajs = 0
+        traj_ids = None
+
+        # Make sure, we are unstacked
+        if energy_filtranda is not None:
+            energy_filtranda, _ = ensure_unstacked(energy_filtranda)
+            num_trajs = energy_filtranda.sizes['trajectory']
+            traj_ids = energy_filtranda.coords['trajectory'].values
+
+        if length_filtranda is not None:
+            length_filtranda, _ = ensure_unstacked(length_filtranda)
+            num_trajs = length_filtranda.sizes['trajectory']
+            traj_ids = length_filtranda.coords['trajectory'].values
+
+        num_energy_crit = (
+            energy_filtranda.sizes['energy_criterion']
+            if energy_filtranda is not None
+            else 0
+        )
+        num_length_crit = (
+            length_filtranda.sizes['length_criterion']
+            if length_filtranda is not None
+            else 0
+        )
+
+        max_criteria = max(num_energy_crit, num_length_crit)
+
+        filtranda = []
+        if (
+            energy_filtranda is not None
+            and 'energy_thresholds' in energy_filtranda.coords
+        ):
+            filtranda.append(
+                (
+                    energy_filtranda,
+                    "Energy criteria",
+                    "energy_criterion",
+                    "energy_thresholds",
+                )
+            )
+        if (
+            length_filtranda is not None
+            and 'length_thresholds' in length_filtranda.coords
+        ):
+            filtranda.append(
+                (
+                    length_filtranda,
+                    "Length criteria",
+                    "length_criterion",
+                    "length_thresholds",
+                )
+            )
+
+        trajectory_indices = np.arange(num_trajs)
+
+        num_filtranda = len(filtranda)
+
+        if num_filtranda > 0:
+            fig, axs = plt.subplots(
+                1 + max_criteria,
+                num_filtranda,
+                sharex='col',
+                # sharey='row',
+                layout='constrained',
+                width_ratios=[1, 1],
+            )
+            axs = np.reshape(
+                axs,
+                (
+                    1 + max_criteria,
+                    num_filtranda,
+                ),
+            )
+
+            fig.set_size_inches(4 * num_filtranda, 2 * (1 + max_criteria))
+
+            colors = mpl.colormaps['Set1'](np.linspace(0,1, max_criteria))
+
+            for crit_index, (
+                filtranda_set,
+                filtranda_title,
+                filtranda_criteria_dim,
+                threshold_coord,
+            ) in enumerate(filtranda):
+                crit_axs = axs[:, crit_index]
+
+                base_ax = crit_axs[0]
+                criteria_axs = crit_axs[1:]
+
+                thresholds = filtranda_set.coords[threshold_coord]
+
+                criteria_invalid = filtranda_set > thresholds
+
+                trajectory_lengths = filtranda_set.groupby('trajectory').map(
+                    lambda x: x.coords['time'].max()
+                )
+
+                marked_frames, _ = ensure_stacked(
+                    filtranda_set.assign_coords(
+                        criteria_invalid=criteria_invalid, trajectory=trajectory_indices
+                    )
+                )
+
+                base_ax.plot(
+                    trajectory_lengths,
+                    # trajectory_lengths.coords['trajectory'],
+                    trajectory_indices,
+                    c='k',
+                )
+                # base_ax.set_ylabel("Trajectory idx")
+                base_ax.set_ylabel(
+                    f"Trajectory idx \n(marked:{len(np.unique(marked_frames.where(marked_frames.criteria_invalid, drop=True).atrajectory))}/{num_trajs})"
+                )
+                base_ax.set_title("All "+filtranda_title)
+                base_ax.set_xlim((0, None))
+
+                criteria_axs[-1].set_xlabel("Time")
+
+                for criterion_index, criterion_color in zip(range(
+                    filtranda_set.sizes[filtranda_criteria_dim]
+                ), colors):
+                    criterion_ax = criteria_axs[criterion_index]
+                    criterion_ax.plot(
+                        trajectory_lengths,
+                        # trajectory_lengths.coords['trajectory'],
+                        trajectory_indices,
+                        c='k',
+                    )
+
+                    criterion_data = marked_frames.isel(
+                        {filtranda_criteria_dim: criterion_index}
+                    )
+
+                    violating_frames = criterion_data.where(
+                        criterion_data.criteria_invalid, drop=True
+                    )
+
+                    num_violating_trajs = len(
+                        np.unique(violating_frames.atrajectory.values)
+                    )
+
+                    criterion_ax.scatter(
+                        violating_frames.time, violating_frames.atrajectory, s=2, color=criterion_color
+                    )
+
+                    base_ax.scatter(
+                        violating_frames.time, violating_frames.atrajectory, s=2, color=criterion_color
+                    )
+
+                    criterion_ax.set_title(
+                        criterion_data.coords[filtranda_criteria_dim].item() + f"(thresh: {criterion_data.coords[threshold_coord].item()} [{criterion_data.coords[threshold_coord].attrs.get('units', '?')}])"
+                    )
+                    criterion_ax.set_ylabel(
+                        f"Trajectory idx \n(marked:{num_violating_trajs}/{num_trajs})"
+                    )
+
+                    # print(criterion_data)
+                
+                for missing_crit in range(filtranda_set.sizes[filtranda_criteria_dim], max_criteria):
+                    criteria_axs[missing_crit].axis('off')
+
+            return fig, axs
+        return None, None
 
 
 def validity_populations(ds_or_da, intersections: bool = True) -> Axes:

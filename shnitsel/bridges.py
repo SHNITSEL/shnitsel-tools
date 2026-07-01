@@ -48,7 +48,7 @@ def to_xyz(da: AtXYZ, comment='#', units='angstrom') -> str:
         da = convert_length(da, to=units)
     atXYZ = da.transpose('atom', 'direction').values
     atNames = da.atNames.values
-    sxyz = np.char.mod('% 23.15f', atXYZ)
+    sxyz = np.char.mod(' % 23.15f', atXYZ)
     sxyz = np.squeeze(sxyz)
     sxyz = np.hstack((atNames.reshape(-1, 1), sxyz))
     sxyz = np.apply_along_axis(lambda row: ''.join(row), axis=1, arr=sxyz)
@@ -89,7 +89,7 @@ def traj_to_xyz(traj_atXYZ: AtXYZ, units='angstrom') -> str:
         atXYZ = atXYZ[None, :, :]
     assert len(atXYZ.shape) == 3
     atNames = traj_atXYZ.atNames.values
-    sxyz = np.strings.mod('% 13.9f', atXYZ)
+    sxyz = np.strings.mod(' % 23.15f', atXYZ)
     sxyz = atNames[None, :] + sxyz[:, :, 0] + sxyz[:, :, 1] + sxyz[:, :, 2]
     atom_lines = np.broadcast_to([str(traj_atXYZ.sizes['atom'])], (sxyz.shape[0], 1))
     if 'time' in traj_atXYZ.coords:
