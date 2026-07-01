@@ -906,7 +906,7 @@ def parse_QM_out(
                 next(f)
                 for atom in range(natoms.v):
                     res["forces"][istate][atom] = [
-                        float(entry) for entry in next(f).strip().split()
+                        - float(entry) for entry in next(f).strip().split()
                     ]
 
         elif line.startswith("! 5 Non-adiabatic couplings"):
