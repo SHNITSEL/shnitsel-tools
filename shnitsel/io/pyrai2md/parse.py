@@ -531,7 +531,7 @@ def parse_observables_from_log(
                 if next_line.lower().find("not computed") > 0:
                     # Skip if no computation has happened
                     break
-                forces[ts_idx, istate, iatom] = np.asarray(
+                forces[ts_idx, istate, iatom] = - np.asarray(
                     next_line.split()[1:], dtype=float
                 )
             hline = next(f)

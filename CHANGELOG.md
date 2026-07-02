@@ -4,6 +4,13 @@ Shnitsel tools is a project under active development.
 to keep track of the updates happening in various version, we list the 
 changes here
 
+## shnitsel-tools v2026.7.1
+
+Bug fixes compared to previous version:
+
+### Fixes
+
+- Fix wrong sign of the forces read from SHARC, NewtonX and PyrAI2md formats. Previous versions have accidentally read gradients and presented them as forces. Now the sign is correctly applied and the "force" variable correctly labels the forces.
 
 ## shnitsel-tools v2026.5.1
 

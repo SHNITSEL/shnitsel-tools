@@ -629,7 +629,7 @@ def parse_nx_log_data(
         elif stripline.lower().startswith("gradient vectors"):
             step_has_forces = True
             for iatom in range(natoms):
-                tmp_forces[iatom] = [float(n) for n in next(f).strip().split()]
+                tmp_forces[iatom] = [ -float(n) for n in next(f).strip().split()]
 
         elif stripline.lower().startswith("nonadiabatic coupling vectors"):
             # NOTE: The label for full entries is nonadiabatic coupling vectors

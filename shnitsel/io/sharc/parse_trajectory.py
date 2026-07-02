@@ -749,7 +749,7 @@ def parse_trajout_dat(
 
             for atom in range(natoms):
                 tmp_forces[ts, state, atom] = [
-                    float(n) for n in next(f).strip().split()
+                    -float(n) for n in next(f).strip().split()
                 ]
 
         if line.startswith("! 16 NACdr matrix element"):
