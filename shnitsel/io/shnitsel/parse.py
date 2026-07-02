@@ -58,16 +58,26 @@ def read_shnitsel_file(
             import sthdf5
 
             input_engine = "sthdf5"
+            logging.info("Opted for sthdf5 as input engine.")
+            logging.warning(
+                "Selected stHDF5 for data loading. Support still experimental. Please check the imported data for issues with complex data types (e.g. SOCs, coefficients)."
+            )
         except:
             try:
-                import netcdf4
+                import h5netcdf
 
-                input_engine = "netcdf4"
+                input_engine = "h5netcdf"
+
+                logging.info("Opted for h5netcdf as input engine.")
             except:
                 try:
-                    import h5netcdf
+                    import netcdf4
 
-                    input_engine = "h5netcdf"
+                    input_engine = "netcdf4"
+                    logging.info("Opted for netcdf4 as input engine.")
+                    logging.warning(
+                        "Selected netcdf4 as input engine as h5netcdf and sthdf5 were unavailable. Loading of complex numbers as in SOCs and coefficients is expected to fail. Please check the loaded data."
+                    )
                 except:
                     logging.error(
                         "Could not find a compatible input engine. Neither netcdf4, h5netcdf, nor sthdf5 are installed. Please make sure that at least of one of these packages is installed."
