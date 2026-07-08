@@ -239,26 +239,27 @@ def read_traj(
             time_offset = float(lines[0])
 
     if variables_listings is not None:
-        if nsteps > len(variables_listings["time"]):
-            completed = False
+        if "time" in variables_listings:
+            if nsteps > len(variables_listings["time"]):
+                completed = False
 
-        if not is_variable_assigned(trajectory.time):
-            if "time" in variables_listings:
-                # logging.debug(f"Time attributes: {trajectory.time.attrs}")
-                trajectory.coords["time"] = (
-                    "time",
-                    variables_listings["time"] + time_offset,
-                    default_format_attributes["time"],
-                )
-                mark_variable_assigned(trajectory["time"])
-        if not is_variable_assigned(trajectory.astate):
-            if "astate" in variables_listings:
-                trajectory.coords["astate"] = (
-                    "time",
-                    variables_listings["astate"],
-                    default_format_attributes["astate"],
-                )
-                mark_variable_assigned(trajectory["astate"])
+            if not is_variable_assigned(trajectory.time):
+                if "time" in variables_listings:
+                    # logging.debug(f"Time attributes: {trajectory.time.attrs}")
+                    trajectory.coords["time"] = (
+                        "time",
+                        variables_listings["time"] + time_offset,
+                        default_format_attributes["time"],
+                    )
+                    mark_variable_assigned(trajectory["time"])
+            if not is_variable_assigned(trajectory.astate):
+                if "astate" in variables_listings:
+                    trajectory.coords["astate"] = (
+                        "time",
+                        variables_listings["astate"],
+                        default_format_attributes["astate"],
+                    )
+                    mark_variable_assigned(trajectory["astate"])
 
     # TODO: Note that for consistency, we renamed the ts dimension to time to agree with other format
     if (
@@ -414,23 +415,25 @@ def parse_output_listings(path: pathlib.Path) -> tuple[dict[str, Any], dict[str,
     except:
         nsteps = 0
     settings["nsteps"] = nsteps
-
-    times = lis_data[:, 1]
-    if len(times) > 1:
-        settings["delta_t"] = times[1] - times[0]
-    else:
-        logging.warning("Only one frame detected in trajectory. Time step delta may be arbitrary.")
+    if lis_data.shape[1]<1 or lis_data.shape[0] < 1:
+        settings["t_max"] = 0.0
         settings["delta_t"] = 0.0
+    else:
+        times = lis_data[:, 1]
+        if len(times) > 1:
+            settings["delta_t"] = times[1] - times[0]
+        else:
+            logging.warning("Less than two frames detected in trajectory. Time step delta may be arbitrary.")
+            settings["delta_t"] = 0.0
 
-    settings["t_max"] = np.max(times)
+        settings["t_max"] = np.max(times)
+        variables["time"] = times
 
-    active_state = np.array([int(round(x)) for x in lis_data[:, 2]])
+        active_state = np.array([int(round(x)) for x in lis_data[:, 2]])
+        variables["astate"] = active_state
 
-    epot_relative_active = lis_data[:, 5]
-
-    variables["astate"] = active_state
-    variables["time"] = times
-    variables["active_state_E"] = epot_relative_active
+        epot_relative_active = lis_data[:, 5]
+        variables["active_state_E"] = epot_relative_active
 
     return settings, variables
 
