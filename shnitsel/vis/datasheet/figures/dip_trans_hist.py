@@ -208,7 +208,7 @@ def plot_spectra(
 
     times_styles = {t: linestyles[i % len(linestyles)] for i, t in enumerate(times)}
     sc_count = {}
-    if 'time' in spectra.coords and 'statecomb' in spectra.coords:
+    if 'time' in spectra.coords and spectra.sizes["time"]>0 and 'statecomb' in spectra.coords and spectra.sizes["statecomb"]>0:
         for (t, sc), data in spectra.groupby(['time', 'statecomb']):
             if not state_selection.has_state_combination(sc):
                 continue
