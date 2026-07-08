@@ -409,7 +409,10 @@ def parse_output_listings(path: pathlib.Path) -> tuple[dict[str, Any], dict[str,
     lis_data = np.loadtxt(path, ndmin=2)
 
     steps = lis_data[:, 0]
-    nsteps = int(round(np.max(steps))) + 1
+    try:
+        nsteps = int(round(np.max(steps))) + 1
+    except:
+        nsteps = 0
     settings["nsteps"] = nsteps
 
     times = lis_data[:, 1]
