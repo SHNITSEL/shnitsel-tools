@@ -91,6 +91,7 @@ dev = [
 [project.scripts]
 convert_to_shnitsel_file = "shnitsel.cli.convert_to_shnitsel:main"
 merge_shnitsel_files = "shnitsel.cli.merge_shnitsel_files:main"
+make_shnitsel_datasheet = "shnitsel.cli.generate_datasheet:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
