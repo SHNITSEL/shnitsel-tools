@@ -80,7 +80,7 @@ def read_traj(
     state_charges = None
 
     delta_t: float | None = None
-    t_max: float | None = None
+    t_max: float | None = 0.0
     nsteps: int = 0
     natoms: int | None = None
     nstates: int | None = None
@@ -94,7 +94,7 @@ def read_traj(
         with open(input_path) as f:
             settings = parse_input_settings(f.readlines())
         delta_t = float(settings["stepsize"])
-        t_max = float(settings["tmax"])
+        t_max = max(t_max,float(settings["tmax"]))
         nsteps = max(nsteps, int(round(t_max / delta_t)) + 1)
         energy_offset = float(settings["ezero"])
 
@@ -149,7 +149,7 @@ def read_traj(
     if output_listing_path.is_file():
         settings, variables_listings = parse_output_listings(output_listing_path)
         delta_t = float(settings["delta_t"])
-        t_max = float(settings["t_max"])
+        t_max = max(t_max,float(settings["tmax"]))
         nsteps = max(nsteps, int(settings["nsteps"]) + 1)
         misc_settings["output.lis"] = settings
 
@@ -163,8 +163,8 @@ def read_traj(
                 sharc_version = settings["SHARC_version"]
 
             delta_t = float(settings["stepsize"])
-            t_max = float(settings["tmax"])
-            nsteps = int(t_max / delta_t) + 1
+            t_max = max(t_max,float(settings["tmax"]))
+            nsteps = max(nsteps,int(round(t_max / delta_t)) + 1)
             energy_offset = settings["ezero"]
 
             if "nstates" in settings:
