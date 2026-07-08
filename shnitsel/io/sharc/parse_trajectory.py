@@ -94,7 +94,7 @@ def read_traj(
         with open(input_path) as f:
             settings = parse_input_settings(f.readlines())
         delta_t = float(settings["stepsize"])
-        t_max = max(t_max,float(settings["tmax"]))
+        t_max = max(t_max, float(settings["tmax"]))
         nsteps = max(nsteps, int(round(t_max / delta_t)) + 1)
         energy_offset = float(settings["ezero"])
 
@@ -149,7 +149,7 @@ def read_traj(
     if output_listing_path.is_file():
         settings, variables_listings = parse_output_listings(output_listing_path)
         delta_t = float(settings["delta_t"])
-        t_max = max(t_max,float(settings["t_max"]))
+        t_max = max(t_max, float(settings["t_max"]))
         nsteps = max(nsteps, int(settings["nsteps"]) + 1)
         misc_settings["output.lis"] = settings
 
@@ -163,8 +163,8 @@ def read_traj(
                 sharc_version = settings["SHARC_version"]
 
             delta_t = float(settings["stepsize"])
-            t_max = max(t_max,float(settings["tmax"]))
-            nsteps = max(nsteps,int(round(t_max / delta_t)) + 1)
+            t_max = max(t_max, float(settings["tmax"]))
+            nsteps = max(nsteps, int(round(t_max / delta_t)) + 1)
             energy_offset = settings["ezero"]
 
             if "nstates" in settings:
@@ -267,22 +267,42 @@ def read_traj(
         or not is_variable_assigned(trajectory.atNums)
         or not is_variable_assigned(trajectory.atXYZ)
     ):
-        with open(os.path.join(traj_path, "output.xyz")) as f:
-            atNames, atNums, atXYZ = parse_trajout_xyz(nsteps, f)
+        try:
+            with open(os.path.join(traj_path, "output.xyz")) as f:
+                atNames, atNums, atXYZ = parse_trajout_xyz(nsteps, f)
 
-            trajectory.coords["atNames"] = ("atom", atNames, trajectory.atNames.attrs)
-            mark_variable_assigned(trajectory.atNames)
+                trajectory.coords["atNames"] = (
+                    "atom",
+                    atNames,
+                    trajectory.atNames.attrs,
+                )
+                mark_variable_assigned(trajectory.atNames)
 
-            trajectory.coords["atNums"] = ("atom", atNums, trajectory.atNums.attrs)
-            mark_variable_assigned(trajectory.atNums)
+                trajectory.coords["atNums"] = ("atom", atNums, trajectory.atNums.attrs)
+                mark_variable_assigned(trajectory.atNums)
 
-            # These are in Angstrom for some weird reason... why not consistent? Who knows.
-            trajectory["atXYZ"][...] = (
-                atXYZ
-                * _distance_unit_scales[distance.Angstrom]
-                / _distance_unit_scales[distance.Bohr]
+                # These are in Angstrom for some weird reason... why not consistent? Who knows.
+                trajectory["atXYZ"][...] = (
+                    atXYZ
+                    * _distance_unit_scales[distance.Angstrom]
+                    / _distance_unit_scales[distance.Bohr]
+                )
+                mark_variable_assigned(trajectory.atXYZ)
+        except Exception as e:
+            logging.error(
+                "Atom names, elements and positions could not be loaded for %s"
+                % (traj_path)
             )
-            mark_variable_assigned(trajectory.atXYZ)
+            raise FileNotFoundError(
+                "Could not load atom names, elements or positions. Data missing for %s"
+                % traj_path
+            ) from e
+
+    if nsteps < 1:
+        logging.warning("Trajectory %s is empty and will be ignored.", traj_path)
+        raise FileNotFoundError(
+            "The requested trajectory at %s was empty" % (traj_path)
+        )
 
     # Set all settings we require to be present on the trajectory
     required_settings = RequiredTrajectorySettings(
@@ -415,7 +435,7 @@ def parse_output_listings(path: pathlib.Path) -> tuple[dict[str, Any], dict[str,
     except:
         nsteps = 0
     settings["nsteps"] = nsteps
-    if lis_data.shape[1]<1 or lis_data.shape[0] < 1:
+    if lis_data.shape[1] < 1 or lis_data.shape[0] < 1:
         settings["t_max"] = 0.0
         settings["delta_t"] = 0.0
     else:
@@ -423,7 +443,9 @@ def parse_output_listings(path: pathlib.Path) -> tuple[dict[str, Any], dict[str,
         if len(times) > 1:
             settings["delta_t"] = times[1] - times[0]
         else:
-            logging.warning("Less than two frames detected in trajectory. Time step delta may be arbitrary.")
+            logging.warning(
+                "Less than two frames detected in trajectory. Time step delta may be arbitrary."
+            )
             settings["delta_t"] = 0.0
 
         settings["t_max"] = np.max(times)
