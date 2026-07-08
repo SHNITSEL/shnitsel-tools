@@ -149,7 +149,7 @@ def read_traj(
     if output_listing_path.is_file():
         settings, variables_listings = parse_output_listings(output_listing_path)
         delta_t = float(settings["delta_t"])
-        t_max = max(t_max,float(settings["tmax"]))
+        t_max = max(t_max,float(settings["t_max"]))
         nsteps = max(nsteps, int(settings["nsteps"]) + 1)
         misc_settings["output.lis"] = settings
 
