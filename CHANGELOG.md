@@ -11,6 +11,7 @@ Bug fixes compared to previous version:
 ### Fixes
 
 - Fix wrong sign of the forces read from SHARC, NewtonX and PyrAI2md formats. Previous versions have accidentally read gradients and presented them as forces. Now the sign is correctly applied and the "force" variable correctly labels the forces.
+- Reading SHARC trajectories could occasionally fail because the number of steps in the log did overwrite all num_steps info from other parsed files. Now calculated as the maximum encountered size across files.
 
 ## shnitsel-tools v2026.5.1
 
