@@ -70,7 +70,6 @@ def main():
         help="Optionally an indication of the kind of input you are trying to read, `shnitsel`, `sharc`, `newtonx`, `pyrai2md`, `ase`. Will be guessed based on directory contents if not provided. If not set, the `read()` operation may fail if ambiguous trajectory formats are found within the folder.",
     )
 
-
     argument_parser.add_argument(
         "--charge",
         "-ch",
@@ -78,6 +77,24 @@ def main():
         type=int,
         default=None,
         help="Optional parameter to specify the charge of your imported molecule if it has not been set in the input. Must be an integer and is in units of electron charges (e)",
+    )
+
+    argument_parser.add_argument(
+        "--add_pca_page",
+        "-pca",
+        required=False,
+        default=False,
+        action="store_true",
+        help="Add the datasheet page highlighting principle component analysis results",
+    )
+
+    argument_parser.add_argument(
+        "--add_meta_page",
+        "-meta",
+        required=False,
+        default=False,
+        action="store_true",
+        help="Add the overview page summarizing metadata of the daset",
     )
 
     # argument_parser.add_argument(
@@ -139,6 +156,9 @@ def main():
     # force_sequential = args.force_sequential
     force_write = args.force_write
 
+    add_pca_page = args.add_pca_page
+    add_meta_page = args.add_meta_page
+
     found_file_at_beginning = False
 
     logging.basicConfig()
@@ -175,6 +195,7 @@ def main():
 
                 if not tmp_path.exists():
                     logging.warning(f"Changed output path to {tmp_path}.")
+                    output_path = tmp_path
                     break
                 else:
                     i += 1
@@ -198,7 +219,7 @@ def main():
         sys.exit(1)
     else:
         if charge is not None:
-            tree =tree.set_charge(charge)
+            tree = tree.set_charge(charge)
         if isinstance(tree, TreeNode):
             if not isinstance(tree, ShnitselDB):
                 tree = complete_shnitsel_tree(tree)
@@ -239,7 +260,11 @@ def main():
 
         datasheet = Datasheet(target)
         print("Datasheet is being generated... (This may take a moment)")
-        res = datasheet.plot(path=output_path)
+        res = datasheet.plot(
+            path=output_path,
+            include_meta_page=add_meta_page,
+            include_pca_page=add_pca_page,
+        )
         print(f"Datasheet has been written to {output_path}")
         sys.exit(0)
 
