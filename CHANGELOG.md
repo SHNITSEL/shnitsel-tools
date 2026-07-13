@@ -8,6 +8,14 @@ changes here
 
 Bug fixes compared to previous version:
 
+### Breaking Changes
+
+- To  stay consistent with naming conventions, the active state in diagonal basis will now be called `astate_diag` similar to how `astate` refers to the MCH index.
+
+### Features
+
+- Introduced a dimension `state_diag` to index diagonal-basis state surfaces to differentiate such dimensions from the MCH-based `state` indices.
+
 ### Fixes
 
 - Fix wrong sign of the forces read from SHARC, NewtonX and PyrAI2md formats. Previous versions have accidentally read gradients and presented them as forces. Now the sign is correctly applied and the "force" variable correctly labels the forces.
