@@ -700,8 +700,9 @@ def parse_trajout_dat(
                             float_entries[jstate * 2], float_entries[jstate * 2 + 1]
                         )
         if line.startswith("! 2 U matrix"):
+            # Note that the U matrix is given in the format where each line corresponds to terms for a certain MCH state and the columns index the diagonal state.
             umatrix_assigned = True
-            for istate in range(nstates):
+            for mch_istate in range(nstates):
                 linecont = next(f).strip().split()
                 float_entries = [float(i) for i in linecont]
                 # convert list of even number of floats to list of complex numbers
@@ -709,7 +710,7 @@ def parse_trajout_dat(
                     np.complex128(float_entries[2 * j], float_entries[2 * j + 1])
                     for j in range(nstates)
                 ]
-                tmp_umatrix[ts, istate, :] = complex_entries
+                tmp_umatrix[ts, mch_istate, :] = complex_entries
 
         if line.startswith("! 3 Dipole moments"):
             dipole_assigned = True
@@ -722,6 +723,7 @@ def parse_trajout_dat(
                 ]
 
         if line.startswith("! 4 Overlap matrix"):
+            # In terms of MCH states
             found_overlap = False
             phasevector = np.ones((nstates))
 
@@ -744,6 +746,7 @@ def parse_trajout_dat(
                 tmp_phases[ts] = phasevector
 
         if line.startswith("! 5 Coefficients"):
+            # Indexed with diagonal state indices
             coefs = [
                 float((split := next(f).strip().split())[0]) + 1j * float(split[1])
                 for _ in range(nstates)
@@ -752,6 +755,7 @@ def parse_trajout_dat(
             tmp_coefs[ts] = coefs
 
         if line.startswith("! 6 Hopping Probabilities"):
+            # Indexed with diagonal state indices
             phop_assigned = True
             tmp_phop[ts, :] = [float(next(f).strip()) for i in range(nstates)]
 
@@ -810,15 +814,19 @@ def parse_trajout_dat(
     if force_assigned:
         trajectory_in["forces"].values = tmp_forces
         mark_variable_assigned(trajectory_in["forces"])
+
     if sdiag_assigned:
-        trajectory_in["sdiag"].values = tmp_sdiag
-        mark_variable_assigned(trajectory_in["sdiag"])
+        trajectory_in["astate_diag"].values = tmp_sdiag
+        mark_variable_assigned(trajectory_in["astate_diag"])
+
     if astate_assigned:
         trajectory_in["astate"].values = tmp_astate
         mark_variable_assigned(trajectory_in["astate"])
+
     if phases_assigned:
         trajectory_in["phases"].values = tmp_phases
         mark_variable_assigned(trajectory_in["phases"])
+
     if dipole_assigned:
         # post-processing
         # np.diagonal swaps state and direction, so we transpose them back

@@ -237,13 +237,15 @@ def create_initial_dataset(
         "state_degeneracy_group": ["state"],
         "state_charges": ["state"],
         "astate": ["time"],
-        "sdiag": ["time"],
+        # Note: Previously called "sdiag"
+        "astate_diag": ["time"],
         "atNames": ["atom"],
         "atNums": ["atom"],
+        # This is in terms of MCH states
         "phases": ["time", "state"],
-        "state_coefs_diag": ["time", "state"],
-        "prob_hop_diag": ["time", "state"],
-        "u_matrix": ["time", "state", "state2"],
+        "state_coefs_diag": ["time", "state_diag"],
+        "prob_hop_diag": ["time", "state_diag"],
+        "u_matrix": ["time", "state", "state_diag"],
     }
 
     template_default_values = {
@@ -263,7 +265,7 @@ def create_initial_dataset(
         "state_degeneracy_group": 0,
         "state_charges": 0,
         "astate": -1,
-        "sdiag": -1,
+        "astate_diag": -1,
         "phases": np.nan,
         "atNames": "",
         "atNums": -1,
@@ -305,6 +307,7 @@ def create_initial_dataset(
         "time": num_time_steps,
         "state": num_states,
         "state2": num_states,
+        "state_diag": num_states,
         "atom": num_atoms,
         "direction": 3,
         "statecomb": math.comb(num_states, 2),
@@ -314,6 +317,7 @@ def create_initial_dataset(
     coords: dict | xr.Dataset = {
         "state": (states := np.arange(1, num_states + 1)),
         "state2": states,
+        "state_diag": states,
         "atom": np.arange(num_atoms),
         "direction": ["x", "y", "z"],
     }
@@ -424,6 +428,9 @@ def create_initial_dataset(
     # Prevent dimension labels from being lost.
     if "state" in res_dataset:
         mark_variable_assigned(res_dataset.state)
+    if "state_diag" in res_dataset:
+        mark_variable_assigned(res_dataset.state_diag)
+        
     if "atom" in res_dataset:
         mark_variable_assigned(res_dataset.atom)
     mark_variable_assigned(res_dataset.direction)

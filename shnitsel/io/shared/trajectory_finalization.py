@@ -284,4 +284,37 @@ def normalize_dataset(ds: xr.Dataset | ShnitselDataset) -> xr.Dataset:
     if 'sdiag' in ds.data_vars:
         ds = ds.set_coords("sdiag")
 
+    # Deal with diagonal state indexed variables:
+    if 'sdiag' in ds.coords:
+        ds = ds.rename(sdiag="astate_diag")
+        
+    for diag_var_name in ['state_coefs_diag', 'prob_hop_diag']:
+        if diag_var_name in ds.data_vars:
+            old_coefs_diag  = ds[diag_var_name]
+            # Dimension relabeling already done
+            if 'state_diag' in old_coefs_diag.dims:
+                continue
+
+            # Clear coordinates for the wrong state
+            coords_to_drop = []
+            for key, coord in ds.coords.items():
+                if 'state' in coord.dims:
+                    coords_to_drop.append(key)
+            
+            # Drop coords of old state variable on array
+            old_coefs_diag = old_coefs_diag.drop_vars(coords_to_drop)
+
+            # Drop old variable
+            ds = ds.drop_vars(diag_var_name)
+
+            #Assign new variable
+            ds = ds.assign({diag_var_name: old_coefs_diag.rename(state='state_diag')})
+            
+    if 'u_matrix' in ds.coords:
+        #Old template: "u_matrix": ["time", "state", "state2"],
+        old_umatrix = ds['u_matrix']
+        if 'state2' in old_umatrix.dims:
+            revised_umatrix = old_umatrix.rename(state2='state_diag')
+            ds = ds.drop_vars('u_matrix').assign(u_matrix=revised_umatrix)
+
     return ds

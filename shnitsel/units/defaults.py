@@ -100,16 +100,17 @@ def get_default_input_attributes(
             "units": override_defaults(unit_dimensions.time, "time"),
         },
         "phases": {"long_name": "Phase vector"},
-        "sdiag": {
+        "astate_diag": {
             "long_name": "Active state (diag)",
             "fill_value": -1,
         },
         "astate": {
-            "long_name": "Active state in dynamic trajectories (MCH)",
+            "long_name": "Active state (MCH)",
             "fill_value": -1,
         },
-        "state": {"long_name": "Index of relevant states for indexing"},
+        "state": {"long_name": "Index of relevant states for indexing in MCH"},
         "state2": {"long_name": "The second state to build state combinations out of."},
+        "state_diag": {"long_name": "State index in diagonal basis."},
         "state_names": {"long_name": "String representations of the states."},
         "state_types": {
             "long_name": "Multiplicity to indicate whether the respective state is singlet (1), doublet (2), or triplet(3)",
@@ -126,8 +127,11 @@ def get_default_input_attributes(
         "frame": {
             "long_name": "An index enumerating all momentous frames in a set of combined trajectory data"
         },
-        "trajid": {
-            "long_name": "An index in a multi-trajectory dataset to specify, from which original trajectory this entry was merged."
+        "atrajectory": {
+            "long_name": "An index in a multi-trajectory dataset to specify, from which original trajectory this entry was merged. (active trajectory)"
+        },
+        "trajectory": {
+            "long_name": "Index for multi-trajectory datasets for addressing per-trajectory properties"
         },
         "from": {
             "long_name": "An alias for the first state of a statecomb combination"
@@ -180,7 +184,7 @@ def get_default_input_attributes(
             "long_name": "Diag to MCH transformation matrix",
             "units": "1",
             "description": "The U matrix converts from the diag into the MCH matrix like $c_{MCH} = U c_{diag}$. "
-            "As such, the 'state2' dimension should be considered as the index in the diagonal basis and the 'state' dimension as the index in the MCH basis.",
+            "As such, the 'state_diag' dimension should be considered as the index in the diagonal basis and the 'state' dimension as the index in the MCH basis.",
         },
         # history
         # A global attribute for an audit trail. This is a character array with a line for each invocation of a program that has modified the dataset. Well-behaved generic netCDF applications should append a line containing: date, time of day, user name, program name and command arguments.
