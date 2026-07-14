@@ -469,6 +469,21 @@ def read_traj(
         else:
             has_nacs = 'all'
 
+    # We may have spinorbit values in the hamiltonian, but if none were requested, they should be dropped.
+    if is_variable_assigned(trajectory.socs):
+        if 'nospinorbit' in selection_settings:
+            logging.warning(
+                "Dropping SOC data as `nospinorbit` setting indicates all zero."
+            )
+            trajectory = trajectory.drop('socs')
+        else:
+            # If SOCs are all zero, drop them as well:
+            if (np.abs(trajectory.socs) < 1e-40).all():
+                trajectory = trajectory.drop('socs')
+                logging.warning(
+                    "All spin-orbit couplings were zero. SOC entries will be dropped."
+                )
+
     optional_settings = OptionalTrajectorySettings(
         has_forces=has_forces,
         has_nacs=has_nacs,
