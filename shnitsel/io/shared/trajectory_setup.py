@@ -50,7 +50,7 @@ class OptionalTrajectorySettings:
     """
 
     has_forces: bool | Literal["all", "active_only", "selected"] | None = None
-    has_nacs: bool | Literal["all", "active_only", "selected"] | None = None
+    has_nacs: bool | Literal["all", "selected"] | None = None
 
     trajectory_id: int | None = None
     is_multi_trajectory: bool | None = None
@@ -298,7 +298,7 @@ def create_initial_dataset(
         "astate": np.dtypes.Int16DType,
         "astate_diag": np.dtypes.Int16DType,
         "phases": default_float_type,
-        "atNames": "U3", #default_string_type,
+        "atNames": "U3",  # default_string_type,
         "atNums": np.dtypes.Int8DType,
         "state_coefs_diag": np.complex128,
         "prob_hop_diag": default_float_type,
@@ -432,7 +432,7 @@ def create_initial_dataset(
         mark_variable_assigned(res_dataset.state)
     if "state_diag" in res_dataset:
         mark_variable_assigned(res_dataset.state_diag)
-        
+
     if "atom" in res_dataset:
         mark_variable_assigned(res_dataset.atom)
     mark_variable_assigned(res_dataset.direction)
