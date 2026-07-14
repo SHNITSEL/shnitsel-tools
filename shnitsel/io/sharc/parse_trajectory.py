@@ -262,6 +262,14 @@ def read_traj(
                         default_format_attributes["astate"],
                     )
                     mark_variable_assigned(trajectory["astate"])
+            if not is_variable_assigned(trajectory.astate_diag):
+                if "astate_diag" in variables_listings:
+                    trajectory.coords["astate_diag"] = (
+                        "time",
+                        variables_listings["astate_diag"],
+                        default_format_attributes["astate_diag"],
+                    )
+                    mark_variable_assigned(trajectory["astate_diag"])
 
     # TODO: Note that for consistency, we renamed the ts dimension to time to agree with other format
     if (
@@ -325,21 +333,25 @@ def read_traj(
     trajectory = assign_required_settings(trajectory, required_settings)
 
     has_forces = is_variable_assigned(trajectory["forces"])
-    has_nacs = is_variable_assigned(trajectory["forces"])
+    has_nacs = is_variable_assigned(trajectory["nacs"])
     datsettings = misc_settings.get('output.dat', {})
+    inpsettings = misc_settings.get('input', {})
+    logsettings = misc_settings.get('output.log', {})
+
+    selection_settings = datsettings | inpsettings | logsettings
 
     if has_forces:
         if (
-            'grad_select' in datsettings
-            and 'grad_all' not in datsettings
-            and 'nograd_select' not in datsettings
+            'grad_select' in selection_settings
+            and 'grad_all' not in selection_settings
+            and 'nograd_select' not in selection_settings
         ):
             from shnitsel.units.conversion import convert_energy
 
             has_forces = 'selected'
 
             # Energy threshold in eV
-            selection_threshold = abs(float(datsettings.get('eselect', 0.5)))
+            selection_threshold = abs(float(selection_settings.get('eselect', 0.5)))
 
             energy_mch = convert_energy(trajectory.energy, "eV")
 
@@ -350,8 +362,6 @@ def read_traj(
             mask_total_force_zero = raw_forces_norm < 1e-40
             # Assume that the current active state is truly present
             mask_total_force_zero.loc[dict(state=trajectory.astate)] = False
-            # Assume the first frame is there as well
-            mask_total_force_zero.loc[dict(time=trajectory.time.isel(0).item())] = False
 
             try:
                 # Try and calculate the full condition present in SHARC
@@ -372,34 +382,38 @@ def read_traj(
                 )
 
                 # Usually, the selection acts on the next frame except when `select_directly` is present in settings
-                if 'select_directly' not in datsettings:
+                if 'select_directly' not in selection_settings:
                     state_selection_filter = state_selection_filter.shift(
                         time=1, fill_value=False
                     )
 
                 mask_total_force_zero[state_selection_filter] = False
             except:
-                pass
+                if 'select_directly' not in selection_settings:
+                    # Assume the first frame is there as well
+                    mask_total_force_zero.loc[
+                        dict(time=trajectory.time.isel(time=0).item())
+                    ] = False
 
             # mask out all zero-gradients outside of our selection window
-            raw_forces[mask_total_force_zero] = np.nan
+            filtered_forces = raw_forces.where(~mask_total_force_zero, other=np.nan)
 
-            trajectory = trajectory.assign(forces=raw_forces)
+            trajectory = trajectory.assign(forces=filtered_forces)
         else:
             has_forces = 'all'
 
     if has_nacs:
         if (
-            'nac_select' in datsettings
-            and 'nac_all' not in datsettings
-            and 'nonac_select' not in datsettings
+            'nac_select' in selection_settings
+            and 'nac_all' not in selection_settings
+            and 'nonac_select' not in selection_settings
         ):
             from shnitsel.units.conversion import convert_energy
 
             has_nacs = 'selected'
 
             # Energy threshold in eV
-            selection_threshold = abs(float(datsettings.get('eselect', 0.5)))
+            selection_threshold = abs(float(selection_settings.get('eselect', 0.5)))
 
             energy_mch = convert_energy(trajectory.energy, "eV")
 
@@ -410,8 +424,6 @@ def read_traj(
             mask_total_nacs_zero = raw_nacs_norm < 1e-40
             # Assume that the current active state is truly present
             mask_total_nacs_zero.loc[dict(state=trajectory.astate)] = False
-            # Assume the first frame is there as well
-            mask_total_nacs_zero.loc[dict(time=trajectory.time.isel(0).item())] = False
 
             # Our NACs are antisymmetric and only indexed by `from` < `to` indices.
             try:
@@ -435,19 +447,25 @@ def read_traj(
                 )
 
                 # Usually, the selection acts on the next frame except when `select_directly` is present in settings
-                if 'select_directly' not in datsettings:
+                if 'select_directly' not in selection_settings:
                     state_selection_filter = state_selection_filter.shift(
                         time=1, fill_value=False
                     )
 
-                mask_total_nacs_zero.loc[{"from":state_selection_filter, "to": state_selection_filter}] = False
+                mask_total_nacs_zero.loc[
+                    {"from": state_selection_filter, "to": state_selection_filter}
+                ] = False
             except:
-                pass
+                if 'select_directly' not in selection_settings:
+                    # Assume the first frame is there as well
+                    mask_total_nacs_zero.loc[
+                        dict(time=trajectory.time.isel(time=0).item())
+                    ] = False
 
-            # mask out all zero-gradients outside of our selection window
-            raw_nacs[mask_total_nacs_zero] = np.nan
+            # mask out all zero-nacs outside of our selection window
+            filtered_nacs = raw_nacs.where(~mask_total_nacs_zero, other=np.nan)
 
-            trajectory = trajectory.assign(nacs=raw_nacs)
+            trajectory = trajectory.assign(nacs=filtered_nacs)
         else:
             has_nacs = 'all'
 
@@ -581,8 +599,10 @@ def parse_output_listings(path: pathlib.Path) -> tuple[dict[str, Any], dict[str,
         settings["t_max"] = np.max(times)
         variables["time"] = times
 
-        active_state = np.array([int(round(x)) for x in lis_data[:, 2]])
-        variables["astate"] = active_state
+        active_state_mch = np.array([int(round(x)) for x in lis_data[:, 3]])
+        active_state_diag = np.array([int(round(x)) for x in lis_data[:, 2]])
+        variables["astate"] = active_state_mch
+        variables["astate_diag"] = active_state_diag
 
         epot_relative_active = lis_data[:, 5]
         variables["active_state_E"] = epot_relative_active
@@ -753,7 +773,7 @@ def parse_trajout_dat(
     dipole_assigned = False
     phases_assigned = False
     e_kin_assigned = False
-    sdiag_assigned = False
+    astate_diag_assigned = False
     astate_assigned = False
     nacs_assigned = False
     socs_assigned = False
@@ -770,7 +790,7 @@ def parse_trajout_dat(
     tmp_forces = np.full_like(trajectory_in.forces.values, np.nan)
     tmp_phases = np.full_like(trajectory_in.phases.values, np.nan)
     tmp_e_kin = np.full_like(trajectory_in.e_kin.values, np.nan)
-    tmp_sdiag = np.full_like(trajectory_in.sdiag.values, 0, dtype=np.int32)
+    tmp_astate_diag = np.full_like(trajectory_in.astate_diag.values, 0, dtype=np.int32)
     tmp_astate = np.full_like(trajectory_in.astate.values, 0, dtype=np.int32)
     tmp_nacs = np.full_like(trajectory_in.nacs.values, np.nan)
     tmp_socs = np.full_like(trajectory_in.socs, 0 + 0j)
@@ -895,9 +915,9 @@ def parse_trajout_dat(
 
         if line.startswith("! 8 states (diag, MCH)"):
             pair = next(f).strip().split()
-            sdiag_assigned = True
+            astate_diag_assigned = True
             astate_assigned = True
-            tmp_sdiag[ts] = int(pair[0])
+            tmp_astate_diag[ts] = int(pair[0])
             tmp_astate[ts] = int(pair[1])
 
         if line.startswith("! 12 Velocities in a.u."):
@@ -945,8 +965,8 @@ def parse_trajout_dat(
         trajectory_in["forces"].values = tmp_forces
         mark_variable_assigned(trajectory_in["forces"])
 
-    if sdiag_assigned:
-        trajectory_in["astate_diag"].values = tmp_sdiag
+    if astate_diag_assigned:
+        trajectory_in["astate_diag"].values = tmp_astate_diag
         mark_variable_assigned(trajectory_in["astate_diag"])
 
     if astate_assigned:
