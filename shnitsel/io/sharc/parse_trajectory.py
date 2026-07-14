@@ -9,6 +9,7 @@ import logging
 import os
 import re
 
+from shnitsel.analyze.generic import norm
 from shnitsel.io.shared.helpers import (
     PathOptionsType,
     make_uniform_path,
@@ -123,8 +124,9 @@ def read_traj(
         # Unit of dtstep is completely unclear.
         # delta_t = float(settings["dtstep"]) *time_
 
-        nsteps = max(nsteps, int(settings["nsteps"]) + 1)
-        natoms = int(settings["natom"])
+        nsteps = max(nsteps, int(settings.get("nsteps", 0)) + 1)
+        natoms = int(settings.get("natom", -1))
+        natoms = None if natoms < 0 else natoms
 
         energy_offset = settings["ezero"]
         sharc_version = settings["SHARC_version"]
@@ -322,8 +324,136 @@ def read_traj(
 
     trajectory = assign_required_settings(trajectory, required_settings)
 
+    has_forces = is_variable_assigned(trajectory["forces"])
+    has_nacs = is_variable_assigned(trajectory["forces"])
+    datsettings = misc_settings.get('output.dat', {})
+
+    if has_forces:
+        if (
+            'grad_select' in datsettings
+            and 'grad_all' not in datsettings
+            and 'nograd_select' not in datsettings
+        ):
+            from shnitsel.units.conversion import convert_energy
+
+            has_forces = 'selected'
+
+            # Energy threshold in eV
+            selection_threshold = abs(float(datsettings.get('eselect', 0.5)))
+
+            energy_mch = convert_energy(trajectory.energy, "eV")
+
+            raw_forces = trajectory.forces
+            raw_forces_norm = (raw_forces**2).sum(['direction', 'atom'])
+
+            # SHARC prints 0 if the gradient is not calculated
+            mask_total_force_zero = raw_forces_norm < 1e-40
+            # Assume that the current active state is truly present
+            mask_total_force_zero.loc[dict(state=trajectory.astate)] = False
+            # Assume the first frame is there as well
+            mask_total_force_zero.loc[dict(time=trajectory.time.isel(0).item())] = False
+
+            try:
+                # Try and calculate the full condition present in SHARC
+                from shnitsel.data.helpers import get_diagonal_energy
+
+                # Threshold is relative to the diagonal energy levels and the active diagonal state
+                energy_diagonal = convert_energy(get_diagonal_energy(trajectory), "eV")
+                reference_diag_energy = energy_diagonal.sel(
+                    state_diag=trajectory.astate_diag
+                )
+
+                lower_bound = reference_diag_energy - selection_threshold
+                upper_bound = reference_diag_energy + selection_threshold
+
+                # Find positions where the energy based selection should give us the SHARC-selection
+                state_selection_filter = (energy_mch > lower_bound) & (
+                    energy_mch < upper_bound
+                )
+
+                # Usually, the selection acts on the next frame except when `select_directly` is present in settings
+                if 'select_directly' not in datsettings:
+                    state_selection_filter = state_selection_filter.shift(
+                        time=1, fill_value=False
+                    )
+
+                mask_total_force_zero[state_selection_filter] = False
+            except:
+                pass
+
+            # mask out all zero-gradients outside of our selection window
+            raw_forces[mask_total_force_zero] = np.nan
+
+            trajectory = trajectory.assign(forces=raw_forces)
+        else:
+            has_forces = 'all'
+
+    if has_nacs:
+        if (
+            'nac_select' in datsettings
+            and 'nac_all' not in datsettings
+            and 'nonac_select' not in datsettings
+        ):
+            from shnitsel.units.conversion import convert_energy
+
+            has_nacs = 'selected'
+
+            # Energy threshold in eV
+            selection_threshold = abs(float(datsettings.get('eselect', 0.5)))
+
+            energy_mch = convert_energy(trajectory.energy, "eV")
+
+            raw_nacs = trajectory.nacs
+            raw_nacs_norm = (raw_nacs**2).sum(['direction', 'atom'])
+
+            # SHARC prints 0 if the gradient is not calculated
+            mask_total_nacs_zero = raw_nacs_norm < 1e-40
+            # Assume that the current active state is truly present
+            mask_total_nacs_zero.loc[dict(state=trajectory.astate)] = False
+            # Assume the first frame is there as well
+            mask_total_nacs_zero.loc[dict(time=trajectory.time.isel(0).item())] = False
+
+            # Our NACs are antisymmetric and only indexed by `from` < `to` indices.
+            try:
+                # Try and calculate the full condition present in SHARC
+                from shnitsel.data.helpers import get_diagonal_energy
+
+                # Threshold is relative to the diagonal energy levels and the active diagonal state
+                energy_diagonal = convert_energy(get_diagonal_energy(trajectory), "eV")
+                reference_diag_energy = energy_diagonal.sel(
+                    state_diag=trajectory.astate_diag
+                )
+
+                lower_bound = reference_diag_energy - selection_threshold
+                upper_bound = reference_diag_energy + selection_threshold
+
+                # Both MCH state indices must be selected by the bound windows
+
+                # Find positions where the energy based selection should give us the SHARC-selection
+                state_selection_filter = (energy_mch > lower_bound) & (
+                    energy_mch < upper_bound
+                )
+
+                # Usually, the selection acts on the next frame except when `select_directly` is present in settings
+                if 'select_directly' not in datsettings:
+                    state_selection_filter = state_selection_filter.shift(
+                        time=1, fill_value=False
+                    )
+
+                mask_total_nacs_zero.loc[{"from":state_selection_filter, "to": state_selection_filter}] = False
+            except:
+                pass
+
+            # mask out all zero-gradients outside of our selection window
+            raw_nacs[mask_total_nacs_zero] = np.nan
+
+            trajectory = trajectory.assign(nacs=raw_nacs)
+        else:
+            has_nacs = 'all'
+
     optional_settings = OptionalTrajectorySettings(
-        has_forces=is_variable_assigned(trajectory["forces"]),
+        has_forces=has_forces,
+        has_nacs=has_nacs,
         misc_input_settings=misc_settings if len(misc_settings) > 0 else None,
     )
 
