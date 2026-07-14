@@ -423,7 +423,8 @@ def read_traj(
             # SHARC prints 0 if the gradient is not calculated
             mask_total_nacs_zero = raw_nacs_norm < 1e-40
             # Assume that the current active state is truly present
-            mask_total_nacs_zero.loc[dict(state=trajectory.astate)] = False
+            # mask_total_nacs_zero.loc[{"from": trajectory.astate}] = False
+            # mask_total_nacs_zero.loc[{"to": trajectory.astate}] = False
 
             # Our NACs are antisymmetric and only indexed by `from` < `to` indices.
             try:
