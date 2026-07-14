@@ -310,7 +310,7 @@ def normalize_dataset(ds: xr.Dataset | ShnitselDataset) -> xr.Dataset:
             #Assign new variable
             ds = ds.assign({diag_var_name: old_coefs_diag.rename(state='state_diag')})
             
-    if 'u_matrix' in ds.coords:
+    if 'u_matrix' in ds.data_vars:
         #Old template: "u_matrix": ["time", "state", "state2"],
         old_umatrix = ds['u_matrix']
         if 'state2' in old_umatrix.dims:
