@@ -11,6 +11,8 @@ Bug fixes compared to previous version:
 ### Breaking Changes
 
 - To  stay consistent with naming conventions, the active state in diagonal basis will now be called `astate_diag` similar to how `astate` refers to the MCH index.
+- In SHARC inputs, SOC data will now only be present on the dataset if there are non-zero entries and the simulation was not started with the `nospinorbit` setting.
+- Previous versions of shnitsel-data may have read missing gradient and NAC data from SHARC trajectories as all-zero gradients and NACs if `grad_select` or `nac_select` was set. Now these values are correctly set to `NaN` to indicate that the value is not truly available instead of simply reporting the zero-vectors reported in SHARC output files.
 
 ### Features
 
