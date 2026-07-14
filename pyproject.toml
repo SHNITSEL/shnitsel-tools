@@ -30,8 +30,8 @@ dependencies = [
   "ase>=3",              # 3.26.0 currently in testing
   "numpy>=2.3",          # 2.3.6 currently in testing
   "pandas>=2.2",
-  "h5netcdf>=1.7.0",
-  "h5py",
+  "h5netcdf>=1.8.1",
+  "h5py>=3.16",
   "scikit-learn>=1.5",
   "jupyter>=1.0.0",      # TODO: make optional?
   "py3dmol>=2.0.4",      # TODO: make optional?
