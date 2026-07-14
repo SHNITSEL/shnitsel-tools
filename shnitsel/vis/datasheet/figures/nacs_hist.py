@@ -97,26 +97,29 @@ def plot_nacs_histograms(
             if yname == 'energy_interstate':
                 ydata = convert_energy(ydata, to=energy.eV)
 
-            ymax = calc_truncation_maximum(ydata)
-            color = nacs_selection.get_state_combination_color(sc)
-            # color = data['_color'].item()
-            axx.hist(
-                xdata,
-                # range=(0, xmax),
-                color=color,
-                bins=num_bins,
-            )
-            # Don't bother if we have no data
-            if ymax > 0:
-                axy.hist(
-                    ydata,
-                    range=(0, ymax),
-                    orientation='horizontal',
+            try:
+                ymax = calc_truncation_maximum(ydata)
+                color = nacs_selection.get_state_combination_color(sc)
+                # color = data['_color'].item()
+                axx.hist(
+                    xdata,
+                    # range=(0, xmax),
                     color=color,
                     bins=num_bins,
                 )
+                # Don't bother if we have no data
+                if ymax > 0:
+                    axy.hist(
+                        ydata,
+                        range=(0, ymax),
+                        orientation='horizontal',
+                        color=color,
+                        bins=num_bins,
+                    )
 
-            ax.scatter(xdata, ydata, color=color, s=0.2, alpha=0.5, rasterized=rasterized)
+                ax.scatter(xdata, ydata, color=color, s=0.2, alpha=0.5, rasterized=rasterized)
+            except Exception as e:
+                logging.warning(f"Error during render: {e}")
 
     if inter_state.has_variable('energy_interstate'):
         plot('nde', 'energy_interstate', hop_filter_data)
