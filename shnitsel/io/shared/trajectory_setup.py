@@ -49,7 +49,9 @@ class OptionalTrajectorySettings:
     for optional configuration information.
     """
 
-    has_forces: bool | Literal["all", "active_only"] | None = None
+    has_forces: bool | Literal["all", "active_only", "selected"] | None = None
+    has_nacs: bool | Literal["all", "active_only", "selected"] | None = None
+
     trajectory_id: int | None = None
     is_multi_trajectory: bool | None = None
     trajectory_input_path: str | None = None
@@ -294,7 +296,7 @@ def create_initial_dataset(
         "state_degeneracy_group": np.dtypes.Int8DType,
         "state_charges": default_float_type,
         "astate": np.dtypes.Int16DType,
-        "sdiag": np.dtypes.Int16DType,
+        "astate_diag": np.dtypes.Int16DType,
         "phases": default_float_type,
         "atNames": "U3", #default_string_type,
         "atNums": np.dtypes.Int8DType,
