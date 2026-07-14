@@ -476,11 +476,11 @@ def read_traj(
             logging.warning(
                 "Dropping SOC data as `nospinorbit` setting indicates all zero."
             )
-            trajectory = trajectory.drop('socs')
+            trajectory = trajectory.drop_vars('socs')
         else:
             # If SOCs are all zero, drop them as well:
             if (np.abs(trajectory.socs) < 1e-40).all():
-                trajectory = trajectory.drop('socs')
+                trajectory = trajectory.drop_vars('socs')
                 logging.warning(
                     "All spin-orbit couplings were zero. SOC entries will be dropped."
                 )
