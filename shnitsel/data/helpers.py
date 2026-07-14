@@ -344,3 +344,60 @@ def save_split(
             logging.error(f"Exception while saving to {current_path=}")
             if not ignore_errors:
                 raise e
+
+def get_diagonal_energy(ds: xr.Dataset) -> xr.DataArray:
+    """Helper function to calculate diagonal energy levels from MCH energy levels, SOCs and the u_matrix to convert 
+    between MCH and diagonal basis sets.
+
+    Parameters
+    ----------
+    ds : xr.Dataset
+        Dataset for which the diagonal energy should be calculatd.
+
+    Returns
+    -------
+    xr.DataArray
+        The `energy_diag` data for the provided dataset.
+    """
+    assert 'u_matrix' in ds.data_vars, "No U Matrix found in dataset. Cannot convert to diagonal basis."
+    assert 'energy' in ds.data_vars, "No energy found in dataset. Cannot convert energy if energy is missing."
+    assert 'state' in ds.energy.dims, "Cannot convert from one state basis to another. Energy is not indexed by state(MCH)"
+
+    # Construct full hamiltonian matrix
+    mch_energy = ds.energy.transpose(..., "state")
+    diag_H = xr.apply_ufunc(lambda da: np.diag(da), mch_energy, input_core_dims=[['state']], output_core_dims=[['state','state2']], vectorize=True)
+
+    # Convert to complex datatype for diagonalization
+    full_hamiltonian_mch = diag_H.astype(np.complex128)
+
+    if 'socs' in ds.data_vars:
+        # Only fill off-diagonal elements if we have them
+        assert "full_statecomb_from" in ds.coords and "full_statecomb_to" in ds.coords, "Datset is missing state indices associated with the state combinations in the SOCs data. Cannot fill in off-diagonal hamiltonian entries."
+        # Get indices and shift by 1
+        fsc_indices = np.stack([ds.full_statecomb_from.values, ds.full_statecomb_to.values], axis=-1)-1
+        # Put socs values on positions in hamiltonian matrix
+        full_hamiltonian_mch.values[..., *fsc_indices.T] = (ds.socs.values if 'socs' in ds else 0+0j)
+    else:
+        logging.warning("No SOCs set on dataset. Assuming zero spin-orbit-couplings for conversion")
+    
+    # Convert to diagonal basis
+    full_hamiltonian_diag = xr.dot(
+        # Need to rename axes to avoid name clash
+        np.conj(ds.u_matrix).rename(state_diag="state_diag2", state="state2"), 
+        xr.dot(full_hamiltonian_mch, ds.u_matrix, dim='state'), 
+        dim='state2')
+
+    #Construct diagonal basis energies from real diagonal elements. Eigenvalues must be real due to symmetric H.
+    energy_diag = xr.DataArray(
+            np.real(
+                np.diagonal(full_hamiltonian_diag, axis1=-1, axis2=-2)
+            ), 
+            # Replace state with state_diag dimension
+            dims = mch_energy.energy.dims[:-1]+("state_diag",), 
+            # Fill in attributes and coordinates that may get lost otherwise
+            coords= full_hamiltonian_diag.coords, 
+            attrs=ds.energy.attrs,
+            name='energy_diag'
+        )
+
+    return energy_diag
