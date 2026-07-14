@@ -349,6 +349,8 @@ def get_diagonal_energy(ds: xr.Dataset) -> xr.DataArray:
     """Helper function to calculate diagonal energy levels from MCH energy levels, SOCs and the u_matrix to convert 
     between MCH and diagonal basis sets.
 
+    Note that the dataset requires data variables for `energy` `u_matrix` and optionally `socs` to accurately derive the diagonal energies.
+
     Parameters
     ----------
     ds : xr.Dataset
