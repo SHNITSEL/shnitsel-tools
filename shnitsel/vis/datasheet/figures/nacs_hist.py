@@ -97,16 +97,21 @@ def plot_nacs_histograms(
             if yname == 'energy_interstate':
                 ydata = convert_energy(ydata, to=energy.eV)
 
+            color = nacs_selection.get_state_combination_color(sc)
+            # color = data['_color'].item()
+
             try:
-                ymax = calc_truncation_maximum(ydata)
-                color = nacs_selection.get_state_combination_color(sc)
-                # color = data['_color'].item()
                 axx.hist(
                     xdata,
                     # range=(0, xmax),
                     color=color,
                     bins=num_bins,
                 )
+            except Exception as e:
+                logging.warning(f"Error during render: {e}")
+                
+            try:
+                ymax = calc_truncation_maximum(ydata)
                 # Don't bother if we have no data
                 if ymax > 0:
                     axy.hist(
@@ -116,7 +121,10 @@ def plot_nacs_histograms(
                         color=color,
                         bins=num_bins,
                     )
+            except Exception as e:
+                logging.warning(f"Error during render: {e}")
 
+            try:
                 ax.scatter(xdata, ydata, color=color, s=0.2, alpha=0.5, rasterized=rasterized)
             except Exception as e:
                 logging.warning(f"Error during render: {e}")
