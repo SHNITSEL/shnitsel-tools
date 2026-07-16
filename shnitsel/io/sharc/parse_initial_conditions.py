@@ -374,6 +374,8 @@ def read_iconds_individual(
     path_obj: pathlib.Path = make_uniform_path(path)  # type: ignore
     # Read settings and initial setup from QM.in
     qm_in_path = path_obj / "QM.in"
+    qm_log_path = path_obj / "QM.log"
+    qm_out_path = path_obj / "QM.out"
     info = {}
     if qm_in_path.is_file():
         with open(qm_in_path) as f:
@@ -395,16 +397,22 @@ def read_iconds_individual(
 
     # logging.info("Reading ICONDs data into Dataset...")
 
-    with open(path_obj / "QM.out") as f:
-        parse_QM_out(f, out=iconds, loading_parameters=loading_parameters)
+    if qm_out_path.is_file():
+        with open(qm_out_path) as f:
+            parse_QM_out(f, out=iconds, loading_parameters=loading_parameters)
+    else:
+        raise FileNotFoundError(f"Missing QM.out file at : {qm_out_path}")
 
-        # if we have found the version, use it.
     try:
-        with open(path_obj / "QM.log") as f:
-            parse_QM_log_geom(f, out=iconds)
+        if qm_log_path.is_file():
+            with open(qm_log_path) as f:
+                parse_QM_log_geom(f, out=iconds)
 
-        if "input_format_version" in iconds:
-            sharc_version = iconds.attrs["input_format_version"]
+            # if we have found the version, use it.
+            if "input_format_version" in iconds:
+                sharc_version = iconds.attrs["input_format_version"]
+        else:
+            raise FileNotFoundError("Missing QM.log file")
     except FileNotFoundError:
         # This should be an error. We probably cannot recover from this and action needs to be taken
         logging.info(
@@ -577,18 +585,17 @@ def parse_QM_in(qm_in: TextIOWrapper) -> dict[str, Any]:
     # The geometry block begins on the first non-empty line;
     # that line must consist of an integer.
     for i, line in enumerate(all_lines):
-        if len(stripline:=line.strip()) > 0:
+        if len(stripline := line.strip()) > 0:
             info["num_atoms"] = (num_atoms := int(stripline))
-            geom_block = all_lines[i : i+num_atoms+2]
-            rest_block = all_lines[i+num_atoms+2:]
+            geom_block = all_lines[i : i + num_atoms + 2]
+            rest_block = all_lines[i + num_atoms + 2 :]
             break
     else:
         # FIXME: This is possibly a misleading choice of exception. After all, we did _find_ the file...
         raise FileNotFoundError("QM.in did not contain all necessary information")
-    
+
     if len(geom_block) < num_atoms + 2:
         raise FileNotFoundError("QM.in did not contain all necessary information")
-
 
     atXYZ = np.full((num_atoms, 3), np.nan)
     atNames = np.full((num_atoms,), "", dtype="U8")
@@ -917,7 +924,7 @@ def parse_QM_out(
                 next(f)
                 for atom in range(natoms.v):
                     res["forces"][istate][atom] = [
-                        - float(entry) for entry in next(f).strip().split()
+                        -float(entry) for entry in next(f).strip().split()
                     ]
 
         elif line.startswith("! 5 Non-adiabatic couplings"):
