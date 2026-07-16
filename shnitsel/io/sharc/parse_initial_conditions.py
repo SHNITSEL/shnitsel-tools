@@ -600,7 +600,7 @@ def parse_QM_in(qm_in: TextIOWrapper) -> dict[str, Any]:
     atXYZ = np.full((num_atoms, 3), np.nan)
     atNames = np.full((num_atoms,), "", dtype="U8")
 
-    for line in geom_block[2:]:
+    for i, line in enumerate(geom_block[2:]):
         line_parts = [x.strip() for x in line.split()]
         atNames[i] = line_parts[0]
         atXYZ[i] = [float(x) for x in line_parts[1:4]]
