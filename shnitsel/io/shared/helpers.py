@@ -198,7 +198,7 @@ def dip_sep(dipoles: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
     return dip_perm, dip_trans
 
 
-def random_trajid_assigner(path: pathlib.Path) -> int:
+def random_trajid_assigner(path: pathlib.Path, limit:int=2**31-1) -> int:
     """Function to generate a random id for a path.
 
     Parameters
@@ -212,4 +212,4 @@ def random_trajid_assigner(path: pathlib.Path) -> int:
         the chosen trajectory id
     """
 
-    return random.randint(0, 2**31 - 1)
+    return random.randint(0, limit)
