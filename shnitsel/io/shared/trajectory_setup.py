@@ -1,4 +1,5 @@
 from dataclasses import asdict, dataclass
+import dataclasses
 from itertools import combinations, permutations
 import math
 from typing import Dict, List, Literal, Tuple, TypeVar
@@ -159,6 +160,36 @@ def assign_optional_settings(
     kv_dict = {k: v for k, v in asdict(settings).items() if v is not None}
     res = dataset.assign_attrs(kv_dict)
     return res if isinstance(dataset, xr.Dataset) else wrap_dataset(res)
+
+
+def read_optional_settings(
+    dataset: xr.Dataset | ShnitselDataset,
+) -> OptionalTrajectorySettings:
+    """
+    Function to get all assigned optional settings to a dataset.
+
+    Just a handy tool so we can be sure the settings are assigned with the correct keys.
+
+    Parameters
+    ----------
+    dataset : xr.Dataset | Trajectory | Frames
+        The dataset/trajectory to write the optional settings into
+    settings : OptionalTrajectorySettings
+        The dataclass object that has all optional setting keys with optional values. Only assigned settings (not None) will be inserted.
+    """
+    tmp_res = OptionalTrajectorySettings(
+        has_forces=dataset.attrs.get('has_forces', None),
+        has_nacs=dataset.attrs.get('has_nacs', None),
+        trajectory_id=int(i)
+        if (i := dataset.attrs.get('trajectory_id', None)) is not None
+        else i,
+        is_multi_trajectory=dataset.attrs.get('is_multi_trajectory', None),
+        trajectory_input_path=dataset.attrs.get('trajectory_input_path', None),
+        theory_basis_set=dataset.attrs.get('theory_basis_set', None),
+        est_level=dataset.attrs.get('est_level', None),
+        misc_input_settings=dataset.attrs.get('misc_input_settings', None),
+    )
+    return tmp_res
 
 
 def get_statecomb_coordinate(states: xr.DataArray) -> xr.Coordinates:

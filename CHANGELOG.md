@@ -24,6 +24,7 @@ Bug fixes compared to previous version:
 - Reading SHARC trajectories could occasionally fail because the number of steps in the log did overwrite all num_steps info from other parsed files. Now calculated as the maximum encountered size across files.
 - Fix a bug when plotting transition statistics in the Datasheet, where the plot crashes if there are no excited-state transitions except those involving the groundstate.
 - Fix a bug where the parsing of initial conditions fails to read the atom types/elements correctly from QM.in if QM.log is missing.
+- Fix the trajectory id accidentally being overwritten when reloading a trajectory from a netcdf4 file.
 
 ## shnitsel-tools v2026.5.1
 

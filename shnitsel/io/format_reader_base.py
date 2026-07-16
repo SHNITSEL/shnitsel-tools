@@ -35,6 +35,7 @@ from shnitsel.io.shared.trajectory_setup import (
     OptionalTrajectorySettings,
     assign_optional_settings,
     fill_missing_dataset_variables,
+    read_optional_settings,
 )
 from shnitsel.io.shared.variable_flagging import mark_variable_assigned
 from shnitsel.data.xr_io_compatibility import SupportsFromXrConversion
@@ -320,9 +321,10 @@ class FormatReader(ABC):
                     rebuild_type = type(temp_traj)
                     temp_traj = temp_traj.dataset
 
-                # Set some optional settings.
-                optional_settings = OptionalTrajectorySettings()
-                if "trajectory_input_path" not in temp_traj.attrs:
+                # Get configured optional settings.
+                optional_settings = read_optional_settings(temp_traj)
+
+                if optional_settings.trajectory_input_path is None:
                     # Do not overwrite original path
                     optional_settings.trajectory_input_path = path_obj.as_posix()
 
@@ -330,7 +332,7 @@ class FormatReader(ABC):
 
                 # If trajid has been extracted from the input path, set it
                 if format_info is not None:
-                    if "trajid" not in temp_traj and "trajectory_id" not in temp_traj:
+                    if optional_settings.trajectory_id is None:
                         # If trajid has been extracted from the input path, set it
                         if loading_parameters.trajectory_id is not None:
                             # the trajectory_id assignment should have been transformed into a callable
