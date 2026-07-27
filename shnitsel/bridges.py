@@ -322,7 +322,7 @@ def construct_default_mol(
             raise ValueError("Not enough information to construct molecule from object")
     elif isinstance(obj, ShnitselDataset):
         if '__mol' in obj.attrs:
-            return rc.Mol(obj.attrs['__mol'])
+            return sap(rc.Mol(obj.attrs['__mol']))
         if '__mol' in obj.coords:
             return sap(rc.Mol(obj.coords['__mol'].item()))
         atXYZ = _most_stable_frame(obj.positions, obj)
