@@ -95,7 +95,7 @@ class ShnitselDataset(SupportsFromXrConversion, SupportsToXrConversion):
     def positions(self):
         if "atXYZ" not in self.dataset.data_vars:
             raise KeyError("No coordinate `atXYZ` provided for the trajectory")
-        return self.dataset.data_vars["state"]
+        return self.dataset.data_vars["atXYZ"]
 
     @property
     def state_ids(self):
