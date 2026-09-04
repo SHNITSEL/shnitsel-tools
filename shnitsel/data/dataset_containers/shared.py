@@ -730,6 +730,29 @@ class ShnitselDataset(SupportsFromXrConversion, SupportsToXrConversion):
     #     self, key: Hashable | Iterable[Hashable] | Mapping, value: Any
     # ) -> None:
 
+    def _param_from_vars_or_attrs(self, key: str) -> Any | None:
+        """Helper function to extract information either from a data var or from
+        a coordinate or from the attributes of the dataset
+
+        Parameters
+        ----------
+        key : str
+            The key under which we expect to find the data
+
+        Returns
+        -------
+        Any|None
+            the value associated with the key that has been found
+        """
+        # TODO: FIXME: Apply aliases here?
+        if key in self._raw_dataset.data_vars:
+            return self._raw_dataset.data_vars[key]
+        if key in self._raw_dataset.coords:
+            return self._raw_dataset.coords[key]
+        elif key in self._raw_dataset.attrs:
+            return self._raw_dataset.attrs.get(key, None)
+        return None
+
 
 @dataclass
 class ShnitselDerivedDataset(
