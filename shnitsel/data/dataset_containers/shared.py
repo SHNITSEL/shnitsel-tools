@@ -92,6 +92,12 @@ class ShnitselDataset(SupportsFromXrConversion, SupportsToXrConversion):
         return self.leading_dim
 
     @property
+    def positions(self):
+        if "atXYZ" not in self.dataset.data_vars:
+            raise KeyError("No coordinate `atXYZ` provided for the trajectory")
+        return self.dataset.data_vars["state"]
+
+    @property
     def state_ids(self):
         if "state" not in self.dataset.coords:
             raise KeyError("No coordinate `state` provided for the trajectory")
@@ -556,12 +562,12 @@ class ShnitselDataset(SupportsFromXrConversion, SupportsToXrConversion):
         if not name.startswith("_") and name in dir(self._raw_dataset):
             return getattr(self._raw_dataset, name)
 
-        try:
-            return self.__getattribute__(name)
-        except:
-            raise AttributeError(
-                f"{type(self).__name__!r} object has no attribute {name!r}"
-            )
+        # try:
+        return self.__getattribute__(name)
+        # except:
+        #     raise AttributeError(
+        #         f"{type(self).__name__!r} object has no attribute {name!r}"
+        #     )
 
     def __contains__(self, a):
         return self._raw_dataset.__contains__(a)
