@@ -556,9 +556,12 @@ class ShnitselDataset(SupportsFromXrConversion, SupportsToXrConversion):
         if not name.startswith("_") and name in dir(self._raw_dataset):
             return getattr(self._raw_dataset, name)
 
-        raise AttributeError(
-            f"{type(self).__name__!r} object has no attribute {name!r}"
-        )
+        try:
+            return self.__getattribute__(name)
+        except:
+            raise AttributeError(
+                f"{type(self).__name__!r} object has no attribute {name!r}"
+            )
 
     def __contains__(self, a):
         return self._raw_dataset.__contains__(a)
